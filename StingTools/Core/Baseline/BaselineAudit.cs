@@ -38,6 +38,17 @@ namespace StingTools.Core.Baseline
         public string Name = "";
         public string Detail = "";
 
+        /// <summary>
+        /// Exact identity for the minter, when Name is not unique on its own.
+        /// Two categories can want the same type name, and matching on a
+        /// display string assembled with " / " would mean the minter re-parses
+        /// what the auditor formatted — a seam that breaks the first time the
+        /// formatting changes.
+        /// </summary>
+        public string Key = "";
+
+        public string MatchKey => string.IsNullOrEmpty(Key) ? Group + "|" + Name : Key;
+
         public bool IsActionable => Kind == BaselineFindingKind.Missing;
     }
 
@@ -54,6 +65,20 @@ namespace StingTools.Core.Baseline
         /// <summary>Category display name → the type names present in it.</summary>
         public Dictionary<string, List<string>> FamilyTypesByCategory =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Category display name → the FAMILY names loaded in it.
+        /// Distinct from FamilyTypesByCategory, which holds type names.</summary>
+        public Dictionary<string, List<string>> FamilyNamesByCategory =
+            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>"Category|TypeName" → type parameter values in mm. Only the
+        /// parameters the baseline asks about are collected.</summary>
+        public Dictionary<string, Dictionary<string, double>> FamilyTypeParamsMm =
+            new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Family name → the parameter names it already carries.</summary>
+        public Dictionary<string, HashSet<string>> FamilyParamNames =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Host type name → whether it carries a tiled finish layer.
         /// Absent means the type was not inspected.</summary>
@@ -123,6 +148,9 @@ namespace StingTools.Core.Baseline
                 });
             }
 
+            AuditFamilyTypes(r, baseline.FamilyTypes, model);
+            AuditFamilyParameters(r, baseline.FamilyParameters, model);
+
             foreach (var f in baseline.FamilyExpectations ?? new List<BaselineFamilyExpectation>())
             {
                 if (f == null || string.IsNullOrWhiteSpace(f.Category)) continue;
@@ -176,6 +204,174 @@ namespace StingTools.Core.Baseline
                 r.Findings.Add(new BaselineFinding
                 {
                     Kind = BaselineFindingKind.Present, Group = group, Name = name, Detail = t.Purpose
+                });
+            }
+        }
+
+        /// <summary>
+        /// Layer 2. A type is only MISSING when a loaded family can host it -
+        /// otherwise Apply would promise work it cannot do. That is the same
+        /// split FamilyExpectation reports, applied one level down.
+        /// </summary>
+        private static void AuditFamilyTypes(BaselineAuditResult r,
+            List<BaselineFamilyType> wanted, ModelInventory model)
+        {
+            const string group = "Family types";
+            foreach (var ft in wanted ?? new List<BaselineFamilyType>())
+            {
+                if (ft == null || string.IsNullOrWhiteSpace(ft.TypeName)
+                    || string.IsNullOrWhiteSpace(ft.Category)) continue;
+
+                string cat = ft.Category.Trim(), typeName = ft.TypeName.Trim();
+                string key = group + "|" + cat + "|" + typeName;
+                string display = cat + " / " + typeName;
+
+                string host = HostFamilyFor(ft, model);
+                if (host == null)
+                {
+                    r.Findings.Add(new BaselineFinding
+                    {
+                        Kind = BaselineFindingKind.Guidance, Group = group,
+                        Name = display, Key = key,
+                        Detail = "no loaded family in this category matches ["
+                               + string.Join(" | ", (ft.FamilyNamePatterns ?? new List<string>())
+                                   .Where(x => !string.IsNullOrWhiteSpace(x)))
+                               + "]. Load one; a type cannot be minted without a family to hold it."
+                    });
+                    continue;
+                }
+
+                model.FamilyTypesByCategory.TryGetValue(cat, out var existing);
+                bool present = existing != null && existing.Any(t =>
+                    string.Equals(t, typeName, StringComparison.OrdinalIgnoreCase));
+
+                if (!present)
+                {
+                    r.Findings.Add(new BaselineFinding
+                    {
+                        Kind = BaselineFindingKind.Missing, Group = group,
+                        Name = display, Key = key,
+                        Detail = "in family [" + host + "] - " + DescribeParams(ft) + ft.Purpose
+                    });
+                    continue;
+                }
+
+                // Present. Same name, different dimensions is a CONFLICT. The
+                // model version may be deliberate, and overwriting a door type
+                // somebody authored is not a fix.
+                var differs = ParamsThatDiffer(ft, cat, typeName, model);
+                if (differs.Count > 0)
+                {
+                    r.Findings.Add(new BaselineFinding
+                    {
+                        Kind = BaselineFindingKind.Conflict, Group = group,
+                        Name = display, Key = key,
+                        Detail = "exists with different " + string.Join(", ", differs)
+                               + ". Not overwritten - rename the baseline type, or accept the "
+                               + "model version as correct for this project."
+                    });
+                    continue;
+                }
+
+                r.Findings.Add(new BaselineFinding
+                {
+                    Kind = BaselineFindingKind.Present, Group = group,
+                    Name = display, Key = key, Detail = ft.Purpose
+                });
+            }
+        }
+
+        /// <summary>First loaded family in the category matching any pattern, or null.</summary>
+        public static string HostFamilyFor(BaselineFamilyType ft, ModelInventory model)
+        {
+            if (ft == null || model == null || string.IsNullOrWhiteSpace(ft.Category)) return null;
+            if (!model.FamilyNamesByCategory.TryGetValue(ft.Category.Trim(), out var families)
+                || families == null) return null;
+
+            foreach (string pattern in ft.FamilyNamePatterns ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(pattern)) continue;
+                foreach (string fam in families)
+                    if (!string.IsNullOrWhiteSpace(fam)
+                        && fam.IndexOf(pattern.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
+                        return fam;
+            }
+            return null;
+        }
+
+        private static List<string> ParamsThatDiffer(BaselineFamilyType ft, string cat,
+                                                     string typeName, ModelInventory model)
+        {
+            var differs = new List<string>();
+            if (!model.FamilyTypeParamsMm.TryGetValue(cat + "|" + typeName, out var actual)
+                || actual == null)
+                return differs;   // not collected - cannot claim a difference
+
+            foreach (var p in ft.Parameters ?? new List<BaselineFamilyTypeParam>())
+            {
+                if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                if (!actual.TryGetValue(p.Name.Trim(), out double have)) continue;
+                if (Math.Abs(have - p.ValueMm) > 0.5)   // sub-mm is rounding, not a difference
+                    differs.Add(p.Name + " (" + have.ToString("N0") + " mm, baseline says "
+                              + p.ValueMm.ToString("N0") + " mm)");
+            }
+            return differs;
+        }
+
+        private static string DescribeParams(BaselineFamilyType ft)
+        {
+            var named = (ft.Parameters ?? new List<BaselineFamilyTypeParam>())
+                .Where(p => p != null && !string.IsNullOrWhiteSpace(p.Name)).ToList();
+            if (named.Count == 0) return "";
+            return string.Join(", ", named.Select(p => p.Name + " " + p.ValueMm.ToString("N0"))) + " - ";
+        }
+
+        /// <summary>
+        /// Layer 3. One finding per CATEGORY, not per family: a report listing
+        /// forty families is not read, and the decision (augment doors?) is
+        /// taken per category anyway.
+        /// </summary>
+        private static void AuditFamilyParameters(BaselineAuditResult r,
+            List<BaselineFamilyParameterSet> wanted, ModelInventory model)
+        {
+            const string group = "Family parameters";
+            foreach (var fp in wanted ?? new List<BaselineFamilyParameterSet>())
+            {
+                if (fp == null || string.IsNullOrWhiteSpace(fp.Category)) continue;
+                string cat = fp.Category.Trim();
+                string key = group + "|" + cat;
+
+                var names = (fp.Parameters ?? new List<string>())
+                    .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+                if (names.Count == 0) continue;
+
+                model.FamilyNamesByCategory.TryGetValue(cat, out var families);
+                families = families ?? new List<string>();
+                if (families.Count == 0)
+                {
+                    r.Findings.Add(new BaselineFinding
+                    {
+                        Kind = BaselineFindingKind.Guidance, Group = group, Name = cat, Key = key,
+                        Detail = "no families are loaded in this category, so there is nothing to augment."
+                    });
+                    continue;
+                }
+
+                int needing = families.Count(f =>
+                {
+                    model.FamilyParamNames.TryGetValue(f, out var have);
+                    return names.Any(n => have == null || !have.Contains(n));
+                });
+
+                r.Findings.Add(new BaselineFinding
+                {
+                    Kind = needing > 0 ? BaselineFindingKind.Missing : BaselineFindingKind.Present,
+                    Group = group, Name = cat, Key = key,
+                    Detail = needing > 0
+                        ? needing + " of " + families.Count + " loaded famil(ies) lack "
+                          + names.Count + " shared type parameter(s): " + string.Join(", ", names)
+                        : "all " + families.Count + " loaded famil(ies) already carry "
+                          + names.Count + " parameter(s)"
                 });
             }
         }
