@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
 import kut_docs_lib as K  # noqa: E402
+import kut_naming as N  # noqa: E402
 
 OUT = 'KUT_BIM_Execution_Plan.docx'
 
@@ -115,7 +116,8 @@ c.table(['Item', 'Detail'],
         [['Project name', 'Kampala Uganda Temple'],
          ['Project code', 'KUT'],
          ['Location', '[FILL — address, Kampala, Uganda]'],
-         ['Description', '[FILL — temple and ancillary buildings, gross floor area, storeys]'],
+         ['Description', 'Temple and ancillary buildings across %d volumes; %s m² gross internal area. Storeys per volume are given in the level and grid register'
+                        % (len([v for v in N.VOLUMES if v[3]]), format(N.GROSS_AREA_M2, ','))],
          ['Procurement route', '[FILL]'],
          ['Form of contract', '[FILL]'],
          ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months. '
@@ -127,12 +129,10 @@ c.table(['Item', 'Detail'],
 c.h2('1.3  Volumes')
 c.para('The project is divided into seven volumes. The volume governs how models are divided and federated, '
        'and forms a field in every container name and asset identifier.')
-c.table(['Volume code', 'Volume', 'Numbering value'],
-        [['BLD1', 'Temple', '01'], ['BLD2', 'Meetinghouse', '02'],
-         ['BLD3', 'Housing and ancillary', '03'], ['BLD4', 'Grounds', '04'],
-         ['BLD5', 'Utility', '05'], ['BLD6', 'Guard house', '06'],
-         ['EXT', 'Site-wide and external works', '00']],
-        widths=[3.4, 7.6, 5.6])
+c.table(['Volume code', 'Volume', 'Numbering value', 'Gross internal area'],
+        [[code, name, num, ('%s m²' % format(area, ',')) if area else '—']
+         for num, code, name, area in N.VOLUMES if code != 'ZZ'],
+        widths=[3.0, 6.2, 3.4, 4.0])
 
 c.h2('1.4  Objectives and information uses')
 c.table(['#', 'Objective', 'Information use', 'Success measure'],
@@ -334,15 +334,9 @@ c.callout('Until a row is closed, the affected discipline works to the **statuto
           'the same conflict differently and the difference surfacing at tender.', 'Working position while a row is open')
 
 c.h2('4.2  Container naming convention')
-c.mono('KUT - ' + ORIGINATOR + ' - 01 - GF - M3 - A - 0001')
+c.mono(N.example_name())
 c.table(['Field', 'Length', 'Permitted values'],
-        [['Project', '3', 'KUT'],
-         ['Originator', '[FILL — 3, subject to Section 4.2.1]', 'Per the originator register'],
-         ['Volume', '2', '01 to 06 per Section 1.3; 00 site-wide; ZZ all volumes'],
-         ['Level', '2', 'B1, GF, 01 upward, RF, ZZ all levels, XX not applicable'],
-         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR, TR, BQ'],
-         ['Role', '1 to 2', 'A, S, M, E, P, FP, LV, G. Z is used for multi-discipline and federated containers'],
-         ['Number', '4', 'Sequential within the set']],
+        N.container_fields('[FILL — %d, subject to Section 4.2.1]' % N.ORIGINATOR_LENGTH),
         widths=[2.6, 3.6, 10.4])
 
 c.h3('4.2.1  Originator register')

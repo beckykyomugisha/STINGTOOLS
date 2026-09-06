@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate the three issued KUT documents against each other and against the data.
+"""Gate the issued KUT documents against each other and against the data.
 
     python tools/check_kut_documents.py            # exits 0 or 1
     python tools/check_kut_documents.py --verbose  # also print what passed
@@ -10,13 +10,14 @@ describes. The issued pack had no equivalent. Its cross-document consistency was
 verified exactly once, by an ad-hoc script that was never committed, and those
 checks would rot the moment somebody edited one generator and not the others.
 
-The pack is three documents that restate the same facts for three audiences:
+The pack restates the same facts for different audiences:
 
-    KUT_BIM_Execution_Plan.docx              what the project requires
-    KUT_Project_Delivery_Playbook.docx       how a task team satisfies it
+    KUT_BIM_Execution_Plan.docx                what the project requires
+    KUT_Project_Delivery_Playbook.docx         how a task team satisfies it
+    KUT_Document_Control_Standard.docx         how a container is named and issued
     KUT_Master_Information_Delivery_Plan.xlsx  when each deliverable lands
 
-Restating a fact three times is a drift generator. A stage LOD corrected in the
+Restating a fact four times is a drift generator. A stage LOD corrected in the
 BEP and not the playbook leaves two documents both claiming to be authoritative,
 and the consultant reads whichever they were sent.
 
@@ -26,7 +27,7 @@ CONFIGURATION the gate actually enforces:
 
   1. every document is a current regeneration and has not been hand-edited;
   2. stages, LODs, suitability codes, volumes, roles and document references
-     agree across all three;
+     agree across every document that states them;
   3. the asset tier tables agree with project-templates/KUT/_BIM_COORD/
      lod_matrix.json, which is what the LOD gate runs against;
   4. no tooling is named in a document a client or consultant reads;
@@ -56,6 +57,7 @@ import kut_docs_lib as K  # noqa: E402
 BEP = "KUT_BIM_Execution_Plan.docx"
 PLAYBOOK = "KUT_Project_Delivery_Playbook.docx"
 MIDP = "KUT_Master_Information_Delivery_Plan.xlsx"
+STANDARD = "KUT_Document_Control_Standard.docx"
 
 OVERLAY = "project-templates/KUT/_BIM_COORD/lod_matrix.json"
 BASELINE = "docs/examples/KUT/placeholder_baseline.json"
@@ -165,7 +167,7 @@ def check_freshness(root: Path, f: Findings, verbose: bool):
             print("  fresh + unedited: %s" % name)
 
 
-# -- 2. the three documents agree with each other ----------------------------
+# -- 2. the documents agree with each other ----------------------------
 
 OVERLAY_DIR = "project-templates/KUT/_BIM_COORD"
 
@@ -235,6 +237,30 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
             f.fail(str(path), "discipline-code-valid allows %s, which BEP 4.2 does not list"
                               % ", ".join(stray))
         f.ok()
+
+    # The Document Control Standard states the same convention as a procedure.
+    # Both render from tools/kut_naming.py, so they cannot differ today -- this
+    # check exists so that stops being true loudly rather than quietly if
+    # somebody writes a table back out by hand in either document.
+    std_path = root / STANDARD
+    if std_path.exists():
+        std_t = K.docx_tables(std_path)
+        st = find_table(std_t, "Field", "Length", "Permitted values")
+        if st is None:
+            f.fail(STANDARD, 'no "Field / Length / Permitted values" table -- the '
+                             "standard exists to state the container naming convention")
+        else:
+            bep_rows = {cell(r, 0): cell(r, 2) for r in t[1:]}
+            std_rows = {cell(r, 0): cell(r, 2) for r in st[1:]}
+            for field in sorted(set(bep_rows) | set(std_rows)):
+                a, b = bep_rows.get(field), std_rows.get(field)
+                if a is None or b is None:
+                    f.fail(STANDARD, "field %r appears in only one of the plan and the "
+                                     "standard" % field)
+                elif a != b and "FILL" not in a and "FILL" not in b:
+                    f.fail(STANDARD, "field %r reads %r here and %r in the plan"
+                                     % (field, b, a))
+            f.ok()
 
     if verbose:
         print("  naming: BEP roles %s; pattern %s" % (",".join(sorted(roles)), pattern))
@@ -1002,7 +1028,7 @@ def main() -> int:
     print("KUT document gate OK.")
     print("  Issued documents gated              : %d" % len(K.ISSUED))
     print("  Assertions passed                   : %d" % f.checked)
-    print("  Provenance + content stamps         : both match on all three")
+    print("  Provenance + content stamps         : both match on all %d" % len(K.ISSUED))
     print("  Placeholders (legitimate at P01)    : %s"
           % ", ".join("%s=%d" % (n.split("_")[1], c) for n, c in sorted(counts.items())))
     for n in f.notes:
