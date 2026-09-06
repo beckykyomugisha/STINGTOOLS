@@ -76,6 +76,13 @@ namespace StingTools.BOQ.Rates
         public int Priority => 96;
         public bool RequiresNetwork => false;
 
+        // An UNBOUND parameter and a bound-but-empty one both read as 0, and this
+        // provider treats 0 as "no Fohlio price" either way — correct as a rate
+        // decision, useless as a diagnosis. A project that never loaded the shared
+        // parameters would see FF&E priced off the rate book with nothing said. Latched
+        // so it is one log line per session, not one per element.
+        private static int _unboundReported;
+
         public RateLookup Resolve(RateRequest req)
         {
             if (req?.Element == null) return null;
@@ -95,7 +102,7 @@ namespace StingTools.BOQ.Rates
                         if (string.IsNullOrEmpty(currency)) currency = snap.Currency;
                     }
                 }
-                if (cost <= 0) return null;
+                if (cost <= 0) { ReportIfUnbound(req.Element); return null; }
 
                 return new RateLookup
                 {
@@ -114,6 +121,34 @@ namespace StingTools.BOQ.Rates
             {
                 StingLog.Warn($"FohlioRateProvider: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>Say so, once, when FOHLIO_UNIT_COST_NR is not bound on the element at
+        /// all — which means this provider can never fire in this model, however much
+        /// Fohlio data the project has imported. Distinguished from bound-and-empty,
+        /// which is the ordinary "this element is not an FF&amp;E item" case and says
+        /// nothing.</summary>
+        private static void ReportIfUnbound(Element el)
+        {
+            if (System.Threading.Interlocked.CompareExchange(ref _unboundReported, 1, 0) != 0) return;
+            try
+            {
+                if (ParameterHelpers.CachedLookup(el, ParamRegistry.FOHLIO_UNIT_COST) != null)
+                {
+                    // Bound — nothing to report. Release the latch so a later element that
+                    // genuinely lacks the binding can still be the one that reports.
+                    System.Threading.Interlocked.Exchange(ref _unboundReported, 0);
+                    return;
+                }
+                StingLog.Warn(
+                    $"FohlioRateProvider: {ParamRegistry.FOHLIO_UNIT_COST} is not bound in this model, so Owner-procured " +
+                    "FF&E cannot be priced from the Fohlio register and will fall through to the material-library / CSV " +
+                    "rate. Run Load Shared Parameters to bind it, then re-run the BOQ. (Reported once per session.)");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FohlioRateProvider unbound check: {ex.Message}");
             }
         }
     }

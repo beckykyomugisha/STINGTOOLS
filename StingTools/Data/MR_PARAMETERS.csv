@@ -1,4 +1,4 @@
-# v6.8 | 20260906 | 3585 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 20260906 | 3587 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3594,3 +3594,5 @@ Generic Models,BLE_RAMP_HANDRAIL_TXT,e8d38671-8d8b-5902-a545-d7d6f0a2477e,TEXT,B
 Generic Models,CLN_HOIST_TRACK_TXT,3531c44b-b6bc-593b-a444-0d33d92c0a00,TEXT,CLN_CLINICAL,Instance,CLN_HOIST_TRACK_BOOL display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,HVC_SIZE_STALE_TXT,5de70b4b-5edd-5121-a237-c134befdfe49,TEXT,HVC_SYSTEMS,Instance,HVC_SIZE_STALE_BOOL display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,ASS_CST_STALE_TXT,59de159f-ea20-5f57-b508-5679ddc19d37,TEXT,CST_PROC,Instance,ASS_CST_STALE_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,FOHLIO_UNIT_COST_NR,b6e507ab-bab5-5b7f-aecd-ca78bd14f4c5,NUMBER,ASS_MNG,Instance,Fohlio procurement unit cost in FOHLIO_CURRENCY_TXT [not project currency],False,,,MULTI,1,0
+Generic Models,FOHLIO_CURRENCY_TXT,f369abea-4433-541c-a409-128ec9c1675e,TEXT,ASS_MNG,Instance,Fohlio quote currency ISO 4217 [e.g. USD],False,,,MULTI,1,0

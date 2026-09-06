@@ -166,6 +166,22 @@
     <None Include="..\project-templates\KUT\_BIM_COORD\fohlio_map.json" Link="Data\kut_fohlio_map.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- The parameter sources the Fohlio rate chain depends on. None of this is
+         compile-checked: a parameter absent from the shared-parameter file cannot be
+         loaded, and one absent from RESOLVED_BINDINGS.csv is read by SharedParamGuids
+         as intentionally UNBOUND. Both failures read as "no Fohlio price". -->
+    <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\MR_PARAMETERS.csv" Link="Data\MR_PARAMETERS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\RESOLVED_BINDINGS.csv" Link="Data\RESOLVED_BINDINGS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\PARAMETER_REGISTRY.json" Link="Data\PARAMETER_REGISTRY.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:
          a mistyped field leaves the POCO at its default and goes runtime-dead. Parsing
          the real file with the real parser is what catches that. -->
