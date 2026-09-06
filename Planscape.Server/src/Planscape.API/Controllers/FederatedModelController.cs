@@ -67,7 +67,11 @@ public class FederatedModelController : ControllerBase
     public async Task<ActionResult> PostDelta(
         Guid projectId,
         IFormFile? glb,
-        IFormFile? deletedIds)
+        IFormFile? deletedIds,
+        // The authoring document these elements came from — Revit's
+        // ProjectInformation.UniqueId. Optional for back-compat with plugins
+        // that predate it; see the resolution order at the docGuid assignment.
+        [FromForm] string? sourceDocGuid = null)
     {
         var tenantId = GetTenantId();
         var project  = await _db.Projects.AsNoTracking()
@@ -184,7 +188,19 @@ public class FederatedModelController : ControllerBase
                     "Delta for project {ProjectId}: GLB parsed but carried no node extras — " +
                     "the exporter may not be writing uniqueId/elementId.", projectId);
             }
-            var docGuid = User.FindFirst("source_doc_guid")?.Value ?? "revit-plugin";
+            // Resolution order: what the caller sent > a source_doc_guid claim >
+            // the shared placeholder.
+            //
+            // The form field is new, and it matters: nothing in this codebase
+            // has ever ISSUED a source_doc_guid claim, so every Revit delta to
+            // date landed in the placeholder bucket. That is why the placeholder
+            // cannot be treated as an identity — ModelsController.Delete refuses
+            // to cascade on it, and this is the field that lets a new delta be
+            // attributed to its real document instead.
+            var docGuid =
+                (!string.IsNullOrWhiteSpace(sourceDocGuid) ? sourceDocGuid.Trim() : null)
+                ?? User.FindFirst("source_doc_guid")?.Value
+                ?? FederatedElement.UnknownSourceDocGuid;
 
             foreach (var node in nodes)
             {

@@ -98,7 +98,7 @@ namespace StingTools.Commands.IFC
             // are skipped (skip-don't-mis-key) — run "Stabilize IFC GUIDs" first
             // to populate the canonical 22-char key.
             var ifcElements = BuildIfcElements(doc);
-            string hostDocGuid = doc.ProjectInformation?.UniqueId ?? doc.PathName ?? "host";
+            string hostDocGuid = StingTools.Core.SourceDocumentId.For(doc);
             string revitUser = uiApp.Application?.Username ?? "";
             StingLog.Info($"IFC_PushModel: built {ifcElements.Count} IFC-data element(s) with a stabilised GlobalId.");
 
@@ -110,7 +110,7 @@ namespace StingTools.Commands.IFC
                     byte[] glb = GlbSerializer.Serialize(buffers);
                     StingLog.Info($"IFC_PushModel: GLB serialised ({glb.Length / 1024:N0} kB), uploading…");
 
-                    bool ok = await client.PostGeometryDeltaAsync(glb, System.Array.Empty<long>());
+                    bool ok = await client.PostGeometryDeltaAsync(glb, System.Array.Empty<long>(), hostDocGuid);
                     StingLog.Info(ok
                         ? $"IFC_PushModel: geometry upload succeeded ({glb.Length / 1024:N0} kB)"
                         : $"IFC_PushModel: geometry upload failed — {client.LastError}");

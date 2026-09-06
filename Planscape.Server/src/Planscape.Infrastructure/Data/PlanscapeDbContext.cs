@@ -379,6 +379,10 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.FileName).HasMaxLength(260);
             e.Property(x => x.StoragePath).HasMaxLength(600);
             e.Property(x => x.ContentHash).HasMaxLength(64);
+            // Same width as FederatedElement.SourceDocGuid — they hold the same
+            // string and the model-delete cascade joins on it.
+            e.Property(x => x.SourceDocGuid).HasMaxLength(100);
+            e.HasIndex(x => new { x.ProjectId, x.SourceDocGuid });
             e.Property(x => x.ThumbnailPath).HasMaxLength(600);
             e.Property(x => x.ElementMapPath).HasMaxLength(600);
             e.Property(x => x.Units).HasMaxLength(8);

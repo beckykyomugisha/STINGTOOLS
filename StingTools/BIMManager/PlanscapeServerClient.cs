@@ -1515,7 +1515,17 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// deletedElementIds are tombstoned on the server.
     /// Uses <see cref="CurrentProjectId"/> — silently no-ops if not set.
     /// </summary>
-    public async Task<bool> PostGeometryDeltaAsync(byte[] glbBytes, IList<long> deletedElementIds)
+    /// <param name="sourceDocGuid">
+    /// The authoring document these elements came from
+    /// (<see cref="StingTools.Core.SourceDocumentId.For"/>). The server records
+    /// it on every FederatedElement, and it is the only key a later model
+    /// delete has for identifying which federated geometry to retire — without
+    /// it the elements land in a shared placeholder bucket the cascade refuses
+    /// to act on. Optional so an older server that ignores the field still
+    /// accepts the delta.
+    /// </param>
+    public async Task<bool> PostGeometryDeltaAsync(
+        byte[] glbBytes, IList<long> deletedElementIds, string? sourceDocGuid = null)
     {
         if (CurrentProjectId == Guid.Empty) return false;
         if (!await EnsureAuthenticatedAsync()) return false;
@@ -1540,6 +1550,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
                     Newtonsoft.Json.JsonConvert.SerializeObject(deletedElementIds),
                     System.Text.Encoding.UTF8, "application/json");
                 content.Add(jsonContent, "deletedIds");
+            }
+
+            if (!string.IsNullOrWhiteSpace(sourceDocGuid))
+            {
+                content.Add(new System.Net.Http.StringContent(
+                    sourceDocGuid, System.Text.Encoding.UTF8), "sourceDocGuid");
             }
 
             var resp = await http.PostAsync(
@@ -2204,6 +2220,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
         int? elementCount = null,
         double[]? bounds = null,
         bool force = false,
+        // The authoring document this GLB was exported from
+        // (StingTools.Core.SourceDocumentId.For). The server stores it on the
+        // ProjectModel and matches it against the FederatedElement rows the
+        // geometry-delta pipeline wrote, so deleting the model actually retires
+        // its federated geometry. Omit it and the server skips that cascade.
+        string? sourceDocGuid = null,
         // B2 — optional georeferencing. Sent as METADATA beside the geometry,
         // never baked into the mesh: a site at easting 432,000 m would put every
         // vertex ~432 km from the origin, where 32-bit float loses millimetre
@@ -2252,6 +2274,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
             AddField("Discipline", discipline);
             AddField("Revision", revision);
             AddField("Units", units);
+            AddField("SourceDocGuid", sourceDocGuid);
             if (force) AddField("Force", "true");
             if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
             // B2 — georef block. Field names match UploadModelRequest exactly.
