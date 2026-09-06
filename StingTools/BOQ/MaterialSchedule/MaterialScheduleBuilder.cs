@@ -42,6 +42,11 @@ namespace StingTools.BOQ.MaterialSchedule
 
             result.CompoundTakeoffWasOff = !Takeoff.CompoundTakeoffBuilder.Enabled();
 
+            // Before the take-off, not after: the scan counts what THIS run
+            // inspected, and a stale count from a previous export would answer
+            // the wrong question.
+            Takeoff.CompoundTakeoffBuilder.TileFinishScan.Reset();
+
             var boq = BOQCostManager.BuildBOQDocument(doc);
             var inputs = new AggregatorInputs
             {
@@ -101,6 +106,12 @@ namespace StingTools.BOQ.MaterialSchedule
                 result.Warnings.Add(
                     $"{result.RowsWithoutKind} of {result.ConstituentRowsSeen} model rows carried no "
                   + $"constituent kind and were routed to the default stage.");
+
+            // Reported whether or not tiling was found. A schedule with no tiling
+            // rows is either a model that describes no finishes or a pattern that
+            // failed to recognise them, and only the denominator tells them apart.
+            string tileScan = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Summary();
+            if (!string.IsNullOrEmpty(tileScan)) result.Warnings.Add(tileScan);
 
             StingLog.Info($"MaterialScheduleBuilder: {msDoc.Stages.Count} stage(s), "
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
