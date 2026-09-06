@@ -132,6 +132,16 @@ namespace StingTools.BOQ.MaterialSchedule
             AppendSiteTools(doc, msDoc, lib, inputs.Rates, result);
             Reconciler.Check(msDoc);
 
+            // After every row exists and every rate is resolved, and after the
+            // site-tools and manual rows are appended so their rates count too.
+            // The column says it per row; this says it once.
+            if (msDoc.Options.ShowPrices)
+            {
+                string provenance = RateProvenanceLabel.Summary(
+                    msDoc.Stages.SelectMany(st => st.Commodities));
+                if (!string.IsNullOrEmpty(provenance)) msDoc.Warnings.Add(provenance);
+            }
+
             result.Document = msDoc;
             if (result.CompoundTakeoffWasOff)
                 result.Warnings.Add(

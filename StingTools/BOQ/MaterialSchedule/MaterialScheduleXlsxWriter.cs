@@ -41,8 +41,14 @@ namespace StingTools.BOQ.MaterialSchedule
                 $"MATERIAL SCHEDULE — {doc.ProjectName}"
                 + (priced ? "" : "  (QUANTITIES ONLY — NO PRICES)"));
 
+            // "Rate source" is column 9, AFTER Amount, not between Rate and it.
+            // Amount is column 8 and is written by four separate paths (commodity,
+            // labour, provisional sum, sub-total); inserting mid-table would move
+            // every one of them and the F*G formula with them, to gain nothing a
+            // reader would notice.
             string[] cols = priced
-                ? new[] { "Item", "Description", "Unit", "Net Qty", "Waste %", "Order Qty", "Rate UGX", "Amount UGX" }
+                ? new[] { "Item", "Description", "Unit", "Net Qty", "Waste %", "Order Qty",
+                          "Rate UGX", "Amount UGX", "Rate source" }
                 : new[] { "Item", "Description", "Unit", "Net Qty", "Waste %", "Order Qty" };
 
             int row = 3;
@@ -87,6 +93,7 @@ namespace StingTools.BOQ.MaterialSchedule
                         // A memorandum row gets NO rate cell and NO formula. Its
                         // constituents carry the money; leaving an empty rate
                         // cell here is what invited pricing the same wall twice.
+                        ws.Cell(row, 9).Value = RateProvenanceLabel.For(c);
                         if (c.IsMemorandum)
                         {
                             ws.Cell(row, 8).Value = "—";
