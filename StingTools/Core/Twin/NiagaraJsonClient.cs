@@ -57,46 +57,24 @@ namespace StingTools.Core.Twin
         }
     }
 
-    public sealed class NiagaraPoint { public string Status = ""; public bool HasValue; }
-
     public static class NiagaraJsonClient
     {
         private static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
-        /// <summary>Pure parse of a Niagara/oBIX points-feed JSON into deviceId →
-        /// point. Tolerant of the common shapes: a bare array, { points:[…] }, or a
-        /// dict keyed by id. Each point carries id/name/deviceId + status +
-        /// present_value/out/value. Host-free so it is unit-testable.</summary>
+        /// <summary>Parse a Niagara/oBIX points feed into deviceId → point. The shape
+        /// handling lives in <see cref="NiagaraPointParser"/>, which carries no logging so
+        /// it can be linked into the Revit-free test projects; this wrapper adds the
+        /// logging and keeps the dictionary-returning signature its callers use.</summary>
         public static Dictionary<string, NiagaraPoint> ParsePoints(string json)
         {
-            var d = new Dictionary<string, NiagaraPoint>(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(json)) return d;
-            try
-            {
-                var tok = JToken.Parse(json);
-                JArray arr = tok as JArray ?? (tok as JObject)?["points"] as JArray;
-                if (arr != null) { foreach (var t in arr) AddPoint(d, t as JObject); }
-                else if (tok is JObject obj)
-                    foreach (var pr in obj.Properties()) AddPoint(d, pr.Value as JObject, pr.Name);
-            }
-            catch (Exception ex) { StingLog.Warn($"Niagara parse: {ex.Message}"); }
-            return d;
-        }
-
-        private static void AddPoint(Dictionary<string, NiagaraPoint> d, JObject o, string keyFallback = null)
-        {
-            if (o == null) return;
-            string id = ((string)o["deviceId"] ?? (string)o["id"] ?? (string)o["name"] ?? keyFallback ?? "").Trim();
-            if (id.Length == 0) return;
-            var val = o["present_value"] ?? o["presentValue"] ?? o["out"] ?? o["value"] ?? o["val"];
-            // Type-safe presence test — never (string)-cast a JArray (throws). oBIX
-            // <real val="…"/> arrives as an object with a "val" child; primitives arrive
-            // as JValue; an absent/null value means a configured-but-dead point.
-            bool hasVal;
-            if (val == null || val.Type == JTokenType.Null) hasVal = false;
-            else if (val.Type == JTokenType.Object) { var inner = val["val"]; hasVal = inner != null && inner.Type != JTokenType.Null && !string.IsNullOrWhiteSpace(inner.ToString()); }
-            else hasVal = !string.IsNullOrWhiteSpace(val.ToString());
-            d[id] = new NiagaraPoint { Status = (string)o["status"] ?? "", HasValue = hasVal };
+            var r = NiagaraPointParser.Parse(json);
+            if (r.Failed) StingLog.Warn($"Niagara parse: {r.Error}");
+            // A feed whose id field we do not read yields an EMPTY dictionary, which reads
+            // downstream as "no asset is commissioned" — the same as a station with nothing
+            // on it. Say which one it was.
+            if (r.SkippedNoId > 0)
+                StingLog.Warn($"Niagara parse: {r.SkippedNoId} entr(ies) carried no deviceId/id/name and were skipped.");
+            return r.Points;
         }
 
         /// <summary>GET the station points feed (read-only). Returns null on any
