@@ -33,20 +33,20 @@ namespace StingTools.Core.Clash
 
         private readonly Document _doc;
         private readonly object _lock = new object();
-        private readonly Dictionary<int, ClashMeshBuffer> _meshByEid = new Dictionary<int, ClashMeshBuffer>();
+        private readonly Dictionary<long, ClashMeshBuffer> _meshByEid = new Dictionary<long, ClashMeshBuffer>();
         // rec-1: Cache OBB trees by element id so the live narrow-phase can descend
         // rather than brute-force. Rebuilt on RefreshElement, dropped on RemoveElement.
-        private readonly Dictionary<int, ObbTree> _obbByEid = new Dictionary<int, ObbTree>();
+        private readonly Dictionary<long, ObbTree> _obbByEid = new Dictionary<long, ObbTree>();
         // A1: Per-element neighbour index — element id → set of element ids it
         // currently clashes with. Lets RefreshElement compute the diff for ONE
         // element without nuking flags on unrelated elements. Maintained
         // symmetrically: when (a,b) clashes, both _clashNeighbours[a] and
         // _clashNeighbours[b] contain each other.
-        private readonly Dictionary<int, HashSet<int>> _clashNeighbours = new Dictionary<int, HashSet<int>>();
+        private readonly Dictionary<long, HashSet<long>> _clashNeighbours = new Dictionary<long, HashSet<long>>();
         // A4: Lazily-built per-element ElementFacts cache so the live path can
         // populate System/Workset alongside Category. Invalidated on
         // RefreshElement / RemoveElement for the affected element id.
-        private readonly Dictionary<int, ElementFacts> _factsCache = new Dictionary<int, ElementFacts>();
+        private readonly Dictionary<long, ElementFacts> _factsCache = new Dictionary<long, ElementFacts>();
         // B3: Volatile timestamp of the last dirty mark — read by ClashRunEvent
         // to gate hourly full runs. Defaults to "now" so the very first
         // scheduled run always fires (previous-baseline state).
@@ -63,11 +63,11 @@ namespace StingTools.Core.Clash
         //     normal _clashNeighbours map (e.g. the matrix doesn't
         //     normally consider its category). Useful when iteratively
         //     fixing a hard-to-pin-down clash.
-        private readonly HashSet<int> _watchedElements = new HashSet<int>();
-        public void Watch(int elementId)    { lock (_lock) _watchedElements.Add(elementId); }
-        public void Unwatch(int elementId)  { lock (_lock) _watchedElements.Remove(elementId); }
-        public bool IsWatched(int elementId) { lock (_lock) return _watchedElements.Contains(elementId); }
-        public IReadOnlyCollection<int> WatchedSnapshot()
+        private readonly HashSet<long> _watchedElements = new HashSet<long>();
+        public void Watch(long elementId)    { lock (_lock) _watchedElements.Add(elementId); }
+        public void Unwatch(long elementId)  { lock (_lock) _watchedElements.Remove(elementId); }
+        public bool IsWatched(long elementId) { lock (_lock) return _watchedElements.Contains(elementId); }
+        public IReadOnlyCollection<long> WatchedSnapshot()
         {
             lock (_lock) return _watchedElements.ToArray();
         }
@@ -86,7 +86,7 @@ namespace StingTools.Core.Clash
         // live-clash observer; compiler can't see the delegation path so it
         // warns CS0067. Suppress rather than delete — the contract is used.
 #pragma warning disable CS0067
-        public event Action<int, bool> OnElementFlagChanged;   // (eid, isFlagged)
+        public event Action<long, bool> OnElementFlagChanged;   // (eid, isFlagged)
         public event Action<ClashRunRecord> OnRunCompleted;    // raised by SeedFromRun
 #pragma warning restore CS0067
 
@@ -139,15 +139,14 @@ namespace StingTools.Core.Clash
         /// runs narrow-phase on its neighbours, and returns the new flag set for this element
         /// plus any neighbours whose flag state changed.
         /// </summary>
-        public LiveClashResult RefreshElement(int elementId)
+        public LiveClashResult RefreshElement(long elementId)
         {
             var result = new LiveClashResult();
             try
             {
                 // B3: dirty-model tracking for the scheduler.
                 MarkDirty();
-                // ElementId(int) ctor is obsolete in Revit 2024+; use Int64 overload.
-                var element = _doc.GetElement(new ElementId((long)elementId));
+                var element = _doc.GetElement(new ElementId(elementId));
                 if (element == null) return RemoveElement(elementId);
 
                 var fresh = TryExtractOneElement(element);
@@ -174,10 +173,10 @@ namespace StingTools.Core.Clash
                     // Each hit pair contains target (this elementId) and other.
                     // Skip any "other" hit that is a self-clash (shouldn't
                     // happen — guarded by ReferenceEquals — but be defensive).
-                    var newNeighbours = new HashSet<int>();
+                    var newNeighbours = new HashSet<long>();
                     foreach (var h in hits)
                     {
-                        int otherId = h.A.ElementId == elementId ? h.B.ElementId : h.A.ElementId;
+                        long otherId = h.A.ElementId == elementId ? h.B.ElementId : h.A.ElementId;
                         if (otherId == elementId) continue;
                         newNeighbours.Add(otherId);
                     }
@@ -189,7 +188,7 @@ namespace StingTools.Core.Clash
                     // back-edge. This keeps the map consistent and lets us
                     // ask "does element X still clash with anything?" in O(1).
                     _clashNeighbours.TryGetValue(elementId, out var oldNeighbours);
-                    oldNeighbours = oldNeighbours ?? new HashSet<int>();
+                    oldNeighbours = oldNeighbours ?? new HashSet<long>();
 
                     foreach (var oldId in oldNeighbours)
                     {
@@ -206,7 +205,7 @@ namespace StingTools.Core.Clash
                         if (oldNeighbours.Contains(newId)) continue;
                         if (!_clashNeighbours.TryGetValue(newId, out var otherSet))
                         {
-                            otherSet = new HashSet<int>();
+                            otherSet = new HashSet<long>();
                             _clashNeighbours[newId] = otherSet;
                         }
                         otherSet.Add(elementId);
@@ -262,7 +261,7 @@ namespace StingTools.Core.Clash
             return result;
         }
 
-        public LiveClashResult RemoveElement(int elementId)
+        public LiveClashResult RemoveElement(long elementId)
         {
             var result = new LiveClashResult();
             // B3: dirty-model tracking for the scheduler.
@@ -318,7 +317,7 @@ namespace StingTools.Core.Clash
             var result = new LiveClashResult();
             lock (_lock)
             {
-                var newFlagged = new HashSet<int>();
+                var newFlagged = new HashSet<long>();
                 foreach (var c in run.Clashes)
                 {
                     if (c.State == "Resolved" || c.State == "Void") continue;
@@ -357,7 +356,7 @@ namespace StingTools.Core.Clash
             }
         }
 
-        private HashSet<int> _flaggedIds = new HashSet<int>();
+        private HashSet<long> _flaggedIds = new HashSet<long>();
 
         // D10: Thread-static reusable buffers for the per-element extractor.
         //      LiveClashHandler can fire many times per second during dragging
@@ -396,7 +395,7 @@ namespace StingTools.Core.Clash
                 // clash-kernel's per-element identity hash.
                 string ifc = element.UniqueId ?? "";
 
-                var key = new ClashElementKey(docGuid, -1, (int)element.Id.Value, element.UniqueId, ifc);
+                var key = new ClashElementKey(docGuid, -1, element.Id.Value, element.UniqueId, ifc);
                 // ToArray copies — necessary because the mesh buffer outlives the
                 // pooled lists (next extraction reuses the same backing storage).
                 return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
@@ -526,14 +525,14 @@ namespace StingTools.Core.Clash
         private ElementFacts ResolveFacts(ClashMeshBuffer m)
         {
             if (m == null) return new ElementFacts();
-            int eid = m.Key?.ElementId ?? 0;
+            long eid = m.Key?.ElementId ?? 0;
             if (_factsCache.TryGetValue(eid, out var cached)) return cached;
             var facts = new ElementFacts { Category = m.Category ?? "" };
             try
             {
                 if (eid != 0 && _doc != null)
                 {
-                    var el = _doc.GetElement(new ElementId((long)eid));
+                    var el = _doc.GetElement(new ElementId(eid));
                     if (el != null)
                     {
                         facts.System = ReadElementSystem(el);
@@ -674,7 +673,7 @@ namespace StingTools.Core.Clash
     public sealed class LiveClashResult
     {
         public List<ClashHit> CurrentHits { get; } = new List<ClashHit>();
-        public HashSet<int> NewlyFlagged { get; } = new HashSet<int>();
-        public HashSet<int> NewlyCleared { get; } = new HashSet<int>();
+        public HashSet<long> NewlyFlagged { get; } = new HashSet<long>();
+        public HashSet<long> NewlyCleared { get; } = new HashSet<long>();
     }
 }

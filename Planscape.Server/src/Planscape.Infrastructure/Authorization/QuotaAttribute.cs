@@ -23,12 +23,10 @@ namespace Planscape.Infrastructure.Authorization;
 public sealed class QuotaAttribute : Attribute, IAsyncActionFilter
 {
     private readonly QuotaAxis _axis;
-    private readonly string? _projectRoleHint;
 
-    public QuotaAttribute(QuotaAxis axis, string? projectRoleHint = null)
+    public QuotaAttribute(QuotaAxis axis)
     {
         _axis = axis;
-        _projectRoleHint = projectRoleHint;
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -36,10 +34,16 @@ public sealed class QuotaAttribute : Attribute, IAsyncActionFilter
         var guard = context.HttpContext.RequestServices.GetRequiredService<IQuotaGuardService>();
         QuotaResult result = _axis switch
         {
-            QuotaAxis.Projects     => await guard.CheckCanAddProjectAsync(),
-            QuotaAxis.Authors      => await guard.CheckCanAddUserAsync(_projectRoleHint ?? "Author"),
-            QuotaAxis.Coordinators => await guard.CheckCanAddUserAsync(_projectRoleHint ?? "Coordinator"),
-            _                      => QuotaResult.Allow(_axis, 0, int.MaxValue),
+            QuotaAxis.Projects => await guard.CheckCanAddProjectAsync(),
+
+            // Storage is the ONLY axis that reaches here, and allowing it is
+            // correct rather than a fallback: the byte count is not known until
+            // the request body is read, so upload controllers call
+            // CheckCanUploadBytesAsync in the action body instead (see the
+            // class summary). The per-user axes that used to sit here are gone
+            // — QuotaAxis no longer declares them, so naming one is a compile
+            // error rather than something this arm would wave through.
+            _ => QuotaResult.Allow(_axis, 0, int.MaxValue),
         };
 
         if (!result.Allowed)

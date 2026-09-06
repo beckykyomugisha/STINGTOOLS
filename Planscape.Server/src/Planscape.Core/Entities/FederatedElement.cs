@@ -20,6 +20,19 @@ public class FederatedElement : ITenantScoped
     public Guid TenantId  { get; set; }
     public Guid ProjectId { get; set; }
 
+    /// <summary>
+    /// Placeholder written when a delta arrives without a source-document GUID —
+    /// every Revit delta before the plugin started sending one, since the
+    /// endpoint's only other source was a <c>source_doc_guid</c> claim that
+    /// nothing has ever issued.
+    ///
+    /// <para>It is a bucket, not an identity: elements from DIFFERENT documents
+    /// share it. Anything keying off <see cref="SourceDocGuid"/> to decide what
+    /// belongs to what must refuse to match on this value — see
+    /// <c>ModelsController.Delete</c>.</para>
+    /// </summary>
+    public const string UnknownSourceDocGuid = "revit-plugin";
+
     /// <summary>Source document GUID (Revit ProjectInformation.UniqueId or IFC GUID).</summary>
     public string SourceDocGuid { get; set; } = "";
 

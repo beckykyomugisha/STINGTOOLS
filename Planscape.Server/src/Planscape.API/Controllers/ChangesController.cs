@@ -98,7 +98,12 @@ public class ChangesController : ControllerBase
         var items = rows.Select(t => new
         {
             kind = "tag",
-            globalId = t.UniqueId,
+            // R1 — emit the canonical cross-host key. For non-Revit rows UniqueId
+            // already IS the GlobalId; for Revit rows IfcGlobalId (once populated)
+            // is the true GlobalId a Python/ArchiCAD host keys on — without this a
+            // Revit edit reached those hosts with the 45-char Revit UniqueId and
+            // was dropped as `absent`. Falls back to UniqueId when unknown.
+            globalId = t.IfcGlobalId ?? t.UniqueId,
             lastModifiedUtc = t.LastModifiedUtc,
             payload = new
             {

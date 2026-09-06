@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
+using StingTools.Core.Mep;
 
 namespace StingTools.Core.Calc
 {
@@ -107,6 +108,15 @@ namespace StingTools.Core.Calc
             }
 
             if (result.Pipes.Count == 0) return result;
+
+            // ── Resolve control valves / PICVs per pipe (Tier-3 3.2) ──────
+            // Best-effort: walk connected OST_PipeAccessory instances, match
+            // their family/type name against the rules ValveCv / PicvCurves
+            // catalogue, and attach Kvs / authority-window data to the owning
+            // NetworkPipe. Guarded — any failure leaves the pipe valve-free so
+            // the balance behaves exactly as before.
+            try { AttachValves(doc, result); }
+            catch (Exception ex) { result.Warnings.Add($"Valve resolution skipped: {ex.Message}"); }
 
             // Fundamental-cycle basis via DFS. Walk every node;
             // maintain spanning tree; when an edge closes a cycle,
@@ -213,6 +223,139 @@ namespace StingTools.Core.Calc
                 cycle.Add((pf.pipeId, fromN, toN));
             }
             return cycle;
+        }
+
+        /// <summary>
+        /// Resolve control valves / PICVs sitting on each extracted pipe and
+        /// copy their Kvs + PICV authority-window data onto the NetworkPipe.
+        /// Matching walks the pipe's connectors to any adjoining
+        /// OST_PipeAccessory family instance and matches its family / type /
+        /// instance name against every (brand, productCode) in the rules
+        /// catalogue by case-insensitive substring. First match wins.
+        /// </summary>
+        private static void AttachValves(Document doc, NetworkExtraction result)
+        {
+            MepSizingRules rules;
+            try { rules = MepSizingRegistry.Get(doc); }
+            catch { return; }
+            if (rules == null) return;
+
+            // Nothing to match against — bail so we don't scan the model for free.
+            bool hasCatalogue =
+                (rules.ValveCv?.Any(b => b.Value != null && b.Value.Count > 0) ?? false) ||
+                (rules.PicvCurves?.Any(b => b.Value != null && b.Value.Count > 0) ?? false);
+            if (!hasCatalogue) return;
+
+            foreach (var np in result.Pipes)
+            {
+                if (!result.PipeIdByNetworkId.TryGetValue(np.Id, out var pid)) continue;
+                var pipe = doc.GetElement(pid) as Pipe;
+                if (pipe == null) continue;
+
+                foreach (var acc in ConnectedAccessories(doc, pipe))
+                {
+                    string name = ComposeName(acc);
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    // PICV takes precedence (more specific data than plain Kvs).
+                    var picv = MatchPicv(rules, name, out string picvLabel);
+                    if (picv != null)
+                    {
+                        np.PicvQMaxLs   = picv.QMaxLs;
+                        np.PicvDpMinKpa = picv.DpMinKpa;
+                        np.PicvDpMaxKpa = picv.DpMaxKpa;
+                        np.ValveLabel   = picvLabel;
+                        // A PICV usually also has a Kvs for out-of-window behaviour.
+                        double kvs = MatchKvs(rules, name, out _);
+                        if (kvs > 0) np.ValveKvs = kvs;
+                        break;
+                    }
+
+                    double kvsOnly = MatchKvs(rules, name, out string kvsLabel);
+                    if (kvsOnly > 0)
+                    {
+                        np.ValveKvs   = kvsOnly;
+                        np.ValveLabel = kvsLabel;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<FamilyInstance> ConnectedAccessories(Document doc, Pipe pipe)
+        {
+            var seen = new HashSet<long>();
+            ConnectorSet conns = null;
+            try { conns = pipe.ConnectorManager?.Connectors; } catch { }
+            if (conns == null) yield break;
+            foreach (Connector c in conns)
+            {
+                ConnectorSet refs = null;
+                try { refs = c.AllRefs; } catch { }
+                if (refs == null) continue;
+                foreach (Connector r in refs)
+                {
+                    Element owner = null;
+                    try { owner = r.Owner; } catch { }
+                    if (owner is FamilyInstance fi && owner.Category != null)
+                    {
+                        var bic = (BuiltInCategory)owner.Category.Id.Value;
+                        if (bic == BuiltInCategory.OST_PipeAccessory && seen.Add(owner.Id.Value))
+                            yield return fi;
+                    }
+                }
+            }
+        }
+
+        private static string ComposeName(FamilyInstance fi)
+        {
+            try
+            {
+                string fam  = fi.Symbol?.Family?.Name ?? "";
+                string type = fi.Symbol?.Name ?? "";
+                string inst = fi.Name ?? "";
+                return $"{fam} {type} {inst}".Trim();
+            }
+            catch { return ""; }
+        }
+
+        private static PicvCurve MatchPicv(MepSizingRules rules, string name, out string label)
+        {
+            label = "";
+            if (rules.PicvCurves == null) return null;
+            foreach (var brand in rules.PicvCurves)
+            {
+                if (brand.Value == null) continue;
+                foreach (var code in brand.Value)
+                {
+                    if (code.Value == null) continue;
+                    if (name.IndexOf(code.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        label = $"{brand.Key}:{code.Key} (PICV)";
+                        return code.Value;
+                    }
+                }
+            }
+            return null;
+        }
+
+        private static double MatchKvs(MepSizingRules rules, string name, out string label)
+        {
+            label = "";
+            if (rules.ValveCv == null) return 0;
+            foreach (var brand in rules.ValveCv)
+            {
+                if (brand.Value == null) continue;
+                foreach (var code in brand.Value)
+                {
+                    if (name.IndexOf(code.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        label = $"{brand.Key}:{code.Key} (Kvs {code.Value:F1})";
+                        return code.Value;
+                    }
+                }
+            }
+            return 0;
         }
 
         private static double ReadFlowM3S(Pipe pipe)

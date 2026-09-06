@@ -192,3 +192,65 @@ export function ErrorNote({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/**
+ * Inline FORBIDDEN state — the app's fourth answer, alongside loading, empty
+ * and error (#558).
+ *
+ * WHY IT IS NOT AN ErrorNote. A refusal is a correct answer to a legitimate
+ * request. Rendering it in the error treatment tells the user something went
+ * wrong and sends them to IT, when what they need is to ask whoever holds the
+ * role. The two must be distinguishable at a glance, not only by reading the
+ * sentence — hence `warning` rather than `danger`, and the lock.
+ *
+ * `role="status"` rather than `role="alert"` for the same reason: assertive
+ * announcement is for things that have gone wrong.
+ *
+ * The MESSAGE is the caller's, and it should name the capability or role
+ * ("You need the Owner or Admin role to invite people to the firm."), never
+ * the HTTP status. What this component owns is the treatment, so the app has
+ * one instead of one per screen.
+ */
+export function ForbiddenNote({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="status"
+      className="flex gap-2 rounded border border-warning/40 bg-warning-subtle px-3 py-2 text-sm text-warning"
+    >
+      <span aria-hidden="true">🔒</span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Whole-pane forbidden state, for a page whose entire content was refused.
+ *
+ * `hint` is where "here is what you CAN do" goes — the team page's pointer to
+ * project-level membership is the model. A forbidden state that only says no
+ * leaves the user with nowhere to go.
+ */
+export function ForbiddenPanel({
+  message,
+  hint,
+}: {
+  message: ReactNode;
+  hint?: ReactNode;
+}) {
+  return (
+    <Card>
+      <div role="status" className="flex gap-2">
+        <span aria-hidden="true" className="text-warning">
+          🔒
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm text-fg">{message}</p>
+          {hint && <p className="mt-1 text-sm text-fg-muted">{hint}</p>}
+          <p className="mt-2 text-xs text-fg-subtle">
+            This is not a failure — the server refused the request because of your role.
+          </p>
+        </div>
+      </div>
+    </Card>
+  );
+}

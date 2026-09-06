@@ -148,6 +148,22 @@ export interface DocumentRecord {
   originator: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * #633 — where this document may go next, and whether approval is needed
+   * first, computed server-side from the ISO 19650-2 state machine.
+   *
+   * OPTIONAL ON PURPOSE. A server that predates the field omits it, and that
+   * is UNKNOWN, not "no transitions available". The two are different answers
+   * and only one of them is a refusal — see documents.tsx for how the screen
+   * keeps them apart.
+   */
+  allowedTransitions?: CdeTransitionOption[] | null;
+}
+
+/** One legal next CDE state, as served with the document. */
+export interface CdeTransitionOption {
+  to: string;
+  requiresApproval: boolean;
 }
 
 export interface DashboardData {

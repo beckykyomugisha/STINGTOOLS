@@ -1,4 +1,4 @@
-// StingTools — Sustainability deliverable + per-option comparison (WS I12).
+﻿// StingTools — Sustainability deliverable + per-option comparison (WS I12).
 //
 //   Sustain_GenerateDeliverable  EDGE/LEED summary as a drawing-set artefact (a
 //                                drafting view on a sheet) + a BEP deliverable note.
@@ -133,7 +133,7 @@ namespace StingTools.Commands.Sustainability
             {
                 string dir = SustainabilityRegistries.ProjectDir(doc);
                 if (string.IsNullOrEmpty(dir)) return 0;
-                string folder = Path.Combine(dir, "_BIM_COORD", "sustainability");
+                string folder = StingPaths.MetaFile(doc, "_BIM_COORD", "sustainability");
                 Directory.CreateDirectory(folder);
                 var rec = new
                 {

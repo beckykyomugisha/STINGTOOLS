@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -27,6 +29,7 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/global-id-registry")]
 [Authorize]
+[ProjectAccess]   // cross-project read gate (404 for a project the caller cannot see)
 public class GlobalIdRegistryController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -121,6 +124,10 @@ public class GlobalIdRegistryController : ControllerBase
         [FromBody] RegistryCreateDto dto,
         CancellationToken ct)
     {
+        // Cross-project write gate: only a member of THIS project (or a tenant
+        // Admin/Owner) may create an identity mapping in it.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var row = new ElementGlobalIdRegistry
         {
             TenantId            = _tenant.TenantId,
@@ -162,6 +169,9 @@ public class GlobalIdRegistryController : ControllerBase
         [FromBody] RegistryUpdateDto dto,
         CancellationToken ct)
     {
+        // Cross-project write gate: members (or Admin/Owner) only.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var row = await _db.GlobalIdRegistry
             .FirstOrDefaultAsync(r => r.Id == registryId
                 && r.ProjectId == projectId
@@ -192,6 +202,9 @@ public class GlobalIdRegistryController : ControllerBase
         Guid registryId,
         CancellationToken ct)
     {
+        // Cross-project write gate: members (or Admin/Owner) only.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var row = await _db.GlobalIdRegistry
             .FirstOrDefaultAsync(r => r.Id == registryId
                 && r.ProjectId == projectId
@@ -218,6 +231,10 @@ public class GlobalIdRegistryController : ControllerBase
     [HttpPost("auto-match")]
     public async Task<ActionResult> AutoMatch(Guid projectId, CancellationToken ct)
     {
+        // Cross-project write gate: auto-match creates registry rows — members
+        // (or Admin/Owner) only.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var elements = await _db.FederatedElements.AsNoTracking()
             .Where(e => e.ProjectId == projectId && !e.IsDeleted && e.IfcGuid != null)
             .Select(e => new { e.IfcGuid, e.Category })
