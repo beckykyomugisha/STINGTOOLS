@@ -133,6 +133,10 @@ namespace StingTools.BOQ.MaterialSchedule
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
 
+            // AFTER every warning is collected, so the workbook and the dialog
+            // can never disagree about what this run reported.
+            msDoc.Warnings.AddRange(result.Warnings);
+
             StingLog.Info($"MaterialScheduleBuilder: {msDoc.Stages.Count} stage(s), "
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
                         + $"{msDoc.Reconciliation.Issues.Count} reconciliation issue(s).");

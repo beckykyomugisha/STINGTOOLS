@@ -137,6 +137,19 @@ namespace StingTools.Core.MaterialSchedule
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
         public MaterialScheduleReconciliation Reconciliation = new MaterialScheduleReconciliation();
 
+        /// <summary>
+        /// Everything the export needed to say about itself: the compound-takeoff
+        /// gate, excluded rows, the tiling and room-finish scans, site-tool
+        /// heuristics.
+        ///
+        /// These used to exist ONLY in the post-export dialog. The tiling scan
+        /// was added precisely so that "no tiling appeared" stopped being
+        /// ambiguous — and then its answer vanished the moment the dialog was
+        /// closed, so a workbook reviewed later could not say why it looked the
+        /// way it did. A deliverable has to carry its own explanation.
+        /// </summary>
+        public List<string> Warnings = new List<string>();
+
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.
         /// Reported so an exclusion is a stated decision, never a silent loss.</summary>
         public Dictionary<string, int> ExcludedByCategory = new Dictionary<string, int>();
