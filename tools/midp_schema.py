@@ -130,4 +130,7 @@ KEY_COL = 'Ref'
 # maintained in the register and a returned value never overwrites them.
 # 'Variance (days)' is a formula in the register, so a literal from a return
 # would replace the calculation with a stale number.
-IM_OWNED = ('Variance (days)',)
+# 'Planned date' joined this when it became a formula deriving from the
+# appointment date: a literal from a return would replace the calculation
+# with a number that stops updating when the programme is rebaselined.
+IM_OWNED = ('Variance (days)', 'Planned date')

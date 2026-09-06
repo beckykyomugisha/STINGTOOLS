@@ -110,6 +110,7 @@ r += 1
 ws.cell(row=r, column=2, value='How to use this workbook').font = h_f
 r += 1
 for line in [
+    ('Programme', 'Enter the appointment date here, once. Every calendar date in the workbook is calculated from it.'),
     ('MIDP', 'The project register. One row per deliverable. Filter by discipline, stage or status. '
              'The Information Manager maintains this sheet.'),
     ('TIDP-…', 'One Task Information Delivery Plan per appointed party, pre-filled with the deliverables '
@@ -147,6 +148,77 @@ r += 4
 
 ws.cell(row=r, column=2, value=('Issued through the Common Data Environment. Uncontrolled when printed.')).font = small_f
 
+# ═══ 1b. Programme ══════════════════════════════════════════════════════════
+# ONE input: the appointment date. Every calendar date in this workbook derives
+# from it by formula. Until now the pack carried month offsets and the only
+# calendar dates anywhere were illustrative ones in a guide, assuming an
+# appointment in September 2026 -- so nobody could answer "what date is
+# Deliverable B" without doing the arithmetic themselves and getting a different
+# answer from the next person. Enter the date once here on appointment.
+ps = wb.create_sheet('Programme')
+ps.sheet_view.showGridLines = False
+ps.column_dimensions['A'].width = 3
+for col, w in (('B', 34), ('C', 10), ('D', 10), ('E', 16), ('F', 16), ('G', 10)):
+    ps.column_dimensions[col].width = w
+
+ps['B2'] = 'Programme'
+ps['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
+ps['B4'] = 'Appointment date (M0)'
+ps['B4'].font = lbl_f
+APPT = 'C4'
+ps[APPT] = None
+ps[APPT].number_format = 'dd mmm yyyy'
+ps[APPT].fill = PatternFill('solid', fgColor=AMBER)
+ps[APPT].border = box
+ps['E4'] = '← the only date entered by hand. Everything else is calculated from it.'
+ps['E4'].font = small_f
+
+ps['B6'] = ('Stage durations are the Appointing Party Work Program: Phase 2 totals %d months and Phase 3 '
+            'totals %d months, %d in all, read in sequence.'
+            % (K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'], K.TOTAL_MONTHS))
+ps['B6'].font = small_f
+ps['B6'].alignment = Alignment(wrap_text=True, vertical='top')
+ps.merge_cells('B6:G7')
+
+r = 9
+for i, hh in enumerate(['Stage', 'From', 'To', 'Starts', 'Ends', 'Months'], start=2):
+    ps.cell(row=r, column=i, value=hh)
+style_header(ps, r, 7)
+r += 1
+_months = K.stage_months()
+for stage, title, lod, months, _kind in K.WORK_PROGRAMME:
+    start, end, _ = _months[stage]
+    vals = [
+        '%s  %s' % (stage, title),
+        'M%d' % start, 'M%d' % end,
+        '=IF($%s="","",EDATE($%s,%d))' % (APPT, APPT, start - 1),
+        '=IF($%s="","",EOMONTH($%s,%d))' % (APPT, APPT, end - 1),
+        months,
+    ]
+    for i, v in enumerate(vals, start=2):
+        c = ps.cell(row=r, column=i, value=v)
+        c.font = body_f
+        c.border = box
+        if i in (5, 6):
+            c.number_format = 'dd mmm yyyy'
+        if i in (3, 4, 7):
+            c.alignment = Alignment(horizontal='center')
+    r += 1
+ps.cell(row=r, column=2, value='Total').font = lbl_f
+ps.cell(row=r, column=7, value=K.TOTAL_MONTHS).font = lbl_f
+ps.cell(row=r, column=7).alignment = Alignment(horizontal='center')
+for i in range(2, 8):
+    ps.cell(row=r, column=i).border = box
+    ps.cell(row=r, column=i).fill = shade_fill
+
+r += 2
+ps.cell(row=r, column=2, value=(
+    'Calendar dates are indicative until the appointment date is entered and the plan is rebaselined. '
+    'A stage runs to the end of its final month, so a stage ending M8 ends on the last day of the eighth '
+    'month after appointment.')).font = small_f
+ps.cell(row=r, column=2).alignment = Alignment(wrap_text=True, vertical='top')
+ps.merge_cells(start_row=r, start_column=2, end_row=r + 1, end_column=7)
+
 # ═══ 2. MIDP register ═══════════════════════════════════════════════════════
 # Every column below is addressed BY NAME. The previous version wrote literal
 # letters and indices -- 'Q2:Q%d' for the RAG band, `i in (12, 13)` for the date
@@ -183,7 +255,11 @@ for n, r in enumerate(R, start=2):
         'Type code': r['isotype'], 'Stage': r['stage'], 'LOD': r['lod'],
         'Format': r['fmt'], 'Suitability': r['suit'], 'CDE State': r['state'],
         'Month from': r['m_from'], 'Month to': r['m_to'],
-        'Planned date': None, 'Actual date': None,
+        # Derived from the one appointment date on the Programme sheet, at the
+        # month the deliverable is due. A blank appointment date leaves it blank
+        # rather than showing a date computed from zero.
+        'Planned date': '=IF(Programme!$C$4="","",EOMONTH(Programme!$C$4,%d))' % r['m_to'],
+        'Actual date': None,
         'Variance (days)': '=IF(AND({p}{n}<>"",{a}{n}<>""),{a}{n}-{p}{n},"")'.format(
             p=L('Planned date'), a=L('Actual date'), n=n),
         'Responsible': r['responsible'], 'TIDP ref': r['tidp'],
@@ -579,6 +655,39 @@ for key in order:
         cc = ls.cell(row=j, column=i, value=v)
         cc.font = body_f
         cc.border = box
+
+# The Ref prefix groups the register; it is NOT the container role code, and
+# the two deliberately differ (FF for FF&E, C for the contractor, ALL for
+# project-wide). Stated here because a reader who assumes they are the same
+# builds a container name out of a register key.
+_ref_row = 20
+ls.cell(row=_ref_row, column=1, value='Reference prefix').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+ls.cell(row=_ref_row, column=2, value='Groups').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+ls.cell(row=_ref_row, column=3, value='Container role code').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+for _c in (1, 2, 3):
+    ls.cell(row=_ref_row, column=_c).fill = hdr_fill
+    ls.cell(row=_ref_row, column=_c).border = box
+_REF_PREFIXES = [
+    ('A', 'Architecture and interiors', 'A'),
+    ('S', 'Structure', 'S'),
+    ('M', 'Mechanical', 'M'),
+    ('E', 'Electrical, including lighting', 'E'),
+    ('P', 'Public health', 'P'),
+    ('FP', 'Fire protection', 'FP'),
+    ('LV', 'Low voltage and communications', 'LV'),
+    ('G', 'Civil and site', 'G'),
+    ('FF', 'FF&E and finishes', 'A — issued under architecture'),
+    ('C', 'Contractor and specialists', 'per the discipline of the container'),
+    ('Z', 'Information management, cost and project-wide', 'Z'),
+]
+for _i, (_p, _g, _role) in enumerate(_REF_PREFIXES, start=_ref_row + 1):
+    for _c, _v in ((1, _p), (2, _g), (3, _role)):
+        _cell = ls.cell(row=_i, column=_c, value=_v)
+        _cell.font = body_f
+        _cell.border = box
 
 # Every validated column must point at a populated list column. Checked rather
 # than assumed, because a drop-down sourced from an empty column silently
