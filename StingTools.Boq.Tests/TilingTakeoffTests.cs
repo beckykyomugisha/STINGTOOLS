@@ -214,6 +214,26 @@ namespace StingTools.Boq.Tests
             Assert.Equal("kg", units.ResolveByKind("tile_adhesive").SourceUnit);
             Assert.Equal("kg", units.ResolveByKind("tile_grout").SourceUnit);
         }
+
+        [Fact]
+        public void Skirting_Routes_To_Finishes_And_Is_Bought_By_The_Metre()
+        {
+            // Skirting comes from the ROOM source and is measured in linear
+            // metres. A rule declaring anything else would trip the unit guard
+            // and print bare metres instead of a priced run.
+            var lib = Newtonsoft.Json.JsonConvert.DeserializeObject<StingTools.Core.MaterialSchedule.StageLibrary>(
+                System.IO.File.ReadAllText(DataFile("STING_MATERIAL_STAGES.json")));
+            var ix = StingTools.Core.MaterialSchedule.StageIndex.Build(lib.Stages, lib.DefaultStageId);
+            Assert.Equal("finishes", ix.Resolve("skirting", "Rooms", ""));
+
+            var units = Newtonsoft.Json.JsonConvert.DeserializeObject<StingTools.Core.MaterialSchedule.SupplierUnitTable>(
+                System.IO.File.ReadAllText(DataFile("STING_SUPPLIER_UNITS.json")));
+            var rule = units.ResolveByKind("skirting");
+            Assert.NotNull(rule);
+            Assert.Equal("m", rule.SourceUnit);
+            Assert.False(rule.RoundUpToWhole);   // you can buy 12.4 m of skirting
+        }
+
     }
 
 }

@@ -82,6 +82,23 @@ namespace StingTools.BOQ.MaterialSchedule
                 });
             }
 
+            // SECOND finish source. The layer source reads a TYPE's compound
+            // structure; this reads what the ROOM says. Gated so the two can
+            // never measure the same surface: if any type carried a tiled
+            // layer, room tiling is skipped entirely. Skirting is never
+            // suppressed — no layer source produces it.
+            var roomTally = new RoomFinishTally();
+            try
+            {
+                bool layerTiling = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Tally.TypesMatched > 0;
+                inputs.Constituents.AddRange(RoomFinishGatherer.Gather(doc, layerTiling, roomTally));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Room finishes could not be read: {ex.Message}");
+                StingLog.Warn($"MaterialScheduleBuilder room finishes: {ex.Message}");
+            }
+
             var msDoc = CommodityAggregator.Build(inputs);
             msDoc.ProjectName = doc.ProjectInformation?.Name ?? "";
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
@@ -112,6 +129,9 @@ namespace StingTools.BOQ.MaterialSchedule
             // failed to recognise them, and only the denominator tells them apart.
             string tileScan = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Summary();
             if (!string.IsNullOrEmpty(tileScan)) result.Warnings.Add(tileScan);
+
+            string roomScan = roomTally.Summary();
+            if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
 
             StingLog.Info($"MaterialScheduleBuilder: {msDoc.Stages.Count} stage(s), "
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
