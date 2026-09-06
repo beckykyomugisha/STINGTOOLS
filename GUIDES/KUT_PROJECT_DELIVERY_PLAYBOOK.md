@@ -1,12 +1,15 @@
 # KUT Project Delivery Playbook
 ### Kampala Uganda Temple — how the whole team delivers information, stage by stage
 
+<!-- maintainer-note -->
 > **The issued document is `KUT_Project_Delivery_Playbook.docx`** (repo root), built by
 > `tools/build_team_playbook.py`. This markdown is the working draft used to review content.
 > Edit content here, then regenerate the `.docx` — do not hand-edit the Word file, or the two
-> will drift apart.
+> will drift apart. Everything outside this note is scanned for product, command and parameter
+> names by `check_kut_documents.py`; this note is not.
+<!-- /maintainer-note -->
 
-**Issued by:** Planscape Consulting Engineers Ltd — Information Manager
+**Issued by:** Symbion Consulting Group Studios — Information Manager
 **Audience:** every organisation and every person producing information on KUT — Architecture, Interiors, Structure, Mechanical, Electrical, Plumbing, Fire, Low-Voltage, Civil/Site, QS/Cost, and the Contractor and specialist subcontractors when they join.
 **Status:** `[FILL: P01 — for issue at mobilisation]`
 **Companion documents:** the BIM Execution Plan (`KUT_BEP_TEMPLATE.md`) is the contractual statement of *what* we do; this playbook is the working statement of *how* and *when* we do it. Where they disagree, the BEP wins and this playbook gets corrected.
@@ -38,7 +41,7 @@
 | **Project** | Kampala Uganda Temple (KUT) |
 | **Appointing Party (Client)** | The Church — Special Projects Department |
 | **Lead Appointed Party** | Symbion Consulting Group Studios |
-| **Information Manager** | Planscape Consulting Engineers Ltd — Mayanja Davis |
+| **Information Manager** | Symbion Consulting Group Studios — Mayanja Davis |
 | **Scope** | Temple + ancillary buildings, six volumes plus site |
 | **Programme** | 49 months — Phase 2 (design) 11 months · Phase 3 (construction + close-out) 38 months |
 | **CDE** | Autodesk Construction Cloud (ACC) — the single authoritative environment |
@@ -88,7 +91,7 @@
 |---|---|---|
 | **Appointing Party** | The Church | The Exchange Information Requirements; acceptance of each deliverable |
 | **Lead Appointed Party** | Symbion | The overall appointment; design leadership; chairs the design meetings |
-| **Information Manager** | Planscape — Mayanja Davis | The CDE, the BEP, the MIDP, the standards, the QA gate, federation, clash management, registers, transmittals, handover data. **Coordinates and verifies — does not author design** |
+| **Information Manager** | Symbion Consulting Group Studios — Mayanja Davis | The CDE, the BEP, the MIDP, the standards, the QA gate, federation, clash management, registers, transmittals, handover data. **Coordinates and verifies — does not author design** |
 | **Task Team Manager** (one per discipline) | Each consultant | Their model, their TIDP, their data quality, their sign-off before every share |
 | **Modellers / technicians** | Each consultant | Day-to-day authoring to the standards in §3 and §5 |
 | **QS / Cost** | `[FILL]` | Quantities and cost derived from the model |
@@ -122,7 +125,7 @@
 | Commissioning point list | **R** | A | I | I | **C** | I | **R** |
 | Handover data (COBie / O&M) | **A/R** | A | C | C | C | I | **R** |
 
-**Read the Information Manager column carefully.** Planscape is accountable for *information*, not for design. If a clash needs a beam moved, the structural engineer moves it — the Information Manager only makes sure the clash is visible, tracked, and closed before the gate.
+**Read the Information Manager column carefully.** The Information Manager is accountable for *information*, not for design. If a clash needs a beam moved, the structural engineer moves it — the Information Manager only makes sure the clash is visible, tracked, and closed before the gate.
 
 ---
 
@@ -145,16 +148,14 @@ KUT - PLN - 01 - GF - M3 - A - 0001
 
 Separator is a hyphen. No spaces. Upper case throughout.
 
-> **⚠ Decide this in Week 1: originator code length.** The automated check enforces **exactly 3 characters**, but Planscape's default code is the 4-character `PLNS`, and earlier draft guidance used `PLNS` in its examples. `KUT-PLNS-…` therefore fails the check today. Two options, and the Owner's register decides:
-> **(a)** issue 3-character codes to every organisation (`PLN`, `SYM`, …) — cleaner, matches the check as written; or
-> **(b)** widen the check to 3–6 characters, which is closer to normal ISO 19650 practice and lets firms keep recognisable codes.
-> **Do not start numbering anything until this is settled.** Renumbering after Deliverable A is expensive and visible.
+> **⚠ Settle this before any container is numbered: the originator register.** The compliance check enforces **exactly three characters**, which is the convention this project uses. Earlier draft guidance used a four-character example, and any container built to it fails the check.
+> The register is issued by the Lead Appointed Party and allocates a three-character code to every appointed party, including sub-consultants, with a block reserved for the contractor and specialists so Stage 3.1 does not reopen the numbering.
+> **Do not start numbering anything until the register is issued.** Renumbering after Deliverable A is expensive and visible in every document already sent.
 
 ## 3.2 Originator codes
 
 | Organisation | Code |
 |---|---|
-| Planscape Consulting Engineers | `[FILL: PLN or PLNS per the decision above]` |
 | Symbion Consulting Group Studios | `[FILL]` |
 | Architecture | `[FILL]` |
 | Structure | `[FILL]` |
@@ -831,4 +832,4 @@ Before moving anything from WIP to Shared:
 
 ---
 
-*Issued by Planscape Consulting Engineers Ltd as Information Manager for the Kampala Uganda Temple project. Questions to the Information Manager. Where this playbook and the BEP disagree, the BEP prevails and this document is corrected.*
+*Issued by Symbion Consulting Group Studios as Information Manager for the Kampala Uganda Temple project. Questions to the Information Manager. Where this playbook and the BEP disagree, the BEP prevails and this document is corrected.*

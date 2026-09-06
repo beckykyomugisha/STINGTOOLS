@@ -804,9 +804,32 @@ LEAKS = [
 ]
 
 
+# Markdown that is not issued but reads as though it could be: the working
+# outline the plan grew from, and the draft the playbook is built from. Neither
+# is a deliverable, and that is exactly the risk -- a file that looks issue-ready
+# is one somebody eventually sends. The template carried 25 product references
+# and an obsolete Information Manager until it was scanned.
+CLIENT_FACING_SOURCES = (
+    "GUIDES/KUT_BEP_TEMPLATE.md",
+    "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+)
+
+# A maintainer note tells whoever edits the file which generator to run, so it
+# names one on purpose. It is delimited rather than guessed at, and it must be
+# closed, so the exemption cannot silently widen to the rest of the document.
+_NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s*-->",
+                      re.S | re.I)
+
+
 def check_no_leakage(root: Path, f: Findings, verbose: bool):
-    for name in K.ISSUED:
-        text = read_text(root / name)
+    for name in tuple(K.ISSUED) + CLIENT_FACING_SOURCES:
+        path = root / name
+        if not path.exists():
+            if name in CLIENT_FACING_SOURCES:
+                continue              # the guides are optional; the pack is not
+            f.fail(name, "missing from the repository root")
+            continue
+        text = _NOTE_RX.sub(" ", read_text(path))
         hits = []
         for rx, what in LEAKS:
             for m in rx.finditer(text):
@@ -831,8 +854,9 @@ def check_no_leakage(root: Path, f: Findings, verbose: bool):
         else:
             f.ok()
     if verbose:
-        print("  tooling leakage: none in %d issued documents (%s exempt)"
-              % (len(K.ISSUED), K.INTERNAL_DOC))
+        print("  tooling leakage: none in %d issued documents + %d client-facing "
+              "sources (%s exempt)"
+              % (len(K.ISSUED), len(CLIENT_FACING_SOURCES), K.INTERNAL_DOC))
 
 
 # -- 5. placeholders are counted, not forbidden ------------------------------
@@ -893,8 +917,11 @@ def read_text(path: Path) -> str:
     if key not in _TEXT_CACHE:
         if path.suffix == ".xlsx":
             _TEXT_CACHE[key] = K.xlsx_text(path)
-        else:
+        elif path.suffix == ".docx":
             _TEXT_CACHE[key] = K.docx_text(path)
+        else:
+            # Plain text -- the markdown sources the leakage check also scans.
+            _TEXT_CACHE[key] = path.read_text(encoding="utf-8", errors="replace")
     return _TEXT_CACHE[key]
 
 
