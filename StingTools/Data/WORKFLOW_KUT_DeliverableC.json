@@ -1,0 +1,26 @@
+{
+  "name": "KUT Deliverable C",
+  "description": "Kampala Uganda Temple — Deliverable C (100% documentation) verification gate, A1 Phase 2 close. Deliverable B's shape at LOD 350, plus the two things that only matter once the set is issued for bidding: SpecLink reconciliation and the sheet register / sheet-compliance output. Verified at LOD 350 — coordinated interfaces are contractual at this gate, which is why the A1/A2 reconciliation states C at 350 rather than 300. CSI ORDERING: CSI_Assign runs immediately BEFORE SpecLink_Reconcile and the order is load-bearing. Reconciliation compares the model's CSI sections against the issued RIB SpecLink TOC; if nothing has assigned CSI_SECTION_TXT first, every spec section reports as a gap and every model section as over-spec, and the report is worthless. Do not reorder these two. PROGRAM AUDIT: third and final A1 program audit (Owner's shared Excel + pdf + deficiency log). FOHLIO: the A1 room-finishes round-trip is repeated here so the issued set and the Fohlio register agree; finishes match by ROOM NUMBER, not by tag. Authoring stays with the design consultants; this workflow verifies, it does not author.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "RetagStale", "label": "1. Re-tag stale elements changed since Deliverable B", "optional": true },
+    { "commandTag": "ValidateTags", "label": "2. Tag validation — all 8 segments present + code-valid" },
+    { "commandTag": "TokenConfidenceAudit", "label": "3. Token-fill confidence — surfaces silent defaults before issue" },
+    { "commandTag": "OwnerStandards_Audit", "label": "4. Owner-standards rule pack (corporate baseline + KUT project overrides)" },
+    { "commandTag": "Program_Audit", "label": "5. A1 program audit — third and final; feeds the Owner's shared Excel + pdf + deficiency log" },
+    { "commandTag": "CSI_Assign", "label": "6. Assign CSI MasterFormat sections — MUST run before step 7; reconciling without it reports every section as a gap" },
+    { "commandTag": "SpecLink_Reconcile", "label": "7. Reconcile the issued RIB SpecLink TOC against the model (runs AFTER step 6, never before)" },
+    { "commandTag": "DeviceCoord_Audit", "label": "8. Device coordination audit — A1 Deliverable C DEVICE COORDINATION clause" },
+    { "commandTag": "Fohlio_ExportFinishes", "label": "9. Export room finishes in Fohlio shape (matched by ROOM NUMBER, not by tag)" },
+    { "commandTag": "Fohlio_ImportFinishes", "label": "10. Import the Fohlio finishes register back onto the rooms", "optional": true },
+    { "commandTag": "Fohlio_Audit", "label": "11. FF&E currency audit — missing FOHLIO_REF_TXT + stale rows", "optional": true },
+    { "commandTag": "LOD_Verify", "label": "12. LOD 350 verification (pick 'deliverable-c' at the milestone prompt)" },
+    { "commandTag": "ClashRun", "label": "13. Rule-based clash — the issued set must be coordinated" },
+    { "commandTag": "ClashBcfExport", "label": "14. Export grouped clashes to BCF 2.1 (import as ACC Issues)", "optional": true },
+    { "commandTag": "SheetComplianceCheck", "label": "15. Sheet compliance — the issued-for-bidding set is checked as a set", "optional": true },
+    { "commandTag": "ExportSheetRegister", "label": "16. Sheet register CSV — the issue record for the bidding set" },
+    { "commandTag": "ExportModelHealth", "label": "17. Model-health snapshot", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "18. Composite compliance dashboard — Deliverable C sign-off" }
+  ]
+}

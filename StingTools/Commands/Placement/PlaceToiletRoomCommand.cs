@@ -21,7 +21,7 @@ namespace StingTools.Commands.Placement
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var uiDoc = data?.Application?.ActiveUIDocument;
+            var uiDoc = ParameterHelpers.GetUIDoc(data);
             var doc   = uiDoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 

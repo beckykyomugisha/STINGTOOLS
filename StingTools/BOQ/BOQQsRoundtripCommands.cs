@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BOQQsRoundtripCommands.cs — P3 — Quantity-Surveyor round-trip.
 //
 //  A QS lives in Excel, not Revit. These two commands give a clean exchange:
@@ -538,7 +538,7 @@ namespace StingTools.BOQ
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return;
-                string dir = Path.Combine(parent, "_BIM_COORD");
+                string dir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 string path = Path.Combine(dir, "rate_card.json");
 

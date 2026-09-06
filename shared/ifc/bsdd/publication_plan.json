@@ -481,6 +481,42 @@
     }
   ],
 
+  "psets": [
+    {
+      "name": "Pset_StingHVACExecution",
+      "status": "draft",
+      "proposed": false,
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "source_file": "shared/ifc/psets/Pset_StingHVACExecution.xml",
+      "standards_basis": "ASHRAE 90.1; CIBSE Guide A; SMACNA HVAC Duct Construction Standards; BS EN 13779; VDI 2081",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "21 HVAC execution properties (HVC_*). Publish alongside StingDisciplineCodes and StingSystemCodes for MEP interop."
+    },
+    {
+      "name": "Pset_StingCostManagement",
+      "status": "draft",
+      "proposed": false,
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "source_file": "shared/ifc/psets/Pset_StingCostManagement.xml",
+      "standards_basis": "RICS NRM2 (2nd ed.); ICE Database v3; BS ISO 15686-5; ICMS 3rd edition",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "14 cost management properties (CST_*). Requires coordination with RICS before referencing NRM2 identifiers in bSDD."
+    },
+    {
+      "name": "Pset_StingHealthcareClinical",
+      "status": "draft",
+      "proposed": false,
+      "owning_publisher": "stingtools",
+      "bsdd_iri_root": null,
+      "source_file": "shared/ifc/psets/Pset_StingHealthcareClinical.xml",
+      "standards_basis": "HTM 02-01; HBN series; HTM 04-01; BS EN ISO 7396-1; NFPA 99 §5.1; NCRP 147; IPEM Report 75; BS 8300",
+      "publish_in_phase": "Phase_4_Federation",
+      "notes": "14 healthcare clinical properties (CLN_*/MGS_*/LIG_*/RAD_*). Coordinate with NHS England and NCRP before publishing under their namespaces."
+    }
+  ],
+
   "summary": {
     "total_enums_in_scope": 52,
     "by_status": {

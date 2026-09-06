@@ -1,3 +1,8 @@
+> ⛔ **SUPERSEDED (2026-08-05).** This work prompt has been executed; the consolidation landed.
+> Do not re-run it — it describes a starting state that no longer exists. Current state:
+> [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md). Rules to follow:
+> `CLAUDE.md` → *Project Output Folder Layout*.
+
 # AGENT PROMPT — StingTools ISO 19650 Consolidation (autonomous fix run)
 
 > Paste everything below the line into a fresh Claude Code session opened at `C:\Dev\STINGTOOLS`.

@@ -40,8 +40,12 @@ namespace StingTools.V6
         public string ProjectId { get; set; } = string.Empty;
         /// <summary>ACC Model-Coordination container id. Often differs from the Issues/ProjectId container. Falls back to ProjectId when empty.</summary>
         public string CoordContainerId { get; set; } = string.Empty;
-        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.</summary>
+        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.
+        /// Left empty, <see cref="AccIssueSync.EnsureIssueTypeAsync"/> resolves one from the container and caches it here.</summary>
         public string IssueTypeId { get; set; } = string.Empty;
+        /// <summary>Subtype of <see cref="IssueTypeId"/>, cached alongside it. Only ever sent with that type —
+        /// a subtype id belongs to one type, so pairing it with a different type is rejected.</summary>
+        public string IssueSubtypeId { get; set; } = string.Empty;
         /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres). Set per the model's clash-result units.</summary>
         public double DistToMm { get; set; } = 1000.0;
 
@@ -115,11 +119,83 @@ namespace StingTools.V6
             finally { _tokenLock.Release(); }
         }
 
+        /// <summary>
+        /// Resolve a usable issue_type_id for the container, so a push does not
+        /// depend on someone having hand-entered a GUID in acc_credentials.json.
+        ///
+        /// Order: an already-cached <see cref="AccCredentials.IssueTypeId"/> wins and
+        /// costs nothing; otherwise the container's issue types are fetched once and a
+        /// Clash/Coordination type is preferred, falling back to the first offered.
+        /// The chosen id (and its first subtype) is cached on the credentials and
+        /// persisted, so the fetch happens once per machine rather than per issue.
+        ///
+        /// Returns false — and logs why — rather than throwing: a push with no type
+        /// still runs and ACC reports the rejection, which is more informative than a
+        /// pre-emptive exception here.
+        /// </summary>
+        public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
+        {
+            if (creds == null) return false;
+            if (!string.IsNullOrEmpty(creds.IssueTypeId)) return true;
+            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return false;
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get,
+                    $"{IssuesUrl}/containers/{creds.ProjectId}/issue-types?include=subtypes&limit=200");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    StingLog.Warn($"AccIssueSync.EnsureIssueType: issue-types returned {(int)resp.StatusCode}");
+                    return false;
+                }
+                var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                var results = j["results"] as JArray;
+                if (results == null || results.Count == 0)
+                {
+                    StingLog.Warn("AccIssueSync.EnsureIssueType: container exposes no issue types.");
+                    return false;
+                }
+
+                JToken chosen = null;
+                foreach (var t in results)
+                {
+                    string title = ((string)t["title"] ?? string.Empty).ToLowerInvariant();
+                    if (title.Contains("clash") || title.Contains("coordination")) { chosen = t; break; }
+                }
+                if (chosen == null) chosen = results[0];
+
+                string id = (string)chosen["id"] ?? string.Empty;
+                if (string.IsNullOrEmpty(id))
+                {
+                    StingLog.Warn("AccIssueSync.EnsureIssueType: chosen issue type carries no id.");
+                    return false;
+                }
+                creds.IssueTypeId = id;
+                var subs = chosen["subtypes"] as JArray;
+                creds.IssueSubtypeId = (subs != null && subs.Count > 0)
+                    ? ((string)subs[0]["id"] ?? string.Empty) : string.Empty;
+                SaveCredentials(creds);
+                StingLog.Info($"AccIssueSync: resolved issue type '{(string)chosen["title"]}' ({id}).");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("AccIssueSync.EnsureIssueType failed", ex);
+                return false;
+            }
+        }
+
         /// <summary>Push a STING-originated issue to ACC.</summary>
         public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
         {
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
             string issueType = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
+            if (string.IsNullOrEmpty(issueType))
+            {
+                await EnsureIssueTypeAsync(creds).ConfigureAwait(false);
+                issueType = creds.IssueTypeId;
+            }
             var body = new JObject
             {
                 ["title"]               = issue.Title,
@@ -130,7 +206,12 @@ namespace StingTools.V6
             // ACC requires a valid issue_type_id. Only send it when we have one;
             // omitting an empty value is safer than posting "" (which ACC rejects).
             if (!string.IsNullOrEmpty(issueType)) body["issue_type_id"] = issueType;
-            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — set IssueTypeId in acc_credentials.json; ACC may reject.");
+            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — none configured and none resolvable " +
+                               "from the container; set IssueTypeId in acc_credentials.json. ACC may reject.");
+            // The cached subtype belongs to the cached type. Sending it beside an
+            // issue's own, different type is an ACC rejection, so pair them or omit.
+            if (!string.IsNullOrEmpty(creds.IssueSubtypeId) && issueType == creds.IssueTypeId)
+                body["issue_subtype_id"] = creds.IssueSubtypeId;
             var req = new HttpRequestMessage(HttpMethod.Post,
                 $"{IssuesUrl}/containers/{creds.ProjectId}/issues")
             { Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json") };

@@ -1,4 +1,4 @@
-// StingTools — Matrix Place model + persistence store.
+﻿// StingTools — Matrix Place model + persistence store.
 //
 // "Matrix Place" is the reverse of rule-based placement: the user declares, in an
 // Excel-like grid, WHAT + HOW MANY elements go in WHICH rooms; STING places them,
@@ -171,7 +171,7 @@ namespace StingTools.Core.Placement.Matrix
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
                 string baseDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(baseDir)) return null;
-                return Path.Combine(baseDir, "_BIM_COORD", FileName);
+                return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
             }
             catch (Exception ex) { StingLog.Warn($"MatrixStore.ResolvePath: {ex.Message}"); return null; }
         }

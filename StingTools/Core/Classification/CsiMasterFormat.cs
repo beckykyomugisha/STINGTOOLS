@@ -120,6 +120,54 @@ namespace StingTools.Core.Classification
             return Regex.Replace(s.Trim().ToUpperInvariant(), "\\s+", "");
         }
 
+        /// <summary>
+        /// The DISPLAY form of a CSI section number: canonical CSI spacing,
+        /// "23 05 00" — what MasterFormat prints and what a QS expects to read.
+        ///
+        /// <para>This is the other half of <see cref="NormalizeSection"/>, and #554 is
+        /// what happens without it. Normalisation strips whitespace so SpecLink's spaced
+        /// "23 05 00" and a model's unspaced "230500" reconcile to one key — that is
+        /// correct and must stay. But <see cref="Reconcile"/> then reported the
+        /// normalised KEY as the section's identity, so its output read "224000" where
+        /// CSI canonically writes "22 40 00". A matching convention had leaked into
+        /// user-facing output.</para>
+        ///
+        /// <para>Matching and display are different jobs. Collapsing them either breaks
+        /// reconciliation across the two source formats or prints a section number in a
+        /// form CSI does not use; keeping both functions costs one method and closes the
+        /// seam instead of picking a loser.</para>
+        ///
+        /// <para>Level-4 child sections keep their dot suffix: "230500.13" renders as
+        /// "23 05 00.13". Anything that is not a recognisable CSI number is returned
+        /// UNCHANGED rather than forced into pairs — inventing a shape for input we do
+        /// not understand would print a confident wrong section number, which is worse
+        /// than printing exactly what we were given.</para>
+        /// </summary>
+        public static string FormatSection(string s)
+        {
+            string key = NormalizeSection(s);
+            if (key.Length == 0) return "";
+
+            // Split an optional level-4 suffix: "230500.13" → "230500" + ".13"
+            string stem = key, suffix = "";
+            int dot = key.IndexOf('.');
+            if (dot >= 0) { stem = key.Substring(0, dot); suffix = key.Substring(dot); }
+
+            // CSI numbers are an even count of digits in 2-digit pairs (division 23,
+            // level-2 2305, level-3 230500). Anything else is not ours to reformat.
+            if (stem.Length < 2 || stem.Length % 2 != 0) return key;
+            foreach (char c in stem) if (c < '0' || c > '9') return key;
+
+            var sb = new System.Text.StringBuilder(stem.Length + stem.Length / 2 + suffix.Length);
+            for (int i = 0; i < stem.Length; i += 2)
+            {
+                if (i > 0) sb.Append(' ');
+                sb.Append(stem, i, 2);
+            }
+            sb.Append(suffix);
+            return sb.ToString();
+        }
+
         public class CsiTocEntry { public string Section; public string Title; }
         public class CsiReconcileResult
         {
@@ -143,16 +191,19 @@ namespace StingTools.Core.Classification
             var model = Norm(modelSections);
             var spec = Norm(specSections);
 
+            // #554 — MATCH on the normalised key (kv.Key), REPORT the display form.
+            // Ordering also uses the normalised key: it sorts identically to the spaced
+            // form and avoids re-deriving it per comparison.
             foreach (var kv in model.OrderBy(k => k.Key))
             {
                 if (!spec.TryGetValue(kv.Key, out string specTitle))
-                    result.SpecGaps.Add(new CsiTocEntry { Section = kv.Key, Title = kv.Value });
+                    result.SpecGaps.Add(new CsiTocEntry { Section = FormatSection(kv.Key), Title = kv.Value });
                 else if (!TitlesEqual(kv.Value, specTitle))
-                    result.TitleMismatches.Add((kv.Key, kv.Value, specTitle));
+                    result.TitleMismatches.Add((FormatSection(kv.Key), kv.Value, specTitle));
             }
             foreach (var kv in spec.OrderBy(k => k.Key))
                 if (!model.ContainsKey(kv.Key))
-                    result.OverSpec.Add(new CsiTocEntry { Section = kv.Key, Title = kv.Value });
+                    result.OverSpec.Add(new CsiTocEntry { Section = FormatSection(kv.Key), Title = kv.Value });
 
             return result;
         }

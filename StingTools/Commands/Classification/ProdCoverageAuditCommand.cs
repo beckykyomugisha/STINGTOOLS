@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -97,7 +97,7 @@ namespace StingTools.Commands.Classification
                     string projPath = doc.PathName;
                     if (!string.IsNullOrEmpty(projPath))
                     {
-                        string dir = Path.Combine(Path.GetDirectoryName(projPath), "_BIM_COORD");
+                        string dir = StingPaths.Meta(doc, "_BIM_COORD");
                         Directory.CreateDirectory(dir);
                         path = Path.Combine(dir, $"prod_coverage_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                     }

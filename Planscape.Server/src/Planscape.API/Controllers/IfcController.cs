@@ -7,6 +7,8 @@ using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -38,18 +40,25 @@ namespace Planscape.API.Controllers;
 [ApiController]
 [Route("api/projects/{projectId:guid}/ifc")]
 [Authorize]
+[ProjectAccess]   // cross-project read gate (404 for a project the caller cannot see)
 [EnableRateLimiting("mobile")]
 public class IfcController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IIdentityResolverService _identity;
     private readonly IIfcIngestService _ingest;
+    private readonly ILogger<IfcController> _logger;
 
-    public IfcController(PlanscapeDbContext db, IIdentityResolverService identity, IIfcIngestService ingest)
+    public IfcController(
+        PlanscapeDbContext db,
+        IIdentityResolverService identity,
+        IIfcIngestService ingest,
+        ILogger<IfcController> logger)
     {
         _db = db;
         _identity = identity;
         _ingest = ingest;
+        _logger = logger;
     }
 
     /// <summary>
@@ -63,8 +72,18 @@ public class IfcController : ControllerBase
         Guid projectId,
         [FromBody] IfcIngestRequest request)
     {
+        // Cross-project write gate: only a member of THIS project (or a tenant
+        // Admin/Owner) may ingest into it — mirrors IfcIngestController/tagsync.
+        if (await this.RequireProjectMemberAsync(_db, projectId) is { } denied) return denied;
         if (request is null) return BadRequest("missing body");
-        if (request.Elements is null || request.Elements.Count == 0)
+
+        // C3 — a push may legitimately carry ONLY removals: a save whose sole
+        // change was deleting elements has nothing to upsert. Rejecting that as
+        // "Elements is empty" would drop exactly the deletions this exists to
+        // deliver.
+        bool hasElements = request.Elements is { Count: > 0 };
+        bool hasRemovals = request.RemovedGlobalIds is { Count: > 0 };
+        if (!hasElements && !hasRemovals)
             return BadRequest("Elements is empty");
 
         var host = MappingHosts.Normalize(request.Host);
@@ -80,8 +99,73 @@ public class IfcController : ControllerBase
 
         // Ingest (ExternalElementMapping upsert + TaggedElement projection) is
         // owned by IIfcIngestService so TagSync + ArchiCAD feed the same path.
-        var response = await _ingest.IngestAsync(tenantId, projectId, request);
-        return Ok(response);
+        var response = hasElements
+            ? await _ingest.IngestAsync(tenantId, projectId, request)
+            : new IfcIngestResponse();
+
+        int removed = 0;
+        if (hasRemovals)
+            removed = await ApplyRemovalsAsync(tenantId, projectId, host, request);
+
+        return Ok(response with { Removed = removed });
+    }
+
+    /// <summary>
+    /// C3 — soft-delete elements this host document no longer contains.
+    ///
+    /// <para><b>Soft, not hard.</b> TaggedElement is ISoftDeletable and carries
+    /// tag history, issues and clash references; hard-deleting would break those
+    /// and make an accidental deletion in the authoring tool unrecoverable. The
+    /// global query filter hides <c>DeletedAtUtc != null</c> rows from every read
+    /// path, so a tombstoned element stops rendering and stops answering queries
+    /// — which is the observable behaviour that was missing.</para>
+    ///
+    /// <para><b>Scoped to the reporting host document.</b> Only elements this
+    /// document contributed can be removed, resolved through
+    /// ExternalElementMapping. Without that scope a full-export diff from one
+    /// host would tombstone another host's contribution to the same project —
+    /// turning a missing-delete bug into a data-loss one.</para>
+    /// </summary>
+    private async Task<int> ApplyRemovalsAsync(
+        Guid tenantId, Guid projectId, string host, IfcIngestRequest request)
+    {
+        var ids = request.RemovedGlobalIds
+            .Where(g => !string.IsNullOrWhiteSpace(g))
+            .Distinct()
+            .ToList();
+        if (ids.Count == 0) return 0;
+
+        // Which of these did THIS host document actually contribute?
+        var ownedQuery = _db.ExternalElementMappings.AsNoTracking()
+            .Where(m => m.TenantId == tenantId && m.ProjectId == projectId
+                     && m.Host == host && ids.Contains(m.IfcGlobalId));
+
+        if (!string.IsNullOrWhiteSpace(request.HostDocumentGuid))
+            ownedQuery = ownedQuery.Where(m => m.HostDocumentGuid == request.HostDocumentGuid);
+
+        var owned = await ownedQuery.Select(m => m.IfcGlobalId).Distinct().ToListAsync();
+        if (owned.Count == 0)
+        {
+            _logger.LogInformation(
+                "IFC removals for project {ProjectId} host {Host}: none of the {Count} id(s) are attributed to this document — nothing removed.",
+                projectId, host, ids.Count);
+            return 0;
+        }
+
+        var now = DateTime.UtcNow;
+        var targets = await _db.TaggedElements
+            .Where(e => e.ProjectId == projectId && e.IfcGlobalId != null
+                     && owned.Contains(e.IfcGlobalId) && e.DeletedAtUtc == null)
+            .ToListAsync();
+
+        foreach (var el in targets) el.DeletedAtUtc = now;
+        if (targets.Count > 0) await _db.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "IFC removals for project {ProjectId} host {Host} doc {Doc}: tombstoned {Removed} element(s) of {Requested} requested.",
+            projectId, host, request.HostDocumentGuid ?? "(any)", targets.Count, ids.Count);
+
+        return targets.Count;
     }
 
     /// <summary>
@@ -164,6 +248,9 @@ public class IfcController : ControllerBase
         [FromBody] IotBindingRequest request,
         CancellationToken ct = default)
     {
+        // Cross-project write gate: binding an IoT device mutates this project's
+        // cross-host identity table — members (or Admin/Owner) only.
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
         if (request is null) return BadRequest("missing body");
         if (string.IsNullOrWhiteSpace(request.IfcGlobalId)) return BadRequest("ifcGlobalId is required");
         if (string.IsNullOrWhiteSpace(request.DeviceId)) return BadRequest("deviceId is required");

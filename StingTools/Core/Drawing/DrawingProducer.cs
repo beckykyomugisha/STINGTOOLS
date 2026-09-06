@@ -782,7 +782,7 @@ namespace StingTools.Core.Drawing
             // The sequence has to be resolved BEFORE the number is built —
             // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
             // further down, after numbering, and only stamped into
-            // STING_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
+            // PRJ_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
             // ctx.Tag — a level name in every batch command — and every sheet
             // in a package numbered 0001.
             int seq = ResolveSheetSequence(doc, dt, effectivePackage);
@@ -792,6 +792,18 @@ namespace StingTools.Core.Drawing
             // {originator} resolve from ProjectInformation instead of coming
             // back blank.
             var tokens = BuildTokenDict(doc, dt, ctx, seq);
+
+            // K-7: an empty {lvl} (or any other unresolved token) used to reach
+            // the sheet number as a dropped segment with no warning. Audit
+            // before substituting so the operator sees which token was blank
+            // and where to set it, rather than discovering "KBL26-PLN-COT01--DR"
+            // on an issued drawing.
+            if (opts.OverrideSheetNumber == null)
+                result.Warnings.AddRange(
+                    DrawingTokenContext.AuditPattern(dt.SheetNumberPattern, tokens, "Sheet number"));
+            if (opts.OverrideSheetName == null)
+                result.Warnings.AddRange(
+                    DrawingTokenContext.AuditPattern(dt.SheetNamePattern, tokens, "Sheet name"));
 
             try
             {
@@ -1261,7 +1273,13 @@ namespace StingTools.Core.Drawing
             => ApplyTokenPattern(
                 pattern,
                 disc:    dt?.Discipline ?? "",
-                lvl:     ctx?.Level?.Name ?? "",
+                // K-7: {lvl} is consumed HERE, before the extras sweep, so it
+                // never sees the token dict — adding the IsoNaming fallback to
+                // DrawingTokenContext alone would have fixed the title-block
+                // cells and left the sheet number still empty, with the two
+                // disagreeing about the same drawing. Apply the same fallback
+                // at both ends.
+                lvl:     ctx?.Level?.Name ?? dt?.IsoNaming?.Level ?? "",
                 sys:     dt?.System ?? "",   // P4 — system code into {sys} for number/name patterns
                 mark:    ctx?.Tag ?? "",
                 spool:   ctx?.Tag ?? "",

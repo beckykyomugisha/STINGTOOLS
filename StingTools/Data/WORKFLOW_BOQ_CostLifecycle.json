@@ -27,12 +27,12 @@
     },
     {
       "commandTag": "BOQ_DriftCheck",
-      "label": "Drift-check the live bill against the latest snapshot",
+      "label": "(NOT IMPLEMENTED - no such command exists) Drift-check the live bill against the latest snapshot",
       "optional": true
     },
     {
       "commandTag": "BOQ_ExportErp",
-      "label": "Route / export the priced bill (ERP-ready CSV + P6 XML)",
+      "label": "(NOT IMPLEMENTED - no ERP/P6 exporter exists) Route / export the priced bill (ERP-ready CSV + P6 XML)",
       "optional": true
     }
   ]

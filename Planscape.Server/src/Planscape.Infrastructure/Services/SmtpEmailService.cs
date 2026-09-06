@@ -112,12 +112,28 @@ public class NullEmailService : IEmailService
         return Task.CompletedTask;
     }
 
+    // NEVER log the reset token VALUE. It is a single-use credential that grants
+    // a password change on the named account, so writing it here hands anyone with
+    // log access the ability to take over any account that ever requested a reset.
+    //
+    // NullEmailService is selected whenever NO provider is configured — which on a
+    // production host means email is broken AND every reset token is being written
+    // to the platform's log store. That is the same class of defect as #711, where
+    // a secret-shaped EMAIL_FROM was interpolated into Cloudflare's Function logs.
+    //
+    // The invite path immediately above already had this right (hasToken={HasToken});
+    // this one printed the value. Reporting presence is what makes the log line
+    // actionable — "a reset was requested and nothing was sent" — and the value adds
+    // nothing to that. To actually receive the link in development, point the stack
+    // at the mailpit sink the compose file already runs (SMTP_HOST=mailpit,
+    // SMTP_PORT=1025) and read the real email at http://localhost:8025.
     public Task SendPasswordResetEmailAsync(
         string toEmail, string resetToken, string serverUrl, CancellationToken ct = default)
     {
         _logger.LogWarning(
-            "[NullEmail] ⚠ PASSWORD-RESET NOT SENT (no provider) to={ToEmail}, token={Token}, url={Url}",
-            toEmail, resetToken, serverUrl);
+            "[NullEmail] ⚠ PASSWORD-RESET NOT SENT (no provider) to={ToEmail}, hasToken={HasToken}, url={Url} "
+          + "— the token is deliberately NOT logged; use the mailpit sink (SMTP_HOST=mailpit) to receive the link.",
+            toEmail, !string.IsNullOrWhiteSpace(resetToken), serverUrl);
         return Task.CompletedTask;
     }
 

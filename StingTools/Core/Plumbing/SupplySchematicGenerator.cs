@@ -1,4 +1,4 @@
-// SupplySchematicGenerator — 2D water-supply schematic in a Revit Drafting View.
+﻿// SupplySchematicGenerator — 2D water-supply schematic in a Revit Drafting View.
 // Phase 187 — borrowed-from-Plumber companion to DrainageSchematicGenerator.
 //
 // Walks the supply branch of the PipeNetwork, lays out the index leg vertically
@@ -485,7 +485,7 @@ namespace StingTools.Core.Plumbing
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
                 var dir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "exports");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "exports");
             }
             catch { return null; }
         }

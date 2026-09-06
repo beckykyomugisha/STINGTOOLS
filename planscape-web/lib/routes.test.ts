@@ -65,11 +65,14 @@ describe('route migration (U4)', () => {
   });
 
   it('renders every page inside the AppShell, so no route escapes the chrome', () => {
-    // Deliberately outside the shell: /login and /handoff exist for users with
-    // no session yet, the error/not-found boundaries must render even when the
-    // shell itself is what broke, and /dashboard is a bare redirect stub kept
-    // for old bookmarks (it is not in the rail — see GLOBAL_NAV).
-    const outside = ['login', 'handoff', 'dashboard', 'error.tsx', 'not-found.tsx', join('app', 'page.tsx')];
+    // Deliberately outside the shell: /login, /handoff and /accept exist for
+    // users with no session yet — /accept is the invite landing that INSTALLS
+    // the session, so wrapping it in the shell would bounce the invitee to
+    // /login a moment before the token it came to deliver is stored — the
+    // error/not-found boundaries must render even when the shell itself is what
+    // broke, and /dashboard is a bare redirect stub kept for old bookmarks (it
+    // is not in the rail — see GLOBAL_NAV).
+    const outside = ['login', 'handoff', 'accept', 'dashboard', 'error.tsx', 'not-found.tsx', join('app', 'page.tsx')];
     const escaped = walk(appDir)
       .filter((p) => p.endsWith('page.tsx'))
       .filter((p) => !outside.some((o) => p.includes(o)))

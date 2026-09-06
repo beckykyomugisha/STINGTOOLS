@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  CostPlanRegistry.cs — Loads STING_NRM1_BENCHMARKS.csv.
 //
 //  Schema:
@@ -153,7 +153,7 @@ namespace StingTools.Core.CostPlan
                 if (string.IsNullOrEmpty(bimDir)) return null;
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "nrm1_benchmarks.csv");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "nrm1_benchmarks.csv");
             }
             catch { return null; }
         }

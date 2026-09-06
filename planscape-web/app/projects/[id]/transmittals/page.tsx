@@ -14,6 +14,7 @@ import {
   useToast,
   type Column,
 } from '@/components/ui';
+import { MemberPicker, memberLabel } from '@/components/MemberPicker';
 import { createTransmittal, listTransmittals, transmittalAction } from '@/lib/data';
 import type { Transmittal } from '@/lib/types';
 
@@ -42,6 +43,7 @@ export default function TransmittalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [recipient, setRecipient] = useState('');
+  const [recipientUserId, setRecipientUserId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -64,6 +66,7 @@ export default function TransmittalsPage() {
       await createTransmittal(projectId, { recipient: recipient.trim(), notes: notes.trim() || undefined });
       toast(`Transmittal to ${recipient.trim()} created`, 'success');
       setRecipient('');
+      setRecipientUserId(null);
       setNotes('');
       setNewOpen(false);
       load();
@@ -163,10 +166,19 @@ export default function TransmittalsPage() {
         }
       >
         <div className="flex flex-col gap-3">
-          <label className="flex flex-col gap-1 text-sm">
+          <div className="flex flex-col gap-1 text-sm">
             <span className="text-fg-muted">Recipient</span>
-            <Input value={recipient} onChange={(e) => setRecipient(e.target.value)} autoFocus />
-          </label>
+            <MemberPicker
+              projectId={projectId}
+              value={recipientUserId}
+              onChange={(v) => setRecipientUserId(v as string | null)}
+              // `Transmittal.recipient` is still a single string server-side, so
+              // store the canonical name/email the roster gives us rather than
+              // whatever the user might have typed.
+              onResolve={(sel) => setRecipient(sel[0] ? memberLabel(sel[0]) : '')}
+              placeholder="Select a recipient"
+            />
+          </div>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-fg-muted">Notes (optional)</span>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
