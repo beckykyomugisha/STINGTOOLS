@@ -491,7 +491,7 @@ table(['Data', 'A', 'B', 'C', 'FF&E'],
        ['Maintenance interval', 'Yes', '—', '—', '—'],
        ['Recommended spares', 'Yes', '—', '—', '—'],
        ['Commissioning date', 'Yes', '—', '—', '—'],
-       ['FF&E reference', '—', '—', '—', 'Yes']],
+       ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes']],
       widths=[6.6, 2.4, 4.0, 2.4, 1.8], font=8)
 callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
         'cause-and-effect schedule, the panel and future maintenance actually use.', 'Fire alarm devices')

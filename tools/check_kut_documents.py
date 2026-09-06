@@ -599,6 +599,10 @@ TIER_OF_LABEL = {"a": "A", "b": "B", "c": "C", "ff&e": "FF&E", "d": "D"}
 
 ALL_TRACKED = {p for ps in DATA_ROW_TO_PARAM.values() for p in ps}
 
+# Every category the overlay pins, filled in by overlay_tiers(). names_category()
+# uses it to decide whether a head noun is unique enough to match on.
+ALL_CATEGORIES: set[str] = set()
+
 
 def overlay_tiers(root: Path, f: Findings):
     """category -> set of parameters required at rung 500, from the overlay.
@@ -618,6 +622,8 @@ def overlay_tiers(root: Path, f: Findings):
     for rule in doc.get("categoryRules") or []:
         c500 = (rule.get("checks") or {}).get("500") or {}
         out[rule.get("category")] = {p.lstrip("+") for p in c500.get("requiredParams") or []}
+    ALL_CATEGORIES.clear()
+    ALL_CATEGORIES.update(c for c in out if c)
     return out
 
 
@@ -636,7 +642,16 @@ def names_category(prose: str, category: str) -> bool:
     if cat in prose:
         return True
     tail = cat.split()[-1]
-    return len(tail) > 4 and tail in prose
+    if len(tail) <= 4 or tail not in prose:
+        return False
+    # The head-noun fallback is only safe where the head noun belongs to one
+    # category. "mullions" identifies Curtain Wall Mullions; "fixtures" does
+    # not identify anything, and would quietly pull Electrical Fixtures into
+    # any cell reading "lighting and plumbing fixtures only". Where the noun is
+    # shared, the full name is required.
+    if sum(1 for other in ALL_CATEGORIES if other.lower().split()[-1] == tail) > 1:
+        return False
+    return True
 
 
 def document_tiers(tier_tbl, f: Findings, doc_name: str, per_cat):

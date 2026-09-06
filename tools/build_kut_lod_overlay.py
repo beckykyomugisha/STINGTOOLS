@@ -13,6 +13,7 @@ Run from the repository root; writes project-templates/KUT/_BIM_COORD/lod_matrix
 import collections
 import io
 import json
+import os
 import sys
 
 CORPORATE = 'StingTools/Data/STING_LOD_MATRIX.json'
@@ -34,23 +35,35 @@ TIER_B = ['Lighting Fixtures', 'Plumbing Fixtures', 'Air Terminals', 'Sprinklers
 TIER_C = ['Roofs', 'Curtain Panels', 'Curtain Wall Mullions', 'Doors', 'Windows', 'Casework']
 TIER_FFE = ['Furniture', 'Furniture Systems']
 
+# ASS_ASSET_ID_TXT is the Owner's UNIQUE ASSET REFERENCE, and it is Tier A only
+# on purpose. Identity on every tier is carried by the eight-field tag
+# (ASS_TAG_1_TXT), which every category already requires from rung 300; BEP 14.3
+# records that the unique asset reference is used where the Appointing Party
+# issues one, and the tag otherwise. Do not "extend the asset identifier to all
+# tiers" -- that reads the two as one field and puts an Owner-issued number on
+# thousands of doors and luminaires that will never receive one.
 A_FIELDS = ['+ASS_ASSET_ID_TXT', '+ASS_SERIAL_NR_TXT', '+ASS_INSTALLATION_DATE_TXT',
-            '+ASS_SUPPLIER_TXT', '+ASS_WARRANTY_PARTS_TXT', '+ASS_WARRANTY_DURATION_PARTS_YRS',
-            '+MNT_WARRANTY_EXPIRY_TXT', '+ASS_EXPECTED_LIFE_YEARS_YRS',
-            '+ASS_MAINTENANCE_FREQUENCY_MONTHS', '+MNT_SPARE_PARTS_TXT',
-            '+COMM_DATE_TXT']
+                       '+ASS_SUPPLIER_TXT', '+ASS_WARRANTY_PARTS_TXT',
+                       '+ASS_WARRANTY_DURATION_PARTS_YRS',
+                       '+MNT_WARRANTY_EXPIRY_TXT', '+ASS_EXPECTED_LIFE_YEARS_YRS',
+                       '+ASS_MAINTENANCE_FREQUENCY_MONTHS', '+MNT_SPARE_PARTS_TXT',
+                       '+COMM_DATE_TXT']
 
 B_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT',
-            '+ASS_WARRANTY_DURATION_PARTS_YRS', '+ASS_EXPECTED_LIFE_YEARS_YRS']
+                       '+ASS_WARRANTY_DURATION_PARTS_YRS', '+ASS_EXPECTED_LIFE_YEARS_YRS']
 
 # Fire alarm devices are identified by loop and address, not by serial number.
 B_EXTRA = {'Fire Alarm Devices': ['+FLS_SFTY_DEV_LOOP_TXT', '+FLS_SFTY_DEV_ADDRESS_TXT']}
 
-C_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT', '+ASS_WARRANTY_PARTS_TXT',
-            '+ASS_WARRANTY_DURATION_PARTS_YRS', '+MNT_WARRANTY_EXPIRY_TXT']
+C_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT',
+                       '+ASS_WARRANTY_PARTS_TXT', '+ASS_WARRANTY_DURATION_PARTS_YRS',
+                       '+MNT_WARRANTY_EXPIRY_TXT']
 
-FFE_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+FOHLIO_REF_TXT', '+ASS_SUPPLIER_TXT',
-              '+ASS_WARRANTY_DURATION_PARTS_YRS']
+# FOHLIO_REF_TXT is NOT listed here. It is added per category from
+# fohlio_map.json by fohlio_categories() below, so the requirement cannot drift
+# from the export it exists to support.
+FFE_FIELDS = ['+ASS_INSTALLATION_DATE_TXT', '+ASS_SUPPLIER_TXT',
+                         '+ASS_WARRANTY_DURATION_PARTS_YRS']
 
 TIERS = [('A', TIER_A, A_FIELDS), ('B', TIER_B, B_FIELDS),
          ('C', TIER_C, C_FIELDS), ('FF&E', TIER_FFE, FFE_FIELDS)]
@@ -142,11 +155,43 @@ def drift_report(corp_by_cat, star, rules, milestones, corp_milestones):
     return lines
 
 
+def fohlio_categories():
+    """The categories that carry a Fohlio reference, read from fohlio_map.json.
+
+    Three files had a view on this and they disagreed. fohlio_map.json exported
+    six categories, owner_standards.json warned on the same six, and this
+    overlay required FOHLIO_REF_TXT at rung 500 on two of them -- so Casework,
+    Lighting Fixtures, Plumbing Fixtures and Specialty Equipment were exported
+    to Fohlio, flagged when unlinked, and then let through the handover gate
+    unlinked anyway. The FF&E schedule could be signed off with two thirds of
+    its categories unreferenced.
+
+    Restating the list a third time would have set up the same drift again, so
+    the requirement is derived from the map. A category added to the export is
+    required at handover automatically.
+    """
+    path = os.path.join(os.path.dirname(OVERLAY), 'fohlio_map.json')
+    cats = set(json.load(io.open(path, encoding='utf-8')).get('Categories', []))
+    if not cats:
+        raise SystemExit('fohlio_map.json lists no Categories; the FF&E link '
+                         'requirement would silently apply to nothing')
+    return cats
+
+
 def main():
     check_only = '--check' in sys.argv
     corp = json.load(io.open(CORPORATE, encoding='utf-8'))
     by_cat = {c['category']: c for c in corp['categoryRules']}
     star = by_cat['*']
+    fohlio = fohlio_categories()
+
+    tiered = {c for _t, cats, _f in TIERS for c in cats}
+    orphans = sorted(fohlio - tiered)
+    if orphans:
+        raise SystemExit(
+            'fohlio_map.json exports %s, which no tier covers. The Fohlio '
+            'reference would never be required at handover for them. Add them '
+            'to a tier, or remove them from the export.' % ', '.join(orphans))
 
     tier_of = {}
     rules = []
@@ -155,6 +200,8 @@ def main():
             src = by_cat.get(cat, star)
             checks = json.loads(json.dumps(src['checks']))   # deep copy
             extra = list(fields) + B_EXTRA.get(cat, [])
+            if cat in fohlio:
+                extra.append('+FOHLIO_REF_TXT')
             base500 = checks.get('500') or {'inherit': '400'}
             base500 = dict(base500)
             base500['inherit'] = base500.get('inherit', '400')

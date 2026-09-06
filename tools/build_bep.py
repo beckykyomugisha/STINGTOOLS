@@ -943,7 +943,7 @@ c.table(['Data', 'A', 'B', 'C', 'FF&E', 'D'],
          ['Maintenance interval', 'Yes', '—', '—', '—', '—'],
          ['Recommended spares', 'Yes', '—', '—', '—', '—'],
          ['Commissioning date', 'Yes', '—', '—', '—', '—'],
-         ['FF&E reference', '—', '—', '—', 'Yes', '—']],
+         ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes', '—']],
         widths=[6.2, 2.2, 3.6, 2.2, 1.6, 2.4], font=8)
 c.callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
           'cause-and-effect schedule, the panel and any future maintenance actually use; a device serial '
@@ -1007,8 +1007,17 @@ c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],
          ['15', 'TIDPs returned by every appointed party', 'Section 9', 'Task Team Managers', '[OPEN]'],
          ['16', 'MIDP baselined from the TIDPs', 'Section 9', 'Information Manager', '[OPEN]'],
          ['17', 'Capability and capacity assessed', 'Section 12.1', 'Lead Appointed Party', '[OPEN]'],
-         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]']],
+         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]'],
+         ['18a', 'FF&E catalogue scope confirmed — which categories are procured and '
+                 'specified through the FF&E database', 'Section 14.2', 'Appointing Party', '[OPEN]']],
         widths=[1.0, 6.6, 3.4, 3.4, 2.2], font=8)
+c.callout('Item 18a affects what is required at handover. The project position is that six categories carry an '
+          'FF&E reference: furniture, furniture systems, casework, lighting fixtures, plumbing fixtures and '
+          'specialty equipment. That is the set the FF&E export covers, so it is the set the close-out check '
+          'enforces. If the Appointing Party procures only loose furniture through the catalogue, the other '
+          'four categories come out of scope and the requirement narrows accordingly. Settling this at the '
+          'kickoff costs nothing; settling it at Deliverable D means either an unenforceable requirement or a '
+          'retrospective data-capture exercise.', 'One to confirm at the kickoff')
 
 c.h2('15.3  Before the first coordination share')
 c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],
