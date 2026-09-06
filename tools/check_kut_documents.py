@@ -872,6 +872,64 @@ def read_text(path: Path) -> str:
     return _TEXT_CACHE[key]
 
 
+def check_midp_plans(midp_path: Path, f: Findings, verbose: bool):
+    """Every delivery plan the register points at must exist, and match it.
+
+    The register assigns each deliverable to a Task Information Delivery Plan,
+    and the workbook carries one sheet per plan. Two ways for that to go wrong
+    and neither shows up as an error in Excel: a deliverable assigned to a plan
+    that was never created, so nobody is ever sent it; and a row on a plan sheet
+    that is not in the register, so it is tracked by one party and by no gate.
+    """
+    rows, idx = midp_register(midp_path, f)
+    if rows is None:
+        return
+    sheets = K.xlsx_sheets(midp_path)
+    plan_sheets = {n for n in sheets if n.upper().startswith("TIDP")}
+
+    assigned = {r[idx["TIDP ref"]].strip() for r in rows if idx.get("TIDP ref") is not None
+                and r[idx["TIDP ref"]].strip()} if "TIDP ref" in idx else set()
+    if not assigned:
+        f.fail(MIDP, "no 'TIDP ref' column, or every row is unassigned -- the "
+                     "register cannot say who owes what")
+        return
+
+    missing = sorted(assigned - plan_sheets)
+    if missing:
+        f.fail(MIDP, "assigns deliverables to %s, which has no sheet in the "
+                     "workbook. Nobody is ever issued that plan."
+                     % ", ".join(missing))
+    f.ok()
+
+    empty = sorted(s for s in plan_sheets if s not in assigned)
+    if empty:
+        f.note("delivery plan sheet(s) %s carry no deliverables in the register"
+               % ", ".join(empty))
+
+    # Every reference on a plan sheet must be in the register.
+    known = {r[idx["Ref"]].strip() for r in rows}
+    strays = []
+    for name in sorted(plan_sheets):
+        srows = sheets[name]
+        hdr = next((i for i, r in enumerate(srows)
+                    if "Ref" in [c.strip() for c in r]), None)
+        if hdr is None:
+            f.fail(MIDP, "sheet %r has no 'Ref' header row" % name)
+            continue
+        col = [c.strip() for c in srows[hdr]].index("Ref")
+        for r in srows[hdr + 1:]:
+            ref = r[col].strip() if col < len(r) else ""
+            if ref and ref not in known:
+                strays.append("%s on %s" % (ref, name))
+    if strays:
+        f.fail(MIDP, "delivery plan row(s) not in the register: %s"
+                     % ", ".join(strays[:6]))
+    f.ok()
+    if verbose:
+        print("  delivery plans: %d sheets, %d assigned refs"
+              % (len(plan_sheets), len(assigned)))
+
+
 def midp_register(midp_path: Path, f: Findings):
     """(data rows, column-name -> index) for the MIDP register sheet."""
     key = "register:" + str(midp_path)
@@ -921,6 +979,7 @@ def main() -> int:
     midp_path = root / MIDP
 
     check_naming_config(root, bep_t, f, args.verbose)
+    check_midp_plans(midp_path, f, args.verbose)
     check_type_codes(bep_t, pb_t, f, args.verbose)
     check_programme(bep_t, pb_t, f, args.verbose)
     check_stages(bep_t, pb_t, midp_path, f, args.verbose)

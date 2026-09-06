@@ -14,6 +14,7 @@ from docx.shared import Cm, Pt, RGBColor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
 import kut_docs_lib as K  # noqa: E402
+from midp_schema import COL_NAMES  # noqa: E402
 
 OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
 c = CorporateDoc()
@@ -640,15 +641,18 @@ table(['Meeting', 'Frequency', 'Chair', 'Attendees', 'Purpose'],
 h1('10  Information delivery planning')
 
 h2('10.1  Definitions')
-para('The Task Information Delivery Plan (TIDP) is produced by each appointed party and lists the information '
-     'that party will deliver, when, at what level of development, and in what format. It is owned by the Task '
-     'Team Manager.')
+para('The Task Information Delivery Plan (TIDP) lists the information one appointed party will deliver, when, '
+     'at what level of development, and in what format. It is owned by the Task Team Manager of that party.')
+para('A plan is issued to each party already carrying the deliverables assigned to it in the project register, '
+     'as its own sheet in the delivery plan workbook. The party confirms the dates, adds anything its scope '
+     'requires that is not listed, and returns the sheet. Nothing is transcribed: a plan rebuilt by hand from '
+     'the register is where the two stop agreeing.')
 para('The Master Information Delivery Plan (MIDP) aggregates every TIDP into the project master. It is owned by '
      'the Information Manager and is the single record of what is due, from whom, and when.')
 
 h2('10.2  Production and maintenance')
 table(['When', 'Action'],
-      [['Mobilisation', 'Each appointed party returns a TIDP. The Information Manager aggregates these into the MIDP baseline'],
+      [['Mobilisation', 'Each appointed party returns its plan. The Information Manager merges them into the MIDP baseline'],
        ['At each stage commencement', 'TIDPs are reviewed and re-baselined for the stage'],
        ['At each data drop', 'Actual dates are recorded and status updated'],
        ['Monthly', 'The MIDP is reissued with the status report'],
@@ -656,14 +660,13 @@ table(['When', 'Action'],
       widths=[4.6, 12.0])
 
 h2('10.3  Required fields')
-para('TIDPs are submitted using the issued template and the following fields.')
+para('These are the columns of the issued sheet. They are listed here so a Task Team Manager can see what will '
+     'be asked for before the sheet arrives; the sheet itself is the authoritative form.')
+_f = list(COL_NAMES)
+_rows_n = -(-len(_f) // 3)
+_f += [''] * (_rows_n * 3 - len(_f))
 table(['Field', 'Field', 'Field'],
-      [['Reference', 'Format', 'Actual date'],
-       ['Discipline', 'Suitability', 'Responsible'],
-       ['Originator', 'CDE state', 'TIDP reference'],
-       ['Deliverable', 'Planned release month', 'Status'],
-       ['Type', 'Planned date', 'Notes'],
-       ['Stage and level of development', '', '']],
+      [[_f[i], _f[i + _rows_n], _f[i + 2 * _rows_n]] for i in range(_rows_n)],
       widths=[5.6, 5.5, 5.5])
 
 # ── 11 ───────────────────────────────────────────────────────────────────────
