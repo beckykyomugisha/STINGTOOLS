@@ -1953,6 +1953,9 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Audit model baseline" Tag="Baseline_Audit" Click="Cmd_Click"
                                         ToolTip="READ-ONLY. Compares this project to the STING model-authoring baseline: which materials and wall/floor/roof/ceiling types are missing, which exist but differ, and which need families loaded by hand. Writes nothing."
                                         HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Harvest types from this model" Tag="Baseline_HarvestTypes" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. Records the door / window / structural types actually PLACED in this model as a catalogue pack, written to _BIM_COORD/harvested_catalogue.json for review. A type nobody placed is not harvested. Nothing is adopted by writing it."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Apply baseline (asks first)" Tag="Baseline_Apply" Click="Cmd_Click"
                                         ToolTip="Shows the full list of what it would create, then writes only after you confirm. Creates ONLY what is missing — an existing type is never edited, even when its build-up differs from the baseline. A material schedule can only measure finishes the model actually describes; this is what gives it something to read."
                                         HorizontalAlignment="Stretch" Margin="0,4,0,0"/>

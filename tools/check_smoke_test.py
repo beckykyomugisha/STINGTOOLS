@@ -269,12 +269,36 @@ def readonly_prose_hints(ctx: dict) -> list[str]:
 
     Advisory only — printed, never fatal. Turning this into a failure is what
     produced the two false positives documented in `claims_read_only`.
+
+    A description that DISCLAIMS read-only anywhere is not a hint, even if some
+    other sentence in it says "read-only" positively. Both presets this advisory
+    named until 2026-08-22 were of exactly that shape, and both were already
+    correct:
+
+      - WORKFLOW_PlumbingAudit opens "NOT read-only, despite the name" and then
+        names the three writing steps — but closes by pointing at a different
+        preset for "a genuinely read-only pre-gate look", and that closing
+        sentence is positive and about something else;
+      - WORKFLOW_KUT_MonthlyReport says "this is not a read-only workflow" and
+        names both writers — but opens "chains the read-only metrics", which
+        describes the metrics.
+
+    Those are the two sentences `claims_read_only` already documents as the
+    reason prose-matching cannot decide the claim. Flagging them forever asks an
+    author to make honest prose vaguer to silence a heuristic, which is the
+    failure that docstring warns about. So: if the description addresses
+    read-only-ness in the negative even once, the author has demonstrably
+    considered the question — leave it alone. A preset that reads as read-only
+    and never disclaims it is still flagged, which is what the advisory is for.
     """
     hints = []
     for name, pj in sorted(ctx["presets"].items()):
         if "__parse_error__" in pj or "readOnly" in pj:
             continue
-        for sentence in _SENTENCE_SPLIT_RX.split(pj.get("description") or ""):
+        sentences = _SENTENCE_SPLIT_RX.split(pj.get("description") or "")
+        if any(_READONLY_RX.search(s) and _NEGATION_RX.search(s) for s in sentences):
+            continue
+        for sentence in sentences:
             if _READONLY_RX.search(sentence) and not _NEGATION_RX.search(sentence):
                 hints.append(name)
                 break

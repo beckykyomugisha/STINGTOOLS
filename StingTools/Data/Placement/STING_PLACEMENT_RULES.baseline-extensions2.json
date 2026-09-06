@@ -11,9 +11,7 @@
       "MountingHeightMm": 1100.0,
       "MaxPerRoom": 4,
       "VariantHint": "EM",
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80,
       "Notes": "BS 5266 escape-route lighting at 1100mm AFF, capped at 4 per room. Restricted to non-dwelling circulation / commercial / healthcare."
     },
@@ -25,9 +23,7 @@
       "MountingHeightMm": 2100.0,
       "VariantHint": "EM",
       "MaxPerRoom": 2,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 85,
       "Notes": "BS 5266 emergency luminaire either side of escape door, restricted to non-dwelling circulation / commercial."
     },
@@ -38,9 +34,7 @@
       "AnchorType": "STAIR_LANDING_EDGE",
       "VariantHint": "EM",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80
     },
     {
@@ -50,9 +44,7 @@
       "AnchorType": "STAIR_FLIGHT_MID",
       "VariantHint": "EM",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 78
     },
     {
@@ -62,9 +54,7 @@
       "AnchorType": "CORRIDOR_JUNCTION",
       "VariantHint": "EM",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 75
     },
     {
@@ -72,9 +62,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "DependsOn": "baseline-fire-alarm-mcp",
       "VariantHint": "EM",
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80
     },
     {
@@ -82,9 +70,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "DependsOn": "mech-fire-extinguisher-classA",
       "VariantHint": "EM",
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 78
     },
     {
@@ -94,9 +80,7 @@
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 60.0,
       "GuaranteeCoverage": true,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80,
       "VariantHint": "BASELINE_EMLIT_ANTI_PANIC_OPEN"
     },
@@ -106,9 +90,7 @@
       "RoomFilter": "(?i)kitchen|lab|workshop",
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 20.0,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 80,
       "VariantHint": "BASELINE_EMLIT_HIGH_RISK_TASK"
     },
@@ -122,10 +104,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "BS5266_EXIT_SIGN",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS5266",
-        "BSEN1838"
-      ],
+      "ApplicableStandards": ["BS 5266", "BS EN 1838"],
       "Priority": 85,
       "Notes": "BS 5266 exit sign above escape door, restricted to non-dwelling circulation / commercial."
     },
@@ -137,9 +116,7 @@
       "MountingHeightMm": 2300.0,
       "VariantHint": "EXIT,SUSPENDED",
       "MaxSpacingMm": 25000.0,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 75
     },
     {
@@ -148,9 +125,7 @@
       "RoomFilter": "(?i)carpark|parking",
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 100.0,
-      "ApplicableStandards": [
-        "BS5266"
-      ],
+      "ApplicableStandards": ["BS 5266"],
       "Priority": 70,
       "VariantHint": "ASELINE_EMLIT_CARPARK_ANTI_PANIC"
     },
@@ -211,10 +186,7 @@
       "AnchorType": "CEILING_CENTRE",
       "PerOccupant": 3.0,
       "PerPupil": 3.0,
-      "ApplicableStandards": [
-        "ASHRAE621",
-        "BB103"
-      ],
+      "ApplicableStandards": ["ASHRAE621", "BB 103"],
       "Priority": 75,
       "VariantHint": "NE_AIR_TERMINAL_SUPPLY_CLASSROOM"
     },
@@ -225,9 +197,7 @@
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 12.0,
       "PerBed": 1.0,
-      "ApplicableStandards": [
-        "SHTM03-01"
-      ],
+      "ApplicableStandards": ["SHTM 03-01"],
       "Priority": 80,
       "VariantHint": "IR_TERMINAL_SUPPLY_HOSPITAL_WARD"
     },
@@ -237,9 +207,7 @@
       "RoomFilter": "(?i)operating|theatre|procedure",
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 6.0,
-      "ApplicableStandards": [
-        "SHTM03-01"
-      ],
+      "ApplicableStandards": ["SHTM 03-01"],
       "Priority": 85,
       "VariantHint": "LINE_AIR_TERMINAL_SUPPLY_THEATRE"
     },
@@ -249,15 +217,14 @@
       "RoomFilter": "(?i)corridor",
       "AnchorType": "CEILING_CENTRE",
       "PerLinearMetre": 6.0,
-      "ApplicableStandards": [
-        "CIBSE_GuideB"
-      ],
+      "ApplicableStandards": ["CIBSE Guide B"],
       "Priority": 60,
       "VariantHint": "INE_AIR_TERMINAL_SUPPLY_CORRIDOR"
     },
     {
       "RuleId": "baseline-air-terminal-return-grille-wall",
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 2400.0,
       "DependsOn": "supply-diffuser",
@@ -270,9 +237,7 @@
       "RoomFilter": "(?i)\\b(wc|toilet|en\\s*-?suite|cloakroom|lavatory)\\b",
       "AnchorType": "CEILING_CENTRE",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "ApprovedDocF"
-      ],
+      "ApplicableStandards": ["Approved Doc F"],
       "Priority": 75,
       "VariantHint": "BASELINE_AIR_TERMINAL_EXHAUST_WC"
     },
@@ -282,9 +247,7 @@
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "CEILING_CENTRE",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "ApprovedDocF"
-      ],
+      "ApplicableStandards": ["Approved Doc F"],
       "Priority": 75,
       "VariantHint": "TERMINAL_EXHAUST_KITCHEN_EXTRACT"
     },
@@ -293,9 +256,7 @@
       "CategoryFilter": "Air Terminals",
       "AnchorType": "DOOR_HEAD",
       "MaxPerRoom": 2,
-      "ApplicableStandards": [
-        "ApprovedDocF"
-      ],
+      "ApplicableStandards": ["Approved Doc F"],
       "Priority": 60,
       "VariantHint": "IR_TERMINAL_TRANSFER_GRILLE_DOOR"
     },
@@ -305,14 +266,13 @@
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 40.0,
       "VariantHint": "CASSETTE,FCU",
-      "ApplicableStandards": [
-        "CIBSE_GuideB"
-      ],
+      "ApplicableStandards": ["CIBSE Guide B"],
       "Priority": 65
     },
     {
       "RuleId": "baseline-air-terminal-fan-coil-wall",
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 2400.0,
       "PerAreaM2": 30.0,
@@ -322,6 +282,7 @@
     {
       "RuleId": "baseline-air-terminal-vav-box",
       "CategoryFilter": "Air Terminals",
+      "ApplicableStandards": ["BS EN 13779", "CIBSE Guide B"],
       "AnchorType": "NEAREST_MEP_SYSTEM_NODE",
       "VariantHint": "VAV",
       "Priority": 70
@@ -331,10 +292,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "RoomFilter": "(?i)office",
       "AnchorType": "LIGHTING_GRID",
-      "ApplicableStandards": [
-        "BSEN12464",
-        "ApprovedDocL"
-      ],
+      "ApplicableStandards": ["BS EN 12464", "Approved Doc L"],
       "Priority": 80,
       "VariantHint": "BASELINE_LIGHT_OFFICE_LED_PANEL"
     },
@@ -344,9 +302,7 @@
       "RoomFilter": "(?i)conference|meeting",
       "AnchorType": "LIGHTING_GRID",
       "VariantHint": "LINEAR",
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 75
     },
     {
@@ -354,16 +310,14 @@
       "CategoryFilter": "Lighting Fixtures",
       "RoomFilter": "(?i)classroom|teaching",
       "AnchorType": "LIGHTING_GRID",
-      "ApplicableStandards": [
-        "BSEN12464",
-        "BB103"
-      ],
+      "ApplicableStandards": ["BS EN 12464", "BB 103"],
       "Priority": 80,
       "VariantHint": "BASELINE_LIGHT_CLASSROOM_DIFFUSE"
     },
     {
       "RuleId": "baseline-light-corridor-downlight",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)corridor",
       "AnchorType": "CEILING_CENTRE",
       "PerLinearMetre": 3.0,
@@ -376,9 +330,7 @@
       "RoomFilter": "(?i)stair",
       "AnchorType": "STAIR_LANDING_EDGE",
       "VariantHint": "WALLWASH",
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 75
     },
     {
@@ -386,9 +338,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "RoomFilter": "(?i)toilet|wc|bathroom",
       "AnchorType": "CEILING_CENTRE",
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 70,
       "VariantHint": "BASELINE_LIGHT_TOILET_AMBIENT"
     },
@@ -399,9 +349,7 @@
       "AnchorType": "PERIMETER_OFFSET",
       "MountingHeightMm": 2300.0,
       "PerLinearMetre": 0.9,
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 75,
       "VariantHint": "BASELINE_LIGHT_KITCHEN_WORKTOP"
     },
@@ -410,9 +358,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "RoomFilter": "(?i)kitchen",
       "AnchorType": "CEILING_CENTRE",
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 70,
       "VariantHint": "BASELINE_LIGHT_KITCHEN_AMBIENT"
     },
@@ -421,9 +367,7 @@
       "CategoryFilter": "Lighting Fixtures",
       "RoomFilter": "(?i)storage|store",
       "AnchorType": "CEILING_CENTRE",
-      "ApplicableStandards": [
-        "ApprovedDocL"
-      ],
+      "ApplicableStandards": ["Approved Doc L"],
       "Priority": 60,
       "VariantHint": "BASELINE_LIGHT_STORAGE_MINIMAL"
     },
@@ -433,15 +377,14 @@
       "RoomFilter": "(?i)carpark|parking",
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 25.0,
-      "ApplicableStandards": [
-        "BSEN12464"
-      ],
+      "ApplicableStandards": ["BS EN 12464"],
       "Priority": 65,
       "VariantHint": "BASELINE_LIGHT_PARKING_COVERED"
     },
     {
       "RuleId": "baseline-light-reception-feature",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)reception|lobby|entrance",
       "AnchorType": "CEILING_CENTRE",
       "VariantHint": "FEATURE,SPOT",
@@ -450,6 +393,7 @@
     {
       "RuleId": "baseline-light-retail-display",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)retail|shop",
       "AnchorType": "CEILING_CENTRE",
       "VariantHint": "TRACK,DISPLAY",
@@ -470,6 +414,7 @@
     {
       "RuleId": "baseline-light-operating-theatre",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1", "HTM 06-01"],
       "RoomFilter": "(?i)operating|theatre",
       "AnchorType": "ROOM_CENTRE",
       "VariantHint": "SURGICAL,OT",
@@ -479,6 +424,7 @@
     {
       "RuleId": "baseline-light-external-floodlight",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1", "BS EN 12464-2"],
       "RoomFilter": "(?i)external",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 4000.0,
@@ -490,6 +436,7 @@
     {
       "RuleId": "baseline-light-external-bollard",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1", "BS EN 12464-2"],
       "RoomFilter": "(?i)external|garden",
       "AnchorType": "PERIMETER_OFFSET",
       "MountingHeightMm": 1000.0,
@@ -501,6 +448,7 @@
     {
       "RuleId": "baseline-light-rcp-uplighter",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 2600.0,
       "VariantHint": "UPLIGHTER,INDIRECT",
@@ -509,6 +457,7 @@
     {
       "RuleId": "baseline-light-cleanroom-recessed",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)cleanroom",
       "AnchorType": "CEILING_TILE_CORNER",
       "VariantHint": "RECESSED,FLUSH",
@@ -518,6 +467,7 @@
     {
       "RuleId": "baseline-light-retail-perimeter",
       "CategoryFilter": "Lighting Fixtures",
+      "ApplicableStandards": ["BS EN 12464-1"],
       "RoomFilter": "(?i)retail|shop",
       "AnchorType": "PERIMETER_OFFSET",
       "OffsetXMm": 600.0,
@@ -545,10 +495,7 @@
       "MinAreaM2": 3.3,
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300",
-        "PartM"
-      ],
+      "ApplicableStandards": ["BS 8300", "PartM"],
       "Priority": 85,
       "VariantHint": "BASELINE_PLUMBING_WC_ACCESSIBLE"
     },
@@ -561,9 +508,7 @@
       "MinSpacingMm": 700.0,
       "AccessibilityCheck": true,
       "HeightStandard": "BS6465_URINAL",
-      "ApplicableStandards": [
-        "BS6465"
-      ],
+      "ApplicableStandards": ["BS 6465"],
       "Priority": 70,
       "VariantHint": "BASELINE_PLUMBING_URINAL_WALL"
     },
@@ -575,9 +520,7 @@
       "MountingHeightMm": 450.0,
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75,
       "VariantHint": "ELINE_PLUMBING_URINAL_ACCESSIBLE"
     },
@@ -590,9 +533,7 @@
       "AccessibilityCheck": true,
       "HeightStandard": "BS8300_BASIN_RIM",
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 80,
       "VariantHint": "SELINE_PLUMBING_BASIN_ACCESSIBLE"
     },
@@ -602,15 +543,14 @@
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 850.0,
       "BuildingTypeTable": "WORKPLACE1992",
-      "ApplicableStandards": [
-        "BS6465"
-      ],
+      "ApplicableStandards": ["BS 6465"],
       "Priority": 65,
       "VariantHint": "BASELINE_PLUMBING_BASIN_QUANTITY"
     },
     {
       "RuleId": "baseline-plumbing-shower-thermostatic",
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)shower",
       "AnchorType": "WALL_CORNER",
       "MountingHeightMm": 1900.0,
@@ -627,9 +567,7 @@
       "AnchorType": "ROOM_CENTRE",
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 75,
       "VariantHint": "ASELINE_PLUMBING_BATH_ACCESSIBLE"
     },
@@ -650,6 +588,7 @@
     {
       "RuleId": "baseline-plumbing-mop-sink-cleaner",
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)cleaner|janitor",
       "AnchorType": "WALL_CORNER",
       "MountingHeightMm": 450.0,
@@ -660,6 +599,7 @@
     {
       "RuleId": "baseline-plumbing-hose-bib-external",
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)external",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 800.0,
@@ -672,6 +612,7 @@
     {
       "RuleId": "baseline-plumbing-lab-sink",
       "CategoryFilter": "Plumbing Fixtures",
+      "ApplicableStandards": ["BS 6465-1"],
       "RoomFilter": "(?i)lab|science",
       "AnchorType": "PERIMETER_OFFSET",
       "MountingHeightMm": 900.0,
@@ -686,9 +627,7 @@
       "AnchorType": "WALL_CORNER",
       "MountingHeightMm": 900.0,
       "VariantHint": "BEDPAN,SLUICE",
-      "ApplicableStandards": [
-        "HTM0201"
-      ],
+      "ApplicableStandards": ["HTM 0201"],
       "MaxPerRoom": 1,
       "Priority": 75
     },
@@ -701,14 +640,13 @@
       "SideConstraint": "LATCH_SIDE",
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 70
     },
     {
       "RuleId": "baseline-communication-devices-intercom-entry",
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "AnchorType": "DOOR_STRIKE_SIDE",
       "MountingHeightMm": 1200.0,
@@ -719,6 +657,7 @@
     {
       "RuleId": "baseline-communication-devices-pa-office",
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "RoomFilter": "(?i)office",
       "AnchorType": "CEILING_CENTRE",
       "PerAreaM2": 60.0,
@@ -729,6 +668,7 @@
     {
       "RuleId": "baseline-communication-devices-pa-classroom",
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "RoomFilter": "(?i)classroom",
       "AnchorType": "CEILING_CENTRE",
       "MaxPerRoom": 2,
@@ -739,6 +679,7 @@
     {
       "RuleId": "baseline-communication-devices-pa-corridor",
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "RoomFilter": "(?i)corridor",
       "AnchorType": "CEILING_CENTRE",
       "PerLinearMetre": 8.0,
@@ -755,9 +696,7 @@
       "SideConstraint": "RIGHT",
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "HTM0201"
-      ],
+      "ApplicableStandards": ["HTM 0201"],
       "Priority": 80,
       "VariantHint": "UNICATION_DEVICES_NURSE_CALL_BED"
     },
@@ -769,9 +708,7 @@
       "VariantHint": "PULLCORD",
       "AccessibilityCheck": true,
       "MaxPerRoom": 1,
-      "ApplicableStandards": [
-        "HTM0201"
-      ],
+      "ApplicableStandards": ["HTM 0201"],
       "Priority": 80
     },
     {
@@ -780,15 +717,14 @@
       "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "AnchorType": "PERIMETER_OFFSET",
       "PerLinearMetre": 2.0,
-      "ApplicableStandards": [
-        "BS8300"
-      ],
+      "ApplicableStandards": ["BS 8300"],
       "Priority": 65,
       "MountingHeightMm": 450
     },
     {
       "RuleId": "baseline-communication-devices-video-conference",
       "CategoryFilter": "Communication Devices",
+      "ApplicableStandards": ["BS EN 50173"],
       "FamilyTypeRegex": "(?i)data|outlet|comms|av|tv|coax|tele|rj",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1200.0,
@@ -804,14 +740,13 @@
       "MountingHeightMm": 300.0,
       "PerAreaM2": 10.0,
       "MaxPerRoom": 24,
-      "ApplicableStandards": [
-        "BS6701"
-      ],
+      "ApplicableStandards": ["BS 6701"],
       "Priority": 60
     },
     {
       "RuleId": "baseline-security-devices-cctv-bullet-external",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 3000.0,
       "IpRatingMin": "IP66",
@@ -822,6 +757,7 @@
     {
       "RuleId": "baseline-security-devices-pir-corridor-wide",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "RoomFilter": "(?i)corridor",
       "AnchorType": "CEILING_CENTRE",
       "MountingHeightMm": 2400.0,
@@ -832,6 +768,7 @@
     {
       "RuleId": "baseline-security-devices-panic-button",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 900.0,
@@ -844,6 +781,7 @@
     {
       "RuleId": "baseline-security-devices-door-contact",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "AnchorType": "DOOR_HEAD",
       "OffsetZMm": -50.0,
       "VariantHint": "CONTACT,MAGNETIC",
@@ -853,6 +791,7 @@
     {
       "RuleId": "baseline-security-devices-glass-break",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)security|alarm|sensor|detector|keypad|reader",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 2400.0,
@@ -863,6 +802,7 @@
     {
       "RuleId": "baseline-security-devices-turnstile-reader",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "FamilyTypeRegex": "(?i)keypad|reader|access|prox",
       "AnchorType": "DOOR_STRIKE_SIDE",
       "MountingHeightMm": 900.0,
@@ -873,6 +813,7 @@
     {
       "RuleId": "baseline-security-devices-safe-room",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1800.0,
       "VariantHint": "HIDDEN",
@@ -882,6 +823,7 @@
     {
       "RuleId": "baseline-security-devices-carpark-licence-plate",
       "CategoryFilter": "Security Devices",
+      "ApplicableStandards": ["BS EN 62676"],
       "RoomFilter": "(?i)carpark",
       "AnchorType": "COLUMN_FACE_NEAREST",
       "MountingHeightMm": 1200.0,

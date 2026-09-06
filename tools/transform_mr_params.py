@@ -321,6 +321,15 @@ def build_param_line(parts: list) -> str:
 
 
 def main():
+    # --dry-run exists so the migration can be *measured* before it is run: the
+    # counts printed at the end are the answer to "how much does #338 actually
+    # change", and producing them should not require writing the file and
+    # restoring it from the backup afterwards.
+    import argparse
+    ap = argparse.ArgumentParser(description='Transform MR_PARAMETERS.txt (Phase 188).')
+    ap.add_argument('--dry-run', action='store_true',
+                    help='report what would change; write nothing (no backup either)')
+    args = ap.parse_args()
     src = ROOT / 'StingTools/Data/MR_PARAMETERS.txt'
     backup = src.with_suffix('.txt.bak')
 
@@ -328,9 +337,11 @@ def main():
         print(f"ERROR: {src} not found", file=sys.stderr)
         sys.exit(1)
 
-    # Backup
-    shutil.copy2(src, backup)
-    print(f"Backup: {backup}")
+    # Backup. Skipped under --dry-run: a backup of a file about to be left
+    # untouched is noise, and it would overwrite a real backup from a prior run.
+    if not args.dry_run:
+        shutil.copy2(src, backup)
+        print(f"Backup: {backup}")
 
     lines = src.read_text(encoding='utf-8-sig').splitlines(keepends=True)
 
@@ -467,10 +478,11 @@ def main():
         out_lines.append(build_param_line(p))
 
     # Write output
-    src.write_text(''.join(out_lines), encoding='utf-8')
+    if not args.dry_run:
+        src.write_text(''.join(out_lines), encoding='utf-8')
 
-    print(f"\nTransformation complete:")
-    print(f"  _BOOL TEXT→YESNO fixes : {bool_fixed}")
+    print(f"\nTransformation {'PREVIEW (nothing written)' if args.dry_run else 'complete'}:")
+    print(f"  _BOOL TEXT->YESNO fixes : {bool_fixed}")
     print(f"  Native type fixes       : {native_fixed}")
     print(f"  Already correct (skip)  : {already_correct}")
     print(f"  _TXT mirrors added      : {mirrors_added}")
@@ -479,7 +491,7 @@ def main():
         for src_name, mir in label_mirrors:
             print(f"       {src_name:<40} -> {mir}")
     print(f"  Total output lines      : {len(out_lines)}")
-    print(f"\nWritten: {src}")
+    print(f"\n{'Would write' if args.dry_run else 'Written'}: {src}")
 
 
 if __name__ == '__main__':
