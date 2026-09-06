@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -97,6 +98,52 @@ namespace StingTools.BOQ
                     };
                     if (gate.Show() != TaskDialogResult.Yes)
                         return Result.Cancelled;
+                }
+
+                // Spec-completeness gate. Money in a tender bill for something the
+                // specification does not describe is what a scope dispute is made of, so
+                // count it before the file is written rather than after it is issued.
+                //
+                // OFF by default (COST_REQUIRE_SPEC_FOR_TENDER = 0): a project that has
+                // not adopted SpecLink sees no change. 1 = warn and let the QS proceed
+                // knowingly; 2 = block. The definition of "priced but unspecified" is
+                // shared with SpecLink_Reconcile so the gate and the report agree.
+                int specMode = (int)TagConfig.GetConfigDouble("COST_REQUIRE_SPEC_FOR_TENDER", 0.0);
+                if (specMode > 0)
+                {
+                    var specGate = SpecCompletenessGate.Evaluate(boq);
+                    if (!specGate.Passes)
+                    {
+                        var top = SpecCompletenessGate.TopUnspecified(boq, 8);
+                        var lines = new StringBuilder();
+                        lines.AppendLine(
+                            $"• {specGate.PricedUnspecifiedCount} priced row(s) carry no CSI/spec reference — " +
+                            $"UGX {specGate.PricedUnspecifiedValueUGX:N0} " +
+                            $"({specGate.UnspecifiedValueFraction * 100:F1}% of priced value).");
+                        lines.AppendLine();
+                        lines.AppendLine("Largest unspecified:");
+                        foreach (var li in top)
+                            lines.AppendLine($"   {li.Category,-22} {li.ItemName,-28} UGX {li.TotalUGX:N0}");
+                        lines.AppendLine();
+                        lines.Append(specMode >= 2
+                            ? "COST_REQUIRE_SPEC_FOR_TENDER is set to block. Run CSI Assign / SpecLink Import, then re-export."
+                            : "Run CSI Assign (and SpecLink Import for the clause text), or proceed knowingly.");
+
+                        var sg = new TaskDialog("Professional BOQ — spec gate")
+                        {
+                            MainInstruction = "This bill prices work the specification does not describe.",
+                            MainContent = lines.ToString(),
+                            CommonButtons = specMode >= 2
+                                ? TaskDialogCommonButtons.Close
+                                : TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                            DefaultButton = specMode >= 2 ? TaskDialogResult.Close : TaskDialogResult.No,
+                            AllowCancellation = true
+                        };
+                        var sgRes = sg.Show();
+                        StingLog.Info($"BOQ spec gate (mode {specMode}): {specGate.PricedUnspecifiedCount} unspecified " +
+                                      $"of {specGate.PricedTotalCount} priced, UGX {specGate.PricedUnspecifiedValueUGX:N0} at risk.");
+                        if (specMode >= 2 || sgRes != TaskDialogResult.Yes) return Result.Cancelled;
+                    }
                 }
 
                 // Phase 108h / 108j — tender config acquisition.

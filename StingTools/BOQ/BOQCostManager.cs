@@ -22,6 +22,7 @@ using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
+using StingTools.Core.Classification;
 using StingTools.Core.Storage;
 using StingTools.Temp;
 
@@ -749,6 +750,45 @@ namespace StingTools.BOQ
 
             string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
+
+            // (f) Spec reference + CSI -> NRM2 bridge.
+            //
+            // The element carries CSI_SECTION_TXT once CSI_Assign has run. When it has
+            // not, resolve the section straight from the shipped map so the bill's
+            // MasterFormat column is populated for the WHOLE model rather than only for
+            // elements that happened to be pre-stamped - the stamp still wins when
+            // present, so an assign pass is an override, not a prerequisite.
+            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION) ?? "";
+            string csiTitle = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
+            CsiRule csiRule = null;
+            try
+            {
+                var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
+                if (rules != null && rules.Count > 0)
+                    csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
+                if (csiRule != null)
+                {
+                    if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";
+                    if (string.IsNullOrEmpty(csiTitle)) csiTitle = csiRule.Title ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiResolve", $"CSI map resolve: {ex.Message}"); }
+
+            // A rule that names its NRM2 work section overrides the category derivation,
+            // so a SYS-specific row (Pipes+SAN -> 32, Pipes+CHW -> 33) bills under the
+            // section its specification sits in instead of one bucket for every pipe.
+            // Nrm2For reads the MATCHED RULE first - six shipped rows share section
+            // 03 30 00 with two different answers, and a section-keyed lookup alone would
+            // bill every concrete slab and foundation under masonry.
+            try
+            {
+                string bridged = CsiMasterFormat.Nrm2For(csiRule,
+                    StingTools.Commands.Classification.CsiMap.SectionToNrm2(doc), csiSection);
+                if (!string.IsNullOrEmpty(bridged)) nrm2Section = bridged;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiNrm2", $"CSI-NRM2 bridge: {ex.Message}"); }
+
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
 
@@ -791,6 +831,8 @@ namespace StingTools.BOQ
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
+                CsiSection = csiSection,
+                CsiTitle = csiTitle,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
                 MaterialUGX = splitMaterial,
@@ -798,6 +840,53 @@ namespace StingTools.BOQ
                 CarbonQuality = carbonQuality,
                 CarbonMaterial = carbonMaterial
             };
+
+            // The SPEC writes the bill. When the element's CSI section is described by an
+            // issued SpecLink store, that text becomes the line description - one source
+            // of truth instead of a generated NRM2 template that drifts from what was
+            // actually specified. A no-op for every project that has not run
+            // SpecLink_ImportFolder, which is the dominant case.
+            //
+            // The Unit is deliberately NOT overridden. The rate's unit and the quantity's
+            // unit must agree, so a spec that measures a section differently from the way
+            // it is priced is surfaced as a QA note for the QS, never silently re-measured.
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var spec = SpecStore.Get(
+                        StingTools.Commands.Classification.CsiMap.SpecSections(doc), csiSection);
+                    if (spec != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(spec.Description))
+                        {
+                            line.ResolvedNRM2Paragraph = spec.Description;
+                            line.SpecSourced = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(spec.Unit)) line.CsiUnit = spec.Unit;
+                    }
+                    // No spec opinion? the map's own Unit column is the advisory fallback.
+                    if (string.IsNullOrWhiteSpace(line.CsiUnit))
+                    {
+                        if (csiRule != null && !string.IsNullOrWhiteSpace(csiRule.Unit)) line.CsiUnit = csiRule.Unit;
+                        else
+                        {
+                            var unitMap = StingTools.Commands.Classification.CsiMap.SectionToUnit(doc);
+                            if (unitMap != null && unitMap.TryGetValue(
+                                    CsiMasterFormat.NormalizeSection(csiSection), out string cu) &&
+                                !string.IsNullOrWhiteSpace(cu))
+                                line.CsiUnit = cu;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(line.CsiUnit) && !string.IsNullOrWhiteSpace(line.Unit) &&
+                        !BoqUnits.Align(line.CsiUnit, line.Unit))
+                    {
+                        string m = $"Measurement-vs-spec: priced per {line.Unit}, specified per {line.CsiUnit}";
+                        line.Note = string.IsNullOrEmpty(line.Note) ? m : line.Note + "; " + m;
+                    }
+                }
+                catch (Exception ex) { StingLog.WarnRateLimited("SpecText", $"Spec-text bridge: {ex.Message}"); }
+            }
 
             // Mark provisional sums on the element if configured via existing parameter.
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
