@@ -105,7 +105,8 @@
       "order": 40,
       "constituentKinds": [
         "roof_underlay",
-        "roof_fastener"
+        "roof_fastener",
+        "fascia_board"
       ],
       "categories": [
         "Roofs"

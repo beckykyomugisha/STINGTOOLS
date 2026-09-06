@@ -2,6 +2,66 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 251 — one roof accessory measured, two refused out loud)
+
+Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
+This phase measures that one and spends most of its effort saying, in the export, why the other two
+are missing.
+
+| Accessory | Where its length lives | Outcome |
+|---|---|---|
+| **Fascia** | along the eaves — and an eave is horizontal, so the footprint's **plan length IS its length** | **measured** → `fascia_board` (m → Lengths of 4.2 m) |
+| **Barge board** | up the **rake** of a gable — longer than the gable's plan length by 1/cos(pitch) | **not measured**; the plan length is reported, labelled as not the answer |
+| **Ridge cap** | an internal line the footprint does **not carry at all** | **not measured**; no boundary data could give it |
+
+**How the eaves are identified.** A `FootPrintRoof`'s sketch records which boundary curves *define
+slope*. Those are the eaves; the rest are gable edges. That is a fact the model states, not an
+inference from form. Only the **first** profile loop is measured — later loops are openings, and an
+opening's edge is not an eave.
+
+**Why the barge board is refused.** Recovering a rake length from a plan length needs the pitch, and
+`FootPrintRoof.get_SlopeAngle` returns a value whose units this work could not confirm against a
+running Revit — the same instrument problem that runs through all of T1–T5. Shipping a length that
+is right only if a guess about units is right would be worse than shipping none. The scan therefore
+reports the gable edges' **plan** total, hard-labelled as *not* the barge length, so a QS can finish
+the calculation by hand knowing exactly what is missing.
+
+**Deriving either from the roof AREA is refused explicitly, in the export text**, because the reader
+who wants a ridge length is precisely the person most likely to reach for the area.
+
+**Also stated in the scan:** timber rafters and purlins are out of scope here and are measured only
+when modelled as Structural Framing, where they already decompose — so their absence reads as a
+scope boundary rather than an omission. Concrete roofs are skipped (a flat RC slab has no fascia) and
+say so; extrusion roofs and roofs by face carry no boundary sketch and say so separately, because the
+two have different fixes.
+
+**A gate did not fire, and that is reported rather than papered over.** Removing the `Math.Max(0, …)`
+clamp on the eaves length moved no test — because the `if (eaves <= 0)` guard below it already
+rejects a negative. The two are redundant *by design*; a comment now says so, and removing **both**
+was verified to fail the gate. That is a different finding from a blind gate and is written up as
+such.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings — which also confirms `FootPrintRoof.GetProfiles`
+and `get_DefinesSlope` resolve against the real Revit API. `StingTools.Boq.Tests` 689 → **716 green**.
+All four gates pass. **Twenty-four deliberately wrong inputs were each shown to make the matching
+gate FAIL, then restored**: a ridge cap derived from the eaves, a barge board emitted at the eaves
+length, a dropped zero-length guard, fascia emitted in m², a doubled cutting allowance, and ten ways
+of weakening the scan — dropping the ridge/barge sentence, un-labelling the plan length, telling a
+hip roof its barge could not be measured, dropping the area refusal, dropping the rafters note, and
+folding the footprint-less / concrete / opening cases into the general count — plus a mismatched
+unit, fractional lengths, a per-metre "Lengths" label, a zeroed allowance, an invented ridge
+commodity, a missing rate, a lost kind route and a wrongly declared intermediate. One pre-existing
+gate fired as well.
+
+**What was NOT verified, and it matters more here than anywhere in T1–T4.** *Nothing Revit-side has
+been run by anyone.* `ReadRoofEavesLengthM` is a **new Revit reader** — the first since T3 — and it
+has never executed against a real model. It compiles, so the API surface is real, but whether
+`get_DefinesSlope` classifies a given project's roof edges as expected is exactly the class of thing
+that has only ever been settled by an export. Treat every fascia length as unconfirmed until
+MATSCHED-T-VERIFY is closed.
+
+**T6 was not attempted**, per its own instruction that the deliverable is a written proposal first.
+
 #### Completed (Phase 250 — the first numbers this schedule does not measure)
 
 T1–T3 measured what the model **states**: a screed layer's thickness, a board layer's area, a
