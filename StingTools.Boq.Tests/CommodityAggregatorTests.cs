@@ -58,6 +58,41 @@ namespace StingTools.Boq.Tests
         };
 
         [Fact]
+        public void An_Aggregated_Commodity_Remembers_Every_Category_It_Came_From()
+        {
+            // The wiring, not the shape. Setting Categories on a MaterialCommodity
+            // by hand in a test proves the editor renders it and nothing about
+            // whether aggregation ever fills it — a mutation deleting the
+            // collection line moved no test until this one existed.
+            var doc = CommodityAggregator.Build(Inputs(
+                new ConstituentInput { ConstituentKind = "mortar_cement", Unit = "bag", Quantity = 120,
+                                       Category = "Walls",  TypeName = "Blockwork 200" },
+                new ConstituentInput { ConstituentKind = "mortar_cement", Unit = "bag", Quantity = 230,
+                                       Category = "Floors", TypeName = "RC Slab 150" }));
+
+            var cement = doc.Stages.Single(s => s.StageId == "superstructure")
+                            .Commodities.Single(c => c.CommodityKey == "cement");
+
+            Assert.Equal(new[] { "Floors", "Walls" }, cement.Categories.ToArray());
+            Assert.Contains("Blockwork 200", cement.TypeNames);
+            Assert.Contains("RC Slab 150", cement.TypeNames);
+        }
+
+        [Fact]
+        public void A_Row_With_No_Category_Adds_No_Empty_Entry()
+        {
+            var doc = CommodityAggregator.Build(Inputs(
+                new ConstituentInput { ConstituentKind = "mortar_cement", Unit = "bag", Quantity = 10,
+                                       Category = "  ", TypeName = "" }));
+
+            var cement = doc.Stages.Single(s => s.StageId == "superstructure")
+                            .Commodities.Single(c => c.CommodityKey == "cement");
+
+            Assert.Empty(cement.Categories);
+            Assert.Empty(cement.TypeNames);
+        }
+
+        [Fact]
         public void Rows_Of_The_Same_Commodity_In_The_Same_Stage_Merge_Into_One_Line()
         {
             var doc = CommodityAggregator.Build(Inputs(

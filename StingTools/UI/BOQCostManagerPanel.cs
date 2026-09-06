@@ -5075,6 +5075,35 @@ namespace StingTools.UI
             DockPanel.SetDock(btn, Dock.Right);
             row.Children.Add(Guarded(btn));
 
+            // Second entry point to the SAME editor. It exists on the Actions
+            // tab too, and that was still one tab away from where a QS reading
+            // materials actually is — the first person to look for it did not
+            // find it at all. Placed LEFT of the export because it is the step
+            // before: an unpriced commodity totals zero in the schedule.
+            var priceBtn = new Button
+            {
+                Content = "Price Commodities",
+                Tag = "MaterialSchedule_PriceCommodities",
+                FontSize = 11,
+                MinHeight = 30,
+                Padding = new Thickness(12, 5, 12, 5),
+                Margin = new Thickness(12, 0, 0, 0),
+                Cursor = Cursors.Hand,
+                ToolTip = "Price the material schedule in a grid seeded from the schedule itself, so no "
+                        + "commodity key is ever retyped. Paste a rate column straight out of Excel "
+                        + "(Ctrl+V). Saves to this project's commodity_rates.csv; the shipped corporate "
+                        + "baseline is never touched."
+            };
+            try
+            {
+                var pstyle = TryFindResource("BlueBtn") as Style;
+                if (pstyle != null) { priceBtn.Style = pstyle; priceBtn.FontSize = 11; priceBtn.MinHeight = 30; }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildMaterialScheduleBar price style: {ex.Message}"); }
+            priceBtn.Click += (s, e) => DispatchAction("MaterialSchedule_PriceCommodities");
+            DockPanel.SetDock(priceBtn, Dock.Right);
+            row.Children.Add(Guarded(priceBtn));
+
             row.Children.Add(new TextBlock
             {
                 Text = "This tab is what you MODELLED, by category. A material schedule is what you BUY — "

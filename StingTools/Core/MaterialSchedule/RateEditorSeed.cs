@@ -38,6 +38,39 @@ namespace StingTools.Core.MaterialSchedule
         /// <summary>"baseline" / "project" / "unpriced" — where CurrentRateUGX came from.</summary>
         public string CurrentSource = "";
 
+        /// <summary>Categories this row was measured from, e.g. "Roofs".</summary>
+        public string Origin = "";
+
+        /// <summary>Model type names behind it, for the tooltip.</summary>
+        public string TypeDetail = "";
+
+        /// <summary>The constituent kind, e.g. "mortar_cement". Says WHY the row exists.</summary>
+        public string SourceKind = "";
+
+        /// <summary>
+        /// How many measured rows fed this commodity.
+        ///
+        /// A confidence signal a rate cannot carry: 93 bags of cement from 40
+        /// walls is a different kind of number from 93 bags from one, and the
+        /// second is worth looking at before pricing it.
+        /// </summary>
+        public int ContributingRows;
+
+        /// <summary>
+        /// Why the quantity stayed in measured units, when it did — the same
+        /// text reconciler rule R5 reports.
+        /// </summary>
+        public string ConversionNote = "";
+
+        /// <summary>
+        /// Element / BOQ references behind the row, but ONLY when there is one.
+        ///
+        /// A commodity is an aggregate: cement comes from dozens of walls, and
+        /// no single element identifies it. Showing "the first of 40" would be
+        /// a confident label for something that is not true of the row.
+        /// </summary>
+        public string SingleTraceRef = "";
+
         /// <summary>
         /// What the user typed. NULL means "left alone", which is NOT the same
         /// as 0. A blank cell must never delete a rate already in force — that
@@ -59,6 +92,31 @@ namespace StingTools.Core.MaterialSchedule
         public int MemorandaExcluded;
 
         public int UnpricedCount => Rows.Count(r => r.IsUnpriced);
+
+        /// <summary>
+        /// What is currently priced, and what is not.
+        ///
+        /// The grid shows 25 rows reading "—" and gives no sense of what that
+        /// costs, because an unpriced row's contribution is unknowable until it
+        /// has a rate. So this says what IS known — the priced total — and
+        /// names the unpriced count as a hole in it rather than implying the
+        /// figure is complete.
+        /// </summary>
+        public string Stakes()
+        {
+            if (Rows.Count == 0) return "";
+
+            double priced = Rows.Where(r => !r.IsUnpriced).Sum(r => r.CurrentAmountUGX);
+            int unpriced = UnpricedCount;
+
+            string s = $"Priced so far: UGX {priced:N0}";
+            if (unpriced > 0)
+                s += $"  ·  {unpriced} row(s) still unpriced and contributing nothing — the total "
+                   + "above is short by whatever they are worth, not by zero.";
+            else
+                s += "  ·  every commodity carries a rate.";
+            return s;
+        }
 
         public string Summary()
         {
@@ -113,15 +171,31 @@ namespace StingTools.Core.MaterialSchedule
                     SupplierUnit   = c.SupplierUnit ?? "",
                     OrderQuantity  = c.OrderQuantity,
                     CurrentRateUGX = c.RateUGX,
-                    CurrentSource  = c.RateSource ?? ""
+                    CurrentSource  = c.RateSource ?? "",
+                    Origin         = string.Join(", ", c.Categories ?? new List<string>()),
+                    TypeDetail     = string.Join("\n", c.TypeNames ?? new List<string>()),
+                    SourceKind     = c.SourceKind ?? "",
+                    ContributingRows = (c.TraceRefs ?? new List<string>()).Count,
+                    ConversionNote = c.ConversionNote ?? "",
+                    SingleTraceRef = (c.TraceRefs ?? new List<string>()).Count == 1
+                                     ? c.TraceRefs[0] : ""
                 });
             }
 
             // Unpriced first, then largest quantity — the order somebody pricing
             // a job actually works in.
+            // Unpriced first — those are the rows totalling zero.
+            //
+            // Then by UNIT, and only then by quantity. Sorting 610 m2 above
+            // 29 each said the roof mattered more than the ridge caps, which is
+            // not a comparison those two numbers can support: they measure
+            // different things in different dimensions. Grouping by unit first
+            // means every quantity a reader compares is comparable.
             result.Rows.Sort((a, b) =>
             {
                 if (a.IsUnpriced != b.IsUnpriced) return a.IsUnpriced ? -1 : 1;
+                int u = string.Compare(a.SupplierUnit, b.SupplierUnit, StringComparison.OrdinalIgnoreCase);
+                if (u != 0) return u;
                 int q = b.OrderQuantity.CompareTo(a.OrderQuantity);
                 return q != 0 ? q
                     : string.Compare(a.Description, b.Description, StringComparison.OrdinalIgnoreCase);

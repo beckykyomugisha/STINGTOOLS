@@ -56,8 +56,45 @@ namespace StingTools.UI
             ? "—"
             : _row.CurrentRateUGX.ToString("N0", CultureInfo.CurrentCulture);
 
-        /// <summary>"unpriced" reads as a state; the others say where the number came from.</summary>
-        public string Source => string.IsNullOrWhiteSpace(_row.CurrentSource) ? "—" : _row.CurrentSource;
+        /// <summary>
+        /// The SAME wording the export uses.
+        ///
+        /// This read "baseline" while the schedule the user reads next said
+        /// "Indicative" for the identical row. Two names for one fact, in two
+        /// places a QS compares, is how a shipped guess comes to be trusted as
+        /// a corporate rate.
+        /// </summary>
+        public string Source => RateProvenanceLabel.For(new MaterialCommodity
+        {
+            RateUGX = _row.CurrentRateUGX, RateSource = _row.CurrentSource
+        });
+
+        /// <summary>Where the quantity was measured from, e.g. "Roofs".</summary>
+        public string Origin => string.IsNullOrWhiteSpace(_row.Origin) ? "—" : _row.Origin;
+
+        /// <summary>The exact key written to commodity_rates.csv.</summary>
+        public string Key => _row.CommodityKey;
+
+        public string Kind => string.IsNullOrWhiteSpace(_row.SourceKind) ? "—" : _row.SourceKind;
+
+        /// <summary>
+        /// How many measured rows fed this commodity, or the single element
+        /// reference when there is exactly one.
+        ///
+        /// A commodity is an aggregate. Naming "the first of 40" elements would
+        /// be a confident label for something untrue of the row, so a count is
+        /// shown instead and a reference only when it identifies the whole row.
+        /// </summary>
+        public string Backing => _row.ContributingRows == 1 && _row.SingleTraceRef.Length > 0
+            ? _row.SingleTraceRef
+            : _row.ContributingRows.ToString(CultureInfo.CurrentCulture);
+
+        public string Note => string.IsNullOrWhiteSpace(_row.ConversionNote) ? "" : _row.ConversionNote;
+
+        /// <summary>The model types behind the row, for the row tooltip.</summary>
+        public string TypeDetail => string.IsNullOrWhiteSpace(_row.TypeDetail)
+            ? "No model type recorded for this row."
+            : "Measured from:\n" + _row.TypeDetail;
 
         public string Amount => _row.IsUnpriced
             ? "—"
@@ -110,6 +147,11 @@ namespace StingTools.UI
         private readonly System.Collections.Generic.List<RateEditorRowVm> _all;
         private readonly TextBox _filter;
         private readonly CheckBox _unpricedOnly;
+        private readonly System.Collections.Generic.List<DataGridColumn> _detailColumns =
+            new System.Collections.Generic.List<DataGridColumn>();
+        private readonly string _seedStakes;
+        private Button _detailsButton;
+        private bool _detailsShown;
 
         public bool Saved { get; private set; }
 
@@ -119,6 +161,7 @@ namespace StingTools.UI
             _doc = doc;
             _existingProject = existingProject ?? new List<CommodityRate>();
             _targetPath = targetPath;
+            _seedStakes = seed.Stakes();
 
             _all = seed.Rows.Select(r => new RateEditorRowVm(r)).ToList();
             foreach (var r in _all) _rows.Add(r);
@@ -157,9 +200,10 @@ namespace StingTools.UI
             var footer = new DockPanel { Margin = new Thickness(12, 8, 12, 12) };
             _status = new TextBlock
             {
-                Text = "Writes " + (_targetPath ?? "(project not saved)"),
+                Text = seed.Stakes(),
                 VerticalAlignment = VerticalAlignment.Center, FontSize = 11,
-                Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis
+                Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = "Writes " + (targetPath ?? "(project not saved)")
             };
             var buttons = new StackPanel { Orientation = Orientation.Horizontal };
             DockPanel.SetDock(buttons, Dock.Right);
@@ -204,6 +248,13 @@ namespace StingTools.UI
                 "Clear the typed rate in the selected rows. The row keeps whatever rate it "
               + "already had - clearing is not the same as pricing at zero.",
                 (a, b) => ClearSelected()));
+
+            _detailsButton = ToolButton("Show detail",
+                "Show the columns that identify a row rather than price it: the exact key written to "
+              + "commodity_rates.csv, the constituent kind behind it, how many measured rows back it, "
+              + "and why a row stayed in measured units.",
+                (a, b) => ToggleDetailColumns());
+            bar.Children.Add(_detailsButton);
 
             bar.Children.Add(ToolButton("Copy keys",
                 "Copy Description and Unit for the visible rows to the clipboard, so a rate "
@@ -269,14 +320,30 @@ namespace StingTools.UI
             var rowStyle = new Style(typeof(DataGridRow));
             rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
                 new System.Windows.Data.Binding(nameof(RateEditorRowVm.RowBrush))));
+            rowStyle.Setters.Add(new Setter(DataGridRow.ToolTipProperty,
+                new System.Windows.Data.Binding(nameof(RateEditorRowVm.TypeDetail))));
             _grid.RowStyle = rowStyle;
 
-            AddReadOnly("Description", nameof(RateEditorRowVm.Description), 300);
-            AddReadOnly("Unit", nameof(RateEditorRowVm.SupplierUnit), 130);
+            AddReadOnly("Description", nameof(RateEditorRowVm.Description), 290);
+            // "Generic - 225mm, 610 m2, unpriced" told a QS nothing about what
+            // it was. Naming the category is what makes the row priceable.
+            AddReadOnly("From", nameof(RateEditorRowVm.Origin), 110);
+            AddReadOnly("Unit", nameof(RateEditorRowVm.SupplierUnit), 120);
             AddReadOnly("Order qty", nameof(RateEditorRowVm.Quantity), 90);
             AddReadOnly("Rate now", nameof(RateEditorRowVm.CurrentRate), 90);
             AddReadOnly("Source", nameof(RateEditorRowVm.Source), 80);
             AddReadOnly("Amount", nameof(RateEditorRowVm.Amount), 110);
+            // Detail columns, COLLAPSED by default.
+            //
+            // Every one of these identifies a row rather than pricing it, and a
+            // grid wide enough to show them all at once is a grid nobody reads.
+            // They are kept together so one toggle reveals the whole set.
+            _detailColumns.Add(AddReadOnly("Key", nameof(RateEditorRowVm.Key), 220));
+            _detailColumns.Add(AddReadOnly("Kind", nameof(RateEditorRowVm.Kind), 120));
+            _detailColumns.Add(AddReadOnly("Backing", nameof(RateEditorRowVm.Backing), 80));
+            _detailColumns.Add(AddReadOnly("Why measured units", nameof(RateEditorRowVm.Note), 280));
+            foreach (var c in _detailColumns) c.Visibility = System.Windows.Visibility.Collapsed;
+
             _grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "New rate UGX",
@@ -493,14 +560,34 @@ namespace StingTools.UI
 
         private const string Caption = "STING — Price commodities";
 
-        private void AddReadOnly(string header, string path, double width) =>
-            _grid.Columns.Add(new DataGridTextColumn
+        private DataGridColumn AddReadOnly(string header, string path, double width)
+        {
+            var col = new DataGridTextColumn
             {
                 Header = header,
                 Binding = new System.Windows.Data.Binding(path),
                 Width = width,
                 IsReadOnly = true
-            });
+            };
+            _grid.Columns.Add(col);
+            return col;
+        }
+
+        /// <summary>Show or hide the identification columns as one set.</summary>
+        private void ToggleDetailColumns()
+        {
+            _detailsShown = !_detailsShown;
+            foreach (var c in _detailColumns)
+                c.Visibility = _detailsShown ? System.Windows.Visibility.Visible
+                                             : System.Windows.Visibility.Collapsed;
+            if (_detailsButton != null)
+                _detailsButton.Content = _detailsShown ? "Hide detail" : "Show detail";
+            _status.Text = _detailsShown
+                ? "Detail columns: the exact CSV key, the constituent kind that produced the row, how "
+                + "many measured rows back it (or the element reference when only one does), and why a "
+                + "row stayed in measured units."
+                : _seedStakes;
+        }
 
         // ══════════════════════════════════════════════════════════════════
         private bool Save()
