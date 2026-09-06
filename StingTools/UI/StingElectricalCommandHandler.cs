@@ -141,6 +141,17 @@ namespace StingTools.UI
                     ToggleVisibility(app);
                     break;
 
+                // ── Reachable only through WORKFLOW_ElectricalQA until 2026-08-08.
+                //    Both had Electrical-panel buttons and no dispatch case, so the
+                //    clicks were silent no-ops; the widened Tier 4 of
+                //    tools/check_workflow_wiring.ps1 found them the moment it started
+                //    reading this panel's XAML. The commands themselves already
+                //    existed and resolve in WorkflowEngine.ResolveCommand.
+                case "Circuit_AssignAuto":
+                    RunCommand<StingTools.Commands.Electrical.BatchAssignCircuitsCommand>(app); break;
+                case "Validation_BS7671":
+                    RunCommand<StingTools.Commands.Electrical.ElectricalStandardsValidatorCommand>(app); break;
+
                 // ── PNLS ─────────────────────────────────────────────
                 case "Panel_BatchSchedules":
                     RunCommand<StingTools.Commands.Panels.BatchPanelSchedulesCommand>(app); break;

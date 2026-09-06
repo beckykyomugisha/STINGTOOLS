@@ -52,6 +52,13 @@ namespace StingTools.Docs
             {
                 foreach (var s in dt.Slots)
                 {
+                    // Straight copy: DrawingSlot and TemplateViewSlot both
+                    // anchor bottom-left. Before the P-7 convergence
+                    // TemplateViewSlot meant the slot CENTRE, so this copy
+                    // silently shifted every slot up and right by half its own
+                    // extent — the reason a profile placed through
+                    // "Create From Template" landed differently from the same
+                    // profile placed through DrawingProducer.
                     st.ViewportSlots.Add(new TemplateViewSlot
                     {
                         Label            = s.Label,

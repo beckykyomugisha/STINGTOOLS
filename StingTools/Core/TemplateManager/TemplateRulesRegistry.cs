@@ -123,7 +123,7 @@ namespace StingTools.Core.TemplateManager
                     string projDir = Path.GetDirectoryName(doc.PathName);
                     if (!string.IsNullOrEmpty(projDir))
                     {
-                        string overlayPath = Path.Combine(projDir, "_BIM_COORD", ProjectOverlayFile);
+                        string overlayPath = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), ProjectOverlayFile);
                         if (File.Exists(overlayPath))
                         {
                             var overlayJson = File.ReadAllText(overlayPath);

@@ -491,6 +491,11 @@ namespace StingTools.UI
 
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
+                    // Model SEED families (Data/Seeds/*.json) — distinct from the
+                    // annotation symbol library above. Resolvable in WorkflowEngine
+                    // since Phase 185; this case gives it a panel button too, so a
+                    // checklist step can name it without lying about how to run it.
+                    case "Seeds_Build":            RunCommand<Commands.Symbols.BuildSeedFamiliesCommand>(app); break;
                     case "Symbols_CreateSLD":      RunCommand<Commands.Symbols.CreateSLDSymbolsCommand>(app); break;
                     case "Symbols_CreateSLD_IEEE":  RunCommand<Commands.Symbols.CreateSLDSymbolsIEEECommand>(app); break;
                     case "Symbols_CreateSLD_BS":    RunCommand<Commands.Symbols.CreateSLDSymbolsBSCommand>(app); break;
@@ -499,6 +504,7 @@ namespace StingTools.UI
                     case "Symbols_CreateLighting": RunCommand<Commands.Symbols.CreateLightingSymbolsCommand>(app); break;
                     case "Symbols_CreateFP":       RunCommand<Commands.Symbols.CreateFPSymbolsCommand>(app); break;
                     case "Symbols_Reload":         RunCommand<Commands.Symbols.ReloadSymbolLibraryCommand>(app); break;
+                    case "Symbols_Rebuild":        RunCommand<Commands.Symbols.SymbolRebuildCommand>(app); break;
                     case "Symbols_Inspect":        RunCommand<Commands.Symbols.InspectSymbolLibraryCommand>(app); break;
                     case "Symbols_ConfigSizes":    RunCommand<Commands.Symbols.ConfigureSymbolSizesCommand>(app); break;
 
@@ -681,8 +687,16 @@ namespace StingTools.UI
                     case "DrawingTypes_ExportExcel": RunCommand<BIMManager.DrawingTypeExportExcelCommand>(app); break;
                     case "DrawingTypes_ImportExcel": RunCommand<BIMManager.DrawingTypeImportExcelCommand>(app); break;
                     case "DrawingTypes_GroupBrowser":  DrawingTypesGroupBrowserInline(app); break;
-                    case "DrawingTypes_SyncStyles":    DrawingTypesSyncStylesInline(app);   break;
-                    case "DrawingTypes_FromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    // W-5: these two tags used to run the read-only inline
+                    // helpers below while WorkflowEngine.ResolveCommand ran the
+                    // model-writing command classes — one tag, two behaviours
+                    // depending on caller. The advisories keep their behaviour
+                    // under names that describe it; the canonical tags now mean
+                    // the command class everywhere.
+                    case "DrawingTypes_AuditStyleRefs":        DrawingTypesSyncStylesInline(app);   break;
+                    case "DrawingTypes_SuggestFromScopeBoxes": DrawingTypesFromScopeBoxesInline(app); break;
+                    case "DrawingTypes_SyncStyles":    RunCommand<Commands.Drawing.DrawingSyncStylesCommand>(app); break;
+                    case "DrawingTypes_FromScopeBoxes": RunCommand<Commands.Drawing.GenerateFromScopeBoxesCommand>(app); break;
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
@@ -754,6 +768,29 @@ namespace StingTools.UI
                     case "ViewHide": ViewHideSelected(app); break;
                     case "ViewReveal": ViewRevealHidden(app); break;
                     case "ViewReset": ViewResetIsolate(app); break;
+
+                    // ── Visibility Center (category + ISO tag token show/hide) ──
+                    // Supersedes the four selection-based cases above for rule-driven work;
+                    // those keep working unchanged for "hide what I have selected".
+                    case "Vis_OpenDropdown": RunCommand<Commands.Visibility.OpenVisibilityDropdownCommand>(app); break;
+                    // Ribbon Hub / QAT launch — floating under the cursor, never anchored to
+                    // the dock panel even when the panel is open.
+                    case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
+                    case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    // STING project baseline — the model-authoring standard.
+                    // Audit is read-only; Apply shows the full list of what it
+                    // would create and writes nothing until that is confirmed.
+                    case "Baseline_Audit": RunCommand<Commands.Baseline.BaselineAuditCommand>(app); break;
+                    case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
+
+                    // Live tick apply — same path, no report dialog.
+                    case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;
+                    case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
+                    case "Vis_ResetAll": RunCommand<Commands.Visibility.ResetVisibilityCommand>(app); break;
+                    case "Vis_PurgeFilters": RunCommand<Commands.Visibility.PurgeVisibilityFiltersCommand>(app); break;
+                    case "Vis_ApplyToTemplate": RunCommand<Commands.Visibility.ApplyVisibilityToTemplateCommand>(app); break;
+                    case "Vis_SavePreset": RunCommand<Commands.Visibility.SaveVisibilityPresetCommand>(app); break;
+                    case "Vis_LoadPreset": RunCommand<Commands.Visibility.LoadVisibilityPresetCommand>(app); break;
 
                     // ── Selection ops (inline) ──
                     case "SelectAll": SelectAllVisible(app); break;
@@ -2040,6 +2077,9 @@ namespace StingTools.UI
                     case "CDEStatus": RunCommand<BIMManager.CDEStatusCommand>(app); break;
                     case "ValidateDocNaming": RunCommand<BIMManager.ValidateDocNamingCommand>(app); break;
                     case "DocumentRegister": RunCommand<BIMManager.DocumentRegisterCommand>(app); break;
+                    case "DocRegister_Unified": RunCommand<Core.UnifiedRegisterExportCommand>(app); break;
+                    case "Register_Consolidate": RunCommand<Core.RegisterConsolidateCommand>(app); break;
+                    case "Folders_ConsolidateAll": RunCommand<Commands.Folders.FolderConsolidateCommand>(app); break;
                     case "AddDocument": RunCommand<BIMManager.AddDocumentCommand>(app); break;
                     case "CreateTransmittal": RunCommand<BIMManager.CreateTransmittalCommand>(app); break;
                     case "ReviewTracker": RunCommand<BIMManager.ReviewTrackerCommand>(app); break;
@@ -2547,10 +2587,9 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var rep = Core.ProjectFolderEngine.MigrateFromLegacy(fmDoc);
-                                Autodesk.Revit.UI.TaskDialog.Show("STING Migration",
-                                    $"Moved {rep.FilesMoved} files. Removed {rep.FoldersRemoved} legacy folders." +
-                                    (rep.Warnings.Count > 0 ? $"\n\nWarnings: {rep.Warnings.Count}" : ""));
+                                // Shared consent gate — preview, confirm, breadcrumb.
+                                // Previously migrated immediately on button press.
+                                StingTools.Commands.Folders.FolderConsolidateCommand.RunWithConsent(fmDoc);
                             }
                             catch (Exception ex2) { Autodesk.Revit.UI.TaskDialog.Show("STING", $"Migration failed: {ex2.Message}"); }
                         }
@@ -2669,19 +2708,17 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
-                                {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
-                                }
+                                // Canonical JSONL read — see Core.CoordLog.
+                                string logPath = StingTools.Core.CoordLog.ResolveReadPath(d);
                                 if (System.IO.File.Exists(logPath))
                                 {
-                                    string csvPath = logPath.Replace(".json", $"_{DateTime.Now:yyyyMMdd_HHmm}.csv");
-                                    var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BIMCoordinationCenter.CoordLogEntry>>(
-                                        System.IO.File.ReadAllText(logPath));
-                                    if (entries != null && entries.Count > 0)
+                                    string csvPath = System.IO.Path.ChangeExtension(logPath, null)
+                                        + $"_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+                                    var entries = StingTools.Core.CoordLog.Read(d)
+                                        .Select(o => o.ToObject<BIMCoordinationCenter.CoordLogEntry>())
+                                        .Where(e => e != null)
+                                        .ToList();
+                                    if (entries.Count > 0)
                                     {
                                         var sb = new System.Text.StringBuilder();
                                         sb.AppendLine("Timestamp,User,Category,Action,Detail,Impact");
@@ -2709,15 +2746,17 @@ namespace StingTools.UI
                             confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
                             if (confirm.Show() == TaskDialogResult.Yes)
                             {
-                                string logPath = StingTools.Core.ProjectFolderEngine.GetDataPath(d, "coord_log.json");
-                                if (string.IsNullOrEmpty(logPath) || !System.IO.File.Exists(logPath))
+                                // Clear the canonical log — and any pre-unification
+                                // spelling, or "cleared" would leave old entries showing.
+                                int cleared = 0;
+                                foreach (string p in StingTools.Core.CoordLog.AllExistingPaths(d))
                                 {
-                                    logPath = System.IO.Path.Combine(
-                                        System.IO.Path.GetDirectoryName(d.PathName ?? "") ?? "",
-                                        ".sting_coord_log.json");
+                                    try { System.IO.File.Delete(p); cleared++; }
+                                    catch (Exception delEx) { StingTools.Core.StingLog.Warn($"Clear coord log {p}: {delEx.Message}"); }
                                 }
-                                if (System.IO.File.Exists(logPath)) System.IO.File.Delete(logPath);
-                                TaskDialog.Show("STING", "Coordination log cleared.");
+                                TaskDialog.Show("STING", cleared > 0
+                                    ? "Coordination log cleared."
+                                    : "No coordination log found.");
                             }
                         }
                         break;
@@ -2800,8 +2839,16 @@ namespace StingTools.UI
                     // ACC (Autodesk Construction Cloud) live coordination — wired
                     // to the existing plugin-side ACC client (V6.AccIssueSync /
                     // AccModelCoordSync), not the server OAuth scaffold.
-                    case "AccPullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
-                    case "AccSyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // Two spellings resolve deliberately. The BIM Coordination Center
+                    // ACC card dispatches "AccPullClashes"/"AccSyncIssueStatus"; the
+                    // shipped KUT presets and the BIM-tab clash buttons use the
+                    // ACC_-prefixed form that WorkflowEngine.ResolveCommand already
+                    // accepts. Accepting either stops a hand-written project workflow
+                    // failing on the spelling a user reasonably copied off a button.
+                    case "AccPullClashes":
+                    case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
+                    case "AccSyncIssueStatus":
+                    case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {
@@ -3257,7 +3304,8 @@ namespace StingTools.UI
                         }
                         break;
                     }
-                    case "ScheduleWizard":
+                    case "Scheduler":        // current name
+                    case "ScheduleWizard":   // legacy tag — kept so saved workflows and MCP calls keep working
                     {
                         // Load CSV definitions and existing schedule names for the wizard
                         var doc = app.ActiveUIDocument?.Document;
@@ -3437,7 +3485,13 @@ namespace StingTools.UI
                         {
                             try
                             {
-                                var dlgResult = UI.IssueTrackerDashboard.Show();
+                                // Show() has always taken a member list; nobody ever
+                                // passed one, so it fell back to generic job titles
+                                // ("Design Lead", "MEP Engineer") that name no actual
+                                // person. Feed it the canonical project roster.
+                                var itdDoc = app?.ActiveUIDocument?.Document;
+                                var dlgResult = UI.IssueTrackerDashboard.Show(
+                                    StingTools.Core.ProjectRoster.Names(itdDoc));
                                 if (dlgResult == null || !dlgResult.Confirmed || string.IsNullOrEmpty(dlgResult.Operation))
                                     break;
                                 SetCommand(dlgResult.Operation);
@@ -3615,6 +3669,7 @@ namespace StingTools.UI
                     case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
                     case "Risk_Report":                 RunCommand<Commands.Delivery.RiskReportCommand>(app); break;
                     case "Midp_DriftReport":            RunCommand<Commands.Delivery.MidpDriftReportCommand>(app); break;
+                    case "Midp_Import":                 RunCommand<Commands.Delivery.MidpImportCommand>(app); break;
 
                     // Phase 184h — P6 multi-standard
                     case "Cost_SetMeasurementStandard": RunCommand<Commands.Cost.CostSetMeasurementStandardCommand>(app); break;
@@ -3752,7 +3807,12 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
-                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.KutKpiDashboardCommand>(app); break;
+                    // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
+                    // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
+                    // muscle memory keep working. The command derives its code from
+                    // PRJ_ORG_PROJECT_CODE_TXT either way.
+                    case "Owner_KpiDashboard":
+                    case "KUT_KpiDashboard": RunCommand<Commands.Kpi.OwnerKpiDashboardCommand>(app); break;
 
                     case "ExLinkBrowser": RunCommand<ExLink.ExLinkBrowserCommand>(app); break;
                     case "ExLinkExport": RunCommand<ExLink.ExLinkExportCommand>(app); break;
@@ -4091,6 +4151,16 @@ namespace StingTools.UI
                     // statics are cleared so the pane reflects the just-finished run.
                     try { var r = BOQCostManagerPanel.PendingActionResolve; BOQCostManagerPanel.PendingActionResolve = null; r?.Invoke(); }
                     catch (Exception exR) { StingLog.Warn($"BOQ PendingActionResolve: {exR.Message}"); }
+
+                    // Same idea for the dock panel's own status line. Cmd_Click
+                    // sets "Running: <tag>…" when it raises the event, and nothing
+                    // ever cleared it — so a command that finished instantly (or
+                    // reported nothing) left the panel reading as permanently
+                    // in-flight. Resolve it here, at the one place every dispatch
+                    // converges. Only overwrites the label when it still shows
+                    // THIS tag, so a command that reported its own status wins.
+                    try { StingDockPanel.LastInstance?.ResolveRunningStatus(tag); }
+                    catch (Exception exS) { StingLog.Warn($"ResolveRunningStatus '{tag}': {exS.Message}"); }
 
                     // P0.1 — release the BOQ dispatch busy-guard so the Actions
                     // surface accepts the next click and the buttons un-grey. This
@@ -4448,13 +4518,42 @@ namespace StingTools.UI
             _clonedSourceViewName = null;
         }
 
+        /// <summary>
+        /// Run a temporary hide/isolate change inside a transaction.
+        /// <para><b>These need one.</b> `HideElementsTemporary`, `IsolateElementsTemporary` and
+        /// `DisableTemporaryViewMode` all modify the View element, so Revit throws "Attempt to
+        /// modify the model outside of transaction" without an open transaction. The state not
+        /// being SAVED with the document is what makes it temporary — that is a different thing
+        /// from not needing a transaction. These three helpers had no transaction, so Hide,
+        /// Isolate and Reset on the SELECT tab's VIEW row silently failed.</para>
+        /// </summary>
+        private static void InTempViewTransaction(UIApplication app, string name, Action<View> act)
+        {
+            var uidoc = app?.ActiveUIDocument;
+            if (uidoc?.ActiveView == null) return;
+            try
+            {
+                using (var t = new Transaction(uidoc.Document, name))
+                {
+                    t.Start();
+                    act(uidoc.ActiveView);
+                    t.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"{name}", ex);
+                TaskDialog.Show("STING Tools", $"{name} failed: {ex.Message}");
+            }
+        }
+
         private static void ViewIsolateSelected(UIApplication app)
         {
             var uidoc = app.ActiveUIDocument;
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Isolate", "Select elements first."); return; }
-            uidoc.ActiveView.IsolateElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Isolate", v => v.IsolateElementsTemporary(ids));
         }
 
         private static void ViewHideSelected(UIApplication app)
@@ -4463,7 +4562,7 @@ namespace StingTools.UI
             if (uidoc?.ActiveView == null) return;
             var ids = uidoc.Selection.GetElementIds();
             if (ids.Count == 0) { TaskDialog.Show("Hide", "Select elements first."); return; }
-            uidoc.ActiveView.HideElementsTemporary(ids);
+            InTempViewTransaction(app, "STING Hide", v => v.HideElementsTemporary(ids));
         }
 
         // Phase 74c: Removed unnecessary reflection — EnableTemporaryViewMode is a
@@ -4488,9 +4587,8 @@ namespace StingTools.UI
 
         private static void ViewResetIsolate(UIApplication app)
         {
-            var uidoc = app.ActiveUIDocument;
-            if (uidoc?.ActiveView == null) return;
-            uidoc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
+            InTempViewTransaction(app, "STING Reset hide/isolate",
+                v => v.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate));
         }
 
         private static void SelectAllVisible(UIApplication app)
@@ -4731,7 +4829,10 @@ namespace StingTools.UI
                 if (!paramNames.Contains(p))
                     paramNames.Add(p);
             }
-            paramNames.Sort(StringComparer.OrdinalIgnoreCase);
+            // Superseded parameters sort last so they are not picked by mistake.
+            // They stay in the list: one may hold a value on an element in an
+            // older model, and this dialog is how someone would find it.
+            paramNames = ParamRegistry.PickerOrder(paramNames);
 
             // Build category list
             var categories = viewElements
@@ -9185,7 +9286,7 @@ namespace StingTools.UI
         {
             var doc = app.ActiveUIDocument?.Document;
             if (doc == null) return;
-            string outputDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(doc.PathName) ?? System.IO.Path.GetTempPath(), "_bim_manager");
+            string outputDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER");
             System.IO.Directory.CreateDirectory(outputDir);
             string htmlPath = System.IO.Path.Combine(outputDir, $"Planscape_Dashboard_{DateTime.Now:yyyyMMdd}.html");
             string html = $@"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>Planscape — {doc.Title}</title>

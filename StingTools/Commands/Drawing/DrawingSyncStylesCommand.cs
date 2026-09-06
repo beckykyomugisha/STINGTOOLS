@@ -32,7 +32,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 // Phase 183 — pick up views affected by on-disk profile /
@@ -171,7 +171,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 var reports = DrawingDriftDetector.Scan(doc)

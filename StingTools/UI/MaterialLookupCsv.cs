@@ -92,6 +92,25 @@ namespace StingTools.UI
             return row.Properties.TryGetValue(property, out var v) ? v : 0;
         }
 
+        /// <summary>
+        /// G-13 — as <see cref="GetProperty"/> but able to tell "absent" from
+        /// "present and legitimately zero". <see cref="GetProperty"/> collapses both
+        /// to 0, which is fine for a cost or a density but NOT for the formula
+        /// engine: a caller that treats 0 as "not found" would reject real data.
+        /// Eight rows in the shipped MATERIAL_LOOKUP.csv carry a true zero, and all
+        /// of them sit in columns the formulas read —
+        /// CONCRETE C10/C7.5 STEEL_KG_PER_M3 (unreinforced blinding),
+        /// ROOF_SHEET CLAY_TILE/CONCRETE_TILE FASTENERS_PER_M2 (nailed, not fixed),
+        /// FORMWORK COLUMN/FOUNDATION PROPS_PER_M2 (self-standing, no props).
+        /// </summary>
+        public static bool TryGetProperty(string name, string property, out double value)
+        {
+            value = 0;
+            var row = Get(name);
+            if (row?.Properties == null || string.IsNullOrEmpty(property)) return false;
+            return row.Properties.TryGetValue(property, out value);
+        }
+
         private static Dictionary<string, MaterialLookupRow> EnsureLoaded()
         {
             lock (_lock)

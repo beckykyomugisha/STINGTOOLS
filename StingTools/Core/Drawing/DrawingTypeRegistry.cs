@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingTypeRegistry is the single access point for resolved Drawing
@@ -387,7 +387,7 @@ namespace StingTools.Core.Drawing
                 if (string.IsNullOrEmpty(projPath)) return null;
                 var dir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var path = Path.Combine(dir, "_BIM_COORD", "drawing_types.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
                 if (!File.Exists(path)) return null;
                 var jsonOnDisk = File.ReadAllText(path);
                 var libOnDisk = JsonConvert.DeserializeObject<DrawingTypeLibrary>(jsonOnDisk);
@@ -629,7 +629,8 @@ namespace StingTools.Core.Drawing
             dt.Slots.AddRange(new[]
             {
                 new DrawingSlot { Label = "Plan",   ViewType = "Plan",     NormX = 0.05, NormY = 0.55, NormW = 0.40, NormH = 0.40 },
-                new DrawingSlot { Label = "ISO",    ViewType = "ISO",      NormX = 0.55, NormY = 0.55, NormW = 0.40, NormH = 0.40 },
+                // NormW 0.23 (not 0.40) so ISO ends at x 0.78 where BOM begins.
+                new DrawingSlot { Label = "ISO",    ViewType = "ISO",      NormX = 0.55, NormY = 0.55, NormW = 0.23, NormH = 0.40 },
                 new DrawingSlot { Label = "Elev0",  ViewType = "Elevation",NormX = 0.05, NormY = 0.10, NormW = 0.28, NormH = 0.40 },
                 new DrawingSlot { Label = "Elev90", ViewType = "Elevation",NormX = 0.36, NormY = 0.10, NormW = 0.28, NormH = 0.40 },
                 new DrawingSlot { Label = "3D",     ViewType = "3D",       NormX = 0.67, NormY = 0.10, NormW = 0.28, NormH = 0.40 },

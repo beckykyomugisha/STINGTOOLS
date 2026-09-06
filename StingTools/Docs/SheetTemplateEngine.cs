@@ -38,15 +38,24 @@ namespace StingTools.Docs
 
     /// <summary>
     /// A slot within a sheet template defining where a view should be placed.
+    /// <para>
+    /// Coordinates are <b>bottom-left anchored</b> fractions of the drawable
+    /// zone, matching <see cref="StingTools.Core.Drawing.DrawingSlot"/> and the
+    /// shipped <c>STING_DRAWING_TYPES.json</c>: normX/normY locate the slot's
+    /// lower-left corner and normX+normW / normY+normH must stay within 1.0.
+    /// Templates written before library version 2.0 anchored on the slot
+    /// <i>centre</i>; <see cref="SheetTemplateEngine.LoadTemplateLibrary"/>
+    /// converts those on load.
+    /// </para>
     /// </summary>
     internal class TemplateViewSlot
     {
         [JsonProperty("label")] public string Label { get; set; }           // e.g. "Main Plan", "Section A"
         [JsonProperty("viewType")] public string ViewType { get; set; }     // FloorPlan, Section, Elevation, etc.
-        [JsonProperty("normX")] public double NormX { get; set; }
-        [JsonProperty("normY")] public double NormY { get; set; }
-        [JsonProperty("normW")] public double NormW { get; set; }
-        [JsonProperty("normH")] public double NormH { get; set; }
+        [JsonProperty("normX")] public double NormX { get; set; }           // 0.0 = left edge of drawable zone
+        [JsonProperty("normY")] public double NormY { get; set; }           // 0.0 = bottom edge of drawable zone
+        [JsonProperty("normW")] public double NormW { get; set; }           // fraction of drawable width
+        [JsonProperty("normH")] public double NormH { get; set; }           // fraction of drawable height
         [JsonProperty("preferredScale")] public int PreferredScale { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
         [JsonProperty("required")] public bool Required { get; set; } = true;
@@ -57,7 +66,14 @@ namespace StingTools.Docs
     /// </summary>
     internal class SheetTemplateLibrary
     {
-        [JsonProperty("version")] public string Version { get; set; } = "1.0";
+        /// <summary>
+        /// Bumped to "2.0" when slot coordinates moved from centre-anchored to
+        /// bottom-left anchored. Anything older is converted on load by
+        /// <see cref="SheetTemplateEngine.MigrateSlotOrigin"/>.
+        /// </summary>
+        internal const string CurrentVersion = "2.0";
+
+        [JsonProperty("version")] public string Version { get; set; } = CurrentVersion;
         [JsonProperty("templates")] public List<SheetTemplate> Templates { get; set; } = new List<SheetTemplate>();
     }
 
@@ -132,7 +148,7 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "Main Plan", ViewType = "FloorPlan",
-                            NormX = 0.47, NormY = 0.52, NormW = 0.80, NormH = 0.82, PreferredScale = 50 }
+                            NormX = 0.07, NormY = 0.11, NormW = 0.80, NormH = 0.82, PreferredScale = 50 }
                     }
                 },
                 new SheetTemplate
@@ -145,11 +161,11 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "Main Plan", ViewType = "FloorPlan",
-                            NormX = 0.47, NormY = 0.65, NormW = 0.80, NormH = 0.55, PreferredScale = 100 },
+                            NormX = 0.07, NormY = 0.375, NormW = 0.80, NormH = 0.55, PreferredScale = 100 },
                         new TemplateViewSlot { Label = "Section A", ViewType = "Section",
-                            NormX = 0.27, NormY = 0.18, NormW = 0.38, NormH = 0.28, PreferredScale = 50 },
+                            NormX = 0.08, NormY = 0.04, NormW = 0.38, NormH = 0.28, PreferredScale = 50 },
                         new TemplateViewSlot { Label = "Section B", ViewType = "Section",
-                            NormX = 0.72, NormY = 0.18, NormW = 0.38, NormH = 0.28, PreferredScale = 50 }
+                            NormX = 0.53, NormY = 0.04, NormW = 0.38, NormH = 0.28, PreferredScale = 50 }
                     }
                 },
                 new SheetTemplate
@@ -162,13 +178,13 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "North", ViewType = "Elevation",
-                            NormX = 0.27, NormY = 0.73, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
+                            NormX = 0.07, NormY = 0.53, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
                         new TemplateViewSlot { Label = "East", ViewType = "Elevation",
-                            NormX = 0.72, NormY = 0.73, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
+                            NormX = 0.52, NormY = 0.53, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
                         new TemplateViewSlot { Label = "South", ViewType = "Elevation",
-                            NormX = 0.27, NormY = 0.27, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
+                            NormX = 0.07, NormY = 0.07, NormW = 0.40, NormH = 0.40, PreferredScale = 100 },
                         new TemplateViewSlot { Label = "West", ViewType = "Elevation",
-                            NormX = 0.72, NormY = 0.27, NormW = 0.40, NormH = 0.40, PreferredScale = 100 }
+                            NormX = 0.52, NormY = 0.07, NormW = 0.40, NormH = 0.40, PreferredScale = 100 }
                     }
                 },
                 new SheetTemplate
@@ -181,9 +197,9 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "MEP Plan", ViewType = "FloorPlan",
-                            NormX = 0.47, NormY = 0.55, NormW = 0.80, NormH = 0.72, PreferredScale = 50 },
+                            NormX = 0.07, NormY = 0.19, NormW = 0.80, NormH = 0.72, PreferredScale = 50 },
                         new TemplateViewSlot { Label = "Legend", ViewType = "Legend",
-                            NormX = 0.20, NormY = 0.10, NormW = 0.25, NormH = 0.14, PreferredScale = 1,
+                            NormX = 0.075, NormY = 0.03, NormW = 0.25, NormH = 0.14, PreferredScale = 1,
                             Required = false }
                     }
                 },
@@ -197,13 +213,13 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "Detail 1", ViewType = "Detail",
-                            NormX = 0.27, NormY = 0.73, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
+                            NormX = 0.07, NormY = 0.53, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
                         new TemplateViewSlot { Label = "Detail 2", ViewType = "Detail",
-                            NormX = 0.72, NormY = 0.73, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
+                            NormX = 0.52, NormY = 0.53, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
                         new TemplateViewSlot { Label = "Detail 3", ViewType = "Detail",
-                            NormX = 0.27, NormY = 0.27, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
+                            NormX = 0.07, NormY = 0.07, NormW = 0.40, NormH = 0.40, PreferredScale = 10 },
                         new TemplateViewSlot { Label = "Detail 4", ViewType = "Detail",
-                            NormX = 0.72, NormY = 0.27, NormW = 0.40, NormH = 0.40, PreferredScale = 10,
+                            NormX = 0.52, NormY = 0.07, NormW = 0.40, NormH = 0.40, PreferredScale = 10,
                             Required = false }
                     }
                 },
@@ -217,9 +233,9 @@ namespace StingTools.Docs
                     ViewportSlots = new List<TemplateViewSlot>
                     {
                         new TemplateViewSlot { Label = "3D View", ViewType = "ThreeD",
-                            NormX = 0.50, NormY = 0.55, NormW = 0.82, NormH = 0.72, PreferredScale = 100 },
+                            NormX = 0.09, NormY = 0.19, NormW = 0.82, NormH = 0.72, PreferredScale = 100 },
                         new TemplateViewSlot { Label = "Key Plan", ViewType = "FloorPlan",
-                            NormX = 0.82, NormY = 0.10, NormW = 0.20, NormH = 0.16, PreferredScale = 500,
+                            NormX = 0.72, NormY = 0.02, NormW = 0.20, NormH = 0.16, PreferredScale = 500,
                             Required = false }
                     }
                 }
@@ -291,9 +307,11 @@ namespace StingTools.Docs
                     catch (Exception ex2) { StingLog.Warn($"Locked by template: {ex2.Message}"); }
                 }
 
-                // Denormalise position
-                double cx = zone.Min.X + slot.NormX * zone.Width;
-                double cy = zone.Min.Y + slot.NormY * zone.Height;
+                // Denormalise position. Slots are bottom-left anchored (see
+                // TemplateViewSlot), and Viewport.Create takes a centre — so
+                // add half the extent, exactly as SheetPlacementBridge does.
+                double cx = zone.Min.X + (slot.NormX + slot.NormW / 2.0) * zone.Width;
+                double cy = zone.Min.Y + (slot.NormY + slot.NormH / 2.0) * zone.Height;
 
                 try
                 {
@@ -362,8 +380,10 @@ namespace StingTools.Docs
                     {
                         Label = view.Name,
                         ViewType = view.ViewType.ToString(),
-                        NormX = Math.Round((center.X - zone.Min.X) / zone.Width, 4),
-                        NormY = Math.Round((center.Y - zone.Min.Y) / zone.Height, 4),
+                        // Bottom-left anchored: GetBoxCenter is a centre, so
+                        // step back by half the viewport before normalising.
+                        NormX = Math.Round((center.X - vpW / 2.0 - zone.Min.X) / zone.Width, 4),
+                        NormY = Math.Round((center.Y - vpH / 2.0 - zone.Min.Y) / zone.Height, 4),
                         NormW = Math.Round(vpW / zone.Width, 4),
                         NormH = Math.Round(vpH / zone.Height, 4),
                         PreferredScale = view.Scale
@@ -405,13 +425,57 @@ namespace StingTools.Docs
             try
             {
                 string json = File.ReadAllText(path);
-                return JsonConvert.DeserializeObject<SheetTemplateLibrary>(json) ?? new SheetTemplateLibrary();
+                var lib = JsonConvert.DeserializeObject<SheetTemplateLibrary>(json);
+                if (lib == null) return new SheetTemplateLibrary();
+                MigrateSlotOrigin(lib);
+                return lib;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"Could not load sheet templates: {ex.Message}");
                 return new SheetTemplateLibrary();
             }
+        }
+
+        /// <summary>
+        /// Convert a pre-2.0 template library from centre-anchored slot
+        /// coordinates to bottom-left anchored ones.
+        /// <para>
+        /// Libraries written before this change stored normX/normY as the slot
+        /// CENTRE, while <see cref="StingTools.Core.Drawing.DrawingSlot"/> — and
+        /// therefore the shipped catalogue, the validator's
+        /// "extends beyond the drawable zone" check and
+        /// <c>SheetPlacementBridge</c> — have always meant the lower-left
+        /// corner. Converting is a subtraction of half the extent.
+        /// </para>
+        /// <para>
+        /// The migration is in-memory only: the converted library is persisted
+        /// the next time the caller saves, so simply opening a project never
+        /// rewrites the user's file. It is guarded by the version stamp rather
+        /// than by inspecting the numbers, because a centre-anchored slot and a
+        /// bottom-left one are not distinguishable by value — running it twice
+        /// would shift every slot down-left again.
+        /// </para>
+        /// </summary>
+        internal static void MigrateSlotOrigin(SheetTemplateLibrary lib)
+        {
+            if (lib == null) return;
+            if (string.Equals(lib.Version, SheetTemplateLibrary.CurrentVersion, StringComparison.Ordinal))
+                return;
+
+            int slots = 0;
+            foreach (var t in lib.Templates ?? new List<SheetTemplate>())
+            {
+                foreach (var s in t.ViewportSlots ?? new List<TemplateViewSlot>())
+                {
+                    s.NormX = Math.Round(s.NormX - s.NormW / 2.0, 4);
+                    s.NormY = Math.Round(s.NormY - s.NormH / 2.0, 4);
+                    slots++;
+                }
+            }
+            lib.Version = SheetTemplateLibrary.CurrentVersion;
+            StingLog.Info($"Sheet templates: migrated {slots} slot(s) from centre-anchored to " +
+                          $"bottom-left coordinates (library version -> {SheetTemplateLibrary.CurrentVersion}).");
         }
 
         internal static void SaveTemplateLibrary(Document doc, SheetTemplateLibrary library)

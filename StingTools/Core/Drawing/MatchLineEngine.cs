@@ -371,7 +371,7 @@ namespace StingTools.Core.Drawing
                     if (!(vp is Viewport viewport)) continue;
                     if (viewport.ViewId != view.Id) continue;
                     if (!(doc.GetElement(viewport.SheetId) is ViewSheet sheet)) continue;
-                    var pFull = sheet.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (pFull != null && pFull.HasValue)
                     {
                         var v = pFull.AsString();
@@ -900,6 +900,14 @@ namespace StingTools.Core.Drawing
             public int  PairsWithBrokenRef       { get; set; }
             public int  PairsWithMissingViewPair { get; set; }
             public int  ScopeBoxesAdjacent       { get; set; }
+            /// <summary>
+            /// A-14: distinct scope-box pairs represented among the placed
+            /// match lines. PairsTotal counts one entry per (pair x VIEW) —
+            /// a scope box driving five level views yields five — so
+            /// comparing PairsTotal against ScopeBoxesAdjacent reported
+            /// bogus drift on every normal multi-level project.
+            /// </summary>
+            public int  ScopePairsPlaced         { get; set; }
             public List<string> Warnings         { get; set; } = new List<string>();
         }
 
@@ -920,11 +928,23 @@ namespace StingTools.Core.Drawing
                 var existingByGuid = BuildExistingPairIndex(doc);
                 rep.PairsTotal = existingByGuid.Count;
 
+                // A-14: collapse per-view keys to their scope-pair GUID (the
+                // first colon-delimited field) so the count is comparable
+                // with ScopeBoxesAdjacent.
+                var scopePairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var k in existingByGuid.Keys)
+                {
+                    var key = k ?? "";
+                    int sep = key.IndexOf(':');
+                    scopePairs.Add(sep > 0 ? key.Substring(0, sep) : key);
+                }
+                rep.ScopePairsPlaced = scopePairs.Count;
+
                 var sheetRefs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sh in new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue) sheetRefs.Add(p.AsString() ?? "");
                     sheetRefs.Add(sh.SheetNumber ?? "");
                 }
@@ -1002,7 +1022,7 @@ namespace StingTools.Core.Drawing
                 foreach (var id in bundle)
                 {
                     if (!(doc.GetElement(id) is ViewSheet sh)) continue;
-                    var p = sh.LookupParameter("STING_SHEET_FULL_REF_TXT");
+                    var p = sh.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (p != null && p.HasValue)
                         bundleRefs.Add(p.AsString() ?? "");
                     bundleRefs.Add(sh.SheetNumber ?? "");

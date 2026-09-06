@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
@@ -93,9 +93,7 @@ namespace StingTools.Tags
             try
             {
                 if (string.IsNullOrEmpty(docPath)) return null;
-                string dir = Path.GetDirectoryName(docPath);
-                if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "token_depth_presets.json");
+                return StingPaths.MetaFileFrom(docPath, "_BIM_COORD", "token_depth_presets.json");
             }
             catch { return null; }
         }
@@ -175,7 +173,7 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(p)) return null;
                 string dir = Path.GetDirectoryName(p);
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "view_token_configs.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "view_token_configs.json");
             }
             catch { return null; }
         }

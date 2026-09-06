@@ -101,7 +101,7 @@ namespace StingTools.Core.Lightning
                     string projDir = Path.GetDirectoryName(doc.PathName);
                     if (!string.IsNullOrEmpty(projDir))
                     {
-                        string ovPath = Path.Combine(projDir, "_BIM_COORD", "lps_sld_rules.json");
+                        string ovPath = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "lps_sld_rules.json");
                         if (File.Exists(ovPath))
                             MergeFrom(rules, JObject.Parse(File.ReadAllText(ovPath)));
                     }

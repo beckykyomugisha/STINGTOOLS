@@ -34,7 +34,7 @@ namespace StingTools.Commands.Panels
                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                 if (!string.IsNullOrEmpty(projDir))
                 {
-                    string dir = Path.Combine(projDir, "_BIM_COORD", "electrical");
+                    string dir = StingPaths.Meta(doc, "_BIM_COORD", "electrical");
                     Directory.CreateDirectory(dir);
                     return dir;
                 }

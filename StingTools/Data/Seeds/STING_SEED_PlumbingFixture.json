@@ -289,7 +289,7 @@
           "name": "SHOWER_TRAY",
           "params": {
             "PLM_FIX_TYPE_TXT": "SHOWER_TRAY",
-            "ASS_PRODCT_COD_TXT": "STR",
+            "ASS_PRODCT_COD_TXT": "SHTR",
             "PLM_FIX_FLOWRATE_LMIN": "12",
             "PLM_FIX_DRAIN_DN_MM": "50"
           }
@@ -367,7 +367,7 @@
           "name": "ACCESSIBLE_WC",
           "params": {
             "PLM_FIX_TYPE_TXT": "WC",
-            "ASS_PRODCT_COD_TXT": "WC-ACC",
+            "ASS_PRODCT_COD_TXT": "WCAC",
             "PLM_FIX_FLOWRATE_LMIN": "9",
             "PLM_FIX_DRAIN_DN_MM": "100",
             "PLM_FIX_HOT_COLD_TXT": "COLD",
@@ -378,7 +378,7 @@
           "name": "ACCESSIBLE_BASIN",
           "params": {
             "PLM_FIX_TYPE_TXT": "BASIN",
-            "ASS_PRODCT_COD_TXT": "BAS-ACC",
+            "ASS_PRODCT_COD_TXT": "BSAC",
             "PLM_FIX_FLOWRATE_LMIN": "6",
             "PLM_FIX_DRAIN_DN_MM": "40",
             "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",
@@ -389,7 +389,7 @@
           "name": "SHOWER_WHEELCHAIR",
           "params": {
             "PLM_FIX_TYPE_TXT": "SHOWER_WHEELCHAIR",
-            "ASS_PRODCT_COD_TXT": "SHW-WC",
+            "ASS_PRODCT_COD_TXT": "SHWC",
             "PLM_FIX_FLOWRATE_LMIN": "12",
             "PLM_FIX_DRAIN_DN_MM": "50",
             "PLM_FIX_HOT_COLD_TXT": "HOT_COLD",

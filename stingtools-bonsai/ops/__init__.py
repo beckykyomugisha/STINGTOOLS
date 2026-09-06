@@ -1,4 +1,4 @@
-"""STING operator registrations — Day-1 diagnostics + 16 MVP operators."""
+"""STING operator registrations — Day-1 diagnostics + 29 MVP operators."""
 
 from __future__ import annotations
 
@@ -12,6 +12,10 @@ from .select_ops import CLASSES as SELECT_CLASSES
 from .tagging_ops import CLASSES as TAGGING_CLASSES
 from .validation_ops import CLASSES as VALIDATION_CLASSES
 from .coord_ops import CLASSES as COORD_CLASSES
+from .export_ops import CLASSES as EXPORT_CLASSES
+from .spatial_ops import CLASSES as SPATIAL_CLASSES
+from .repair_ops import CLASSES as REPAIR_CLASSES
+from .mep_ops import CLASSES as MEP_CLASSES
 
 CLASSES = (
     StingAboutOperator,
@@ -21,6 +25,10 @@ CLASSES = (
     *TAGGING_CLASSES,
     *VALIDATION_CLASSES,
     *COORD_CLASSES,
+    *EXPORT_CLASSES,
+    *SPATIAL_CLASSES,
+    *REPAIR_CLASSES,
+    *MEP_CLASSES,
 )
 
 

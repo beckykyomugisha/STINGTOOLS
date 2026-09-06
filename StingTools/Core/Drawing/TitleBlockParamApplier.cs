@@ -267,6 +267,29 @@ namespace StingTools.Core.Drawing
             var s = _projInfo.Replace(template, m =>
             {
                 var name = m.Groups[1].Value;
+
+                // T-4 / B3: MAT_-prefixed keys resolve from the model's
+                // materials, not ProjectInformation. MaterialTitleBlockTokens
+                // .Resolve existed with ZERO call sites, so every ${MAT_*}
+                // token fell through to the ProjectInfo lookup, resolved null,
+                // and — because this applier always writes (ACC-07) — BLANKED
+                // the cell. A template asking for material data silently
+                // erased whatever was in that field.
+                if (name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var mat = MaterialTitleBlockTokens.Resolve(doc, name);
+                        if (!string.IsNullOrEmpty(mat)) return mat;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingTools.Core.StingLog.Warn($"MaterialTitleBlockTokens.Resolve('{name}'): {ex.Message}");
+                    }
+                    // Fall through to ProjectInfo — a project may legitimately
+                    // define its own MAT_-named parameter there.
+                }
+
                 return ReadProjectInfoParam(doc, name) ?? "";
             });
 

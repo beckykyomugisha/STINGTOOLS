@@ -118,7 +118,7 @@ namespace StingTools.Core.Clash
             //     Prior code built two parallel dictionaries (byPairAndA,
             //     byPairAndB) then concatenated them — twice the dictionary
             //     work, twice the bucket allocations. One dict, one pass.
-            var byPairSideEid = new Dictionary<(string Pair, string Side, int Eid), List<ClashRecord>>();
+            var byPairSideEid = new Dictionary<(string Pair, string Side, long Eid), List<ClashRecord>>();
             foreach (var c in clashes)
             {
                 string pair = c.MatrixPairId ?? "";

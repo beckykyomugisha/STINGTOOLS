@@ -1,4 +1,4 @@
-// StingTools — SwapToManufacturerCommand.
+﻿// StingTools — SwapToManufacturerCommand.
 //
 // Bulk-swap STING seed-family instances to manufacturer-specific real
 // families. Reads STING_SEED_FAMILY_TXT off every selected instance,
@@ -413,7 +413,7 @@ namespace StingTools.Commands.Symbols
 
                     if (!string.IsNullOrEmpty(baseDir))
                     {
-                        string ovr = Path.Combine(baseDir, "_BIM_COORD", "family_swap_registry.json");
+                        string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "family_swap_registry.json");
                         if (File.Exists(ovr))
                         {
                             MergeRegistryOverride(root, JObject.Parse(File.ReadAllText(ovr)));

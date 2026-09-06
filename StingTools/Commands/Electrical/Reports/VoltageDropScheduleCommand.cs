@@ -109,9 +109,7 @@ namespace StingTools.Commands.Electrical.Reports
         {
             try
             {
-                var t = Type.GetType("StingTools.Core.Drawing.DrawingTypeStamper");
-                t?.GetMethod("Stamp", new[] { typeof(Element), typeof(string) })
-                  ?.Invoke(null, new object[] { v, DrawingTypeId });
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

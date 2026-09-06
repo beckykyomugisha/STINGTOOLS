@@ -1,0 +1,19 @@
+{
+  "//": "#624 / #625 — minimal transpile of the RN-free message modules so scripts/verify-cde-transition-messages.mjs and scripts/verify-issue-create-messages.cjs can exercise the REAL code rather than a hand-copied transcription of it. Output is gitignored. Both harnesses share this file; add the module here rather than forking a second config.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "rootDir": "../src",
+    "outDir": "../.verify-out",
+    "baseUrl": "..",
+    "paths": { "@/*": ["src/*"] },
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "files": [
+    "../src/utils/cdeTransitionMessage.ts",
+    "../src/api/apiError.ts",
+    "../src/utils/issueCreateMessage.ts"
+  ]
+}

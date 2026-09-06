@@ -26,8 +26,22 @@ namespace Planscape.Tests;
 /// </summary>
 public class TenantKeywordL2CacheTests
 {
+    /// <summary>
+    /// Pins the write-through, and the fact that L1 is process-wide.
+    ///
+    /// This was ResolveAsync_HitsL2OnSecondCall, asserting that a fresh resolver
+    /// instance "simulates a process boundary" so L1 starts cold and L2 serves.
+    /// That premise is false by construction: DbTenantKeywordResolver's L1 is a
+    /// **static** StripedBoundedLruCache (see the class doc, "L1: static
+    /// striped-LRU"), shared by every instance in the process. The second
+    /// resolver therefore hits L1 and never consults L2, so HitCount stayed 0 —
+    /// the test was asserting against the design rather than a defect in it.
+    ///
+    /// The happy-path L2 read is covered separately by
+    /// <see cref="ResolveAsync_ColdL1_IsServedFromL2_WithoutTouchingTheDb"/>.
+    /// </summary>
     [Fact]
-    public async Task ResolveAsync_HitsL2OnSecondCall()
+    public async Task ResolveAsync_WritesThroughToL2_AndL1ServesSubsequentInstances()
     {
         await using var db = NewInMemoryDb();
         var tenantId = await SeedTenant(db, """{ "working": ["PARKED"] }""");
@@ -42,12 +56,14 @@ public class TenantKeywordL2CacheTests
         Assert.Equal(0, l2.HitCount);   // no GetString returned data on first call
         Assert.Equal(1, l2.SetCount);   // wrote through
 
-        // Second call from a fresh resolver instance — simulates a
-        // process boundary. L1 will start cold; L2 should serve.
+        // Second call from a fresh resolver instance. L1 is static, so this is
+        // an L1 hit: the same values come back without another L2 read and
+        // without a second write-through.
         var freshResolver = new DbTenantKeywordResolver(db, l2);
         var second = await freshResolver.ResolveAsync(tenantId);
         Assert.Contains("PARKED", second["working"]);
-        Assert.True(l2.HitCount >= 1, "Expected the second resolver to hit L2");
+        Assert.Equal(0, l2.HitCount);
+        Assert.Equal(1, l2.SetCount);
     }
 
     [Fact]
@@ -102,6 +118,45 @@ public class TenantKeywordL2CacheTests
             .UseInMemoryDatabase(System.Guid.NewGuid().ToString())
             .Options;
         return new PlanscapeDbContext(opts);
+    }
+
+    /// <summary>
+    /// The happy-path L2 read: L1 cold, L2 warm, and the value comes back
+    /// without the resolver ever needing the DB row it was cached from.
+    ///
+    /// Getting a genuine L1 miss in-process is the hard part — L1 is a static
+    /// shared by every resolver instance, and the resolver has no invalidation
+    /// hook by design (it invalidates by content hash, so editing the JSON just
+    /// yields a new key). So instead of clearing L1, this seeds L2 directly under
+    /// the key the resolver will compute for a tenant L1 has never seen. That is
+    /// what DbTenantKeywordResolver.L1CacheKey/L2CacheKey are internal for.
+    ///
+    /// The DB row deliberately carries DIFFERENT keywords from the L2 entry, so a
+    /// pass can only mean the value was served from L2 — if the resolver fell
+    /// through to the database, the assertion would see "FROM_DB" instead.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_ColdL1_IsServedFromL2_WithoutTouchingTheDb()
+    {
+        await using var db = NewInMemoryDb();
+        const string dbJson = """{ "working": ["FROM_DB"] }""";
+        var tenantId = await SeedTenant(db, dbJson);
+
+        // Key is derived from (tenantId, the JSON the resolver will read).
+        var l1Key = DbTenantKeywordResolver.L1CacheKey(tenantId, dbJson);
+        var l2Key = DbTenantKeywordResolver.L2CacheKey(l1Key);
+
+        var inner = new MemoryDistributedCacheStub();
+        await inner.SetStringAsync(l2Key, """{ "working": ["FROM_L2"] }""");
+        var l2 = new RecordingDistributedCache(inner);
+
+        var resolver = new DbTenantKeywordResolver(db, l2);
+        var resolved = await resolver.ResolveAsync(tenantId);
+
+        Assert.Contains("FROM_L2", resolved["working"]);
+        Assert.DoesNotContain("FROM_DB", resolved["working"]);
+        Assert.Equal(1, l2.HitCount);
+        Assert.Equal(0, l2.SetCount);   // served from L2, so no write-through
     }
 
     private static async Task<System.Guid> SeedTenant(PlanscapeDbContext db, string? json)

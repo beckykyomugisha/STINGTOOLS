@@ -54,19 +54,21 @@ namespace StingTools.Core.Sustainability
 
         // ── Persistence ──────────────────────────────────────────────────
 
-        public static string Dir(string projectDir)
+        // Callers pass the already-resolved sustainability directory
+        // (StingPaths.Meta(doc, "_BIM_COORD", "sustainability")) so this class stays a
+        // pure POCO with no Revit dependency — it no longer hard-builds the folder tree.
+        public static string Dir(string sustainDir)
         {
-            if (string.IsNullOrEmpty(projectDir)) return null;
-            string p = Path.Combine(projectDir, "_BIM_COORD", "sustainability");
-            Directory.CreateDirectory(p);
-            return p;
+            if (string.IsNullOrEmpty(sustainDir)) return null;
+            Directory.CreateDirectory(sustainDir);
+            return sustainDir;
         }
 
-        public static void Append(string projectDir, EdgeKpiSnapshot snap)
+        public static void Append(string sustainDir, EdgeKpiSnapshot snap)
         {
             try
             {
-                string dir = Dir(projectDir);
+                string dir = Dir(sustainDir);
                 if (dir == null || snap == null) return;
                 File.AppendAllText(Path.Combine(dir, "edge_kpi_log.jsonl"),
                     JsonConvert.SerializeObject(snap) + Environment.NewLine);
@@ -74,13 +76,13 @@ namespace StingTools.Core.Sustainability
             catch { /* non-fatal — KPI logging never blocks the dashboard */ }
         }
 
-        public static EdgeKpiSnapshot LoadPrevious(string projectDir)
+        public static EdgeKpiSnapshot LoadPrevious(string sustainDir)
         {
             try
             {
-                string dir = Dir(projectDir);
-                string log = dir != null ? Path.Combine(dir, "edge_kpi_log.jsonl") : null;
-                if (log == null || !File.Exists(log)) return null;
+                if (string.IsNullOrEmpty(sustainDir)) return null;
+                string log = Path.Combine(sustainDir, "edge_kpi_log.jsonl");
+                if (!File.Exists(log)) return null;
                 var last = File.ReadLines(log).LastOrDefault(l => !string.IsNullOrWhiteSpace(l));
                 return last != null ? JsonConvert.DeserializeObject<EdgeKpiSnapshot>(last) : null;
             }

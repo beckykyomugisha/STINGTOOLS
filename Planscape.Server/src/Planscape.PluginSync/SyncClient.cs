@@ -105,7 +105,14 @@ public class SyncClient : IDisposable
     /// <summary>
     /// Push a full sync payload (tags + SEQ + compliance + issues + workflows).
     /// </summary>
-    public async Task<SyncResult> SyncAsync(PluginSyncPayload payload)
+    /// <remarks>
+    /// virtual so the offline queue's drain behaviour — fatal 4xx skips the
+    /// payload and keeps draining, transient 5xx/network stops the drain and
+    /// retains it — can be exercised by a test double without standing up an
+    /// HTTP server. That logic decides whether queued work is retried or
+    /// discarded, and it had no coverage at all.
+    /// </remarks>
+    public virtual async Task<SyncResult> SyncAsync(PluginSyncPayload payload)
     {
         var result = new SyncResult();
 

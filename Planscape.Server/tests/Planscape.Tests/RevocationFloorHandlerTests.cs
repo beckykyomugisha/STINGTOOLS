@@ -100,9 +100,15 @@ public class RevocationFloorHandlerTests
         var projectId = Guid.NewGuid();
 
         var services = new ServiceCollection();
-        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton<ITenantBimManagerRoleResolver>(new NoopTenantRoleResolver());
         services.AddSingleton<IPermissionRevocationStore>(new FakeRevocationStore(revocationFloor));
+        services.AddTenantContextDouble();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -115,12 +121,18 @@ public class RevocationFloorHandlerTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    // Required: the global tenant filter excludes rows whose TenantId is unset.
+                    TenantId = tenantId,
                     UserId = userId, ProjectId = projectId,
                     Iso19650Role = projectMemberRole, IsActive = true,
                 });
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var handler = new BimManagerOrAdminHandler(sp.GetRequiredService<IServiceScopeFactory>(), config: null);
 

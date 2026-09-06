@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import DataRightsCard from '../components/DataRightsCard'
 
 interface SettingsState {
   serverUrl: string
@@ -167,6 +168,9 @@ export default function Settings(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* Data rights (Owner/Admin only — renders null otherwise) */}
+      <DataRightsCard />
 
       {/* About */}
       <div className="ps-card space-y-2 text-xs text-ps-muted">

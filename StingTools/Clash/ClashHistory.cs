@@ -32,7 +32,7 @@ namespace StingTools.Core.Clash
             //     re-mints the identity, surfacing as "Resolved + New" with all
             //     state lost. Index is keyed on a canonical (smaller-id-first)
             //     pair so the order in ElementA/ElementB doesn't break matches.
-            var fuzzyIndex = new Dictionary<(int A, int B, string Pair), List<ClashRecord>>();
+            var fuzzyIndex = new Dictionary<(long A, long B, string Pair), List<ClashRecord>>();
             if (prior?.Clashes != null)
             {
                 foreach (var pc in prior.Clashes)
@@ -172,12 +172,12 @@ namespace StingTools.Core.Clash
         /// E1: Canonical (elementA, elementB, pairId) key with sorted ids
         /// so (A,B) and (B,A) hit the same fuzzy bucket.
         /// </summary>
-        private static (int A, int B, string Pair) MakeFuzzyKey(ClashRecord c)
+        private static (long A, long B, string Pair) MakeFuzzyKey(ClashRecord c)
         {
-            int a = c.ElementA?.ElementId ?? 0;
-            int b = c.ElementB?.ElementId ?? 0;
-            int lo = Math.Min(a, b);
-            int hi = Math.Max(a, b);
+            long a = c.ElementA?.ElementId ?? 0;
+            long b = c.ElementB?.ElementId ?? 0;
+            long lo = Math.Min(a, b);
+            long hi = Math.Max(a, b);
             return (lo, hi, c.MatrixPairId ?? "");
         }
 

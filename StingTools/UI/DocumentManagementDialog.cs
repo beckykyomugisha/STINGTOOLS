@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -126,6 +126,212 @@ namespace StingTools.UI
         private static readonly SolidColorBrush BrLightE8    = FZ(0xE8, 0xE8, 0xE8);
         private static readonly SolidColorBrush BrLightDD    = FZ(0xDD, 0xDD, 0xDD);
 
+        // ══════════════════════════════════════════════════════════════
+        //  CANONICAL VOCABULARIES
+        //
+        //  Every list this dialog offers the user is resolved here, from the
+        //  registry that already owns it elsewhere in the assembly. Before this,
+        //  the dialog carried private copies that had drifted: the suitability
+        //  combo still spelled the pre-2018 BS 1192 meanings of S5/S6/S7, and its
+        //  CDE state machine knew four states where the engine knows seven — so
+        //  the Document Manager and the BIM Coordination Center enforced different
+        //  rules on the same files. Do not add a vocabulary to this file; point at
+        //  the registry that owns it instead.
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>Codes in lifecycle order (S, then A, then B, then CR/AB/AR), from the
+        /// ISO 19650 registry.</summary>
+        private static string[] SuitabilityCodeList =>
+            Core.Drawing.Iso19650Vocabulary.SuitabilityCodes;
+
+        /// <summary>"S4 — Suitable for stage approval". Falls back to the bare code for a value
+        /// stored before the registry knew it, rather than rendering blank.</summary>
+        private static string SuitabilityLabel(string code) =>
+            Core.Drawing.Iso19650Vocabulary.SuitabilityLabels.TryGetValue(code ?? "", out string lbl)
+                ? lbl : (code ?? "");
+
+        /// <summary>Legend colour by code family — S = in-progress, A = authorised,
+        /// B = partial sign-off, CR/AB/AR = record and retirement.</summary>
+        private static SolidColorBrush SuitabilityBrush(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return BrFgDark;
+            if (code.StartsWith("AB") || code.StartsWith("AR")) return BrRed;
+            switch (code[0])
+            {
+                case 'S': return code == "S0" ? BrFgSub : BrTeal;
+                case 'A': return BrGreen;
+                case 'B': return BrOrange;
+                default:  return BrFgDark;   // CR — as-constructed record
+            }
+        }
+
+        /// <summary>The seven ISO 19650-2 CDE statuses the engine's state machine knows:
+        /// the four live containers plus SUPERSEDED / WITHDRAWN / OBSOLETE.</summary>
+        private static string[] CdeStatusList =>
+            Core.Drawing.Iso19650Vocabulary.CdeStatesWithTerminal;
+
+        /// <summary>
+        /// Where a document in <paramref name="cdeState"/> lives on disk.
+        /// <para>
+        /// DECISION (WP2): the three terminal statuses do NOT get folders of their own.
+        /// <see cref="Core.StingPaths.CdeStates"/> defines exactly four CDE containers and
+        /// ProjectFolderEngine.GetFolderPath can resolve no others, so inventing SUPERSEDED /
+        /// WITHDRAWN / OBSOLETE folders here would add three top-level directories to every
+        /// project layout. A retired document is filed in ARCHIVE and its status is carried in
+        /// the register's cde_status field — which is what
+        /// <see cref="Core.Drawing.Iso19650Vocabulary.TerminalStatuses"/> already documents:
+        /// "these are NOT CDE containers — a document does not live in a SUPERSEDED folder".
+        /// </para>
+        /// </summary>
+        private static string CdeTargetFolder(string cdeState)
+        {
+            string s = (cdeState ?? "").Trim().ToUpperInvariant();
+            if (Core.StingPaths.CdeStates.Contains(s)) return s;
+            if (Core.Drawing.Iso19650Vocabulary.TerminalStatuses.Contains(s)) return "ARCHIVE";
+            return "WIP";
+        }
+
+        /// <summary>Default suitability for a CDE status, per ISO 19650. The terminal statuses
+        /// map to AB (abandoned / superseded) and AR (archive) — both real codes in
+        /// Iso19650Vocabulary.SuitabilityLabels, confirmed before being hardcoded here.</summary>
+        private static string SuitabilityForCde(string cdeState)
+        {
+            switch ((cdeState ?? "").Trim().ToUpperInvariant())
+            {
+                case "WIP":        return "S0";
+                case "SHARED":     return "S3";   // Fit for review & comment
+                case "PUBLISHED":  return "S4";   // Fit for stage approval (2021 UK NA)
+                case "ARCHIVE":    return "AR";   // Archive
+                case "SUPERSEDED": return "AB";   // Abandoned / superseded
+                case "WITHDRAWN":  return "AB";
+                case "OBSOLETE":   return "AR";
+                default:           return "S0";
+            }
+        }
+
+        /// <summary>ISO 19650-2 document status code for a CDE status.</summary>
+        private static string StatusCodeForCde(string cdeState)
+        {
+            switch ((cdeState ?? "").Trim().ToUpperInvariant())
+            {
+                case "PUBLISHED":  return "IFA";   // Issued for Approval
+                case "SHARED":     return "IFC";   // Issued for Coordination
+                case "ARCHIVE":
+                case "SUPERSEDED":
+                case "WITHDRAWN":
+                case "OBSOLETE":   return "IFR";   // Issued for Record
+                default:           return "IFI";   // Issued for Information
+            }
+        }
+
+        /// <summary>
+        /// Discipline codes offered by the filter tree and the team-member picker.
+        /// <para>
+        /// Union of two registries, because neither alone is complete. The validator's
+        /// ValidDiscCodes is the configurable set — built-ins plus CUSTOM_VALID_DISC from
+        /// project_config.json, which is how a healthcare project adds H / MG / RP.
+        /// TagConfig.DiscMap is what the tagger actually assigns from a category, and it emits
+        /// FLS, which the validator's built-in set does not carry. A picker narrower than
+        /// either hides a project's own documents from it.
+        /// </para>
+        /// <para>
+        /// DiscMap is keyed by Revit CATEGORY name and valued by discipline code, so the codes
+        /// are its Values, not its Keys.
+        /// </para>
+        /// </summary>
+        private static List<string> DisciplineCodeList()
+        {
+            var codes = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (string c in ISO19650Validator.ValidDiscCodes)
+                    if (!string.IsNullOrWhiteSpace(c)) codes.Add(c.Trim().ToUpperInvariant());
+                if (TagConfig.DiscMap != null)
+                    foreach (string c in TagConfig.DiscMap.Values)
+                        if (!string.IsNullOrWhiteSpace(c)) codes.Add(c.Trim().ToUpperInvariant());
+            }
+            catch (Exception ex)
+            {
+                // A config-load failure must not empty the picker — say so in the log and fall
+                // through to the built-in codes below.
+                StingLog.Warn($"DisciplineCodeList: falling back to built-in codes — {ex.Message}");
+            }
+            if (codes.Count == 0)
+                foreach (string c in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" }) codes.Add(c);
+            return codes.ToList();
+        }
+
+        /// <summary>Help text for the legend. Descriptions only — the CODES come from
+        /// <see cref="DisciplineCodeList"/>, so a project-defined code still gets a row.</summary>
+        private static readonly Dictionary<string, string> DisciplineDescriptions =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["M"]   = "Mechanical — HVAC, heating, ventilation",
+                ["E"]   = "Electrical — power, lighting, comms",
+                ["P"]   = "Plumbing — DHW, DCW, sanitary, drainage",
+                ["A"]   = "Architectural — walls, doors, windows, floors",
+                ["S"]   = "Structural — columns, beams, foundations",
+                ["FP"]  = "Fire Protection — sprinklers, suppression",
+                ["FLS"] = "Fire, Life & Safety — alarms, detection, call points",
+                ["LV"]  = "Low Voltage — data, CCTV, access control",
+                ["G"]   = "General — multi-discipline / unclassified",
+                ["H"]   = "Healthcare — clinical planning and equipment",
+                ["MG"]  = "Medical Gas — MGPS pipeline and terminal units",
+                ["RP"]  = "Radiation Protection — shielding and controlled areas",
+            };
+
+        private static SolidColorBrush DisciplineBrush(string code)
+        {
+            switch ((code ?? "").ToUpperInvariant())
+            {
+                case "M":   return Brushes.Blue;
+                case "E":   return Brushes.Goldenrod;
+                case "P":   return BrGreen;
+                case "A":   return BrFgSub;
+                case "S":   return BrRed;
+                case "FP":
+                case "FLS": return BrOrange;
+                case "LV":  return BrPurple;
+                default:    return BrFgDark;
+            }
+        }
+
+        /// <summary>Canonical issue statuses, spelled the way IssueStore persists them. The
+        /// dialog used to offer RESPONDED / ACCEPTED / REJECTED, none of which the normalizer
+        /// emits — so those filter nodes could never match a stored row. Unknown is omitted: it
+        /// is a parse outcome, not a status anyone files under.</summary>
+        private static readonly string[] IssueStatusList =
+        {
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Open),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.InProgress),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Resolved),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Closed),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Void),
+        };
+
+        /// <summary>Issue priorities, from the registry the BIM Coordination Center and the SLA
+        /// thresholds already share — BIMManagerEngine.SLAThresholdsHours is keyed by exactly
+        /// these. Three separate copies of this list used to live in this file.</summary>
+        private static List<string> IssuePriorityList() =>
+            BIMManager.BIMManagerEngine.IssuePriorities.Keys.ToList();
+
+        /// <summary>
+        /// Sticky-note categories.
+        /// <para>
+        /// NOT bound to a registry, deliberately. The only other note-category list in the
+        /// assembly is BIMManager.StickyNoteCategoriesCommand.DefaultCategories, and it is a
+        /// genuinely different vocabulary ("Design Query", "Snagging", "Change Order") read
+        /// from a different store. Unifying them would re-file notes already on disk under
+        /// categories that no longer exist — a data migration, not a rebinding, and out of
+        /// scope here. Kept as one member so this file at least holds a single copy; the
+        /// divergence is recorded in docs/ROADMAP.md.
+        /// </para>
+        /// </summary>
+        private static readonly string[] StickyNoteCategoryList =
+        {
+            "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA",
+        };
+
         // ── State ─────────────────────────────────────────────────────
         private static ObservableCollection<DocItemVM> _allItems;
         private static ListCollectionView _view;
@@ -141,7 +347,11 @@ namespace StingTools.UI
         private static ComplianceScan.ComplianceResult _complianceResult;
         private static System.Windows.Controls.TextBox _searchBox;
 
-        // GAP-BIM-010: Persist dialog state across reopens (tab, filter, search)
+        // GAP-BIM-010: Persist the selected TAB across reopens. Filter and search are
+        // deliberately NOT persisted — Show() resets both, so that a dispatched sub-command
+        // returning to the dialog shows the full list rather than silently hiding rows behind
+        // a filter the user set several operations ago. (The comment here used to claim all
+        // three persisted, which the code has never done.)
         private static int _lastTabIndex = 0;
 
         // TPL-FOLLOW-05: Faceted filter state — active set of facet keys
@@ -178,11 +388,26 @@ namespace StingTools.UI
             _view = (ListCollectionView)CollectionViewSource.GetDefaultView(_allItems);
             _view.Filter = FilterItem;
 
+            // Clamp to the screen's WORKING area (excludes the taskbar). A fixed 1280x850 is
+            // taller than the logical desktop on a 1366x768 laptop, and on 1080p at 150% DPI
+            // scaling (1280x720 logical) — and CenterScreen then pushes equal slices off the top
+            // AND bottom, taking the action-bar tab strip and the footer with them. Those tabs
+            // are the only way to reach DOCS/CDE, MEETINGS and the rest.
+            double availW = 1280, availH = 850;
+            try
+            {
+                availW = Math.Max(900, SystemParameters.WorkArea.Width  - 40);
+                availH = Math.Max(600, SystemParameters.WorkArea.Height - 40);
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr workarea: {ex.Message}"); }
+
             var win = new Window
             {
                 Title = "STING Document Management Center",
-                Width = 1280, Height = 850,
-                MinWidth = 960, MinHeight = 650,
+                Width  = Math.Min(1280, availW),
+                Height = Math.Min(850,  availH),
+                MinWidth  = Math.Min(960, availW),
+                MinHeight = Math.Min(650, availH),
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.CanResize,
                 Background = BrBg
@@ -574,6 +799,11 @@ namespace StingTools.UI
                             }
                             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         });
+                        // Also refresh on plugin-initiated file operations (recycle,
+                        // restore, move, CDE transition). ProjectFolderEngine raises
+                        // FileChanged from 13 sites but had no subscriber, so those
+                        // never refreshed the list — only OS-level changes did.
+                        SubscribeFileChangedOnce();
                         MessageBox.Show($"Now monitoring: {ProjectFolderEngine.GetRootPath(_doc)}\n\n" +
                             "External file changes will auto-refresh the document list.",
                             "STING File Watcher", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -736,7 +966,12 @@ namespace StingTools.UI
             var byCDE        = _allItems.GroupBy(i => i.CDE ?? "").ToDictionary(g => g.Key, g => g.Count());
             var byIssuePri   = issueItems.GroupBy(i => i.Priority ?? "").ToDictionary(g => g.Key, g => g.Count());
             var byIssueType  = issueItems.GroupBy(i => i.Type ?? "").ToDictionary(g => g.Key, g => g.Count());
-            var byIssueStatus = issueItems.GroupBy(i => i.Status ?? "").ToDictionary(g => g.Key, g => g.Count());
+            // Grouped on the canonical spelling, not the raw one: IssueStore rows arrive as
+            // "Closed", "CLOSED", "resolved" and so on, and a raw group key never matches the
+            // canonical label the node below asks for — the node then silently reported 0.
+            var byIssueStatus = issueItems
+                .GroupBy(i => IssueStatusNormalizer.Canonical(i.Status ?? ""))
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
             int overdueCount = issueItems.Count(i => i.IsOverdue);
             int clashTotalCount = _allItems.Count(i => i.Category == "CLASH");
             int stickyTotalCount = _allItems.Count(i => i.Category == "STICKY");
@@ -758,7 +993,7 @@ namespace StingTools.UI
 
             // ── BY DISCIPLINE (GAP NAV-01) ──
             var discNode = MakeTreeItem("BY DISCIPLINE", "DISC_ROOT", false);
-            foreach (string disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "Z" })
+            foreach (string disc in DisciplineCodeList())
             {
                 byDisc.TryGetValue(disc.ToUpperInvariant(), out int count);
                 if (count > 0)
@@ -780,10 +1015,13 @@ namespace StingTools.UI
 
             // ── CDE STATUS ──
             var cdeNode = MakeTreeItem("CDE STATUS", "CDE_ROOT", false);
-            foreach (var (code, label) in new[] { ("WIP", "Work In Progress"), ("SHARED", "Shared"),
-                ("PUBLISHED", "Published"), ("ARCHIVE", "Archive") })
+            foreach (string code in CdeStatusList)
             {
                 byCDE.TryGetValue(code, out int count);
+                // The four live containers always show, so the tree still reads as a lifecycle
+                // when a project has nothing retired; the three terminal statuses appear only
+                // once something is in them, rather than as three permanent empty rows.
+                if (count == 0 && !Core.StingPaths.CdeStates.Contains(code)) continue;
                 cdeNode.Items.Add(MakeTreeItem($"{code} ({count})", $"CDE:{code}", false));
             }
             _treeView.Items.Add(cdeNode);
@@ -803,7 +1041,7 @@ namespace StingTools.UI
             var issuesNode = MakeTreeItem("ISSUES & RFIs", "CAT:ISSUE", false);
             // By priority first
             var priNode = MakeTreeItem("By Priority", "ISSUE_PRI", false);
-            foreach (string pri in new[] { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" })
+            foreach (string pri in IssuePriorityList())
             {
                 byIssuePri.TryGetValue(pri, out int count);
                 if (count > 0)
@@ -821,7 +1059,7 @@ namespace StingTools.UI
             issuesNode.Items.Add(typeNode);
             // By status
             var issStatNode = MakeTreeItem("By Status", "ISSUE_STAT", false);
-            foreach (string st in new[] { "OPEN", "IN_PROGRESS", "RESPONDED", "ACCEPTED", "REJECTED", "CLOSED", "VOID" })
+            foreach (string st in IssueStatusList)
             {
                 byIssueStatus.TryGetValue(st, out int count);
                 if (count > 0)
@@ -1247,16 +1485,32 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
             {
                 try { Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose(); }
-                catch (Exception ex) { StingLog.Warn($"DocMgr open: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr open: {ex.Message}");
+                    MessageBox.Show($"Could not open {item.Title}:\n\n{ex.Message}",
+                        "STING Open", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
                 return;
             }
 
-            // Compliance item: show detail
-            if (item.Category == "COMPLIANCE" || item.Category == "DATADROP")
-            {
-                MessageBox.Show($"{item.Title}\n\nStatus: {item.Status}\nDate: {item.Date}",
-                    "STING Detail", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            // Anything else: show what the row actually holds. Every category used to fall off
+            // the end of this method in silence — double-clicking a register, issue, revision or
+            // transmittal row did nothing at all, which is indistinguishable from a dead UI.
+            var sb = new StringBuilder();
+            if (!string.IsNullOrEmpty(item.Id)) sb.AppendLine($"ID: {item.Id}");
+            if (!string.IsNullOrEmpty(item.Category)) sb.AppendLine($"Type: {item.Category}");
+            if (!string.IsNullOrEmpty(item.Status)) sb.AppendLine($"Status: {item.Status}");
+            if (!string.IsNullOrEmpty(item.CDE)) sb.AppendLine($"CDE: {item.CDE}");
+            if (!string.IsNullOrEmpty(item.Suitability)) sb.AppendLine($"Suitability: {item.Suitability}");
+            if (!string.IsNullOrEmpty(item.Revision)) sb.AppendLine($"Revision: {item.Revision}");
+            if (!string.IsNullOrEmpty(item.AssignedTo)) sb.AppendLine($"Assigned to: {item.AssignedTo}");
+            if (!string.IsNullOrEmpty(item.Date)) sb.AppendLine($"Date: {item.Date}");
+            if (!string.IsNullOrEmpty(item.FilePath))
+                sb.AppendLine($"\nFile (not on disk):\n{item.FilePath}");
+
+            MessageBox.Show($"{item.Title}\n\n{sb.ToString().TrimEnd()}",
+                "STING Detail", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private static void EditStickyNote(DocItemVM item)
@@ -1266,26 +1520,38 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(_doc);
-                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
-                if (!File.Exists(stickyPath)) return;
+                string stickyPath = CoordStores.StickyNotes(_doc);
+                if (!File.Exists(stickyPath))
+                {
+                    MessageBox.Show($"No sticky-note store to edit.\n\n{stickyPath}\n\nNothing was changed.",
+                        "STING Notes", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
 
                 var arr = JArray.Parse(File.ReadAllText(stickyPath));
                 var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
-                if (note != null)
+                if (note == null)
                 {
-                    note["text"] = newText;
-                    note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
-                    // M-03: Atomic file write to prevent corruption on crash
-                    string tmp = stickyPath + ".tmp";
-                    File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                    File.Replace(tmp, stickyPath, stickyPath + ".bak");
-                    ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
-                    item.Title = newText;
-                    _view?.Refresh();
+                    MessageBox.Show($"Note '{item.Id}' is no longer in the store.\n\nNothing was changed — " +
+                        "refresh (F5) to re-read it.", "STING Notes", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
+                note["text"] = newText;
+                note["modified"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm");
+                // M-03: atomic write. WriteAllTextAtomic already does temp-write + File.Replace
+                // with a .bak, so writing to a ".tmp" and replacing again just did the dance twice.
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                ProjectFolderEngine.LogActivity(_doc, "EDIT_NOTE", item.Id, $"Updated: {newText.Substring(0, Math.Min(50, newText.Length))}");
+                item.Title = newText;
+                _view?.Refresh();
+                SetStatus($"Updated note {item.Id}");
             }
-            catch (Exception ex) { StingLog.Warn($"EditStickyNote: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EditStickyNote: {ex.Message}");
+                MessageBox.Show($"Could not save the note:\n\n{ex.Message}",
+                    "STING Notes", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // UI-02: Column sorting
@@ -1319,6 +1585,18 @@ namespace StingTools.UI
         //  ACTION BAR (Enhanced: GAP OP-04 bulk ops, OP-06 publish)
         // ══════════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Wrap a tab's button panel so it scrolls vertically inside the action bar's height cap
+        /// rather than being clipped by it. Horizontal scrolling stays off — the panel is a
+        /// WrapPanel, so buttons reflow to the window width instead of running off the edge.
+        /// </summary>
+        private static ScrollViewer Scrollable(UIElement content) => new ScrollViewer
+        {
+            Content = content,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+
         private static Border BuildActionBar(Document doc, Window win)
         {
             var bar = new Border
@@ -1334,7 +1612,11 @@ namespace StingTools.UI
                 TabStripPlacement = Dock.Top,
                 FontSize = 10,
                 Padding = new Thickness(0),
-                BorderThickness = new Thickness(0)
+                BorderThickness = new Thickness(0),
+                // Cap the bar so a button-heavy tab (COORDINATION carries 20) cannot grow the
+                // docked-bottom bar until it crowds out the document list. Content scrolls
+                // inside instead, which also keeps the tab strip on screen on a short display.
+                MaxHeight = 190
             };
 
             // ── TAB 1: FILE & BULK ──
@@ -1360,7 +1642,7 @@ namespace StingTools.UI
             fileWrap.Children.Add(MakeSectionLabel("EXPORT"));
             fileWrap.Children.Add(MakeActBtn("Export Visible CSV", BrGreen, (s, e) => ExportVisibleToCSV()));
             fileWrap.Children.Add(MakeActBtn("Code Legend", BrPurple, (s, e) => ShowCodeLegend()));
-            tabs.Items.Add(new TabItem { Header = "FILE / BULK", Content = fileWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "FILE / BULK", Content = Scrollable(fileWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 2: FOLDERS — mirror the dock-panel DOCUMENT MANAGEMENT
             //          CENTER row so the same actions are reachable without
@@ -1377,7 +1659,7 @@ namespace StingTools.UI
             foldersWrap.Children.Add(MakeSep());
             foldersWrap.Children.Add(MakeSectionLabel("EXCHANGE"));
             foldersWrap.Children.Add(MakeDispatchBtn("Data Exchange", "DataExchange", BrAccent, win));
-            tabs.Items.Add(new TabItem { Header = "FOLDERS", Content = foldersWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "FOLDERS", Content = Scrollable(foldersWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 3: DOCS & CDE ──
             var docsWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1397,7 +1679,7 @@ namespace StingTools.UI
             docsWrap.Children.Add(MakeDispatchBtn("Create", "CreateTransmittal", BrGreen, win));
             docsWrap.Children.Add(MakeActBtn("Quick Transmittal", BrGreen, (s, e) => QuickTransmittal(doc)));
             docsWrap.Children.Add(MakeDispatchBtn("Distribution", "RevisionDistribution", BrTeal, win));
-            tabs.Items.Add(new TabItem { Header = "DOCS / CDE", Content = docsWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "DOCS / CDE", Content = Scrollable(docsWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 3: ISSUES ──
             var issueWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1419,7 +1701,7 @@ namespace StingTools.UI
             issueWrap.Children.Add(MakeDispatchBtn("Statistics", "IssueStatistics", BrOrange, win));
             issueWrap.Children.Add(MakeDispatchBtn("Export CSV", "IssueExport", BrOrange, win));
             issueWrap.Children.Add(MakeActBtn("Overdue Report", BrRed, (s, e) => { _currentFilter = "OVERDUE"; _view?.Refresh(); UpdateCounts(); }));
-            tabs.Items.Add(new TabItem { Header = "ISSUES", Content = issueWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "ISSUES", Content = Scrollable(issueWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 4: REVISIONS ──
             var revWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1442,7 +1724,7 @@ namespace StingTools.UI
             revWrap.Children.Add(MakeDispatchBtn("Export", "RevisionExport", BrPurple, win));
             revWrap.Children.Add(MakeDispatchBtn("Tag Integration", "RevisionTagIntegration", BrPurple, win));
             revWrap.Children.Add(MakeDispatchBtn("Auto on Tag Change", "AutoRevisionOnTagChange", BrPurple, win));
-            tabs.Items.Add(new TabItem { Header = "REVISIONS", Content = revWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "REVISIONS", Content = Scrollable(revWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 5: COORDINATION ──
             var coordWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1475,7 +1757,7 @@ namespace StingTools.UI
             coordWrap.Children.Add(MakeDispatchBtn("File Monitor", "ToggleFileMonitor", BrGreen, win));
             coordWrap.Children.Add(MakeDispatchBtn("Broadcast", "BroadcastNotification", BrAccent, win));
             coordWrap.Children.Add(MakeDispatchBtn("Access", "AccessControl", BrTeal, win));
-            tabs.Items.Add(new TabItem { Header = "COORDINATION", Content = coordWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "COORDINATION", Content = Scrollable(coordWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 6: HANDOVER ──
             var handWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1504,7 +1786,7 @@ namespace StingTools.UI
             handWrap.Children.Add(MakeSectionLabel("4D / 5D"));
             handWrap.Children.Add(MakeDispatchBtn("4D Timeline", "Export4DTimeline", BrPurple, win));
             handWrap.Children.Add(MakeDispatchBtn("5D Cost Data", "Export5DCostData", BrPurple, win));
-            tabs.Items.Add(new TabItem { Header = "HANDOVER", Content = handWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "HANDOVER", Content = Scrollable(handWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 7: NOTES & BEP ──
             var notesWrap = new WrapPanel { Margin = new Thickness(4, 3, 4, 3) };
@@ -1525,7 +1807,7 @@ namespace StingTools.UI
             notesWrap.Children.Add(MakeDispatchBtn("Update BEP", "UpdateBEP", BrTeal, win));
             notesWrap.Children.Add(MakeDispatchBtn("Export BEP", "ExportBEP", BrGreen, win));
             notesWrap.Children.Add(MakeDispatchBtn("ISO 19650 Ref", "ISO19650Reference", BrFgDark, win));
-            tabs.Items.Add(new TabItem { Header = "NOTES / BEP", Content = notesWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "NOTES / BEP", Content = Scrollable(notesWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // ── TAB 8: MEETINGS ──
             var meetWrap = new WrapPanel { Margin = new Thickness(4) };
@@ -1555,7 +1837,7 @@ namespace StingTools.UI
             meetWrap.Children.Add(MakeActBtn("Send Reminder", BrAccent, (s, e) => SendMeetingReminder(doc)));
             meetWrap.Children.Add(MakeActBtn("Smart Agenda", BrGreen, (s, e) => GenerateSmartAgendaFromDialog(doc)));
             meetWrap.Children.Add(MakeDispatchBtn("Coord Center", "BIMCoordinationCenter", BrAccent, win));
-            tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = meetWrap, Padding = new Thickness(8, 2, 8, 2) });
+            tabs.Items.Add(new TabItem { Header = "MEETINGS", Content = Scrollable(meetWrap), Padding = new Thickness(8, 2, 8, 2) });
 
             // GAP-BIM-010: Restore last-used tab on reopen (saves navigation time)
             // Clamp to valid range to prevent IndexOutOfRangeException if tabs were added/removed
@@ -1591,22 +1873,20 @@ namespace StingTools.UI
             var root = new StackPanel();
 
             root.Children.Add(MakeLegendHeader("CDE STATUS (ISO 19650-1 §12)"));
-            root.Children.Add(MakeLegendRow("WIP", "Work In Progress — being developed by originator", BrFgSub));
-            root.Children.Add(MakeLegendRow("SHARED", "Shared — issued for coordination/review", BrTeal));
-            root.Children.Add(MakeLegendRow("PUBLISHED", "Published — approved for use", BrGreen));
-            root.Children.Add(MakeLegendRow("ARCHIVE", "Archive — retained for reference only", BrFgSub));
+            foreach (var kv in BIMManager.BIMManagerEngine.CDEStates)
+                root.Children.Add(MakeLegendRow(kv.Key, kv.Value,
+                    kv.Key == "SHARED" ? BrTeal : kv.Key == "PUBLISHED" ? BrGreen : BrFgSub));
 
             root.Children.Add(MakeLegendHeader("SUITABILITY CODES (ISO 19650 Table 9)"));
-            root.Children.Add(MakeLegendRow("S0", "Work In Progress — preliminary, not for sharing", BrFgSub));
-            root.Children.Add(MakeLegendRow("S1", "Fit for Coordination — internal team collaboration", BrTeal));
-            root.Children.Add(MakeLegendRow("S2", "Fit for Information — shared with external parties", BrGreen));
-            root.Children.Add(MakeLegendRow("S3", "Fit for Review & Comment — client/stakeholder input", BrOrange));
-            root.Children.Add(MakeLegendRow("S4", "Fit for Stage Approval — RIBA stage gate sign-off", BrGreen));
-            root.Children.Add(MakeLegendRow("S5", "Fit for Manufacturing / Procurement", BrPurple));
-            root.Children.Add(MakeLegendRow("S6", "Fit for PIM Authorisation — production model", BrPurple));
-            root.Children.Add(MakeLegendRow("S7", "Fit for AIM Authorisation — asset handover", BrPurple));
-            root.Children.Add(MakeLegendRow("CR", "As-Constructed Record Document", BrFgDark));
-            root.Children.Add(MakeLegendRow("AB", "Abandoned / Superseded — obsolete version", BrRed));
+            foreach (string code in SuitabilityCodeList)
+            {
+                // Strip the "S4 — " prefix the registry label carries; the code is its own column.
+                string label = SuitabilityLabel(code);
+                int dash = label.IndexOf('\u2014');
+                root.Children.Add(MakeLegendRow(code,
+                    dash >= 0 ? label.Substring(dash + 1).Trim() : label,
+                    SuitabilityBrush(code)));
+            }
 
             root.Children.Add(MakeLegendHeader("DOCUMENT STATUS CODES (ISO 19650-2 §5.6)"));
             foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
@@ -1641,14 +1921,12 @@ namespace StingTools.UI
             root.Children.Add(MakeLegendRow("SUPERSEDED", "Replaced by newer transmittal", BrFgSub));
 
             root.Children.Add(MakeLegendHeader("DISCIPLINE CODES (STING)"));
-            root.Children.Add(MakeLegendRow("M", "Mechanical — HVAC, heating, ventilation", Brushes.Blue));
-            root.Children.Add(MakeLegendRow("E", "Electrical — power, lighting, comms", Brushes.Goldenrod));
-            root.Children.Add(MakeLegendRow("P", "Plumbing — DHW, DCW, sanitary, drainage", BrGreen));
-            root.Children.Add(MakeLegendRow("A", "Architectural — walls, doors, windows, floors", BrFgSub));
-            root.Children.Add(MakeLegendRow("S", "Structural — columns, beams, foundations", BrRed));
-            root.Children.Add(MakeLegendRow("FP", "Fire Protection — alarms, sprinklers, suppression", BrOrange));
-            root.Children.Add(MakeLegendRow("LV", "Low Voltage — data, CCTV, access control", BrPurple));
-            root.Children.Add(MakeLegendRow("G", "General — multi-discipline / unclassified", BrFgDark));
+            foreach (string code in DisciplineCodeList())
+                root.Children.Add(MakeLegendRow(code,
+                    DisciplineDescriptions.TryGetValue(code, out string dDesc)
+                        ? dDesc
+                        : "Project-defined discipline code (project_config.json)",
+                    DisciplineBrush(code)));
 
             root.Children.Add(MakeLegendHeader("DATA DROP MILESTONES (ISO 19650-2 §5.3)"));
             root.Children.Add(MakeLegendRow("DD1", "Stage 2 — Concept Design (BEP, tag structure, COBie schema)", BrTeal));
@@ -1740,7 +2018,7 @@ namespace StingTools.UI
                         $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
                         $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"");
             }
-            File.WriteAllText(dlg.FileName, sb.ToString());
+            OutputLocationHelper.WriteAllTextAtomic(dlg.FileName, sb.ToString());
             if (_doc != null) ProjectFolderEngine.LogActivity(_doc, "EXPORT_CSV", Path.GetFileName(dlg.FileName), $"{_view.Count} rows");
             MessageBox.Show($"Exported {_view.Count} rows to:\n{dlg.FileName}", "STING Export", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -1748,13 +2026,15 @@ namespace StingTools.UI
         /// <summary>Quick transmittal creation with distribution group/multi-recipient picker.</summary>
         private static void QuickTransmittal(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => i.Category == "DOCUMENT" && !string.IsNullOrEmpty(i.FilePath)).ToList();
-            if (selected == null || selected.Count == 0)
-            {
-                MessageBox.Show("Select document files in the list to create a quick transmittal.", "STING Transmittal");
-                return;
-            }
+            // Document rows, with or without a file on disk. The old guard also demanded a
+            // non-empty FilePath, which blocked a legitimate workflow: a register entry added
+            // through Add Doc carries an empty "file_path", and issuing a transmittal for it is
+            // exactly what a transmittal is for. Nothing downstream needs the path — it feeds a
+            // single optional token (TokenContext.cs: { "file", d.FilePath ?? "" }) and every
+            // other field comes from the register row.
+            var selected = RequireRows("Quick Transmittal", i => i.Category == "DOCUMENT",
+                                       "document rows (from the register or the project folders)");
+            if (selected == null) return;
 
             // Load team registry for recipient picker
             ProjectTeamRegistry.Load(doc);
@@ -1795,31 +2075,170 @@ namespace StingTools.UI
             {
                 AcceptsReturn = true, Height = 80, TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                ToolTip = "One recipient per line. Use + buttons to pick from team registry."
+                ToolTip = "One recipient per line. + Member picks from the project roster; + Group from distribution groups."
             };
             stack.Children.Add(recipientBox);
 
             addRecipientBtn.Click += (s, e) =>
             {
-                string picked = ProjectTeamRegistry.PickMember("Add Recipient", "Select transmittal recipient:");
+                // Source the roster from the server, not project_team.json.
+                // ProjectTeamRegistry is a hand-edited local file that nobody
+                // reconciles against who is actually on the project, so a
+                // transmittal — a formal record of issuing documents — could be
+                // addressed to someone who left months ago, or to a name spelled
+                // three different ways across three transmittals.
+                var roster = StingTools.Core.ProjectRoster.Load(doc);
+                const string externalOpt = "[External recipient — not a project member]";
+
+                var picks = roster
+                    .Select(m => string.IsNullOrWhiteSpace(m.Email)
+                        ? m.Display
+                        : $"{m.Display} — {m.Email}")
+                    .ToList();
+                picks.Add(externalOpt);
+
+                string prompt = roster.Count > 0
+                    ? "Select transmittal recipient:"
+                    : "No project members found — the model may not be linked to a Planscape\n" +
+                      "project, or the server is unreachable.";
+
+                string picked = StingListPicker.Show("Add Recipient", prompt, picks);
+                if (string.IsNullOrEmpty(picked)) return;
+
+                if (picked == externalOpt)
+                {
+                    // Kept deliberately: issuing to a client contact or a
+                    // subcontractor outside the project is normal. It is labelled
+                    // so it reads as a choice rather than a gap in the list.
+                    picked = PromptForText("External Recipient",
+                        "Name or email of the external recipient:", "");
+                    if (string.IsNullOrWhiteSpace(picked)) return;
+                }
+                else
+                {
+                    // Store the name only — the "— email" suffix is display sugar.
+                    int dash = picked.IndexOf(" — ", StringComparison.Ordinal);
+                    if (dash > 0) picked = picked.Substring(0, dash);
+                }
+
+                picked = picked.Trim();
                 if (!string.IsNullOrEmpty(picked) && !recipientBox.Text.Contains(picked))
                     recipientBox.AppendText(picked + "\n");
             };
             addGroupBtn.Click += (s, e) =>
             {
-                var recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group", doc);
+                // Server-backed distribution groups are the source of truth.
+                // There were three competing stores — project_team.json,
+                // _BIM_COORD/distribution_groups.json, and the server — and this
+                // button read the first of them, so a group curated on the server
+                // (or in the web app) was invisible here.
+                var recipients = new List<string>();
+                Guid pid = StingTools.Core.ProjectRoster.ResolveProjectId(doc);
+                var client = BIMManager.PlanscapeServerClient.Instance;
+
+                if (client.IsConnected && pid != Guid.Empty)
+                {
+                    var groups = System.Threading.Tasks.Task
+                        .Run(() => client.ListDistributionGroupsAsync(pid))
+                        .GetAwaiter().GetResult();
+
+                    // null is a FAILED load. It must not fall through to the "no groups
+                    // yet" branch below, and above all must not reach the local-registry
+                    // fallback further down — silently substituting a local list for a
+                    // server list the user cannot see failed is the exact drift the
+                    // server-canonical groups replaced.
+                    if (groups == null)
+                    {
+                        MessageBox.Show(
+                            "Could not load distribution groups.\n\n" +
+                            (client.LastError ?? "(no detail)") +
+                            "\n\nThis is not an empty result — the list could not be retrieved.",
+                            "Distribution groups");
+                        return;
+                    }
+
+                    if (groups.Count > 0)
+                    {
+                        var labels = groups
+                            .Select(g => $"{g.Name} ({g.MemberCount} member{(g.MemberCount == 1 ? "" : "s")})")
+                            .ToList();
+                        string pick = StingListPicker.Show("Add Distribution Group",
+                            "Select a distribution group:", labels);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        int idx = labels.IndexOf(pick);
+                        if (idx >= 0)
+                        {
+                            // Resolve by id, not by name — we already have the id,
+                            // and two groups can legitimately share a display label
+                            // once the member count is stripped back off.
+                            var grpMembers = System.Threading.Tasks.Task
+                                .Run(() => client.ListDistributionGroupMembersAsync(pid, groups[idx].Id))
+                                .GetAwaiter().GetResult();
+                            // Same rule one level down: a failed member load must not
+                            // read as "has no members yet", which would send a
+                            // transmittal to nobody and look deliberate.
+                            if (grpMembers == null)
+                            {
+                                MessageBox.Show(
+                                    $"Could not load members of \"{groups[idx].Name}\".\n\n" +
+                                    (client.LastError ?? "(no detail)") +
+                                    "\n\nThis is not an empty group — the members could not be retrieved.",
+                                    "Distribution group");
+                                return;
+                            }
+                            recipients = grpMembers
+                                .Select(m => m.Display ?? m.Email ?? m.ExternalEmail ?? "")
+                                .Where(n => !string.IsNullOrWhiteSpace(n))
+                                .Select(n => n.Trim())
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+                            if (recipients.Count == 0)
+                                MessageBox.Show($"\"{groups[idx].Name}\" has no members yet.",
+                                    "Distribution group");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            "No distribution groups on the server for this project yet.\n\n" +
+                            "Create them in the Site Photos → Admin tab, or in the web app.",
+                            "Distribution groups");
+                        return;
+                    }
+                }
+                else
+                {
+                    // DEPRECATED read-only fallback — the local registry, used only
+                    // when the server is unreachable or the model is unlinked, so a
+                    // disconnected user is not blocked mid-transmittal.
+                    StingLog.Info("Transmittal +Group: server unreachable/unlinked — using local group registry.");
+                    recipients = ProjectTeamRegistry.PickRecipients("Add Distribution Group (offline)", doc);
+                }
+
                 foreach (string name in recipients)
-                    if (!recipientBox.Text.Contains(name))
-                        recipientBox.AppendText(name + "\n");
+                    if (!string.IsNullOrWhiteSpace(name) && !recipientBox.Text.Contains(name))
+                        recipientBox.AppendText(name.Trim() + "\n");
             };
 
             // Suitability code
             stack.Children.Add(new TextBlock { Text = "Suitability Code:", Margin = new Thickness(0, 6, 0, 2) });
             var suitCombo = new System.Windows.Controls.ComboBox();
-            foreach (string s in new[] { "S0 — WIP", "S1 — Coordination", "S2 — Information", "S3 — Review & Comment",
-                "S4 — Stage Approval", "S5 — Costing", "S6 — Contractor Design", "S7 — Manufacture" })
-                suitCombo.Items.Add(s);
-            suitCombo.SelectedIndex = 2;
+            // The full ISO 19650 set — S0-S7 plus the A/B authorization codes, CR, AB and AR.
+            // Offering S0-S7 alone meant a PUBLISHED transmittal could not carry a correct
+            // authorization code at all. Items are keyed by Tag so the stored value never
+            // depends on where the label happens to put a space.
+            foreach (string code in SuitabilityCodeList)
+            {
+                var cbi = new System.Windows.Controls.ComboBoxItem
+                {
+                    Content = SuitabilityLabel(code),
+                    Tag = code,
+                };
+                if (code == "S2") cbi.IsSelected = true;   // Suitable for information
+                suitCombo.Items.Add(cbi);
+            }
+            if (suitCombo.SelectedIndex < 0 && suitCombo.Items.Count > 0) suitCombo.SelectedIndex = 0;
             stack.Children.Add(suitCombo);
 
             // Purpose / notes
@@ -1851,17 +2270,31 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
-                JArray arr;
-                try { arr = File.Exists(transPath) ? JArray.Parse(File.ReadAllText(transPath)) : new JArray(); }
-                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
+                string transPath = CoordStores.Transmittals(doc);
+                // TryRead: an unreadable store must abort, not silently start a fresh array and
+                // overwrite the live register with a single new row.
+                if (!CoordStores.TryRead(transPath, out JArray arr))
+                {
+                    MessageBox.Show($"The transmittal store exists but could not be read.\n\n{transPath}\n\n" +
+                        "No transmittal was created — refusing to overwrite it. See StingTools.log.",
+                        "STING Transmittals", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
 
-                // Phase 85 BUG-5: Use max-suffix pattern instead of arr.Count+1 to prevent ID collisions after deletions
+                // Phase 85 BUG-5: max-suffix rather than arr.Count+1, so IDs stay unique after a
+                // deletion. The scan read t["id"], but these rows are keyed "transmittal_id" —
+                // so maxNum was ALWAYS 0 and every transmittal was minted as TX-0001, which is
+                // the very collision the max-suffix pattern was introduced to prevent.
                 int maxNum = 0;
-                foreach (var t in arr) { if (int.TryParse(t["id"]?.ToString()?.Replace("TX-", ""), out int n) && n > maxNum) maxNum = n; }
+                foreach (var t in arr)
+                {
+                    string raw = t["transmittal_id"]?.ToString() ?? t["id"]?.ToString();
+                    if (string.IsNullOrEmpty(raw)) continue;
+                    if (int.TryParse(raw.Replace("TX-", ""), out int n) && n > maxNum) maxNum = n;
+                }
                 string transId = $"TX-{maxNum + 1:D4}";
-                string suitCode = (suitCombo.SelectedItem?.ToString() ?? "S2").Split(' ')[0];
+                string suitCode =
+                    (suitCombo.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? "S2";
                 var docList = new JArray(selected.Select(s => s.Title).ToArray());
 
                 // Build per-recipient delivery tracking
@@ -1897,11 +2330,15 @@ namespace StingTools.UI
                     ["document_count"] = selected.Count,
                     ["created_by"] = Environment.UserName,
                     ["title"] = transId,
-                    ["status_history"] = $"{DateTime.Now:yyyy-MM-dd HH:mm} CREATED by {Environment.UserName}" +
-                        (trackCheck.IsChecked == true ? $"\n{DateTime.Now:yyyy-MM-dd HH:mm} SENT to {recipientNames.Count} recipients" : "")
                 };
+                // JArray history, matching BIMManagerCommands' transmittal creator on the same
+                // store. Seeding it as a string here is what left two shapes in one file.
+                CoordStores.AppendHistory(trans, "", "DRAFT", Environment.UserName, "created");
+                if (trackCheck.IsChecked == true)
+                    CoordStores.AppendHistory(trans, "DRAFT", "SENT", Environment.UserName,
+                        $"sent to {recipientNames.Count} recipient(s)");
                 arr.Add(trans);
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                CoordStores.WriteArray(transPath, arr);
                 ProjectFolderEngine.LogActivity(doc, "CREATE_TRANSMITTAL", transId,
                     $"{selected.Count} docs to {recipientNames.Count} recipients ({string.Join(", ", recipientNames)})");
 
@@ -1912,6 +2349,7 @@ namespace StingTools.UI
                 string renderedPath = null;
                 string templateId   = null;
                 string workflowInst = null;
+                string renderWarning = null;
                 try
                 {
                     var req = new Planscape.Docs.Templates.TransmittalRequest
@@ -1937,10 +2375,11 @@ namespace StingTools.UI
                         renderedPath = res.DocxPath;
                         templateId   = res.TemplateId;
                         workflowInst = res.WorkflowInstanceId;
+                        renderWarning = res.RenderWarning;
                         trans["template_id"]         = templateId;
                         trans["rendered_file_path"]  = renderedPath;
                         trans["workflow_instance_id"]= workflowInst;
-                        File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        OutputLocationHelper.WriteAllTextAtomic(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                     }
                     else
                     {
@@ -1962,6 +2401,12 @@ namespace StingTools.UI
                     : $"\n\nRendered: {renderedPath}" +
                       (string.IsNullOrEmpty(templateId) ? "" : $"\nTemplate: {templateId}") +
                       (string.IsNullOrEmpty(workflowInst) ? "" : $"\nWorkflow instance: {workflowInst}");
+                // Update the footer BEFORE the modal dialog. RefreshData (which rewrites the
+                // status line) only runs after the user dismisses it, so without this the footer
+                // sits there still reading "Quick Transmittal: nothing selected" from an earlier
+                // attempt while the dialog announces the transmittal was created — the status
+                // line contradicting the result, which is the defect class this review chased.
+                SetStatus($"Created {transId} — {selected.Count} doc(s) → {recipientNames.Count} recipient(s)");
                 var completion = MessageBox.Show(
                     $"Transmittal {transId} created:\n{selected.Count} documents → {recipientNames.Count} recipients\n\n" +
                     $"Recipients: {string.Join(", ", recipientNames)}\nSuitability: {suitCode}\nStatus: {trans["status"]}" +
@@ -1992,7 +2437,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(title)) return;
 
             // Priority selection
-            var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+            var priorities = IssuePriorityList();
             string priority = StingListPicker.Show($"{issueType} Priority", "Select priority:", priorities);
             if (string.IsNullOrEmpty(priority)) priority = "MEDIUM";
 
@@ -2009,56 +2454,68 @@ namespace StingTools.UI
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
-                JArray arr;
-                try { arr = File.Exists(issuePath) ? JArray.Parse(File.ReadAllText(issuePath)) : new JArray(); }
-                catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); arr = new JArray(); }
-
-                // Phase 85 BUG-5: Use max-suffix pattern to prevent ID collisions after deletions
-                int maxIssueNum = 0;
-                foreach (var iss in arr)
-                {
-                    if (iss["type"]?.ToString() != issueType) continue;
-                    string idStr = iss["id"]?.ToString()?.Replace($"{issueType}-", "");
-                    if (int.TryParse(idStr, out int n) && n > maxIssueNum) maxIssueNum = n;
-                }
-                string issueId = $"{issueType}-{maxIssueNum + 1:D4}";
+                // Phase 2 (IM-4): this wrote the identifier as "issue_id" but computed the
+                // next number by scanning "id" — a field it never wrote — so maxIssueNum was
+                // always 0 and EVERY quick issue was minted as {TYPE}-0001. A register could
+                // therefore hold a dozen rows all called RFI-0001, and any lookup by id
+                // resolved to whichever came first. It also used a hand-rolled path that
+                // bypassed the CoordStores legacy merge.
                 DateTime now = DateTime.Now;
-
-                // Calculate SLA deadline
                 DateTime? slaDeadline = ProjectTeamRegistry.CalculateSLADeadline(priority, now);
 
-                var issue = new JObject
-                {
-                    ["issue_id"] = issueId,
-                    ["type"] = issueType,
-                    ["title"] = title,
-                    ["status"] = "OPEN",
-                    ["priority"] = priority,
-                    ["date"] = now.ToString("yyyy-MM-dd"),
-                    ["assigned_to"] = assignedTo,
-                    ["discipline"] = disc,
-                    ["description"] = title,
-                    ["created_by"] = Environment.UserName,
-                    ["linked_elements"] = new JArray(),
-                    ["sla_deadline"] = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
-                    ["escalation_level"] = 0,
-                    ["status_history"] = $"{now:yyyy-MM-dd HH:mm} OPEN — created by {Environment.UserName}" +
-                        (!string.IsNullOrEmpty(assignedTo) ? $" — assigned to {assignedTo}" : "") +
-                        (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : "")
-                };
-
-                // Auto-detect revision
-                try
-                {
-                    string rev = PhaseAutoDetect.DetectProjectRevision(doc);
-                    if (!string.IsNullOrEmpty(rev)) issue["revision"] = rev;
-                }
+                string rev = "";
+                try { rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? ""; }
                 catch (Exception ex2) { StingLog.Warn($"QuickIssue rev detect: {ex2.Message}"); }
 
-                arr.Add(issue);
-                File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                string issuePath = IssueStore.PathFor(doc);
+                JObject issue;
+                using (var batch = IssueStore.Begin(doc))
+                {
+                    if (!batch.Ok)
+                    {
+                        MessageBox.Show("The issue register could not be read, so the issue was not saved — " +
+                                        "writing now would overwrite live rows.",
+                                        "STING Issues", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    issue = batch.Create(new IssueSpec
+                    {
+                        Type        = issueType,
+                        Title       = title,
+                        Description = title,
+                        Priority    = priority,
+                        AssignedTo  = assignedTo,
+                        Discipline  = disc,
+                        Revision    = rev,
+                        Source      = IssueSource.Manual,
+                        Extra       = new JObject
+                        {
+                            ["sla_deadline"]     = slaDeadline?.ToString("yyyy-MM-dd HH:mm") ?? "",
+                            ["escalation_level"] = 0,
+                            ["status_history"]   = new JArray
+                            {
+                                new JObject
+                                {
+                                    ["from"] = "",
+                                    ["to"]   = "OPEN",
+                                    ["by"]   = Environment.UserName,
+                                    ["at"]   = now.ToString("o"),
+                                    ["note"] = (!string.IsNullOrEmpty(assignedTo) ? $"assigned to {assignedTo}" : "created") +
+                                               (slaDeadline.HasValue ? $" — SLA: {slaDeadline:yyyy-MM-dd HH:mm}" : ""),
+                                },
+                            },
+                        },
+                    });
+                    if (issue == null)
+                    {
+                        MessageBox.Show("Issue could not be created.", "STING Issues",
+                                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    batch.Commit();
+                }
+                string issueId = IssueSchema.IdOf(issue);
+                var arr = IssueStore.Load(doc);
                 ProjectFolderEngine.LogActivity(doc, "CREATE_ISSUE", issueId, $"{issueType}: {title} → {assignedTo}");
 
                 // Generate notification for critical/high priority issues
@@ -2091,8 +2548,7 @@ namespace StingTools.UI
             private static JObject _teamData;
             private static string _teamPath;
 
-            public static string GetTeamPath(Document doc) =>
-                Path.Combine(GetBimManagerDir(doc), "project_team.json");
+            public static string GetTeamPath(Document doc) => CoordStores.Team(doc);
 
             /// <summary>Load or initialize team data from project_team.json.</summary>
             public static JObject Load(Document doc)
@@ -2156,7 +2612,7 @@ namespace StingTools.UI
                 try
                 {
                     _teamData["last_updated"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    File.WriteAllText(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
+                    OutputLocationHelper.WriteAllTextAtomic(_teamPath, _teamData.ToString(Newtonsoft.Json.Formatting.Indented));
                 }
                 catch (Exception ex) { StingLog.Warn($"TeamRegistry save: {ex.Message}"); }
             }
@@ -2428,10 +2884,9 @@ namespace StingTools.UI
             public static Dictionary<string, int> GetWorkloadCounts(Document doc)
             {
                 var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                string bimDir = GetBimManagerDir(doc);
 
                 // Count issue assignments
-                string issuePath = Path.Combine(bimDir, "issues.json");
+                string issuePath = CoordStores.Issues(doc);
                 if (File.Exists(issuePath))
                 {
                     try
@@ -2448,7 +2903,7 @@ namespace StingTools.UI
                 }
 
                 // Count meeting action assignments
-                string meetPath = Path.Combine(bimDir, "meetings.json");
+                string meetPath = CoordStores.Meetings(doc);
                 if (File.Exists(meetPath))
                 {
                     try
@@ -2600,7 +3055,8 @@ namespace StingTools.UI
 
                 // Discipline dropdown
                 var discCombo = new System.Windows.Controls.ComboBox();
-                foreach (string d in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G", "" }) discCombo.Items.Add(d);
+                foreach (string d in DisciplineCodeList()) discCombo.Items.Add(d);
+                discCombo.Items.Add("");   // "any / unassigned" — keep last so it is opt-in
                 discCombo.SelectedIndex = 0;
                 stack.Children.Add(new TextBlock { Text = "Discipline", FontSize = 10, Margin = new Thickness(0, 6, 0, 2) });
                 stack.Children.Add(discCombo);
@@ -2699,8 +3155,34 @@ namespace StingTools.UI
         //  MEETING MANAGER — Agenda, Minutes, Action Items (Enhanced)
         // ══════════════════════════════════════════════════════════════════
 
-        private static string GetMeetingsPath(Document doc) =>
-            Path.Combine(GetBimManagerDir(doc), "meetings.json");
+        private static string GetMeetingsPath(Document doc) => CoordStores.Meetings(doc);
+
+        /// <summary>
+        /// Next sequence number for a prefixed id (MTG-0007 → 8), by scanning for the highest
+        /// existing suffix.
+        /// <para>
+        /// Not <c>rows.Count + 1</c>. Count falls when a row is deleted but the surviving ids do
+        /// not, so the next mint re-uses an id that is already in the store — the same collision
+        /// Phase 85 removed from the transmittal and issue minters and which was still live for
+        /// meetings, actions and notifications.
+        /// </para>
+        /// </summary>
+        private static int NextSeq(JArray rows, string idField, string prefix)
+        {
+            int max = 0;
+            if (rows == null) return 1;
+            foreach (var r in rows)
+            {
+                string raw = r?[idField]?.ToString();
+                if (string.IsNullOrEmpty(raw)) continue;
+                // Take the trailing digit run, so both "MTG-0007" and "ACT-0007-03" behave.
+                int i = raw.Length;
+                while (i > 0 && char.IsDigit(raw[i - 1])) i--;
+                if (i == raw.Length) continue;
+                if (int.TryParse(raw.Substring(i), out int n) && n > max) max = n;
+            }
+            return max + 1;
+        }
 
         /// <summary>Create a new meeting with team-registry attendee picker, recurring meeting defaults,
         /// distribution group support, and follow-up from previous.</summary>
@@ -2759,13 +3241,13 @@ namespace StingTools.UI
             var teamData = ProjectTeamRegistry.Load(doc);
             ProjectTeamRegistry.SetLastDoc(doc);
 
-            string bimDir = GetBimManagerDir(doc);
-            if (!Directory.Exists(bimDir)) Directory.CreateDirectory(bimDir);
+            // No explicit CreateDirectory: CoordStores resolves through
+            // ProjectFolderEngine.GetMetaPath, which already creates the directory it returns.
             string path = GetMeetingsPath(doc);
             var meetings = File.Exists(path) ? JArray.Parse(File.ReadAllText(path)) : new JArray();
 
             int seriesNum = meetings.Count(m => m["type"]?.ToString() == meetingType) + 1;
-            int nextId = meetings.Count + 1;
+            int nextId = NextSeq(meetings, "id", "MTG-");
 
             var prevMeeting = meetings.LastOrDefault(m => m["type"]?.ToString() == meetingType);
             int carryForwardActions = 0;
@@ -2949,7 +3431,7 @@ namespace StingTools.UI
             }
 
             meetings.Add(meeting);
-            File.WriteAllText(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(path, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
             ProjectFolderEngine.LogActivity(doc, "MEETING_CREATED", meeting["id"].ToString(),
                 $"{meetingType} #{seriesNum}, {attendees.Count} attendees" +
                 (carryForwardActions > 0 ? $", {carryForwardActions} actions carried forward" : ""));
@@ -2979,7 +3461,6 @@ namespace StingTools.UI
         /// <summary>Auto-generate meeting agenda from open issues, pending transmittals, and recent revisions.</summary>
         internal static void GenerateAutoAgenda(Document doc)
         {
-            string bimDir = GetBimManagerDir(doc);
             string meetPath = GetMeetingsPath(doc);
             if (!File.Exists(meetPath)) { MessageBox.Show("No meetings found. Create a meeting first."); return; }
 
@@ -3011,7 +3492,7 @@ namespace StingTools.UI
                 agenda.Add(new JObject { ["num"] = itemNum++, ["topic"] = $"Review open action items ({allActions.Count} outstanding)", ["source"] = "ACTIONS", ["duration_min"] = 10 });
 
             // 2. Open issues
-            string issuesPath = Path.Combine(bimDir, "issues.json");
+            string issuesPath = CoordStores.Issues(doc);
             int openIssues = 0;
             if (File.Exists(issuesPath))
             {
@@ -3032,7 +3513,7 @@ namespace StingTools.UI
             }
 
             // 3. Pending transmittals
-            string txPath = Path.Combine(bimDir, "transmittals.json");
+            string txPath = CoordStores.Transmittals(doc);
             if (File.Exists(txPath))
             {
                 try
@@ -3046,7 +3527,7 @@ namespace StingTools.UI
             }
 
             // 4. Recent revisions
-            string revPath = Path.Combine(bimDir, "revisions.json");
+            string revPath = CoordStores.Revisions(doc);
             if (File.Exists(revPath))
             {
                 try
@@ -3067,7 +3548,8 @@ namespace StingTools.UI
             // 5. Compliance status
             try
             {
-                var scan = ComplianceScan.Scan(doc);
+                // Cached first, matching Show()/RefreshData() \u2014 see GenerateSmartAgendaFromDialog.
+                var scan = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
                 string ragEmoji = scan.RAGStatus == "GREEN" ? "\u2705" : scan.RAGStatus == "AMBER" ? "\u26A0" : "\u274C";
                 agenda.Add(new JObject { ["num"] = itemNum++,
                     ["topic"] = $"{ragEmoji} Model compliance: {scan.CompliancePercent:F0}% — {scan.Untagged} untagged, {scan.StaleCount} stale",
@@ -3105,7 +3587,7 @@ namespace StingTools.UI
 
             target["agenda"] = agenda;
             int totalMin = agenda.Sum(a => a["duration_min"]?.Value<int>() ?? 5);
-            File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
 
             // Show agenda in result panel, grouped by section
             var panel = StingResultPanel.Create("Meeting Agenda")
@@ -3182,7 +3664,7 @@ namespace StingTools.UI
             {
                 target["minutes"] = tb.Text;
                 target["status"] = "IN_PROGRESS";
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_LOGGED", meetId, $"{tb.Text.Length} chars");
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3268,7 +3750,7 @@ namespace StingTools.UI
                 var actions = target["actions"] as JArray ?? new JArray();
                 actions.Add(new JObject
                 {
-                    ["id"] = $"ACT-{meetId.Replace("MTG-", "")}-{actions.Count + 1:D2}",
+                    ["id"] = $"ACT-{meetId.Replace("MTG-", "")}-{NextSeq(actions, "id", "ACT-"):D2}",
                     ["description"] = descBox.Text,
                     ["assigned_to"] = assignBox.Text,
                     ["due_date"] = dueBox.Text,
@@ -3276,7 +3758,7 @@ namespace StingTools.UI
                     ["created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
                 });
                 target["actions"] = actions;
-                File.WriteAllText(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(meetPath, meetings.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "ACTION_ADDED", meetId, descBox.Text);
                 inputWin.DialogResult = true;
                 inputWin.Close();
@@ -3434,9 +3916,35 @@ namespace StingTools.UI
             try
             {
                 string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
-                File.WriteAllText(exportPath, sb.ToString());
-                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
+                OutputLocationHelper.WriteAllTextAtomic(exportPath, sb.ToString());
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
+
+                // Also render the D14 Word template. It shipped in the pack but nothing ever
+                // called it, so its attendees/agenda/actions/discussion tables had no producer.
+                string docxPath = null, docxWarning = null;
+                try
+                {
+                    var engine = new Planscape.Docs.Templates.TemplateEngine(doc);
+                    var mctx = Planscape.Docs.Templates.TokenContext.FromMeeting(
+                        target as JObject, doc, engine.Registry.Manifest);
+                    docxPath = engine.RenderByPurpose("D", "meeting_minutes", mctx);
+                    docxWarning = engine.LastRenderHealth?.Summary();
+                }
+                catch (Exception exd)
+                {
+                    StingLog.Warn($"ExportMinutes docx: {exd.Message}");
+                }
+
+                if (!string.IsNullOrEmpty(docxPath))
+                {
+                    string msg = $"Minutes exported for {meetId}.\n\nText: {exportPath}\nWord: {docxPath}";
+                    if (!string.IsNullOrEmpty(docxWarning))
+                        msg += $"\n\n⚠ The Word document has problems:\n{docxWarning}\n" +
+                               "Do NOT issue it until this is resolved — see StingTools.log.";
+                    MessageBox.Show(msg, "STING Minutes", MessageBoxButton.OK,
+                        string.IsNullOrEmpty(docxWarning) ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                }
+                Process.Start(new ProcessStartInfo(exportPath) { UseShellExecute = true })?.Dispose();
             }
             catch (Exception ex)
             {
@@ -3457,15 +3965,14 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string notifyPath = Path.Combine(bimDir, "notification_queue.json");
+                string notifyPath = CoordStores.Notifications(doc);
                 JArray queue;
                 try { queue = File.Exists(notifyPath) ? JArray.Parse(File.ReadAllText(notifyPath)) : new JArray(); }
                 catch (Exception ex) { StingLog.Warn($"JSON parse fallback: {ex.Message}"); queue = new JArray(); }
 
                 queue.Add(new JObject
                 {
-                    ["id"] = $"NTF-{queue.Count + 1:D4}",
+                    ["id"] = $"NTF-{NextSeq(queue, "id", "NTF-"):D4}",
                     ["event_type"] = eventType,
                     ["ref_id"] = refId,
                     ["message"] = message,
@@ -3484,7 +3991,7 @@ namespace StingTools.UI
                     ["status"] = "PENDING"
                 });
 
-                File.WriteAllText(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(notifyPath, queue.ToString(Newtonsoft.Json.Formatting.Indented));
             }
             catch (Exception ex) { StingLog.Warn($"LogNotification: {ex.Message}"); }
         }
@@ -3493,8 +4000,7 @@ namespace StingTools.UI
         private static void RunSLACheck(Document doc)
         {
             ProjectTeamRegistry.Load(doc);
-            string bimDir = GetBimManagerDir(doc);
-            string issuePath = Path.Combine(bimDir, "issues.json");
+            string issuePath = CoordStores.Issues(doc);
             if (!File.Exists(issuePath)) { MessageBox.Show("No issues found."); return; }
 
             var issues = JArray.Parse(File.ReadAllText(issuePath));
@@ -3531,7 +4037,7 @@ namespace StingTools.UI
                 }
             }
 
-            File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
+            OutputLocationHelper.WriteAllTextAtomic(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
 
             var panel = StingResultPanel.Create("SLA Compliance Check")
                 .SetSubtitle($"{issues.Count(i => i["status"]?.ToString() != "CLOSED")} open issues scanned")
@@ -3586,8 +4092,7 @@ namespace StingTools.UI
         /// <summary>Show notification queue status.</summary>
         private static void ShowNotificationQueue(Document doc)
         {
-            string bimDir = GetBimManagerDir(doc);
-            string notifyPath = Path.Combine(bimDir, "notification_queue.json");
+            string notifyPath = CoordStores.Notifications(doc);
             if (!File.Exists(notifyPath)) { MessageBox.Show("No notifications queued."); return; }
 
             var queue = JArray.Parse(File.ReadAllText(notifyPath));
@@ -3678,12 +4183,14 @@ namespace StingTools.UI
                 // Reuse the smart agenda generator from CoordinationCenterDialog
                 // Build agenda inline
                 var items = new List<string>();
-                string bimDir = GetBimManagerDir(doc);
 
                 // Compliance status
                 try
                 {
-                    var cr = ComplianceScan.Scan(doc);
+                    // Cached first, matching Show()/RefreshData(). A bare Scan() here re-ran a
+                    // full FilteredElementCollector sweep and froze the dialog for 2-5s on a
+                    // large model just to put one line on an agenda.
+                    var cr = ComplianceScan.GetCached() ?? ComplianceScan.Scan(doc);
                     if (cr.CompliancePercent < 80)
                         items.Add($"COMPLIANCE: Tag compliance at {cr.CompliancePercent:F0}% — below 80% target");
                     if (cr.StaleCount > 0)
@@ -3694,7 +4201,7 @@ namespace StingTools.UI
                 // Open issues
                 try
                 {
-                    string issuePath = Path.Combine(bimDir, "issues.json");
+                    string issuePath = CoordStores.Issues(doc);
                     if (File.Exists(issuePath))
                     {
                         var issues = JArray.Parse(File.ReadAllText(issuePath));
@@ -3719,7 +4226,7 @@ namespace StingTools.UI
                 int totalActions = 0;
                 try
                 {
-                    string mtgPath = Path.Combine(bimDir, "meetings.json");
+                    string mtgPath = CoordStores.Meetings(doc);
                     if (File.Exists(mtgPath))
                     {
                         var meetings = JArray.Parse(File.ReadAllText(mtgPath));
@@ -3737,7 +4244,7 @@ namespace StingTools.UI
                 // Pending transmittals
                 try
                 {
-                    string txPath = Path.Combine(bimDir, "transmittals.json");
+                    string txPath = CoordStores.Transmittals(doc);
                     if (File.Exists(txPath))
                     {
                         var txs = JArray.Parse(File.ReadAllText(txPath));
@@ -3786,15 +4293,21 @@ namespace StingTools.UI
                 Margin = new Thickness(2), FontSize = 10, FontWeight = FontWeights.SemiBold,
                 Background = Brushes.White, Foreground = fg,
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
-                ToolTip = GetButtonTooltip(label)
+                // NullIfBlank: an empty string is a real tooltip to WPF and shows as an empty
+                // popup. A label with no entry in GetButtonTooltip should show nothing.
+                ToolTip = NullIfBlank(GetButtonTooltip(label))
             };
             btn.Click += (s, e) =>
             {
                 try { handler(s, e); }
                 catch (Exception ex)
                 {
-                    StingLog.Warn($"DocMgr button '{label}': {ex.Message}");
+                    // Visible, not just SetStatus. A failure that only wrote to the 10px footer
+                    // label was indistinguishable from the button doing nothing at all.
+                    StingLog.Error($"DocMgr button '{label}' failed", ex);
                     SetStatus($"Error: {ex.Message}");
+                    MessageBox.Show($"{label} failed:\n\n{ex.Message}\n\nSee StingTools.log for details.",
+                        "STING Document Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             };
             return btn;
@@ -3808,7 +4321,7 @@ namespace StingTools.UI
                 Margin = new Thickness(2), FontSize = 10,
                 Background = Brushes.White, Foreground = fg,
                 BorderBrush = fg, BorderThickness = new Thickness(1), Cursor = Cursors.Hand,
-                ToolTip = GetButtonTooltip(label, op)
+                ToolTip = NullIfBlank(GetButtonTooltip(label, op))
             };
             btn.Click += (s, e) =>
             {
@@ -3822,6 +4335,16 @@ namespace StingTools.UI
             return btn;
         }
 
+        /// <summary>
+        /// "a" or "an" for a following word. The category is interpolated at runtime, so a fixed
+        /// "a" produced "a activity record" for ACTIVITY / ISSUE — seen in Revit.
+        /// </summary>
+        private static string Article(string word)
+            => !string.IsNullOrEmpty(word) && "aeiou".IndexOf(char.ToLowerInvariant(word[0])) >= 0 ? "an" : "a";
+
+        /// <summary>Null for a blank tooltip, so WPF shows no popup instead of an empty one.</summary>
+        private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
         /// <summary>Rich tooltips for all action buttons — context-aware descriptions.</summary>
         private static string GetButtonTooltip(string label, string op = "")
         {
@@ -3831,15 +4354,18 @@ namespace StingTools.UI
                 "Open" => "Open selected file in default application (double-click also works)",
                 "Open Folder" => "Open containing folder in Windows Explorer",
                 "Rename" => "Rename the selected file (validates ISO 19650 naming)",
-                "Delete" => "Move selected file to _RECYCLE folder (recoverable)",
+                "Delete" => "Move selected file to the project recycle bin at <root>/_data/recycle (recoverable via Restore)",
                 "Move To" => "Move selected file to a different project folder",
                 // Bulk ops
                 "Bulk Move" => "Move all selected files to a chosen folder (multi-select with Ctrl/Shift)",
-                "Bulk Delete" => "Delete all selected files to recycle bin (Ctrl+Shift+click to multi-select)",
+                "Bulk Delete" => "Move all selected files to the project recycle bin (Ctrl/Shift+click to multi-select). Rows with no file on disk are skipped",
                 "Close Issues" => "Set status to CLOSED for all selected issues with audit trail",
                 "Delete Notes" => "Remove all selected sticky notes from the project",
                 "Update CDE" => "Change CDE status (WIP/SHARED/PUBLISHED/ARCHIVE) for selected docs. Auto-creates transmittal on SHARED/PUBLISHED",
-                "Update Trans Status" => "Transition transmittal status (DRAFT→SENT→RECEIVED→ACKNOWLEDGED→SIGNED)",
+                // Key must match the button's Content verbatim — the button is labelled
+                // "Update Trans", so the old "Update Trans Status" key never matched and the
+                // button rendered with no tooltip at all.
+                "Update Trans" => "Transition transmittal status (DRAFT→SENT→RECEIVED→ACKNOWLEDGED→SIGNED)",
                 // Docs
                 "Doc Register" => "View and filter all registered project documents with ISO 19650 metadata (10+ columns, export to CSV)",
                 "Add Doc" => "Register a new document: select direction (IN/OUT), type code, and suitability. Auto-generates ISO 19650 Document ID",
@@ -3847,7 +4373,7 @@ namespace StingTools.UI
                 "Naming Check" => "Audit all sheet names against ISO 19650 naming convention with auto-correction suggestions",
                 "Transmittal" => "Create ISO 19650 transmittal record with document list, recipient, and delivery tracking",
                 "Publish CDE" => "Create ISO 19650 CDE folder package with discipline sub-folders and deliverable manifest",
-                "CDE Status" => "View/update Common Data Environment suitability codes (S0-S7) for project containers",
+                "CDE Status" => "View/update Common Data Environment suitability codes (full ISO 19650 set: S0-S7, A1-A5, B1-B6, CR, AB, AR) for project containers",
                 "Review Tracker" => "Track model review cycles, approval workflows, and information exchanges",
                 "MIDP Tracker" => "Master Information Delivery Plan — track deliverable progress per discipline and RIBA stage",
                 // Issues
@@ -3905,6 +4431,35 @@ namespace StingTools.UI
                 "Create BEP" => "Create BIM Execution Plan from 22 project type presets with 23 ISO 19650-2 §5.3 sections",
                 "Export BEP" => "Export BEP to JSON with compliance scan enrichment and deliverable manifest",
                 "ISO 19650 Ref" => "Quick reference guide for ISO 19650 codes, suitability statuses, and BIM terminology",
+                // Inline (MakeActBtn) actions. These call GetButtonTooltip with no `op`, so a
+                // missing key here fell through to `_ => op` == "" — WPF then rendered an empty
+                // tooltip popup rather than none at all.
+                "Restore" => "Recover a file from the project recycle bin (scans <root>/_data/recycle plus any legacy bins)",
+                "Export Visible CSV" => "Export the rows currently visible under the active filter and search to CSV",
+                "Code Legend" => "Reference table of STING/ISO 19650 status, suitability, and CDE codes (Ctrl+L)",
+                "Quick Transmittal" => "Raise a transmittal for the selected documents without leaving this dialog",
+                "Quick RFI" => "Raise a Request For Information against the selected row",
+                "Quick NCR" => "Raise a Non-Conformance Report against the selected row",
+                "Quick SI" => "Raise a Site Instruction against the selected row",
+                "Quick Issue" => "Raise an ACTION-type issue from the current meeting context",
+                "Overdue Report" => "Filter the list to issues past their due date",
+                // Meetings
+                "New Meeting" => "Create a coordination meeting record (date, type, attendees)",
+                "Auto Agenda" => "Build a meeting agenda from open issues, clashes, and overdue actions",
+                "Smart Agenda" => "Build a prioritised agenda weighted by issue age, severity, and discipline",
+                "Meeting Templates" => "Insert a standard agenda from the meeting template library",
+                "Log Minutes" => "Record minutes against the selected meeting",
+                "Add Action" => "Add an action item with owner and due date to the selected meeting",
+                "Meeting History" => "Browse past meetings with their minutes and actions",
+                "Open Actions" => "List every action item that is not yet closed, by owner",
+                "Export Minutes" => "Export the selected meeting's minutes and actions to file",
+                "Send Reminder" => "Queue a reminder to attendees of the selected meeting",
+                // Team & SLA
+                "Team Registry" => "Manage the project team: roles, disciplines, and contact details",
+                "Add Member" => "Add a person to the project team registry",
+                "SLA Check" => "Check open issues against their response/closure SLA and flag breaches",
+                "Workload" => "Open issues and actions per team member, to spot overload",
+                "Notifications" => "Review the pending notification queue before it is sent",
                 _ => op
             };
         }
@@ -3972,52 +4527,242 @@ namespace StingTools.UI
             return style;
         }
 
-        /// <summary>Restore a file from the _RECYCLE folder.</summary>
+        /// <summary>
+        /// Restore a file from the project recycle bin.
+        /// <para>
+        /// Reads the SAME bin that <see cref="ProjectFolderEngine.DeleteFile"/> writes:
+        /// &lt;root&gt;/_data/recycle/, via <see cref="StingPaths.Recycle"/>. It previously read
+        /// &lt;root&gt;/_RECYCLE — a folder nothing has written since the recycle bin moved under
+        /// _data — so Restore reported "Recycle bin is empty" however many files had been
+        /// deleted, and every soft-delete was unrecoverable through the UI. The legacy
+        /// location is still scanned so files recycled before that move can be restored.
+        /// </para>
+        /// <para>
+        /// Bin discovery is delegated to <see cref="ProjectFolderEngine.EnumerateRecycleBins"/>,
+        /// which also sweeps the project tree for orphan "_RECYCLE" folders. Those exist because
+        /// the old path-only <c>ResolveRecycleDir</c> fell back to a sibling of the deleted file
+        /// whenever "_data" did not yet exist — folders are created lazily, so that was the
+        /// COMMON case on a fresh project, and every such file was invisible here.
+        /// </para>
+        /// </summary>
         private static void RestoreFromRecycle(Document doc)
         {
-            string rootPath = ProjectFolderEngine.GetRootPath(doc);
-            string recyclePath = string.IsNullOrEmpty(rootPath) ? "" : Path.Combine(rootPath, "_RECYCLE");
-            if (!Directory.Exists(recyclePath) || Directory.GetFiles(recyclePath).Length == 0)
+            // Canonical bin, the legacy root sibling, and any orphan bins left in the tree.
+            var bins = ProjectFolderEngine.EnumerateRecycleBins(doc);
+
+            // Map display name -> full path so a pick from either bin resolves correctly.
+            var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string bin in bins)
             {
-                MessageBox.Show("Recycle bin is empty.", "STING Restore");
+                if (string.IsNullOrEmpty(bin) || !Directory.Exists(bin)) continue;
+                try
+                {
+                    foreach (string f in Directory.GetFiles(bin))
+                    {
+                        string name = Path.GetFileName(f);
+                        // Bookkeeping sidecar, not a recycled deliverable. StartsWith, not
+                        // equality: WriteAllTextAtomic leaves "recycle_index.json.bak" beside it
+                        // (and a ".tmp" mid-write), and an exact-match filter offered those as
+                        // restorable files — observed in Revit, the picker listed the .bak.
+                        if (name.StartsWith("recycle_index.json", StringComparison.OrdinalIgnoreCase)) continue;
+                        // Now that several bins are scanned, the same recycled name can appear
+                        // twice. Disambiguate rather than letting the first bin hide the rest.
+                        string key = name;
+                        if (entries.ContainsKey(key))
+                            key = $"{name}   [{Path.GetFileName(Path.GetDirectoryName(f))}]";
+                        if (!entries.ContainsKey(key)) entries[key] = f;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"Restore scan {bin}: {ex.Message}"); }
+            }
+
+            if (entries.Count == 0)
+            {
+                MessageBox.Show(
+                    "Recycle bin is empty.\n\nScanned:\n  " + string.Join("\n  ", bins),
+                    "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-            var files = Directory.GetFiles(recyclePath)
-                .Select(f => Path.GetFileName(f)).OrderByDescending(f => f).ToList();
-            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
-            if (string.IsNullOrEmpty(pick)) return;
 
-            string srcPath = Path.Combine(recyclePath, pick);
-            // Let user choose destination folder
-            var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
+            var files = entries.Keys.OrderByDescending(f => f).ToList();
+            string pick = StingListPicker.Show("Restore File", "Select file to restore from recycle bin:", files);
+            if (string.IsNullOrEmpty(pick) || !entries.TryGetValue(pick, out string srcPath)) return;
+
+            // Default to the location the file was deleted from — DeleteFile records it in
+            // recycle_index.json, and RestoreFile also strips the yyyyMMdd_HHmmss_ prefix
+            // that the raw File.Move here used to leave baked into the restored filename.
+            const string OriginalChoice = "(original location)";
+            var folders = new List<string> { OriginalChoice };
+            folders.AddRange(ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}"));
             string destPick = StingListPicker.Show("Restore To", "Restore to which folder?", folders);
             if (string.IsNullOrEmpty(destPick)) return;
 
-            string folderId = destPick.Split(':')[0].Trim();
-            string destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
-            if (!string.IsNullOrEmpty(destDir))
+            string folderId = null;
+            string destDir = null;
+            if (!string.Equals(destPick, OriginalChoice, StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
-                    string destPath = Path.Combine(destDir, pick);
-                    File.Move(srcPath, destPath);
-                    ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {folderId}");
-                    MessageBox.Show($"Restored: {pick}\nTo: {folderId}", "STING Restore", MessageBoxButton.OK, MessageBoxImage.Information);
-                    RefreshData();
-                }
-                catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
+                folderId = destPick.Split(':')[0].Trim();
+                destDir = ProjectFolderEngine.GetFolderPath(doc, folderId);
+                if (string.IsNullOrEmpty(destDir)) return;
             }
+
+            try
+            {
+                if (!ProjectFolderEngine.RestoreFile(srcPath, destDir))
+                {
+                    MessageBox.Show($"Could not restore {pick}.", "STING Restore",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                string where = folderId ?? "original location";
+                ProjectFolderEngine.LogActivity(doc, "RESTORE", pick, $"From recycle to {where}");
+                MessageBox.Show($"Restored: {pick}\nTo: {where}", "STING Restore",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                RefreshData();
+            }
+            catch (Exception ex2) { StingLog.Warn($"Restore: {ex2.Message}"); MessageBox.Show($"Error: {ex2.Message}"); }
         }
 
         // ── File operation implementations ──
 
+        /// <summary>
+        /// The selected row, if it is one a file action can work on; otherwise null, having told
+        /// the user WHY in a dialog.
+        /// <para>
+        /// Single-row actions used to fail into <see cref="SetStatus"/> — a 10px grey label in the
+        /// footer — while their bulk counterparts popped a MessageBox for the same condition. The
+        /// result was that Delete looked completely dead (no selection, or a selection that is an
+        /// issue/compliance row carrying no file path) while Bulk Delete always said something.
+        /// Single actions are now exactly as loud as the bulk ones.
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// Filter the current multi-selection to the rows an action can work on, explaining the
+        /// shortfall instead of blaming the selection. Returns null when nothing qualifies.
+        /// <para>
+        /// The bulk guards all read "Select X in the list" whichever way they failed, so a user
+        /// who HAD selected a row was told to select one. Quick Transmittal was the worst case:
+        /// it needs <c>Category == "DOCUMENT"</c> AND a non-empty <c>FilePath</c>, and register
+        /// entries added through Add Doc legitimately carry an empty <c>file_path</c> — so
+        /// selecting the obvious document produced "Select document files in the list."
+        /// </para>
+        /// </summary>
+        private static List<DocItemVM> RequireRows(string action, Func<DocItemVM, bool> predicate,
+                                                   string requirement)
+        {
+            var all = _listView?.SelectedItems?.Cast<DocItemVM>().ToList() ?? new List<DocItemVM>();
+            if (all.Count == 0)
+            {
+                MessageBox.Show($"Select one or more rows first.\n\n{action} works on {requirement}.",
+                    $"STING {action}", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"{action}: nothing selected.");
+                return null;
+            }
+
+            var ok = all.Where(predicate).ToList();
+            if (ok.Count > 0) return ok;
+
+            // Something IS selected but none of it qualifies — name what was picked so the
+            // requirement is actionable rather than a riddle.
+            var kinds = all.Select(i => string.IsNullOrEmpty(i.Category) ? "(none)" : i.Category)
+                           .Distinct().OrderBy(s => s).ToList();
+            int noFile = all.Count(i => string.IsNullOrEmpty(i.FilePath));
+            var msg = new StringBuilder();
+            msg.AppendLine($"None of the {all.Count} selected row(s) can be used.");
+            msg.AppendLine();
+            msg.AppendLine($"{action} needs {requirement}.");
+            msg.AppendLine();
+            msg.AppendLine($"You selected: {string.Join(", ", kinds)}");
+            if (noFile > 0)
+                msg.AppendLine($"{noFile} of them have no file on disk — those are register entries, " +
+                               "not files. Rows backed by a file show a Size and a Date.");
+            StingLog.Info($"DocMgr {action}: {all.Count} selected, 0 qualify (categories: {string.Join("/", kinds)}, {noFile} without a file path).");
+            MessageBox.Show(msg.ToString().TrimEnd(), $"STING {action}",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            SetStatus($"{action}: {all.Count} selected, none usable.");
+            return null;
+        }
+
+        /// <summary>
+        /// The selected row for an action that does NOT need a file (register-field edits), or
+        /// null having said so. <see cref="RequireFileRow"/> is the file-backed counterpart.
+        /// </summary>
+        private static DocItemVM RequireRow(string action)
+        {
+            if (_listView?.SelectedItem is DocItemVM item) return item;
+            MessageBox.Show($"Select a row first.\n\nClick a document in the list, then choose {action}.",
+                $"STING {action}", MessageBoxButton.OK, MessageBoxImage.Information);
+            SetStatus($"{action}: nothing selected.");
+            return null;
+        }
+
+        /// <summary>
+        /// The selected row if it is an issue, otherwise null having said why.
+        /// <para>
+        /// The four issue actions on the right-click menu used a bare <c>return;</c> when the row
+        /// was not an issue — no dialog, not even a status line. Right-clicking a document and
+        /// choosing "Close Issue" did nothing whatsoever, which reads as a broken build.
+        /// </para>
+        /// </summary>
+        private static DocItemVM RequireIssueRow(string verb)
+        {
+            if (_listView?.SelectedItem is not DocItemVM item)
+            {
+                MessageBox.Show($"Select an issue row first, then choose {verb}.",
+                    $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
+                return null;
+            }
+            if (item.Category != "ISSUE")
+            {
+                StingLog.Info($"DocMgr {verb}: row '{item.Title}' is category {item.Category}, not ISSUE.");
+                string kind = string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant();
+                MessageBox.Show($"'{item.Title}' is not an issue.\n\n" +
+                    $"It is {Article(kind)} {kind} row, " +
+                    $"and {verb} only applies to issues (RFI, NCR, SI and the like).\n\n" +
+                    "Filter the list to ISSUE rows, or raise one from the ISSUES tab.",
+                    $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"{verb}: {item.Title} is not an issue.");
+                return null;
+            }
+            return item;
+        }
+
+        private static DocItemVM RequireFileRow(string verb)
+        {
+            if (_listView?.SelectedItem is not DocItemVM item)
+            {
+                StingLog.Info($"DocMgr {verb}: no row selected.");
+                MessageBox.Show($"Select a row first.\n\nClick a document in the list, then press {verb}.",
+                    $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"Select a file to {verb.ToLowerInvariant()}.");
+                return null;
+            }
+            if (string.IsNullOrEmpty(item.FilePath))
+            {
+                StingLog.Info($"DocMgr {verb}: row '{item.Title}' (category {item.Category}) has no file path.");
+                string kind = string.IsNullOrEmpty(item.Category) ? "register" : item.Category.ToLowerInvariant();
+                MessageBox.Show($"'{item.Title}' is not a file.\n\nIt is {Article(kind)} {kind} " +
+                    $"record with no file attached, so it cannot be {verb.ToLowerInvariant()}d.\n\n" +
+                    "File actions work on rows that have a file on disk — the Size and Date columns are filled in for those.",
+                    $"STING {verb}", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"{item.Title} has no file to {verb.ToLowerInvariant()}.");
+                return null;
+            }
+            return item;
+        }
+
         private static void OpenSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
-            { SetStatus("Select a file to open."); return; }
+            var item = RequireFileRow("Open");
+            if (item == null) return;
             if (!File.Exists(item.FilePath))
-            { SetStatus($"File not found: {item.FilePath}"); return; }
+            {
+                MessageBox.Show($"Cannot open {item.Title}.\n\nThe file it points at is not on disk:\n{item.FilePath}\n\n" +
+                    "This row is a register entry — the file may have been moved, renamed or deleted outside STING.",
+                    "STING Open", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"File not found: {item.FilePath}");
+                return;
+            }
             Process.Start(new ProcessStartInfo(item.FilePath) { UseShellExecute = true })?.Dispose();
             SetStatus($"Opened: {Path.GetFileName(item.FilePath)}");
         }
@@ -4029,165 +4774,348 @@ namespace StingTools.UI
                 dir = Path.GetDirectoryName(item.FilePath);
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 dir = ProjectFolderEngine.GetRootPath(doc);
-            if (Directory.Exists(dir))
-                Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+            {
+                MessageBox.Show("No folder to open.\n\nThe selected row has no file on disk and this " +
+                    "project has no folder tree yet — run Folder Setup on the FOLDERS tab.",
+                    "STING Open Folder", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            Process.Start(new ProcessStartInfo("explorer.exe", dir) { UseShellExecute = true })?.Dispose();
         }
 
         private static void RenameSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
-            { SetStatus("Select a file to rename."); return; }
+            var item = RequireFileRow("Rename");
+            if (item == null) return;
+            if (!File.Exists(item.FilePath))
+            {
+                MessageBox.Show($"No file to rename.\n\n{item.Title}\n\nThis row is a register entry; " +
+                    $"the file it points at is not on disk:\n{item.FilePath}",
+                    "STING Rename", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
             string currentName = Path.GetFileName(item.FilePath);
             string newName = PromptForText("Rename File", "Enter new filename:", currentName);
-            if (!string.IsNullOrEmpty(newName) && newName != currentName)
+            if (string.IsNullOrEmpty(newName) || newName == currentName) return;
+
+            // RenameFile refuses when the target name is already taken. That used to fall through
+            // as a no-op with no message, so the file simply kept its old name for no visible reason.
+            if (!ProjectFolderEngine.RenameFile(item.FilePath, newName, _doc))
             {
-                if (ProjectFolderEngine.RenameFile(item.FilePath, newName))
-                {
-                    // Validate against ISO 19650 naming
-                    var (valid, suggested, errors) = ProjectFolderEngine.ValidateFileName(_doc, newName);
-                    if (!valid && errors.Count > 0)
-                    {
-                        MessageBox.Show($"Warning: filename may not be ISO 19650 compliant:\n\n" +
-                            string.Join("\n", errors.Take(3)),
-                            "STING Naming", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    ProjectFolderEngine.LogActivity(_doc, "RENAME", item.Id ?? "", $"{currentName} -> {newName}");
-                    RefreshData();
-                }
+                string dir = Path.GetDirectoryName(item.FilePath) ?? "";
+                bool taken = !string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, newName));
+                MessageBox.Show(taken
+                        ? $"Could not rename — '{newName}' already exists in this folder."
+                        : $"Could not rename {currentName}.\n\nThe file may be locked or read-only. See StingTools.log.",
+                    "STING Rename", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"Rename failed: {currentName}");
+                return;
             }
+
+            // Validate against ISO 19650 naming
+            var (valid, suggested, errors) = ProjectFolderEngine.ValidateFileName(_doc, newName);
+            if (!valid && errors.Count > 0)
+            {
+                MessageBox.Show($"Renamed, but the new filename may not be ISO 19650 compliant:\n\n" +
+                    string.Join("\n", errors.Take(3)) +
+                    (string.IsNullOrEmpty(suggested) ? "" : $"\n\nSuggested: {suggested}"),
+                    "STING Naming", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            SetStatus($"Renamed {currentName} → {newName}");
+            RefreshData();
         }
 
+        /// <summary>
+        /// Delete the selected row's file into the project recycle bin.
+        /// <para>
+        /// Only 3 of the 14 loaders build rows from files on disk; the rest build them from the
+        /// JSON stores, where <c>FilePath</c> is whatever the register recorded and is routinely
+        /// stale or points outside the project. This used to log a DELETE, drop the row and
+        /// update the counts WITHOUT looking at <see cref="ProjectFolderEngine.DeleteFile"/>'s
+        /// result — so a delete that never touched the disk was indistinguishable from one that
+        /// worked, and the activity log recorded a deletion that did not happen. Every exit path
+        /// below now tells the user what actually occurred.
+        /// </para>
+        /// </summary>
         private static void DeleteSelected()
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
-            { SetStatus("Select a file to delete."); return; }
-            if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            var item = RequireFileRow("Delete");
+            if (item == null) return;
+
+            // A row whose file is already gone is a stale register/index entry, not a file.
+            // Say so instead of silently "succeeding".
+            if (!File.Exists(item.FilePath))
             {
-                ProjectFolderEngine.LogActivity(_doc, "DELETE", item.Id ?? item.Title, item.FilePath ?? "");
-                ProjectFolderEngine.DeleteFile(item.FilePath);
-                _allItems.Remove(item);
-                UpdateCounts();
+                MessageBox.Show(
+                    $"No file to delete.\n\n{item.Title}\n\nThis row is a register entry — the file it " +
+                    $"points at is not on disk:\n{item.FilePath}\n\n" +
+                    "Nothing was changed. Refresh (F5) to re-read the stores.",
+                    "STING Delete", MessageBoxButton.OK, MessageBoxImage.Information);
+                SetStatus($"Not deleted — no file at {item.FilePath}");
+                return;
             }
+
+            if (MessageBox.Show($"Delete?\n\n{item.Title}", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
+            if (!ProjectFolderEngine.DeleteFile(item.FilePath, _doc, out string recycledTo))
+            {
+                MessageBox.Show($"Could not delete {item.Title}.\n\n{item.FilePath}\n\n" +
+                    "The file may be open in another application or read-only. See StingTools.log.",
+                    "STING Delete", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"Delete failed: {item.Title}");
+                return;
+            }
+
+            // DeleteFile logs RECYCLE / DELETE itself, with the outcome that actually happened.
+            if (string.IsNullOrEmpty(recycledTo))
+            {
+                MessageBox.Show($"Permanently deleted: {item.Title}\n\n" +
+                    "The recycle bin could not be written, so the file was not recoverable. See StingTools.log.",
+                    "STING Delete", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"Permanently deleted {item.Title}");
+            }
+            else
+            {
+                SetStatus($"Recycled {item.Title} → {recycledTo}");
+            }
+            RefreshData();
         }
 
         private static void MoveSelected(Document doc)
         {
-            if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath))
-            { SetStatus("Select a file to move."); return; }
+            var item = RequireFileRow("Move");
+            if (item == null) return;
+            if (!File.Exists(item.FilePath))
+            {
+                MessageBox.Show($"No file to move.\n\n{item.Title}\n\nThis row is a register entry; " +
+                    $"the file it points at is not on disk:\n{item.FilePath}",
+                    "STING Move", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
             var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name} — {f.Description}").ToList();
             string pick = StingListPicker.Show("Move To Folder", "Select destination:", folders);
             if (string.IsNullOrEmpty(pick)) return;
             string folderId = pick.Split(':')[0].Trim();
-            if (ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId))
-                RefreshData();
+            if (!ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId))
+            {
+                MessageBox.Show($"Could not move {item.Title} to {folderId}.\n\n" +
+                    "The file may be locked, or the target folder could not be resolved. See StingTools.log.",
+                    "STING Move", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"Move failed: {item.Title}");
+                return;
+            }
+            SetStatus($"Moved {item.Title} → {folderId}");
+            RefreshData();
         }
 
         // ── Bulk operations (GAP OP-04) ──
 
         private static void BulkMove(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => !string.IsNullOrEmpty(i.FilePath)).ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select files to move."); return; }
+            var selected = RequireRows("Bulk Move", i => !string.IsNullOrEmpty(i.FilePath),
+                                       "rows that have a file on disk");
+            if (selected == null) return;
+
+            // Same split as BulkDelete: a row whose file is missing is a stale register entry,
+            // not a move failure, and lumping the two together hides real errors.
+            var onDisk = selected.Where(i => File.Exists(i.FilePath)).ToList();
+            int missing = selected.Count - onDisk.Count;
+            if (onDisk.Count == 0)
+            {
+                MessageBox.Show($"Nothing to move.\n\nAll {missing} selected rows are register entries " +
+                    "whose files are not on disk.", "STING Bulk Move",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             var folders = ProjectFolderEngine.Folders.Select(f => $"{f.Id}: {f.Name}").ToList();
-            string pick = StingListPicker.Show("Bulk Move", $"Move {selected.Count} files to:", folders);
+            string pick = StingListPicker.Show("Bulk Move", $"Move {onDisk.Count} files to:", folders);
             if (string.IsNullOrEmpty(pick)) return;
             string folderId = pick.Split(':')[0].Trim();
+
             int moved = 0;
-            foreach (var item in selected)
+            var failed = new List<string>();
+            foreach (var item in onDisk)
             {
                 if (ProjectFolderEngine.MoveFile(doc, item.FilePath, folderId)) moved++;
+                else failed.Add(item.Title);
             }
-            MessageBox.Show($"Moved {moved} of {selected.Count} files.");
+
+            var report = new StringBuilder();
+            report.AppendLine($"Moved: {moved} → {folderId}");
+            if (missing > 0) report.AppendLine($"Skipped (no file on disk): {missing}");
+            if (failed.Count > 0)
+            {
+                report.AppendLine($"Failed: {failed.Count}");
+                foreach (string f in failed.Take(10)) report.AppendLine($"  • {f}");
+                if (failed.Count > 10) report.AppendLine($"  … and {failed.Count - 10} more — see StingTools.log");
+            }
+            MessageBox.Show(report.ToString().TrimEnd(), "STING Bulk Move", MessageBoxButton.OK,
+                failed.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
             RefreshData();
         }
 
         private static void BulkDelete()
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => !string.IsNullOrEmpty(i.FilePath)).ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select files to delete."); return; }
-            if (MessageBox.Show($"Delete {selected.Count} files?\n\nThis cannot be undone.",
-                "Bulk Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            int deleted = 0;
-            foreach (var item in selected)
+            var selected = RequireRows("Bulk Delete", i => !string.IsNullOrEmpty(i.FilePath),
+                                       "rows that have a file on disk");
+            if (selected == null) return;
+
+            // Split the selection before prompting: rows whose file is missing are stale register
+            // entries and must not be counted as deletions, and the prompt must not promise
+            // "cannot be undone" for a delete that is in fact recoverable from the recycle bin.
+            var onDisk = selected.Where(i => File.Exists(i.FilePath)).ToList();
+            var missing = selected.Where(i => !File.Exists(i.FilePath)).ToList();
+
+            if (onDisk.Count == 0)
             {
-                if (ProjectFolderEngine.DeleteFile(item.FilePath)) { _allItems.Remove(item); deleted++; }
+                MessageBox.Show($"Nothing to delete.\n\nAll {missing.Count} selected rows are register " +
+                    "entries whose files are not on disk. Nothing was changed.",
+                    "STING Bulk Delete", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
-            MessageBox.Show($"Deleted {deleted} files.");
-            UpdateCounts();
+
+            string preamble = missing.Count > 0
+                ? $"Delete {onDisk.Count} files?\n\n({missing.Count} of the {selected.Count} selected rows " +
+                  "have no file on disk and will be skipped.)\n\n"
+                : $"Delete {onDisk.Count} files?\n\n";
+            if (MessageBox.Show(preamble + "Files move to the project recycle bin and can be restored.",
+                "Bulk Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+
+            int recycled = 0, hardDeleted = 0;
+            var failed = new List<string>();
+            foreach (var item in onDisk)
+            {
+                if (ProjectFolderEngine.DeleteFile(item.FilePath, _doc, out string recycledTo))
+                {
+                    if (string.IsNullOrEmpty(recycledTo)) hardDeleted++; else recycled++;
+                }
+                else failed.Add(item.Title);
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"Recycled: {recycled}");
+            if (hardDeleted > 0) report.AppendLine($"Permanently deleted (bin unwritable): {hardDeleted}");
+            if (missing.Count > 0) report.AppendLine($"Skipped (no file on disk): {missing.Count}");
+            if (failed.Count > 0)
+            {
+                report.AppendLine($"Failed: {failed.Count}");
+                foreach (string f in failed.Take(10)) report.AppendLine($"  • {f}");
+                if (failed.Count > 10) report.AppendLine($"  … and {failed.Count - 10} more — see StingTools.log");
+            }
+            MessageBox.Show(report.ToString().TrimEnd(), "STING Bulk Delete",
+                MessageBoxButton.OK,
+                failed.Count > 0 || hardDeleted > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            RefreshData();
         }
 
         private static void BulkCloseIssues(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => i.Category == "ISSUE" && i.Status != "CLOSED").ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select open issues to close."); return; }
+            var selected = RequireRows("Close Issues",
+                i => i.Category == "ISSUE" && i.Status != "CLOSED", "issue rows that are not already closed");
+            if (selected == null) return;
             if (MessageBox.Show($"Close {selected.Count} issues?",
                 "Bulk Close", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
 
-            // Update issues.json
+            // One IssueStore batch: a single load, one atomic save, and the canonical status
+            // transition per row — normalised value, JArray history entry, audit record and
+            // server push. The previous hand-rolled rewrite got none of that, and its
+            // string-append to status_history destroyed the existing audit trail.
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string path = Path.Combine(bimDir, "issues.json");
-                if (File.Exists(path))
+                int closed = 0;
+                using (var batch = IssueStore.Begin(doc))
                 {
-                    var arr = JArray.Parse(File.ReadAllText(path));
-                    int closed = 0;
-                    foreach (var item in selected)
+                    if (!batch.Ok)
                     {
-                        var issue = arr.FirstOrDefault(i => i["issue_id"]?.ToString() == item.Id);
-                        if (issue != null)
-                        {
-                            issue["status"] = "CLOSED";
-                            issue["closed_date"] = DateTime.Now.ToString("yyyy-MM-dd");
-                            issue["status_history"] = (issue["status_history"]?.ToString() ?? "")
-                                + $"|{DateTime.Now:yyyy-MM-dd HH:mm} CLOSED (bulk)";
-                            closed++;
-                        }
+                        MessageBox.Show($"The issue store could not be opened for writing.\n\n" +
+                            $"{IssueStore.PathFor(doc)}\n\nNothing was changed. See StingTools.log.",
+                            "STING Bulk Close", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
                     }
-                    File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                    MessageBox.Show($"Closed {closed} issues.");
-                    RefreshData();
+                    foreach (var item in selected)
+                        if (batch.SetStatus(item.Id, "CLOSED", "Closed in bulk from Document Manager")) closed++;
+
+                    if (closed == 0)
+                    {
+                        MessageBox.Show($"None of the {selected.Count} selected rows matched an open " +
+                            $"entry in the issue store.\n\n{IssueStore.PathFor(doc)}\n\nNothing was changed.",
+                            "STING Bulk Close", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    batch.Commit();
                 }
+                ProjectFolderEngine.LogActivity(doc, "BULK_CLOSE_ISSUES", $"{closed}", $"Closed {closed} issues");
+                MessageBox.Show(closed == selected.Count
+                        ? $"Closed {closed} issues."
+                        : $"Closed {closed} of {selected.Count} issues.\n\n" +
+                          $"{selected.Count - closed} had no matching entry in the store.",
+                    "STING Bulk Close", MessageBoxButton.OK,
+                    closed == selected.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                RefreshData();
             }
-            catch (Exception ex) { StingLog.Warn($"BulkClose: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BulkClose: {ex.Message}");
+                MessageBox.Show($"Could not close issues:\n\n{ex.Message}",
+                    "STING Bulk Close", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
-        // ── CDE state machine — ISO 19650 valid transitions ──
-        private static readonly Dictionary<string, string[]> CDETransitions = new(StringComparer.OrdinalIgnoreCase)
+        // ── CDE state machine ──
+        // There is no table here on purpose. BIMManagerEngine.CDEStateTransitions is the one
+        // ISO 19650-2 state machine in this assembly (7 states, Phase 40) and the BIM
+        // Coordination Center already enforces it. The private 4-state copy that used to sit
+        // here disagreed with it: it had no SUPERSEDED, WITHDRAWN or OBSOLETE, so this dialog
+        // could not withdraw or supersede a document, and it accepted transitions on the same
+        // files that the Coordination Center refused.
+
+        /// <summary>Next states the engine allows from <paramref name="currentCde"/>.
+        /// An empty state means first assignment, which the engine treats as unconstrained.</summary>
+        private static List<string> ValidCdeTargets(string currentCde)
         {
-            [""] = new[] { "WIP" },
-            ["WIP"] = new[] { "SHARED" },
-            ["SHARED"] = new[] { "WIP", "PUBLISHED" },  // Can return to WIP for rework
-            ["PUBLISHED"] = new[] { "ARCHIVE" },
-            ["ARCHIVE"] = Array.Empty<string>()  // Terminal state
-        };
+            string cur = (currentCde ?? "").Trim();
+            if (cur.Length == 0) return CdeStatusList.ToList();
+            return BIMManager.BIMManagerEngine.CDEStateTransitions.TryGetValue(cur, out var next)
+                ? next.ToList()
+                : new List<string>();
+        }
 
         private static void BulkUpdateCDE(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => !string.IsNullOrEmpty(i.FilePath) && i.Category == "DOCUMENT").ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select documents to update."); return; }
+            var selected = RequireRows("Update CDE",
+                i => !string.IsNullOrEmpty(i.FilePath) && i.Category == "DOCUMENT",
+                "document rows that have a file on disk");
+            if (selected == null) return;
 
-            // Determine valid transitions based on current state of first selected doc
+            // Valid transitions come from the engine, not from a copy kept here.
             string currentCDE = selected.FirstOrDefault()?.CDE ?? "WIP";
-            var validTargets = CDETransitions.TryGetValue(currentCDE, out string[] targets) ? targets : new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+            var validTargets = ValidCdeTargets(currentCDE);
 
             // Check for mixed CDE states in selection
             var distinctStates = selected.Select(s => s.CDE ?? "WIP").Distinct().ToList();
             if (distinctStates.Count > 1)
             {
-                // Mixed states — show all options but warn
-                validTargets = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
+                // Mixed states — offer the union of what is legal from EVERY state present, so
+                // the picker never lists a target that is illegal for all of them, and validate
+                // per document below.
+                validTargets = distinctStates
+                    .SelectMany(ValidCdeTargets)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(t => Array.IndexOf(CdeStatusList, t))
+                    .ToList();
                 var mixedMsg = $"Selected documents have mixed CDE states: {string.Join(", ", distinctStates)}.\n\n" +
                     "ISO 19650 recommends transitioning documents with the same CDE state together.\nProceed anyway?";
                 if (MessageBox.Show(mixedMsg, "Mixed CDE States", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             }
-            else if (validTargets.Length == 0)
+            if (validTargets.Count == 0)
             {
-                MessageBox.Show($"Documents in '{currentCDE}' state cannot transition further (terminal state).", "CDE Transition");
+                MessageBox.Show(
+                    $"Documents in '{currentCDE}' state cannot transition further — it is a terminal state.\n\n" +
+                    $"Valid states: {string.Join(", ", CdeStatusList)}.",
+                    "CDE Transition", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
@@ -4198,7 +5126,10 @@ namespace StingTools.UI
                     "WIP" => "WIP — Return to Work In Progress for rework",
                     "SHARED" => "SHARED — Issue for coordination/review (S1-S4)",
                     "PUBLISHED" => "PUBLISHED — Approve and publish (A-codes, contractual)",
-                    "ARCHIVE" => "ARCHIVE — Superseded, retained for audit",
+                    "ARCHIVE" => "ARCHIVE — Retained for audit",
+                    "SUPERSEDED" => "SUPERSEDED — Replaced by a newer revision (filed in ARCHIVE)",
+                    "WITHDRAWN" => "WITHDRAWN — Removed from the CDE, no longer valid (filed in ARCHIVE)",
+                    "OBSOLETE" => "OBSOLETE — Historically retained, not for use (filed in ARCHIVE)",
                     _ => t
                 };
                 return desc;
@@ -4207,27 +5138,66 @@ namespace StingTools.UI
             string pick = StingListPicker.Show("Update CDE Status",
                 $"Current state: {currentCDE}\nTransition {selected.Count} document(s) to:", cdeOptions);
             if (string.IsNullOrEmpty(pick)) return;
-            string newCDE = pick.Split(' ')[0].Trim();
+            string newCDE = pick.Split(' ')[0].Trim().ToUpperInvariant();
+
+            // Refuse illegal transitions with the ENGINE's message rather than letting a
+            // mixed-selection union quietly promote a document the engine would block.
+            var blocked = new List<string>();
+            foreach (var it in selected)
+            {
+                string err = BIMManager.BIMManagerEngine.ValidateCDETransition(it.CDE ?? "", newCDE);
+                if (!string.IsNullOrEmpty(err)) blocked.Add($"{it.Title}: {err}");
+            }
+            if (blocked.Count > 0)
+            {
+                var bMsg = new StringBuilder();
+                bMsg.AppendLine($"{blocked.Count} of {selected.Count} document(s) cannot move to {newCDE}:");
+                bMsg.AppendLine();
+                foreach (string b in blocked.Take(10)) bMsg.AppendLine($"  • {b}");
+                if (blocked.Count > 10) bMsg.AppendLine($"  … and {blocked.Count - 10} more — see StingTools.log");
+                StingLog.Warn($"BulkUpdateCDE: {blocked.Count} illegal transition(s) to {newCDE} refused.");
+                if (blocked.Count == selected.Count)
+                {
+                    MessageBox.Show(bMsg.ToString().TrimEnd(), "STING CDE Update",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                bMsg.AppendLine();
+                bMsg.Append($"Continue with the remaining {selected.Count - blocked.Count}?");
+                if (MessageBox.Show(bMsg.ToString(), "STING CDE Update",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                selected = selected
+                    .Where(it => string.IsNullOrEmpty(
+                        BIMManager.BIMManagerEngine.ValidateCDETransition(it.CDE ?? "", newCDE)))
+                    .ToList();
+            }
 
             // Move files to corresponding CDE folder
-            string targetFolder = newCDE.ToUpperInvariant() switch
-            {
-                "WIP" => "WIP", "SHARED" => "SHARED",
-                "PUBLISHED" => "PUBLISHED", "ARCHIVE" => "ARCHIVE",
-                _ => "WIP"
-            };
+            // SUPERSEDED / WITHDRAWN / OBSOLETE are statuses, not containers — see CdeTargetFolder.
+            string targetFolder = CdeTargetFolder(newCDE);
             int moved = 0;
             var movedPaths = new List<string>();
+            var moveFailed = new List<string>();
             foreach (var item in selected)
             {
-                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, targetFolder))
+                // autoTransmittal:false — ONE batch transmittal is raised below for the whole
+                // promotion. Leaving MoveFile's per-file default on produced N+1 transmittal
+                // records for a single CDE action.
+                if (ProjectFolderEngine.MoveFile(doc, item.FilePath, targetFolder,
+                                                 out string landedAt, autoTransmittal: false))
                 {
                     moved++;
-                    movedPaths.Add(item.FilePath);
+                    // The path the file LANDED on, not the one it came from — a de-duplicated
+                    // name means these differ, and the transmittal recorded a dead path.
+                    movedPaths.Add(landedAt);
                     // Log activity for each file
+                    // Name the status AND the container when they differ, so the activity
+                    // log does not claim a file went to a folder that does not exist.
                     ProjectFolderEngine.LogActivity(doc, "CDE_UPDATE", item.Id ?? item.Title,
-                        $"Moved to {newCDE}");
+                        newCDE == targetFolder ? $"Moved to {newCDE}"
+                                               : $"Set to {newCDE}, filed in {targetFolder}");
                 }
+                else moveFailed.Add(item.Title);
             }
             // Auto-generate transmittal when moving to SHARED or PUBLISHED
             ProjectFolderEngine.AutoLogTransmittal(doc, movedPaths, newCDE.ToUpperInvariant());
@@ -4243,120 +5213,165 @@ namespace StingTools.UI
             // OP-003: Sync document register with new CDE status
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string regPath = Path.Combine(bimDir, "document_register.json");
-                if (File.Exists(regPath))
+                string regPath = CoordStores.Register(doc);
+                if (CoordStores.TryRead(regPath, out JArray regArr))
                 {
-                    var regArr = JArray.Parse(File.ReadAllText(regPath));
                     int synced = 0;
                     foreach (var item in selected)
                     {
                         string docId = item.Id ?? "";
-                        var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                        var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId) as JObject;
                         if (entry != null)
                         {
                             string oldCDE = entry["cde_status"]?.ToString() ?? "WIP";
                             string oldSuit = entry["suitability"]?.ToString() ?? "S0";
                             entry["cde_status"] = newCDE.ToUpperInvariant();
                             entry["date"] = DateTime.Now.ToString("yyyy-MM-dd");
-                            // Map CDE to default suitability per ISO 19650
-                            string suit = newCDE.ToUpperInvariant() switch
-                            {
-                                "WIP" => "S0",
-                                "SHARED" => "S3",       // Fit for review & comment
-                                "PUBLISHED" => "S4",    // Fit for stage approval (2021 UK NA)
-                                "ARCHIVE" => "AB",      // Abandoned/superseded
-                                _ => "S0"
-                            };
+                            // Map CDE to default suitability per ISO 19650. ARCHIVE now maps to
+                            // AR (archive) rather than AB (abandoned) — archiving a document is
+                            // not the same as abandoning it, and AB is what SUPERSEDED and
+                            // WITHDRAWN mean.
+                            string suit = SuitabilityForCde(newCDE);
                             entry["suitability"] = suit;
-                            entry["status_code"] = newCDE.ToUpperInvariant() switch
-                            {
-                                "PUBLISHED" => "IFA",   // Issued for Approval
-                                "SHARED" => "IFC",      // Issued for Coordination
-                                "ARCHIVE" => "IFR",     // Issued for Record
-                                _ => "IFI"              // Issued for Information
-                            };
+                            entry["status_code"] = StatusCodeForCde(newCDE);
                             // CDE-03: Log suitability transition with audit trail
-                            string history = entry["status_history"]?.ToString() ?? "";
-                            entry["status_history"] = history +
-                                $"|{DateTime.Now:yyyy-MM-dd HH:mm} CDE: {oldCDE}->{newCDE} Suit: {oldSuit}->{suit} by {Environment.UserName}";
+                            CoordStores.AppendHistory(entry, oldCDE, newCDE.ToUpperInvariant(),
+                                Environment.UserName, $"suitability {oldSuit}→{suit}");
                             synced++;
                         }
                     }
-                    if (synced > 0)
-                        File.WriteAllText(regPath, regArr.ToString(Newtonsoft.Json.Formatting.Indented));
+                    if (synced > 0) CoordStores.WriteArray(regPath, regArr);
+                }
+                else
+                {
+                    StingLog.Warn($"BulkUpdateCDE register sync skipped — {regPath} unreadable; files were moved but the register was NOT updated.");
                 }
             }
             catch (Exception ex) { StingLog.Warn($"BulkUpdateCDE register sync: {ex.Message}"); }
 
-            MessageBox.Show($"Updated CDE status and moved {moved} files to {targetFolder}." +
-                (newCDE == "SHARED" || newCDE == "PUBLISHED" ? "\nAuto-transmittal record created." : ""));
+            var cdeReport = new StringBuilder();
+            cdeReport.AppendLine(newCDE == targetFolder
+                ? $"Moved to {targetFolder}: {moved} of {selected.Count}"
+                : $"Set to {newCDE} (filed in {targetFolder}): {moved} of {selected.Count}");
+            if (moveFailed.Count > 0)
+            {
+                cdeReport.AppendLine($"Failed: {moveFailed.Count}");
+                foreach (string f in moveFailed.Take(10)) cdeReport.AppendLine($"  • {f}");
+                if (moveFailed.Count > 10) cdeReport.AppendLine($"  … and {moveFailed.Count - 10} more — see StingTools.log");
+            }
+            if (moved > 0 && (newCDE == "SHARED" || newCDE == "PUBLISHED"))
+                cdeReport.AppendLine("Auto-transmittal record created.");
+            MessageBox.Show(cdeReport.ToString().TrimEnd(), "STING CDE Update", MessageBoxButton.OK,
+                moveFailed.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
             RefreshData();
         }
 
         // ── OP-003: Bulk delete sticky notes ──
         private static void BulkDeleteStickyNotes(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => i.Category == "STICKY").ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select sticky notes to delete."); return; }
+            var selected = RequireRows("Delete Notes", i => i.Category == "STICKY", "sticky-note rows");
+            if (selected == null) return;
             if (MessageBox.Show($"Delete {selected.Count} sticky notes?",
                 "Bulk Delete Notes", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
-                if (!File.Exists(stickyPath)) return;
+                string stickyPath = CoordStores.StickyNotes(doc);
+                if (!File.Exists(stickyPath))
+                {
+                    MessageBox.Show($"No sticky-note store to edit.\n\n{stickyPath}\n\nNothing was changed.",
+                        "STING Notes", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
                 var arr = JArray.Parse(File.ReadAllText(stickyPath));
                 int deleted = 0;
                 foreach (var item in selected)
                 {
                     var note = arr.FirstOrDefault(n => n["note_id"]?.ToString() == item.Id);
-                    if (note != null) { arr.Remove(note); deleted++; _allItems.Remove(item); }
+                    if (note != null) { arr.Remove(note); deleted++; }
                 }
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "BULK_DELETE_NOTES", $"{deleted}", $"Deleted {deleted} notes");
-                MessageBox.Show($"Deleted {deleted} sticky notes.");
-                UpdateCounts();
+                MessageBox.Show(deleted == selected.Count
+                        ? $"Deleted {deleted} sticky notes."
+                        : $"Deleted {deleted} of {selected.Count} sticky notes.\n\n" +
+                          $"{selected.Count - deleted} had no matching entry in the store.",
+                    "STING Notes", MessageBoxButton.OK,
+                    deleted == selected.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
+                // Re-read rather than removing rows locally, so the tree and counts stay true.
+                RefreshData();
             }
-            catch (Exception ex) { StingLog.Warn($"BulkDeleteNotes: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BulkDeleteNotes: {ex.Message}");
+                MessageBox.Show($"Could not delete sticky notes:\n\n{ex.Message}",
+                    "STING Notes", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // ── OP-005: Transmittal status transition ──
         private static void BulkUpdateTransmittalStatus(Document doc)
         {
-            var selected = _listView?.SelectedItems?.Cast<DocItemVM>()
-                .Where(i => i.Category == "TRANSMITTAL").ToList();
-            if (selected == null || selected.Count == 0) { MessageBox.Show("Select transmittals to update."); return; }
+            var selected = RequireRows("Update Trans", i => i.Category == "TRANSMITTAL", "transmittal rows");
+            if (selected == null) return;
             var statusOptions = ValidTransmittalStatuses.OrderBy(s => s).ToList();
             string newStatus = StingListPicker.Show("Update Transmittal Status",
                 $"Set status for {selected.Count} transmittals:", statusOptions);
             if (string.IsNullOrEmpty(newStatus)) return;
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
-                if (!File.Exists(transPath)) return;
-                var arr = JArray.Parse(File.ReadAllText(transPath));
+                string transPath = CoordStores.Transmittals(doc);
+                if (!File.Exists(transPath))
+                {
+                    MessageBox.Show($"No transmittal store to update.\n\n{transPath}\n\nNothing was changed.",
+                        "STING Transmittals", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                // TryRead: abort rather than truncate a live store we cannot parse.
+                if (!CoordStores.TryRead(transPath, out JArray arr))
+                {
+                    MessageBox.Show($"The transmittal store exists but could not be read.\n\n{transPath}\n\n" +
+                        "Nothing was changed — refusing to overwrite it. See StingTools.log.",
+                        "STING Transmittals", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
                 int updated = 0;
                 foreach (var item in selected)
                 {
-                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id);
+                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id) as JObject;
                     if (trans != null)
                     {
                         string oldStatus = trans["status"]?.ToString() ?? "";
                         trans["status"] = newStatus;
-                        trans["status_history"] = (trans["status_history"]?.ToString() ?? "")
-                            + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {oldStatus}->{newStatus}";
+                        // AppendHistory, not string concat: BIMManagerCommands writes this field
+                        // as a JArray on the same store, and stringifying it destroyed that.
+                        CoordStores.AppendHistory(trans, oldStatus, newStatus, Environment.UserName,
+                                                  "status changed from Document Manager");
                         updated++;
                     }
                 }
-                File.WriteAllText(transPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                if (updated == 0)
+                {
+                    MessageBox.Show($"None of the {selected.Count} selected rows matched an entry in " +
+                        $"the transmittal store.\n\n{transPath}\n\nNothing was changed.",
+                        "STING Transmittals", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                CoordStores.WriteArray(transPath, arr);
                 ProjectFolderEngine.LogActivity(doc, "TRANS_STATUS", $"{updated}", $"→ {newStatus}");
-                MessageBox.Show($"Updated {updated} transmittal(s) to {newStatus}.");
+                MessageBox.Show(updated == selected.Count
+                        ? $"Updated {updated} transmittal(s) to {newStatus}."
+                        : $"Updated {updated} of {selected.Count} transmittals to {newStatus}.\n\n" +
+                          $"{selected.Count - updated} had no matching entry in the store.",
+                    "STING Transmittals", MessageBoxButton.OK,
+                    updated == selected.Count ? MessageBoxImage.Information : MessageBoxImage.Warning);
                 RefreshData();
             }
-            catch (Exception ex) { StingLog.Warn($"BulkUpdateTransStatus: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BulkUpdateTransStatus: {ex.Message}");
+                MessageBox.Show($"Could not update transmittal status:\n\n{ex.Message}",
+                    "STING Transmittals", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // ── DM-05: Inline sticky note creation ──
@@ -4365,14 +5380,13 @@ namespace StingTools.UI
             string text = PromptForText("Create Sticky Note", "Enter note text:", "");
             if (string.IsNullOrEmpty(text)) return;
 
-            var categories = new List<string> { "GENERAL", "OBSERVATION", "ACTION", "WARNING", "COORDINATION", "QA" };
+            var categories = StickyNoteCategoryList.ToList();
             string category = StingListPicker.Show("Note Category", "Select category:", categories);
             if (string.IsNullOrEmpty(category)) category = "GENERAL";
 
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                string stickyPath = CoordStores.StickyNotes(doc);
                 JArray arr;
                 if (File.Exists(stickyPath))
                     arr = JArray.Parse(File.ReadAllText(stickyPath));
@@ -4392,11 +5406,17 @@ namespace StingTools.UI
                     ["user"] = user,
                     ["element_ids"] = new JArray()
                 });
-                File.WriteAllText(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(stickyPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
                 ProjectFolderEngine.LogActivity(doc, "CREATE_NOTE", noteId, $"{category}: {text.Substring(0, Math.Min(50, text.Length))}");
+                SetStatus($"Created note {noteId} ({category})");
                 RefreshData();
             }
-            catch (Exception ex) { StingLog.Warn($"CreateInlineStickyNote: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CreateInlineStickyNote: {ex.Message}");
+                MessageBox.Show($"Could not create the note:\n\n{ex.Message}",
+                    "STING Notes", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -4521,8 +5541,22 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string regPath = Path.Combine(bimDir, "document_register.json");
+                // Once the user has consolidated (canonical _data/register.json exists), show
+                // the LIVE unified register — both stores merged fresh via DocumentRegister —
+                // so the Document Manager and the BIM Coordination Center see one register.
+                // Reads only: edits to register-sourced rows still persist to
+                // document_register.json, and deliverable-sourced rows are display-only here.
+                string canonical = ProjectFolderEngine.GetDataPath(doc, DocumentRegister.CanonicalFileName);
+                if (!string.IsNullOrEmpty(canonical) && File.Exists(canonical))
+                {
+                    // Fall THROUGH to the legacy loader when the unified build yields nothing:
+                    // a merge failure (unreadable store, parse error) must not present the user
+                    // with an empty register when document_register.json is sitting right there.
+                    if (LoadUnifiedRegister(doc)) return;
+                    StingLog.Warn("DocMgr.LoadDocReg: unified register empty — falling back to document_register.json.");
+                }
+
+                string regPath = CoordStores.Register(doc);
                 if (!File.Exists(regPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(regPath));
@@ -4556,12 +5590,66 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadDocReg: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// Load the live unified register (document_register.json + deliverables.json merged
+        /// by <see cref="DocumentRegister"/>) into the shared item list. Read-only view.
+        /// Returns false when nothing was loaded, so the caller can fall back to the legacy
+        /// single-store loader rather than showing an empty register.
+        /// </summary>
+        private static bool LoadUnifiedRegister(Document doc)
+        {
+            int built = 0;
+            try
+            {
+                // "Did the merge produce anything" is the question, NOT "did we add anything":
+                // counting only newly-added rows reports failure when every row is already in
+                // the list, and the caller then appends the legacy store on top of them.
+                var rows = DocumentRegister.BuildUnified(doc, out bool storeFailed);
+                built = rows.Count;
+                if (storeFailed)
+                {
+                    // One store was unreadable. Its rows are missing from `rows`, so a
+                    // non-empty result here is NOT a complete register — fall back rather than
+                    // present a register that is quietly missing every deliverable.
+                    StingLog.Warn("DocMgr.LoadUnifiedRegister: a source store failed to read; using the legacy loader.");
+                    return false;
+                }
+
+                foreach (var r in rows)
+                {
+                    if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
+                    string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
+                    // Resolve the ISO 19650 status code to its description exactly as the legacy
+                    // loader does — otherwise the unified view shows the bare code ("S2") where
+                    // the old view showed "Shared — suitable for information".
+                    string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(r.Status ?? "", out string sd) ? sd : r.Status;
+                    _allItems.Add(new DocItemVM
+                    {
+                        Id = r.Id,
+                        Title = string.IsNullOrEmpty(r.Title) ? r.Id : r.Title,
+                        Type = r.Type, TypeDesc = typeDesc,
+                        Status = r.Status, StatusDesc = statusDesc,
+                        CDE = string.IsNullOrEmpty(r.CdeStatus) ? "WIP" : r.CdeStatus,
+                        Revision = r.Revision,
+                        Date = r.DateCreated,
+                        Direction = string.IsNullOrEmpty(r.Direction) ? "OUT" : r.Direction,
+                        FilePath = r.FilePath,
+                        FileFormat = r.FileFormat,
+                        CreatedBy = r.CreatedBy,
+                        Suitability = r.Suitability,
+                        Category = "DOCUMENT", Folder = "15_REGISTERS"
+                    });
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); return false; }
+            return built > 0;
+        }
+
         private static void LoadIssues(Document doc)
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
+                string issuePath = CoordStores.Issues(doc);
                 if (!File.Exists(issuePath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(issuePath));
@@ -4599,7 +5687,9 @@ namespace StingTools.UI
                     if (issue["linked_elements"] is JArray elems) elementCount = elems.Count;
 
                     // GAP PERSIST-02: Status history
-                    string statusHistory = issue["status_history"]?.ToString() ?? "";
+                    // FormatHistory, not ToString(): the canonical shape is a JArray, and
+                    // ToString() on it dumps raw JSON into the grid cell.
+                    string statusHistory = CoordStores.FormatHistory(issue["status_history"]);
 
                     // GAP CROSS-01: Linked revision
                     string linkedRev = issue["revision"]?.ToString() ?? "";
@@ -4705,8 +5795,7 @@ namespace StingTools.UI
                 }
 
                 // Also load CLASH-type issues
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
+                string issuePath = CoordStores.Issues(doc);
                 if (File.Exists(issuePath))
                 {
                     var arr = JArray.Parse(File.ReadAllText(issuePath));
@@ -4733,8 +5822,7 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string transPath = Path.Combine(bimDir, "transmittals.json");
+                string transPath = CoordStores.Transmittals(doc);
                 if (!File.Exists(transPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(transPath));
@@ -4760,7 +5848,7 @@ namespace StingTools.UI
                         Title = BuildTransmittalTitle(t, docCount),
                         Type = "TR", TypeDesc = "Transmittal",
                         Status = ValidateTransmittalStatus(t["status"]?.ToString()),
-                        StatusHistory = t["status_history"]?.ToString() ?? "", // PERSIST-02
+                        StatusHistory = CoordStores.FormatHistory(t["status_history"]), // PERSIST-02
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
@@ -4814,8 +5902,7 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string stickyPath = Path.Combine(bimDir, "sticky_notes.json");
+                string stickyPath = CoordStores.StickyNotes(doc);
                 if (!File.Exists(stickyPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(stickyPath));
@@ -4846,8 +5933,7 @@ namespace StingTools.UI
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string healthPath = Path.Combine(bimDir, "model_health.json");
+                string healthPath = CoordStores.ModelHealth(doc);
                 if (!File.Exists(healthPath)) return;
 
                 var obj = JObject.Parse(File.ReadAllText(healthPath));
@@ -4926,8 +6012,7 @@ namespace StingTools.UI
             try
             {
                 // Check BIM manager dir for project_bep.json
-                string bimDir = GetBimManagerDir(doc);
-                string bepPath = Path.Combine(bimDir, "project_bep.json");
+                string bepPath = CoordStores.Bep(doc);
                 if (File.Exists(bepPath))
                 {
                     var fi = new FileInfo(bepPath);
@@ -5048,7 +6133,9 @@ namespace StingTools.UI
             if (_currentFilter.StartsWith("PRIORITY:"))
                 return item.Category == "ISSUE" && Eq(item.Priority, _currentFilter.Substring(9));
             if (_currentFilter.StartsWith("ISSUESTATUS:"))
-                return item.Category == "ISSUE" && Eq(item.Status, _currentFilter.Substring(12));
+                return item.Category == "ISSUE" && Eq(
+                    IssueStatusNormalizer.Canonical(item.Status ?? ""),
+                    _currentFilter.Substring(12));
             if (_currentFilter == "OVERDUE")
                 return item.IsOverdue;
             if (_currentFilter.StartsWith("DD:"))
@@ -5187,6 +6274,26 @@ namespace StingTools.UI
         //  HELPERS
         // ══════════════════════════════════════════════════════════════════
 
+        // Guard so repeated StartWatch presses do not stack handlers on the
+        // static ProjectFolderEngine.FileChanged event.
+        private static bool _fileChangedSubscribed;
+
+        /// <summary>Subscribe the document list to plugin-initiated file operations.</summary>
+        private static void SubscribeFileChangedOnce()
+        {
+            if (_fileChangedSubscribed) return;
+            try
+            {
+                ProjectFolderEngine.FileChanged += (action, fileName, path) =>
+                {
+                    try { _listView?.Dispatcher?.BeginInvoke(new Action(() => RefreshData())); }
+                    catch (Exception ex) { StingLog.Warn($"FileChanged refresh: {ex.Message}"); }
+                };
+                _fileChangedSubscribed = true;
+            }
+            catch (Exception ex) { StingLog.Warn($"SubscribeFileChangedOnce: {ex.Message}"); }
+        }
+
         private static void RefreshData()
         {
             if (_doc == null) return;
@@ -5213,19 +6320,13 @@ namespace StingTools.UI
             UpdateStatusText();
         }
 
-        private static string GetBimManagerDir(Document doc)
-        {
-            string projDir = "";
-            if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                projDir = Path.GetDirectoryName(doc.PathName) ?? "";
-            string bimDir = Path.Combine(projDir, "STING_BIM_MANAGER");
-            if (!Directory.Exists(bimDir))
-            {
-                try { Directory.CreateDirectory(bimDir); }
-                catch (Exception ex) { StingLog.Warn($"DocMgr dir: {ex.Message}"); }
-            }
-            return bimDir;
-        }
+        // GetBimManagerDir is GONE. Every store this dialog reads or writes now resolves through
+        // CoordStores (issues, meetings, register, revisions, transmittals, sticky notes,
+        // notifications, model health, BEP, team) or IssueStore. Handing out the DIRECTORY was
+        // what let call sites hand-roll Path.Combine(dir, "<name>.json") — landing on the right
+        // file but bypassing CoordStores.Resolve's legacy merge, so whether a project's
+        // pre-consolidation rows appeared depended on which subsystem happened to touch the
+        // store first in that session. Ask for the store you want, not the folder it lives in.
 
         private static string FormatSize(long bytes) => ProjectFolderEngine.FormatSize(bytes);
 
@@ -5324,8 +6425,15 @@ namespace StingTools.UI
             }));
             menu.Items.Add(MakeMenuItem("Copy File Path", "Copy full file path to clipboard", (s, e) =>
             {
-                if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
-                    Clipboard.SetText(item.FilePath);
+                if (_listView?.SelectedItem is not DocItemVM item) return;
+                if (string.IsNullOrEmpty(item.FilePath))
+                {
+                    MessageBox.Show($"'{item.Title}' has no file path — it is a register record, not a file.",
+                        "STING Copy File Path", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                Clipboard.SetText(item.FilePath);
+                SetStatus($"Copied path: {item.FilePath}");
             }));
             menu.Items.Add(MakeMenuItem("Copy Row as CSV", "Copy all columns as comma-separated text", (s, e) =>
             {
@@ -5360,8 +6468,15 @@ namespace StingTools.UI
             menu.Items.Add(MakeMenuItem("Open Containing Folder", "Show in Windows Explorer", (s, e) => OpenFolder(doc)));
             menu.Items.Add(MakeMenuItem("Copy File to...", "Copy file to another location", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
-                if (!File.Exists(item.FilePath)) return;
+                var item = RequireFileRow("Copy");
+            if (item == null) return;
+                if (!File.Exists(item.FilePath))
+                {
+                    MessageBox.Show($"No file to copy.\n\n{item.Title}\n\nThis row is a register entry; " +
+                        $"the file it points at is not on disk:\n{item.FilePath}",
+                        "STING Copy", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
                 var dlg = new Microsoft.Win32.SaveFileDialog
                 {
                     Title = "Copy file to...",
@@ -5372,6 +6487,7 @@ namespace StingTools.UI
                 {
                     File.Copy(item.FilePath, dlg.FileName, true);
                     ProjectFolderEngine.LogActivity(doc, "COPY_FILE", Path.GetFileName(item.FilePath), dlg.FileName);
+                    SetStatus($"Copied {item.Title} → {dlg.FileName}");
                 }
             }));
             menu.Items.Add(MakeMenuItem("Rename...", "Rename this file", (s, e) => RenameSelected()));
@@ -5379,19 +6495,31 @@ namespace StingTools.UI
             menu.Items.Add(MakeMenuItem("Delete (Recycle)", "Move to recycle bin", (s, e) => DeleteSelected()));
             menu.Items.Add(MakeMenuItem("Auto-correct Name", "Auto-rename to ISO 19650 compliant format", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || string.IsNullOrEmpty(item.FilePath)) return;
+                var item = RequireFileRow("Auto-correct");
+            if (item == null) return;
+                if (!File.Exists(item.FilePath))
+                {
+                    MessageBox.Show($"No file to rename.\n\n{item.Title}\n\nThis row is a register entry; " +
+                        $"the file it points at is not on disk:\n{item.FilePath}",
+                        "STING Auto-correct", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
                 string currentName = Path.GetFileName(item.FilePath);
                 string corrected = ProjectFolderEngine.AutoCorrectFileName(doc, currentName);
                 if (corrected == currentName) { MessageBox.Show("Filename is already ISO 19650 compliant.", "STING"); return; }
                 if (MessageBox.Show($"Auto-correct filename?\n\nBefore: {currentName}\nAfter:  {corrected}",
-                    "Auto-correct", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                    "Auto-correct", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+
+                if (!ProjectFolderEngine.RenameFile(item.FilePath, corrected, doc))
                 {
-                    if (ProjectFolderEngine.RenameFile(item.FilePath, corrected))
-                    {
-                        ProjectFolderEngine.LogActivity(doc, "AUTO_RENAME", item.Id ?? "", $"{currentName} -> {corrected}");
-                        RefreshData();
-                    }
+                    MessageBox.Show($"Could not rename to '{corrected}'.\n\n" +
+                        "That name may already exist in the folder, or the file is locked. See StingTools.log.",
+                        "STING Auto-correct", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    SetStatus($"Auto-correct failed: {currentName}");
+                    return;
                 }
+                SetStatus($"Auto-corrected {currentName} → {corrected}");
+                RefreshData();
             }));
             menu.Items.Add(MakeMenuItem("Restore from Recycle", "Recover deleted files", (s, e) => RestoreFromRecycle(doc)));
 
@@ -5399,16 +6527,70 @@ namespace StingTools.UI
 
             // ── CDE / Status ──
             var cdeMenu = new MenuItem { Header = "Set CDE Status" };
-            foreach (string cde in new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" })
+            foreach (string cde in CdeStatusList)
             {
                 string c = cde;
-                cdeMenu.Items.Add(MakeMenuItem(c, $"Move to {c} folder and update register", (s, e) =>
+                string folder = CdeTargetFolder(c);
+                string hint = c == folder
+                    ? $"Move to {folder} folder and update register"
+                    : $"Record status {c} and file the document in {folder}";
+                cdeMenu.Items.Add(MakeMenuItem(c, hint, (s, e) =>
                 {
-                    if (_listView?.SelectedItem is DocItemVM item && !string.IsNullOrEmpty(item.FilePath))
+                    var item = RequireFileRow("Set CDE status");
+                    if (item == null) return;
+
+                    // The engine's state machine, same as the Coordination Center enforces.
+                    string transError = BIMManager.BIMManagerEngine.ValidateCDETransition(item.CDE ?? "", c);
+                    if (!string.IsNullOrEmpty(transError))
                     {
-                        ProjectFolderEngine.MoveFile(doc, item.FilePath, c);
-                        RefreshData();
+                        MessageBox.Show($"{item.Title}\n\n{transError}",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        SetStatus($"CDE transition refused: {item.CDE} → {c}");
+                        return;
                     }
+
+                    if (!File.Exists(item.FilePath))
+                    {
+                        MessageBox.Show($"No file to move.\n\n{item.Title}\n\nThis row is a register entry; " +
+                            $"the file it points at is not on disk:\n{item.FilePath}",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+                    if (!ProjectFolderEngine.MoveFile(doc, item.FilePath, folder))
+                    {
+                        MessageBox.Show($"Could not move {item.Title} to {folder}.\n\n" +
+                            "The file may be locked, or the target folder could not be resolved. See StingTools.log.",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        SetStatus($"CDE move to {folder} failed for {item.Title}");
+                        return;
+                    }
+                    // Record the STATUS, not the folder — the two differ for the terminal
+                    // statuses, and without this a SUPERSEDED document would be
+                    // indistinguishable from an archived one the moment the dialog reloaded.
+                    // Written directly rather than through ApplyRegisterEdit because the file
+                    // has ALREADY moved by now: that helper's failure message says "Nothing was
+                    // changed", which would be false, and a half-applied move is exactly the
+                    // kind of thing this dialog must not misreport.
+                    if (UpdateDocRegisterField(doc, item.Id, "cde_status", c))
+                    {
+                        item.CDE = c;
+                        SetStatus(c == folder
+                            ? $"Moved {item.Title} → {c}"
+                            : $"Set {item.Title} → {c} (filed in {folder})");
+                    }
+                    else
+                    {
+                        StingLog.Warn($"Set CDE status: {item.Title} moved to {folder} but the " +
+                            $"register was not updated to {c}.");
+                        MessageBox.Show(
+                            $"{item.Title} was moved to {folder}, but the register could not be " +
+                            $"updated to '{c}'.\n\nThe file is in the right place; its CDE status " +
+                            "is not recorded. The register may have no matching entry, or could " +
+                            "not be written. See StingTools.log.",
+                            "STING CDE Status", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        SetStatus($"{item.Title} moved to {folder}; CDE status NOT recorded");
+                    }
+                    RefreshData();
                 }));
             }
             menu.Items.Add(cdeMenu);
@@ -5417,31 +6599,28 @@ namespace StingTools.UI
             foreach (var kv in BIMManager.DocStatusCodes.All.Take(20))
             {
                 string code = kv.Key;
+                string desc = kv.Value;
                 statusMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", $"Set status to {code}", (s, e) =>
                 {
-                    if (_listView?.SelectedItem is DocItemVM item)
-                    {
-                        UpdateDocRegisterField(doc, item.Id, "status_code", code);
-                        item.Status = code;
-                        item.StatusDesc = kv.Value;
-                        _view?.Refresh();
-                    }
+                    var item = RequireRow("Set Document Status");
+                    if (item == null) return;
+                    ApplyRegisterEdit(doc, item, "status_code", code, "document status",
+                        () => { item.Status = code; item.StatusDesc = desc; });
                 }));
             }
             menu.Items.Add(statusMenu);
 
             var suitMenu = new MenuItem { Header = "Set Suitability Code" };
-            foreach (var kv in BIMManager.BIMManagerEngine.SuitabilityCodes)
+            foreach (string code in SuitabilityCodeList)
             {
-                string code = kv.Key;
-                suitMenu.Items.Add(MakeMenuItem($"{code} — {kv.Value}", "", (s, e) =>
+                // SuitabilityLabel already begins with the code ("S4 — Suitable for stage
+                // approval"). The old "{code} — {kv.Value}" rendered it twice.
+                suitMenu.Items.Add(MakeMenuItem(SuitabilityLabel(code), $"Set suitability to {code}", (s, e) =>
                 {
-                    if (_listView?.SelectedItem is DocItemVM item)
-                    {
-                        UpdateDocRegisterField(doc, item.Id, "suitability", code);
-                        item.Suitability = code;
-                        _view?.Refresh();
-                    }
+                    var item = RequireRow("Set Suitability Code");
+                    if (item == null) return;
+                    ApplyRegisterEdit(doc, item, "suitability", code, "suitability code",
+                        () => item.Suitability = code);
                 }));
             }
             menu.Items.Add(suitMenu);
@@ -5451,30 +6630,30 @@ namespace StingTools.UI
             // ── Issue operations ──
             menu.Items.Add(MakeMenuItem("Link to Revision...", "Associate this issue with a revision", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var item = RequireIssueRow("Link to Revision");
+                if (item == null) return;
                 var revItems = _allItems.Where(i => i.Category == "REVISION")
                     .Select(i => $"{i.Id}: {i.Title}").ToList();
                 if (revItems.Count == 0) { MessageBox.Show("No revisions found."); return; }
                 string pick = StingListPicker.Show("Link to Revision", "Select revision:", revItems);
                 if (string.IsNullOrEmpty(pick)) return;
                 string revId = pick.Split(':')[0].Trim();
-                item.LinkedRevision = revId;
-                UpdateIssueField(doc, item.Id, "revision", revId);
-                _view?.Refresh();
+                ApplyIssueEdit(doc, item, "revision", revId, "linked revision",
+                    () => item.LinkedRevision = revId);
             }));
             menu.Items.Add(MakeMenuItem("Change Priority...", "Update issue priority", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
-                var priorities = new List<string> { "CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO" };
+                var item = RequireIssueRow("Change Priority");
+                if (item == null) return;
+                var priorities = IssuePriorityList();
                 string pick = StingListPicker.Show("Change Priority", "Select new priority:", priorities);
                 if (string.IsNullOrEmpty(pick)) return;
-                item.Priority = pick;
-                UpdateIssueField(doc, item.Id, "priority", pick);
-                _view?.Refresh();
+                ApplyIssueEdit(doc, item, "priority", pick, "priority", () => item.Priority = pick);
             }));
             menu.Items.Add(MakeMenuItem("Assign To...", "Assign issue to team member (from project team registry)", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
+                var item = RequireIssueRow("Assign To");
+                if (item == null) return;
                 ProjectTeamRegistry.Load(doc);
                 ProjectTeamRegistry.SetLastDoc(doc);
                 // Use team picker with discipline-aware filtering
@@ -5485,35 +6664,19 @@ namespace StingTools.UI
                     item.AssignedTo ?? "", disc);
                 if (!string.IsNullOrEmpty(name) && name != (item.AssignedTo ?? ""))
                 {
-                    item.AssignedTo = name;
-                    UpdateIssueField(doc, item.Id, "assigned_to", name);
-                    // Log assignment change in status history
-                    string bimDir = GetBimManagerDir(doc);
-                    string issuePath = Path.Combine(bimDir, "issues.json");
-                    try
-                    {
-                        if (File.Exists(issuePath))
-                        {
-                            var issues = JArray.Parse(File.ReadAllText(issuePath));
-                            var issue = issues.FirstOrDefault(i => i["issue_id"]?.ToString() == item.Id);
-                            if (issue != null)
-                            {
-                                string hist = issue["status_history"]?.ToString() ?? "";
-                                issue["status_history"] = hist + $"\n{DateTime.Now:yyyy-MM-dd HH:mm} REASSIGNED to {name} by {Environment.UserName}";
-                                File.WriteAllText(issuePath, issues.ToString(Newtonsoft.Json.Formatting.Indented));
-                            }
-                        }
-                    }
-                    catch (Exception ex3) { StingLog.Warn($"Assign history: {ex3.Message}"); }
-                    _view?.Refresh();
+                    // IssueStore.SetField stamps the history entry itself, so the second pass
+                    // that re-opened the store to append a REASSIGNED line is gone — it was
+                    // both redundant and the thing that turned the history array into a string.
+                    ApplyIssueEdit(doc, item, "assigned_to", name, "assignee",
+                                   () => item.AssignedTo = name,
+                                   note: $"reassigned to {name}");
                 }
             }));
             menu.Items.Add(MakeMenuItem("Close Issue", "Set status to CLOSED", (s, e) =>
             {
-                if (_listView?.SelectedItem is not DocItemVM item || item.Category != "ISSUE") return;
-                UpdateIssueField(doc, item.Id, "status", "CLOSED");
-                item.Status = "CLOSED";
-                _view?.Refresh();
+                var item = RequireIssueRow("Close Issue");
+                if (item == null) return;
+                ApplyIssueEdit(doc, item, "status", "CLOSED", "issue status", () => item.Status = "CLOSED");
             }));
 
             menu.Items.Add(new Separator());
@@ -5521,8 +6684,15 @@ namespace StingTools.UI
             // ── Edit/View ──
             menu.Items.Add(MakeMenuItem("Edit Note...", "Edit sticky note text", (s, e) =>
             {
-                if (_listView?.SelectedItem is DocItemVM item && item.Category == "STICKY")
-                    EditStickyNote(item);
+                if (_listView?.SelectedItem is not DocItemVM item) return;
+                if (item.Category != "STICKY")
+                {
+                    MessageBox.Show($"'{item.Title}' is not a sticky note.\n\n" +
+                        "Edit Note only applies to STICKY rows — create one from the NOTES / BEP tab.",
+                        "STING Edit Note", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                EditStickyNote(item);
             }));
             menu.Items.Add(MakeMenuItem("View Details", "Show full item details", (s, e) =>
             {
@@ -5559,55 +6729,132 @@ namespace StingTools.UI
             return menu;
         }
 
+        /// <summary>
+        /// Build a context-menu item whose handler is exception-guarded, matching
+        /// <see cref="MakeActBtn"/>.
+        /// <para>
+        /// The guard was missing here while the toolbar had it, so the right-click menu — which
+        /// does raw File.Copy / rename / move and JSON parsing — could throw an IOException
+        /// straight to the WPF dispatcher from inside a modal Revit dialog. Same handler
+        /// contract, same protection.
+        /// </para>
+        /// </summary>
         private static MenuItem MakeMenuItem(string header, string tooltip, RoutedEventHandler handler)
         {
             var item = new MenuItem { Header = header };
             if (!string.IsNullOrEmpty(tooltip)) item.ToolTip = tooltip;
-            item.Click += handler;
+            item.Click += (s, e) =>
+            {
+                try { handler(s, e); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"DocMgr menu '{header}': {ex.Message}");
+                    SetStatus($"Error: {ex.Message}");
+                    MessageBox.Show($"{header} failed:\n\n{ex.Message}", "STING Document Manager",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
             return item;
         }
 
         // ── JSON field update helpers for right-click operations ──
+        //
+        // Both return TRUE only when the value reached disk. They used to return void and drop
+        // out silently when the store file was absent or the id matched no row, while the caller
+        // set the in-memory property and refreshed the view — so the grid showed a saved value
+        // that reverted on the next open. Callers go through ApplyRegisterEdit / ApplyIssueEdit
+        // below, which only mutate the row after a confirmed write.
 
-        private static void UpdateDocRegisterField(Document doc, string docId, string field, string value)
+        private static bool UpdateDocRegisterField(Document doc, string docId, string field, string value)
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string regPath = Path.Combine(bimDir, "document_register.json");
-                if (!File.Exists(regPath)) return;
-                var arr = JArray.Parse(File.ReadAllText(regPath));
-                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
-                if (entry != null)
+                string regPath = CoordStores.Register(doc);
+                // TryRead, not ReadArray: an existing-but-unreadable store must abort the write.
+                // Treating it as empty and saving would truncate the live register to one row.
+                if (!CoordStores.TryRead(regPath, out JArray arr))
                 {
-                    entry[field] = value;
-                    File.WriteAllText(regPath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                    ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
+                    StingLog.Warn($"UpdateDocRegister refused — {regPath} exists but is unreadable.");
+                    return false;
                 }
+                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                if (entry == null)
+                {
+                    StingLog.Warn($"UpdateDocRegister: no entry with doc_id '{docId}' in {regPath}");
+                    return false;
+                }
+                string old = entry[field]?.ToString() ?? "";
+                entry[field] = value;
+                CoordStores.AppendHistory(entry as JObject, old, value, Environment.UserName, $"{field} changed");
+                CoordStores.WriteArray(regPath, arr);
+                ProjectFolderEngine.LogActivity(doc, "UPDATE_DOC", docId, $"{field}={value}");
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"UpdateDocRegister: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"UpdateDocRegister: {ex.Message}"); return false; }
         }
 
-        private static void UpdateIssueField(Document doc, string issueId, string field, string value)
+        /// <summary>
+        /// Update one issue field through <see cref="IssueStore"/> — the single repository that
+        /// owns the issue register's path, locking, atomic write, history shape and server push.
+        /// <para>
+        /// This used to load and rewrite the store file itself, which skipped all of that and
+        /// corrupted <c>status_history</c> by replacing the canonical JArray with a string.
+        /// A "status" field routes to <c>SetStatus</c>, which additionally normalises the value
+        /// and audits the transition.
+        /// </para>
+        /// </summary>
+        private static bool UpdateIssueField(Document doc, string issueId, string field, string value,
+                                             string note = null)
         {
             try
             {
-                string bimDir = GetBimManagerDir(doc);
-                string issuePath = Path.Combine(bimDir, "issues.json");
-                if (!File.Exists(issuePath)) return;
-                var arr = JArray.Parse(File.ReadAllText(issuePath));
-                var entry = arr.FirstOrDefault(i => i["issue_id"]?.ToString() == issueId);
-                if (entry != null)
-                {
-                    string old = entry[field]?.ToString() ?? "";
-                    entry[field] = value;
-                    entry["status_history"] = (entry["status_history"]?.ToString() ?? "")
-                        + $"|{DateTime.Now:yyyy-MM-dd HH:mm} {field}: {old}->{value}";
-                    File.WriteAllText(issuePath, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                    ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
-                }
+                if (!IssueStore.SetField(doc, issueId, field, value, note)) return false;
+                ProjectFolderEngine.LogActivity(doc, "UPDATE_ISSUE", issueId, $"{field}={value}");
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"UpdateIssue: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"UpdateIssue: {ex.Message}"); return false; }
+        }
+
+        /// <summary>
+        /// Persist a register edit, then apply it to the row only on success. Returns false and
+        /// tells the user when the store did not take the change, so the grid never shows a
+        /// value that is not on disk.
+        /// </summary>
+        private static bool ApplyRegisterEdit(Document doc, DocItemVM item, string field, string value,
+                                              string what, Action apply)
+        {
+            if (!UpdateDocRegisterField(doc, item.Id, field, value))
+            {
+                MessageBox.Show($"Could not save {what} for {item.Title}.\n\n" +
+                    "The document register has no matching entry, or could not be written. " +
+                    "Nothing was changed. See StingTools.log.",
+                    "STING Document Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"{what} not saved for {item.Title}");
+                return false;
+            }
+            apply();
+            _view?.Refresh();
+            SetStatus($"{what} set to {value} for {item.Title}");
+            return true;
+        }
+
+        /// <summary>Issue-store counterpart of <see cref="ApplyRegisterEdit"/>.</summary>
+        private static bool ApplyIssueEdit(Document doc, DocItemVM item, string field, string value,
+                                           string what, Action apply, string note = null)
+        {
+            if (!UpdateIssueField(doc, item.Id, field, value, note))
+            {
+                MessageBox.Show($"Could not save {what} for {item.Title}.\n\n" +
+                    "The issue store has no matching entry, or could not be written. " +
+                    "Nothing was changed. See StingTools.log.",
+                    "STING Document Manager", MessageBoxButton.OK, MessageBoxImage.Warning);
+                SetStatus($"{what} not saved for {item.Title}");
+                return false;
+            }
+            apply();
+            _view?.Refresh();
+            SetStatus($"{what} set to {value} for {item.Title}");
+            return true;
         }
 
         // DM-03: Valid transmittal statuses
