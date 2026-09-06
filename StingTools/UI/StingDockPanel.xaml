@@ -1945,6 +1945,19 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- MODEL-AUTHORING BASELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="&#x1F3D7; MODEL BASELINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit model baseline" Tag="Baseline_Audit" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. Compares this project to the STING model-authoring baseline: which materials and wall/floor/roof/ceiling types are missing, which exist but differ, and which need families loaded by hand. Writes nothing."
+                                        HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Apply baseline (asks first)" Tag="Baseline_Apply" Click="Cmd_Click"
+                                        ToolTip="Shows the full list of what it would create, then writes only after you confirm. Creates ONLY what is missing — an existing type is never edited, even when its build-up differs from the baseline. A material schedule can only measure finishes the model actually describes; this is what gives it something to read."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- MATERIALS -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="MATERIALS"/>
                         <Border Style="{StaticResource GroupBorder}">
