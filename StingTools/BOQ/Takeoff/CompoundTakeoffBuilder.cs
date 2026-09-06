@@ -246,6 +246,11 @@ namespace StingTools.BOQ.Takeoff
             // disagree silently.
             finishes.AddRange(MembraneConstituents(doc, el, areaM2, hostIsRoof));
 
+            // MATSCHED-T5 — the fascia along the eaves, measured from the roof's
+            // own footprint. Roofs only: a floor has no eaves. Ridge caps and
+            // barge boards are NOT emitted; the scan says why.
+            if (hostIsRoof) finishes.AddRange(RoofAccessoryConstituents(doc, el));
+
             if (!isRc)
                 return finishes.Count > 0
                     ? Materialise(doc, el, finishes, csvRates, "A", new Resolution())
@@ -416,6 +421,7 @@ namespace StingTools.BOQ.Takeoff
                 case "plaster": return "Plaster";
                 case "screed": return "Screed";
                 case "dpm": return "Damp-proof Membrane";
+                case "fascia_board": return "Fascia Board";
                 case "roof_underlay": return "Roof Underlay";
                 case "ceiling_board": return "Ceiling Board";
                 case "ceiling_furring": return "Ceiling Furring";
@@ -825,6 +831,7 @@ namespace StingTools.BOQ.Takeoff
             ScreedScan.Reset();
             CeilingScan.Reset();
             MembraneScan.Reset();
+            RoofAccessoryScan.Reset();
         }
 
         /// <summary>
@@ -935,6 +942,107 @@ namespace StingTools.BOQ.Takeoff
             string key = StingTools.Core.MaterialSchedule.FinishTextClassifier.ScreedKey(screedName);
             return (Prop($"SCREED {key}", "MIX_CEMENT_BAGS_PER_M3", "SCREED DEFAULT"),
                     Prop($"SCREED {key}", "MIX_SAND_RATIO", "SCREED DEFAULT"));
+        }
+
+        // -- roof accessory scan (MATSCHED-T5) -------------------------------
+
+        /// <summary>Per-run roof-accessory tally. Instance-keyed work, so unlike
+        /// the layer scans there is no type cache: a footprint belongs to the
+        /// ELEMENT, and two roofs of one type have different boundaries.</summary>
+        internal static class RoofAccessoryScan
+        {
+            public static readonly StingTools.Core.MaterialSchedule.RoofAccessoryTally Tally =
+                new StingTools.Core.MaterialSchedule.RoofAccessoryTally();
+
+            public static void Reset() { Tally.Reset(); }
+            public static string Summary() => Tally.Summary();
+        }
+
+        /// <summary>
+        /// Eaves length for a roof, or 0.
+        ///
+        /// A FootPrintRoof's sketch says which of its boundary curves DEFINE
+        /// SLOPE. Those are the eaves — horizontal, so their plan length is
+        /// their true length, and a fascia runs along them. The rest are gable
+        /// edges, whose plan length is NOT the rake a barge board runs; those
+        /// are totalled for the scan to report and are never emitted.
+        ///
+        /// Only the FIRST profile loop is measured. Later loops are openings,
+        /// and an opening's edge is not an eave.
+        /// </summary>
+        private static double ReadRoofEavesLengthM(Document doc, Element el)
+        {
+            try
+            {
+                RoofAccessoryScan.Tally.RoofsInspected++;
+
+                // A flat RC slab roof carries no fascia. Checked before the
+                // footprint, because a concrete roof usually HAS one and would
+                // otherwise produce a confident fascia run for a parapet.
+                string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
+                if (material.Contains("concrete") || material.Contains("rc")
+                 || material.Contains("reinforced"))
+                {
+                    RoofAccessoryScan.Tally.ConcreteRoofsSkipped++;
+                    return 0;
+                }
+
+                if (!(el is FootPrintRoof fp))
+                {
+                    // An ExtrusionRoof or a roof by face carries no boundary
+                    // sketch. Reported, not guessed at.
+                    RoofAccessoryScan.Tally.RoofsWithoutFootprint++;
+                    return 0;
+                }
+
+                var profiles = fp.GetProfiles();
+                if (profiles == null || profiles.Size == 0)
+                {
+                    RoofAccessoryScan.Tally.RoofsWithoutFootprint++;
+                    return 0;
+                }
+                RoofAccessoryScan.Tally.RoofsWithFootprint++;
+                if (profiles.Size > 1) RoofAccessoryScan.Tally.RoofsWithInnerLoops++;
+
+                double eaves = 0, verge = 0;
+                var outer = profiles.get_Item(0);
+                foreach (var obj in outer)
+                {
+                    var mc = obj as ModelCurve;
+                    double len = mc?.GeometryCurve?.Length ?? 0;
+                    if (len <= 0) continue;
+                    len *= FeetToM;
+
+                    bool definesSlope;
+                    try { definesSlope = fp.get_DefinesSlope(mc); }
+                    catch { continue; }   // cannot classify the edge -> do not guess
+
+                    if (definesSlope) eaves += len; else verge += len;
+                }
+
+                RoofAccessoryScan.Tally.EavesLengthM += eaves;
+                RoofAccessoryScan.Tally.VergePlanLengthM += verge;
+                if (eaves > 0) RoofAccessoryScan.Tally.RoofsWithEaves++;
+                return eaves;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("RoofEdges", $"ReadRoofEavesLengthM {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>Roof accessory constituents, or an empty list.</summary>
+        private static List<CompoundLine> RoofAccessoryConstituents(Document doc, Element el)
+        {
+            double eaves = ReadRoofEavesLengthM(doc, el);
+            if (eaves <= 0) return new List<CompoundLine>();
+
+            return CompoundTakeoff.RoofAccessories(new RoofEdgeInput
+            {
+                EavesLengthM = eaves,
+                RoofLabel = el?.Name ?? ""
+            });
         }
 
         // -- membrane scan (MATSCHED-T3) -------------------------------------

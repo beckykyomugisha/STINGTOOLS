@@ -189,6 +189,12 @@ namespace StingTools.BOQ.MaterialSchedule
             string consumablesBanner = consumablesTally.Banner();
             if (!string.IsNullOrEmpty(consumablesBanner)) result.Warnings.Add(consumablesBanner);
 
+            // MATSCHED-T5 — this one reports more about what was NOT measured
+            // than about what was, on purpose: of fascia, barge board and ridge
+            // cap, only the fascia has a length the footprint states outright.
+            string roofScan = Takeoff.CompoundTakeoffBuilder.RoofAccessoryScan.Summary();
+            if (!string.IsNullOrEmpty(roofScan)) result.Warnings.Add(roofScan);
+
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
 

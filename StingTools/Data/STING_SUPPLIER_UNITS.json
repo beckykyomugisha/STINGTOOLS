@@ -394,6 +394,22 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "fascia-board",
+      "description": "Fascia board (measured along the eaves)",
+      "spec": "4.2 m length, sold whole",
+      "supplierUnit": "Lengths",
+      "sourceUnit": "m",
+      "sourceUnitsPerSupplierUnit": 4.2,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "fascia_board"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }
