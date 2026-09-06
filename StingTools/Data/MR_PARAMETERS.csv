@@ -1,4 +1,4 @@
-# v6.8 | 20260906 | 3587 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 20260907 | 3593 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3596,3 +3596,9 @@ Generic Models,HVC_SIZE_STALE_TXT,5de70b4b-5edd-5121-a237-c134befdfe49,TEXT,HVC_
 Generic Models,ASS_CST_STALE_TXT,59de159f-ea20-5f57-b508-5679ddc19d37,TEXT,CST_PROC,Instance,ASS_CST_STALE_BOOL display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,FOHLIO_UNIT_COST_NR,b6e507ab-bab5-5b7f-aecd-ca78bd14f4c5,NUMBER,ASS_MNG,Instance,Fohlio procurement unit cost in FOHLIO_CURRENCY_TXT [not project currency],False,,,MULTI,1,0
 Generic Models,FOHLIO_CURRENCY_TXT,f369abea-4433-541c-a409-128ec9c1675e,TEXT,ASS_MNG,Instance,Fohlio quote currency ISO 4217 [e.g. USD],False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_BASE_COD_TXT,a1b2c3d4-5060-4a01-b001-000000000196,TEXT,CST_PROC,Instance,Room base finish code (e.g. SK-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_CEILING_COD_TXT,a1b2c3d4-5061-4a01-b001-000000000197,TEXT,CST_PROC,Instance,Room ceiling finish code (e.g. CL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_FLOOR_COD_TXT,a1b2c3d4-5062-4a01-b001-000000000198,TEXT,CST_PROC,Instance,Room floor finish code (e.g. FL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE,False,,,MULTI,1,0
+Generic Models,BLE_ROOM_FINISH_WALL_COD_TXT,a1b2c3d4-5063-4a01-b001-000000000199,TEXT,CST_PROC,Instance,Room wall finish code (e.g. WL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE,False,,,MULTI,1,0
+Generic Models,STING_FINISH_SRC_ROOM_ID_TXT,5e4ca8e4-f098-57f8-8829-7fb8353f9536,TEXT,STING_FINISHES,Instance,Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes],False,,,MULTI,1,0
+Generic Models,STING_FINISH_CODE_TXT,c914565f-e02b-5c67-b9b6-c086cc17d2cf,TEXT,STING_FINISHES,Instance,Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes],False,,,MULTI,1,0

@@ -114,6 +114,31 @@ jobs:
                   FAIL = 1
               else:
                   print(f'✓ .txt/.csv mirror in sync ({len(a)} GUIDs)')
+
+          # Group-declaration check. A PARAM row names its group by ID; Revit's
+          # shared-parameter format requires that ID to appear in the *GROUP block, and
+          # a parameter in an undeclared group does not load. Nothing above would catch
+          # it: the GUID is unique, the mirror is in sync, the file parses. It surfaces
+          # only in Revit, as a parameter that is simply absent.
+          declared, used = set(), {}
+          try:
+              for line in open('StingTools/Data/MR_PARAMETERS.txt', encoding='utf-8-sig'):
+                  f = line.rstrip('\n').rstrip('\r').split('\t')
+                  if f[0] == 'GROUP' and len(f) >= 2:
+                      declared.add(f[1])
+                  elif f[0] == 'PARAM' and len(f) >= 6:
+                      used.setdefault(f[5], []).append(f[2])
+          except FileNotFoundError:
+              pass
+          orphans = {g: n for g, n in used.items() if g not in declared}
+          if orphans:
+              for g, names in sorted(orphans.items()):
+                  print(f'❌ GROUP {g} is used by {len(names)} parameter(s) but never declared: '
+                        f'{names[:5]}')
+              FAIL = 1
+          elif used:
+              print(f'✓ every PARAM group is declared ({len(declared)} groups, '
+                    f'{sum(len(n) for n in used.values())} params)')
           sys.exit(FAIL)
           EOF
 

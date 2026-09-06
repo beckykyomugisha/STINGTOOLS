@@ -2,6 +2,12 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Shared-parameter data hygiene (2026-09-07)
+
+| ID | Item | Detail |
+|---|---|---|
+| PARAM-1 | **28 rows in `MR_PARAMETERS.csv` carry a `Group_Name` that disagrees with `MR_PARAMETERS.txt`** | Found while fixing #758, which had added two parameters in an undeclared `GROUP 38`. `sync_csv_from_txt.py` adds missing rows and corrects `Data_Type` on existing ones, but never re-checks `Group_Name`, so a row whose group moved in the `.txt` keeps the old name in the `.csv` forever. The 28 are pre-existing on `main` and unrelated to the finishes work: six `BLE_SLAB_*` rows say `CST_PROC` where the `.txt` says `BLE_ELES`, and twenty-two `WARN_SHT_*` rows say `WARN_THRESHOLDS` where the `.txt` says `RGL_CMPL`. Teaching the generator to correct `Group_Name` would sweep all 28 in one pass — which is the right fix, and does not belong inside a finishes PR whose own two rows were regenerated instead. Nothing reads `Group_Name` from the `.csv` today (`LoadSharedParamsCommand` groups from the `.txt`), so this is a consistency defect rather than a live one — but it is exactly the drift that makes the two files stop being mirrors. |
+
 ## KUT lifecycle join — after the re-land from `claude/kut-lifecycle-integration` (2026-09-06)
 
 The four-ledger join (SpecLink → BOQ → Fohlio → Niagara) was recovered onto `main`
