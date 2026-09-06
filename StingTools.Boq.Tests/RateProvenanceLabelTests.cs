@@ -143,5 +143,43 @@ namespace StingTools.Boq.Tests
 
             Assert.Contains("should not", s);
         }
-    }
+    
+        // ── where the rates file is ─────────────────────────────────────────
+
+        [Fact]
+        public void A_Clean_Export_Gets_No_Path_Note()
+        {
+            // A path nobody needs is noise.
+            Assert.Null(RateProvenanceLabel.RatesFileNote(@"C:\p\_data\coord\commodity_rates.csv", 0));
+        }
+
+        [Fact]
+        public void The_Note_Names_The_RESOLVED_Path_Not_The_Alias()
+        {
+            // _BIM_COORD is the alias; the live folder is _data/coord. Naming
+            // the alias sent a reader into a stale legacy folder to conclude
+            // the file was missing.
+            string s = RateProvenanceLabel.RatesFileNote(@"D:\job\_data\coord\commodity_rates.csv", 25);
+
+            Assert.Contains(@"D:\job\_data\coord\commodity_rates.csv", s);
+            Assert.DoesNotContain("_BIM_COORD", s);
+        }
+
+        [Fact]
+        public void The_Note_Leads_With_The_Action_Not_The_File()
+        {
+            string s = RateProvenanceLabel.RatesFileNote(@"C:\p\c.csv", 3);
+
+            Assert.StartsWith("Rates for the unpriced rows: use BOQ tab -> Price Commodities", s);
+        }
+
+        [Fact]
+        public void An_Unresolvable_Path_Says_Why_Rather_Than_Naming_A_Guess()
+        {
+            string s = RateProvenanceLabel.RatesFileNote("", 3);
+
+            Assert.Contains("has not been saved", s);
+            Assert.DoesNotContain("It writes commodity_rates.csv,", s);
+        }
+}
 }

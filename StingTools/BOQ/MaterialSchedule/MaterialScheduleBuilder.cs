@@ -127,6 +127,8 @@ namespace StingTools.BOQ.MaterialSchedule
             var msDoc = CommodityAggregator.Build(inputs);
             msDoc.ProjectName = doc.ProjectInformation?.Name ?? "";
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
+            // Resolved, not the alias — see MaterialScheduleDocument.ProjectRatesPath.
+            msDoc.ProjectRatesPath = StingPaths.MetaFile(doc, "_BIM_COORD", "commodity_rates.csv") ?? "";
 
             AppendManualRows(doc, msDoc, boq, lib.Stages, result);
             AppendSiteTools(doc, msDoc, lib, inputs.Rates, result);
@@ -140,6 +142,12 @@ namespace StingTools.BOQ.MaterialSchedule
                 string provenance = RateProvenanceLabel.Summary(
                     msDoc.Stages.SelectMany(st => st.Commodities));
                 if (!string.IsNullOrEmpty(provenance)) msDoc.Warnings.Add(provenance);
+
+                string rates = RateProvenanceLabel.RatesFileNote(
+                    msDoc.ProjectRatesPath,
+                    msDoc.Stages.SelectMany(st => st.Commodities)
+                         .Count(c => c != null && c.IsUnpriced && !c.IsMemorandum));
+                if (!string.IsNullOrEmpty(rates)) msDoc.Warnings.Add(rates);
             }
 
             result.Document = msDoc;
