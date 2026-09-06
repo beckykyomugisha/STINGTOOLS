@@ -4,10 +4,8 @@ using Hangfire.InMemory;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.InMemory;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Distributed;
 using Planscape.Infrastructure.Data;
 using Planscape.Core.Entities;
 using System.Net.Http.Headers;
@@ -22,7 +20,13 @@ namespace Planscape.Tests;
 /// </summary>
 public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly string _dbName = $"PlanscapeTest_{Guid.NewGuid():N}";
+    /// <summary>
+    /// The handoff-ticket signing secret injected into the test host's configuration.
+    /// Tests mint tickets with this instead of setting a process-global
+    /// <c>PLANSCAPE_HANDOFF_SECRET</c> environment variable, which leaks across the
+    /// parallel suite. Test-only; never leaves the in-process host.
+    /// </summary>
+    public const string HandoffSecret = "test-handoff-secret-not-a-real-one-0123456789";
 
     /// <summary>
     /// In-memory stand-in for the Redis replay guard. Tests drive single-use
@@ -30,13 +34,123 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     public TestReplayGuard ReplayGuard { get; } = new();
 
+    private readonly string _dbName = $"PlanscapeTest_{Guid.NewGuid():N}";
+
+
+    // ── Real-PostgreSQL mode ────────────────────────────────────────────────
+    //
+    // Set PLANSCAPE_TEST_PG and the whole factory runs against PostgreSQL
+    // instead of the EF InMemory provider:
+    //
+    //   export PLANSCAPE_TEST_PG="Host=localhost;Port=5432;Database=planscape;Username=planscape;Password=Planscape2026!"
+    //
+    // This is what makes provider-specific behaviour testable at all. On
+    // InMemory the following are simply unreachable, and were previously
+    // skipped for that reason:
+    //   • real transactions — InMemory raises TransactionIgnoredWarning, which
+    //     EF escalates to an exception, so nothing that opens one could be
+    //     exercised and rollback semantics went unverified;
+    //   • EF.Functions.ILike (SearchController) — Npgsql-only translation;
+    //   • INSERT … ON CONFLICT … RETURNING with gen_random_uuid()
+    //     (SequenceCounterService, and transmittal numbering through it).
+    //
+    // Isolation: each factory instance gets its OWN database, created here and
+    // dropped on dispose. A shared database is not an option — SeedTestData
+    // inserts the fixed TestData GUIDs, and xunit runs test classes in
+    // parallel, so nine factories would collide on primary keys.
+    private static string? PgConnectionString =>
+        Environment.GetEnvironmentVariable("PLANSCAPE_TEST_PG");
+
+    internal static bool UsingPostgres => !string.IsNullOrWhiteSpace(PgConnectionString);
+
+    /// <summary>Per-factory database name, lowercased — Postgres folds unquoted identifiers.</summary>
+    private readonly string _pgDatabase = $"planscape_test_{Guid.NewGuid():N}";
+
+    private string PgTestConnectionString =>
+        new Npgsql.NpgsqlConnectionStringBuilder(PgConnectionString!)
+        {
+            Database = _pgDatabase,
+            // Keep each factory's footprint small: nine of them run in parallel
+            // against one server, whose default max_connections is 100.
+            MaxPoolSize = 8,
+        }.ConnectionString;
+
+    private void CreatePgDatabase()
+    {
+        // Connect to the maintenance database to issue CREATE DATABASE — it
+        // cannot run inside a transaction or against the target itself.
+        var admin = new Npgsql.NpgsqlConnectionStringBuilder(PgConnectionString!)
+        {
+            Database = "postgres",
+        }.ConnectionString;
+
+        using var conn = new Npgsql.NpgsqlConnection(admin);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"CREATE DATABASE \"{_pgDatabase}\"";
+        cmd.ExecuteNonQuery();
+    }
+
+    private void DropPgDatabase()
+    {
+        try
+        {
+            // Npgsql pools connections per connection string; without clearing
+            // them DROP DATABASE fails with "is being accessed by other users".
+            //
+            // ClearPool, NOT ClearAllPools. Tests stand up more than one factory
+            // (AuditCategoriesConfiguredTests builds a second one mid-test), and
+            // ClearAllPools would yank the pooled connections out from under
+            // every other live factory in the process — a cross-test side effect
+            // introduced by cleanup code, which is the worst kind.
+            using (var target = new Npgsql.NpgsqlConnection(PgTestConnectionString))
+                Npgsql.NpgsqlConnection.ClearPool(target);
+
+            var admin = new Npgsql.NpgsqlConnectionStringBuilder(PgConnectionString!)
+            {
+                Database = "postgres",
+            }.ConnectionString;
+
+            using var conn = new Npgsql.NpgsqlConnection(admin);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"DROP DATABASE IF EXISTS \"{_pgDatabase}\" WITH (FORCE)";
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            // Never fail a test run on cleanup. A leaked test database is
+            // noise; a spurious failure here would hide real results.
+            Console.Error.WriteLine(
+                $"[test-cleanup] could not drop {_pgDatabase}: {ex.Message}");
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing && UsingPostgres) DropPgDatabase();
+    }
+
     /// <summary>
-    /// The handoff-ticket signing secret injected into the test host's configuration.
-    /// Tests mint tickets with this instead of setting a process-global
-    /// <c>PLANSCAPE_HANDOFF_SECRET</c> environment variable that would leak across
-    /// the parallel suite. Test-only; never leaves the in-process host.
+    /// True for a service descriptor registered through an implementation FACTORY
+    /// that lives in a Hangfire assembly — the case a name check on
+    /// <c>ServiceType</c> / <c>ImplementationType</c> cannot see, because a
+    /// factory registration leaves <c>ImplementationType</c> null.
+    ///
+    /// The one that matters is <c>AddHangfireServer</c>'s
+    /// <c>Hangfire.BackgroundJobServerHostedService</c> (assembly
+    /// <c>Hangfire.NetCore</c>), registered as <c>IHostedService</c>. See #494.
+    ///
+    /// Matches on the assembly rather than the type name so a rename inside
+    /// Hangfire does not silently re-open the hole this closes.
     /// </summary>
-    public const string HandoffSecret = "test-handoff-secret-not-a-real-one-0123456789";
+    private static bool IsHangfireFactoryRegistration(ServiceDescriptor d)
+    {
+        var declaringAssembly = d.ImplementationFactory?.Method.DeclaringType?.Assembly;
+        var name = declaringAssembly?.GetName().Name;
+        return name != null && name.StartsWith("Hangfire", StringComparison.Ordinal);
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -67,18 +181,23 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         // literal rather than something readable like "test-key-padding-...".
         builder.UseSetting("Jwt:Key", "qZ7v3Kx9TmR2wLp8Nc5FhJd6Bs4YgVt1Ae0UnXiOrEz");
 
-        // AuthController.HandoffExchange reads PLANSCAPE_HANDOFF_SECRET via
-        // IConfiguration at REQUEST time, so ConfigureAppConfiguration reaches it
-        // (unlike Jwt:Key above, read during host build). Injecting it here lets the
-        // handoff tests mint tickets with a known secret WITHOUT each test class
-        // setting a process-global Environment variable that leaks across the
-        // parallel suite. See HandoffSecret.
-        builder.ConfigureAppConfiguration(cfg =>
-            cfg.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["RateLimiting:Enabled"] = "false",
-                ["PLANSCAPE_HANDOFF_SECRET"] = HandoffSecret
-            }));
+        // UseSetting, for the same reason Jwt:Key above uses it — and it is the
+        // same bug, found twice. Program.cs evaluates
+        //   rateLimitingEnabled = Configuration.GetValue("RateLimiting:Enabled", true)
+        //                         || Environment.IsProduction()
+        // while the host is being built; ConfigureAppConfiguration callbacks are
+        // applied after that read, so the "false" never landed and the limiter
+        // was mounted in every test host. The Redis-backed "auth" policy (5
+        // attempts / 5 min per IP) then counted every test's login against one
+        // loopback address, and Login_NonexistentUser_Returns401 intermittently
+        // got 429 instead of 401 depending on how many logins ran before it.
+        builder.UseSetting("RateLimiting:Enabled", "false");
+
+        // Handoff-ticket secret, injected rather than set as a process-global
+        // environment variable so it cannot leak into other test classes running
+        // in parallel. See HandoffSecret.
+        builder.UseSetting("PLANSCAPE_HANDOFF_SECRET", HandoffSecret);
+
 
         builder.ConfigureServices(services =>
         {
@@ -102,35 +221,93 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             // executed — exactly what a controller test wants.
             var hangfireDescriptors = services
                 .Where(d => d.ServiceType.FullName?.Contains("Hangfire") == true
-                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true)
+                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true
+                         // DEP-7 residue (#494). AddHangfireServer registers its
+                         // background server as IHostedService through an
+                         // implementation FACTORY, so ServiceType is
+                         // Microsoft.Extensions.Hosting.IHostedService and
+                         // ImplementationType is NULL — neither of the two clauses
+                         // above can see it. The server therefore survived this
+                         // removal and really did start, despite the comment below
+                         // saying none does.
+                         //
+                         // Consequence: every host ran a BackgroundServerProcess,
+                         // and each one raced the others' in-memory storage on
+                         // teardown, logging 13 warnings per suite run:
+                         //
+                         //   [WRN] Server ... there was an exception, server may not be removed
+                         //   System.ObjectDisposedException: ... Hangfire.InMemory.State.Dispatcher`1
+                         //     at InMemoryConnection`1.RemoveServer(String serverId)
+                         //     at BackgroundServerProcess.ServerDelete(...)
+                         //
+                         // Benign today — Hangfire catches it and no test fails —
+                         // but it is the same shared-state-at-teardown class of bug
+                         // DEP-7 was, still live, and still able to grow teeth.
+                         || IsHangfireFactoryRegistration(d))
                 .ToList();
             foreach (var d in hangfireDescriptors) services.Remove(d);
 
             services.AddHangfire(cfg => cfg.UseInMemoryStorage());
-            // Static RecurringJob.* APIs read JobStorage.Current, which the DI
-            // registration alone does not set.
+            // Note: AddHangfire alone registers no server, so nothing re-adds the
+            // hosted service removed above. Jobs are registered but never executed
+            // — exactly what a controller test wants.
             //
-            Hangfire.JobStorage.Current = new Hangfire.InMemory.InMemoryStorage();
+            // Deliberately does NOT assign Hangfire.JobStorage.Current.
+            //
+            // Program.cs now registers its recurring jobs through the
+            // DI-resolved IRecurringJobManager, so nothing reads that
+            // process-global static during host build. Assigning it here gave
+            // every factory a handle on one shared object that the first
+            // container to shut down disposed, so the next host to build threw
+            // ObjectDisposedException (DEP-7). Each host keeps its own storage
+            // and nothing crosses between them.
 
-            // Add InMemory database.
-            //
-            // The InMemory provider has no transactions and raises
-            // TransactionIgnoredWarning as an ERROR by default, so any handler
-            // calling BeginTransactionAsync (TagSyncController does, at
-            // RepeatableRead) threw and returned 500. Downgrading it to a log
-            // keeps those paths testable. The isolation semantics genuinely are
-            // not exercised here — that belongs to the real-Postgres suite
-            // (see PostgresSequenceCounterTests).
-            services.AddDbContext<PlanscapeDbContext>(options =>
-                options.UseInMemoryDatabase(_dbName)
-                       .ConfigureWarnings(w =>
-                           w.Ignore(InMemoryEventId.TransactionIgnoredWarning)));
+            if (UsingPostgres)
+            {
+                // Real provider: transactions, ILike and ON CONFLICT all work,
+                // so nothing here needs a warning suppressed or a test skipped.
+                CreatePgDatabase();
+                services.AddDbContext<PlanscapeDbContext>(options =>
+                    options.UseNpgsql(PgTestConnectionString));
+            }
+            else
+            {
+                services.AddDbContext<PlanscapeDbContext>(options =>
+                    options.UseInMemoryDatabase(_dbName)
+                        // Endpoints that wrap multi-step writes in an explicit
+                        // transaction (tag sync, transmittals, search indexing)
+                        // hit TransactionIgnoredWarning, which EF escalates to
+                        // an exception — so the request 500'd on a limitation of
+                        // the test provider rather than anything under test.
+                        //
+                        // The trade-off is explicit and is why the Postgres mode
+                        // above exists: on InMemory these tests do not verify
+                        // rollback semantics. Set PLANSCAPE_TEST_PG to get real
+                        // atomicity coverage.
+                        .ConfigureWarnings(w =>
+                            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId
+                                .TransactionIgnoredWarning)));
+            }
+
+            // Redis-backed IDistributedCache → in-process memory. With real Redis
+            // in CI, the fixed test GUIDs plus the shared "Planscape:" InstanceName
+            // mean a project-visibility verdict cached by one test class
+            // ("pv:{tenant}:{user}:{project}") is a live cross-test hit for a
+            // parallel class that has different DB state — a flaky, order-dependent
+            // false pass/fail. Give every factory instance its own
+            // MemoryDistributedCache so there is nothing to bleed between hosts.
+            // (The cache-outage regression test builds its own host without this
+            // factory, so its coverage is unaffected.) AddDistributedMemoryCache
+            // uses TryAdd, so the Redis registration must be removed first.
+            var cacheDescriptors = services
+                .Where(d => d.ServiceType == typeof(IDistributedCache))
+                .ToList();
+            foreach (var d in cacheDescriptors) services.Remove(d);
+            services.AddDistributedMemoryCache();
 
             // Replay guard: the production implementation is a Redis SET NX, and
-            // no Redis is reachable here, so every call threw and the caller's
-            // fail-open branch swallowed it — the *blocking* half of the guard
-            // was unreachable from a test. Substituting an in-memory claim store
-            // makes both halves drivable (see ReplayGuard).
+            // its fail-open branch swallowed a store outage — substituting the
+            // blocking half here makes both halves drivable (see ReplayGuard).
             var rgDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(Planscape.Core.Interfaces.IReplayGuard));
             if (rgDescriptor != null) services.Remove(rgDescriptor);
@@ -147,6 +324,26 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 
     private static void SeedTestData(PlanscapeDbContext db)
     {
+        // This runs from the ConfigureWebHost services callback, which is NOT
+        // guaranteed to fire once per host: HostApplicationBuilder replays the
+        // accumulated ConfigureServices delegates through
+        // HostBuilderAdapter.ApplyChanges(). A second pass rebuilds the service
+        // provider but keeps this factory instance's _dbName, so it re-seeds the
+        // SAME in-memory store and EF InMemory throws
+        // "An item with the same key has already been added. Key: 11111111-..."
+        // out of host construction — which surfaces as every test in the class
+        // failing, not as a seeding error. Observed only in CI (12-16 tests
+        // across HandoffProvisioningTests / AuditCategoriesConfiguredTests /
+        // ProjectsControllerTests); it does not reproduce locally.
+        //
+        // The seed is fixed-GUID and deterministic, so a presence check is a
+        // complete guard: the first pass leaves exactly the state a second pass
+        // would have produced. IgnoreQueryFilters because the tenant query
+        // filter falls back to Guid.Empty when no tenant context is resolvable
+        // here, which would match no rows and defeat the check.
+        if (db.Tenants.IgnoreQueryFilters().Any(t => t.Id == TestData.TenantId))
+            return;
+
         // Create test tenant
         var tenant = new Tenant
         {
@@ -155,14 +352,21 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             Slug = "test-org",
             ContactEmail = "admin@test.org",
             Tier = LicenseTier.Premium,
+            // Plan, not just Tier. QuotaAttribute gates writes on
+            // BillingPlanLimits.For(tenant.Plan), and an unset Plan is
+            // BillingPlan.Trial — which caps projects at 1. The seed below
+            // already creates one, so the cap was reached before any test ran
+            // and every "create project" short-circuited with 402
+            // PaymentRequired. MaxProjects = 50 above is the legacy field and
+            // does not feed the quota guard.
+            //
+            // Enterprise = unlimited on every axis, so quotas stay out of the
+            // way of tests that are about something else. SeedData.cs does the
+            // same for the demo sandbox, for the same reason. Quota behaviour
+            // itself is covered by SecurityCriticalPathTests.
+            Plan = BillingPlan.Enterprise,
             MaxUsers = 100,
             MaxProjects = 50,
-            // The Quota filter caps by BillingPlan, NOT the legacy MaxProjects
-            // field. Left unset this defaults to Plan=Trial, which now allows
-            // ONE project — and one is already seeded below, so every "create
-            // project" 402'd before reaching the controller. SeedData.cs:60-63
-            // hit and documented the same trap for the demo tenant.
-            Plan = BillingPlan.Enterprise,
             MimEnabled = true,
             IsActive = true
         };
@@ -223,12 +427,7 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         };
         db.Users.Add(otherUser);
 
-        // Create test project.
-        //
-        // CreatedById and the ProjectMember row below are load-bearing. Projects
-        // became visible only to tenant admins, the author, and active members;
-        // this project had none of the three, so every [ProjectAccess]-guarded
-        // endpoint 404'd for every caller and ~28 tests failed downstream of it.
+        // Create test project
         var project = new Project
         {
             Id = TestData.ProjectId,
@@ -237,43 +436,11 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             Code = "TST-001",
             Phase = "Stage 4",
             Status = ProjectStatus.Active,
-            CreatedById = adminUser.Id,
             TotalElements = 1000,
             TaggedElements = 800,
             CompliancePercent = 80.0
         };
         db.Projects.Add(project);
-
-        // A low-privilege user who IS on the project.
-        //
-        // Tests asserting "a non-manager cannot do X" need this: the access
-        // filter deliberately 404s a project you are not a member of (a 403
-        // would confirm the project exists), so it answers before the role
-        // check the test is actually aiming at. memberUser deliberately stays
-        // OFF the project so Members_AddAndList still has someone to add.
-        var viewerUser = new AppUser
-        {
-            Id = TestData.ViewerUserId,
-            TenantId = tenant.Id,
-            Email = "viewer@test.org",
-            DisplayName = "Test Viewer",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!", workFactor: 4),
-            Role = UserRole.Contributor,
-            Iso19650Role = "E",
-            IsActive = true
-        };
-        db.Users.Add(viewerUser);
-
-        db.ProjectMembers.Add(new ProjectMember
-        {
-            Id = Guid.NewGuid(),
-            TenantId = tenant.Id,
-            ProjectId = project.Id,
-            UserId = viewerUser.Id,
-            ProjectRole = "Viewer",
-            Iso19650Role = "E",
-            IsActive = true
-        });
 
         // Create test license key
         var license = new LicenseKey
@@ -321,7 +488,4 @@ public static class TestData
     public static readonly Guid OtherTenantId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     public static readonly Guid OtherUserId = Guid.Parse("55555555-5555-5555-5555-555555555555");
     public static readonly Guid ProjectId = Guid.Parse("66666666-6666-6666-6666-666666666666");
-
-    /// <summary>Low-privilege user who IS an active member of <see cref="ProjectId"/>.</summary>
-    public static readonly Guid ViewerUserId = Guid.Parse("77777777-7777-7777-7777-777777777777");
 }

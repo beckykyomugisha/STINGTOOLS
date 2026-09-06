@@ -30,7 +30,15 @@ namespace StingTools.UI
         private readonly TextBox  _txtActualLen;
         private readonly TextBox  _txtTotalLen;
 
-        public RefrigerantSizingDialog(string initialRefrigerant = "R410A")
+        /// <param name="prefill">
+        /// Optional model-derived pre-fill (gap 2.2). When supplied, the
+        /// capacity / equivalent-length / lift / riser fields are seeded from
+        /// the selection and a note banner explains the provenance. Every
+        /// field remains editable — this is a suggestion, not a lock.
+        /// </param>
+        public RefrigerantSizingDialog(
+            string initialRefrigerant = "R410A",
+            StingTools.Core.Refrigerant.RefrigerantSelectionResult prefill = null)
         {
             Title = "STING HVAC — Refrigerant Pipe Sizing";
             Width = 460;
@@ -40,7 +48,7 @@ namespace StingTools.UI
             Background = new SolidColorBrush(Color.FromRgb(248, 246, 252));
 
             var grid = new Grid { Margin = new Thickness(16) };
-            for (int i = 0; i < 12; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int i = 0; i < 14; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -57,6 +65,25 @@ namespace StingTools.UI
             };
             Grid.SetRow(title, row); Grid.SetColumnSpan(title, 2); grid.Children.Add(title);
             row++;
+
+            // Pre-fill provenance banner (gap 2.2). Only when a model trace ran.
+            bool prefilled = prefill != null && prefill.HasAnything;
+            if (prefilled)
+            {
+                var banner = new TextBlock
+                {
+                    Text = "Pre-filled from selection — edit any value before sizing.\n" +
+                           (string.IsNullOrEmpty(prefill.Note) ? "" : prefill.Note),
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(60, 90, 60)),
+                    Background = new SolidColorBrush(Color.FromRgb(232, 244, 232)),
+                    Padding = new Thickness(8, 6, 8, 6),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                Grid.SetRow(banner, row); Grid.SetColumnSpan(banner, 2); grid.Children.Add(banner);
+                row++;
+            }
 
             AddLabel(grid, "Refrigerant", row);
             _cmbRefrig = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
@@ -77,17 +104,35 @@ namespace StingTools.UI
             row++;
 
             AddLabel(grid, "Capacity (kW)", row);
-            _txtCapacity = new TextBox { Text = "20", Margin = new Thickness(0, 2, 0, 6) };
+            _txtCapacity = new TextBox
+            {
+                Text = prefilled && prefill.CapacityKw > 0
+                    ? prefill.CapacityKw.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
+                    : "20",
+                Margin = new Thickness(0, 2, 0, 6)
+            };
             Grid.SetRow(_txtCapacity, row); Grid.SetColumn(_txtCapacity, 1); grid.Children.Add(_txtCapacity);
             row++;
 
             AddLabel(grid, "Equivalent length (m)", row);
-            _txtEquivLen = new TextBox { Text = "60", Margin = new Thickness(0, 2, 0, 6) };
+            _txtEquivLen = new TextBox
+            {
+                Text = prefilled && prefill.EquivLengthM > 0
+                    ? prefill.EquivLengthM.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+                    : "60",
+                Margin = new Thickness(0, 2, 0, 6)
+            };
             Grid.SetRow(_txtEquivLen, row); Grid.SetColumn(_txtEquivLen, 1); grid.Children.Add(_txtEquivLen);
             row++;
 
             AddLabel(grid, "Vertical lift (m, + = ODU above IDU)", row);
-            _txtLift = new TextBox { Text = "5", Margin = new Thickness(0, 2, 0, 6) };
+            _txtLift = new TextBox
+            {
+                Text = prefilled && prefill.HasLift
+                    ? prefill.LiftM.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+                    : "5",
+                Margin = new Thickness(0, 2, 0, 6)
+            };
             Grid.SetRow(_txtLift, row); Grid.SetColumn(_txtLift, 1); grid.Children.Add(_txtLift);
             row++;
 
@@ -120,7 +165,7 @@ namespace StingTools.UI
             _chkRiser = new CheckBox
             {
                 Content = "Includes vertical riser (apply oil-return min velocity)",
-                IsChecked = true,
+                IsChecked = prefilled ? prefill.HasVerticalRiser : true,
                 Margin = new Thickness(0, 4, 0, 12),
                 VerticalAlignment = VerticalAlignment.Center
             };

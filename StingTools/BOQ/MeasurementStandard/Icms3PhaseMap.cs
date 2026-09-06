@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  Icms3PhaseMap.cs — Multi-language phase-name → ICMS3 group code map.
 //
 //  Loaded once from Data/STING_ICMS3_PHASE_MAP.json + project override
@@ -184,7 +184,7 @@ namespace StingTools.BOQ.MeasurementStandard
                 if (string.IsNullOrEmpty(bimDir)) return null;
                 string parent = Path.GetDirectoryName(bimDir);
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "icms3_phase_map.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "icms3_phase_map.json");
             }
             catch { return null; }
         }

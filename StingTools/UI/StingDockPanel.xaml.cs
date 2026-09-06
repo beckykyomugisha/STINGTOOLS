@@ -121,6 +121,13 @@ namespace StingTools.UI
             // Pack 0 — reflect current offline state the moment the panel is realised.
             try { UpdateOfflineStatus(StingTools.Core.StingOfflineConfig.IsOffline, StingTools.Core.StingOfflineConfig.Source); }
             catch { /* non-fatal */ }
+
+            // Publish this instance for LastInstance. The field was declared and read in
+            // ~20 places but NEVER assigned, so LastInstance was permanently null and every
+            // `LastInstance?.X()` call silently no-opped — including the sync-status chip
+            // that INT-07 added it for. The null-conditional made the failure invisible.
+            // Assigned last so a partially-constructed panel is never published.
+            _instance = this;
         }
 
         /// <summary>
@@ -182,6 +189,30 @@ namespace StingTools.UI
             if (_handler == null || _externalEvent == null) return false;
             _handler.SetCommand(tag, param1, param2);
             return _externalEvent.Raise() == ExternalEventRequest.Accepted;
+        }
+
+        /// <summary>
+        /// Dispatch that works from a dialog shown DURING command execution.
+        ///
+        /// A modal dialog opened inside an IExternalCommand (the drawing-production
+        /// config dialog, and the VG / Object Styles editors it launches) is still
+        /// on the Revit API thread, and the ExternalEvent that is running that very
+        /// command cannot be re-raised — Raise() returns Denied, so every button in
+        /// those dialogs reported "open the dock panel first" and did nothing. Run
+        /// synchronously when we hold the API thread, and fall back to the async
+        /// queue when we don't (a modeless window with no command in flight).
+        /// </summary>
+        public static bool DispatchCommandSmart(string tag, string param1 = "", string param2 = "")
+        {
+            if (string.IsNullOrEmpty(tag)) return false;
+            var app = StingCommandHandler.CurrentApp;
+            if (app != null)
+            {
+                try { if (DispatchCommandSync(app, tag, param1, param2)) return true; }
+                catch (Exception ex)
+                { StingTools.Core.StingLog.Warn($"DispatchCommandSmart sync '{tag}': {ex.Message}"); }
+            }
+            return DispatchCommand(tag, param1, param2);
         }
 
         /// <summary>
@@ -860,6 +891,26 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("ArrowSize",  (sldArrowSize?.Value ?? 4).ToString("F0"));
             }
             catch (Exception ex) { StingLog.Warn($"Read leader/elbow params failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Update the SELECT-tab "Show / Hide" button with how much the active view is
+        /// hiding — "👁 Show / Hide (1,204 hidden) ▾". Pushed by
+        /// <see cref="VisibilityCenter.VisibilityBadge"/> after any read of the view's state,
+        /// so a filtered view announces itself without the user opening anything.
+        /// <para>Must run on the WPF dispatcher; tolerates a null button while the SELECT tab
+        /// is still in its deferred-loading placeholder.</para>
+        /// </summary>
+        public void UpdateVisibilityBadge(string label, string tooltip)
+        {
+            try
+            {
+                var btn = FindName("btnVisDropdown") as Button;
+                if (btn == null) return;
+                if (!string.IsNullOrEmpty(label)) btn.Content = label;
+                if (!string.IsNullOrEmpty(tooltip)) btn.ToolTip = tooltip;
+            }
+            catch (Exception ex) { StingLog.Warn($"UpdateVisibilityBadge: {ex.Message}"); }
         }
 
         /// <summary>
@@ -2080,6 +2131,35 @@ namespace StingTools.UI
 
         // ── Status bar helper ──────────────────────────────────────
 
+        /// <summary>
+        /// Clear the "Running: {tag}…" placeholder once that dispatch finishes.
+        /// Called from StingCommandHandler's execute finally-block. Deliberately
+        /// conservative: it only rewrites the label while it still shows THIS
+        /// tag, so a command that reported its own outcome keeps it.
+        /// </summary>
+        public void ResolveRunningStatus(string tag)
+        {
+            if (txtStatus == null || string.IsNullOrEmpty(tag)) return;
+            Action apply = () =>
+            {
+                try
+                {
+                    var cur = txtStatus.Text ?? "";
+                    if (!cur.StartsWith("Running: " + tag, StringComparison.OrdinalIgnoreCase)) return;
+                    // Must go through UpdateStatus, NOT txtStatus.Text directly:
+                    // UpdateStatus is also what releases FreezeTagSubTabs (any
+                    // message not starting "Running:" triggers UnfreezeTagSubTabs).
+                    // Writing Text here bypassed that, so a frozen Tag Studio would
+                    // have stayed frozen with the label claiming it had finished —
+                    // strictly worse than the sticky label this method fixes.
+                    UpdateStatus(tag + " — finished");
+                }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"ResolveRunningStatus: {ex.Message}"); }
+            };
+            if (txtStatus.Dispatcher.CheckAccess()) apply();
+            else txtStatus.Dispatcher.BeginInvoke(apply);
+        }
+
         public void UpdateStatus(string message)
         {
             if (txtStatus == null) return;
@@ -2126,7 +2206,11 @@ namespace StingTools.UI
             // R1-UI-02: Snapshot to local to prevent race on _instance
             var inst = _instance;
             if (inst == null) return;
-            var list = paramNames is IList<string> l ? l : new List<string>(paramNames);
+            // Superseded parameters sort to the end of every dropdown. Done here
+            // rather than at each caller because this is the one choke point the
+            // panel's parameter combos go through, so a future caller inherits it.
+            // See ParamRegistry.PickerOrder for why they are ordered, not removed.
+            var list = Core.ParamRegistry.PickerOrder(paramNames);
             inst.Dispatcher.BeginInvoke(new Action(() =>
             {
                 try

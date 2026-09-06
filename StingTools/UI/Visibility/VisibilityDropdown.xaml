@@ -1,0 +1,136 @@
+<UserControl x:Class="StingTools.UI.VisibilityCenter.VisibilityDropdown"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="330" MaxWidth="380" MaxHeight="560">
+
+    <UserControl.Resources>
+        <Style x:Key="MiniBtn" TargetType="Button">
+            <Setter Property="Padding" Value="5,1"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="MinWidth" Value="34"/>
+        </Style>
+        <Style x:Key="FootBtn" TargetType="Button">
+            <Setter Property="Padding" Value="9,4"/>
+            <Setter Property="Margin" Value="3,0,0,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="MinWidth" Value="60"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{DynamicResource PrimaryBg}" BorderBrush="#4CAF50" BorderThickness="1">
+        <Grid Margin="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Mode + target -->
+            <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,6">
+                <RadioButton x:Name="rbTemporary" DockPanel.Dock="Left" GroupName="VisMode"
+                             Content="Temporary" IsChecked="True" FontSize="11" Margin="0,0,8,0"
+                             Checked="Mode_Changed"
+                             ToolTip="Temporary hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints.&#10;&#10;Temporary hide also does not survive closing the view. Use 'Reset all' to clear it."/>
+                <RadioButton x:Name="rbSaved" DockPanel.Dock="Left" GroupName="VisMode"
+                             Content="Saved to view" FontSize="11" Checked="Mode_Changed"
+                             ToolTip="Temporary hide is not undoable with Ctrl+Z and does not print. Saved to view is undoable and prints.&#10;&#10;Creates 'STING VIS - ' view filters. Persists in the view and can be pushed to a view template."/>
+                <CheckBox x:Name="chkLive" DockPanel.Dock="Left" Content="Live" IsChecked="True"
+                          FontSize="11" Margin="12,0,8,0" VerticalAlignment="Center"
+                          Checked="Live_Changed" Unchecked="Live_Changed"
+                          ToolTip="Apply each tick straight to the view, about half a second after you stop clicking.&#10;&#10;Off: nothing changes until you press Apply.&#10;Unavailable in 'Saved to view' mode, which mints view filters — one per tick would litter the project."/>
+                <ComboBox x:Name="cboTarget" DockPanel.Dock="Right" Width="118" FontSize="10"
+                          SelectedIndex="0" SelectionChanged="Target_Changed">
+                    <ComboBoxItem Content="Active view"/>
+                    <ComboBoxItem Content="All views on sheet"/>
+                </ComboBox>
+            </DockPanel>
+
+            <!-- Search -->
+            <TextBox x:Name="txtSearch" Grid.Row="1" Margin="0,0,0,6" Padding="4,2" FontSize="11"
+                     TextChanged="Search_Changed" ToolTip="Filter the list below"/>
+
+            <!-- Groups -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="icGroups">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                                      Expanded="Group_Expanded" Margin="0,0,0,2">
+                                <Expander.Header>
+                                    <DockPanel LastChildFill="False" Width="290">
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Header}"
+                                                   FontWeight="Bold" FontSize="10" VerticalAlignment="Center"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource MiniBtn}"
+                                                Content="Invert" Tag="{Binding}" Click="Invert_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource MiniBtn}"
+                                                Content="None" Tag="{Binding}" Click="None_Click"/>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource MiniBtn}"
+                                                Content="All" Tag="{Binding}" Click="All_Click"/>
+                                    </DockPanel>
+                                </Expander.Header>
+
+                                <StackPanel Margin="14,2,0,4">
+                                    <!-- An empty group must say WHY it is empty: "no rows" alone
+                                         reads identically to a harvest that failed. -->
+                                    <TextBlock Text="{Binding EmptyMessage}"
+                                               Visibility="{Binding EmptyVisibility}"
+                                               FontSize="10" FontStyle="Italic" Opacity="0.6"
+                                               TextWrapping="Wrap" Margin="2,1,0,2"/>
+                                    <ItemsControl ItemsSource="{Binding VisibleRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <!-- IsThreeState stays FALSE: the indeterminate
+                                                     middle is COMPUTED from the subcategories,
+                                                     never something the user cycles into. WPF
+                                                     still renders a null IsChecked as the
+                                                     middle when we set it in code. -->
+                                                <CheckBox Content="{Binding Display}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          IsThreeState="False"
+                                                          ToolTip="{Binding Tooltip}"
+                                                          Margin="{Binding IndentMargin, Mode=OneTime}"
+                                                          Click="Row_Click" FontSize="11">
+                                                    <CheckBox.Style>
+                                                        <Style TargetType="CheckBox">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasChildren}" Value="True">
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </CheckBox.Style>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Expander>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Live footer computed from VisibilityEngine.Plan — no writes -->
+            <TextBlock x:Name="txtFooter" Grid.Row="3" Margin="0,6,0,4" FontSize="10"
+                       TextWrapping="Wrap" Foreground="#4CAF50" Text="Nothing selected."/>
+
+            <!-- Actions -->
+            <DockPanel Grid.Row="4" LastChildFill="False">
+                <Button DockPanel.Dock="Left" Style="{StaticResource FootBtn}" Margin="0"
+                        Content="Presets ▾" Click="Presets_Click"/>
+                <Button DockPanel.Dock="Left" Style="{StaticResource FootBtn}"
+                        Content="Save…" Click="SavePreset_Click"/>
+                <Button DockPanel.Dock="Right" Style="{StaticResource FootBtn}"
+                        Content="Apply" Click="Apply_Click" FontWeight="Bold"/>
+                <Button DockPanel.Dock="Right" Style="{StaticResource FootBtn}"
+                        Content="Isolate" Click="Isolate_Click"/>
+                <Button DockPanel.Dock="Right" Style="{StaticResource FootBtn}"
+                        Content="Reset all" Click="Reset_Click"
+                        ToolTip="Clears BOTH the temporary hide and every STING VIS filter on this view."/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</UserControl>

@@ -1,5 +1,13 @@
 # GOLD Consolidated — Revit Smoke-Test / Sweep Checklist
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 **Build under test:** `claude/gold-consolidated` · GOLD `StingTools.dll` md5 `418D98B779E5` · license Stable `4681-584E-784F-0868-4E48` · build 0 err / 0 warn.
 **Exit gate:** all **[CRIT]** items pass → PR `gold-consolidated → main`. Any [CRIT] fail → stop, note it, don't PR.
 

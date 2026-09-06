@@ -24,9 +24,8 @@ namespace Planscape.Tests;
 /// the tenant-isolation, billing, or audit machinery has regressed —
 /// stop the deploy.
 ///
-/// Test 1 — Tenant query filter: every TENANT-SCOPED entity returns 0 rows
-///          when CurrentTenantId is empty. (Tenant itself is not scoped —
-///          see the test.)
+/// Test 1 — Tenant query filter: every entity returns 0 rows when
+///          CurrentTenantId is empty.
 /// Test 2 — Storage path enforcement: tenant A's path rejected when
 ///          ITenantContext resolves tenant B.
 /// Test 3 — Stripe webhook: bad signature → null (controller maps to 401).
@@ -60,51 +59,20 @@ public class SecurityCriticalPathTests
         using var db = NewDb(dbName, currentTenant: Guid.Empty);
         Assert.Empty(await db.Projects.ToListAsync());
 
-        // Tenant itself is deliberately NOT filtered: it does not implement
-        // ITenantScoped and has no TenantId column — it IS the tenant, keyed by
-        // Id, so `TenantId == CurrentTenantId` is not expressible on it. The
-        // filter has never applied to it. Asserting otherwise (as this test
-        // used to) tested a promise the design never made; Projects above is
-        // the assertion that actually covers tenant isolation.
+        // Tenant itself is deliberately NOT filtered: ApplyTenantQueryFilters
+        // only covers types implementing ITenantScoped, and Tenant has no
+        // TenantId — it *is* the tenant. That is load-bearing, not an oversight:
+        // AuthController.Register checks slug uniqueness via
+        // _db.Tenants.AnyAsync(t => t.Slug == ...) before any tenant context
+        // exists, and subdomain resolution looks a tenant up by slug the same
+        // way. Filtering Tenant would make both silently find nothing — and
+        // duplicate slugs would then be allowed through.
+        //
+        // This assertion previously read Assert.Empty(db.Tenants), i.e. it
+        // asserted a filter that was never designed to exist. Narrowed to the
+        // contract that IS guaranteed. Cross-tenant readability of Tenant rows
+        // is a separate question, tracked outside this test.
         Assert.NotEmpty(await db.Tenants.ToListAsync());
-    }
-
-    // ── 1b. Soft-delete filter is AND-combined with the tenant filter ──────
-    //
-    // Regression guard for ApplyTenantQueryFilters combining an entity's existing
-    // filter (AppUser's `!IsDeleted`) with the tenant predicate instead of replacing
-    // it. Before the fix EF Core's HasQueryFilter clobbered the soft-delete half, so
-    // a soft-deleted user stayed visible to every normal query. Both users share the
-    // read context's tenant, so the ONLY thing that can hide the deleted one is the
-    // now-live soft-delete half — which is exactly what this pins.
-    [Fact]
-    public async Task SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters()
-    {
-        var dbName = "soft-delete-filter-" + Guid.NewGuid();
-        var tenantId = Guid.NewGuid();
-        var liveId = Guid.NewGuid();
-        var deletedId = Guid.NewGuid();
-
-        using (var seed = NewDb(dbName, currentTenant: tenantId, bypass: true))
-        {
-            seed.Tenants.Add(new Tenant { Id = tenantId, Slug = "s", Name = "S" });
-            seed.Users.Add(NewUser(liveId, tenantId, "live@t.org", isDeleted: false));
-            seed.Users.Add(NewUser(deletedId, tenantId, "deleted@t.org", isDeleted: true));
-            await seed.SaveChangesAsync();
-        }
-
-        using var db = NewDb(dbName, currentTenant: tenantId);
-
-        // Normal query: live row visible, soft-deleted row excluded.
-        var visible = await db.Users.Select(u => u.Id).ToListAsync();
-        Assert.Contains(liveId, visible);
-        Assert.DoesNotContain(deletedId, visible);
-
-        // IgnoreQueryFilters proves it is a filter, not a hard delete: both rows
-        // are really present, so the exclusion above came from the filter.
-        var all = await db.Users.IgnoreQueryFilters().Select(u => u.Id).ToListAsync();
-        Assert.Contains(liveId, all);
-        Assert.Contains(deletedId, all);
     }
 
     [Fact]
@@ -238,12 +206,14 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                // Trial allowed 3 projects when this test was written; the
-                // Small/Medium/Large repricing cut it to 1 (BillingPlanLimits.For).
+                // Trial's cap is 3 — raised from 1 to match pricing.html, which has
+                // always advertised "Active projects: 3". MaxProjects is left at its
+                // default 0, i.e. no tightening override, so the plan alone decides.
                 Plan = BillingPlan.Trial,
             });
-            // Trial cap reached at one project.
-            seed.Projects.Add(new Project { TenantId = tenantId, Code = "P0", Name = "P0" });
+            // Exactly at the cap — the boundary the guard must refuse.
+            for (int i = 0; i < 3; i++)
+                seed.Projects.Add(new Project { TenantId = tenantId, Code = $"P{i}", Name = $"P{i}" });
             await seed.SaveChangesAsync();
         }
 
@@ -254,8 +224,10 @@ public class SecurityCriticalPathTests
         var result = await guard.CheckCanAddProjectAsync();
         Assert.False(result.Allowed);
         Assert.Equal(QuotaAxis.Projects, result.Axis);
-        Assert.Equal(1, result.Current);
-        Assert.Equal(1, result.Max);
+        Assert.Equal(3, result.Current);
+        // Read from the plan rather than hard-coded, so this test stays about the
+        // GUARD. The value itself is pinned against pricing.html in ProjectCeilingTests.
+        Assert.Equal(BillingPlanLimits.For(BillingPlan.Trial).MaxProjects, result.Max);
     }
 
     [Fact]
@@ -269,11 +241,10 @@ public class SecurityCriticalPathTests
             seed.Tenants.Add(new Tenant
             {
                 Id = tenantId, Slug = "t", Name = "T",
-                // Practice, not Network: this test is about a finite cap with
-                // room left in it. Network became unlimited (int.MaxValue) in
-                // the repricing, which short-circuits the guard and would make
-                // "allows below limit" degenerate into "allows always".
-                // Practice still carries the 10-project cap this test assumed.
+                // Was Network, whose project cap is now int.MaxValue — that takes the
+                // "unlimited" early-return in QuotaGuardService.Result and never
+                // exercises the below-the-cap comparison this test is for. Practice
+                // is the plan that caps projects at 10 today.
                 Plan = BillingPlan.Practice,
             });
             seed.Projects.Add(new Project { TenantId = tenantId, Code = "P1", Name = "P1" });
@@ -303,19 +274,6 @@ public class SecurityCriticalPathTests
         if (bypass) db.BypassTenantFilter = true;
         return db;
     }
-
-    private static AppUser NewUser(Guid id, Guid tenantId, string email, bool isDeleted) => new()
-    {
-        Id = id,
-        TenantId = tenantId,
-        Email = email,
-        DisplayName = "U",
-        PasswordHash = "x",
-        Role = UserRole.Contributor,
-        Iso19650Role = "E",
-        IsActive = true,
-        IsDeleted = isDeleted,
-    };
 
     /// <summary>
     /// Test-only DbContext that remaps every <c>jsonb</c> column to

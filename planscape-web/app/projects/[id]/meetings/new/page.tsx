@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { MemberPicker } from '@/components/MemberPicker';
 import { createMeeting } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export default function NewMeetingPage() {
   const [durationMinutes, setDurationMinutes] = useState('60');
   const [location, setLocation] = useState('');
   const [meetingUrl, setMeetingUrl] = useState('');
+  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +40,10 @@ export default function NewMeetingPage() {
         durationMinutes: durationMinutes ? Number(durationMinutes) : undefined,
         location: location.trim() || undefined,
         meetingUrl: meetingUrl.trim() || undefined,
+        // Send ids only and let the server fill name/email from the account —
+        // it already does that in CreateMeeting, and echoing a display name we
+        // happen to be holding is how the two drift apart.
+        attendees: attendeeIds.length ? attendeeIds.map((userId) => ({ userId })) : undefined,
       });
       router.push(`/projects/${projectId}/meetings/${m.id}`);
     } catch (err) {
@@ -49,31 +55,31 @@ export default function NewMeetingPage() {
   return (
     <AppShell>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}/meetings`} className="text-sm text-slate-400 hover:underline">
+        <Link href={`/projects/${projectId}/meetings`} className="text-sm text-fg-subtle hover:underline">
           ← Meetings
         </Link>
         <h1 className="text-xl font-semibold">Schedule a meeting</h1>
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
 
-      <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+      <form onSubmit={submit} className="max-w-lg space-y-3 rounded-lg border border-border bg-surface p-4">
         <label className="block">
-          <span className="text-sm text-slate-600">Title</span>
+          <span className="text-sm text-fg-muted">Title</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <div className="flex gap-3">
           <label className="block flex-1">
-            <span className="text-sm text-slate-600">Type</span>
+            <span className="text-sm text-fg-muted">Type</span>
             <select
               value={meetingType}
               onChange={(e) => setMeetingType(e.target.value)}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
             >
               {TYPES.map((t) => (
                 <option key={t}>{t}</option>
@@ -81,47 +87,60 @@ export default function NewMeetingPage() {
             </select>
           </label>
           <label className="block w-32">
-            <span className="text-sm text-slate-600">Duration (min)</span>
+            <span className="text-sm text-fg-muted">Duration (min)</span>
             <input
               type="number"
               min={15}
               step={15}
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(e.target.value)}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
             />
           </label>
         </div>
         <label className="block">
-          <span className="text-sm text-slate-600">When</span>
+          <span className="text-sm text-fg-muted">When</span>
           <input
             type="datetime-local"
             value={scheduledAt}
             onChange={(e) => setScheduledAt(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block">
-          <span className="text-sm text-slate-600">Location (optional)</span>
+          <span className="text-sm text-fg-muted">Location (optional)</span>
           <input
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
         <label className="block">
-          <span className="text-sm text-slate-600">External link (Teams/Zoom, optional)</span>
+          <span className="text-sm text-fg-muted">External link (Teams/Zoom, optional)</span>
           <input
             value={meetingUrl}
             onChange={(e) => setMeetingUrl(e.target.value)}
-            className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
+        <div className="block">
+          <span className="text-sm text-fg-muted">
+            Attendees{attendeeIds.length > 0 ? ` (${attendeeIds.length})` : ''}
+          </span>
+          <div className="mt-1">
+            <MemberPicker
+              projectId={projectId}
+              multiple
+              value={attendeeIds}
+              onChange={(v) => setAttendeeIds(v as string[])}
+            />
+          </div>
+        </div>
         <button
           type="submit"
           disabled={busy || !title.trim() || !scheduledAt}
-          className="rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-accent px-3 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover disabled:opacity-50"
         >
           {busy ? 'Scheduling…' : 'Schedule meeting'}
         </button>

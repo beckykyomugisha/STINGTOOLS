@@ -370,7 +370,7 @@ namespace StingTools.Commands.Hvac
             {
                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                 if (string.IsNullOrEmpty(projDir)) return null;
-                string outDir = Path.Combine(projDir, "_BIM_COORD", "acoustic");
+                string outDir = StingPaths.Meta(doc, "_BIM_COORD", "acoustic");
                 Directory.CreateDirectory(outDir);
                 string ts = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string csv = Path.Combine(outDir, $"crosstalk_{ts}.csv");

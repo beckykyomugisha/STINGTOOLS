@@ -379,6 +379,10 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.FileName).HasMaxLength(260);
             e.Property(x => x.StoragePath).HasMaxLength(600);
             e.Property(x => x.ContentHash).HasMaxLength(64);
+            // Same width as FederatedElement.SourceDocGuid — they hold the same
+            // string and the model-delete cascade joins on it.
+            e.Property(x => x.SourceDocGuid).HasMaxLength(100);
+            e.HasIndex(x => new { x.ProjectId, x.SourceDocGuid });
             e.Property(x => x.ThumbnailPath).HasMaxLength(600);
             e.Property(x => x.ElementMapPath).HasMaxLength(600);
             e.Property(x => x.Units).HasMaxLength(8);
@@ -659,12 +663,27 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => new { t.ProjectId, t.UniqueId })
                 .IsUnique()
                 .HasFilter("\"UniqueId\" <> ''");
+            // R1 (2b) — the canonical cross-host key, now UNIQUE per project: one
+            // row per physical element. Safe because both ingest doors resolve
+            // GlobalId-first (no new duplicate is inserted) and existing duplicates
+            // are collapsed by IdentityReconciliationService first. Fresh DBs get
+            // this via CreateTables (no rows to violate it); existing DBs get it
+            // from the patcher AFTER reconciliation (guarded — see Program.cs).
+            // Also serves the Revit pull-back reverse lookup (R2).
+            e.HasIndex(t => new { t.ProjectId, t.IfcGlobalId })
+                .IsUnique()
+                .HasFilter("\"IfcGlobalId\" IS NOT NULL");
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);
             // Delta-sync cutoff queries (`(LastModifiedUtc ?? SyncedAt) > cutoff`)
             // benefit from an index on the modification timestamp.
             e.HasIndex(t => t.LastModifiedUtc);
+            // Soft-delete: the global query filter appends `"DeletedAtUtc" IS NULL`
+            // to EVERY read of this table, and almost all of them are already
+            // scoped by project — so the composite is the shape that actually
+            // gets used (compliance aggregation, delta pull, element lists).
+            e.HasIndex(t => new { t.ProjectId, t.DeletedAtUtc });
         });
 
         // ── ExternalElementMapping ──
@@ -1248,7 +1267,11 @@ public class PlanscapeDbContext : DbContext
         // unauthenticated background job sees nothing rather than
         // everything. Hot reads use the indexed TenantId column directly,
         // no joins required.
-        ApplyTenantQueryFilters(modelBuilder);
+        //
+        // This ALSO folds in the ISoftDeletable tombstone predicate — see the
+        // method remarks for why the two must be applied as one composed
+        // filter and cannot be two HasQueryFilter calls.
+        ApplyGlobalQueryFilters(modelBuilder);
         // Ensure every tenant-scoped entity has an index on TenantId so the
         // query filter doesn't degenerate into a sequential scan.
         AddTenantIdIndexes(modelBuilder);
@@ -1475,6 +1498,12 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => x.TenantId);
             e.Property(x => x.AppliedBy).HasMaxLength(200);
             e.Property(x => x.Notes).HasMaxLength(2000);
+            // B1 — auto-apply. Left unconstrained in length deliberately: the
+            // startup patcher adds these to pre-existing DBs as plain `text`,
+            // and a HasMaxLength here would make SchemaDriftChecker report a
+            // type mismatch between the EF model and the patched column.
+            e.Property(x => x.Confidence);
+            e.Property(x => x.Source);
             e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -1990,61 +2019,80 @@ public class PlanscapeDbContext : DbContext
         });
     }
 
-    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    /// <remarks>
+    /// <para>Applies the TENANT predicate to every <see cref="ITenantScoped"/>
+    /// type and the SOFT-DELETE predicate to every <see cref="ISoftDeletable"/>
+    /// type, AND-ed together into a SINGLE filter per entity.</para>
+    ///
+    /// <para>The single-filter composition is not a style choice — it is
+    /// required. In EF Core 8 an entity has at most ONE query filter and a later
+    /// <c>HasQueryFilter</c> call silently REPLACES an earlier one. Applying the
+    /// tombstone predicate as a second call here would therefore have DROPPED
+    /// the tenant predicate and turned a soft-delete feature into a
+    /// cross-tenant data leak.</para>
+    ///
+    /// <para>That failure mode is not hypothetical — it is already live in this
+    /// file: <c>AppUser</c> declares <c>HasQueryFilter(u =&gt; !u.IsDeleted)</c>
+    /// in its own <c>modelBuilder.Entity&lt;AppUser&gt;</c> block, which this
+    /// method (running later in OnModelCreating) overwrites, so that
+    /// soft-delete filter never takes effect. Left as-is here because fixing it
+    /// changes AppUser visibility semantics well outside this change's scope;
+    /// it is reported separately.</para>
+    ///
+    /// <para><c>BypassTenantFilter</c> relaxes ONLY the tenant predicate. A
+    /// background job or migration that bypasses tenancy still must not see
+    /// tombstoned rows, or it would recount deleted elements. Code that
+    /// genuinely needs tombstones (the TagSync undelete path) calls
+    /// <c>.IgnoreQueryFilters()</c>, which drops both predicates and therefore
+    /// must carry its own ownership check.</para>
+    ///
+    /// <para>Covers only types implementing the marker interfaces. Notably that
+    /// EXCLUDES <see cref="Tenant"/> itself, which is deliberate and load-bearing
+    /// — filtering it would break the pre-auth slug-uniqueness check in
+    /// AuthController.Register and let duplicate slugs through. See the remarks
+    /// on the Tenant entity for the full reasoning and the 2026-07-30 audit.
+    /// </para>
+    /// </remarks>
+    private void ApplyGlobalQueryFilters(ModelBuilder modelBuilder)
     {
         var entityTypes = modelBuilder.Model.GetEntityTypes()
-            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType));
+            .Where(t => typeof(ITenantScoped).IsAssignableFrom(t.ClrType)
+                     || typeof(ISoftDeletable).IsAssignableFrom(t.ClrType));
 
         foreach (var entityType in entityTypes)
         {
             var clrType = entityType.ClrType;
             var parameter = System.Linq.Expressions.Expression.Parameter(clrType, "e");
-            var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
-            var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
-                System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
-            var bypass = System.Linq.Expressions.Expression.Property(
-                System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
-            var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
-            System.Linq.Expressions.Expression body =
-                System.Linq.Expressions.Expression.OrElse(bypass, equality);
+            System.Linq.Expressions.Expression? body = null;
 
-            // Preserve any filter already configured on this entity (e.g. AppUser's
-            // soft-delete `!IsDeleted`, set in its entity block above). EF Core's
-            // HasQueryFilter REPLACES rather than combines, and this loop runs after
-            // the per-entity configuration, so setting the tenant filter here would
-            // silently clobber the earlier one — which is exactly what had left
-            // AppUser's soft-delete filter dead (soft-deleted users stayed visible to
-            // every normal query). AND the two together on a shared parameter instead.
-            var existing = entityType.GetQueryFilter();
-            if (existing != null)
+            if (typeof(ITenantScoped).IsAssignableFrom(clrType))
             {
-                var rewritten = new ParameterReplacer(existing.Parameters[0], parameter).Visit(existing.Body);
-                body = System.Linq.Expressions.Expression.AndAlso(rewritten, body);
+                var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ITenantScoped.TenantId));
+                var currentTenantIdProperty = System.Linq.Expressions.Expression.Property(
+                    System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
+                var bypass = System.Linq.Expressions.Expression.Property(
+                    System.Linq.Expressions.Expression.Constant(this), nameof(BypassTenantFilter));
+                var equality = System.Linq.Expressions.Expression.Equal(tenantIdProperty, currentTenantIdProperty);
+                body = System.Linq.Expressions.Expression.OrElse(bypass, equality);
             }
+
+            if (typeof(ISoftDeletable).IsAssignableFrom(clrType))
+            {
+                // e.DeletedAtUtc == null  → only live rows.
+                var deletedAt = System.Linq.Expressions.Expression.Property(parameter, nameof(ISoftDeletable.DeletedAtUtc));
+                var notDeleted = System.Linq.Expressions.Expression.Equal(
+                    deletedAt,
+                    System.Linq.Expressions.Expression.Constant(null, typeof(DateTime?)));
+                body = body == null
+                    ? notDeleted
+                    : System.Linq.Expressions.Expression.AndAlso(body, notDeleted);
+            }
+
+            if (body == null) continue; // unreachable given the Where above; defensive.
 
             var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
             modelBuilder.Entity(clrType).HasQueryFilter(lambda);
         }
-    }
-
-    /// <summary>Rebinds an existing query-filter lambda onto a new parameter so it
-    /// can be AND-combined with the tenant predicate under one lambda.</summary>
-    private sealed class ParameterReplacer : System.Linq.Expressions.ExpressionVisitor
-    {
-        private readonly System.Linq.Expressions.ParameterExpression _from;
-        private readonly System.Linq.Expressions.ParameterExpression _to;
-
-        public ParameterReplacer(
-            System.Linq.Expressions.ParameterExpression from,
-            System.Linq.Expressions.ParameterExpression to)
-        {
-            _from = from;
-            _to = to;
-        }
-
-        protected override System.Linq.Expressions.Expression VisitParameter(
-            System.Linq.Expressions.ParameterExpression node)
-            => node == _from ? _to : base.VisitParameter(node);
     }
 
     private static void AddTenantIdIndexes(ModelBuilder modelBuilder)

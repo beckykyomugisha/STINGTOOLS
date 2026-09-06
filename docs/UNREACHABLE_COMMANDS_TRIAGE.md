@@ -3,23 +3,43 @@
 Triage of `IExternalCommand` classes that are not referenced from the dock-panel
 button-tag dispatcher in `StingTools/UI/StingCommandHandler.cs`.
 
+> **Companion doc — the other direction.** This file asks "which *commands* have no
+> button?". For "which *buttons* reach no command?", see
+> [`SILENT_BUTTONS_TODO.md`](../SILENT_BUTTONS_TODO.md) (repo root). Its 2026-08-06
+> re-audit found **zero** dead buttons: of the 26 button tags with no `case` in any
+> handler, 23 dispatch through `Cmd_Click` suite runners and 3 through the
+> `CommandRegistry` modules, which `StingCommandHandler` consults *before* its switch.
+> That check is now enforced as Tier 4 of `tools/check_workflow_wiring.ps1`.
+>
+> **Both directions have the same trap:** counting against the `StingCommandHandler`
+> switch alone ignores `UI/Modules/*CommandModule.cs` (661 registered names) and the
+> code-behind runners (38), so any figure derived that way over-reports. The 126 below
+> predates that correction and has not been re-derived across all three layers.
+
 - **Total IExternalCommand classes**: 1,288
 - **Wired in `StingCommandHandler.cs`**: 1,162
 - **Not in dock-panel dispatcher**: **126**
 
-> **Phase 177 update (complete)**: All 23 original Category C commands have been
-> resolved. Summary:
+> **Phase 177 update (corrected 2026-07-20 — verified against
+> `StingCommandHandler.cs` / `StingDockPanel.xaml`; see wiring audit W-5 in
+> `DRAWINGS_PRODUCTION_REVIEW.md`)**:
 >
 > - **Wired with new tags + XAML buttons** (10): 5 AVF heatmap (`Heatmap_*`), 5 V6
->   (`V6_*`), 3 AEC filter (`AecFilters_*`), `DrawingBrowserOrganizerCommand`
->   (`DrawingTypes_BrowserOrganize`), `BCFSyncCommand` (`BCFSync`),
->   `RevisionCloudAuditCommand` (`RevisionCloudAudit`),
->   `PluginOnboardingWizardCommand` (`PlanscapeOnboarding`)
-> - **Wired with secondary alias tags only** (3): `DrawingSyncStylesCommand`
->   (`DrawingTypes_SyncStylesDirect`), `DrawingForceResyncCommand`
->   (`DrawingTypes_ForceResync`), `GenerateFromScopeBoxesCommand`
->   (`DrawingTypes_ScopeBoxesDirect`) — primary tags already had inline
->   implementations and XAML buttons
+>   (`V6_*`), 3 AEC filter (`AecFilters_*`, handler 1407-1409),
+>   `DrawingBrowserOrganizerCommand` (tag is **`Drawing_BrowserOrganize`**,
+>   handler 1410 — NOT `DrawingTypes_BrowserOrganize`, which exists nowhere),
+>   `BCFSyncCommand` (`BCFSync`), `RevisionCloudAuditCommand`
+>   (`RevisionCloudAudit`), `PluginOnboardingWizardCommand` (`PlanscapeOnboarding`)
+> - **Wired with a secondary alias tag** (1): `DrawingForceResyncCommand`
+>   (`DrawingTypes_ForceResync`, handler 1411 + XAML button)
+> - **Still bypassed** (2): `DrawingSyncStylesCommand` and
+>   `GenerateFromScopeBoxesCommand` — the previously claimed alias tags
+>   `DrawingTypes_SyncStylesDirect` / `DrawingTypes_ScopeBoxesDirect` were
+>   never added (they appear nowhere in the repo); the primary tags still run
+>   inline reimplementations in the handler. PR #449 wires
+>   `GenerateFromScopeBoxesCommand` via `WorkflowEngine.ResolveCommand`
+>   (`DrawingTypes_FromScopeBoxes`); the dock-panel button still uses the
+>   inline path. Converging class vs inline is review finding W-5.
 > - **Left as dead code** (3): `BatchPrintSheetsCommand`,
 >   `ClashDetectionCommand` (Temp variant), `PanelScheduleCommand` (Temp
 >   variant) — their dispatcher tags already route to newer commands; old
@@ -217,16 +237,14 @@ with `docs/CHANGELOG.md` before removing anything: several of these are
 documented as the "engine class" for a feature whose tag now redirects
 to a newer command.
 
-- `AecFiltersCreateCommand` — `Commands/Drawing/AecFilterCommands.cs`. Mentioned in CLAUDE.md Phase 166 but no tag wired.
-- `AecFiltersInspectCommand` — `Commands/Drawing/AecFilterCommands.cs`.
-- `AecFiltersReloadCommand` — `Commands/Drawing/AecFilterCommands.cs`.
+- ~~`AecFiltersCreateCommand` / `AecFiltersInspectCommand` / `AecFiltersReloadCommand`~~ — **now wired** (`AecFilters_*` tags, handler 1407-1409 + XAML buttons). Not deletion candidates.
 - `ApplyLabourHoursCommand` — `V6/LabourHoursCommands.cs`. V6 feature, no V6 dispatcher exists.
 - `BCFSyncCommand` — `BIMManager/PlatformLinkCommands.cs`.
 - `BatchPrintSheetsCommand` — `Docs/SheetTemplateCommands.cs`. **Replaced** — dispatcher tag `"BatchPrintSheets"` now redirects to `Docs.ExportCenterPdfCommand`.
 - `ClashDetectionCommand` — `Temp/DataPipelineCommands.cs`. **Replaced** — dispatcher tag `"ClashDetection"` now resolves to `Core.Clash.ClashRunCommand`.
 - `ClearHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-- `DrawingBrowserOrganizerCommand` — `Commands/Drawing/DrawingBrowserOrganizerCommand.cs`. Mentioned in CLAUDE.md Phase 113 Week 3, but the dock panel does not wire it.
-- `DrawingForceResyncCommand` — `Commands/Drawing/DrawingSyncStylesCommand.cs`.
+- ~~`DrawingBrowserOrganizerCommand`~~ — **now wired** (tag `Drawing_BrowserOrganize`, handler 1410 + XAML button). Not a deletion candidate.
+- ~~`DrawingForceResyncCommand`~~ — **now wired** (tag `DrawingTypes_ForceResync`, handler 1411 + XAML button). Not a deletion candidate.
 - `DrawingSyncStylesCommand` — `Commands/Drawing/DrawingSyncStylesCommand.cs`. **Bypassed** — dispatcher tag `"DrawingTypes_SyncStyles"` calls inline `DrawingTypesSyncStylesInline(app)` instead of the class.
 - `ExportLabourHoursCommand` — `V6/LabourHoursCommands.cs`. V6 feature.
 - `GenerateFromScopeBoxesCommand` — `Commands/Drawing/GenerateFromScopeBoxesCommand.cs`. **Bypassed** — dispatcher tag `"DrawingTypes_FromScopeBoxes"` calls inline `DrawingTypesFromScopeBoxesInline(app)` instead.

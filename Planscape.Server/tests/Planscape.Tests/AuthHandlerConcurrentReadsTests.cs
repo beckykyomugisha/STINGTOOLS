@@ -4,11 +4,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Xunit;
@@ -102,17 +100,15 @@ public class AuthHandlerConcurrentReadsTests
         var projectId = Guid.NewGuid();
 
         var services = new ServiceCollection();
-        // Registered before AddDbContext so DI selects the 3-arg
-        // PlanscapeDbContext ctor — see StubTenantContext below.
-        services.AddSingleton<IHttpContextAccessor>(new StubHttpContextAccessor());
-        services.AddSingleton<ITenantContext>(new StubTenantContext(tenantId));
-        // The name must be hoisted out of the lambda: AddDbContext invokes the
-        // options action once per context instance, so generating it inline would
-        // hand the handler's own scope a brand-new empty store.
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
         var dbName = Guid.NewGuid().ToString();
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton(revocationStore);
         services.AddSingleton(tenantResolver);
+        services.AddTenantContextDouble();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -123,12 +119,17 @@ public class AuthHandlerConcurrentReadsTests
             db.Projects.Add(new Project { Id = projectId, TenantId = tenantId, Name = "P", Code = "P" });
             db.ProjectMembers.Add(new ProjectMember
             {
+                // Required: the global tenant filter excludes rows whose TenantId is unset.
                 TenantId = tenantId,
                 UserId = userId, ProjectId = projectId,
                 Iso19650Role = "K", IsActive = true,
             });
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var handler = new BimManagerOrAdminHandler(
             sp.GetRequiredService<IServiceScopeFactory>(), config: null);
@@ -224,22 +225,5 @@ public class AuthHandlerConcurrentReadsTests
         {
             Calls++; return Task.FromResult(_roles);
         }
-    }
-
-    /// <summary>PlanscapeDbContext filters every ITenantScoped entity on
-    /// <c>TenantId == CurrentTenantId</c>, which degrades to Guid.Empty when
-    /// no ITenantContext is wired — starving the fixture's rows.</summary>
-    private sealed class StubTenantContext : ITenantContext
-    {
-        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
-        public Guid TenantId { get; }
-        public string TenantSlug => "t";
-        public LicenseTier Tier => LicenseTier.Starter;
-        public bool MimEnabled => false;
-    }
-
-    private sealed class StubHttpContextAccessor : IHttpContextAccessor
-    {
-        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }

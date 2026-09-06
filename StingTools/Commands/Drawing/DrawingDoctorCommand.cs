@@ -31,7 +31,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 var sheets = new FilteredElementCollector(doc)

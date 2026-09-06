@@ -10,6 +10,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -106,6 +107,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -175,6 +177,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 120,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -250,6 +253,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.5,
+      "realSizeMm": 150,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -319,6 +323,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.0,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -378,6 +383,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 250,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -468,6 +474,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 3.5,
+      "realSizeMm": 100,
       "parameters": [],
       "geometry": {
         "arcs": [
@@ -542,6 +549,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 4.5,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -622,6 +630,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 120,
       "parameters": [
         {
           "name": "VOLTAGE",
@@ -719,6 +728,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 200,
       "parameters": [
         {
           "name": "SET_PRESSURE_BAR",
@@ -809,6 +819,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 200,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -892,6 +903,7 @@
       "discipline": "Mechanical",
       "subcategory": "Valve",
       "symbolSize": 5.0,
+      "realSizeMm": 200,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -981,6 +993,7 @@
       "discipline": "Mechanical",
       "subcategory": "Filter",
       "symbolSize": 5.0,
+      "realSizeMm": 180,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1064,6 +1077,7 @@
       "discipline": "Mechanical",
       "subcategory": "Filter",
       "symbolSize": 6.0,
+      "realSizeMm": 250,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1159,6 +1173,7 @@
       "discipline": "Mechanical",
       "subcategory": "Connector",
       "symbolSize": 5.0,
+      "realSizeMm": 150,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1236,6 +1251,7 @@
       "discipline": "Mechanical",
       "subcategory": "Connector",
       "symbolSize": 5.0,
+      "realSizeMm": 250,
       "parameters": [],
       "geometry": {
         "lines": [
@@ -1325,6 +1341,8 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "realSizeMm": 100,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RANGE_BAR",
@@ -1397,6 +1415,8 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "realSizeMm": 100,
+      "overallExtent": 0.65,
       "parameters": [
         {
           "name": "RANGE_C",
@@ -1469,6 +1489,7 @@
       "discipline": "Mechanical",
       "subcategory": "Instrument",
       "symbolSize": 4.0,
+      "realSizeMm": 200,
       "parameters": [
         {
           "name": "SIZE_MM",
@@ -1540,6 +1561,7 @@
       "discipline": "Mechanical",
       "subcategory": "Equipment",
       "symbolSize": 5.0,
+      "realSizeMm": 400,
       "parameters": [
         {
           "name": "EQUIPMENT_REF",

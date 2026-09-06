@@ -17,41 +17,40 @@ BASELINE="$(dirname "$0")/known-failing-tests.txt"
 
 # A run that produced no summary line never got as far as running tests (build
 # break, host crash). Treat that as failure — an empty failure list would
-# otherwise read as "nothing new broke". Accept every summary shape `dotnet test`
-# emits: it varies by logger and by whether the run was invoked at the solution
-# or project level.
-#   VSTest console logger (per project):  "Passed!  - Failed: …" / "Failed!  - …"
-#   VSTest aggregate / older format:      "Total tests: N … Failed: N"
-#   Microsoft.Testing.Platform (MSBuild): "Test summary: total: N … failed: N"
-if ! grep -qE "^[[:space:]]*(Passed!|Failed!|Total tests:|Test summary:)" "$OUTPUT"; then
+# otherwise read as "nothing new broke".
+#
+# Several summary formats have to be accepted. `dotnet test` on a single project
+# prints the CLI summary ("Passed!  - Failed: 0, ...") — but only on some SDKs.
+# On a SOLUTION it goes through MSBuild and emits the VSTest logger summary
+# instead ("Total tests: N" / "Test Run Successful." / "Test Run Failed."); when
+# VSTestTask returns false the CLI line is never emitted at all. Matching only
+# one shape made this gate abort with "the run did not complete" — either on
+# every solution-level run that had failures (precisely when its diff is worth
+# reading), or, with the old anchor, on a fully-green 540-test run. Be
+# permissive: this check only asks "did the run finish", and the real failure
+# detection happens below, so a false abort is the costly direction.
+if ! grep -qE "^[[:space:]]*(Passed!|Failed!)|Total tests: [0-9]+|Test Run (Successful|Failed)\." "$OUTPUT"; then
   echo "::error::no test summary in output — the run did not complete"
   tail -30 "$OUTPUT"
   exit 1
 fi
 
-# Theory cases print as `Name(arg: "x", …) [FAIL]`. The previous pattern
-# required a space immediately before "[FAIL]", so the "(" ended the match and
-# every failing theory case was invisible to this check — a newly-broken theory
-# would have sailed through CI. Match the optional argument list and strip it,
-# collapsing cases to the base method name the baseline file lists.
-grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" "$OUTPUT" \
-  | sed -E 's/\(.*\)//; s/ \[FAIL\]//' | sort -u > /tmp/actual-failures.txt
+# Extract failing test method names, tolerant of BOTH loggers this suite can emit
+# and of theory cases:
+#   * xunit console:  "Planscape.Tests.X.Method(arg: 1) [FAIL]"
+#   * VSTest normal:  "  Failed Planscape.Tests.X.Method(arg: 1) [12 ms]"
+# The old pattern required a space immediately before "[FAIL]" (so a theory's
+# "(" ended the match) and never matched the "Failed …" form at all — on the
+# VSTest logger it found nothing, which reads as a false "no failures". Strip any
+# argument list to collapse theory cases to the base method the baseline lists.
+{
+  grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" "$OUTPUT" \
+    | sed -E 's/ \[FAIL\]//'
+  grep -oE "^[[:space:]]*Failed[[:space:]]+Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))?" "$OUTPUT" \
+    | sed -E 's/^[[:space:]]*Failed[[:space:]]+//'
+} | sed -E 's/\(.*\)//' | sort -u > /tmp/actual-failures.txt
 
-# Belt-and-braces against a summary whose per-test "[FAIL]" lines we can't parse:
-# if the run's own summary reports failures but we extracted NONE, the format is
-# unrecognised and a silent "0 new failures" would be a false green. (A count
-# mismatch is expected and fine — theory cases collapse to one method name here;
-# this only fires on a total parse miss.)
-reported_failed=$(grep -oiE "failed:[[:space:]]*[0-9]+" "$OUTPUT" \
-  | grep -oE "[0-9]+" | sort -rn | head -1)
-if [ "${reported_failed:-0}" -gt 0 ] && [ ! -s /tmp/actual-failures.txt ]; then
-  echo "::error::summary reports ${reported_failed} failure(s) but none were parsed from the output —"
-  echo "         the per-test [FAIL] format was not recognised. Pin the console logger, e.g."
-  echo "         dotnet test … --logger 'console;verbosity=normal'"
-  exit 1
-fi
-
-grep -vE '^\s*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
+grep -vE '^[[:space:]]*(#|$)' "$BASELINE" | sort -u > /tmp/baseline-failures.txt
 
 NEW=$(comm -13 /tmp/baseline-failures.txt /tmp/actual-failures.txt)
 FIXED=$(comm -23 /tmp/baseline-failures.txt /tmp/actual-failures.txt)

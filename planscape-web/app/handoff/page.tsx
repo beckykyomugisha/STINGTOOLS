@@ -70,7 +70,7 @@ export default function HandoffPage() {
     <main className="grid min-h-screen place-items-center p-4">
       <div className="text-center">
         <p className="text-lg font-medium">{message}</p>
-        <p className="mt-2 text-sm text-neutral-500">Planscape cloud</p>
+        <p className="mt-2 text-sm text-fg-muted">Planscape cloud</p>
       </div>
     </main>
   );

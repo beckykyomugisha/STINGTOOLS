@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Xunit;
@@ -126,23 +124,13 @@ public class BimManagerRoleConfigTests
         var projectId = Guid.NewGuid();
 
         var services = new ServiceCollection();
-        // Registered before AddDbContext so DI selects the 3-arg
-        // PlanscapeDbContext ctor — see StubTenantContext below. Note the
-        // context is always the *claim* tenant, so the crossTenant fixture's
-        // AppUser stays invisible exactly as it would in production.
-        services.AddSingleton<IHttpContextAccessor>(new StubHttpContextAccessor());
-        services.AddSingleton<ITenantContext>(new StubTenantContext(tenantId));
-        // The name must be hoisted out of the lambda: AddDbContext invokes the
-        // options action once per context instance, so generating it inline would
-        // hand the handler's own scope a brand-new empty store.
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
         var dbName = Guid.NewGuid().ToString();
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
-        // Both are resolved from the handler's own scope. Null store = "no
-        // revocation recorded"; the resolver is the real one so a tenant
-        // override would be parsed as in production (none is set here).
-        services.AddSingleton<IPermissionRevocationStore, NullPermissionRevocationStore>();
-        services.AddScoped<ITenantBimManagerRoleResolver>(s =>
-            new DbTenantBimManagerRoleResolver(s.GetRequiredService<PlanscapeDbContext>()));
+        services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -167,6 +155,7 @@ public class BimManagerRoleConfigTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    // Required: the global tenant filter excludes rows whose TenantId is unset.
                     TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
@@ -176,6 +165,10 @@ public class BimManagerRoleConfigTests
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var configEntries = new Dictionary<string, string?>();
         for (int i = 0; i < configRoles.Length; i++)
@@ -195,22 +188,5 @@ public class BimManagerRoleConfigTests
         var requirement = new BimManagerOrAdminRequirement();
         var ctx = new AuthorizationHandlerContext(new[] { requirement }, user, resource: null);
         return (handler, ctx);
-    }
-
-    /// <summary>PlanscapeDbContext filters every ITenantScoped entity on
-    /// <c>TenantId == CurrentTenantId</c>, which degrades to Guid.Empty when
-    /// no ITenantContext is wired — starving the fixture's rows.</summary>
-    private sealed class StubTenantContext : ITenantContext
-    {
-        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
-        public Guid TenantId { get; }
-        public string TenantSlug => "t";
-        public LicenseTier Tier => LicenseTier.Starter;
-        public bool MimEnabled => false;
-    }
-
-    private sealed class StubHttpContextAccessor : IHttpContextAccessor
-    {
-        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }

@@ -9,8 +9,6 @@
 (function () {
   'use strict';
 
-  const USE_MOCK_CLASHES = true;   // server endpoint may not exist yet
-
   // ── Boot guard — wait for STING_VIEWER to be ready ────────────────────
   // C3: bail with a visible error card after 30s so dependency failures
   // don't leave the user staring at an infinite spinner.
@@ -65,6 +63,17 @@
     const params = new URLSearchParams(location.search);
     const projectId = params.get('project') || '';
     const modelId   = params.get('model')   || '';
+    // Which model the HOST actually put on screen. planscape-web never puts
+    // ?model= in the iframe url — it drives the model over postMessage — so
+    // `modelId` above is empty in the web app and this is the only record of
+    // what is loaded. Starting a meeting re-navigates this document (see
+    // meetingJoinUrl), and without this the model was silently dropped on the
+    // way and never came back. Set from the 'load' / 'addModel' host command.
+    let hostActiveModelId = '';
+    window.addEventListener('sting:modelLoadRequested', (e) => {
+      const id = e && e.detail && e.detail.modelId;
+      if (id) hostActiveModelId = String(id);
+    });
     // U10 — resolve the API base from (in order): explicit window override
     // for embedders, user-saved Settings popover value (LAN/staging/on-prem),
     // build-time injected EXPO_PUBLIC_API_BASE, the URL ?api= param for
@@ -103,6 +112,15 @@
     // iframe) can pass ?embed=1 to suppress the auto-redirect on 401 and
     // handle re-auth themselves.
     const embedMode     = params.get('embed') === '1';
+    // Being inside ANY iframe counts as embedded, whether or not the host
+    // remembered to pass ?embed=1 — and planscape-web does not pass it. That
+    // omission meant a single 401 sent this document to /index.html, so the
+    // old "office dashboard" page appeared INSIDE the 3D viewer panel and the
+    // model was gone. A frame must never navigate itself out from under its
+    // host; it should report the problem and let the host re-auth.
+    let inIframe = false;
+    try { inIframe = window.top !== window.self; } catch (_) { inIframe = true; } // cross-origin throws
+    const embeddedNoRedirect = embedMode || inIframe;
 
     // ── State ───────────────────────────────────────────────────────────
     const state = {
@@ -114,9 +132,14 @@
       elementMap: {},
       meshMeta: new Map(),     // mesh.uuid → meta (M0 resolver — verified at load)
       guidMeshes: new Map(),   // guid → mesh[] (multi-mesh elements)
-      members: [{ id: 'me', name: 'You', initials: 'YO' },
-                { id: 'sd', name: 'Sting Davis', initials: 'SD' },
-                { id: 'se', name: 'Sentongo E.', initials: 'SE' }],
+      // Assignable people. The ONLY source is GET /api/projects/{id}/members.
+      // No seed, and no synthetic "You" entry: that carried the literal id
+      // 'me', which is not a user id, so an issue assigned to it could never
+      // resolve to a person server-side. An empty list means "we do not know
+      // who is on this project" and the pickers say so rather than offering
+      // someone who might be wrong.
+      members: [],
+      rosterState: 'loading',   // loading | ok | empty | unavailable
       activeDisciplines: new Set(),   // empty = all visible
       selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
                                       // backward-compat with downstream
@@ -129,7 +152,14 @@
                                       // selection-highlight overlay (≠ appearance).
       selectedClashId: null,
       selectedIssueId: null,
-      activeLevels: new Set(),
+      // Level filter selection — an ARRAY, and the single source of truth.
+      // It was a Set that nothing ever read or wrote; the real selection lived
+      // in the DOM as .level-pill.active. Now that the control is a <select>,
+      // state has to own it: a saved view can restore SEVERAL levels, which a
+      // single-select cannot represent, so the filter reads this array and the
+      // dropdown reports "Multiple (N)" when it can't show the selection.
+      activeLevels: [],               // empty = every level visible
+      levelOptions: [],               // level ids currently offered, in order
       levelBands: [],
       activeNav: 'orbit',
       activeTool: 'orbit',   // exclusive tool: orbit | pick | measure | markup | section
@@ -210,11 +240,13 @@
           // so a future dashboard-side `?next=` handler can pick it up.
           // Embedders pass ?embed=1 to keep the viewer mounted and
           // re-auth themselves.
-          toast('Sign-in expired — redirecting to login…', 'error');
+          toast(embeddedNoRedirect
+            ? 'Sign-in expired — reload the page to continue.'
+            : 'Sign-in expired — redirecting to login…', 'error');
           if (typeof localStorage !== 'undefined') {
             try { localStorage.removeItem('planscape_token'); } catch (_) {}
           }
-          if (!embedMode) {
+          if (!embeddedNoRedirect) {
             const next = location.pathname + location.search;
             try { sessionStorage.setItem('planscape_post_login_next', next); } catch (_) {}
             setTimeout(() => { location.href = `${apiBase}/index.html`; }, 1500);
@@ -315,8 +347,10 @@
           const initials = (name || 'YO').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
           $('#userChip').textContent = initials || 'YO';
           $('#userChip').title = name;
-          // Replace the placeholder "me" member with the real one.
-          state.members = [{ id, name, initials }, ...state.members.filter(m => m.id !== 'me')];
+          // Deliberately does NOT add the current user to state.members.
+          // Being signed in does not make you assignable on this project —
+          // only the project roster decides that, and loadProjectMembers()
+          // pins you to the top of it if you are on it.
         }
       }
       if (apiEnabled && !projectId) {
@@ -341,16 +375,48 @@
       }
       renderModels();
 
-      // Element map
-      if (projectId && modelId) {
-        const map = await api(`/api/projects/${projectId}/models/${modelId}/element-map`);
-        if (map) {
-          state.elementMap = map;
-          if (V && V.scene) {
-            // forward to original viewer command so it can populate userData links
-            handleHostCommand({ type: 'elementMap', payload: { map } });
-          }
+      // Element map. This used to be gated on `modelId` — the ?model= param —
+      // which planscape-web NEVER sets, because it drives the model over
+      // postMessage instead. So in the web app the map was simply never
+      // fetched: state.elementMap stayed empty and the Model overview read
+      // "0 Elements / 0% Tagged / 0% Compliance" next to a model that had
+      // just rendered 562 meshes. The model tree, discipline chips, level
+      // bands and the properties panel all read the same map, so they were
+      // starved too. Fetch for whichever model we know about, from either
+      // source, and re-fetch when the host later tells us what it loaded.
+      await loadElementMap(modelId || hostActiveModelId);
+      window.addEventListener('sting:modelLoadRequested', (e) => {
+        const id = e && e.detail && e.detail.modelId;
+        if (id && id !== state.elementMapModelId) loadElementMap(String(id));
+      });
+
+      async function loadElementMap(mid) {
+        if (!projectId || !mid || mid === state.elementMapModelId) return;
+        let map = null;
+        try {
+          map = await api(`/api/projects/${projectId}/models/${mid}/element-map`);
+        } catch (err) {
+          // A model published as pure geometry has no map — that is a normal
+          // state, not a failure. Leave the KPIs at zero and say nothing.
+          console.warn('[coord] element-map unavailable', err && err.message);
+          return;
         }
+        if (!map || !Object.keys(map).length) return;
+        state.elementMap = map;
+        state.elementMapModelId = mid;
+        if (V && V.scene) {
+          // forward to original viewer command so it can populate userData links
+          handleHostCommand({ type: 'elementMap', payload: { map } });
+        }
+        // The map can now land AFTER these were first built (the host tells us
+        // the model id asynchronously), so refresh everything that reads it.
+        try { buildModelTree(); } catch (_) {}
+        try { buildDisciplineChips(); } catch (_) {}
+        try { buildLevelStrip(); } catch (_) {}
+        // Only refresh the overview when nothing is selected — otherwise this
+        // would wipe the element card the user is reading.
+        const selCount = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
+        if (!selCount && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
       }
       buildModelTree();
       buildDisciplineChips();
@@ -374,6 +440,11 @@
       // with a Retry affordance. The boot overlay lives in viewer.html; this
       // script runs in the same document so it drives #bootLoader directly.
 
+      // How long to wait for the HOST to drive a model onto the screen before
+      // giving up and showing an actionable error. Generous: a large GLB on a
+      // cold free-tier backend can legitimately take a while.
+      const HOST_LOAD_WATCHDOG_MS = 45000;
+
       function bootLoaderEl() { return document.getElementById('bootLoader'); }
       function setBootProgress(pct, label) {
         const elp = document.getElementById('loadingProgress');
@@ -393,7 +464,11 @@
         setBootMessage('Loading model');
         setBootProgress(0, null);
       }
-      function showBootError(msg, canRetry) {
+      // The Retry action is pluggable: the URL-param path retries the GLB
+      // fetch, but the host-driven path (no ?model= — the web app posts a
+      // 'load' command instead) has nothing to re-fetch, so it reloads.
+      let bootRetryAction = () => { resetBootLoader(); loadModelGlb(); };
+      function showBootError(msg, canRetry, onRetry) {
         const bl = bootLoaderEl();
         toast(msg, 'error');                       // keep the toast too
         if (!bl) return;
@@ -401,6 +476,7 @@
         const sp = bl.querySelector('.spinner'); if (sp) sp.style.display = 'none';
         setBootMessage(msg);
         setBootProgress(null, '');
+        if (onRetry) bootRetryAction = onRetry;
         let retry = bl.querySelector('#bootRetryBtn');
         if (canRetry) {
           if (!retry) {
@@ -408,7 +484,7 @@
             retry.id = 'bootRetryBtn';
             retry.textContent = 'Retry';
             retry.style.cssText = 'margin-top:14px;padding:7px 20px;cursor:pointer;border-radius:6px;border:1px solid #2a6fd0;background:#1d6fd0;color:#fff;font:inherit;';
-            retry.addEventListener('click', () => { resetBootLoader(); loadModelGlb(); });
+            retry.addEventListener('click', () => bootRetryAction());
             bl.appendChild(retry);
           }
           retry.style.display = '';
@@ -466,9 +542,15 @@
           if (res.status === 401) {
             if (!authChallenged) {
               authChallenged = true;
-              showBootError('Sign-in expired — redirecting to login…', false);
+              // Embedded: stay put and offer a reload. Navigating the frame to
+              // the old dashboard is what replaced the 3D view with a marketing
+              // page and lost the model.
+              showBootError(embeddedNoRedirect
+                ? 'Sign-in expired — reload the page to load this model.'
+                : 'Sign-in expired — redirecting to login…',
+                embeddedNoRedirect, () => location.reload());
               try { localStorage.removeItem('planscape_token'); } catch (_) {}
-              if (!embedMode) {
+              if (!embeddedNoRedirect) {
                 // Same target as the api() helper above: dashboard's login
                 // overlay at /index.html (the bare /login path is a SPA hash).
                 const next = location.pathname + location.search;
@@ -508,28 +590,68 @@
       if (projectId && modelId) {
         await loadModelGlb();
       } else {
-        // No model to load on this view — unblock meeting co-presence (BLK-5)
-        // so a model-less coordination session still connects.
+        // No model in OUR url — but that is the NORMAL case for the web app:
+        // planscape-web builds the iframe src with only project/token/tenant/
+        // user and drives the model over postMessage ('load' / 'addModel').
+        // So we must not treat this as "nothing to load" and walk away: the
+        // boot overlay is dismissed only by a SUCCESSFUL load (viewer.html),
+        // which meant any hiccup in the host's load path — manifest throw,
+        // empty model list, ready-handshake never firing, failed fetch — left
+        // a permanent "Loading model 0%" spinner with no error and no Retry.
+        // Watchdog: if no geometry is on screen and the host never even asked
+        // us to load anything, surface it instead of spinning forever.
         try { window.STING_VIEWER && window.STING_VIEWER.markModelReady && window.STING_VIEWER.markModelReady(); } catch (_) {}
+        let hostLoadRequested = false;
+        window.addEventListener('sting:modelLoadRequested', () => { hostLoadRequested = true; });
+        window.addEventListener('sting:modelLoadFailed', () => {
+          showBootError('Failed to load the model file.', true, () => location.reload());
+        });
+        setTimeout(() => {
+          const V = window.STING_VIEWER;
+          const hasGeometry = !!(V && V.modelRoot && V.modelBounds && !V.modelBounds.isEmpty());
+          const bl = bootLoaderEl();
+          if (hasGeometry || !bl || bl.style.display === 'none') return;   // loaded fine
+          showBootError(hostLoadRequested
+            ? 'The model is taking longer than expected to load.'
+            // Don't blame publishing: the far more common cause is that this
+            // page never sent us a model (expired sign-in, or the host's load
+            // never fired). Telling a user to re-publish a model that is
+            // already published sends them down the wrong path entirely.
+            : 'This page didn\'t send a model to the viewer — try reloading.',
+            true, () => location.reload());
+        }, HOST_LOAD_WATCHDOG_MS);
       }
 
       // Project members — populates assignee + watcher pickers with the
-      // real org/project roster instead of the hardcoded "Sting Davis /
-      // Sentongo E." demo seed. Falls back silently to the seed list when
-      // the endpoint is unavailable (offline, permission denied, etc.).
+      // canonical org/project roster. When the endpoint is unavailable
+      // (offline, permission denied) the pickers offer only the signed-in
+      // user — never an invented colleague.
       await loadProjectMembers();
 
       // Issues + clashes + site photos (Slice 4b)
       await loadIssues();
       await loadClashes();
       await loadSitePhotos();
+
+      // The Model overview reads state.clashes / state.issues, but it is
+      // rendered BEFORE these resolve — so it kept reporting "0 Clashes"
+      // while the tray right below it said "Showing 12 of 12". Nothing ever
+      // re-rendered it, so the panel was a snapshot of an empty state.
+      // Refresh once the real counts are in (never over a selected element —
+      // that would wipe the card the user is reading).
+      const selN = (state.selectedElementGuids && state.selectedElementGuids.size) || 0;
+      if (!selN && !state.selectedElementGuid) { try { renderProperties(null); } catch (_) {} }
     }
 
     async function loadProjectMembers() {
-      if (!projectId) return;
+      if (!projectId) { state.members = []; state.rosterState = 'unavailable'; return; }
       const data = await api(`/api/projects/${projectId}/members`);
+      // api() returns null for every failure — a 403 from a member who can't
+      // read the roster looks the same as a timeout. Either way we don't know
+      // who is on this project, which is different from knowing it is empty.
+      if (data === null) { state.members = []; state.rosterState = 'unavailable'; return; }
       const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
-      if (!list.length) return;     // keep demo seed when API empty/unauth
+      if (!list.length) { state.members = []; state.rosterState = 'empty'; return; }
       const me = state.currentUser;
       const meId = me && (me.id || me.userId);
       const mapped = list.map(m => {
@@ -547,6 +669,36 @@
         return (a.name || '').localeCompare(b.name || '');
       });
       state.members = sorted;
+      state.rosterState = 'ok';
+    }
+
+    /// Why the people pickers are empty, in words the user can act on.
+    /// Never returns a person — an unavailable roster offers nobody.
+    function rosterEmptyReason() {
+      switch (state.rosterState) {
+        case 'loading':     return 'Loading project members…';
+        case 'empty':       return 'No members on this project yet';
+        case 'unavailable': return 'Project members unavailable';
+        default:            return 'No members available';
+      }
+    }
+
+    /// Fill a <select> from the canonical roster. When the roster is empty the
+    /// control is disabled and explains itself, so nobody can be assigned by
+    /// accident — assigning an issue to the wrong person is worse than not
+    /// being able to assign it yet.
+    function fillMemberSelect(sel, placeholder) {
+      if (!sel) return;
+      if (!state.members.length) {
+        sel.innerHTML = `<option value="">${escapeHtml(rosterEmptyReason())}</option>`;
+        sel.disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+        state.members.map(m =>
+          `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`
+        ).join('');
     }
 
     // Forward a command to the original viewer's handleCommand by dispatching
@@ -777,19 +929,42 @@
       const u = new URL(location.href);
       u.searchParams.set('meeting', sessionId);
       if (projectId) u.searchParams.set('project', projectId);
-      if (modelId) u.searchParams.set('model', modelId);
+      // Carry the model through the re-navigation. `modelId` is the ?model=
+      // param, which is EMPTY in the web app (the host drives the model over
+      // postMessage), so falling back to the host-loaded id is what stops
+      // "start a meeting" from reloading into a permanently model-less
+      // viewer: the host does not re-post 'load' after this document
+      // reloads, so nothing else would ever bring the geometry back.
+      const carryModelId = modelId || hostActiveModelId;
+      if (carryModelId) u.searchParams.set('model', carryModelId);
       return u.toString();
     }
-    function copyToClipboard(text) {
+    // Returns whether the text actually reached the clipboard, so callers can
+    // stop claiming a copy that did not happen.
+    //
+    // navigator.clipboard.writeText rejects ASYNCHRONOUSLY when a permissions
+    // policy blocks it — which is what happens whenever an embedding page's
+    // iframe `allow` attribute omits clipboard-write (that attribute REPLACES
+    // the default policy). The old synchronous try/catch could not observe that
+    // rejection: it returned immediately, the execCommand fallback never ran,
+    // and startMeeting still toasted "join link copied" over an untouched
+    // clipboard. Awaiting it makes the failure visible and lets the fallback do
+    // its job.
+    async function copyToClipboard(text) {
       try {
-        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
       } catch (_) {}
       try {
         const ta = document.createElement('textarea');
         ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); ta.remove();
+        const ok = document.execCommand('copy'); ta.remove();
+        return !!ok;
       } catch (_) {}
+      return false;
     }
     async function startMeeting() {
       if (!projectId) return toast('No project — cannot start a meeting', 'warn');
@@ -801,8 +976,12 @@
       const id = resp && (resp.id || resp.Id);
       if (!id) return toast('Could not start meeting (check sign-in)', 'error');
       const link = meetingJoinUrl(id);
-      copyToClipboard(link);
-      toast('Meeting started — join link copied. Opening session…');
+      const copied = await copyToClipboard(link);
+      // If the clipboard was refused, don't say it worked — point at where the
+      // link can still be got, which is the address bar once we re-navigate.
+      toast(copied
+        ? 'Meeting started — join link copied. Opening session…'
+        : 'Meeting started — opening session… (copy the link from the address bar to invite others)');
       logHistory && logHistory('Started a live meeting');
       // Reload this tab INTO the meeting so meeting-sync.js activates.
       setTimeout(() => { location.href = link; }, 700);
@@ -812,11 +991,13 @@
       if (!id) return;
       location.href = meetingJoinUrl(id);
     }
-    function copyMeetingLink() {
+    async function copyMeetingLink() {
       const cur = new URLSearchParams(location.search).get('meeting');
       if (!cur) return toast('Not in a meeting yet — Start one first', 'warn');
-      copyToClipboard(meetingJoinUrl(cur));
-      toast('Join link copied to clipboard');
+      const copied = await copyToClipboard(meetingJoinUrl(cur));
+      toast(copied
+        ? 'Join link copied to clipboard'
+        : 'Clipboard blocked — copy the link from the address bar instead', 'warn');
     }
     document.addEventListener('click', () => $$('.menu.open').forEach(m => m.classList.remove('open')));
 
@@ -2694,24 +2875,61 @@
       });
       const fallback = ['B1','GF','L01','L02','L03','L04','RF'];
       const levels = arr.length ? arr : fallback;
-      strip.appendChild(el('button', { class: 'nav-arrow' }, '◀'));
-      levels.forEach(lvl => {
-        const pill = el('button', { class: 'level-pill', 'data-lvl': lvl }, lvl);
-        pill.addEventListener('click', (e) => {
-          if (e.shiftKey) pill.classList.toggle('active');
-          else {
-            const isActive = pill.classList.contains('active');
-            $$('.level-pill').forEach(p => p.classList.remove('active'));
-            if (!isActive) pill.classList.add('active');
-          }
-          applyLevelFilter();
-        });
-        strip.appendChild(pill);
+
+      // A dropdown, not a scrolling pill rail with ◀ ▶ steppers.
+      //
+      // The pill list grew with the building: on a tower it overflowed into a
+      // horizontal scroller that ate most of the strip's 70% max-width, and
+      // reaching an upper level meant either scrolling the rail or clicking ▶
+      // once per storey. A <select> is a fixed width whatever the level count,
+      // needs one interaction to reach any level, and gets keyboard and
+      // touch behaviour from the platform for free. "All levels" is the first
+      // option, so the reset that used to be a separate pill is now just the
+      // top of the list.
+      state.levelOptions = levels.slice();
+      const sel = el('select', { class: 'level-select', title: 'Filter the model by level' });
+      sel.appendChild(el('option', { value: '' }, 'All levels'));
+      levels.forEach(lvl => sel.appendChild(el('option', { value: lvl }, lvl)));
+      sel.addEventListener('change', () => {
+        // '' is "All levels"; anything else is a single level. A multi-level
+        // selection can only arrive from a saved view, and picking anything
+        // here deliberately replaces it.
+        state.activeLevels = sel.value ? [sel.value] : [];
+        applyLevelFilter();
+        syncLevelSelect();
       });
-      strip.appendChild(el('button', { class: 'nav-arrow' }, '▶'));
+      strip.appendChild(sel);
+      syncLevelSelect();
 
       // Compute Y bands from model bounds — fall back to even slices.
       computeLevelBands(levels);
+    }
+
+    // Level-strip helpers. Only the real level pills carry data-lvl; the "All"
+    // pill deliberately does not, so every selector here is scoped to
+    // [data-lvl] — an "active" All pill would otherwise put an undefined level
+    // into applyLevelFilter's set, which matches no band and would hide the
+    // whole model instead of showing it. applyLevelFilter uses the same scope.
+    /// Reflect state.activeLevels into the dropdown.
+    ///
+    /// A saved view can restore more levels than a single-select can show. In
+    /// that case a synthetic "Multiple (N)" option is added and selected, so
+    /// the control never claims a single level while the model is filtered to
+    /// several. Choosing any real option from the list clears it.
+    function syncLevelSelect() {
+      const sel = $('#levelStrip .level-select');
+      if (!sel) return;
+      const active = state.activeLevels || [];
+      const multi = sel.querySelector('option[data-multi]');
+      if (active.length > 1) {
+        const opt = multi || el('option', { value: '__multi', 'data-multi': '1' }, '');
+        opt.textContent = `Multiple (${active.length})`;
+        if (!multi) sel.appendChild(opt);
+        sel.value = '__multi';
+      } else {
+        if (multi) multi.remove();
+        sel.value = active[0] || '';
+      }
     }
 
     function computeLevelBands(levels) {
@@ -2768,7 +2986,7 @@
     function invalidateCentroidCache() { centroidYCache.clear(); }
 
     function applyLevelFilter() {
-      const active = $$('.level-pill.active').map(p => p.dataset.lvl);
+      const active = state.activeLevels || [];   // empty = unfiltered
       if (!active.length) {
         V.renderer.clippingPlanes = [];
         if (V.modelRoot) vizGroup().traverse(o => { if (o.isMesh) o.visible = true; });
@@ -2806,7 +3024,7 @@
         camPos: cam.position.toArray(),
         camTarget: V.controls.target.toArray(),
         disciplines: Array.from(state.activeDisciplines),
-        levels: $$('.level-pill.active').map(p => p.dataset.lvl),
+        levels: (state.activeLevels || []).slice(),
         viz: serializeViz(),   // C5 — full visualize state (scheme + modes + custom colours)
       };
     }
@@ -2823,8 +3041,9 @@
         applyDisciplineFilter(s.disciplines);
       }
       if (Array.isArray(s.levels)) {
-        $$('.level-pill').forEach(p => p.classList.toggle('active', s.levels.includes(p.dataset.lvl)));
+        state.activeLevels = s.levels.slice();
         applyLevelFilter();
+        syncLevelSelect();
       }
       // C5 — restore the full visualize appearance, then mirror it to a live meeting.
       if (s.viz) { applyVizSnapshot(s.viz); broadcastAppearance(); }
@@ -3688,52 +3907,16 @@
       // U4 — show inline loader while the request is in flight.
       const body = $('#clashesBody');
       if (body) body.innerHTML = '<div class="inline-loader"><span class="dot-spin"></span>Loading clashes…</div>';
-      let data = null;
-      if (!USE_MOCK_CLASHES && projectId) {
-        data = await api(`/api/projects/${projectId}/clashes`);
-      }
-      state.clashes = (Array.isArray(data) ? data : (data?.items || null)) || mockClashes();
+      // The USE_MOCK_CLASHES flag that used to gate this is gone along with the
+      // generator it selected — there is nothing left to switch between.
+      const data = projectId ? await api(`/api/projects/${projectId}/clashes`) : null;
+      // No fabrication fallback. An empty or failed response means we show
+      // nothing and say so — inventing clashes a coordinator might act on is
+      // far worse than an empty list.
+      state.clashes = Array.isArray(data) ? data : (data?.items || []);
       placeClashPins();
       renderClashes();
       updateBadges();
-    }
-
-    function mockClashes() {
-      // Synthesise from element map so positions render somewhere visible.
-      const guids = Object.keys(state.elementMap || {});
-      if (!guids.length) {
-        return [
-          { id: 'CLH-1', type: 'HARD', elementA: { guid: 'a', name: 'AHU-001' }, elementB: { guid: 'b', name: 'Beam-044' }, overlap_mm: 145, status: 'NEW', discPair: 'MECH/STR' },
-          { id: 'CLH-2', type: 'HARD', elementA: { guid: 'c', name: 'Duct-022' }, elementB: { guid: 'd', name: 'Col-018' }, overlap_mm: 88, status: 'NEW', discPair: 'MECH/STR' },
-          { id: 'CLH-3', type: 'SOFT', elementA: { guid: 'e', name: 'Pipe-009' }, elementB: { guid: 'f', name: 'Duct-033' }, overlap_mm: 42, status: 'OPEN', discPair: 'PLMB/MECH', assignedTo: 'Sentongo E.' },
-          { id: 'CLH-4', type: 'HARD', elementA: { guid: 'g', name: 'AHU-003' }, elementB: { guid: 'h', name: 'Beam-081' }, overlap_mm: 201, status: 'RESOLVED', discPair: 'MECH/STR', assignedTo: 'Sting Davis' }
-        ];
-      }
-      const pick = () => guids[Math.floor(Math.random() * guids.length)];
-      const pickPair = () => {
-        // R6 — never clash an element with itself; retry up to a bounded
-        // number of times before giving up (real models have far more
-        // than 2 elements so this almost always succeeds first try).
-        let a = pick(), b = pick(), guard = 6;
-        while (a === b && guard-- > 0) b = pick();
-        return [a, b];
-      };
-      const out = [];
-      for (let i = 1; i <= 12; i++) {
-        const [a, b] = pickPair();
-        if (a === b) continue;
-        const ma = state.elementMap[a] || {}, mb = state.elementMap[b] || {};
-        out.push({
-          id: `CLH-${String(i).padStart(3, '0')}`,
-          type: i % 3 === 0 ? 'SOFT' : 'HARD',
-          elementA: { guid: a, name: ma.name || a.slice(0, 8) },
-          elementB: { guid: b, name: mb.name || b.slice(0, 8) },
-          overlap_mm: Math.round(20 + Math.random() * 200),
-          status: i % 6 === 0 ? 'RESOLVED' : (i % 4 === 0 ? 'OPEN' : 'NEW'),
-          discPair: `${(ma.discipline || 'MECH').slice(0, 4)}/${(mb.discipline || 'STR').slice(0, 4)}`
-        });
-      }
-      return out;
     }
 
     function placeClashPins() {
@@ -3921,7 +4104,12 @@
       if (sf !== 'any') rows = rows.filter(c => c.status === sf);
       if (tf !== 'any') rows = rows.filter(c => c.type === tf);
 
-      body.innerHTML = rows.length ? '' : '<div class="empty-state">No clashes match the filter</div>';
+      // "No clashes match the filter" was shown even with no filter set and
+      // nothing loaded, which reads as "results are hidden" when the truth is
+      // "detection has never run". Separate the two.
+      body.innerHTML = rows.length ? '' : (state.clashes.length
+        ? '<div class="empty-state">No clashes match the filter</div>'
+        : '<div class="empty-state">No clashes — run detection</div>');
       if (rows.length) {
         const table = el('table', { class: 'dtable' });
         table.innerHTML = `<thead><tr>
@@ -4316,7 +4504,7 @@
           '-',
           { glyph: 'ℹ', label: 'Properties',           run: () => { $('.tab-bar .tab[data-tab=properties]')?.click(); renderProperties(state.selectedElementGuid); } },
           { glyph: '🚩', label: 'Create issue',         run: () => openIssueModal({ guid, meta }) },
-          tag ? { glyph: '🏷', label: 'Copy STING tag', run: () => { copyToClipboard(String(tag)); toast('Tag copied'); } } : null,
+          tag ? { glyph: '🏷', label: 'Copy STING tag', run: async () => { const ok = await copyToClipboard(String(tag)); toast(ok ? 'Tag copied' : 'Clipboard blocked — could not copy the tag', ok ? undefined : 'warn'); } } : null,
           '-',
           { glyph: '✕', label: 'Deselect',             run: () => selectElementByGuid(null) },   // B2
         ].filter(Boolean), x, y);
@@ -4382,12 +4570,39 @@
       // Restore persisted collapse state + widths on load.
       try {
         const s = JSON.parse(localStorage.getItem(PANEL_KEY) || '{}');
-        if (s.lw) document.documentElement.style.setProperty('--panel-left-width', s.lw);    // V2
-        if (s.rw) document.documentElement.style.setProperty('--panel-right-width', s.rw);
+        // Clamp restored widths to the SAME range the drag handle enforces
+        // (180-560), and additionally to a sane share of the CURRENT viewport.
+        // Dragging clamped but restoring did not, so a width saved on a wide
+        // monitor came back verbatim on a smaller one: the panel overflowed
+        // the viewport and took its own drag grip off-screen with it, leaving
+        // no way to get it back. Anything unparseable is dropped rather than
+        // applied blindly.
+        const clampPanelPx = (raw) => {
+          const n = parseFloat(String(raw));
+          if (!isFinite(n) || n <= 0) return null;
+          const viewportCap = Math.max(180, Math.floor(window.innerWidth * 0.4));
+          return Math.min(560, Math.max(180, Math.min(n, viewportCap))) + 'px';
+        };
+        const lw = s.lw ? clampPanelPx(s.lw) : null;
+        const rw = s.rw ? clampPanelPx(s.rw) : null;
+        if (lw) document.documentElement.style.setProperty('--panel-left-width', lw);    // V2
+        if (rw) document.documentElement.style.setProperty('--panel-right-width', rw);
         if (s.l) shell.classList.add('left-collapsed');
         if (s.r) shell.classList.add('right-collapsed');
         if (s.b) $('#bottomPanel')?.classList.add('collapsed');
         if (s.l || s.r || s.b || s.lw || s.rw) onResize();
+      } catch (e) {}
+      // Phones start with BOTH panels closed so the 3D view owns the screen.
+      // This deliberately overrides the persisted desktop state: those widths
+      // are restored from localStorage, and a saved "both panels open" would
+      // otherwise reproduce the zero-width-canvas bug on a phone. The header
+      // toggles still open them (as overlays — see the max-width:700px block
+      // in coordination-viewer.css), so nothing is lost, just out of the way.
+      try {
+        if (window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
+          shell.classList.add('left-collapsed', 'right-collapsed');
+          onResize();
+        }
       } catch (e) {}
       // V2 — each rail handle: DRAG to resize the panel's width live (clamped), CLICK (no
       // drag) to collapse/expand. Width persists; the canvas + camera resize live via the
@@ -5012,6 +5227,9 @@
       const modal = $('#issueModal');
       modal.classList.add('open');
       $('#imTitle').value = '';
+      // Clear any validation state left over from a previous attempt.
+      $('#imTitle').classList.remove('invalid');
+      const titleErr0 = $('#imTitleError'); if (titleErr0) titleErr0.hidden = true;
       $('#imDesc').value  = '';
       const initialEl = $('#imInitialComment'); if (initialEl) initialEl.value = '';
       $('#imScreenshot').innerHTML = '';
@@ -5042,18 +5260,11 @@
       modal.dataset.linked = JSON.stringify(linked);
       renderLinkedElements(linked);
 
-      // assignee + watcher pickers — populated from project members API
-      // (see loadProjectMembers in bootstrap), with the demo-seed members
-      // as fallback so first-time / offline runs aren't empty.
-      const assigneeSel = $('#imAssignee');
-      assigneeSel.innerHTML = '<option value="">— Unassigned —</option>' +
-        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
-
-      const watchSel = $('#imWatchersSelect');
-      if (watchSel) {
-        watchSel.innerHTML = '<option value="">— Add a watcher —</option>' +
-          state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
-      }
+      // Assignee + watcher pickers, sourced ONLY from the canonical project
+      // roster (GET /api/projects/{id}/members). No free text and no seed:
+      // if we don't know who is on the project, we offer nobody and say why.
+      fillMemberSelect($('#imAssignee'), '— Unassigned —');
+      fillMemberSelect($('#imWatchersSelect'), '— Add a watcher —');
       modal.dataset.watchers = '[]';
       const chips = $('#imWatcherChips'); if (chips) chips.innerHTML = '';
 
@@ -5246,6 +5457,13 @@
         wrap.dataset.b64 = b64;
       });
       $('#imSubmit').addEventListener('click', submitIssue);
+      // Clear the title error as soon as the user starts fixing it, rather
+      // than leaving a stale 'required' message under a filled field.
+      $('#imTitle')?.addEventListener('input', () => {
+        if (!$('#imTitle').value.trim()) return;
+        $('#imTitle').classList.remove('invalid');
+        const e2 = $('#imTitleError'); if (e2) e2.hidden = true;
+      });
     }
 
     async function submitIssue() {
@@ -5281,24 +5499,51 @@
         modelY: lastClickPoint?.y ?? null,
         modelZ: lastClickPoint?.z ?? null,
       };
-      if (!payload.title) return toast('Title required', 'warn');
+      // Title is required. This used to be a toast and nothing else — and the
+      // toast rendered UNDER the modal backdrop, so Create appeared to do
+      // nothing at all. Mark the field, say why next to it, and put the cursor
+      // in it. (The toast still fires; it is now above the backdrop too.)
+      const titleEl = $('#imTitle');
+      const titleErr = $('#imTitleError');
+      if (!payload.title) {
+        titleEl.classList.add('invalid');
+        if (titleErr) titleErr.hidden = false;
+        titleEl.focus();
+        return toast('A title is required to create an issue', 'warn');
+      }
+      titleEl.classList.remove('invalid');
+      if (titleErr) titleErr.hidden = true;
 
-      let result;
-      if (projectId) {
-        result = await api(`/api/projects/${projectId}/issues`, {
+      if (!projectId) {
+        return toast('No project — cannot create an issue here.', 'error');
+      }
+
+      const submitBtn = $('#imSubmit');
+      const prevLabel = submitBtn ? submitBtn.textContent : null;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating…'; }
+      let created;
+      try {
+        created = await api(`/api/projects/${projectId}/issues`, {
           method: 'POST', body: JSON.stringify(payload)
         });
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = prevLabel; }
       }
-      const created = result || Object.assign({
-        id: 'local-' + Date.now(),
-        code: 'ISS-LOCAL-' + (state.issues.length + 1),
-        status: status,
-        slaBreached: false
-      }, payload);
+
+      // api() returns null for every failure. This used to fabricate a
+      // stand-in issue (id 'local-…', code 'ISS-LOCAL-n'), push it into the
+      // list and toast SUCCESS — so a rejected or failed create looked
+      // identical to a real one, and the row vanished on the next reload
+      // with no record anywhere that it had ever failed.
+      if (!created || !created.id) {
+        return toast('Could not create the issue — it was not saved. Check your connection and try again.', 'error');
+      }
 
       // Upload any attachments + post the initial comment now the issue
       // exists. Both are best-effort — failures don't unwind the issue.
-      if (projectId && created.id && !String(created.id).startsWith('local-')) {
+      // (The `local-` id guard that used to be here is gone with the
+      // fabricated stand-in issue; we only reach this with a real server id.)
+      {
         for (const f of pendingIssueAttachments) {
           try {
             const fd = new FormData();
@@ -6162,9 +6407,19 @@
           onResize();
         });
       }
-      $('#btnRunDetect').addEventListener('click', () => {
-        toast('Running clash detection… (mock)', 'warn');
-        setTimeout(() => { state.clashes = mockClashes(); placeClashPins(); renderClashes(); toast('Clash detection complete', 'success'); }, 1200);
+      $('#btnRunDetect').addEventListener('click', async () => {
+        // Previously this invented results client-side and reported success.
+        // Run the REAL detection job on the server, then reload the roster.
+        if (!projectId) return toast('No project — cannot run detection', 'warn');
+        toast('Running clash detection…');
+        try {
+          await api(`/api/projects/${projectId}/clashes/run`, { method: 'POST' });
+          await loadClashes();
+          toast(`Clash detection complete — ${state.clashes.length} found`, 'success');
+        } catch (err) {
+          console.warn('[coord] clash detection failed', err && err.message);
+          toast('Clash detection failed — see console', 'error');
+        }
       });
       $('#btnExportCsv').addEventListener('click', exportClashesCsv);
       $('#btnExportIssues').addEventListener('click', exportIssuesCsv);
@@ -6230,26 +6485,25 @@
       const w = c.width = c.clientWidth;
       const h = c.height = c.clientHeight;
       ctx.fillStyle = '#1C1F26'; ctx.fillRect(0, 0, w, h);
-      // mock data
-      const sessions = 10;
-      const clashTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 60 - i * 5 + Math.random() * 8));
-      const issueTrend  = Array.from({ length: sessions }, (_, i) => Math.max(0, 18 - i * 1.4 + Math.random() * 3));
-      drawSpark(ctx, clashTrend, w, h, '#EF4444', 0);
-      drawSpark(ctx, issueTrend, w, h, '#F59E0B', 1);
-      ctx.fillStyle = '#8892A4'; ctx.font = '11px Inter';
-      ctx.fillText('Clashes (red) · Issues (amber)  — last 10 sessions', 10, 16);
-    }
-    function drawSpark(ctx, data, w, h, colour) {
-      const max = Math.max(...data, 1);
-      ctx.beginPath();
-      data.forEach((v, i) => {
-        const x = 20 + (w - 40) * (i / (data.length - 1));
-        const y = h - 16 - (h - 40) * (v / max);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.stroke();
-    }
 
+      // This drew two Math.random() curves labelled "last 10 sessions" — a
+      // clash trend falling from ~60 to ~15 and an issue trend falling from
+      // ~18 to ~5. Reassuring, entirely invented, and redrawn differently on
+      // every visit to the tab. Nothing in the viewer records per-session
+      // history, and there is no clash/issue trend endpoint to read, so the
+      // honest state is "no data" until one exists.
+      //
+      // The one number we DO know is the live count, so show that rather than
+      // an empty box.
+      ctx.fillStyle = '#8892A4';
+      ctx.font = '12px Inter, system-ui, sans-serif';
+      ctx.fillText('No trend history recorded for this project yet.', 12, 26);
+      ctx.fillStyle = '#6B7480';
+      ctx.font = '11px Inter, system-ui, sans-serif';
+      ctx.fillText(
+        `Currently open — clashes: ${state.clashes.length} · issues: ${state.issues.length}`,
+        12, 48);
+    }
     // ── Viewport overlays (coords + minimap + level + nav + section) ───
     let lastClickPoint = null;
     function setupViewportOverlays() {
@@ -7299,7 +7553,15 @@
           const sel = state.selectedElementGuid;
           openIssueModal(sel ? { guid: sel, meta: state.elementMap?.[sel] || {} } : {});
         } else if (k >= '1' && k <= '7') {
-          const pills = $$('.level-pill'); const p = pills[parseInt(k, 10) - 1]; if (p) p.click();
+          // Same mapping the pill rail had: the list began with "All", so 1
+          // clears the filter and 2-7 pick the first six levels.
+          const n = parseInt(k, 10) - 1;
+          const opts = state.levelOptions || [];
+          if (n === 0) state.activeLevels = [];
+          else if (opts[n - 1]) state.activeLevels = [opts[n - 1]];
+          else return;
+          applyLevelFilter();
+          syncLevelSelect();
         }
       });
     }
@@ -7324,7 +7586,19 @@
         </div>`;
       wrap.appendChild(cta);
       $('#ctaBackToProjects', cta).addEventListener('click', () => {
-        location.href = (apiBase || '') + '/projects';
+        // apiBase is the JSON API's own origin (this viewer is served FROM
+        // it) — it has no /projects page, so navigating there 404s/blocks
+        // instead of showing anything useful. When this viewer is embedded
+        // in an iframe (the normal case, from planscape-web), the referrer
+        // is the web app that hosts a real /projects page — go there, and
+        // navigate the top-level tab, not just this iframe. Bare/standalone
+        // opens (no referrer) fall back to the API root as the least-bad option.
+        let target = (apiBase || '') + '/';
+        try {
+          if (document.referrer) target = new URL('/projects', document.referrer).toString();
+        } catch (_) {}
+        if (window.top && window.top !== window.self) window.top.location.href = target;
+        else location.href = target;
       });
       // Hide the boot loader behind it so it doesn't double-spin.
       const bl = $('#bootLoader'); if (bl) bl.style.display = 'none';
@@ -7365,7 +7639,7 @@
     }
 
     // ── Connectivity heartbeat (U6) ────────────────────────────────────
-    // Lightweight: ping /health every 15s and toggle the session pill.
+    // Lightweight: ping /health/live every 15s and toggle the session pill.
     // SignalR proper would need the full @microsoft/signalr browser bundle;
     // this gives the coordinator a real "Live / Offline" signal without
     // pulling in 100KB of dependencies. Browser online/offline events
@@ -7389,9 +7663,22 @@
       let alive = true;
       async function ping() {
         try {
-          const res = await fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' });
-          setOnline(res.ok);
-          alive = res.ok;
+          // /health/live, NOT /health. The full diagnostic at /health is
+          // deliberately locked down in production (private-range client IP +
+          // X-Health-Token, Program.cs), so a browser ALWAYS got 403 from it.
+          // The pill coped — see below — but the browser still logged a failed
+          // request every 15 seconds, and that noise buried real errors: a
+          // console captured while investigating a meeting bug showed 17
+          // errors, almost all of them this poll. /health/live is
+          // AllowAnonymous, returns 200 {status:"alive"}, exposes no topology,
+          // and answers precisely the question the pill asks.
+          await fetch(`${apiBase}/health/live`, { method: 'GET', cache: 'no-store' });
+          // ANY http response still means the API answered us, which is all
+          // this pill claims — checking `res.ok` would put it back on "Offline"
+          // against a healthy server the moment this endpoint's contract
+          // changed. Only a network-level failure (the catch below) is offline.
+          setOnline(true);
+          alive = true;
         } catch (_) {
           setOnline(false);
           alive = false;

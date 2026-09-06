@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
 using Xunit;
@@ -84,21 +82,13 @@ public class BimManagerOrAdminHandlerTests
 
         // Per-test isolated in-memory DB.
         var services = new ServiceCollection();
-        // Both stubs must be registered before AddDbContext so DI selects the
-        // 3-arg PlanscapeDbContext ctor — see StubTenantContext below.
-        services.AddSingleton<IHttpContextAccessor>(new StubHttpContextAccessor());
-        services.AddSingleton<ITenantContext>(new StubTenantContext(tenantId));
-        // The name must be hoisted out of the lambda: AddDbContext invokes the
-        // options action once per context instance, so generating it inline would
-        // hand the handler's own scope a brand-new empty store.
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
         var dbName = Guid.NewGuid().ToString();
         services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
-        // The handler resolves both of these from its own scope. Null store =
-        // "no revocation recorded"; the resolver is the real one so tenant
-        // overrides are parsed exactly as in production.
-        services.AddSingleton<IPermissionRevocationStore, NullPermissionRevocationStore>();
-        services.AddScoped<ITenantBimManagerRoleResolver>(s =>
-            new DbTenantBimManagerRoleResolver(s.GetRequiredService<PlanscapeDbContext>()));
+        services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -111,6 +101,7 @@ public class BimManagerOrAdminHandlerTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    // Required: the global tenant filter excludes rows whose TenantId is unset.
                     TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
@@ -120,6 +111,10 @@ public class BimManagerOrAdminHandlerTests
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
         var handler = new BimManagerOrAdminHandler(scopeFactory);
@@ -135,26 +130,5 @@ public class BimManagerOrAdminHandlerTests
         var requirement = new BimManagerOrAdminRequirement();
         var ctx = new AuthorizationHandlerContext(new[] { requirement }, user, resource: null);
         return (handler, ctx);
-    }
-
-    /// <summary>
-    /// PlanscapeDbContext applies a global filter of
-    /// <c>BypassTenantFilter || e.TenantId == CurrentTenantId</c> to every
-    /// ITenantScoped entity, and CurrentTenantId falls back to Guid.Empty
-    /// when no ITenantContext is wired. Without this stub the fixture's own
-    /// rows are filtered out and both DB grant paths are dead.
-    /// </summary>
-    private sealed class StubTenantContext : ITenantContext
-    {
-        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
-        public Guid TenantId { get; }
-        public string TenantSlug => "t";
-        public LicenseTier Tier => LicenseTier.Starter;
-        public bool MimEnabled => false;
-    }
-
-    private sealed class StubHttpContextAccessor : IHttpContextAccessor
-    {
-        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }

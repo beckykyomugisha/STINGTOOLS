@@ -37,6 +37,21 @@
       "from": "Published",
       "to": "Archived",
       "action": "archive"
+    },
+    {
+      "from": "WIP",
+      "to": "Archived",
+      "action": "cancel"
+    },
+    {
+      "from": "Shared",
+      "to": "Archived",
+      "action": "cancel"
+    },
+    {
+      "from": "Published",
+      "to": "Archived",
+      "action": "cancel"
     }
   ]
 }

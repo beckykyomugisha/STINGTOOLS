@@ -133,6 +133,10 @@ def _companions(processing_path: Path) -> list[Path]:
         parent / f"{stem}_sting.ifc",
         parent / f"{stem}.sync_result.json",
         processing_path.with_suffix(".sync_result.json"),
+        # SB-5a conflict sidecar — the record of which side of a two-way edit
+        # won. Left behind it would be the one artefact of a drop that never
+        # reaches done/, exactly when someone needs to audit the drop.
+        parent / f"{stem}.conflicts.jsonl",
         # GLB for the Planscape viewer — written for BOTH the input and the
         # token-stamped output, depending on which one was converted.
         processing_path.with_suffix(".glb"),

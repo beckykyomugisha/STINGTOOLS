@@ -717,7 +717,7 @@ namespace StingTools.UI
         {
             try
             {
-                bool ok = StingTools.UI.StingDockPanel.DispatchCommand("CreateObjectStyles");
+                bool ok = StingTools.UI.StingDockPanel.DispatchCommandSmart("CreateObjectStyles");
                 if (!ok)
                 {
                     MessageBox.Show(

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Planscape.Core.DTOs;
+using Planscape.Core;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Authorization;
 using Planscape.Infrastructure.Data;
@@ -297,37 +298,26 @@ public class AuthController : ControllerBase
     /// <summary>Exchange a refresh token for a new access token.</summary>
     /// <response code="200">New JWT access token and refresh token.</response>
     /// <response code="401">Invalid or expired refresh token.</response>
-    // Rate-limited on the "api" policy (100/60s, per-user or per-IP), NOT the
-    // strict "auth" bucket. "auth" is a single 5-req/5-min limiter keyed by IP
-    // only and SHARED across every auth endpoint (login, forgot/reset, handoff,
-    // PAT exchange). Refresh is automatic and periodic, so behind a shared egress
-    // IP (corporate NAT / VPN) the combined refresh traffic of a handful of users
-    // would exhaust that bucket and 429 everyone — including re-login, which draws
-    // from the same bucket, producing a lockout cascade. The refresh token is a
-    // 128-bit random secret, so a strict brute-force limiter buys little here;
-    // 100/60s prevents abuse without starving shared IPs.
-    [EnableRateLimiting("api")]
     [HttpPost("refresh")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenRequest req)
     {
         var refreshHash = HashRefreshToken(req.RefreshToken);
-        // IgnoreQueryFilters: AppUser is ITenantScoped and this endpoint is
-        // anonymous, so CurrentTenantId is Guid.Empty and the global tenant
-        // filter matched zero rows — every refresh returned 401. Login,
-        // ForgotPassword and ResetPassword all bypass the filter for exactly
-        // this reason; refresh was missed.
+        // IgnoreQueryFilters, for the same reason Login (above) uses it: AppUser
+        // is ITenantScoped and this endpoint is anonymous, so CurrentTenantId is
+        // Guid.Empty and the global filter matched no user at all. Refresh
+        // therefore ALWAYS answered 401 — every session died at access-token
+        // expiry (30 min) and the user was bounced back to the login screen,
+        // with the refresh token itself perfectly valid.
         //
-        // IgnoreQueryFilters removes ALL global filters, so !IsDeleted must be
-        // re-stated in the predicate — the two sibling anonymous lookups both do
-        // (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an explicit
-        // `user.IsDeleted` guard). Without it a soft-deleted user left IsActive
-        // could mint fresh tokens.
+        // Safe because the lookup is keyed on the refresh-token hash: only the
+        // holder of the secret can select the row, and IsActive is still
+        // enforced here and re-checked below.
         var user = await _db.Users
             .IgnoreQueryFilters()
             .Include(u => u.Tenant)
-            .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive && !u.IsDeleted);
+            .FirstOrDefaultAsync(u => u.RefreshToken == refreshHash && u.IsActive);
 
         if (user == null || user.RefreshTokenExpiresAt < DateTime.UtcNow)
             return Unauthorized(new { message = "Invalid or expired refresh token" });
@@ -445,7 +435,13 @@ public class AuthController : ControllerBase
         if (await _db.Tenants.AnyAsync(t => t.Slug == normalisedSlug))
             return Conflict(new { message = $"Organisation slug '{normalisedSlug}' is already taken" });
 
-        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+        // IgnoreQueryFilters: AppUser is ITenantScoped and registration is
+        // anonymous, so without it CurrentTenantId is Guid.Empty, this check
+        // matched nothing, and the "Email already registered" guard could never
+        // fire — a second signup on the same address silently created another
+        // account. The slug check above happens to work only because Tenant is
+        // not tenant-scoped.
+        if (await _db.Users.IgnoreQueryFilters().AnyAsync(u => u.Email == req.Email))
             return Conflict(new { message = "Email already registered" });
 
         if (req.Password.Length < 8)
@@ -468,8 +464,24 @@ public class AuthController : ControllerBase
             Plan          = BillingPlan.Trial,
             Currency      = currency,
             BillingCycle  = BillingCycle.Monthly,
-            MaxUsers      = planLimits.MaxAuthors + planLimits.MaxCoordinators,
-            MaxProjects   = planLimits.MaxProjects,
+            // Flat anti-abuse ceiling, NOT planLimits.TotalSeats (#653). The old
+            // derivation read the limits of the plan the caller ASKED for while the
+            // tenant is assigned Trial, so an anonymous signup chose its own cap —
+            // omitted plan gave 20, "Enterprise" gave int.MaxValue. It also charged
+            // free viewers against paid role caps, which the pricing FAQ says we
+            // don't do. Paid entitlement is metered by the D1 licence count.
+            MaxUsers      = BillingPlanLimits.AccountCeiling,
+            // NOT planLimits.MaxProjects. `requestedPlan` is whatever the anonymous
+            // caller put in the request body (defaulting to Network), while the tenant
+            // is assigned Trial two lines above — so this wrote an entitlement the
+            // signup did not grant. Every self-signup carried int.MaxValue here against
+            // a plan allowing 3. It was invisible only because CreateProject also ran
+            // the [Quota] filter, which reads the PLAN, and a filter runs first.
+            //
+            // Left at 0 = "no override". The column is a TIGHTENING knob for support to
+            // reach for; entitlement comes from the plan (or D1's tier). See
+            // ProjectCeilingPolicy.
+            MaxProjects   = 0,
             MimEnabled    = false,
             TrialExpiresAt = DateTime.UtcNow.AddDays(30)
         };
@@ -514,6 +526,15 @@ public class AuthController : ControllerBase
             plannedUpgrade = requestedPlan.ToString(),
             currency       = tenant.Currency,
             trialExpiresAt = tenant.TrialExpiresAt,
+            // What the tenant can do RIGHT NOW. `limits` below describes
+            // `plannedUpgrade`, not the Trial the account was actually created on, so a
+            // client sizing its UI from it would offer capacity the create-project gate
+            // then refuses. Both are returned because they answer different questions.
+            activeLimits   = new
+            {
+                maxProjects = ProjectCeilingPolicy.EffectiveCap(tenant),
+                storageMb   = BillingPlanLimits.For(tenant.Plan).StorageMb,
+            },
             limits         = new
             {
                 maxAuthors      = planLimits.MaxAuthors,
@@ -830,22 +851,30 @@ public class AuthController : ControllerBase
 
     /// <summary>Activate a licence key to unlock a tier (Professional / Premium / Enterprise).</summary>
     /// <response code="200">Activation result with tier, MIM flag, and server URL.</response>
-    // Unauthenticated, and it answers "is this key valid?" — a brute-force oracle
-    // over the licence keyspace, so it needs a limiter. It uses the dedicated
-    // "license" policy rather than "auth": "auth" is one 5/5min bucket keyed by IP
-    // and shared with login, but the Revit add-in calls this pre-session, so a
-    // multi-engineer office activating from one public IP would collide with each
-    // other and with logins. "license" is its own per-IP bucket, sized for a
-    // legitimate office burst while still far too slow to walk a high-entropy key.
-    [EnableRateLimiting("license")]
+    // DEP-5 — was the ONLY AuthController endpoint without a rate limit, which
+    // left the licence-key space brute-forceable at line speed. It returns
+    // entitlement facts rather than a JWT, so the blast radius is disclosure
+    // plus activation-count burn (a guessed key can be burned to its
+    // MaxActivations by an attacker) rather than session theft — but neither is
+    // acceptable to leave open. Uses the "auth" policy: partitioned by IP,
+    // 5 attempts per 5 minutes, same as login and password reset.
+    [EnableRateLimiting("auth")]
     [HttpPost("license/activate")]
     [ProducesResponseType(typeof(LicenseActivationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<LicenseActivationResponse>> ActivateLicense([FromBody] LicenseActivationRequest req)
     {
-        // IgnoreQueryFilters: LicenseKey is ITenantScoped and this endpoint is
-        // anonymous (the Revit add-in calls it before any session exists), so
-        // the global tenant filter ran with CurrentTenantId == Guid.Empty and
-        // excluded every key — activation could never succeed for anyone.
+        // IgnoreQueryFilters is REQUIRED here, not an optimisation.
+        //
+        // LicenseKey implements ITenantScoped, so the global filter narrows it
+        // to CurrentTenantId. This endpoint is anonymous — the plugin calls it
+        // to discover which tenant a key belongs to, before it has a JWT — so
+        // CurrentTenantId is Guid.Empty and the filter matched nothing. Every
+        // activation of a perfectly good key therefore answered
+        // { valid = false, "Invalid license key" }.
+        //
+        // Bypassing the filter is safe because the lookup is keyed on the
+        // secret itself: you can only find the row if you already hold the key.
+        // Same reasoning as the Tenants lookup in the handoff path below.
         var key = await _db.LicenseKeys
             .IgnoreQueryFilters()
             .Include(k => k.Tenant)
@@ -909,13 +938,22 @@ public class AuthController : ControllerBase
         // not a developer "POST /api/…" instruction. SendPasswordResetEmailAsync
         // builds {PublicBaseUrl}/reset-password?token=…&email=… which the
         // reset-password.html page consumes.
+        //
+        // Through EmailDispatch, because a throwing provider DEFEATS THIS ENDPOINT'S
+        // ONLY SECURITY PROPERTY. An unknown address returns above without sending, so
+        // it always answered 200; a real one reached the send, and when Resend rejected
+        // the recipient the unhandled exception answered 500. Two different answers for
+        // "unknown" and "real" is exactly the enumeration this endpoint exists to
+        // prevent — demonstrated against production on 2026-08-20. The reset token is
+        // already committed by this point, so failing the request would also be a lie
+        // about what happened.
         var emailService = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
-        if (emailService != null)
-        {
-            await emailService.SendPasswordResetEmailAsync(
-                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request));
-        }
+        await Planscape.Infrastructure.Services.EmailDispatch.TrySendAsync(
+            emailService, _logger, "password-reset", user.Email,
+            () => emailService!.SendPasswordResetEmailAsync(
+                user.Email, resetToken, Planscape.API.PublicUrl.Resolve(_config, Request)));
 
+        // Same body either way, whatever happened above — see the note on the send.
         return Ok(new { message = "If that email exists, a reset link has been sent." });
     }
 
@@ -935,8 +973,22 @@ public class AuthController : ControllerBase
 
     // ── Reset Password (confirm reset) ────────────────────────────────────────
 
-    /// <summary>Reset password using a token from the forgot-password email.</summary>
-    /// <response code="200">Password reset — user can log in with new password.</response>
+    /// <summary>
+    /// Reset password using a token from the forgot-password / invite email.
+    ///
+    /// Returns a SESSION as well as a confirmation. The caller has just proved
+    /// possession of a single-use, short-lived token delivered to the address on
+    /// the account — the same proof <c>/login</c> would demand a password for —
+    /// so issuing a session here grants no capability the caller didn't already
+    /// have (they could simply log in with the password they just chose). What
+    /// it does buy is the invite flow working at all: the accept-invite page is
+    /// served by the API but the product lives on a DIFFERENT origin, so it has
+    /// no way to hand the invitee a signed-in browser without this.
+    ///
+    /// <c>webAppUrl</c> tells that page where the product actually is, instead
+    /// of it guessing from its own hostname (see <see cref="WebAppUrl"/>).
+    /// </summary>
+    /// <response code="200">Password reset — response carries a live session.</response>
     /// <response code="400">Invalid/expired token or password too short.</response>
     [EnableRateLimiting("auth")]
     [HttpPost("reset-password")]
@@ -952,6 +1004,7 @@ public class AuthController : ControllerBase
         // ACTIVATES them (below), so the invite link is a complete onboarding step.
         // IgnoreQueryFilters: anonymous endpoint, so bypass the tenant filter.
         var user = await _db.Users.IgnoreQueryFilters()
+            .Include(u => u.Tenant)   // Tier, for the session payload below
             .FirstOrDefaultAsync(u => u.RefreshToken == hashed
                 && u.RefreshTokenExpiresAt > DateTime.UtcNow);
 
@@ -970,9 +1023,54 @@ public class AuthController : ControllerBase
         // S6 / S5 — bump the iat-floor so any access token issued before
         // the reset (including ones the attacker may have minted while
         // they had the password) is rejected immediately.
+        //
+        // ORDER MATTERS: the floor is "now" in whole seconds and the policy
+        // handler rejects on `iat < floor`, so the session below — minted after
+        // this call — survives it. Minting first would race the floor.
         await _revocations.RevokeAllPriorTokensAsync(user.Id);
 
-        return Ok(new { message = "Password has been reset. Please log in." });
+        // Issue a live session so the accept-invite page can land the recipient
+        // IN the product instead of at a second sign-in they have no context
+        // for. Mirrors the tail of Login: JWT + hashed refresh token + activity
+        // key. The RESET: marker occupied RefreshToken and was cleared above, so
+        // this column is free to hold the real refresh-token hash now.
+        var accessToken = GenerateJwt(user);
+        var refreshToken = Guid.NewGuid().ToString("N");
+        user.RefreshToken = HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+        user.LastLoginAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // SEC-EA-08 — seed the sliding-inactivity clock, as Login does. Best
+        // effort: a Redis outage must not fail a password reset that has
+        // already been committed.
+        try
+        {
+            await _redis.GetDatabase().StringSetAsync(
+                RefreshActivityKey(refreshToken),
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                TimeSpan.FromDays(7));
+        }
+        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
+        {
+            _logger.LogWarning(ex,
+                "Redis unavailable while seeding refresh-token activity key after password reset; "
+              + "SEC-EA-08 inactivity expiry degraded for this session.");
+        }
+
+        return Ok(new
+        {
+            message      = "Password has been set.",
+            accessToken,
+            refreshToken,
+            expiresAt    = DateTime.UtcNow.Add(AccessTokenLifetime),
+            userName     = user.DisplayName,
+            role         = user.Role.ToString(),
+            tier         = user.Tenant?.Tier.ToString() ?? "Starter",
+            // Where the browser app lives. Null when the server can't determine
+            // it — the page then shows a result instead of navigating nowhere.
+            webAppUrl    = Planscape.API.WebAppUrl.Resolve(_config, Request)
+        });
     }
 
     // ── Cloud handoff (planscape.build → this API) ──────────────────────────
@@ -1055,10 +1153,6 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
-            // Filter stays transport-specific on purpose. Widening it to `catch
-            // Exception` would silently convert a *logic* bug in the guard into
-            // a fail-open too, which is a different and much worse trade than
-            // the deliberate one documented above.
             _logger.LogWarning(ex, "Redis unavailable during handoff jti check; single-use protection degraded.");
         }
 
@@ -1088,24 +1182,42 @@ public class AuthController : ControllerBase
                 .FirstOrDefaultAsync(t => t.Slug == slug);
             if (tenant == null)
             {
-                var limits = BillingPlanLimits.For(BillingPlan.Network);
+                // The account ceiling is deliberately not taken from a plan here: this
+                // mirror must not make entitlement decisions (D1 does), and Network's
+                // seat total is 20 — which would have locked out any D1-paid firm
+                // larger than that. Compounded by this path defaulting unknown roles
+                // DOWN to Viewer, so it is the path that manufactures the free accounts
+                // a seat-derived cap charged for. See #653.
                 tenant = new Tenant
                 {
                     Name         = string.IsNullOrWhiteSpace(p.TenantName) ? slug : p.TenantName!,
                     Slug         = slug,
                     ContactEmail = email,
                     Tier         = LicenseTier.Starter,
-                    // Billing truth lives in planscape.build's D1, not here —
-                    // the handoff endpoint refuses cancelled/read_only tenants
-                    // before minting a ticket. Provision the mirror generously
-                    // so this side never locks out a customer D1 considers
-                    // paid; reconciliation is deliberately out of scope
-                    // (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
-                    Plan           = BillingPlan.Trial,
+                    // Billing truth lives in planscape.build's D1, not here — the
+                    // handoff endpoint refuses cancelled/read_only tenants before
+                    // minting a ticket. Provision the mirror generously so this side
+                    // never locks out a customer D1 considers paid; reconciliation is
+                    // deliberately out of scope (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+                    //
+                    // Network, not Trial. The old code computed Network's limits and
+                    // then assigned Trial, so the generosity this comment promises was
+                    // never delivered: [Quota(QuotaAxis.Projects)] reads the PLAN, and
+                    // Trial allowed a D1-paying customer one project (and 5 GB). This
+                    // is the mirror's FALLBACK only — when D1 named a tier, PlanTier
+                    // below is what actually grants, via ProjectCeilingPolicy.
+                    Plan           = BillingPlan.Network,
+                    // The ticket has always carried `tier: tenant.plan_tier`
+                    // (marketing-site/functions/api/cloud/handoff.ts) and this endpoint
+                    // has always thrown it away. Store it verbatim; BillingTierMap does
+                    // the translating, and an unrecognised value grants nothing rather
+                    // than being coerced into a plan nobody sold.
+                    PlanTier       = string.IsNullOrWhiteSpace(p.Tier) ? null : p.Tier!.Trim(),
                     Currency       = "USD",
                     BillingCycle   = BillingCycle.Monthly,
-                    MaxUsers       = limits.MaxAuthors + limits.MaxCoordinators,
-                    MaxProjects    = limits.MaxProjects,
+                    MaxUsers       = BillingPlanLimits.AccountCeiling,
+                    // 0 = no tightening override. See ProjectCeilingPolicy.
+                    MaxProjects    = 0,
                     MimEnabled     = false,
                     TrialExpiresAt = DateTime.UtcNow.AddDays(365)
                 };
@@ -1138,6 +1250,26 @@ public class AuthController : ControllerBase
             };
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
+        }
+
+        // Refresh the mirrored tier on EVERY handoff, not just at tenant creation.
+        // D1 just vouched for this user by minting the ticket, so the tier in it is
+        // newer than anything stored here; recording it only on creation would freeze
+        // a tenant at whatever it was on first sign-in and silently withhold an
+        // upgrade the customer has already paid for. Cheap and one-directional — this
+        // mirror still never writes entitlement back, and full reconciliation stays
+        // out of scope (docs/PLANSCAPE_IDENTITY_HANDOFF.md).
+        if (user.Tenant != null && !string.IsNullOrWhiteSpace(p.Tier))
+        {
+            var incomingTier = p.Tier!.Trim();
+            if (!string.Equals(user.Tenant.PlanTier, incomingTier, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Handoff updated tenant {TenantId} tier {Old} -> {New}",
+                    user.Tenant.Id, user.Tenant.PlanTier ?? "(none)", incomingTier);
+                user.Tenant.PlanTier = incomingTier;
+                await _db.SaveChangesAsync();
+            }
         }
 
         // Provision a starter project so a freshly handed-off subscriber does not

@@ -77,6 +77,17 @@ namespace StingTools.Core
                 // loads later in OnDocumentOpened and can flip the flag off.
                 StingOfflineConfig.ApplyDefaults();
 
+                // Report which licence this machine is running. Fire-and-forget
+                // and entirely advisory — the licence is verified offline above
+                // and does not depend on this call succeeding, or happening at
+                // all. Opt out with STING_LICENSE_PRESENT=0.
+                try
+                {
+                    StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
+                        application.ControlledApplication.VersionNumber);
+                }
+                catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
+
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
                 // StingOfflineConfig.RealtimeCascadesEnabled at callback time.
@@ -85,6 +96,22 @@ namespace StingTools.Core
                 // Pack 8 — wire the Idling scheduler. Commands enqueue jobs
                 // via StingIdlingScheduler.Enqueue(job).
                 StingIdlingScheduler.Register(application);
+
+                // planscape:// deep links. Two halves, both cheap:
+                //   1. Point HKCU\Software\Classes\planscape at StingLink.exe
+                //      beside this DLL, so Windows knows what the scheme means.
+                //      HKCU only — no elevation, no machine-wide state.
+                //   2. Queue the inbox watcher so a link clicked while Revit is
+                //      running opens the Coordination Center.
+                // Both are non-fatal: a plugin folder without StingLink.exe just
+                // means links stay inert, exactly as they were before.
+                RegisterPlanscapeProtocol();
+                StingIdlingScheduler.Enqueue(new PlanscapeLinkWatcher());
+
+                // Document sync — start the Planscape Companion if it shipped
+                // with this plugin and isn't already up. This is the piece that
+                // makes sync zero-touch for a user who only ever opens Revit.
+                LaunchCompanionIfInstalled();
 
                 // Register the dockable panel — the single unified UI.
                 // Create the shared "STING Tools" ribbon tab FIRST and in its
@@ -169,10 +196,35 @@ namespace StingTools.Core
                 // source parameters change. Users enable it from Tag Studio.
                 StingTag7NarrativeUpdater.Register(application);
 
-                // Phase 106: reserve the Live Clash Updater id. Triggers are
-                // deferred to a follow-on phase so models that don't use clash
-                // detection pay zero cost at startup.
+                // Register the Live Clash Updater and attach its geometry /
+                // addition / deletion triggers. The comment here previously claimed
+                // triggers were deferred; they were always attached. Models that never
+                // use clash detection opt out via LIVE_CLASH_TRIGGERS_ENABLED=false
+                // in project_config.json.
                 LiveClashUpdater.Register(application);
+                // C2 - geometry sync has its own updater over ALL model
+                // categories. Registered separately (and unconditionally) so
+                // turning off clash triggers cannot silently stop the federated
+                // model from receiving changes.
+                GeometrySyncUpdater.Register(application);
+
+                // Register the Planscape live element-sync updater (IUpdater) —
+                // registered with NO triggers. Triggers are attached only on a
+                // successful Planscape connect and removed on disconnect, so users
+                // who never touch Planscape pay nothing for it (Revit evaluates an
+                // updater's trigger filter on every element change even while the
+                // updater is disabled).
+                StingTools.Core.Sync.LiveSyncUpdater.Register(application);
+
+                // Register the SLD sync updater (IUpdater) — starts disabled. The
+                // SLD panel's "live sync" toggle writes sld_sync_enabled; without
+                // this registration that flag governed nothing.
+                StingTools.Core.SLD.SLDSyncUpdater.Register(application);
+
+                // Register the live standards validator (IUpdater) — starts disabled;
+                // enabled from the standards panel. Previously its Register had no
+                // caller despite the header claiming startup registration.
+                StingTools.Core.Validation.LiveStandardsUpdater.Register(application);
 
                 // Register real-time plumbing pipe auto-sizer (IUpdater) — starts disabled.
                 // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
@@ -190,6 +242,30 @@ namespace StingTools.Core
                 // ClashSession.LastDirtyAtUtc, which is only advanced inside
                 // RefreshElement/RemoveElement on the live path).
                 LiveClashWireup.Subscribe(application);
+
+                // Plugin update check — CheckAsync previously had zero callers, so the
+                // update notification described in CLAUDE.md never happened. Fired
+                // fire-and-forget so a slow or unreachable server never delays startup;
+                // the result is logged and surfaced by the status bar on next refresh.
+                try
+                {
+                    string updateUrl = StingOfflineConfig.IsOnline
+                        ? "https://api.planscape.build" : null;
+                    if (!string.IsNullOrEmpty(updateUrl))
+                    {
+                        _ = System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                var info = await PluginUpdateChecker.CheckAsync(updateUrl);
+                                if (info != null)
+                                    StingLog.Info($"Plugin update available: {info.Version} (channel {info.Channel}).");
+                            }
+                            catch (Exception uEx) { StingLog.Warn($"Plugin update check: {uEx.Message}"); }
+                        });
+                    }
+                }
+                catch (Exception upEx) { StingLog.Warn($"Plugin update check scheduling: {upEx.Message}"); }
 
                 // Eager-init the GeometrySyncHandler ExternalEvent so it is
                 // created on the Revit API thread at startup, not lazily inside
@@ -345,6 +421,114 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Point the <c>planscape://</c> scheme at the StingLink.exe helper
+        /// shipped beside this DLL.
+        ///
+        /// Re-checked on every startup rather than once: the plugin folder moves
+        /// between deployments, and a protocol registered against a path that no
+        /// longer exists fails in a way Windows reports as a broken app rather
+        /// than a missing one. <see cref="PlanscapeProtocol.EnsureRegistered"/>
+        /// is a no-op when the command is already correct, so the common case
+        /// costs one registry read.
+        ///
+        /// HKEY_CURRENT_USER only — writing a machine-wide handler unattended
+        /// from a plugin's startup is not something to do without being asked.
+        /// </summary>
+        private static void RegisterPlanscapeProtocol()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(AssemblyPath);
+                if (string.IsNullOrEmpty(dir)) return;
+                string helper = Path.Combine(dir, PlanscapeProtocol.HelperExeName);
+
+                if (PlanscapeProtocol.EnsureRegistered(helper, out string detail))
+                    StingLog.Info($"planscape:// protocol registered → {detail}");
+                else
+                    StingLog.Info($"planscape:// protocol not registered: {detail}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"planscape:// registration: {ex.Message}");
+            }
+        }
+
+        /// <summary>File name of the document-sync tray app, shipped beside this DLL.</summary>
+        internal const string CompanionExeName = "Planscape.Companion.exe";
+
+        /// <summary>
+        /// Start the Planscape Companion if it is installed beside this plugin and
+        /// is not already running. Document sync has to work while Revit is
+        /// closed, so the Companion runs on its own; this is only the convenience
+        /// that gets it going for a user whose first act of the day is opening
+        /// Revit.
+        ///
+        /// <para><b>"Installed" means present in the plugin's own output
+        /// directory</b> — the same place <c>StingLink.exe</c> lives, put there by
+        /// the <c>CopyPlanscapeCompanion</c> MSBuild target. If it is absent that
+        /// is a packaging problem, and it is logged as one rather than worked
+        /// around by hunting for a copy somewhere else on disk: launching an
+        /// unknown build from a stale dev path is worse than not launching.</para>
+        ///
+        /// <para>Fire-and-forget on a background thread. The "is it running"
+        /// probe is a pipe connect with a short timeout, and Revit's startup path
+        /// must not wait on it — startup is already the most contended moment in
+        /// the session.</para>
+        /// </summary>
+        private static void LaunchCompanionIfInstalled()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(AssemblyPath);
+                if (string.IsNullOrEmpty(dir)) return;
+                string exe = Path.Combine(dir, CompanionExeName);
+
+                if (!File.Exists(exe))
+                {
+                    StingLog.Info(
+                        $"Planscape Companion not installed ({exe}); document sync will not run. "
+                        + "This is a packaging issue if sync is expected — the build copies it next to the plugin.");
+                    return;
+                }
+
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Ask the Companion itself rather than scanning the process
+                        // list: a process by that name might be another user's
+                        // session, and what actually matters is whether THIS user's
+                        // pipe answers.
+                        if (await Planscape.Companion.CompanionIpcClient.IsRunningAsync())
+                        {
+                            StingLog.Info("Planscape Companion already running.");
+                            return;
+                        }
+
+                        var psi = new System.Diagnostics.ProcessStartInfo(exe)
+                        {
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            WorkingDirectory = dir,
+                        };
+                        using var started = System.Diagnostics.Process.Start(psi);
+                        StingLog.Info($"Planscape Companion started (pid {started?.Id}).");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Never fatal. Sync not running is a degraded state, not a
+                        // reason to fail Revit startup.
+                        StingLog.Warn($"Planscape Companion launch: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Planscape Companion launch: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// CRASH FIX: Clear all static caches that hold ElementId or Definition references.
         /// These become invalid when a document closes and cause native crashes if used
         /// against a different document.
@@ -399,6 +583,8 @@ namespace StingTools.Core
                 catch (Exception cEx) { StingLog.Warn($"Classification standard cache invalidate: {cEx.Message}"); }
                 try { Core.Hvac.Loads.LoadProfileRegistry.Reload(e.Document); }
                 catch (Exception cEx) { StingLog.Warn($"Load profile cache invalidate: {cEx.Message}"); }
+                try { Core.Hvac.Loads.LoadAssumptionsRegistry.Reload(e.Document); }
+                catch (Exception cEx) { StingLog.Warn($"Load assumptions cache invalidate: {cEx.Message}"); }
                 try { Commands.Hvac.HvacGenerateCxChecklistCommand.InvalidateTaskCache(); }
                 catch (Exception cEx) { StingLog.Warn($"Cx task cache invalidate: {cEx.Message}"); }
                 try { Core.Refrigerant.RefrigerantVendorRegistry.Reload(e.Document); }
@@ -588,12 +774,17 @@ namespace StingTools.Core
 
                 StingLog.Info("Planscape: auto-sync triggered by STC");
 
-                // Enqueue a full geometry sync job so dirty element geometry accumulated
-                // since the last save is pushed to the federated-model endpoint.
-                // The IdlingScheduler defers it to the next quiet Revit moment so the
-                // STC callback returns immediately (never blocks the worksharing path).
-                try { StingIdlingScheduler.Enqueue(new FullGeometrySyncJob()); }
-                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync enqueue: {geoEx.Message}"); }
+                // Push dirty element geometry accumulated since the last save to the
+                // federated-model endpoint. Routed through GeometrySyncHandler — the
+                // real, working sync path also used by DocumentSaved. It raises an
+                // ExternalEvent, so the STC callback returns immediately and never
+                // blocks the worksharing path.
+                try
+                {
+                    if (!StingTools.Core.Clash.LiveClashUpdater.GeometrySyncQueue.IsEmpty)
+                        StingTools.Commands.IFC.GeometrySyncHandler.RaiseIfConnected();
+                }
+                catch (Exception geoEx) { StingLog.Warn($"STC geometry sync trigger: {geoEx.Message}"); }
 
                 // UIApplication fallback chain:
                 //   1. StingCommandHandler.CurrentApp (set during any prior command)
@@ -649,9 +840,8 @@ namespace StingTools.Core
         private static void PreWarnSustainabilityReadiness(Autodesk.Revit.DB.Document doc)
         {
             if (doc == null) return;
-            string dir = null;
-            try { dir = System.IO.Path.GetDirectoryName(doc.PathName ?? ""); } catch { }
-            var setup = Core.Sustainability.SustainProjectSetup.Load(dir, out _);
+            var setup = Core.Sustainability.SustainProjectSetup.Load(
+                StingPaths.Meta(doc, "_BIM_COORD", "sustainability"), out _);
 
             bool locationSet = !string.IsNullOrWhiteSpace(setup.ClimateSiteId)
                             || !string.IsNullOrWhiteSpace(setup.ClimateZone);
@@ -685,6 +875,12 @@ namespace StingTools.Core
                 ParameterHelpers.ClearParamCache();
                 StingAutoTagger.InvalidateContext();
                 ComplianceScan.InvalidateCache();
+
+                // MUST run before anything can touch the project root: resolving a path
+                // creates <projDir>/<CODE> as a side effect, which would make the greenfield
+                // probe below always answer "no" and leave the CdeFirst layout unreachable.
+                try { ProjectFolderEngine.CaptureGreenfieldState(e.Document); }
+                catch (Exception gx) { StingLog.Warn($"CaptureGreenfieldState: {gx.Message}"); }
 
                 // WS I13 — pre-warn on open when the sustainability inputs are unset,
                 // so a mis-set project is flagged before the dashboard is opened.
@@ -865,7 +1061,7 @@ namespace StingTools.Core
                             if (!string.IsNullOrEmpty(projectDir))
                             {
                                 // Preferred: _bim_manager/planscape_connection.json
-                                string bimDir = System.IO.Path.Combine(projectDir, "_bim_manager");
+                                string bimDir = ProjectFolderEngine.GetMetaPath(e.Document, "STING_BIM_MANAGER");
                                 cfgPath = System.IO.Path.Combine(bimDir, "planscape_connection.json");
                                 if (!System.IO.File.Exists(cfgPath)) cfgPath = null;
                             }
@@ -941,14 +1137,17 @@ namespace StingTools.Core
                 }
                 catch (Exception drEx) { StingLog.Warn($"DocumentOpened deferred sidecar load: {drEx.Message}"); }
 
-                // AL-07: Notify user of auto-run workflow on open
+                // AL-07: Queue the configured auto-run workflow. Enqueued through the
+                // WorkflowScheduler pending-preset queue, which the block below drains
+                // onto the ExternalEvent — so the preset actually executes rather than
+                // only being logged as "run it manually".
                 try
                 {
                     string autoWorkflow = TagConfig.AutoRunWorkflowOnOpen;
                     if (!string.IsNullOrEmpty(autoWorkflow))
                     {
-                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN configured: '{autoWorkflow}'. " +
-                            "Use 'Workflow Preset' command to execute manually.");
+                        WorkflowScheduler.EnqueuePreset(autoWorkflow);
+                        StingLog.Info($"OnDocumentOpened: AUTO_RUN_WORKFLOW_ON_OPEN queued preset '{autoWorkflow}'.");
                     }
                 }
                 catch (Exception arwEx)
@@ -974,6 +1173,17 @@ namespace StingTools.Core
                 // (document-open, compliance-fall, SLA-violation, warning-threshold triggers)
                 try
                 {
+                    // WF-01: load the project's trigger definitions first. LoadFromConfig
+                    // previously had no caller, so _triggers was always empty and every
+                    // trigger check below iterated nothing.
+                    try
+                    {
+                        string cfg = System.IO.Path.Combine(
+                            System.IO.Path.GetDirectoryName(e.Document.PathName) ?? "", "project_config.json");
+                        WorkflowScheduler.LoadFromConfig(cfg);
+                    }
+                    catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }
+
                     WorkflowScheduler.CheckDocumentOpenTriggers(e.Document);
                     while (WorkflowScheduler.HasPendingPresets)
                     {
@@ -1021,6 +1231,14 @@ namespace StingTools.Core
 
                 // Template engine v1.1 (S11/S15): extract default templates,
                 // workflows, and manifest on first open per project.
+                //
+                // KNOWN RESIDUAL (see ROADMAP IM-1): this runs before any consolidation,
+                // so on a project whose customised templates still sit in a legacy folder,
+                // extraction puts stock templates in the destination first. A later
+                // Folders_Consolidate then hits the collision guard, renames the user's
+                // customised copies aside, and the registry keeps loading the stock ones.
+                // Nothing is lost on disk, but the customisation stops taking effect.
+                // Not fixed here to keep this PR to its agreed scope.
                 try
                 {
                     Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
@@ -1097,18 +1315,51 @@ namespace StingTools.Core
                             string root = setup.ResolveRootPath(e.Document.PathName);
                             StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
 
-                            // Idempotent silent migration. Only reports if it
-                            // actually moved something — no UI prompt, never
-                            // blocks the open path.
+                            // DETECT ONLY — never move a user's files on document open.
+                            //
+                            // This used to call MigrateFromLegacy() unprompted on every
+                            // open, relocating project data the user had not asked to
+                            // relocate, deleting the drained source folders, and leaving
+                            // no record of what went where. Consolidation is now opt-in
+                            // and at-most-once: the user runs Folders_Consolidate, which
+                            // previews the move, asks, and writes a breadcrumb.
                             try
                             {
-                                var rep = ProjectFolderEngine.MigrateFromLegacy(e.Document);
-                                if (rep != null && (rep.FilesMoved > 0 || rep.FoldersRemoved > 0))
+                                if (!ProjectFolderEngine.HasConsolidated(e.Document))
                                 {
-                                    StingLog.Info($"DocumentOpened auto-migration: {rep.FilesMoved} files moved, {rep.FoldersRemoved} legacy folders removed.");
+                                    var scan = ProjectFolderEngine.ScanLegacy(e.Document);
+                                    int pending = scan?.Items?.Sum(i => i.FileCount) ?? 0;
+                                    if (pending > 0)
+                                    {
+                                        StingLog.Info(
+                                            $"DocumentOpened: {pending} file(s) in legacy STING folders. " +
+                                            "Run the Folders_Consolidate command to review and consolidate them. " +
+                                            "Nothing has been moved.");
+                                    }
                                 }
                             }
-                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened auto-migration: {mEx.Message}"); }
+                            catch (Exception mEx) { StingLog.Warn($"DocumentOpened legacy scan: {mEx.Message}"); }
+
+                            // BIM-CDE-FOLDER-01: materialise the CDE folders so exports
+                            // never race a missing directory. Idempotent — existing
+                            // folders are skipped and the call returns 0.
+                            if (TagConfig.AutoCreateCdeFolders)
+                            {
+                                try
+                                {
+                                    int createdFolders = ProjectFolderEngine.CreateFolderStructure(e.Document);
+                                    if (createdFolders > 0)
+                                        StingLog.Info($"DocumentOpened: created {createdFolders} CDE folders (AUTO_CREATE_CDE_FOLDERS).");
+                                }
+                                catch (Exception fcEx) { StingLog.Warn($"DocumentOpened CDE folder creation: {fcEx.Message}"); }
+                            }
+
+                            // Stamp the resolved root onto ProjectInformation (ES) so it
+                            // survives a later project-number rename. Best-effort, guarded,
+                            // and a no-op once stamped — follows the HVAC climate-stamp
+                            // pattern of writing to ProjectInformation from DocumentOpened.
+                            try { Core.Storage.StingProjectRootSchema.EnsureStamped(e.Document); }
+                            catch (Exception rsEx) { StingLog.Warn($"DocumentOpened root stamp: {rsEx.Message}"); }
                         }
                     }
                 }
@@ -1422,6 +1673,20 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
 
+                // Save As moves the .rvt, so the STING project root resolves somewhere new.
+                // The per-document root / greenfield / folder-stats caches are keyed by the OLD
+                // path, and CoordStores memoises which canonical stores it has already merged —
+                // leaving both in place means every subsequent write (issues, register,
+                // transmittals, exports) lands in the ORIGINAL project's tree.
+                try
+                {
+                    ProjectFolderEngine.InvalidateSetupCache(paths.OldPath);
+                    ProjectFolderEngine.InvalidateSetupCache(paths.NewPath);
+                    CoordStores.ResetMergeState();
+                    StingLog.Info($"OnDocumentSavedAs: reset project-root and store caches ({paths.OldPath} → {paths.NewPath})");
+                }
+                catch (Exception pathEx) { StingLog.Warn($"OnDocumentSavedAs path cache reset: {pathEx.Message}"); }
+
                 // A-3 — Invalidate material caches keyed by old path so a
                 // Save As doesn't leave stale name + usage indexes behind.
                 try
@@ -1440,12 +1705,11 @@ namespace StingTools.Core
             try
             {
                 const string FileName = ".sting_live_profile_sync.json";
-                var oldDir = System.IO.Path.GetDirectoryName(oldRvt);
-                var newDir = System.IO.Path.GetDirectoryName(newRvt);
-                if (string.IsNullOrEmpty(oldDir) || string.IsNullOrEmpty(newDir)) return;
-                var oldFile = System.IO.Path.Combine(oldDir, "_BIM_COORD", FileName);
-                if (!System.IO.File.Exists(oldFile)) return;
-                var newCoord = System.IO.Path.Combine(newDir, "_BIM_COORD");
+                if (string.IsNullOrEmpty(oldRvt) || string.IsNullOrEmpty(newRvt)) return;
+                var oldFile = StingPaths.MetaFileFrom(oldRvt, "_BIM_COORD", FileName);
+                if (string.IsNullOrEmpty(oldFile) || !System.IO.File.Exists(oldFile)) return;
+                var newCoord = StingPaths.MetaFrom(newRvt, "_BIM_COORD");
+                if (string.IsNullOrEmpty(newCoord)) return;
                 if (!System.IO.Directory.Exists(newCoord)) System.IO.Directory.CreateDirectory(newCoord);
                 var newFile = System.IO.Path.Combine(newCoord, FileName);
                 if (System.IO.File.Exists(newFile)) return; // don't clobber an existing snapshot
@@ -1507,52 +1771,73 @@ namespace StingTools.Core
                 try
                 {
                     var client = PlanscapeServerClient.Instance;
-                    var payload = new Planscape.Shared.Models.PluginSyncPayload
-                    {
-                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
-                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
-                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
-                                          .GetName().Version?.ToString() ?? "",
-                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                        Timestamp     = DateTime.UtcNow,
-                        TagElements   = tagElements,
-                        Compliance    = new Planscape.Shared.Models.ComplianceSync
-                        {
-                            TotalElements     = totalElements,
-                            TaggedComplete    = taggedCount,
-                            StaleCount        = staleCount,
-                            PlaceholderCount  = placeholderCount,
-                            WarningCount      = warningCount,
-                            TagPercent        = tagPct,
-                            StrictPercent     = strictPct,
-                            ContainerPercent  = containerPct,
-                            RagStatus         = ragStatus
-                        }
-                    };
 
-                    var queue = OfflineQueue.Shared;
-                    if (queue != null)
+                    // The linked Planscape project id, NOT Guid.Empty. The server
+                    // does not resolve the project from auth/tenant scope — it
+                    // matches on request.ProjectId and returns 404 when it can't
+                    // find one. A 404 is a 4xx, which the offline queue classifies
+                    // as a fatal request error and DELETES the payload, so every
+                    // save-triggered sync used to be silently discarded.
+                    string bimDirSync = BIMManagerEngine.GetBIMManagerDir(doc);
+                    Guid syncProjectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
+                        Path.Combine(bimDirSync, "planscape_connection.json"));
+                    // NOTE: skip the enqueue, do NOT return — returning here would
+                    // also skip the geometry-delta trigger further down, which is a
+                    // separate and working channel.
+                    if (syncProjectId == Guid.Empty)
                     {
-                        queue.Enqueue(payload);
-                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
-                            $"(queue depth: {queue.Count})");
-
-                        // C3 — drain immediately instead of waiting for the 5-min timer.
-                        // Fire-and-forget; the scheduler handles retry on failure.
-                        if (SyncScheduler.Instance != null)
-                        {
-                            _ = Task.Run(async () =>
-                            {
-                                try { await SyncScheduler.Instance.SyncNowAsync(); }
-                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
-                            });
-                        }
+                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, element sync skipped");
                     }
                     else
                     {
-                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
-                    }
+                        var payload = new Planscape.Shared.Models.PluginSyncPayload
+                        {
+                            ProjectId     = syncProjectId,
+                            UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                            RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                              .GetName().Version?.ToString() ?? "",
+                            PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                            Timestamp     = DateTime.UtcNow,
+                            TagElements   = tagElements,
+                            Compliance    = new Planscape.Shared.Models.ComplianceSync
+                            {
+                                TotalElements     = totalElements,
+                                TaggedComplete    = taggedCount,
+                                StaleCount        = staleCount,
+                                PlaceholderCount  = placeholderCount,
+                                WarningCount      = warningCount,
+                                TagPercent        = tagPct,
+                                StrictPercent     = strictPct,
+                                ContainerPercent  = containerPct,
+                                RagStatus         = ragStatus
+                            }
+                        };
+
+                        var queue = OfflineQueue.Shared;
+                        if (queue != null)
+                        {
+                            var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
+                            foreach (var chunk in chunks) queue.Enqueue(chunk);
+                            StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                                $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
+                                $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
+
+                            // C3 — drain immediately instead of waiting for the 5-min timer.
+                            // Fire-and-forget; the scheduler handles retry on failure.
+                            if (SyncScheduler.Instance != null)
+                            {
+                                _ = Task.Run(async () =>
+                                {
+                                    try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                    catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                                });
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                        }
+                    } // end: project linked
                 }
                 catch (Exception qEx)
                 {
@@ -1582,9 +1867,16 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// C3 — Collect lightweight tag element records for the sync payload.
-        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
-        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// C3 — Collect element records for the sync payload.
+        /// <para>
+        /// No longer gated on ASS_TAG_1_TXT: an element is eligible for sync
+        /// because it exists, not because someone has tagged it. Compliance %
+        /// stays truthful because it is computed from tag completeness, not from
+        /// row count.
+        /// </para>
+        /// Caps at <paramref name="max"/> to keep the save path fast, and defers
+        /// the whole projection to <see cref="Core.Sync.TagElementSyncMapper"/>
+        /// so this path cannot drift from the Sync Now path again.
         /// </summary>
         private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
             Autodesk.Revit.DB.Document doc, int max = 5000)
@@ -1599,28 +1891,9 @@ namespace StingTools.Core
             foreach (var el in collector)
             {
                 if (results.Count >= max) break;
-
-                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
-
-                results.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    RevitElementId = el.Id.Value,
-                    UniqueId       = el.UniqueId,
-                    Disc           = FromReg(ParamRegistry.DISC),
-                    Loc            = FromReg(ParamRegistry.LOC),
-                    Zone           = FromReg(ParamRegistry.ZONE),
-                    Lvl            = FromReg(ParamRegistry.LVL),
-                    Sys            = FromReg(ParamRegistry.SYS),
-                    Func           = FromReg(ParamRegistry.FUNC),
-                    Prod           = FromReg(ParamRegistry.PROD),
-                    Seq            = FromReg(ParamRegistry.SEQ),
-                    Tag1           = tag1,
-                    CategoryName   = el.Category?.Name ?? "",
-                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
-                });
+                results.Add(Core.Sync.TagElementSyncMapper.MapElement(
+                    doc, el,
+                    hydrateTiers: Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
             }
             return results;
         }
@@ -1658,6 +1931,7 @@ namespace StingTools.Core
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
+            try { Core.Sync.LiveSyncUpdater.Unregister(); } catch { }
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
@@ -2437,11 +2711,22 @@ namespace StingTools.Core
                 ("Fabrication_Open",     "Fabrication",   "FW", DrawingColor.Firebrick,    typeof(HubFabricationCommand).FullName),
                 ("Placement_Open",       "Placement",     "PC", DrawingColor.Goldenrod,    typeof(HubPlacementCommand).FullName),
                 ("StructuralDWGWizard",  "Struct Wizard", "SW", DrawingColor.SlateGray,    typeof(HubStructuralDwgWizardCommand).FullName),
-                ("Scheduling_Dashboard", "Scheduling",    "SD", DrawingColor.MidnightBlue, typeof(HubSchedulingDashboardCommand).FullName),
+                // Replaces the old "Scheduling" button, which opened the 4D/5D
+                // cost dashboard. That is programme management, not drawing
+                // schedules, and it stays reachable from the dock panel's BIM
+                // tab. The hub slot now opens the Scheduler.
+                ("Scheduler",            "Scheduler",     "SC", DrawingColor.ForestGreen,  typeof(HubSchedulerCommand).FullName),
                 ("Tag3D",                "3D Tag",        "T3", DrawingColor.Crimson,      typeof(HubTag3DCommand).FullName),
                 ("CreateTagFamilies",    "Tag Families",  "TF", DrawingColor.DarkCyan,     typeof(HubCreateTagFamiliesCommand).FullName),
                 ("AutoTag",              "Auto Tag",      "AT", DrawingColor.DarkGreen,      typeof(HubAutoTagCommand).FullName),
                 ("ExportCenter",         "Export Center", "EC", DrawingColor.DarkSlateBlue,  typeof(HubExportCenterCommand).FullName),
+                // Visibility Center. It lives here rather than only on the dock
+                // panel's SELECT tab because the Quick Access Toolbar can only
+                // be populated by right-clicking a RIBBON button — there is no
+                // API for it, and a dock-panel button can never be pinned.
+                // Ribbon registration is also what puts it in Revit's
+                // Keyboard Shortcuts list.
+                ("Vis_OpenDropdown",     "Show / Hide",   "SH", DrawingColor.MediumSeaGreen, typeof(HubVisibilityCommand).FullName),
             };
 
             var buttons = new List<PushButtonData>(12);
@@ -2488,6 +2773,35 @@ namespace StingTools.Core
                     try { panel.AddItem(b); }
                     catch (Exception innerEx) { StingLog.Warn($"BuildHubPanel AddItem '{b.Name}': {innerEx.Message}"); }
                 }
+            }
+
+            CaptureVisibilityHubButton(panel);
+        }
+
+        /// <summary>
+        /// Hand the Visibility Center's Hub button to <c>VisibilityBadge</c> so its tooltip can
+        /// carry the hidden-element count. Found by name after the panel is built because
+        /// AddStackedItems/AddItem do not hand back a per-button reference in a shape that
+        /// survives the fallback path.
+        /// </summary>
+        private static void CaptureVisibilityHubButton(RibbonPanel panel)
+        {
+            try
+            {
+                foreach (var item in panel.GetItems())
+                {
+                    var pb = item as PushButton;
+                    if (pb != null && pb.Name == "Hub_Vis_OpenDropdown")
+                    {
+                        UI.VisibilityCenter.VisibilityBadge.RegisterHubButton(pb);
+                        return;
+                    }
+                }
+                StingLog.Info("BuildHubPanel: visibility Hub button not found for badge registration.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CaptureVisibilityHubButton: {ex.Message}");
             }
         }
     }
@@ -2959,12 +3273,36 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "StrCADWizard", ref message);
     }
 
+    /// <summary>Opens the Visibility Center dropdown (show/hide by category or
+    /// ISO tag token). ReadOnly: the popup only reads to build its lists — the
+    /// writes happen in Vis_Apply / Vis_Isolate / Vis_ResetAll.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubVisibilityCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "Vis_OpenFloating", ref message);
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubSchedulingDashboardCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
             => HubDispatcher.Run(data, "SchedulingCostDashboard", ref message);
+    }
+
+    /// <summary>
+    /// STING Hub → Scheduler. A ribbon button rather than a dock-panel one so
+    /// it can be right-clicked onto the Quick Access Toolbar — the QAT only
+    /// accepts ribbon items.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HubSchedulerCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
+            => HubDispatcher.Run(data, "Scheduler", ref message);
     }
 
     [Transaction(TransactionMode.ReadOnly)]

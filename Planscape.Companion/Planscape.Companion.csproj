@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Planscape Companion — the always-running half of document sync.
+
+    A SIBLING of StingTools.LinkHandler, never a modification of it. StingLink.exe
+    is short-lived by design (it drops a URL and exits); this stays running for
+    the whole login session because sync has to work when Revit is closed. The
+    approved design says to keep them as two small single-purpose processes rather
+    than retrofitting one into the other, and that is what this is.
+
+    WinExe so no console window flashes at login. UseWindowsForms is for exactly
+    one type — NotifyIcon. There is no form, no designer, and no WinForms message
+    loop beyond the one the tray icon needs.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Planscape.Companion</AssemblyName>
+    <RootNamespace>Planscape.Companion</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Version>0.1.0</Version>
+    <Company>Planscape</Company>
+    <Product>Planscape Companion</Product>
+    <!-- A background tray app must never take the whole session down because a
+         socket blipped. Unobserved task exceptions are logged, not fatal. -->
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.11" />
+    <!-- Newtonsoft rather than System.Text.Json purely for consistency: the
+         settings file this reads and writes lives beside, and follows the shape
+         of, PlanscapeServerClient's machine settings, which is Newtonsoft. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

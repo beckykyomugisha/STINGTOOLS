@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
@@ -75,7 +75,7 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(p)) return null;
                 string dir = Path.GetDirectoryName(p);
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "_BIM_COORD", "token_depth_overrides.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "token_depth_overrides.json");
             }
             catch { return null; }
         }

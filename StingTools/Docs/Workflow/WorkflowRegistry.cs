@@ -1,4 +1,4 @@
-// WorkflowRegistry.cs — template engine v1.1 (S15).
+﻿// WorkflowRegistry.cs — template engine v1.1 (S15).
 //
 // Loads every WorkflowDefinition JSON from _BIM_COORD/workflows/ and provides
 // lookup by id. Extraction of embedded defaults is handled by
@@ -25,7 +25,7 @@ namespace Planscape.Docs.Workflow
         public static WorkflowRegistry Load(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD", "workflows");
+            string dir  = StingPaths.MetaFile(doc, "_BIM_COORD", "workflows");
             Directory.CreateDirectory(dir);
 
             var reg = new WorkflowRegistry(dir);

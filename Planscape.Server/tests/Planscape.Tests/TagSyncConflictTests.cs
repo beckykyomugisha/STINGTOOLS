@@ -4,13 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.InMemory;
 using Microsoft.Extensions.DependencyInjection;
 using Planscape.API.Controllers;
 using Planscape.Core.DTOs;
 using Planscape.Core.Entities;
-using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.Infrastructure.SignalR;
 
@@ -30,18 +27,30 @@ public class TagSyncConflictTests
 
         var options = new DbContextOptionsBuilder<PlanscapeDbContext>()
             .UseInMemoryDatabase($"TagSyncConflict_{Guid.NewGuid():N}")
-            // SyncElements opens a RepeatableRead transaction; the InMemory
-            // provider has none and raises this as an error by default.
-            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            // SyncElements wraps its batches in an explicit RepeatableRead
+            // transaction. The InMemory provider cannot honour that and EF
+            // escalates TransactionIgnoredWarning to an exception, so the test
+            // died on the provider rather than on the conflict logic it covers.
+            // Production is PostgreSQL, where the transaction is real.
+            .ConfigureWarnings(w =>
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId
+                    .TransactionIgnoredWarning))
             .Options;
 
-        // The 3-arg ctor, not the 1-arg one. The global tenant query filter
-        // compares against `_tenantContext?.TenantId ?? Guid.Empty`, so a
-        // context built without a tenant context filters out the very rows this
-        // test seeds — the controller's project lookup then returned NotFound
-        // and never reached the conflict logic under test.
-        await using var db = new PlanscapeDbContext(
-            options, new StubHttpContextAccessor(), new StubTenantContext(tenantId));
+        await using var db = new PlanscapeDbContext(options);
+
+        // This context is built directly, not through DI, so it takes the
+        // options-only constructor and _tenantContext stays null —
+        // CurrentTenantId is therefore Guid.Empty and the global tenant filter
+        // hides the very Project and TaggedElement rows seeded below, making
+        // SyncElements answer NotFound before reaching the conflict logic under
+        // test. BypassTenantFilter is the documented escape hatch for exactly
+        // this (migrations, jobs, tests).
+        //
+        // The controller's own explicit `p.TenantId == tenantId` check is
+        // unaffected and still exercised, so tenant scoping is not what this
+        // bypass relaxes.
+        db.BypassTenantFilter = true;
 
         db.Tenants.Add(new Tenant
         {
@@ -202,19 +211,5 @@ public class TagSyncConflictTests
             => Task.CompletedTask;
         public Task RemoveFromGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
-    }
-
-    private sealed class StubTenantContext : ITenantContext
-    {
-        public StubTenantContext(Guid tenantId) => TenantId = tenantId;
-        public Guid TenantId { get; }
-        public string TenantSlug => "test-org";
-        public LicenseTier Tier => LicenseTier.Premium;
-        public bool MimEnabled => true;
-    }
-
-    private sealed class StubHttpContextAccessor : IHttpContextAccessor
-    {
-        public HttpContext? HttpContext { get; set; }
     }
 }

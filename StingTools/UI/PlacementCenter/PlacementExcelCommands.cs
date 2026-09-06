@@ -30,7 +30,7 @@ namespace StingTools.UI.PlacementCenter
         {
             try
             {
-                var doc  = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc  = ParameterHelpers.GetDoc(commandData);
                 var rules = PlacementRuleLoader.Load(doc?.PathName ?? "");
                 if (rules == null || rules.Count == 0)
                 {
@@ -68,7 +68,7 @@ namespace StingTools.UI.PlacementCenter
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(commandData);
                 if (string.IsNullOrEmpty(doc?.PathName))
                 {
                     TaskDialog.Show("STING Placement",

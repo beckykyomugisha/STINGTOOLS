@@ -1,6 +1,10 @@
 # Planscape identity handoff (Option B)
 
-**Status:** design agreed 2026-07-18, not yet implemented.
+**Status:** design agreed 2026-07-18, **implemented** — `POST /api/auth/handoff/exchange`
+(`AuthController.cs:994`), covered by `HandoffProvisioningTests` + `HandoffProvisioningSqliteTests`.
+Still carries the "one tenant per user" limitation described below (see "Deliberately out of
+scope"). Corrected 2026-07-31 — this header was stale; see
+`docs/LIVEKIT_AND_CORPORATE_UI_FINDINGS.md` §4b G3.
 **Problem it solves:** a customer signs up on `planscape.build` (Cloudflare D1) but
 the cloud app authenticates against the .NET API backed by Postgres. Those are
 two separate identity systems, so today a D1 customer cannot open the cloud app

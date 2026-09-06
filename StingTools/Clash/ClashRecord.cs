@@ -10,9 +10,11 @@ namespace StingTools.Core.Clash
     {
         public string IfcGuid;
         public string UniqueId;
-        public int ElementId;
+        // 64-bit to match Revit 2024+ ElementId.Value (issue #722). JSON numbers
+        // widen without a schema break, so an existing clashes.json still reads.
+        public long ElementId;
         public string DocGuid;
-        public int LinkInstanceId;
+        public long LinkInstanceId;
         public string Category;
         public string System;
     }

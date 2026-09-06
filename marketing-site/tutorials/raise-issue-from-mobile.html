@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raise an issue from your phone — Planscape tutorial</title>
+<meta name="description" content="Step-by-step tutorial: spot a problem on site, capture a photo, drop a GPS pin, assign to a coordinator. Works offline.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/tutorials/raise-issue-from-mobile.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/tutorials/">Tutorials</a> &rsaquo; Raise an issue from your phone</div>
+  <h1>Raise an issue from your phone</h1>
+  <div class="meta">⏱️ 6 minutes · Beginner · Works offline · Last updated 2026-05-23</div>
+
+  <p>You're walking the site and spot a fire damper installed back-to-front. This tutorial shows you how to capture the problem, attach a photo, drop a GPS pin, and route the issue to the right person — all from your phone, even if you have no signal.</p>
+
+  <div class="callout">
+    <strong>Before you start:</strong> you need the Planscape mobile app installed and signed in, with at least one project on your account. See <a href="/guides/mobile-onboarding.html">Mobile app onboarding</a> if you haven't done that yet.
+  </div>
+
+  <h2>What you'll build</h2>
+  <p>By the end of this tutorial you'll have:</p>
+  <ul>
+    <li>A new issue with a photo, GPS coordinates, and a clear title</li>
+    <li>The issue assigned to a specific coordinator</li>
+    <li>The issue tagged against an element from your federated model</li>
+    <li>A working understanding of the offline queue</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>Step 1 — Open the project</h2>
+  <p>Launch the app. If you're already signed in, the project picker shows. Tap the project you're on site for.</p>
+  <p>If this is your first visit, the app may prompt you to pre-sync. Tap <strong>Skip for now</strong> — you can still raise issues without pre-syncing.</p>
+
+  <h2>Step 2 — Start a new issue</h2>
+  <p>You have three ways to start a new issue. Pick whichever matches your situation:</p>
+
+  <h3>From the issue list</h3>
+  <p>Bottom tab bar → <strong>Issues</strong> → tap the orange <strong>+</strong> button in the bottom right.</p>
+
+  <h3>From the GPS site map</h3>
+  <p>Bottom tab bar → <strong>Map</strong> → long-press anywhere on the map. The new-issue form opens with the tapped point's GPS coordinates pre-filled.</p>
+
+  <h3>From the camera</h3>
+  <p>Quick-action: hold the floating camera button on the home screen for 1 second. Takes a photo and goes straight to the new-issue form with the photo attached.</p>
+
+  <div class="callout">
+    <strong>Tip:</strong> If you're standing right where the problem is, the GPS-pin route is fastest — coordinates are already set.
+  </div>
+
+  <h2>Step 3 — Fill in the issue</h2>
+  <p>The new-issue form has these fields:</p>
+
+  <table>
+    <thead><tr><th>Field</th><th>What to enter</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Title</strong></td><td>One line. "Fire damper FD-103 installed back-to-front"</td></tr>
+      <tr><td><strong>Type</strong></td><td>Quality / Safety / Coordination / RFI / NCR. Tap to pick.</td></tr>
+      <tr><td><strong>Priority</strong></td><td>Low / Medium / High / Critical</td></tr>
+      <tr><td><strong>Description</strong></td><td>Free-text. Voice-to-text icon if typing on site is awkward.</td></tr>
+      <tr><td><strong>Location</strong></td><td>Auto-filled if you used the GPS-pin route. Otherwise tap "Use my location".</td></tr>
+      <tr><td><strong>Linked element</strong></td><td>Optional. Tap "Link element" → QR-scan the asset, or pick from a list.</td></tr>
+      <tr><td><strong>Assignee</strong></td><td>Tap to pick from the project's team list.</td></tr>
+      <tr><td><strong>Due date</strong></td><td>Optional.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Step 4 — Attach a photo</h2>
+  <p>Tap the <strong>+ Add photo</strong> button. You get three options:</p>
+  <ul>
+    <li><strong>Take photo</strong> — opens the camera. Capture, tap the checkmark to use.</li>
+    <li><strong>From gallery</strong> — pick existing photos from your phone.</li>
+    <li><strong>Record voice note</strong> — useful for context that's faster to speak than type.</li>
+  </ul>
+  <p>You can attach up to 10 photos and 5 voice notes per issue. Photos are automatically thumbnailed and geotagged.</p>
+
+  <div class="callout warn">
+    <strong>Privacy note:</strong> Photos taken inside the app are not saved to your phone's camera roll unless you explicitly tap "Save to camera roll" in the photo viewer. This avoids leaking client work into your personal photo backup.
+  </div>
+
+  <h2>Step 5 — Link to an element (optional but recommended)</h2>
+  <p>Tying an issue to a specific element in the federated model is what makes it actionable for the BIM author. Three ways to link:</p>
+
+  <h3>QR scan</h3>
+  <p>Tap <strong>Link element → Scan QR</strong>. Point your camera at a printed STING tag on the asset. The element loads automatically with its full tag history.</p>
+
+  <h3>Pick from view</h3>
+  <p>Tap <strong>Link element → From map view</strong>. The 2D plan view of your current level opens. Tap the element you want to link.</p>
+
+  <h3>Search by tag</h3>
+  <p>Tap <strong>Link element → Search tag</strong>. Type any segment of the ISO 19650 tag (e.g. <code>HVAC-FD-0103</code>). Matching elements appear.</p>
+
+  <h2>Step 6 — Assign &amp; save</h2>
+  <p>Tap <strong>Assignee → pick a teammate</strong>. They'll get a push notification (when they're next online).</p>
+  <p>Hit <strong>Save</strong>. If you're online, the issue posts and you see "✓ Issue raised" briefly. If you're offline, you see "Queued — will sync when online" instead.</p>
+
+  <h2>Step 7 — Verify it synced</h2>
+  <p>Back on the issue list, your new issue appears at the top. If you're offline, it shows a small yellow chip with the queue count.</p>
+  <p>The status indicator at the top right of the screen tells you the queue state:</p>
+  <ul>
+    <li>🟢 <strong>Online</strong> — everything is synced.</li>
+    <li>🟡 <strong>Queued (N)</strong> — N items waiting; will sync automatically when connected.</li>
+    <li>🔴 <strong>Sync failed</strong> — something's wrong; tap for details.</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>What happened behind the scenes</h2>
+  <p>For the curious — here's what the app did:</p>
+  <ol>
+    <li>Saved the issue to the local SQLite database with a status of <code>pending</code>.</li>
+    <li>Saved photos and voice notes to local storage with a foreign key to the issue.</li>
+    <li>If online: posted <code>POST /api/projects/{projectId}/issues</code> with the issue body, then uploaded each photo to <code>POST /api/projects/{projectId}/photos</code> (multipart). Marked all as <code>synced</code>.</li>
+    <li>If offline: kept everything <code>pending</code>; a background task retries when network state changes.</li>
+    <li>Once synced server-side, SignalR broadcast the new issue to all connected project members — they get a push notification within a few seconds.</li>
+  </ol>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><strong>Forgetting to set priority.</strong> Defaults to Medium. Critical issues should be flagged explicitly so they appear in the daily standup.</li>
+    <li><strong>Not linking to an element.</strong> Floating issues are hard to triage. Link to the element you're complaining about whenever possible.</li>
+    <li><strong>Generic titles.</strong> "Issue with damper" is less useful than "FD-103 installed back-to-front, blade direction reversed". The author needs to know what's wrong without opening the photos.</li>
+    <li><strong>Assigning to no-one.</strong> Unassigned issues sit in the project queue and may be missed. Even "Project Lead" is better than no-one.</li>
+  </ul>
+
+  <h2>What's next?</h2>
+  <ul>
+    <li>Try <a href="/tutorials/qr-scan.html">QR-scanning an asset</a> to learn the fastest way to link issues to elements.</li>
+    <li>Try <a href="/tutorials/working-offline.html">Working a full day offline</a> to confirm your queue handles a real site visit.</li>
+    <li>Read the <a href="/guides/raising-issues.html">issue workflow guide</a> for the full lifecycle (open → in-progress → resolved → verified).</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/tutorials/" class="prev">
+      <span class="lbl">← All tutorials</span>
+      Tutorials index
+    </a>
+    <a href="/tutorials/capture-site-photos.html" class="next">
+      <span class="lbl">Next →</span>
+      Capture &amp; tag site photos
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col">
+      <div class="brand-row">Plan<span class="dot">·</span>scape</div>
+      <p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p>
+      <p>📍 Kampala, Uganda</p>
+      <p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/signup">Start trial</a>
+      <a href="/contact.html#demo">Book a demo</a>
+    </div>
+    <div class="col">
+      <h4>Learn</h4>
+      <a href="/guides/">Guides</a>
+      <a href="/tutorials/">Tutorials</a>
+      <a href="https://docs.planscape.co/">Developer docs</a>
+      <a href="/contact.html">Contact support</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="/about.html">About</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+      <a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

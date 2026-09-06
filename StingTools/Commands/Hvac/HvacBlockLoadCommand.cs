@@ -49,7 +49,8 @@ namespace StingTools.Commands.Hvac
                             || !snap.LoadCode.ToLowerInvariant().Contains("heat");
                 string scope = snap.Scope ?? "Project";
 
-                var (zones, skipped) = CollectZones(ctx, scope);
+                var envStats = new EnvelopeBuildStats();
+                var (zones, skipped) = CollectZones(ctx, scope, envStats);
                 if (zones.Count == 0)
                 {
                     TaskDialog.Show("STING HVAC — Block Load",
@@ -122,6 +123,31 @@ namespace StingTools.Commands.Hvac
                      .Metric("Spaces sized",         zones.Count.ToString())
                      .Metric("Skipped (no data)",    skipped.ToString())
                      .Metric("Stamped HVC_PEAK_*",   stamped.ToString());
+
+                // Tier-2 2.4 — surface the active design-day assumptions so an
+                // override is visibly in effect (defaults shown when none set).
+                var la = StingTools.Core.Hvac.Loads.LoadAssumptionsRegistry.Get(doc);
+                panel.AddSection("DESIGN-DAY ASSUMPTIONS (2.4)")
+                     .Metric("Cooling / heating DOY", $"{la.CoolingDesignDoy} / {la.HeatingDesignDoy}")
+                     .Metric("Outdoor daily range",   $"{la.OutdoorDailyRangeK:F1} K")
+                     .Metric("Diffuse fraction",      $"{la.DiffuseFraction:F2}")
+                     .Metric("Infiltration Cp",       $"{la.InfiltrationWindwardCp:F2}")
+                     .Text("Corporate baseline: Data/STING_LOAD_ASSUMPTIONS.json · " +
+                           "project override: _BIM_COORD/load_assumptions.json.");
+
+                // Tier-2 2.1 — how much of the fabric came from model thermal
+                // data vs the construction-profile fallback.
+                int envModel = envStats.TotalModelDerived;
+                int envFallback = envStats.TotalFallback;
+                int envTotal = envModel + envFallback;
+                panel.AddSection("ENVELOPE DATA SOURCE (2.1)")
+                     .Metric("Segments — model-derived", $"{envModel} / {envTotal}")
+                     .Metric("  · walls (U from type)",   $"{envStats.WallModelDerived} model · {envStats.WallFallback} profile")
+                     .Metric("  · glazing (SHGC/U)",      $"{envStats.GlazingModelDerived} model · {envStats.GlazingFallback} profile")
+                     .Text(envFallback == 0
+                        ? "All envelope segments used model thermal data."
+                        : "Segments without usable model thermal data fell back to the " +
+                          "construction profile — see the STING log for per-segment detail.");
 
                 panel.AddSection("PER SYSTEM");
                 foreach (var s in results.OrderByDescending(r => r.BlockSensibleW))
@@ -203,7 +229,8 @@ namespace StingTools.Commands.Hvac
 
         // ── Zone collection ─────────────────────────────────────────
 
-        private static (List<LoadZone> zones, int skipped) CollectZones(StingCommandContext ctx, string scope)
+        private static (List<LoadZone> zones, int skipped) CollectZones(
+            StingCommandContext ctx, string scope, EnvelopeBuildStats envStats = null)
         {
             var doc = ctx.Doc;
             var zones = new List<LoadZone>();
@@ -232,7 +259,7 @@ namespace StingTools.Commands.Hvac
                     .ToList();
                 foreach (var r in rooms)
                 {
-                    var z = ZoneFromRoom(r, profileLib, construction);
+                    var z = ZoneFromRoom(r, profileLib, construction, envStats);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -240,7 +267,7 @@ namespace StingTools.Commands.Hvac
             {
                 foreach (var s in spaces)
                 {
-                    var z = ZoneFromSpace(s, profileLib, construction);
+                    var z = ZoneFromSpace(s, profileLib, construction, envStats);
                     if (z != null) zones.Add(z); else skipped++;
                 }
             }
@@ -250,7 +277,8 @@ namespace StingTools.Commands.Hvac
 
         private static LoadZone ZoneFromSpace(Space s,
             StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib,
-            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction,
+            EnvelopeBuildStats envStats = null)
         {
             try
             {
@@ -300,7 +328,7 @@ namespace StingTools.Commands.Hvac
                 if (occ <= 0) occ = profile.OccupantCountFor(areaM2);
                 z.OccupantCount = occ;
 
-                AddPerimeterEnvelope(s, z, construction);
+                AddPerimeterEnvelope(s, z, construction, envStats);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"ZoneFromSpace {s.Id}: {ex.Message}"); return null; }
@@ -308,7 +336,8 @@ namespace StingTools.Commands.Hvac
 
         private static LoadZone ZoneFromRoom(Autodesk.Revit.DB.Architecture.Room r,
             StingTools.Core.Hvac.Loads.LoadProfileLibrary profileLib,
-            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction,
+            EnvelopeBuildStats envStats = null)
         {
             try
             {
@@ -334,7 +363,7 @@ namespace StingTools.Commands.Hvac
                     OccupantCount = profile.OccupantCountFor(areaM2)
                 };
                 profile.ApplyTo(z);
-                AddPerimeterEnvelope(r, z, construction);
+                AddPerimeterEnvelope(r, z, construction, envStats);
                 return z;
             }
             catch (Exception ex) { StingLog.Warn($"ZoneFromRoom {r.Id}: {ex.Message}"); return null; }
@@ -347,8 +376,9 @@ namespace StingTools.Commands.Hvac
         /// per-façade solar input (WS A2).
         /// </summary>
         private static void AddPerimeterEnvelope(SpatialElement spatial, LoadZone z,
-            StingTools.Core.Hvac.Loads.ConstructionProfile construction)
-            => StingTools.Core.Hvac.Loads.EnvelopeDetector.AddPerimeterEnvelope(spatial, z, construction);
+            StingTools.Core.Hvac.Loads.ConstructionProfile construction,
+            EnvelopeBuildStats envStats = null)
+            => StingTools.Core.Hvac.Loads.EnvelopeDetector.AddPerimeterEnvelope(spatial, z, construction, envStats);
 
         /// <summary>
         /// Drop the cached top-level lookup for a document. Called by

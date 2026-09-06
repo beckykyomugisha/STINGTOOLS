@@ -58,6 +58,11 @@ namespace StingTools.BIMManager
         // The BCC model-health panel should refresh its element count + coherence score
         // when this fires. Data.Source tells the UI which tool triggered the change.
         public event EventHandler<RealtimeEvent>? ModelUpdated;
+        // IM Phase 3 — broadcast by WarningsController.PushReport on the
+        // project-{id} group whenever any session pushes a warning report.
+        // Payload: { projectId, totalWarnings, previousWarnings, delta,
+        //            healthScore, reportedAt }.
+        public event EventHandler<RealtimeEvent>? WarningsReported;
         public event EventHandler<RealtimeEvent>? GenericNotification;
 
         /// <summary>Raised whenever the connection changes state. UI consumers wire this to a status chip.</summary>
@@ -197,6 +202,9 @@ namespace StingTools.BIMManager
             c.On<object>("IssueCreated",        p => Raise(IssueCreated,        p, "issue"));
             c.On<object>("IssueUpdated",        p => Raise(IssueUpdated,        p, "issue"));
             c.On<object>("ComplianceChanged",   p => Raise(ComplianceChanged,   p, "compliance"));
+            // IM Phase 3 — another session pushed a warning report. Subscriber is
+            // WarningsRealtimeBridge; see the threading contract there.
+            c.On<object>("WarningsReported",    p => Raise(WarningsReported,    p, "warnings"));
             c.On<object>("TransmittalUpdated",  p => Raise(TransmittalUpdated,  p, "transmittal"));
             c.On<object>("DocumentUpdated",     p => Raise(DocumentUpdated,     p, "document"));
             // GAP-FIX-SIGNALR — meeting events from MeetingsController.

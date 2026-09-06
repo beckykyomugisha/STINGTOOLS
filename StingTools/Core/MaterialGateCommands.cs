@@ -17,7 +17,7 @@ namespace StingTools.Core
         public class CoverageGateCommand : IExternalCommand
         {
             public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            { MatActions.RunCoverageCheck(data?.Application); return Result.Succeeded; }
+            { MatActions.RunCoverageCheck(ParameterHelpers.GetApp(data)); return Result.Succeeded; }
         }
 
         [Transaction(TransactionMode.ReadOnly)]
@@ -25,7 +25,7 @@ namespace StingTools.Core
         public class SustainabilityGateCommand : IExternalCommand
         {
             public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            { MatActions.RunSustainabilityGate(data?.Application); return Result.Succeeded; }
+            { MatActions.RunSustainabilityGate(ParameterHelpers.GetApp(data)); return Result.Succeeded; }
         }
 
         [Transaction(TransactionMode.ReadOnly)]
@@ -33,7 +33,7 @@ namespace StingTools.Core
         public class HealthcareGateCommand : IExternalCommand
         {
             public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            { MatActions.RunHealthcareGate(data?.Application); return Result.Succeeded; }
+            { MatActions.RunHealthcareGate(ParameterHelpers.GetApp(data)); return Result.Succeeded; }
         }
 
         [Transaction(TransactionMode.ReadOnly)]
@@ -41,7 +41,7 @@ namespace StingTools.Core
         public class FireWallGateCommand : IExternalCommand
         {
             public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            { MatActions.RunFireWallGate(data?.Application); return Result.Succeeded; }
+            { MatActions.RunFireWallGate(ParameterHelpers.GetApp(data)); return Result.Succeeded; }
         }
     }
 }

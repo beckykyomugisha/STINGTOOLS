@@ -111,30 +111,19 @@ namespace StingTools.Core.Placement
                 // Standards gate — match the rule's structured ApplicableStandards
                 // (CSV) when present, else fall back to its free-text StandardRef so
                 // rules that cite standards only via StandardRef are still gated
-                // rather than silently passing (the standards filter was inert for
-                // such rules before). Matching is case-insensitive and
-                // contains-either-direction so a profile "BS 6465" matches a rule
-                // "BS 6465-1:2006" and vice-versa.
+                // rather than silently passing.
+                //
+                // Matching goes through StandardsTokenMatcher, which splits on
+                // '/' as well as ',' and ';', strips edition years, and compares
+                // on letters+digits only. The previous inline comparison missed
+                // "BS 7671" vs "BS7671" and "Approved Doc M / BS 8300-2", which
+                // silently dropped rules from the run.
                 string ruleStds = !string.IsNullOrEmpty(r.ApplicableStandards)
                     ? r.ApplicableStandards
                     : (r.StandardRef ?? "");
                 if (actSet.Count > 0 && !string.IsNullOrWhiteSpace(ruleStds))
                 {
-                    bool any = false;
-                    var parts = ruleStds.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var raw in parts)
-                    {
-                        var s = raw.Trim();
-                        if (string.IsNullOrEmpty(s)) continue;
-                        foreach (var a in actSet)
-                        {
-                            if (string.IsNullOrEmpty(a)) continue;
-                            if (s.IndexOf(a, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                a.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0) { any = true; break; }
-                        }
-                        if (any) break;
-                    }
-                    if (!any) continue;
+                    if (!StandardsTokenMatcher.Matches(ruleStds, actSet)) continue;
                 }
 
                 filtered.Add(r);

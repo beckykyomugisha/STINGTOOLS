@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Stamps corporate-lock checksums into StingTools/Data/STING_DRAWING_TYPES.json.
+
+    The checksum DrawingTypeRegistry.ComputeChecksums verifies is
+    SHA256(JsonConvert.SerializeObject(drawingType, Formatting.None)) with
+    Checksum nulled first — a hash of the C# object's serialisation, NOT of the
+    raw JSON text. Reproducing it outside C# would mean re-implementing
+    Newtonsoft's property ordering, every NullValueHandling attribute and every
+    POCO default; any future field added to DrawingType would silently break it,
+    and a wrong hash is worse than none (it flips all 93 types to origin
+    "project" on first load and disables the lock entirely).
+
+    So this tool COMPILES THE MODEL ITSELF. Both files are Revit-free — plain
+    POCOs over Newtonsoft — so the hash here is produced by literally the same
+    source the plugin runs, and stays correct as the model evolves.
+
+    Run from the repository root:
+        dotnet run project tools/StampDrawingTypeChecksums          (stamp)
+        dotnet run project tools/StampDrawingTypeChecksums check    (verify only)
+    with the usual double-dash argument separators, which an XML comment
+    cannot contain. See tools/StampDrawingTypeChecksums/README.md.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>StampDrawingTypeChecksums</AssemblyName>
+    <RootNamespace>StingTools.Tools.StampChecksums</RootNamespace>
+    <!-- Not built by CI (the workflows name specific csproj paths). Kept out of
+         any solution on purpose: it links plugin sources and would otherwise
+         double-compile them. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- The whole DrawingType model lives in these two files, and neither
+       references the Revit API. Verified by their using-directives: System,
+       System.Collections.Generic, Newtonsoft.Json. -->
+  <ItemGroup>
+    <Compile Include="../../StingTools/Core/Drawing/DrawingType.cs" />
+    <Compile Include="../../StingTools/Core/Drawing/AnnotationRulePack.cs" />
+  </ItemGroup>
+
+</Project>

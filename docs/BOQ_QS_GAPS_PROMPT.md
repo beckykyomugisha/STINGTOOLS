@@ -1,5 +1,13 @@
 # BOQ & Cost Manager — Close the 9 QS Gaps (implementation prompt)
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 You are a terminal coding agent on the **StingTools** C# Revit plugin. The
 `docs/BOQ_QS_LAYMANS_GUIDE.md` §10 lists **9 honest gaps** in the BOQ & Cost
 Manager. This prompt is the brief to close them. Implement in the order below

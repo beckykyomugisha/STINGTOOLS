@@ -122,12 +122,35 @@ namespace StingTools.Core.Validation
         {
             try
             {
-                var p = el?.LookupParameter(paramName);
-                if (p == null || !p.HasValue) return fallback;
-                if (p.StorageType == StorageType.String) return p.AsString() ?? fallback;
+                // Instance first, then the element's type. STING_MAINT_CLEAR_TXT is
+                // written onto family types by FamilyHintsBridge.PushRuleToFamilyTypes,
+                // and an instance-side LookupParameter does not resolve a type-bound
+                // parameter — without this fallback the write would land but never be
+                // read, so the validator could still never fire.
+                var v = ReadStringFrom(el, paramName);
+                if (v != null) return v;
+
+                var typeId = el?.GetTypeId();
+                if (typeId != null && typeId != ElementId.InvalidElementId)
+                {
+                    var typeEl = el.Document?.GetElement(typeId);
+                    var tv = ReadStringFrom(typeEl, paramName);
+                    if (tv != null) return tv;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return fallback;
+        }
+
+        // Returns the string value when the parameter exists, has a value and is
+        // string-typed; null when it is absent/empty so the caller can fall through
+        // to the type. Distinguishes "not found here" from a genuine empty string.
+        private static string ReadStringFrom(Element el, string paramName)
+        {
+            var p = el?.LookupParameter(paramName);
+            if (p == null || !p.HasValue) return null;
+            if (p.StorageType != StorageType.String) return null;
+            return p.AsString();
         }
     }
 }

@@ -60,19 +60,36 @@ public static class ProjectMemberAcl
         if (!Guid.TryParse(subClaim, out var userId))
             return new AclSlice(null, null, null, BypassesAcl: true); // can't narrow what we can't identify
 
-        // Phase 177 — project only the columns that existed before the
-        // AddProjectMemberAcls migration so the query doesn't crash when
-        // the migration hasn't been applied yet (the three ACL columns are
-        // nullable and default to null = "all", so documents still load).
+        // #631 — read the three allow-list columns for real.
+        //
+        // These were hard-coded to null between cb503b024 (2026-05-16) and this
+        // commit, which meant ApplyTo could never narrow a query and the Phase
+        // 177 ACL restricted nothing for ~3 months. The stub was a deliberate
+        // crash workaround: a full entity fetch expands to SELECT *, which
+        // failed with "column p.AllowedCdeStates does not exist" on a database
+        // where migration 20260508000000_AddProjectMemberAcls had not been
+        // applied. Its comment said "until the migration is run".
+        //
+        // That reasoning is obsolete and must not be restored. This codebase
+        // does not run migrations: schema comes from OnModelCreating via
+        // EnsureCreated plus the idempotent patchers, and render.yaml sets
+        // PLANSCAPE_USE_ENSURE_CREATED=true on both the api and worker services
+        // (docs/adr/0001-schema-management.md). The three columns therefore
+        // exist wherever the model does — verified present on a live database.
+        //
+        // The explicit projection is kept, minus the null literals: it selects
+        // exactly the four columns this method needs, so the query cannot be
+        // widened by an unrelated entity change and cannot fetch a column that
+        // does not exist.
         var memberRow = await db.ProjectMembers
             .AsNoTracking()
             .Where(m => m.ProjectId == projectId && m.UserId == userId && m.IsActive)
             .Select(m => new
             {
                 m.Id,
-                AllowedCdeStates    = (string?)null,
-                AllowedDisciplines  = (string?)null,
-                AllowedSuitabilities = (string?)null,
+                m.AllowedCdeStates,
+                m.AllowedDisciplines,
+                m.AllowedSuitabilities,
             })
             .FirstOrDefaultAsync(ct);
 

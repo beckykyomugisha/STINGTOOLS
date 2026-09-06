@@ -1,83 +1,73 @@
 # Known-failing tests — the CI baseline.
 #
-# WHY THIS FILE EXISTS
+# THE BASELINE IS EMPTY. THIS IS DELIBERATE.
+# ------------------------------------------
+# The suite is green: 540 tests, 540 passed, 0 failed. There is no backlog of
+# accepted failures left to carry, so `check-new-failures.sh` now behaves as a
+# true zero-failure gate — ANY failing test is a new failure and fails CI.
+#
+# WHY THIS FILE STILL EXISTS
+# --------------------------
+# `check-new-failures.sh` requires the file to be present (a missing baseline is
+# an error, not an empty one — that distinction is what stops a deleted file
+# from silently disabling the gate). Keeping it empty is the honest encoding of
+# "nothing is expected to fail".
+#
+# HISTORY — why it used to hold 66 entries
+# ----------------------------------------
+# It was generated when the suite carried 66 uniquely-named failures (73 cases,
+# some theories). Those were fixed by the injected-IRecurringJobManager
+# conversion and the fixture-rot work, but the baseline was never pruned. A
+# baseline listing 66 now-passing tests is a REGRESSION BLINDSPOT: if any of
+# them broke again it would be matched by the baseline and pass the gate
+# silently — exactly the failure this file is supposed to prevent.
+#
+# Pruned 2026-08-02 against a full local run (real Postgres 16, PLANSCAPE_TEST_PG
+# set, `dotnet test Planscape.sln -c Release`): "Test Run Successful.",
+# Total 540 / Passed 540 / Failed 0. Of the 66 entries:
+#   * 64 ran and PASSED.
+#   * 2 no longer exist and were not renamed into a still-failing test:
+#       - AuthControllerTests.HealthCheck_ReturnsHealthy — deleted; no such
+#         method remains on the class.
+#       - TenantKeywordL2CacheTests.ResolveAsync_HitsL2OnSecondCall — renamed to
+#         ResolveAsync_WritesThroughToL2_AndL1ServesSubsequentInstances, which
+#         passes. The rename is documented in the test source: the old test
+#         asserted against the design (L1 is a *static* striped-LRU shared
+#         process-wide, so a second resolver instance never consults L2).
+#   * 0 still fail.
+#
+# ADDING AN ENTRY BACK
 # --------------------
-# CI fails on NEW failures only: any failing test whose name is not listed here.
-# Gating on "zero failures" while a backlog exists makes CI red always, which
-# means nobody reads it — that is why the test step used to run with
-# `continue-on-error: true` and a comment claiming "No tests yet".
+# Only when a test genuinely fails and the fix is deliberately deferred. Add the
+# fully-qualified method name (no theory arguments — the checker strips them),
+# and say in the PR why it is being accepted rather than fixed. Deleting a line
+# when you fix a test is what makes the gate guard the fix from regressing.
 #
-# Fixing one of these is welcome — delete its line in the same PR, and the check
-# then guards the fix from regressing. This file should only ever shrink.
+# Regenerate the actual failure list with (from Planscape.Server):
+#   dotnet test Planscape.sln -c Release --verbosity normal 2>&1 \
+#     | grep -oE "^[[:space:]]*Failed[[:space:]]+Planscape\.Tests\.[A-Za-z0-9_.]+" \
+#     | sed -E 's/^[[:space:]]*Failed[[:space:]]+//' | sort -u
 #
-# Regenerate with (from Planscape.Server/tests/Planscape.Tests):
-#   dotnet test --nologo -v q 2>&1 \
-#     | grep -oE "Planscape\.Tests\.[A-Za-z0-9_.]+(\(.*\))? \[FAIL\]" \
-#     | sed -E 's/\(.*\)//; s/ \[FAIL\]//' | sort -u
+# CAVEAT, updated 2026-08-03: the order/parallelism dependence this used to warn
+# about was ROADMAP DEP-7 — Program.cs read the process-wide
+# Hangfire.JobStorage.Current during host build, so a host built after a
+# sibling's teardown died with ObjectDisposedException and took a RANDOM victim
+# test with it (12 / 16 / 3 failures across three runs of the same tree). That is
+# FIXED: recurring jobs now register through the injected IRecurringJobManager,
+# and #549 restored the HTTP test that the flake had forced out. Three
+# independent runs — main 097b75a94 (540 tests), #549 435cb8432 (541), #448
+# 8a737626a (542) — all report 0 failed.
 #
-# Theory cases collapse to their base method name — list the method once.
+# What remains is cosmetic and does NOT fail a test: an ObjectDisposedException
+# on Hangfire.InMemory.State.Dispatcher still shows up in the log at TEARDOWN,
+# from Hangfire deregistering a background server in
+# BackgroundServerProcess.ServerDelete once the run is over. It is logged WRN and
+# swallowed. Its volume varies run to run (1052 / 1346 / 2 across those three
+# runs) — noisy, but not a gate concern. Do not add it to this baseline; there is
+# no test to name.
+#
+# The empty baseline still means a genuine flake surfaces as a failure rather
+# than being absorbed silently. That remains the intended trade: a visible flake
+# can be fixed, an absorbed one cannot.
 #
 # Blank lines and lines starting with # are ignored.
-#
-# ── History ───────────────────────────────────────────────────────────────
-# 129 → 73  Phase 201 harness repair (host construction unblocked)
-#  73 → 9   test-health pass: fixed 5 production bugs (claim mapping, two
-#           missing IgnoreQueryFilters, TagSync auth ordering, JSON cycle) plus
-#           fixture rot (tenant query filter, billing plan, project membership,
-#           per-context InMemory store names). See docs/CHANGELOG.md.
-#
-# Every remaining entry below has a diagnosed cause. None is a mystery.
-
-# ── Require real PostgreSQL — now SKIPPED, no longer baseline entries ──────
-# The three CoreApiTests that need Postgres-only SQL are now [Fact(Skip=…)] and
-# report as Skipped, not Failed, so they no longer belong here. They run on the
-# EF InMemory host (always InMemory, regardless of PLANSCAPE_TEST_PG), where the
-# SQL they depend on cannot execute:
-#   Search_ValidQuery_ReturnsResults → EF.Functions.ILike is Npgsql-only.
-#   Transmittals_CreateAndList / _MarkSent → SequenceCounterService.AllocateAsync
-#     runs `INSERT … ON CONFLICT … RETURNING` via SqlQueryRaw.
-# Their real home is the Postgres suite (cf. PostgresSequenceCounterTests).
-
-# ── CONFIRMED PRODUCTION DEFECTS in DeliverableStateMachine ───────────────
-# These tests are RIGHT and the engine is WRONG. Deliberately not fixed here:
-# the remedies change how every tenant's custom workflow vocabulary is
-# classified, which warrants its own PR and review rather than riding along in a
-# test-health pass. Full diagnosis with file:line in docs/ROADMAP.md (DEP-14).
-#
-#   InferRoleByKeyword_RecognisesExtendedWorking — "BLOCKED".Contains("LOCKED")
-#     is true, and the terminal scan precedes the working scan, so every
-#     BLOCKED* state is misclassified as terminal.
-#   InferRoleByKeyword_RecognisesSubmitting — AcceptKeywords "APPROV" is scanned
-#     before SubmitKeywords "FOR_APPROVAL", so ISSUED_FOR_APPROVAL reads as
-#     already approved.
-#   LoadOrDefault_* (4) — tenant/project keyword layers cannot override the
-#     canonical mapping for any state named in states[]/transitions[], the
-#     per-bucket merge lets the platform layer win over the project layer, and
-#     an explicit roles[] block does not suppress built-in inference at runtime.
-Planscape.Tests.DeliverableStateMachineTests.LoadOrDefault_ExplicitRolesWinOverInference
-Planscape.Tests.PlatformKeywordTests.LoadOrDefault_PlatformAndProject_MergesWithProjectWinning
-Planscape.Tests.RoleExtensionTests.InferRoleByKeyword_RecognisesExtendedWorking
-Planscape.Tests.RoleExtensionTests.LoadOrDefault_TenantKeywordsCanOverrideCanonical
-Planscape.Tests.RoleInferenceTests.InferRoleByKeyword_RecognisesSubmitting
-Planscape.Tests.RoleInferenceTests.LoadOrDefault_ExplicitRolesStillWinOverFuzzyInference
-
-# ── Pre-existing order/parallelism flakes (ROADMAP DEP-7) ─────────────────
-# THE ONLY TWO LINES THIS PASS *ADDED*. Both fail intermittently in the full
-# suite and pass in isolation; neither is caused by the changes in this PR, and
-# both were measured on origin/main to confirm that:
-#
-#   Login_NonexistentUser_Returns401 — full suite on main: FAILS 3/3.
-#     Isolated on main: passes. It is more stable on this branch than on main,
-#     which is why the previous baseline (captured on a luckier run) missed it.
-#   Get_WithConfig_ETagDiffersFromBuiltInOnly — stands up a SECOND
-#     WebApplicationFactory (`new PlanscapeWebApplicationFactory()`), which is
-#     verbatim the DEP-7 hazard: Program.cs reads the process-global
-#     Hangfire.JobStorage.Current during host build.
-#
-# Listed so CI is deterministic rather than randomly red. This is a tolerance,
-# not an endorsement — check-new-failures.sh prints a "now PASS" notice on the
-# runs where they succeed, so the entries stay visible. Delete them when DEP-7
-# is fixed. A shared never-disposed JobStorage was tried here as a mitigation
-# and made things worse (cross-factory state bleed); it was reverted.
-Planscape.Tests.AuditCategoriesConfiguredTests.Get_WithConfig_ETagDiffersFromBuiltInOnly
-Planscape.Tests.AuthControllerTests.Login_NonexistentUser_Returns401

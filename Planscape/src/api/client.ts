@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { getLanguage } from '../i18n';
+import { ApiError } from './apiError';
 
 const TOKEN_KEY = 'planscape_token';
 const REFRESH_KEY = 'planscape_refresh';
@@ -106,12 +107,9 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+// Defined in ./apiError so RN-free code can depend on the shape; re-exported
+// here because every existing call site imports it from '@/api/client'.
+export { ApiError };
 
 export async function apiFetch<T>(
   path: string,

@@ -277,9 +277,13 @@ namespace StingTools.Core.Drawing
                 SubCategories = Subs("OST_FabricationDuctwork", false, "Center Line", "Insulation", "Lining", "Symbology") });
 
             // MEP Fabrication Hangers
-            list.Add(new RevitCategory { Bic = "OST_FabricationContainment", DisplayName = "MEP Fabrication Hangers",
+            // E-14: this row mapped to OST_FabricationContainment — that is
+            // Fabrication Containment, a different category, and it left
+            // Fabrication Hangers absent from the tree entirely while any rule
+            // targeting "hangers" silently addressed containment.
+            list.Add(new RevitCategory { Bic = "OST_FabricationHangers", DisplayName = "MEP Fabrication Hangers",
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true,
-                SubCategories = Subs("OST_FabricationContainment", false, "Symbology") });
+                SubCategories = Subs("OST_FabricationHangers", false, "Symbology") });
 
             // MEP Fabrication Pipework
             list.Add(new RevitCategory { Bic = "OST_FabricationPipework", DisplayName = "MEP Fabrication Pipework",
@@ -475,8 +479,9 @@ namespace StingTools.Core.Drawing
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
                 SubCategories = Subs("OST_Topography", false, "<Hidden Lines>", "Boundary Point", "Interior Point", "Primary Contours", "Secondary Contours", "Triangulation Edges") });
 
-            // Topsoil
-            list.Add(new RevitCategory { Bic = "OST_Toposolid", DisplayName = "Topsoil",
+            // Toposolid (Revit 2024+ modelled ground element — not "Topsoil",
+            // which is a material). E-14.
+            list.Add(new RevitCategory { Bic = "OST_Toposolid", DisplayName = "Toposolid",
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
                 SubCategories = Subs("OST_Toposolid", false, "<Hidden Lines>", "Common Edges", "Folding Lines", "Primary Contours", "Secondary Contours", "Split Lines") });
 
@@ -523,8 +528,9 @@ namespace StingTools.Core.Drawing
             list.Add(new RevitCategory { Bic = "OST_MechanicalEquipmentSet", DisplayName = "Mechanical Equipment Set",
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = true });
 
-            list.Add(new RevitCategory { Bic = "OST_PlumbingFixtures", DisplayName = "Plumbing Fixtures (extra subcats)",
-                HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = true });
+            // E-14: second OST_PlumbingFixtures row removed — the earlier entry
+            // (with its full sub-category list) always wins the lookup, so this
+            // one was unreachable and its "extra subcats" label was misleading.
 
             list.Add(new RevitCategory { Bic = "OST_StructConnectionPlates", DisplayName = "Structural Connection Plates",
                 HasCutLines = true, HasHalftone = true, HasDetailLevel = true, IsTaggable = false });
