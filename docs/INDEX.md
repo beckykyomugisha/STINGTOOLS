@@ -151,6 +151,18 @@ CI rather than reaching an issue.
 | `tools/check_kut_documents.py` | ✅ **The gate.** Proves the pack is internally consistent, matches the LOD overlay, names no tooling, and is a current un-edited regeneration. Run by `.github/workflows/kut-document-gate.yml`. It proves nothing about whether the requirements are *right*, and nothing about a real Revit model. |
 | `tools/merge_tidp.py` | Merges returned TIDP workbooks into the register. **Preview by default**; writes only on `--apply`; refuses a conflicting `Ref` unless told otherwise. |
 
+## Audits, proposals and role model
+
+Dated reports and proposals. Each states the commit it was measured on; read the date before acting
+on a row, and check `CHANGELOG.md` for what has since landed.
+
+[`DOCUMENT_LIFECYCLE_ALIGNMENT_AUDIT.md`](DOCUMENT_LIFECYCLE_ALIGNMENT_AUDIT.md) (measured
+2026-08-01; row L2 is marked closed in the document itself) ·
+[`ROLE_MODEL_MIGRATION_PROPOSAL.md`](ROLE_MODEL_MIGRATION_PROPOSAL.md), with the reconciliation
+query at `Planscape.Server/tools/role-reconciliation-sheet.sql` ·
+[`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
+[`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
+
 ## Domain packs
 
 `HEALTHCARE_PACK_DESIGN.md` · `HEALTHCARE_*_PROMPT.md` (seven work prompts: accuracy, changelog/roadmap, completeness, deferred implementation, gap fixes, Phase 199 fixes and profile coverage — intent, check against `CHANGELOG.md`) · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
