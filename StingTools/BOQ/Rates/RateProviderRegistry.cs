@@ -110,6 +110,10 @@ namespace StingTools.BOQ.Rates
             var providers = new List<IRateProvider>
             {
                 new ParameterOverrideRateProvider(),
+                // Owner FF&E procurement price (96) — above the material library and the
+                // CSV category rate, below an explicit inline override. Returns null when
+                // the element carries no Fohlio cost, so non-FF&E models are unaffected.
+                new FohlioRateProvider(),
                 new ExtensibleStorageRateProvider(),
                 // P3.4 — project rate card (incl. QS-Bill-imported rates at
                 // <project>/_BIM_COORD/rate_card.json). Priority 87 sits above

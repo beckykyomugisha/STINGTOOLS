@@ -47,19 +47,33 @@ namespace StingTools.BOQ
     /// </summary>
     public static class BoqTotals
     {
+        /// <param name="markupExemptWorks">
+        /// The portion of <paramref name="works"/> a main contractor does not earn
+        /// overhead, profit or contingency on — Owner-procured FF&amp;E bought direct
+        /// from the supplier's register. It stays in the bill at cost (it is real money
+        /// the Owner spends) but is removed from the OH&amp;P and contingency BASE, which
+        /// is the arithmetic that makes an at-cost FF&amp;E line different from a
+        /// contractor-supplied one. Preliminaries keep the full works base: site
+        /// establishment, storage and handling are earned on Owner-supplied goods too.
+        /// <para>DEFAULTS TO 0, which reproduces the previous arithmetic exactly.</para>
+        /// </param>
         public static BoqMarkupBreakdown Compute(double works, double prelimsAbsolute,
-            double overheadPct, double contingencyPct, double vatPct)
+            double overheadPct, double contingencyPct, double vatPct,
+            double markupExemptWorks = 0)
         {
             var b = new BoqMarkupBreakdown
             {
                 Works = works,
                 Prelims = prelimsAbsolute
             };
+            // Never let a bad exempt figure invert the base.
+            double exempt = Math.Max(0, Math.Min(markupExemptWorks, works));
             double sub1 = works + b.Prelims;
-            b.Overhead = sub1 * (overheadPct / 100.0);
-            double sub2 = sub1 + b.Overhead;
-            b.Contingency = sub2 * (contingencyPct / 100.0);
-            b.NetExVat = sub2 + b.Contingency;
+            double ohpBase = sub1 - exempt;
+            b.Overhead = ohpBase * (overheadPct / 100.0);
+            double contBase = ohpBase + b.Overhead;
+            b.Contingency = contBase * (contingencyPct / 100.0);
+            b.NetExVat = sub1 + b.Overhead + b.Contingency;
             b.Vat = b.NetExVat * (vatPct / 100.0);
             b.GrandTotal = Math.Round(b.NetExVat + b.Vat, 0);
             return b;

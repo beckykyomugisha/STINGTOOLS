@@ -2,6 +2,20 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## KUT lifecycle join — after the re-land from `claude/kut-lifecycle-integration` (2026-09-06)
+
+The four-ledger join (SpecLink → BOQ → Fohlio → Niagara) was recovered onto `main`
+in three PRs. These are the pieces that were deliberately left out or could not be
+covered, recorded so nobody reads their absence as an oversight.
+
+| ID | Item | Detail |
+|---|---|---|
+| LIFE-1 | **`NiagaraJsonClient.ParsePoints` and `CommissioningSource` have no tests** | Both are pure enough to test, but both log through `StingLog`, which the Revit-free test projects do not link (it carries a `StingTools.Core.Drawing` using and a Win32 P/Invoke). `ParsePoints` decides `hasValue`, which decides `IsCommissioned`, which decides whether a line is certified — so it is worth covering. The arithmetic on the other side of that decision (`BmsValuation`) IS tested. Closing this means either making `StingLog` linkable into a Revit-free test project, or moving the oBIX shape handling into a class that does not log. |
+| LIFE-2 | **The 34 site / civil / external-utility NRM2 codes in `STING_CSI_MASTERFORMAT_MAP.csv` have not had a QS's eye** | They carry the code implied by their CSI division and the file's existing convention, which is a strict improvement on the category-keyword fallback they had before (`Generic Models` and `Topography` landed in a bucket). They are data; changing one is a one-line edit. Flagged in the file header too. |
+| LIFE-3 | **Three accuracy fixes from the same branch were NOT recovered** | The branch carried a `kg_to_tonne` take-off conversion, a `RateIncludesOhp` flag excluding already-loaded rates from the document OH&P base, and an accuracy disclosure on `MeasurementStandards` (the standards re-classify rows, they do not re-measure; `ApplyDeductions` returns the quantity unchanged for NRM2/POMI/ICMS3/MMHW and the CESMM4 opening deduction is a stub returning 0). All three are outside the re-land's scope and none is on `main`. The disclosure in particular is cheap and worth landing: a user choosing a measurement standard may reasonably believe it changes the measurement. |
+| LIFE-4 | **`ASS_CST_FX_DATE_DT` is written by `Fohlio_Import` but nothing reads it** | The FX-fixing date is stamped so a tender is auditable, which is the right instinct, but no export or report surfaces it yet. Either surface it beside the Fohlio-sourced rate in the bill, or drop the write. |
+| LIFE-5 | **`FOHLIO_UNIT_COST_NR` / `FOHLIO_CURRENCY_TXT` need binding before the rate provider can fire** | The constants and GUIDs are registered, and `FohlioRateProvider` reads them, but the parameters have to be bound to the FF&E categories in a project for a value to exist. Until then the provider falls back to the ES import snapshot, and failing that returns null — correct, but silent. A binding-coverage line for the two would make the gap visible. |
+
 ## KUT mobilisation pack — after the Phase 243 hardening (2026-08-23)
 
 Numbered **MOB-n** because an older section further down this file, *KUT project-readiness — open after Phase 228*, already owns `KUT-1`…`KUT-11` for unrelated items. `KUT-OPEN-n` below does not collide and keeps its name.

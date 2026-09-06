@@ -3814,6 +3814,9 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
+                    case "KUT_ValuationFromBms": RunCommand<Commands.Twin.KutValuationFromBmsCommand>(app); break;
+                    case "KUT_LifecycleReconcile": RunCommand<Commands.Twin.KutLifecycleReconcileCommand>(app); break;
+                    case "KUT_PushLifecycleGapsToAcc": RunCommand<Commands.Twin.KutPushLifecycleGapsToAccCommand>(app); break;
                     // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
                     // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
                     // muscle memory keep working. The command derives its code from

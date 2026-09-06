@@ -3765,6 +3765,22 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- LIFECYCLE JOIN (spec -> cost -> procurement -> commissioning) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LIFECYCLE JOIN"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Joins the four ledgers keyed off the same element: SpecLink (specified) → BOQ (priced) → Fohlio (procured) → Niagara (commissioned)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Lifecycle Reconcile" Tag="KUT_LifecycleReconcile" Click="Cmd_Click"
+                                            ToolTip="Read-only four-ledger join into one asset register (XLSX), surfacing the two gaps a single-ledger reconcile cannot see: priced assets with no BMS point, and station points with no priced line"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="BMS Valuation" Tag="KUT_ValuationFromBms" Click="Cmd_Click"
+                                            ToolTip="Read the Niagara station and report what share of the priced monitorable scope is live and therefore certifiable as commissioned. Falls back to the last cached read when the station is down, and says so"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Push Gaps to ACC" Tag="KUT_PushLifecycleGapsToAcc" Click="Cmd_Click"
+                                            ToolTip="Push the model-derivable lifecycle gaps (priced-unspecified, priced-no-BMS-point) to ACC Issues. Idempotent — re-runs skip anything already pushed"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- FOHLIO FF&amp;E (Phase 192 C1) -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="FOHLIO FF&amp;E"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">

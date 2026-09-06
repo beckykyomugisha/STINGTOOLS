@@ -688,6 +688,24 @@ namespace StingTools.BOQ
             // Skip phase-demolished or temporary elements — they don't belong in the cost plan.
             if (IsPhaseDemolished(doc, el)) return null;
 
+            // FF&E treatment. Fohlio-mapped categories are Owner procurement, not
+            // contractor-supplied work, and how they appear in the bill is a project
+            // decision (_BIM_COORD/fohlio_map.json). Resolved ONCE, up front, so exactly
+            // one treatment applies per element and nothing is double-counted.
+            string ffeTreatment = null;   // null => not an FF&E (Fohlio-mapped) category
+            try
+            {
+                var fmap = StingTools.ExLink.FohlioMap.Cached(doc);
+                if (fmap != null && fmap.IsFfeCategory(catName))
+                {
+                    ffeTreatment = fmap.TreatmentFor(catName);
+                    // Owner-supplied and outside this bill: leave the row out entirely
+                    // rather than pricing it at zero, which would read as free work.
+                    if (ffeTreatment == StingTools.BOQ.FfeTreatment.Excluded) return null;
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("FfeTreatment", $"FF&E treatment: {ex.Message}"); }
+
             // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
             string rateSource;
             int rateConfidence;
@@ -886,6 +904,23 @@ namespace StingTools.BOQ
                     }
                 }
                 catch (Exception ex) { StingLog.WarnRateLimited("SpecText", $"Spec-text bridge: {ex.Message}"); }
+            }
+
+            // Apply the FF&E treatment resolved above. "measured" needs nothing — it is
+            // a normal model line that happens to be priced from the Fohlio rate.
+            if (ffeTreatment == StingTools.BOQ.FfeTreatment.Ffe)
+            {
+                line.FfeOwnerProcured = true;
+                string note = "FF&E — Owner-procured via the Fohlio register (at cost; excl. OH&P + contingency)" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? note : $"{line.Note}; {note}";
+            }
+            else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
+            {
+                line.Source = BOQRowSource.ProvisionalSum;
+                string pcNote = "PC sum — Fohlio FF&E register" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
             }
 
             // Mark provisional sums on the element if configured via existing parameter.
