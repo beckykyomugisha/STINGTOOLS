@@ -111,8 +111,24 @@ def main():
         if kind == 'blank':
             continue  # drop blank lines
         out_lines.append(','.join(row) + '\n')
+    # New rows are assembled from .txt FIELDS, which have never been through a CSV
+    # encoder. A description containing a comma -- "…, e.g. Pr_30" -- written with a
+    # bare join produces one field too many and shifts every column after Description
+    # one to the left, dropping the last off the end. The file still parses; only the
+    # column-count gate can see it.
+    #
+    # Existing rows above are deliberately NOT re-encoded: they are read as raw lines
+    # and split, so their text still carries any quotes it already had, and rejoining
+    # reproduces the original bytes. That identity is what makes this script
+    # idempotent, and quoting them again would wrap quoted text in a second layer.
+    def _csv_field(f):
+        f = '' if f is None else str(f)
+        if any(c in f for c in (',', '"', '\n', '\r')):
+            return '"' + f.replace('"', '""') + '"'
+        return f
+
     for row in new_rows:
-        out_lines.append(','.join(row) + '\n')
+        out_lines.append(','.join(_csv_field(c) for c in row) + '\n')
 
     # Update the version header. REPLACE it, never prepend: the original
     # inserted unconditionally, so a second run stacked a second header reading

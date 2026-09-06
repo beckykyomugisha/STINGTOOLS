@@ -185,6 +185,9 @@
     <None Include="..\StingTools\Data\RESOLVED_BINDINGS.csv" Link="Data\RESOLVED_BINDINGS.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\StingTools\Data\CATEGORY_BINDINGS.csv" Link="Data\CATEGORY_BINDINGS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\StingTools\Data\PARAMETER_REGISTRY.json" Link="Data\PARAMETER_REGISTRY.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
