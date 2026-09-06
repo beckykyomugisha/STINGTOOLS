@@ -38,6 +38,12 @@ namespace StingTools.Core.Baseline
         public string Name = "";
         public string Detail = "";
 
+        /// <summary>LAYER 2 — the loaded family a Missing family type will be
+        /// minted INSIDE. Empty for every other finding. Carried on the finding
+        /// so the minter does not re-run the pattern match and risk choosing a
+        /// different family than the one the audit told the user about.</summary>
+        public string HostFamily = "";
+
         public bool IsActionable => Kind == BaselineFindingKind.Missing;
     }
 
@@ -59,6 +65,26 @@ namespace StingTools.Core.Baseline
         /// Absent means the type was not inspected.</summary>
         public Dictionary<string, bool> HostTypeHasTiledFinish =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>LAYER 2 — category display name → the FAMILY names loaded in
+        /// it. Distinct from FamilyTypesByCategory: a type can only be minted
+        /// inside a family that is already loaded, so the family list is what
+        /// decides Missing from Guidance.</summary>
+        public Dictionary<string, List<string>> FamiliesByCategory =
+            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>LAYER 2 — "Category|TypeName" → that type's parameter values
+        /// in millimetres, for the names the baseline declares. Present only for
+        /// types whose name the baseline also declares; the reader does not walk
+        /// every parameter of every type in the model.
+        ///
+        /// This is what turns a name match into a CONFLICT rather than a pass:
+        /// the model's 800x2100 may be the deliberate one.</summary>
+        public Dictionary<string, Dictionary<string, double>> FamilyTypeParametersMm =
+            new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
+        public static string TypeKey(string category, string typeName)
+            => (category ?? "").Trim() + "|" + (typeName ?? "").Trim();
 
         private static HashSet<string> New() => new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
@@ -129,7 +155,129 @@ namespace StingTools.Core.Baseline
                 r.Findings.Add(AuditFamilyExpectation(f, model));
             }
 
+            foreach (var t in baseline.FamilyTypes ?? new List<BaselineFamilyType>())
+            {
+                if (t == null || string.IsNullOrWhiteSpace(t.TypeName)
+                              || string.IsNullOrWhiteSpace(t.Category)) continue;
+                r.Findings.Add(AuditFamilyType(t, model));
+            }
+
             return r;
+        }
+
+        /// <summary>LAYER 2 group label. One constant so the auditor, the
+        /// minter's Missing lookup and the report cannot drift apart — the
+        /// lookup is keyed on Group|Name.</summary>
+        public const string FamilyTypeGroup = "Family types";
+
+        /// <summary>
+        /// Millimetre tolerance for "the same size". Revit stores lengths in
+        /// feet, so a 900 mm parameter round-trips as 899.9999999; comparing
+        /// exactly would report a conflict on every single type.
+        /// </summary>
+        private const double MmTolerance = 0.5;
+
+        private static BaselineFinding AuditFamilyType(BaselineFamilyType t, ModelInventory model)
+        {
+            string cat = t.Category.Trim();
+            string typeName = t.TypeName.Trim();
+            string summary = t.ParameterSummary();
+
+            model.FamilyTypesByCategory.TryGetValue(cat, out var existingTypes);
+            bool exists = (existingTypes ?? new List<string>())
+                .Any(x => string.Equals((x ?? "").Trim(), typeName, StringComparison.OrdinalIgnoreCase));
+
+            if (exists)
+            {
+                // A name match with DIFFERENT parameters is a conflict, never an
+                // overwrite. The model's 800x2100 may be deliberate, and #798 is
+                // the standing reminder that a wrongly-"conforming" type is the
+                // most expensive kind of wrong.
+                var differences = Differences(t, model);
+                if (differences.Count > 0)
+                    return new BaselineFinding
+                    {
+                        Kind = BaselineFindingKind.Conflict,
+                        Group = FamilyTypeGroup,
+                        Name = $"{cat} / {typeName}",
+                        Detail = "exists at " + string.Join(", ", differences)
+                               + ". Not overwritten — the model's version may be the correct one."
+                    };
+
+                return new BaselineFinding
+                {
+                    Kind = BaselineFindingKind.Present, Group = FamilyTypeGroup,
+                    Name = $"{cat} / {typeName}", Detail = t.Purpose
+                };
+            }
+
+            // Not present. It can only be minted inside a family already loaded
+            // in that category — this layer mints a TYPE, it cannot conjure the
+            // family.
+            string host = ChooseHostFamily(t, model);
+            if (string.IsNullOrEmpty(host))
+                return new BaselineFinding
+                {
+                    Kind = BaselineFindingKind.Guidance,
+                    Group = FamilyTypeGroup,
+                    Name = $"{cat} / {typeName}",
+                    Detail = $"no loaded family in {cat} matches ["
+                           + string.Join(" | ", (t.FamilyNamePatterns ?? new List<string>())
+                                 .Where(x => !string.IsNullOrWhiteSpace(x)))
+                           + "]. Load one, then re-run."
+                };
+
+            return new BaselineFinding
+            {
+                Kind = BaselineFindingKind.Missing,
+                Group = FamilyTypeGroup,
+                Name = $"{cat} / {typeName}",
+                HostFamily = host,
+                Detail = (summary.Length > 0 ? summary + " — " : "")
+                       + $"in family \"{host}\"" + (string.IsNullOrWhiteSpace(t.Purpose)
+                            ? "" : " — " + t.Purpose)
+            };
+        }
+
+        /// <summary>
+        /// The FIRST loaded family in the category whose name contains any
+        /// pattern, in the order the patterns are declared — that ordering is
+        /// the whole point of the list. Never a family from another category.
+        /// </summary>
+        public static string ChooseHostFamily(BaselineFamilyType t, ModelInventory model)
+        {
+            if (t == null || model == null || string.IsNullOrWhiteSpace(t.Category)) return "";
+            if (!model.FamiliesByCategory.TryGetValue(t.Category.Trim(), out var families)) return "";
+            families = families ?? new List<string>();
+
+            foreach (string pattern in t.FamilyNamePatterns ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(pattern)) continue;
+                string p = pattern.Trim();
+                foreach (string f in families)
+                    if (!string.IsNullOrWhiteSpace(f)
+                     && f.IndexOf(p, StringComparison.OrdinalIgnoreCase) >= 0) return f.Trim();
+            }
+            return "";
+        }
+
+        /// <summary>Declared parameters whose model value differs, described as
+        /// the model has them — "Width 800mm" — so the report says what IS, not
+        /// what was wanted.</summary>
+        private static List<string> Differences(BaselineFamilyType t, ModelInventory model)
+        {
+            var outList = new List<string>();
+            if (!model.FamilyTypeParametersMm.TryGetValue(
+                    ModelInventory.TypeKey(t.Category, t.TypeName), out var actual)) return outList;
+
+            foreach (var p in t.Parameters ?? new List<BaselineTypeParameter>())
+            {
+                if (p == null || string.IsNullOrWhiteSpace(p.Name)) continue;
+                if (!actual.TryGetValue(p.Name.Trim(), out double have)) continue;   // unreadable: not a conflict
+                if (Math.Abs(have - p.ValueMm) > MmTolerance)
+                    outList.Add($"{p.Name.Trim()} {have:0.###}mm");
+            }
+            return outList;
         }
 
         private static void AuditHostTypes(BaselineAuditResult r, string group,

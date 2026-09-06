@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 252 — baseline layer 2: types inside families that already exist)
+
+Layer 1 (#789) creates host types outright. **Layer 2 mints a TYPE inside a family that is already
+loaded** — and it cannot conjure the family. With none loaded the entry is guidance, exactly as the
+family expectations report today. A baseline that claimed to create a door family would be inventing
+its own deliverable.
+
+Same `STING_PROJECT_BASELINE.json`, same project override, same read-only `Baseline_Audit`, same
+single confirm. **No new command**, per the spec's §9.
+
+**The rollback is the load-bearing part, and it is inherited from a defect already paid for.**
+`FamilySymbol.Duplicate` **commits before** the parameter set runs. A failed set would leave a
+baseline-NAMED type carrying the source type's sizes — which the next audit reads as existing and
+refuses to touch, making the failure permanent and invisible. That is #798 exactly, on five floor
+types. Either the type is what the baseline describes or it is not there at all.
+
+**The mint is UNPROVEN and is written as such.** Nothing in this codebase duplicates a
+`FamilySymbol` — only `TextNoteType` and `DimensionType`. Every type is attempted and reported
+individually. Catalog-driven families refuse to duplicate; that is expected, not exceptional, and is
+reported per type without crashing the run. **An existing vendor type is never edited** — the auditor
+only ever marks *absent* types Missing.
+
+**Vendor families are in scope (§8 D4), and the `"STING "` prefix is the contract that makes that
+safe.** After a vendor reloads their family, the prefix is the only thing that says which types were
+ours. `Validate()` rejects a type name without it — **case- and space-exact**, because a tool looking
+for minted types matches the literal string.
+
+**Four decisions worth naming.**
+
+* **A name match with different parameters is a CONFLICT, never an overwrite.** The model's 800×2100
+  may be the deliberate one. Reported as *"exists at Width 800mm"* — what IS, not what was wanted.
+* **A 0.5 mm tolerance on that comparison.** Revit stores lengths in feet, so 900 mm round-trips as
+  899.9999999; comparing exactly would report a conflict on every single type, and a report that
+  cries wolf gets switched off.
+* **An unreadable parameter is not a difference.** Treating an absent read-back as 0 mm would report
+  a fabricated conflict at "0mm" on a type that is very likely correct.
+* **A parameter the family does not have is a per-type FAILURE with the parameter named**, not a
+  silent skip. A type minted at the wrong size looks finished.
+
+**`familyTypes` ships EMPTY.** Sizes and naming need human sign-off (§8 D3); a corporate default
+would push a type list into every model that runs Apply.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 716 → **744 green**. All
+four gates pass. **Twenty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — including the delete-the-thing-it-protects check on every new gate.
+
+Two results needed a second pass, and both were findings rather than passes. Relaxing the prefix
+comparison to `OrdinalIgnoreCase` moved **no test at all**, so a `The_Prefix_Is_Case_And_Space_Exact`
+theory was added and re-verified. And the no-read-back test was guarding the OUTER early return, not
+the inner one; the correct mutation was written and it fires.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone* — across T1–T5 and both
+baseline layers. `MintFamilyTypes`, the `FamiliesByCategory` reader and `ReadDeclaredTypeParameters`
+have **never executed against a real model**. The audit half is Revit-free and fully tested; the mint
+is the unproven half and says so in its own header.
+
 #### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
 
 Two pools of work were invisible: **40 remote branches that had never had a PR opened on

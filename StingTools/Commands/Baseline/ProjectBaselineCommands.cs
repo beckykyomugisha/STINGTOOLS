@@ -49,6 +49,9 @@ namespace StingTools.Commands.Baseline
             Merge(b.CeilingTypes, over.CeilingTypes, t => t.Name);
             Merge(b.Levels, over.Levels, l => l.Name);
             Merge(b.FamilyExpectations, over.FamilyExpectations, f => f.Category);
+            // Keyed on category+name: "STING 900x2100" may legitimately
+            // exist for both a door and a window.
+            Merge(b.FamilyTypes, over.FamilyTypes, t => t.Category + "|" + t.TypeName);
             return b;
         }
 
@@ -78,7 +81,10 @@ namespace StingTools.Commands.Baseline
 
     internal static class BaselineModelReader
     {
-        public static ModelInventory Read(Document doc)
+        /// <summary><paramref name="baseline"/> is needed only to know WHICH
+        /// type parameters to read back — see ReadDeclaredTypeParameters. Null
+        /// is legal and simply skips that pass.</summary>
+        public static ModelInventory Read(Document doc, ProjectBaseline baseline = null)
         {
             var inv = new ModelInventory();
             if (doc == null) return inv;
@@ -98,7 +104,73 @@ namespace StingTools.Commands.Baseline
                     inv.FamilyTypesByCategory[cat] = list = new List<string>();
                 list.Add(s.Name ?? "");
             }
+
+            // LAYER 2 — the FAMILIES loaded in each category. A type can only be
+            // minted inside one that is already there, so this is what decides
+            // Missing from Guidance.
+            foreach (var f in Collect<Family>(doc))
+            {
+                string cat = f.FamilyCategory?.Name;
+                if (string.IsNullOrWhiteSpace(cat) || string.IsNullOrWhiteSpace(f.Name)) continue;
+                if (!inv.FamiliesByCategory.TryGetValue(cat, out var fams))
+                    inv.FamiliesByCategory[cat] = fams = new List<string>();
+                if (!fams.Contains(f.Name.Trim(), StringComparer.OrdinalIgnoreCase))
+                    fams.Add(f.Name.Trim());
+            }
+
+            ReadDeclaredTypeParameters(doc, inv, baseline);
             return inv;
+        }
+
+        /// <summary>
+        /// LAYER 2 — read back the parameters the baseline DECLARES, for the
+        /// types it names, so a name match with different sizes is a conflict
+        /// rather than a pass.
+        ///
+        /// Deliberately narrow: only the declared names, only on the declared
+        /// types. Walking every parameter of every type in the model would cost
+        /// far more and answer a question nobody asked.
+        /// </summary>
+        private static void ReadDeclaredTypeParameters(Document doc, ModelInventory inv,
+                                                       ProjectBaseline baseline)
+        {
+            var wanted = (baseline?.FamilyTypes ?? new List<BaselineFamilyType>())
+                .Where(t => t != null && !string.IsNullOrWhiteSpace(t.Category)
+                                      && !string.IsNullOrWhiteSpace(t.TypeName))
+                .ToList();
+            if (wanted.Count == 0) return;
+
+            foreach (var sym in Collect<FamilySymbol>(doc))
+            {
+                string cat = sym.Category?.Name;
+                if (string.IsNullOrWhiteSpace(cat) || string.IsNullOrWhiteSpace(sym.Name)) continue;
+
+                var spec = wanted.FirstOrDefault(t =>
+                    string.Equals(t.Category.Trim(), cat, StringComparison.OrdinalIgnoreCase)
+                 && string.Equals(t.TypeName.Trim(), sym.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (spec == null) continue;
+
+                var values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                foreach (var pd in spec.Parameters ?? new List<BaselineTypeParameter>())
+                {
+                    if (pd == null || string.IsNullOrWhiteSpace(pd.Name)) continue;
+                    try
+                    {
+                        var p = sym.LookupParameter(pd.Name.Trim());
+                        // An UNREADABLE parameter is not a difference. Recording
+                        // 0 here would report every such type as a conflict at
+                        // "0mm", which is a fabricated finding.
+                        if (p == null || !p.HasValue || p.StorageType != StorageType.Double) continue;
+                        values[pd.Name.Trim()] = p.AsDouble() * 304.8;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BaselineModelReader param '{pd.Name}' on '{sym.Name}': {ex.Message}");
+                    }
+                }
+                if (values.Count > 0)
+                    inv.FamilyTypeParametersMm[ModelInventory.TypeKey(cat, sym.Name)] = values;
+            }
         }
 
         private static IEnumerable<T> Collect<T>(Document doc) where T : Element
@@ -174,6 +246,8 @@ namespace StingTools.Commands.Baseline
             MintHosts<RoofType>(doc, r, missing, "Roof types", baseline.RoofTypes, byName);
             MintHosts<CeilingType>(doc, r, missing, "Ceiling types", baseline.CeilingTypes, byName);
 
+            MintFamilyTypes(doc, r, baseline, audit);
+
             foreach (var l in baseline.Levels ?? new List<BaselineLevel>())
                 if (l != null && missing.Contains("Levels|" + l.Name?.Trim()))
                     Try(r, $"level '{l.Name}'", () =>
@@ -183,6 +257,112 @@ namespace StingTools.Commands.Baseline
                     });
 
             return r;
+        }
+
+        /// <summary>
+        /// LAYER 2 — mint a TYPE inside a family that is already loaded.
+        ///
+        /// UNPROVEN. Nothing in this codebase duplicates a FamilySymbol; only
+        /// TextNoteType and DimensionType (TemplateManagerCommands). Every type
+        /// is therefore attempted and reported individually, the way #798 forced
+        /// the host-type path to be.
+        ///
+        /// The rollback is the load-bearing part. Duplicate COMMITS before the
+        /// parameter set runs, so a failed set leaves a baseline-NAMED type
+        /// carrying the source type's sizes — which the next audit reads as
+        /// existing and refuses to touch, making the failure permanent and
+        /// invisible. Either the type is what the baseline describes or it is
+        /// not there at all.
+        ///
+        /// Catalog-driven families refuse to duplicate. That is expected, not
+        /// exceptional: it is reported per type and never crashes the run. An
+        /// EXISTING vendor type is never edited — the auditor only ever marks
+        /// absent types Missing.
+        /// </summary>
+        private static void MintFamilyTypes(Document doc, MintResult r,
+                                            ProjectBaseline baseline, BaselineAuditResult audit)
+        {
+            var wanted = audit.Missing
+                .Where(f => string.Equals(f.Group, BaselineAuditor.FamilyTypeGroup,
+                                          StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (wanted.Count == 0) return;
+
+            var specs = baseline.FamilyTypes ?? new List<BaselineFamilyType>();
+            var symbolsByFamily = new Dictionary<string, List<FamilySymbol>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sym in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
+                                    .Cast<FamilySymbol>())
+            {
+                string fam = sym.Family?.Name;
+                if (string.IsNullOrWhiteSpace(fam)) continue;
+                if (!symbolsByFamily.TryGetValue(fam.Trim(), out var list))
+                    symbolsByFamily[fam.Trim()] = list = new List<FamilySymbol>();
+                list.Add(sym);
+            }
+
+            foreach (var finding in wanted)
+            {
+                // The spec is found by the finding's Name, which the auditor
+                // composed as "Category / TypeName". Re-matching on the pattern
+                // list here could pick a DIFFERENT family than the one the audit
+                // told the user about.
+                var spec = specs.FirstOrDefault(t => t != null
+                    && string.Equals($"{t.Category?.Trim()} / {t.TypeName?.Trim()}", finding.Name,
+                                     StringComparison.OrdinalIgnoreCase));
+                if (spec == null)
+                {
+                    r.Failed.Add($"family type '{finding.Name}': no matching baseline entry");
+                    continue;
+                }
+
+                if (!symbolsByFamily.TryGetValue((finding.HostFamily ?? "").Trim(), out var symbols)
+                 || symbols.Count == 0)
+                {
+                    r.Failed.Add($"family type '{finding.Name}': family "
+                               + $"'{finding.HostFamily}' has no loaded type to duplicate from");
+                    continue;
+                }
+
+                FamilySymbol created = null;
+                try
+                {
+                    created = symbols[0].Duplicate(spec.TypeName.Trim()) as FamilySymbol;
+                    if (created == null) throw new InvalidOperationException("Duplicate returned null");
+
+                    foreach (var pd in spec.Parameters ?? new List<BaselineTypeParameter>())
+                    {
+                        if (pd == null || string.IsNullOrWhiteSpace(pd.Name)) continue;
+                        var p = created.LookupParameter(pd.Name.Trim());
+                        // A parameter the family does not have is a FAILURE with
+                        // the parameter named, not a silent skip: a type minted
+                        // at the wrong size looks finished.
+                        if (p == null)
+                            throw new InvalidOperationException(
+                                $"family '{finding.HostFamily}' has no parameter '{pd.Name.Trim()}'");
+                        if (p.IsReadOnly)
+                            throw new InvalidOperationException(
+                                $"parameter '{pd.Name.Trim()}' is read-only in '{finding.HostFamily}'");
+                        p.Set(pd.ValueMm * MmToFt);
+                    }
+                    r.Created++;
+                }
+                catch (Exception ex)
+                {
+                    if (created != null)
+                    {
+                        try { doc.Delete(created.Id); }
+                        catch (Exception delEx)
+                        {
+                            StingLog.Warn($"BaselineMinter rollback '{finding.Name}': {delEx.Message}");
+                            r.Failed.Add($"family type '{finding.Name}': {ex.Message} "
+                                       + "— AND the half-made type could not be removed, so delete it by hand");
+                            continue;
+                        }
+                    }
+                    r.Failed.Add($"family type '{finding.Name}': {ex.Message}");
+                    StingLog.Warn($"BaselineMinter family type '{finding.Name}': {ex.Message}");
+                }
+            }
         }
 
         private static void Try(MintResult r, string what, Action a)
@@ -387,7 +567,8 @@ namespace StingTools.Commands.Baseline
                 return Result.Cancelled;
             }
 
-            var audit = BaselineAuditor.Audit(BaselineRegistry.Load(doc), BaselineModelReader.Read(doc));
+            var baselineForAudit = BaselineRegistry.Load(doc);
+            var audit = BaselineAuditor.Audit(baselineForAudit, BaselineModelReader.Read(doc, baselineForAudit));
             TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
             return Result.Succeeded;
         }
@@ -407,7 +588,7 @@ namespace StingTools.Commands.Baseline
             }
 
             var baseline = BaselineRegistry.Load(doc);
-            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc));
+            var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
 
             if (audit.BaselineProblems.Count > 0)
             {
