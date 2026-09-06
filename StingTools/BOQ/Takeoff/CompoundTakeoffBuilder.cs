@@ -191,9 +191,15 @@ namespace StingTools.BOQ.Takeoff
                 PlasterCementBagsPerM3 = plasterCement,
                 PlasterSandRatio = plasterSand,
                 IsRcWall = isRc,
-                IsExteriorWall = IsExteriorWall(doc, el)
+                IsExteriorWall = IsExteriorWall(doc, el),
+                // Deducted from the PAINTED area inside the engine — a tiled face
+                // is plastered as backing but never painted.
+                TiledFaces = ReadTiledFinish(doc, el).Faces
             };
             var constituents = CompoundTakeoff.MasonryWall(input);
+            // Up to both faces: unlike a floor, a wall can be tiled on each side,
+            // and the compound structure names one finish layer per side.
+            constituents.AddRange(TilingConstituents(doc, el, areaM2, isWall: true, faces: 2));
             if (constituents.Count == 0) return null;
             return Materialise(doc, el, constituents, csvRates, isRc ? "S" : "A", res);
         }
@@ -207,12 +213,26 @@ namespace StingTools.BOQ.Takeoff
             bool isConcrete = material.Contains("concrete") || material.Contains("rc");
             // Blank material reads as concrete for a FLOOR and as unknown for a
             // roof — see the Roofs branch in TryBuild.
-            if (!isConcrete && (requireExplicitConcrete || material.Length != 0))
-                return null;   // non-RC floor (timber deck etc.) → composite fallback
+            bool isRc = isConcrete || !(requireExplicitConcrete || material.Length != 0);
+
+            double areaM2 = ReadAreaM2(el);
+
+            // Tiling is read from the finish LAYER, so it survives a floor whose
+            // structure this path will not measure: a timber or screeded deck
+            // still has a tiled area, and dropping the element wholesale would
+            // lose it. MAT-SCHED-3.
+            var tiling = TilingConstituents(doc, el, areaM2, isWall: false, faces: 1);
+
+            if (!isRc)
+                return tiling.Count > 0
+                    ? Materialise(doc, el, tiling, csvRates, "A", new Resolution())
+                    : null;   // non-RC, untiled floor → composite fallback
 
             double grossM3 = ReadVolumeM3(el);
-            if (grossM3 <= 0) return null;
-            double areaM2 = ReadAreaM2(el);
+            if (grossM3 <= 0)
+                return tiling.Count > 0
+                    ? Materialise(doc, el, tiling, csvRates, "A", new Resolution())
+                    : null;
 
             // MAT-4 — parameter-driven net-concrete resolution.
             var net = Core.Materials.SlabSystemLoader.ResolveNetConcrete(doc, el, grossM3, areaM2);
@@ -239,6 +259,7 @@ namespace StingTools.BOQ.Takeoff
                     FormworkM2 = net.IsVoid ? 0 : areaM2  // don't take gross soffit for void slabs
                 });
             }
+            constituents.AddRange(tiling);
             if (constituents.Count == 0) return null;
             return Materialise(doc, el, constituents, csvRates, "S", new Resolution());
         }
@@ -605,6 +626,95 @@ namespace StingTools.BOQ.Takeoff
         private static string GetFamilyName(Document doc, Element el)
         {
             try { return ParameterHelpers.GetFamilyName(el); } catch { return ""; }
+        }
+
+
+        // ── Tiling from the finish layer (MAT-SCHED-3) ──────────────────────
+
+        /// <summary>
+        /// Material names that read as a tiled finish. Deliberately narrow: a
+        /// false positive prices a whole floor as tiling, which is the defect
+        /// the withdrawn unit-table rules produced.
+        /// </summary>
+        private static readonly System.Text.RegularExpressions.Regex TileMaterialPattern =
+            new System.Text.RegularExpressions.Regex(
+                @"tile|ceramic|porcelain|terrazzo|mosaic|vitrified|granite|marble",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>Tiled finish layers on a host type: how many, and named by the first.</summary>
+        private static (int Faces, string Label) ReadTiledFinish(Document doc, Element el)
+        {
+            try
+            {
+                var hoa = doc?.GetElement(el.GetTypeId()) as HostObjAttributes;
+                var cs = hoa?.GetCompoundStructure();
+                var layers = cs?.GetLayers();
+                if (layers == null) return (0, "");
+
+                int faces = 0; string label = "";
+                foreach (var layer in layers)
+                {
+                    if (layer == null) continue;
+                    // Finish layers only. A tile is never Structure or Substrate,
+                    // and admitting those would count a screed as tiling.
+                    if (layer.Function != MaterialFunctionAssignment.Finish1
+                     && layer.Function != MaterialFunctionAssignment.Finish2) continue;
+                    if (layer.MaterialId == null || layer.MaterialId == ElementId.InvalidElementId) continue;
+                    if (!(doc.GetElement(layer.MaterialId) is Material mat)) continue;
+                    if (string.IsNullOrWhiteSpace(mat.Name)) continue;
+                    if (!TileMaterialPattern.IsMatch(mat.Name)) continue;
+
+                    faces++;
+                    if (label.Length == 0) label = mat.Name.Trim();
+                }
+                return (faces, label);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("TileFinish", $"ReadTiledFinish {el?.Id}: {ex.Message}");
+                return (0, "");
+            }
+        }
+
+        /// <summary>
+        /// Tiling constituents for a host, or an empty list when it carries no
+        /// tiled finish layer. <paramref name="faces"/> caps how many of the
+        /// detected layers are measured — a floor is tiled on top only, however
+        /// many finish layers its type declares.
+        /// </summary>
+        private static List<CompoundLine> TilingConstituents(Document doc, Element el,
+            double areaM2, bool isWall, int faces)
+        {
+            var empty = new List<CompoundLine>();
+            if (areaM2 <= 0) return empty;
+
+            var found = ReadTiledFinish(doc, el);
+            if (found.Faces <= 0) return empty;
+
+            int measured = Math.Min(found.Faces, Math.Max(0, faces));
+            if (measured <= 0) return empty;
+
+            string key = TileKeyFor(found.Label);
+            return CompoundTakeoff.TiledFinish(new TiledFinishInput
+            {
+                AreaM2 = areaM2 * measured,
+                IsWall = isWall,
+                TileLabel = found.Label,
+                AdhesiveKgPerM2 = Prop($"TILE {key}", "ADHESIVE_KG_PER_M2", "TILE DEFAULT"),
+                GroutKgPerM2 = Prop($"TILE {key}", "GROUT_KG_PER_M2", "TILE DEFAULT")
+            });
+        }
+
+        /// <summary>Material name → MATERIAL_LOOKUP TypeKey. Unmatched falls to DEFAULT.</summary>
+        private static string TileKeyFor(string materialName)
+        {
+            string n = (materialName ?? "").ToLowerInvariant();
+            if (n.Contains("porcelain") || n.Contains("vitrified")) return "PORCELAIN";
+            if (n.Contains("terrazzo")) return "TERRAZZO";
+            if (n.Contains("granite") || n.Contains("marble")) return "STONE";
+            if (n.Contains("mosaic")) return "MOSAIC";
+            return "CERAMIC";
         }
 
         private static double Prop(string key, string property, string fallbackKey)

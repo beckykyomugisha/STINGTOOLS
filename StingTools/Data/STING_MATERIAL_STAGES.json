@@ -135,7 +135,11 @@
         "plaster_cement",
         "plaster_sand",
         "paint_interior",
-        "paint_exterior"
+        "paint_exterior",
+        "floor_tile",
+        "wall_tile",
+        "tile_adhesive",
+        "tile_grout"
       ],
       "categories": [
         "Ceilings"

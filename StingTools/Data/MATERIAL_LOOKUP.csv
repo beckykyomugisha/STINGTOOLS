@@ -378,3 +378,20 @@ TIMBER,SOFTWOOD,CARBON_FOSSIL_KG_M3,126,kgCO₂/m³,ICE v3.0 sawn softwood A1-A3
 TIMBER,SOFTWOOD,CARBON_BIOGENIC_KG_M3,-787,kgCO₂/m³,ICE v3.0 sequestration -1.64 kg/kg × 480
 TIMBER,SOFTWOOD,CARBON_KG_PER_M3,-661,kgCO₂/m³,net = fossil + biogenic (Z-25 split)
 TIMBER,SOFTWOOD,DENSITY_KG_M3,480,kg/m³,corrected softwood density (CIBSE 420-550, Z-23)
+# --- TILE: adhesive spreading rate and grout consumption (MAT-SCHED-3) -------
+# Adhesive is manufacturer coverage for a cementitious adhesive at the notch
+# size that tile size needs; bigger tiles need a bigger notch and more adhesive.
+# Grout scales with JOINT LENGTH per m2, which is why mosaic is 3x ceramic.
+# Both are editable: re-price and re-rate per project.
+TILE,CERAMIC,ADHESIVE_KG_PER_M2,4.5,kg/m2,Ceramic 300x300-400x400 at 6mm notch
+TILE,CERAMIC,GROUT_KG_PER_M2,0.5,kg/m2,2-3mm joints
+TILE,PORCELAIN,ADHESIVE_KG_PER_M2,6,kg/m2,Porcelain 600x600+ at 10mm notch
+TILE,PORCELAIN,GROUT_KG_PER_M2,0.4,kg/m2,Fewer joints per m2 on large format
+TILE,STONE,ADHESIVE_KG_PER_M2,6,kg/m2,Granite / marble slabs at 10mm notch
+TILE,STONE,GROUT_KG_PER_M2,0.4,kg/m2,Narrow joints
+TILE,TERRAZZO,ADHESIVE_KG_PER_M2,5,kg/m2,Terrazzo tile at 8mm notch
+TILE,TERRAZZO,GROUT_KG_PER_M2,0.5,kg/m2,2-3mm joints
+TILE,MOSAIC,ADHESIVE_KG_PER_M2,3.5,kg/m2,Mosaic sheet at 4mm notch
+TILE,MOSAIC,GROUT_KG_PER_M2,1.5,kg/m2,Joint length per m2 is several times a 300mm tile
+TILE,DEFAULT,ADHESIVE_KG_PER_M2,4.5,kg/m2,Default: ceramic at 6mm notch
+TILE,DEFAULT,GROUT_KG_PER_M2,0.5,kg/m2,Default: 2-3mm joints
