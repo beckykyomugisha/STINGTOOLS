@@ -60,6 +60,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\BaselineAugmentReport.cs" Link="Baseline\BaselineAugmentReport.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
          is testable, not just the model behind it. -->
     <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
