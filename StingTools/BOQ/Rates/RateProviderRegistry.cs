@@ -301,7 +301,10 @@ namespace StingTools.BOQ.Rates
                 FetchedUtc = lookup.FetchedUtc,
                 Confidence = lookup.Confidence,
                 Provenance = $"{lookup.Provenance} (FX {source}→{target})",
-                MatchedKey = lookup.MatchedKey
+                MatchedKey = lookup.MatchedKey,
+                // Carried, not just written into the provenance string, so the bill can
+                // show the FX basis in its own column instead of a caller re-parsing prose.
+                SourceCurrencyCode = source
             };
         }
 

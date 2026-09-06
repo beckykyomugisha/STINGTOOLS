@@ -90,6 +90,9 @@
     <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
     <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
+    <!-- The FX-provenance rule: a fixing date is reported only on a line whose rate was
+         actually converted. BOQCostManager imports the Revit API and cannot be linked. -->
+    <Compile Include="..\StingTools\BOQ\BoqFxProvenance.cs" Link="BoqFxProvenance.cs" />
     <!-- BMS commissioning-valuation arithmetic + the point-status decision. Revit-free
          and network-free on purpose: the command walks the model and queries the
          station, this only does the maths. -->
