@@ -1,0 +1,50 @@
+{
+  "_comment": "STING Family Converter — host/placement conversion matrix. Corporate baseline; project override at <project>/_BIM_COORD/family_host_templates.json (merged by FamilyHostTemplateRegistry, later wins by id). targets[].placementType mirrors Autodesk.Revit.DB.FamilyPlacementType names. pathRules pick the conversion mechanism per (from,to) pair; anything not listed falls through to a lossy P2 template rebuild.",
+  "targets": [
+    {
+      "id": "FaceBased",
+      "placementType": "WorkPlaneBased",
+      "label": "Face-based (work plane)",
+      "templateMetric": "Metric Generic Model face based.rft",
+      "templateImperial": "Generic Model face based.rft"
+    },
+    {
+      "id": "Unhosted",
+      "placementType": "OneLevelBased",
+      "label": "Unhosted (level-based)",
+      "templateMetric": "Metric Generic Model.rft",
+      "templateImperial": "Generic Model.rft"
+    },
+    {
+      "id": "WallBased",
+      "placementType": "OneLevelBasedHosted",
+      "label": "Wall-based",
+      "templateMetric": "Metric Generic Model wall based.rft",
+      "templateImperial": "Generic Model wall based.rft"
+    },
+    {
+      "id": "CeilingBased",
+      "placementType": "OneLevelBasedHosted",
+      "label": "Ceiling-based",
+      "templateMetric": "Metric Generic Model ceiling based.rft",
+      "templateImperial": "Generic Model ceiling based.rft"
+    },
+    {
+      "id": "FloorBased",
+      "placementType": "OneLevelBasedHosted",
+      "label": "Floor-based",
+      "templateMetric": "Metric Generic Model floor based.rft",
+      "templateImperial": "Generic Model floor based.rft"
+    },
+    {
+      "id": "RoofBased",
+      "placementType": "OneLevelBasedHosted",
+      "label": "Roof-based",
+      "templateMetric": "Metric Generic Model roof based.rft",
+      "templateImperial": "Generic Model roof based.rft"
+    }
+  ],
+  "pathRules": [
+    { "from": "Unhosted", "to": "FaceBased", "path": "P1_Checkbox" }
+  ]
+}

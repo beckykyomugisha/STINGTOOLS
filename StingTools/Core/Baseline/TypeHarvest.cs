@@ -42,6 +42,26 @@ namespace StingTools.Core.Baseline
         public int TypesHarvested;
         public int SkippedNotPlaced;
         public int SkippedAlreadyPrefixed;
+
+        /// <summary>
+        /// Harvested, but with no dimension at all — the real pack contained
+        /// `STING 1000` from a Window-Square Opening with "Parameters": [].
+        /// Minting it produces a renamed clone that defines nothing, so it is
+        /// kept (it IS placed practice) and named, rather than dropped.
+        /// </summary>
+        public int TypesWithNoDimensions;
+
+        /// <summary>
+        /// Types whose NAME contains numbers that appear in none of their
+        /// harvested parameters. The real pack held three columns all named
+        /// "200x200 with 12.5 plaster" measuring 175, 450 and 500 square, and a
+        /// vendor door named 1740x2595mm measuring 1500 x 2400.
+        ///
+        /// A model problem, not a plugin one — but the harvest is where it
+        /// becomes visible, and a catalogue whose names contradict its own
+        /// numbers is worse than no catalogue.
+        /// </summary>
+        public readonly List<string> NameDisagreesWithSize = new List<string>();
         public readonly Dictionary<string, int> ByCategory =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -63,6 +83,21 @@ namespace StingTools.Core.Baseline
             if (SkippedAlreadyPrefixed > 0)
                 s += $" {SkippedAlreadyPrefixed} skipped as already STING-minted: harvesting our "
                    + "own types back would make the catalogue a record of itself.";
+
+            if (TypesWithNoDimensions > 0)
+                s += $" {TypesWithNoDimensions} type(s) carry NO dimension the rule for their "
+                   + "category recognises, so minting them would rename a type without defining "
+                   + "it. They are kept because they are placed practice — decide per type "
+                   + "whether the pack should keep them.";
+
+            if (NameDisagreesWithSize.Count > 0)
+                s += $" {NameDisagreesWithSize.Count} type NAME(s) contain sizes that appear in "
+                   + "none of their own parameters: "
+                   + string.Join(", ", NameDisagreesWithSize.Take(4).Select(n => "'" + n + "'"))
+                   + (NameDisagreesWithSize.Count > 4 ? ", …" : "")
+                   + ". That is the MODEL disagreeing with itself, not a harvest fault — but a "
+                   + "catalogue whose names contradict its numbers is worse than none, so fix the "
+                   + "names or the parameters before adopting.";
             return s;
         }
     }
@@ -114,9 +149,19 @@ namespace StingTools.Core.Baseline
                     Purpose = $"observed as [{h.TypeName.Trim()}] in family [{h.FamilyName}], "
                             + $"{h.InstanceCount} instance(s) placed"
                 };
+                // Only the parameters that DEFINE a type in this category. The
+                // reader is expected to have filtered already; this is the
+                // second gate, because a pack built by anything else must not
+                // be able to smuggle a column's extents in as its section.
+                var allowed = HarvestDimensionRules.For(h.Category);
                 foreach (var kv in h.ParametersMm ?? new Dictionary<string, double>())
-                    if (!string.IsNullOrWhiteSpace(kv.Key) && kv.Value > 0)
+                    if (!string.IsNullOrWhiteSpace(kv.Key) && kv.Value > 0
+                        && allowed.Any(a => string.Equals(a, kv.Key, StringComparison.OrdinalIgnoreCase)))
                         ft.Parameters.Add(new BaselineFamilyTypeParam { Name = kv.Key, ValueMm = kv.Value });
+
+                if (ft.Parameters.Count == 0) report.TypesWithNoDimensions++;
+                else if (NameDisagrees(h.TypeName, ft.Parameters))
+                    report.NameDisagreesWithSize.Add(h.TypeName.Trim());
 
                 pack.FamilyTypes.Add(ft);
                 report.TypesHarvested++;
@@ -130,6 +175,39 @@ namespace StingTools.Core.Baseline
                      + "project until its id is listed in adoptCatalogues.",
                 Packs = { pack }
             };
+        }
+
+        /// <summary>
+        /// True when the type NAME contains a number that no harvested
+        /// parameter carries.
+        ///
+        /// Deliberately conservative — it does not try to decide WHICH
+        /// parameter a number in the name refers to, because it cannot know.
+        /// It only reports that a name says 200 while nothing in the type
+        /// measures 200, which is a fact worth surfacing and not an inference.
+        ///
+        /// Numbers under 10 are ignored: "Type 2" and "12.5 plaster" are
+        /// naming, not dimensions, and flagging them would bury the real cases.
+        /// </summary>
+        private static bool NameDisagrees(string typeName, List<BaselineFamilyTypeParam> parameters)
+        {
+            if (string.IsNullOrWhiteSpace(typeName) || parameters == null || parameters.Count == 0)
+                return false;
+
+            var inName = System.Text.RegularExpressions.Regex
+                .Matches(typeName, @"\d+(?:\.\d+)?")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => double.TryParse(m.Value,
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double d) ? d : -1)
+                .Where(d => d >= 10)
+                .ToList();
+            if (inName.Count == 0) return false;
+
+            // Every number in the name must be findable, to the millimetre, in
+            // some parameter. One that is not means the name is describing a
+            // size the type does not have.
+            return inName.Any(n => !parameters.Any(p => Math.Abs(p.ValueMm - n) < 0.5));
         }
 
         /// <summary>

@@ -21,6 +21,10 @@ namespace StingTools.Core.MaterialSchedule
         public string SupplierUnit = "";
         public double RateUGX;
         public string Source = "";      // "baseline" / "project" / "unpriced"
+
+        /// <summary>Free text, round-tripped so a hand-edited file keeps its
+        /// notes when the editor rewrites it.</summary>
+        public string Description = "";
     }
 
     public sealed class CommodityRateResolver
@@ -84,7 +88,7 @@ namespace StingTools.Core.MaterialSchedule
                 string line = (raw ?? "").Trim();
                 if (line.Length == 0 || line.StartsWith("#")) continue;
 
-                var parts = line.Split(',');
+                var parts = SplitCsvLine(line);
                 if (!headerSeen && parts[0].Trim().Equals("CommodityKey", StringComparison.OrdinalIgnoreCase))
                 { headerSeen = true; continue; }
 
@@ -99,10 +103,90 @@ namespace StingTools.Core.MaterialSchedule
                     CommodityKey = parts[0].Trim(),
                     SupplierUnit = parts[1].Trim(),
                     RateUGX = rate,
-                    Source = "baseline"
+                    Source = "baseline",
+                    Description = parts.Length > 3 ? parts[3].Trim() : ""
                 });
             }
             return outList;
+        }
+
+        /// <summary>
+        /// Split one CSV line, honouring double-quoted fields and "" escapes.
+        ///
+        /// The naive Split(',') this replaces corrupted any row whose
+        /// description carried a comma — and a description is free text a
+        /// quantity surveyor writes, so commas are normal. It failed by
+        /// SHIFTING the columns: the rate came from the wrong field and either
+        /// refused to parse (the row vanished into `skipped`) or parsed as a
+        /// different number entirely.
+        /// </summary>
+        internal static string[] SplitCsvLine(string line)
+        {
+            var fields = new List<string>();
+            var sb = new System.Text.StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < (line ?? "").Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    if (c != '"') { sb.Append(c); continue; }
+                    // "" inside a quoted field is one literal quote.
+                    if (i + 1 < line.Length && line[i + 1] == '"') { sb.Append('"'); i++; }
+                    else inQuotes = false;
+                }
+                else if (c == '"') inQuotes = true;
+                else if (c == ',') { fields.Add(sb.ToString()); sb.Clear(); }
+                else sb.Append(c);
+            }
+            fields.Add(sb.ToString());
+            return fields.ToArray();
+        }
+
+        /// <summary>Quote a field only when it needs it, and escape quotes by doubling.</summary>
+        internal static string CsvField(string value)
+        {
+            string v = value ?? "";
+            bool needs = v.IndexOf(',') >= 0 || v.IndexOf('"') >= 0
+                      || v.IndexOf('\n') >= 0 || v.IndexOf('\r') >= 0
+                      || v != v.Trim();
+            return needs ? "\"" + v.Replace("\"", "\"\"") + "\"" : v;
+        }
+
+        /// <summary>
+        /// Render project rate rows as the same CSV shape the parser reads.
+        ///
+        /// The counterpart to ParseCsv, and the reason the rate editor can exist
+        /// at all: until this, NOTHING in the codebase wrote a rate file, so the
+        /// only way to price a commodity was to hand-type a key — and 21 of the
+        /// 25 keys the first real export asked for carry a non-ASCII em dash,
+        /// which an exact OrdinalIgnoreCase lookup will miss in silence.
+        /// </summary>
+        public static List<string> WriteCsv(IEnumerable<CommodityRate> rows, string headerNote)
+        {
+            var lines = new List<string>
+            {
+                "# Project commodity rates — these WIN over the corporate baseline, by CommodityKey.",
+                "# Written by the STING rate editor. Safe to edit by hand, to copy to another",
+                "# project, and to keep under version control."
+            };
+            if (!string.IsNullOrWhiteSpace(headerNote))
+                foreach (string l in headerNote.Split('\n'))
+                    lines.Add("# " + l.TrimEnd());
+            lines.Add("CommodityKey,SupplierUnit,RateUGX,Description");
+
+            foreach (var r in (rows ?? Enumerable.Empty<CommodityRate>())
+                        .Where(r => r != null && !string.IsNullOrWhiteSpace(r.CommodityKey))
+                        .OrderBy(r => r.CommodityKey, StringComparer.OrdinalIgnoreCase))
+            {
+                lines.Add(string.Join(",",
+                    CsvField(r.CommodityKey),
+                    CsvField(r.SupplierUnit),
+                    r.RateUGX.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture),
+                    CsvField(r.Description)));
+            }
+            return lines;
         }
     }
 }

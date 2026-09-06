@@ -253,7 +253,12 @@ namespace StingTools.UI
 
                     // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
                     case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
+                    case "OmniClass_Assign":         RunCommand<Commands.Classification.OmniClassAssignCommand>(app); break;
+                    case "OmniClass_Audit":          RunCommand<Commands.Classification.OmniClassAuditCommand>(app); break;
+                    case "OmniClass_SetTable":       RunCommand<Commands.Classification.OmniClassSetTableCommand>(app); break;
+                    case "ClassificationTags_Set":   RunCommand<Commands.Classification.ClassificationTagsSetCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+                    case "SpecLink_ImportFolder":    RunCommand<Commands.Classification.SpecLinkImportCommand>(app); break;
                     case "Prod_GenerateRules":       RunCommand<Commands.Classification.GenerateProdCodeRulesCommand>(app); break;
                     case "Prod_CoverageAudit":       RunCommand<Commands.Classification.ProdCoverageAuditCommand>(app); break;
 
@@ -3815,6 +3820,9 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
+                    case "KUT_ValuationFromBms": RunCommand<Commands.Twin.KutValuationFromBmsCommand>(app); break;
+                    case "KUT_LifecycleReconcile": RunCommand<Commands.Twin.KutLifecycleReconcileCommand>(app); break;
+                    case "KUT_PushLifecycleGapsToAcc": RunCommand<Commands.Twin.KutPushLifecycleGapsToAccCommand>(app); break;
                     // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
                     // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
                     // muscle memory keep working. The command derives its code from

@@ -50,7 +50,7 @@ public class HandoffProvisioningSqliteTests
     /// <summary>The controller under test, wired to <paramref name="db"/>.</summary>
     private static AuthController NewController(PlanscapeDbContext db)
         => new(db, config: null!, revocations: null!, redis: null!,
-               logger: NullLogger<AuthController>.Instance);
+               replayGuard: null!, logger: NullLogger<AuthController>.Instance);
 
     private static (SqliteConnection conn, Guid tenantId) NewDb()
     {

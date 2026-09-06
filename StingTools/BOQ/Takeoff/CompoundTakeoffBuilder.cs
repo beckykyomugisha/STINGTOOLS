@@ -16,6 +16,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.Materials;
@@ -82,6 +83,33 @@ namespace StingTools.BOQ.Takeoff
         /// <summary>Build constituent lines for a compound wall / RC element, or
         /// null to fall back to the composite line.</summary>
         internal static List<BOQLineItem> TryBuild(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd)
+            => TryBuild(doc, el, csvRates, cobieCostCodes, measStd, out _);
+
+        /// <summary>
+        /// As above, and says whether the decomposition MEASURED the host.
+        ///
+        /// It can return rows and still leave the host unmeasured: a roof whose
+        /// structure this path will not take off, but which produced a fascia
+        /// along its eaves, yields one row that describes an edge and nothing
+        /// that describes the roof. The caller must keep the composite row in
+        /// that case, because a non-empty decomposition otherwise replaces it.
+        /// </summary>
+        internal static List<BOQLineItem> TryBuild(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates,
+            Dictionary<string, string> cobieCostCodes,
+            StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd,
+            out bool hostMeasured)
+        {
+            var lines = TryBuildCore(doc, el, csvRates, cobieCostCodes, measStd);
+            hostMeasured = lines != null && lines.Count > 0
+                && CompoundTakeoff.MeasuresHost(lines.Select(l => l.ConstituentKind));
+            return lines;
+        }
+
+        private static List<BOQLineItem> TryBuildCore(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             StingTools.BOQ.MeasurementStandard.IMeasurementStandard measStd)
@@ -375,6 +403,7 @@ namespace StingTools.BOQ.Takeoff
                     ItemName = c.Description,
                     FamilyName = GetFamilyName(doc, el),
                     TypeName = el.Name ?? "",
+                    MaterialName = GetPrimaryMaterialName(doc, el) ?? "",
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
                     ConstituentKind = c.Kind,

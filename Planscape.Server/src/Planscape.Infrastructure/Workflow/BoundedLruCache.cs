@@ -80,6 +80,17 @@ internal sealed class BoundedLruCache<TKey, TValue> where TKey : notnull
     /// assert eviction order. Production callers should always use
     /// <see cref="GetOrAdd"/>.
     /// </summary>
+    /// <summary>Test-only: drop every entry. See
+    /// <see cref="StripedBoundedLruCache{TKey,TValue}.Clear"/>.</summary>
+    internal void Clear()
+    {
+        lock (_gate)
+        {
+            _index.Clear();
+            _order.Clear();
+        }
+    }
+
     internal bool TryPeek(TKey key, out TValue value)
     {
         lock (_gate)
