@@ -37,14 +37,14 @@ export default function LiveMeetingPage() {
     if (!host) return;
     const wrap = document.createElement('div');
     wrap.dataset.sid = track.sid ?? `${label}-${Math.random()}`;
-    wrap.className = 'relative overflow-hidden rounded-lg bg-black ring-1 ring-slate-700';
+    wrap.className = 'relative overflow-hidden rounded-lg bg-black ring-1 ring-border';
     const el = track.attach() as HTMLVideoElement;
     el.muted = muted;
     el.className = 'h-full w-full object-cover';
     el.style.aspectRatio = '16 / 9';
     const tag = document.createElement('span');
     tag.textContent = label;
-    tag.className = 'absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white';
+    tag.className = 'absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-fg-on-accent';
     wrap.appendChild(el);
     wrap.appendChild(tag);
     host.appendChild(wrap);
@@ -147,45 +147,45 @@ export default function LiveMeetingPage() {
   return (
     <AppShell>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <Link href={`/projects/${projectId}/meetings/${meetingId}`} className="text-sm text-slate-400 hover:underline">
+        <Link href={`/projects/${projectId}/meetings/${meetingId}`} className="text-sm text-fg-subtle hover:underline">
           ← Meeting
         </Link>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">{status}</span>
+          <span className="text-xs text-fg-muted">{status}</span>
           {!avDisabled && (
             <>
               <button
                 onClick={toggleMic}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+                className="rounded border border-border-strong px-3 py-1.5 text-sm hover:bg-surface-2"
               >
                 {micOn ? 'Mute' : 'Unmute'}
               </button>
               <button
                 onClick={toggleCam}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+                className="rounded border border-border-strong px-3 py-1.5 text-sm hover:bg-surface-2"
               >
                 {camOn ? 'Stop video' : 'Start video'}
               </button>
             </>
           )}
-          <button onClick={leave} className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700">
+          <button onClick={leave} className="rounded bg-danger px-3 py-1.5 text-sm font-medium text-fg-on-accent hover:opacity-90">
             Leave
           </button>
         </div>
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {avDisabled && <p className="mb-3 rounded bg-amber-50 px-3 py-2 text-sm text-amber-700">{avDisabled}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {avDisabled && <p className="mb-3 rounded bg-warning-subtle px-3 py-2 text-sm text-warning">{avDisabled}</p>}
 
       {/* Participant video tiles (empty when A/V disabled) */}
       <div ref={tilesRef} className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4" />
 
       {/* Shared 3D model with live co-presence */}
-      <div className="overflow-hidden rounded-lg ring-1 ring-slate-200" style={{ height: '60vh' }}>
+      <div className="overflow-hidden rounded-lg ring-1 ring-border" style={{ height: '60vh' }}>
         {viewerSrc ? (
           <iframe src={viewerSrc} title="Shared model" className="h-full w-full border-0" allow="fullscreen" />
         ) : (
-          <div className="grid h-full place-items-center text-slate-400">Starting session…</div>
+          <div className="grid h-full place-items-center text-fg-subtle">Starting session…</div>
         )}
       </div>
     </AppShell>

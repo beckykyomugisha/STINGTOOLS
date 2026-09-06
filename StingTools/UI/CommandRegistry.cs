@@ -104,6 +104,7 @@ namespace StingTools.UI
             yield return new Modules.ModelCommandModule();
             yield return new Modules.ViewCommandModule();
             yield return new Modules.HealthcareCommandModule();
+            yield return new Modules.MaterialScheduleCommandModule();
         }
     }
 

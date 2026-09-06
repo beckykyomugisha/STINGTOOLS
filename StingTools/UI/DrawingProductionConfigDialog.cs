@@ -161,6 +161,10 @@ namespace StingTools.UI
                 _typesTree.Items.Add(top);
             }
             stack.Children.Add(_typesTree);
+            stack.Children.Add(MakeCheckAllRow(
+                onAll:  () => SetAllTypesChecked(true),
+                onNone: () => SetAllTypesChecked(false),
+                label:  "drawing types"));
 
             stack.Children.Add(MakeHeading("Contexts to Include"));
             _contextsList = new ListBox { Height = 180, SelectionMode = SelectionMode.Multiple, Margin = new Thickness(0,0,0,8) };
@@ -170,6 +174,10 @@ namespace StingTools.UI
                 _contextsList.Items.Add(cb);
             }
             stack.Children.Add(_contextsList);
+            stack.Children.Add(MakeCheckAllRow(
+                onAll:  () => SetAllContextsChecked(true),
+                onNone: () => SetAllContextsChecked(false),
+                label:  "levels / contexts"));
 
             stack.Children.Add(MakeHeading("Preset"));
             var presetRow = new DockPanel { LastChildFill = true, Margin = new Thickness(0,0,0,4) };
@@ -186,6 +194,58 @@ namespace StingTools.UI
             stack.Children.Add(presetRow);
 
             return stack;
+        }
+
+        // ── Select all / none ────────────────────────────────────────────────
+        // Both lists shipped with every box pre-ticked and no way to clear them,
+        // so producing one drawing type on one level meant unticking by hand.
+
+        private UIElement MakeCheckAllRow(Action onAll, Action onNone, string label)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            row.Children.Add(MakeSmallLink("Select all", onAll, $"Tick every one of the {label} above"));
+            row.Children.Add(MakeSmallLink("Deselect all", onNone, $"Clear every one of the {label} above"));
+            return row;
+        }
+
+        private UIElement MakeSmallLink(string text, Action onClick, string tip)
+        {
+            var b = new Button
+            {
+                Content = text, Height = 22, MinWidth = 86, FontSize = 11,
+                Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(6, 0, 6, 0),
+                ToolTip = tip,
+            };
+            b.Click += (s, e) =>
+            {
+                try { onClick?.Invoke(); }
+                catch (Exception ex) { StingLog.Warn($"MakeSmallLink '{text}': {ex.Message}"); }
+            };
+            return b;
+        }
+
+        /// <summary>Tick / clear the checkbox in every top-level tree item's
+        /// header. ResolveSelectedTypes reads those same boxes, so this drives
+        /// the real selection rather than a parallel copy of it.</summary>
+        private void SetAllTypesChecked(bool value)
+        {
+            if (_typesTree == null) return;
+            foreach (var obj in _typesTree.Items)
+            {
+                if (!(obj is TreeViewItem tvi)) continue;
+                if (tvi.Header is StackPanel sp)
+                {
+                    foreach (var child in sp.Children)
+                        if (child is CheckBox cb) { cb.IsChecked = value; break; }
+                }
+            }
+        }
+
+        private void SetAllContextsChecked(bool value)
+        {
+            if (_contextsList == null) return;
+            foreach (var obj in _contextsList.Items)
+                if (obj is CheckBox cb) cb.IsChecked = value;
         }
 
         private FrameworkElement MakeTypeHeader(DrawingType dt)
@@ -325,11 +385,10 @@ namespace StingTools.UI
             _tagGrid.Columns.Add(MakeTextCol("Tag Family", "TagFamily"));
             _tagGrid.Columns.Add(MakeTextCol("Leader",     "LeaderStyle"));
             _tagGrid.Columns.Add(MakeTextCol("Depth",      "Tag7Depth"));
-            _tagGrid.Columns.Add(MakeTextCol("Density",    "DensityMode"));
             _tagGrid.Columns.Add(MakeBoolCol("Skip Tagged","SkipIfTagged"));
             sp.Children.Add(_tagGrid);
             var addTag = new Button { Content = "+ Add Tag Rule", Margin = new Thickness(0,4,0,4), HorizontalAlignment = HorizontalAlignment.Left };
-            addTag.Click += (s,e) => _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "*", SkipIfTagged = true, DensityMode = "All" });
+            addTag.Click += (s,e) => _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "*", SkipIfTagged = true });
             sp.Children.Add(addTag);
 
             sp.Children.Add(MakeCardHeader("Dim Rules"));
@@ -622,7 +681,7 @@ namespace StingTools.UI
             // Seed annotation rules with one wildcard row so the user has
             // something to edit rather than an empty grid.
             if (_tagRows != null && _tagRows.Count == 0)
-                _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "Rooms", SkipIfTagged = true, DensityMode = "All" });
+                _tagRows.Add(new AutoAnnotationRule { RuleType = "AutoTag", Category = "Rooms", SkipIfTagged = true });
             if (_dimRows != null && _dimRows.Count == 0)
                 _dimRows.Add(new AutoAnnotationRule { RuleType = "AutoDim", Category = "Grids" });
         }

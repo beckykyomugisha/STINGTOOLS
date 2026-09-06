@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  RateFeedsConfig.cs — Phase 2B. Inline live-rate feed configuration.
 //
 //  Persists the BCIS / Planscape live-rate feed settings to
@@ -78,7 +78,7 @@ namespace StingTools.BOQ.Rates
         {
             string parent = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
-            return Path.Combine(parent, "_BIM_COORD", FileName);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
         }
     }
 }

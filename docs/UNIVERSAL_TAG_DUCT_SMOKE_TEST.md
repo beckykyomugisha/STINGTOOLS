@@ -1,5 +1,13 @@
 # Universal Tag — Duct smoke test (the gate before scaling to all 206)
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 **Purpose.** Prove `Propagate_UniversalTag` in real Revit on ONE family (Duct) before
 propagating to all 206 and before any Task-4 legacy teardown. Everything downstream is
 gated on this passing. Nothing here has been exercised in Revit yet — Tasks 1–3 are

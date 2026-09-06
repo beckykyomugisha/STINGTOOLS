@@ -88,10 +88,10 @@ export default function MeetingDetailPage() {
   if (error && !meeting) {
     return (
       <AppShell>
-        <Link href={`/projects/${projectId}/meetings`} className="text-sm text-slate-400 hover:underline">
+        <Link href={`/projects/${projectId}/meetings`} className="text-sm text-fg-subtle hover:underline">
           ← Meetings
         </Link>
-        <p className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="mt-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>
       </AppShell>
     );
   }
@@ -100,12 +100,12 @@ export default function MeetingDetailPage() {
     <AppShell>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <Link href={`/projects/${projectId}/meetings`} className="text-sm text-slate-400 hover:underline">
+          <Link href={`/projects/${projectId}/meetings`} className="text-sm text-fg-subtle hover:underline">
             ← Meetings
           </Link>
           <h1 className="text-xl font-semibold">{meeting?.title ?? 'Meeting'}</h1>
           {meeting && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-fg-subtle">
               {new Date(meeting.scheduledAt).toLocaleString()}
               {meeting.meetingType ? ` · ${meeting.meetingType}` : ''}
               {meeting.location ? ` · ${meeting.location}` : ''}
@@ -119,36 +119,36 @@ export default function MeetingDetailPage() {
               href={meeting.meetingUrl}
               target="_blank"
               rel="noreferrer"
-              className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+              className="rounded border border-border-strong px-3 py-2 text-sm hover:bg-surface-2"
             >
               External link
             </a>
           )}
           <Link
             href={`/projects/${projectId}/meetings/${meetingId}/live`}
-            className="rounded bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+            className="rounded bg-success px-3 py-2 text-sm font-medium text-fg-on-accent hover:opacity-90"
           >
             {meeting?.liveSessionId ? 'Join live' : 'Start live'}
           </Link>
         </div>
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Agenda */}
         <section>
           <h2 className="mb-2 text-sm font-medium">Agenda</h2>
           <ul className="mb-2 space-y-1">
-            {agenda.length === 0 && <li className="text-sm text-slate-400">No agenda items.</li>}
+            {agenda.length === 0 && <li className="text-sm text-fg-subtle">No agenda items.</li>}
             {agenda.map((it) => (
-              <li key={it.id} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm">
+              <li key={it.id} className="rounded border border-border bg-surface px-3 py-2 text-sm">
                 <div className="flex items-center justify-between">
                   <span>{it.title}</span>
-                  <span className="text-xs text-slate-400">{it.status}</span>
+                  <span className="text-xs text-fg-subtle">{it.status}</span>
                 </div>
-                {it.presenter && <p className="text-xs text-slate-400">Presenter: {it.presenter}</p>}
-                {it.outcome && <p className="mt-1 text-xs text-slate-500">Outcome: {it.outcome}</p>}
+                {it.presenter && <p className="text-xs text-fg-subtle">Presenter: {it.presenter}</p>}
+                {it.outcome && <p className="mt-1 text-xs text-fg-muted">Outcome: {it.outcome}</p>}
               </li>
             ))}
           </ul>
@@ -157,9 +157,9 @@ export default function MeetingDetailPage() {
               value={agendaTitle}
               onChange={(e) => setAgendaTitle(e.target.value)}
               placeholder="Add agenda item"
-              className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+              className="flex-1 rounded border border-border-strong px-2 py-1 text-sm"
             />
-            <button className="rounded bg-slate-700 px-3 py-1 text-sm text-white hover:bg-slate-800">Add</button>
+            <button className="rounded bg-accent px-3 py-1 text-sm text-fg-on-accent hover:bg-accent-hover">Add</button>
           </form>
         </section>
 
@@ -167,21 +167,21 @@ export default function MeetingDetailPage() {
         <section>
           <h2 className="mb-2 text-sm font-medium">Action items</h2>
           <ul className="mb-2 space-y-1">
-            {actions.length === 0 && <li className="text-sm text-slate-400">No actions.</li>}
+            {actions.length === 0 && <li className="text-sm text-fg-subtle">No actions.</li>}
             {actions.map((a) => (
-              <li key={a.id} className="rounded border border-slate-200 bg-white px-3 py-2 text-sm">
+              <li key={a.id} className="rounded border border-border bg-surface px-3 py-2 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <span className={a.status === 'COMPLETE' || a.status === 'CLOSED' ? 'text-slate-400 line-through' : ''}>
+                  <span className={a.status === 'COMPLETE' || a.status === 'CLOSED' ? 'text-fg-subtle line-through' : ''}>
                     {a.description}
                   </span>
                   <button
                     onClick={() => cycleStatus(a)}
-                    className="shrink-0 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-200"
+                    className="shrink-0 rounded bg-surface-3 px-2 py-0.5 text-xs text-fg-muted hover:bg-surface-3"
                   >
                     {a.status ?? 'OPEN'}
                   </button>
                 </div>
-                <div className="mt-0.5 text-xs text-slate-400">
+                <div className="mt-0.5 text-xs text-fg-subtle">
                   {a.assignee ? `${a.assignee}` : 'Unassigned'}
                   {a.dueDate ? ` · due ${new Date(a.dueDate).toLocaleDateString()}` : ''}
                   {a.isOverdue ? ' · overdue' : ''}
@@ -194,9 +194,9 @@ export default function MeetingDetailPage() {
               value={actionDesc}
               onChange={(e) => setActionDesc(e.target.value)}
               placeholder="Add action item"
-              className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+              className="flex-1 rounded border border-border-strong px-2 py-1 text-sm"
             />
-            <button className="rounded bg-slate-700 px-3 py-1 text-sm text-white hover:bg-slate-800">Add</button>
+            <button className="rounded bg-accent px-3 py-1 text-sm text-fg-on-accent hover:bg-accent-hover">Add</button>
           </form>
         </section>
       </div>
@@ -205,11 +205,11 @@ export default function MeetingDetailPage() {
       <section className="mt-6">
         <h2 className="mb-2 text-sm font-medium">Attendees</h2>
         {attendees.length === 0 ? (
-          <p className="text-sm text-slate-400">No attendees recorded.</p>
+          <p className="text-sm text-fg-subtle">No attendees recorded.</p>
         ) : (
           <ul className="flex flex-wrap gap-2">
             {attendees.map((at) => (
-              <li key={at.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+              <li key={at.id} className="rounded-full bg-surface-3 px-3 py-1 text-xs text-fg-muted">
                 {at.name}
                 {at.role ? ` · ${at.role}` : ''}
                 {at.attendanceStatus ? ` · ${at.attendanceStatus}` : ''}
@@ -223,7 +223,7 @@ export default function MeetingDetailPage() {
       {meeting?.minutes && (
         <section className="mt-6">
           <h2 className="mb-2 text-sm font-medium">Minutes</h2>
-          <p className="whitespace-pre-wrap rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+          <p className="whitespace-pre-wrap rounded border border-border bg-surface p-3 text-sm text-fg-muted">
             {meeting.minutes}
           </p>
         </section>

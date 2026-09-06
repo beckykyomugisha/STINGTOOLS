@@ -51,6 +51,7 @@ namespace StingTools.Commands.Interop
             // Pre-check: can we even write IFC_GLOBAL_ID_TXT on any element?
             // If the shared param is not bound, we skip silently and report.
             int written = 0, skippedNoParam = 0, skippedReadOnly = 0, unchanged = 0, skippedNotExported = 0;
+            int healedExternal = 0; // R1 — ArchiCAD-origin GlobalIds preserved/healed (not overwritten by Revit's)
             int total = 0;
             var conflicts = new List<string>(); // existing GUID ≠ current Revit GUID
 
@@ -78,6 +79,33 @@ namespace StingTools.Commands.Interop
                             bic == BuiltInCategory.OST_Grids    ||
                             bic == BuiltInCategory.OST_Levels)
                             continue;
+
+                        // R1 — ArchiCAD-origin elements FIRST. Their canonical
+                        // cross-host key is the ArchiCAD IFC GlobalId (recoverable
+                        // from ARCHICAD_GUID), independent of whether Revit ever
+                        // assigned this element its own IfcGUID. Ensure
+                        // IFC_GLOBAL_ID_TXT holds that GlobalId and NEVER overwrite
+                        // it with Revit's re-minted one — that would replace the
+                        // key with a Revit-local value and sever the element from
+                        // its ArchiCAD twin across the round-trip. Self-healing: if
+                        // a prior run clobbered it, this restores it.
+                        string? acGid = TryReadArchiCadGlobalId(el);
+                        if (acGid != null)
+                        {
+                            total++;
+                            var acParam = el.LookupParameter(StingIfcGuidParam);
+                            if (acParam == null) { skippedNoParam++; continue; }
+                            if (acParam.IsReadOnly) { skippedReadOnly++; continue; }
+
+                            string acExisting = acParam.AsString() ?? "";
+                            if (acExisting == acGid) { unchanged++; continue; }
+                            if (!string.IsNullOrEmpty(acExisting) && acExisting != acGid)
+                                conflicts.Add($"  [{el.Id.Value}] {el.Category?.Name ?? "?"}: " +
+                                              $"healed ArchiCAD GlobalId (was {acExisting} → {acGid})");
+                            acParam.Set(acGid);
+                            healedExternal++;
+                            continue;
+                        }
 
                         // Read the current Revit-side IfcGUID.
                         string? revitIfcGuid = ReadRevitIfcGuid(el);
@@ -128,6 +156,8 @@ namespace StingTools.Commands.Interop
             sb.AppendLine();
             sb.AppendLine($"Elements scanned : {total}");
             sb.AppendLine($"GUIDs written    : {written}");
+            if (healedExternal > 0)
+                sb.AppendLine($"ArchiCAD GlobalId : {healedExternal}  (preserved/healed — Revit's GUID NOT applied)");
             sb.AppendLine($"Already current  : {unchanged}");
             if (skippedNoParam > 0)
                 sb.AppendLine($"No STING param   : {skippedNoParam}  (bind IFC_GLOBAL_ID_TXT shared param first)");
@@ -180,6 +210,28 @@ namespace StingTools.Commands.Interop
             // Return null so the caller skips it rather than storing a Revit UniqueId
             // (which is NOT the 22-character IFC GloballyUniqueId and would cause
             // Planscape drift detection to compare apples to oranges).
+            return null;
+        }
+
+        // R1 — recover the ArchiCAD-origin IFC GlobalId. ArchiCadIfcImportCommand
+        // stamps "AC:<globalid>" into ARCHICAD_GUID (or the Comments fallback when
+        // that shared param wasn't bound). A non-null return means "this element is
+        // ArchiCAD-origin and its authoritative cross-host key is <globalid>". The
+        // "AC:" prefix requirement avoids false positives on unrelated Comments.
+        private static string? TryReadArchiCadGlobalId(Element el)
+        {
+            try
+            {
+                string? v = el.LookupParameter("ARCHICAD_GUID")?.AsString();
+                if (string.IsNullOrWhiteSpace(v))
+                    v = el.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString();
+                if (!string.IsNullOrWhiteSpace(v) && v!.StartsWith("AC:", StringComparison.Ordinal))
+                {
+                    string gid = v.Substring(3).Trim();
+                    return string.IsNullOrEmpty(gid) ? null : gid;
+                }
+            }
+            catch { /* parameter not accessible on this element */ }
             return null;
         }
     }

@@ -1,5 +1,13 @@
 # Smoke Test — Electrical Conduit Sleeve Pipeline (PR #386)
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 One-page, live-Revit smoke test for the sleeve → drop → connect pipeline
 (Phase 196–198 on branch `claude/conduit-auto-routing`). Nothing in this PR has
 been exercised in a live model; this is the gate before trusting it on a project.

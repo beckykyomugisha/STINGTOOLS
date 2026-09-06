@@ -152,6 +152,9 @@ namespace StingTools.Core.Drawing
                     catch (Exception ex) { aux.Warnings.Add("Spot: " + ex.Message); }
                 }
                 stats.DecorativePlaced += aux.DecorativePlaced + aux.SpotsPlaced;
+                // Surface decorative + spot idempotency skips (C-4) so a no-op
+                // re-run reads as "skipped N" rather than looking like a failure.
+                stats.Skipped += aux.Skipped;
                 stats.Warnings.AddRange(aux.Warnings);
             }
 
@@ -242,7 +245,12 @@ namespace StingTools.Core.Drawing
                     if (catId == ElementId.InvalidElementId) continue;
                     long cv = catId.Value;
                     if (!doneCats.Add(cv)) continue;
-                    if (!Enum.IsDefined(typeof(BuiltInCategory), unchecked((int)cv))) continue; // skip custom categories
+                    // BuiltInCategory's underlying type is long (Revit 2024+), so
+                    // handing Enum.IsDefined an int threw "Enum underlying type
+                    // and the object must be same type" for EVERY rule — the
+                    // per-rule catch below swallowed it as a warning, so the
+                    // whole auto-tag pass silently placed nothing. Pass the long.
+                    if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
                     TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
@@ -617,6 +625,34 @@ namespace StingTools.Core.Drawing
             return set;
         }
 
+        /// <summary>
+        /// Map a rule's declared <c>orientation</c> onto Revit's TagOrientation.
+        /// The three accepted values mirror the enum exactly — Horizontal,
+        /// Vertical, Model (= AnyModelDirection) — so no interpretation is
+        /// involved. Unset or unrecognised falls back to Horizontal, which is
+        /// what every tag got before the field was read, and warns once per
+        /// category so a typo is visible rather than silently ignored.
+        /// </summary>
+        private static TagOrientation ResolveTagOrientation(
+            AutoAnnotationRule rule, string catKey, AnnotationRunStats stats)
+        {
+            var declared = rule?.Orientation;
+            if (string.IsNullOrWhiteSpace(declared)) return TagOrientation.Horizontal;
+
+            switch (declared.Trim().ToLowerInvariant())
+            {
+                case "horizontal": return TagOrientation.Horizontal;
+                case "vertical":   return TagOrientation.Vertical;
+                case "model":
+                case "anymodeldirection": return TagOrientation.AnyModelDirection;
+                default:
+                    stats?.Warnings.Add(
+                        $"Rule orientation '{declared}' for {catKey} is not one of " +
+                        "Horizontal / Vertical / Model — tagging horizontally.");
+                    return TagOrientation.Horizontal;
+            }
+        }
+
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
             AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
@@ -670,6 +706,22 @@ namespace StingTools.Core.Drawing
             }
             catch { /* resolver must never throw */ }
 
+            // A rule's own tag7Depth is the most specific depth declaration
+            // there is, so it wins over the pack's per-category depth for the
+            // elements this rule covers. Same write as the pack path below
+            // (TAG_PARA_DEPTH_INT + cumulative TAG_PARA_STATE_n_BOOL), just a
+            // different source — the field had no reader at all before, so a
+            // rule asking for depth 3 silently got whatever the pack said.
+            if (rule?.Tag7Depth.HasValue == true && rule.Tag7Depth.Value > 0)
+            {
+                resolvedDepth = Math.Max(1, Math.Min(10, rule.Tag7Depth.Value));
+                hasDepth = true;
+            }
+
+            // Per-rule tag orientation. IndependentTag.Create took a hardcoded
+            // TagOrientation.Horizontal, so the field was inert.
+            TagOrientation orientation = ResolveTagOrientation(rule, catKey, stats);
+
             // C-4: honour the rule's skipIfTagged (POCO default true). Only the
             // config dialog ever read this field before.
             bool skipIfTagged = rule?.SkipIfTagged ?? true;
@@ -706,7 +758,7 @@ namespace StingTools.Core.Drawing
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), false, TagOrientation.Horizontal, pt);
+                        new Reference(el), false, orientation, pt);
                     if (tag != null)
                     {
                         stats.TagsPlaced++;
@@ -1030,9 +1082,67 @@ namespace StingTools.Core.Drawing
             ProcessSpotRules(doc, view, pack.SpotCoordinateRules, isCoordinate: true, result);
         }
 
+        /// <summary>
+        /// Element ids already carrying a spot elevation — or a spot coordinate,
+        /// when <paramref name="isCoordinate"/> is true — in this view. Built
+        /// once per kind and shared across every spot rule: the guard that keeps
+        /// the spot pass from re-stacking a SpotDimension on every run. Like the
+        /// dimension guard (ViewHasDimensionReferencing) it detects an existing
+        /// spot by what it REFERENCES; a spot whose references are unavailable is
+        /// treated as unknown rather than a match. Fails open with a warning so a
+        /// scan failure places spots (previous behaviour) instead of silently
+        /// omitting them.
+        /// </summary>
+        private static HashSet<ElementId> BuildSpottedElementIndex(Document doc, View view, bool isCoordinate, AnnotationResult result)
+        {
+            var set = new HashSet<ElementId>();
+            try
+            {
+                var bic = isCoordinate ? BuiltInCategory.OST_SpotCoordinates : BuiltInCategory.OST_SpotElevations;
+                foreach (var el in new FilteredElementCollector(doc, view.Id)
+                    .OfCategory(bic)
+                    .WhereElementIsNotElementType())
+                {
+                    if (!(el is SpotDimension sd)) continue;
+                    try
+                    {
+                        if (!sd.AreReferencesAvailable) continue;   // unknown — not a match
+                        var refs = sd.References;
+                        if (refs == null) continue;
+                        foreach (Reference r in refs)
+                        {
+                            var host = doc.GetElement(r);
+                            if (host != null && host.Id != ElementId.InvalidElementId) set.Add(host.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"BuildSpottedElementIndex: spot {sd.Id} — {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail open: an empty index means "place every spot", i.e. the
+                // previous behaviour, rather than silently skipping requested work.
+                result.Warnings.Add($"Could not index existing spot {(isCoordinate ? "coordinates" : "elevations")} " +
+                                    $"in '{view.Name}' ({ex.Message}); duplicate spot dims are possible on this view.");
+            }
+            return set;
+        }
+
         private static void ProcessSpotRules(Document doc, View view, List<SpotAnnotationRule> rules, bool isCoordinate, AnnotationResult result)
         {
             if (rules == null || rules.Count == 0) return;
+
+            // C-4: index elements that already carry a spot dimension of this
+            // kind in the view, once and shared across every rule below, so a
+            // re-run doesn't stack a second SpotElevation / SpotCoordinate onto
+            // each element. The tag, dimension and decorative passes each got an
+            // idempotency guard; the spot pass was the one kind left uncovered,
+            // so re-running DrawingTypePresentation.Apply doubled every spot dim.
+            var spotted = BuildSpottedElementIndex(doc, view, isCoordinate, result);
+
             foreach (var r in rules)
             {
                 if (r == null || string.IsNullOrEmpty(r.Category)) continue;
@@ -1063,6 +1173,14 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
+                            // C-4: skip an element that already carries a spot
+                            // dim of this kind so a re-run places nothing.
+                            if (spotted != null && spotted.Contains(el.Id))
+                            {
+                                result.Skipped++;
+                                continue;
+                            }
+
                             var bb = el.get_BoundingBox(view);
                             if (bb == null) continue;
                             var origin = new XYZ((bb.Min.X + bb.Max.X) / 2.0, (bb.Min.Y + bb.Max.Y) / 2.0, bb.Max.Z);
@@ -1078,6 +1196,9 @@ namespace StingTools.Core.Drawing
                                 try { sd.ChangeTypeId(symbolId); } catch { }
                             }
                             result.SpotsPlaced++;
+                            // Keep the index current so a later rule of the same
+                            // kind in this run doesn't re-spot the same element.
+                            spotted?.Add(el.Id);
                         }
                         catch (Exception ex) { result.Warnings.Add($"Spot {(isCoordinate ? "coord" : "elev")} '{r.Category}/{el.Id}': {ex.Message}"); }
                     }

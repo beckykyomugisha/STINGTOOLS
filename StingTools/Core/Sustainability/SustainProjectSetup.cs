@@ -288,14 +288,14 @@ namespace StingTools.Core.Sustainability
             }
         }
 
-        /// <summary>Load from a project directory (returns default + Found=false if absent).</summary>
-        public static SustainProjectSetup Load(string projectDir, out bool found)
+        /// <summary>Load from the resolved sustainability directory (returns default + Found=false if absent).</summary>
+        public static SustainProjectSetup Load(string sustainDir, out bool found)
         {
             found = false;
             try
             {
-                if (string.IsNullOrEmpty(projectDir)) return CreateDefault();
-                string path = Path.Combine(projectDir, RelPath);
+                if (string.IsNullOrEmpty(sustainDir)) return CreateDefault();
+                string path = Path.Combine(sustainDir, "project_setup.json");
                 if (!File.Exists(path)) return CreateDefault();
                 found = true;
                 return Parse(File.ReadAllText(path));
@@ -303,13 +303,12 @@ namespace StingTools.Core.Sustainability
             catch { return CreateDefault(); }
         }
 
-        public void Save(string projectDir)
+        public void Save(string sustainDir)
         {
-            if (string.IsNullOrEmpty(projectDir)) return;
-            string dir = Path.Combine(projectDir, "_BIM_COORD", "sustainability");
-            Directory.CreateDirectory(dir);
+            if (string.IsNullOrEmpty(sustainDir)) return;
+            Directory.CreateDirectory(sustainDir);
             UpdatedUtc = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
-            File.WriteAllText(Path.Combine(dir, "project_setup.json"), ToJson());
+            File.WriteAllText(Path.Combine(sustainDir, "project_setup.json"), ToJson());
         }
     }
 }

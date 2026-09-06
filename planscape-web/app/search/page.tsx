@@ -10,10 +10,10 @@ import type { SearchResult } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 const typeBadge: Record<string, string> = {
-  issue: 'bg-blue-100 text-blue-700',
-  document: 'bg-amber-100 text-amber-700',
-  meeting: 'bg-green-100 text-green-700',
-  tag: 'bg-slate-100 text-slate-600',
+  issue: 'bg-accent-subtle text-accent',
+  document: 'bg-warning-subtle text-warning',
+  meeting: 'bg-success-subtle text-success',
+  tag: 'bg-surface-3 text-fg-muted',
 };
 
 function hrefFor(r: SearchResult): string {
@@ -31,7 +31,7 @@ function hrefFor(r: SearchResult): string {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<AppShell><p className="text-slate-400">Loading…</p></AppShell>}>
+    <Suspense fallback={<AppShell><p className="text-fg-subtle">Loading…</p></AppShell>}>
       <SearchInner />
     </Suspense>
   );
@@ -81,17 +81,17 @@ function SearchInner() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Search issues, documents, meetings, tags…"
           autoFocus
-          className="w-full max-w-xl rounded border border-slate-300 px-3 py-2 text-sm"
+          className="w-full max-w-xl rounded border border-border-strong px-3 py-2 text-sm"
         />
       </form>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {loading && <p className="text-slate-400">Searching…</p>}
+      {error && <p className="mb-3 rounded bg-danger-subtle px-3 py-2 text-sm text-danger">{error}</p>}
+      {loading && <p className="text-fg-subtle">Searching…</p>}
       {!loading && q.trim().length >= 2 && results && results.length === 0 && (
-        <p className="text-slate-500">No matches for “{q}”.</p>
+        <p className="text-fg-muted">No matches for “{q}”.</p>
       )}
       {q.trim().length > 0 && q.trim().length < 2 && (
-        <p className="text-slate-400">Type at least 2 characters.</p>
+        <p className="text-fg-subtle">Type at least 2 characters.</p>
       )}
 
       {results && results.length > 0 && (
@@ -100,16 +100,16 @@ function SearchInner() {
             <li key={`${r.type}-${r.id}`}>
               <Link
                 href={hrefFor(r)}
-                className="flex items-center justify-between gap-3 rounded-lg bg-white p-3 ring-1 ring-slate-200 transition hover:ring-blue-300"
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface p-3 ring-1 ring-border transition hover:ring-accent"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{r.label}</div>
-                  <div className="truncate text-xs text-slate-400">
+                  <div className="truncate text-xs text-fg-subtle">
                     {r.detail}
                     {r.projectName ? ` · ${r.projectName}` : ''}
                   </div>
                 </div>
-                <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] uppercase ${typeBadge[r.type] ?? 'bg-slate-100 text-slate-600'}`}>
+                <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] uppercase ${typeBadge[r.type] ?? 'bg-surface-3 text-fg-muted'}`}>
                   {r.type}
                 </span>
               </Link>

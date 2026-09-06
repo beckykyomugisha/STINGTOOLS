@@ -9,9 +9,13 @@
 //    * Re-redact         — re-run the blur worker on a single photo
 //    * Audit log probe   — last 50 audit events for site photos on this project
 //
-//  All operations route through PlanscapeServerClient. Server enforces
-//  the actual permission gate (PM / Admin / Owner only); the desktop
-//  surface just hides the UI from non-curators on a best-effort basis.
+//  All operations route through PlanscapeServerClient. The SERVER remains
+//  the gate. What the desktop surface adds (#558) is affordance: it asks
+//  the server what this user can do (GET members/capabilities) and
+//  disables only what the server has explicitly said no to, naming the
+//  capability. A capability we could not determine — unreachable server,
+//  timeout, unparseable body — leaves the control enabled and lets the
+//  attempt report. Unknown is not denied.
 // ══════════════════════════════════════════════════════════════════════
 
 #nullable enable
@@ -45,6 +49,7 @@ namespace StingTools.UI
             root.Children.Add(sel);
 
             var bulkBar = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            var bulkButtons = new List<Button>();
             foreach (var (label, code) in SitePhotosTab.Reasons.Select(r => (r.Label, r.Code)))
             {
                 var b = new Button {
@@ -62,11 +67,17 @@ namespace StingTools.UI
                     if (state.SelectedIds.Count == 0) return;
                     var n = await PlanscapeServerClient.Instance.BulkReclassifyPhotosAsync(
                         state.ProjectId, state.SelectedIds.ToList(), code);
-                    Autodesk.Revit.UI.TaskDialog.Show("Reclassify",
-                        n > 0 ? $"Reclassified {n} photo(s) to {code}." :
-                        (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                    if (n > 0)
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("Reclassify",
+                            $"Reclassified {n} photo(s) to {code}.");
+                        return;
+                    }
+                    PlanscapeForbidden.ShowFailureOrForbidden(
+                        "Reclassify", PlanscapeCapability.ApproveSitePhotos);
                 };
                 bulkBar.Children.Add(b);
+                bulkButtons.Add(b);
             }
             root.Children.Add(bulkBar);
 
@@ -90,9 +101,13 @@ namespace StingTools.UI
                 if (lvl == null && zn == null) return;
                 var n = await PlanscapeServerClient.Instance.BulkReanchorPhotosAsync(
                     state.ProjectId, state.SelectedIds.ToList(), levelCode: lvl, zoneCode: zn);
-                Autodesk.Revit.UI.TaskDialog.Show("Re-anchor",
-                    n > 0 ? $"Re-anchored {n} photo(s)." :
-                    (PlanscapeServerClient.Instance.LastError ?? "(no detail)"));
+                if (n > 0)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("Re-anchor", $"Re-anchored {n} photo(s).");
+                    return;
+                }
+                PlanscapeForbidden.ShowFailureOrForbidden(
+                    "Re-anchor", PlanscapeCapability.ApproveSitePhotos);
             };
             reanchorBar.Children.Add(reanchorBtn);
             root.Children.Add(reanchorBar);
@@ -129,7 +144,20 @@ namespace StingTools.UI
                     });
                     return;
                 }
+                // null = the load FAILED; an empty list = there are genuinely no
+                // groups. "No distribution groups yet." over an unreachable server
+                // is invented data — and here it is actively dangerous, because an
+                // operator could conclude nobody is on distribution and re-add
+                // recipients who are already there.
                 var groups = await PlanscapeServerClient.Instance.ListDistributionGroupsAsync(state.ProjectId);
+                if (groups == null)
+                {
+                    dgPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
+                        "Could not load distribution groups.",
+                        "Distribution groups are not available to you on this project.",
+                        PlanscapeCapability.CurateProject));
+                    return;
+                }
                 if (groups.Count == 0)
                 {
                     dgPanel.Children.Add(new TextBlock {
@@ -155,8 +183,101 @@ namespace StingTools.UI
                                $"{(g.IncludeInDailyDigest ? " · digest" : "")}{(g.ForceRedacted ? " · redacted" : "")}",
                         FontSize = 10, Foreground = Brushes.Gray
                     });
+
+                    // Members were only ever counted, never listed or editable —
+                    // so a group could be created but never populated from here.
+                    var memberLine = new TextBlock {
+                        FontSize = 10, Foreground = Brushes.Gray,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0)
+                    };
+                    sp.Children.Add(memberLine);
+
+                    var grp = g;
+                    async Task LoadMembersAsync()
+                    {
+                        var mem = await PlanscapeServerClient.Instance
+                            .ListDistributionGroupMembersAsync(state.ProjectId, grp.Id);
+                        // null is a FAILED load, not an empty group. Saying "No members
+                        // yet" here is the same fabrication #550 removed from the album
+                        // pane: an operator would conclude nobody is on distribution and
+                        // re-add recipients who are already there.
+                        memberLine.Text = mem == null
+                            ? (PlanscapeServerClient.Instance.LastStatus == 403
+                                ? "🔒 " + PlanscapeForbidden.Describe(PlanscapeCapability.CurateProject)
+                                : "Could not load members — "
+                                  + (PlanscapeServerClient.Instance.LastError ?? "(no detail)"))
+                            : mem.Count == 0
+                                ? "No members yet."
+                                : string.Join(", ", mem.Select(m =>
+                                    m.IsProjectMember ? m.Label : m.Label + " (external)"));
+                    }
+
+                    var addMemberBtn = new Button {
+                        Content = "＋ Add member", Height = 22, Padding = new Thickness(8, 0, 8, 0),
+                        Background = Brushes.WhiteSmoke, BorderBrush = Brushes.Gainsboro,
+                        BorderThickness = new Thickness(1), FontSize = 10, Cursor = Cursors.Hand,
+                        HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0),
+                    };
+                    addMemberBtn.Click += async (_, _) =>
+                    {
+                        // Members come from the canonical project roster; the
+                        // server's ExternalEmail column is the escape hatch for
+                        // people outside the project (a client contact on a
+                        // distribution list who has no Planscape account).
+                        var roster = StingTools.Core.ProjectRoster.LoadForProject(state.ProjectId);
+                        const string externalOpt = "[External — not a project member]";
+                        var picks = roster
+                            .Select(m => string.IsNullOrWhiteSpace(m.Email) ? m.Display : $"{m.Display} — {m.Email}")
+                            .ToList();
+                        picks.Add(externalOpt);
+
+                        string pick = StingTools.Select.StingListPicker.Show($"Add to {grp.Name}",
+                            roster.Count > 0
+                                ? "Select a project member:"
+                                : "No project members found — add an external address instead.",
+                            picks);
+                        if (string.IsNullOrEmpty(pick)) return;
+
+                        bool ok;
+                        if (pick == externalOpt)
+                        {
+                            var email = SitePhotosTabHelpers.PromptForString(owner,
+                                "External recipient", "Email address:", "");
+                            if (string.IsNullOrWhiteSpace(email)) return;
+                            ok = await PlanscapeServerClient.Instance.AddDistributionGroupMemberAsync(
+                                state.ProjectId, grp.Id, externalEmail: email.Trim());
+                        }
+                        else
+                        {
+                            int dash = pick.IndexOf(" — ", StringComparison.Ordinal);
+                            string nm = dash > 0 ? pick.Substring(0, dash) : pick;
+                            var member = roster.FirstOrDefault(m =>
+                                string.Equals(m.Display, nm, StringComparison.OrdinalIgnoreCase));
+                            if (member?.ServerUserId == null)
+                            {
+                                Autodesk.Revit.UI.TaskDialog.Show("Add member",
+                                    $"\"{nm}\" has no server account, so they cannot be added as a " +
+                                    "project member. Add them as an external recipient instead.");
+                                return;
+                            }
+                            ok = await PlanscapeServerClient.Instance.AddDistributionGroupMemberAsync(
+                                state.ProjectId, grp.Id, userId: member.ServerUserId,
+                                displayName: member.Display);
+                        }
+
+                        if (!ok)
+                        {
+                            PlanscapeForbidden.ShowFailureOrForbidden(
+                                "Add member", PlanscapeCapability.CurateProject);
+                            return;
+                        }
+                        await LoadMembersAsync();
+                    };
+                    sp.Children.Add(addMemberBtn);
+
                     b.Child = sp;
                     dgPanel.Children.Add(b);
+                    _ = LoadMembersAsync();
                 }
             }
 
@@ -170,19 +291,58 @@ namespace StingTools.UI
                     state.ProjectId, name.Trim(), kind: "Internal");
                 if (grp == null)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show("New group",
-                        PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    PlanscapeForbidden.ShowFailureOrForbidden(
+                        "New group", PlanscapeCapability.CurateProject);
                     return;
+                }
+                // Non-null with LastError set is partial success: the group exists but
+                // some recipients did not land. No recipients are passed here today, so
+                // this cannot fire yet — it is present so that adding them later cannot
+                // make the partial failure silent.
+                if (PlanscapeServerClient.Instance.LastError is { } partial)
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("New group", partial);
                 }
                 await LoadGroupsAsync();
             };
 
             _ = LoadGroupsAsync();
 
+            // ── Affordance from capabilities (#547 / #558) ──────────
+            // Two different capabilities on one pane, and they are NOT the
+            // same set of people: bulk reclassify / re-anchor rewrite the
+            // audience machine and need ApproveSitePhotos, while distribution
+            // groups are curation. Gating both on one flag would tell a
+            // coordinator they cannot do something they can.
+            bool bannerShown = false;
+            void ApplyCaps()
+            {
+                foreach (var b in bulkButtons)
+                    PlanscapeForbidden.ApplyIfDenied(b, state.Caps.ApproveSitePhotos,
+                        PlanscapeCapability.ApproveSitePhotos);
+                PlanscapeForbidden.ApplyIfDenied(reanchorBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
+                PlanscapeForbidden.ApplyIfDenied(dgNew, state.Caps.CurateProject,
+                    PlanscapeCapability.CurateProject);
+
+                if (bannerShown) return;
+                var banner = PlanscapeForbidden.BuildBannerIfDenied(
+                    state.Caps.ApproveSitePhotos, PlanscapeCapability.ApproveSitePhotos)
+                    ?? PlanscapeForbidden.BuildBannerIfDenied(
+                        state.Caps.CurateProject, PlanscapeCapability.CurateProject);
+                if (banner == null) return;
+                bannerShown = true;
+                root.Children.Insert(0, banner);
+            }
+            state.CapabilitiesResolved += ApplyCaps;
+            ApplyCaps();
+
             // ── Section: Help ───────────────────────────────────────
             root.Children.Add(SectionHeader("Notes"));
             root.Children.Add(new TextBlock {
-                Text = "• Bulk operations require PM, Admin, or Owner role on the server.\n" +
+                // Sourced from the shared helper rather than retyped — this line
+                // and the forbidden panels must never drift apart.
+                Text = "• " + PlanscapeForbidden.Describe(PlanscapeCapability.ApproveSitePhotos) + "\n" +
                        "• Force-state and audit-log endpoints are reachable via the web admin only.\n" +
                        "• The watermark / retention / digest hour are edited under the project's\n" +
                        "  Photo Policy (PUT /api/projects/{id}/photo-policy) — a future BCC slice\n" +

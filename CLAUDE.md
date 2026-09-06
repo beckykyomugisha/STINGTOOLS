@@ -8,10 +8,10 @@ This file provides guidance for AI assistants (Claude Code, etc.) working in thi
 
 ### Quick Stats
 
-- **1,204+ source files** (1,204 C# + 14 XAML, ~572,000 lines of code) across 38+ command directories
+- **~1,440 C# source files · ~656k lines** in the plugin (`StingTools/`) + 14 XAML, across 38+ command directories — *rounded; see the [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) for exact, dated, reproducible metrics*
 - **1,580+ `IExternalCommand` classes** (commands) + 3 `IPanelCommand` classes + 1 `IExternalApplication` entry point + 1 `IExternalEventHandler` + 4 `IDockablePaneProvider`s + 4+ `IUpdater`s
 - **100+ runtime / embedded data files** (CSV, JSON, TXT, XLSX, PY, MD, DOCX) — includes template engine v1.1 pack (16 templates + 5 workflow definitions), HVAC/climate/RTS/acoustic data, CSI/MasterFormat maps, CTF coefficients, IDU catalogues, Cx task library, and more
-- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (8 tabs) + ribbon retained for legacy compat
+- **4 WPF dockable panels** (Main 9-tab, Electrical, Plumbing, HVAC) + 1 modeless Placement Center + BIM Coordination Center (13 tabs) + Document Management Center (9 tabs) + ribbon retained for legacy compat
 - **Top-level workspace** ships 30+ directories: `StingTools/` · `Planscape/` · `Planscape.Server/` · `StingBIM.Server/` · `StingBridge/` · `GUIDES/` · `StingTools.ArchiCAD/` · `Planscape.Desktop/` · `Planscape.Edge/` · `StingTools.Clash.Tests/` · `StingTools.Tags.Tests/` · `StingTools.Routing.Tests/` · `StingTools.Boq.Tests/` · `StingTools.Connectivity.Tests/` · `StingTools.Dynamo/` · `StingTools.Headless/` · `StingTools.Standards/` · `Tests/` · `Families/` · `docs/` · `docs-site/` · `marketing-site/` · `marketing-site-cron/` · `tools/` · `shared/` · `stingtools-bonsai/` · `stingtools-core/` · `ifc_drop/` · `project-templates/` · `planscape-site/`
 
 ### Phase history
@@ -22,11 +22,265 @@ The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward)
 
 | File | Purpose | When to edit |
 |---|---|---|
-| `CLAUDE.md` (this file, **1 file · ~4,875 lines**) | **Stable reference** — architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
+| `CLAUDE.md` (this file — **stable reference + a dated [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) snapshot**) | Architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
+| `docs/INDEX.md` | **Table of contents for the 133 `docs/` files** — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
 
 When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than extending this file. When you identify a new gap, add it to `docs/ROADMAP.md` — that keeps this file focused on what the code **is** rather than what it has been or might become.
+
+---
+
+## Codebase Review — General Assessment, Gaps & Recommendations
+
+> **This is a dated, reproducible snapshot — not a static fact sheet.** Numbers rot; qualitative
+> findings age slowly. **Trust the date, and re-measure before acting.** The living backlog lives in
+> [`docs/ROADMAP.md`](docs/ROADMAP.md); this section is the point-in-time assessment that feeds it.
+>
+> **Last measured: 2026-07-24, on `main` @ commit `3f4b72de1` (PR #479).**
+>
+> <details><summary><b>Method — copy/paste to refresh every number below</b></summary>
+>
+> ```bash
+> # plugin size
+> find StingTools -name '*.cs' | wc -l                                            # cs files
+> find StingTools -name '*.cs' -exec cat {} + | wc -l                             # lines
+> # tech-debt markers
+> grep -rIn --include='*.cs' -E 'catch\s*(\([^)]*\))?\s*\{\s*\}' StingTools | wc -l   # empty catches
+> grep -rIn --include='*.cs' 'TaskDialog' StingTools | wc -l                      # UI coupling
+> grep -rIn --include='*.cs' -iE 'stub|not implemented|placeholder|for now|temporarily' StingTools | wc -l
+> grep -rIn --include='*.cs' -E '//\s*(TODO|FIXME|HACK|XXX)\b' StingTools | wc -l
+> # god-files (exclude obj/ generated .g.cs)
+> find StingTools -name '*.cs' -not -path '*/obj/*' -exec wc -l {} + | sort -rn | head -10
+> # tests + whether any exercises the plugin assembly
+> grep -rIn --include='*.cs' -E '\[(Fact|Theory|Test)\]' *.Tests | wc -l
+> grep -rIl --include='*.csproj' 'StingTools/StingTools' *.Tests || echo "NONE cover the plugin"
+> # build (Windows + Revit + .NET SDK)
+> dotnet build StingTools/StingTools.csproj -c Debug -clp:Summary
+> ```
+> </details>
+
+### Verdict
+
+A remarkably broad, genuinely functional AEC/BIM platform that **compiles clean (0 errors / 0
+warnings)** and has real, runtime-verified end-to-end paths (see
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md) — 3-host IFC resolve, issues/BCF lifecycle, live
+plugin↔server connect were *run*, not just written). The dominant risks are **not
+correctness-in-the-small** but **scale management**: a ~656k-line plugin monolith with almost no
+automated coverage of its own surface, several 6k–12k-line god-files, and headline documentation that
+has drifted from the code. Treat it as a mature product carrying **structural tech debt**, not a
+prototype.
+
+### Snapshot (2026-07-24 @ `3f4b72de1`)
+
+| Metric | Value |
+|---|---|
+| Plugin (`StingTools/`) | **1,443 C# files · 655,982 lines**; ~496 files declare `IExternalCommand` (≈1,580 command classes) |
+| Server (`Planscape.Server/`) | 583 C# files · 119,867 lines |
+| Workspace | 23 `.csproj`, 9 test projects, **140 markdown docs** (23 root + 117 `docs/`) |
+| Build | `dotnet build` → **0 errors, 0 warnings** (Windows + Revit 2025 + .NET 8 SDK) |
+| Tests | **856 declared test methods across 10 projects, all now runnable** (was 759 runnable / 97 counted-but-dead until 2026-08-06 — see §3); 1 project exercises `StingTools.dll` |
+| Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
+| Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
+| EF migrations | 80 migration classes on disk, **2 discoverable, 78 inert** — see §9 |
+
+### 1. Build & compile health
+
+- **Build is GREEN — 0 errors, 0 warnings** on a Windows box with Revit 2025 + the .NET 8 SDK.
+- **The plugin does not build in isolation.** It `ProjectReference`s `Planscape.Shared`,
+  `Planscape.PluginSync`, and `StingTools.Standards` (`.csproj` lines 123–127), so the Revit plugin
+  build-depends on the *server* solution's shared libraries. There is also a **cross-project compile
+  hack**: `BIMManager/BcfEngine.cs` is `<Compile Remove>`d and compiled *into* `Planscape.Shared` to
+  dodge a duplicate-type collision. Fragile — moving either project breaks it silently.
+- **Nullable reference types are disabled project-wide** (`<Nullable>disable</Nullable>`), and six
+  warning codes are **suppressed rather than fixed** via `NoWarn` (`CS0414;CS0649;CS0472;CS8600;
+  CS8602;CS8625` — self-described in the `.csproj` as "merge-leftover noise"). The clean baseline is
+  therefore partly achieved by suppression, not by the compiler being fully satisfied.
+- **CI exists** (11 GitHub Actions workflows: `stingtools-plugin.yml`, `planscape-server.yml`,
+  `contract-drift.yml`, `multi-host-core.yml`, …) — worth referencing from the build docs.
+- **Stale caveats.** Many sections below carry *"committed without `dotnet build` verification (Linux
+  sandbox)"*. **That one is historical** — this machine builds 0/0. Trust the build, not the
+  per-section caveat. The Healthcare section's *"EF migration not run yet"* is a **different claim
+  and it still stands**: migration files exist, but almost none of them are applicable (§9).
+
+### 2. Documentation accuracy — the headline facts have drifted
+
+CLAUDE.md is the single onboarding surface, so wrong headline facts mis-inform every human/AI who
+starts here. Measured drift (fixed in this pass where cheap; see Quick Stats + Documentation Map):
+
+| Claim in this file | Measured (2026-07-24) |
+|---|---|
+| Documentation Map: "this file · **~4,875 lines**" | **2,304 lines** |
+| Quick Stats: "1,204 C# files, ~572,000 lines" | **1,443 files / 655,982 lines** (plugin alone) |
+| `StingCommandHandler.cs` "4,817 lines" (later section) | **9,519 lines** |
+| Assembly "v1.0.0.0" | `.csproj` `<Version>` = **2.2.0** |
+| ~~Healthcare: "EF migration not run yet"~~ — **this row was itself wrong**; retracted 2026-08-02 | 83 was a count of `*.cs` files in `Migrations/` (80 migrations + 2 Designer + 1 snapshot). Only **2 are applicable**; 78 are inert. See §9. |
+| "committed without `dotnet build` verification" (many sections) | Builds **0/0** on Windows+Revit |
+
+**Sustainable fix applied:** the Quick Stats and Documentation Map now round + point *here* (one
+dated, reproducible source) instead of carrying exact numbers that re-rot within a phase or two.
+
+### 3. Testing — the biggest structural gap
+
+- **856 declared test methods across 10 projects** (`[Fact]`/`[Theory]` count — the metric this file
+  has always used). Re-measured 2026-08-06:
+
+  | Project | Declared | Runs |
+  |---|---|---|
+  | Sustainability | 365 | ✅ 438 cases, 0 failing |
+  | Tags | 158 | ✅ 241 cases, **2 failing** (#554) |
+  | Boq | 121 | ✅ 196 cases, 0 failing |
+  | Cost | 63 | ✅ 90 cases, 0 failing |
+  | Clash | 56 | ✅ 64 cases, **1 failing** (#596) |
+  | Routing | 41 | ✅ 45 cases, **1 failing** (#597) |
+  | Scheduling | 30 | ✅ 38 cases, 0 failing |
+  | Licensing | 14 | ✅ 14 cases, 0 failing |
+  | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
+  | Connectivity | 0 | empty project |
+
+  Declared methods and *executed cases* are different metrics and get conflated: one `[Theory]`
+  with `InlineData` expands into many cases, which is why the totals above do not match.
+
+- **The 774 in this table until 2026-08-06 was overstated by 97 and understated by 82.** `Clash` (56)
+  and `Routing` (41) **had not compiled since mid-May 2026** — from `c98500b5a` and `3e43f16e1`
+  respectively — and a test project that does not compile reports *nothing*: no red, no count, no
+  signal. Their 97 methods were still being counted. Meanwhile `Tags` had grown 84 → 158 and two new
+  projects had appeared, so the figure was stale in both directions at once. Both projects were
+  repaired in #553 and are now runnable; `.github/workflows/stingtools-unit-tests.yml` builds every
+  project and fails on any that will not compile, so this cannot go silent again.
+  **A coverage number that counts tests which cannot execute is worse than a smaller honest one** —
+  it is the same failure mode as an empty list standing in for an error.
+- **Only `StingTools.SitePhotos.Tests` references the built plugin.** The other nine target Revit-free
+  side libraries or `<Compile Include>` selected plugin sources behind hand-written Revit stubs.
+- Consequence: the ~656k-line plugin — every command, the auto-tagger `IUpdater`, the dispatch layer,
+  the placement/routing/fabrication engines — has **effectively no direct automated coverage**. The
+  clash and routing projects reach real plugin *source* through `<Compile Include>`, and SitePhotos
+  reaches the built *assembly*, but that is a handful of engines out of ~1,580 command classes.
+  Regressions are still caught by a human loading Revit.
+- Root cause is architectural (§5): command logic is fused to the Revit API and `TaskDialog`, so it
+  can't run headlessly. The fix is **extraction, not more test files**.
+
+### 4. Error handling & robustness
+
+- **683 empty/near-empty `catch` blocks**, against a stated convention of "never use silent catch."
+  **Read this fairly**: most are the legitimate Revit best-effort idiom — `try { x =
+  el.get_Parameter(...); } catch { }` around optional API reads that *throw* when a parameter or
+  geometry is absent (e.g. dozens in
+  [`BIMManager/PublishModelCommand.cs`](StingTools/BIMManager/PublishModelCommand.cs)). That is a
+  normal, defensible pattern.
+- The genuine risk is the **subset wrapping writes, transactions, or I/O** — there a swallowed
+  exception hides a real failure and leaves partial state with no log line. `StingLog` is already
+  everywhere (**9,530 sites**); the gap is discipline at the risky sites.
+- **Recommendation**: add a `TryRead`/`SafeGet` helper for the benign optional-read idiom (so those
+  sites stop counting as "silent catches"), and require `StingLog.Warn/Error` in every catch that
+  wraps a mutation. Then the empty-catch count becomes a meaningful signal again.
+
+### 5. Architecture & maintainability
+
+- **God-files** (source only, excluding generated `obj/**/*.g.cs`):
+  [`UI/BIMCoordinationCenter.cs`](StingTools/UI/BIMCoordinationCenter.cs) **11,971**,
+  [`BIMManager/BIMManagerCommands.cs`](StingTools/BIMManager/BIMManagerCommands.cs) **10,819**,
+  [`UI/StingCommandHandler.cs`](StingTools/UI/StingCommandHandler.cs) **9,519**,
+  `Tags/LegendBuilderCommands.cs` 7,313, `UI/BOQCostManagerPanel.cs` 6,937,
+  `Organise/TagOperationCommands.cs` 6,604, `Core/WarningsManager.cs` 6,013. These are
+  merge-conflict magnets and defeat code review.
+- **Central dispatch bottleneck.** `StingCommandHandler` maps 590+ button tags in one 9.5k-line
+  `IExternalEventHandler` — every panel change touches it; it is the most contended file in the tree.
+- **UI/logic fusion.** **7,650 `TaskDialog` sites** interleave user dialogs directly into
+  command/engine logic. This is the concrete reason §3 can't happen — you cannot run the logic
+  without a Revit UI thread. **Extracting a pure "compute → result record" layer from a thin
+  "present" layer is the single highest-leverage refactor available.**
+- **Command sprawl.** ~1,580 command classes is a lot of surface to keep discoverable; dead/silent
+  commands are tracked in [`docs/UNREACHABLE_COMMANDS_TRIAGE.md`](docs/UNREACHABLE_COMMANDS_TRIAGE.md)
+  (commands with no button) and [`SILENT_BUTTONS_TODO.md`](SILENT_BUTTONS_TODO.md) — **repo root, not
+  `docs/`** (buttons with no command). As of 2026-08-06 there are **no** silent buttons: all 1,323
+  `Cmd_Click` button tags dispatch, and Tier 4 of `tools/check_workflow_wiring.ps1` keeps it that way.
+  Beware any count derived from the `StingCommandHandler` switch alone — dispatch is three layers
+  (`CommandRegistry` modules → `Cmd_Click` suite runners → handler `case` labels), and one-layer
+  audits have twice produced large false-positive figures.
+
+### 6. Stubs & "for-now" scaffolding
+
+**646 stub/placeholder/"for now" markers, 10 `NotImplementedException`, 51 `TODO/FIXME/HACK`.**
+Combined with the many "ships parameter specs only / real `.rfa` comes from manufacturers" caveats, a
+meaningful slice of the catalogued surface is **spec-complete but not runtime-complete**. Legitimate
+for a data-driven family/seed system, but it means "command exists" ≠ "workflow produces a real
+deliverable." Make that distinction explicit wherever it matters to a user.
+
+### 7. Data-layer integrity
+
+- **100+ runtime JSON/CSV/TXT config files** in `StingTools/Data/` are the real behaviour surface
+  (tag config, parameter registry, sizing rules, drawing types, filters, seeds), loaded by
+  `Newtonsoft.Json` with a **corporate-baseline + project-override** layering pattern.
+- Risk: **a schema/field-name typo in a data file is not a compile error** — Newtonsoft silently
+  leaves mistyped fields at default, so it surfaces as a runtime no-op or a `catch{}`-swallowed load.
+  There is no build-time validation gate. Add a validation pass (or unit tests over the shipped data
+  files) so data edits fail loudly, not silently. (This matches the memory rule: *valid JSON + green
+  build can still be runtime-dead — check Newtonsoft field types.*)
+
+### 8. Server & platform (`Planscape.Server`)
+
+ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **Schema is not managed by
+EF migrations** — see §9 — and the stack is verified running locally in
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
+committed secrets** — `appsettings.Production.template.json` uses `__REPLACE_WITH_…__` placeholders
+and `render.yaml` marks JWT key / owner password `sync: false`. Good hygiene. Open items are honestly
+tracked as **🟡 PARTIAL** (live 2-participant meetings, GLB viewer render, a site-photos route 404, a
+geofence cached-boundary inconsistency) — they need a browser/2-client harness, not more backend code.
+
+### 9. Repo & documentation hygiene
+
+- **140 markdown docs**, many overlapping (`REVIEW_LOG.md`, `PROGRESS.md`, `SYSTEM_STATUS.md`,
+  `MERGE_SUMMARY.md`, dozens of `*_AUDIT.md` / `*_PLAN.md` / `*_PROMPT.md` at root) with no single
+  index — valuable history, but hard to know which doc is current.
+- **Branch sprawl.** This assessment was itself first drafted on a task branch **247 commits behind
+  `main`** and re-synced to `main` before final measurement — a reminder that per-session `claude/*`
+  branches drift fast; always re-base and re-measure before trusting a branch's numbers.
+- **EF migrations are decorative — do not read them as evidence of schema.** *(measured 2026-08-02)*
+  `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/` holds 83 `.cs` files: **80
+  migration classes, 2 `.Designer.cs`, 1 model snapshot**. EF builds its applicable-migration list by
+  reflecting over the `[Migration]` attribute, which normally lives in the Designer file — so only
+  **2 migrations are discoverable** (`MeetingMedia`, `SustainabilitySnapshots`) and **78 are inert
+  classes EF never sees**. `Database.Migrate()` applies those two and nothing else.
+
+  Real schema comes from `OnModelCreating` (via `EnsureCreated`/`CreateTables`) plus
+  `PlatformSchemaPatcher`, which runs on **both** boot branches. This is deliberate and documented in
+  [`docs/adr/0001-schema-management.md`](docs/adr/0001-schema-management.md) (Accepted).
+
+  Two consequences that keep catching people:
+  1. **A migration's contents prove nothing about the database, in either direction.** "No migration
+     creates table X" is not evidence X is missing; "a migration does Y" is not evidence Y happened.
+  2. **Security SQL that exists only in an inert migration was never applied** — Postgres RLS
+     (45 tables) and the audit-log hash-chain/partitioning are both in this category. See issue #545.
+
+  ⚠️ **Do not run `dotnet ef migrations add` here** without reading #545 first. It emits a Designer
+  file, which silently arms that one migration against a snapshot that does not describe live schema.
+  Two migrations have already become discoverable this way.
+
+### Prioritised recommendations
+
+**P0 — cheap, high-value**
+1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, the blanket
+   "committed without build verification" caveat) and pointed them at this dated source.
+   ⚠️ *Partly retracted 2026-08-02:* the "EF migration not run yet → 83 migrations present" correction
+   was **itself wrong** — 83 counted files, not applicable migrations. Fixed in §9.
+2. Populate or delete `StingTools.Connectivity.Tests` (an empty project is a false coverage signal).
+3. Add a `docs/INDEX.md` (or prune) so the 140-doc sprawl has one authoritative table of contents.
+
+**P1 — structural, schedule deliberately**
+4. Carve a pure "compute → result record" layer out of the top `TaskDialog`-heavy commands so logic
+   becomes headlessly testable; back it with a new plugin-facing `StingTools.*.Tests` project. Prove
+   the pattern on one high-value engine (BOQ or placement) first, then propagate.
+5. Add a `SafeGet`/`TryRead` helper for the benign optional-read idiom and require logging in every
+   catch that wraps a mutation — restores the empty-catch count as a real signal (§4).
+6. Add build-time (or unit-test) validation of the shipped `Data/*.json` against expected shape (§7).
+
+**P2 — hygiene, ongoing**
+7. Split the 6k–12k-line god-files by feature area; break `StingCommandHandler` dispatch into
+   per-tab partials or a registry.
+8. Retire the `BcfEngine` cross-project compile hack; give the plugin its own `.sln`.
+9. Adopt nullable incrementally via per-file `#nullable enable` on new/edited files rather than a
+   big-bang flip.
 
 ---
 
@@ -363,6 +617,64 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `HistoryBridge.cs` | Persists placement history to `_BIM_COORD/placement_history.json` |
 | `PlacementCentreCommands.cs` (32) | `Placement_OpenCenter` — opens the modeless window |
 | `PlacementExcelCommands.cs` | `Placement_ExportRules`, `Placement_ImportRules` — Excel round-trip for placement rules |
+
+---
+
+## Visibility Center (Phases 232 + 233)
+
+**Status**: `StingTools/Core/Visibility/` (11 files) + `Commands/Visibility/` (2 files) + `UI/Visibility/` (7 files) + `Data/STING_VISIBILITY_PRESETS.json`. Specs: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md) and [`docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+
+A dropdown on the **SELECT** tab that shows/hides elements by **category** and by **ISO 19650 tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode (`View.HideElementsTemporary` — session-only, does not print) or **Saved** mode (`ParameterFilterElement` + `SetFilterVisibility` — persists, prints, pushable to a view template). Default is Temporary.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | Plan / result / element-snapshot records |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge + `excludedCategories` (path-agnostic) |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest` + `TokenHarvest.Rebuild` |
+| `Core/Visibility/VisibilityCategoryTree.cs` | ✅ | Exclusion + `Category.Parent` nesting + Model/Annotation/Imports split |
+| `Core/Visibility/VisibilityState.cs` | ✅ | Read-back records + `VisibilityStateReconciler` + footer / badge text |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + category metadata; 30 s per-scope cache |
+| `Core/Visibility/VisibilityStateReader.cs` | — | Reads what the view is ALREADY hiding (see below) |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | Filter creation + binding-blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; only `StingPaths` caller |
+
+**Commands**: `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` · `Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset` — dispatched from `StingCommandHandler` beside the untouched `ViewIsolate` / `ViewHide` / `ViewReveal` / `ViewReset` cases (those hide the *selection*; these hide by *rule*).
+
+**Contracts worth knowing**
+- **The dropdown reads the view's state; it never remembers it.** Rows open in whatever
+  `VisibilityStateReader` found — hidden categories (`GetCategoryHidden`), hiding `STING VIS -`
+  filters (`GetFilters` + `GetFilterVisibility`), and the temporary mode. **Revit has no API to
+  enumerate temporarily hidden elements**: `IsTemporaryHideIsolateActive()` says the mode is on,
+  not what it hid. The candidate set comes from a document-vs-view collector diff and is then
+  confirmed per element with `View.IsElementVisibleInTemporaryViewMode`; anything still
+  unexplained is counted as `OutOfScopeCount`, never as hidden. **Do not add a side-record of
+  "what we hid"** — it desynchronises the instant the user reaches for Revit's own HH/HI.
+- **The document-scoped pass runs only when the cheap sweep proves something is hidden.** A
+  hidden element is absent from a view-scoped collector, so recovering its row needs the wider
+  scan — but nothing hidden means no scan at all.
+- **`Apply` is additive — it hides, it never un-hides.** A re-ticked row is not restored; the
+  supported route is `Vis_ResetAll` then re-apply. Logged as ROADMAP VIS-2.
+- **`excludedCategories` in `STING_VISIBILITY_PRESETS.json`: `null` ≠ `[]`.** Absent means "use
+  the baseline"; an explicit empty list means "exclude nothing". The POCO default must stay
+  `null` or the key becomes impossible to override. `Save` carries it over — presets and
+  exclusions share one file.
+- **`Plan()` writes nothing; `Apply()` writes.** The dropdown footer ("will hide 1,204 of 8,331") calls the Revit-free `VisibilityRuleMatcher.PlanCore`, so it recomputes per tick without the Revit API. This is the compute/present split CLAUDE.md P1 #4 asks for, proven on one feature.
+- **Matching**: values within a rule OR; rules grouped by (kind, token) OR within a group, AND across groups. Mixed `Hide` + `ShowOnly` is rejected with a message, never silently resolved.
+- **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
+- **Reset clears both mechanisms** (temporary mode *and* the filters). The two halves have opposite transaction requirements, so `VisibilityEngine.Reset` sequences them itself — call it with no open transaction.
+- Token parameters resolve through `ParamRegistry.DISC/.LOC/.ZONE/…`, never literals.
+- **An unresolvable category rule raises a blocker, not silence.** A preset naming a category the model lacks keeps its `OST_` string with `CategoryId == 0`; `PlanCore` detects that and names it, instead of the rule quietly matching nothing.
+- Presets: corporate `Data/STING_VISIBILITY_PRESETS.json` (4 baseline) + project override at `<project>/_BIM_COORD/visibility_presets.json`, project winning by name.
+
+**Caveats**
+1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
+2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
+3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, **102 passing**). The Revit-bound half — `VisibilityStateReader` above all — is **not exercised in Revit**; every bug found on this feature so far has lived there. See ROADMAP VIS-1 for the manual check to run before merge.
+5. Under temporary **isolate**, `IsElementVisibleInTemporaryViewMode` answers false for everything outside the isolated set, including elements the view never drew, so the hidden count is an upper bound. Hide mode is exact (ROADMAP VIS-6).
 
 ---
 
@@ -764,13 +1076,13 @@ Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
 `DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect` — handler cases exist; no dock-panel buttons yet, see review finding W-2).
 
-### AEC/FM Corporate Filter Library (Phase 166/184f — 298 filters)
+### AEC/FM Corporate Filter Library (Phase 166/184f — 290 filters)
 
-`Data/STING_AEC_FILTERS.json`: 298 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
+`Data/STING_AEC_FILTERS.json`: 290 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298; Phase 225 removed the 8 `iso-status-*` filters, which bound only `OST_Sheets` and could never be created, leaving 290. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
 
 ---
 
-Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is never computed or verified) — corporate pack edits are accepted as corporate. See finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is declared but never computed or verified) — corporate pack edits are accepted as corporate. **This asymmetry is deliberate as of Phase 225**, when drawing types were locked (see Project-scoped overrides below). The two carry different risk: a drawing type decides what gets produced, how it is cropped and how it is numbered, so an unnoticed edit changes the identity of an issued deliverable — whereas a view style pack decides appearance (VG overrides, filters, halftone), where an unnoticed edit is visible the moment a drawing is opened and corrupts nothing. Locking packs would also start reporting drift on every project that has ever hand-tuned a corporate pack, which is a behaviour change with no evidence behind it. `ViewStylePack.Checksum` should be wired or dropped rather than left declared-and-unused — logged in `docs/ROADMAP.md`.
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
@@ -827,7 +1139,7 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `Core.Drawing.DrawingDispatcher` | `Resolve(doc, disc, phase, docType)` + `CandidatesForDiscipline` |
 | `Core.Drawing.DrawingTypeValidator` | Pre-flight: missing title block / view template / viewport type / section-marker / tag family + slot geometry sanity |
 
-### Built-in corporate catalogue (93 types / 118 routing rules)
+### Built-in corporate catalogue (93 types / 113 routing rules)
 
 Shipped in `Data/STING_DRAWING_TYPES.json`. Core 15 (phase 113 foundation): `arch-plan-A1-1to100`, `arch-rcp-A1-1to100`, `arch-section-A1-1to50`, `arch-elev-A1-1to100`, `arch-detail-A3-1to20`, `struct-plan-A1-1to100`, `struct-section-A1-1to50`, `mep-plan-A1-1to100`, `mep-coord-A1-1to50`, `pipe-spool-A1-1to50`, `duct-spool-A1-1to50`, `elec-riser-A2-1to100`, `door-schedule-A2`, `handover-A1`, `legend-A2`.
 
@@ -850,11 +1162,13 @@ Presentation + clarification pack adds 8 client-facing types (all print with `co
 | Client presentation | `pres-3d-axon-A1` (3D + key plan + caption), `pres-perspective-A1` (full-bleed perspective), `pres-exterior-elev-A1` (material callouts, mono halftone), `pres-render-board-A1` (4-up renders), `pres-context-site-A1` (aerial + legend + caption) |
 | Clarification       | `clar-markup-A1` (plan + query log + revision strip), `clar-rfi-A3` (single-issue A3 sketch + question + revision), `clar-design-intent-A1` (plan + 3D + narrative + materials strip) |
 
-Routing table grew to 43 rules at that phase (now 118 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
+Routing table grew to 43 rules at that phase (now 113 rules across 93 types — count them in `Data/STING_DRAWING_TYPES.json`) covering doc types: `SITE`, `ROOF_PLAN`, `FLOOR_FINISHES`, `FIRE_STRATEGY`, `ACCESSIBILITY`, `INTERIOR_ELEVATION`, `WIN_SCHEDULE`, `FOUNDATION`, `REBAR_DETAIL`, `HVAC_DUCT`, `PLANTROOM`, `POWER`, `LIGHTING`, `FIRE_ALARM`, `DRAINAGE`, `ASSET_LOCATION`, `CLASH`, `PERSPECTIVE`, `RENDER_BOARD`, `CONTEXT`, `DESIGN_INTENT`, `CLARIFICATION`, `RFI`; presentation rules match on `phase: PRESENTATION` so the same discipline can dispatch to production vs presentation types by phase.
 
 ### Project-scoped overrides
 
-Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch flips `origin` to `project`), but the shipped corporate file carries **no** `checksum` fields and computed hashes are never persisted, so edits to the shipped baseline are currently undetected — see finding C-5 in `docs/DRAWINGS_PRODUCTION_REVIEW.md`.
+Registry layers a project override from `<project>/_BIM_COORD/drawing_types.json` on top of the corporate baseline. Project entries win by `id`; project routing rules are **prepended** (first-match-wins). `DrawingTypeRegistry.ComputeChecksums` implements SHA-256 drift detection (a stored `checksum` mismatch logs a warning and flips `origin` to `project`), and since Phase 225 **all 93 corporate entries ship with a `checksum`**, so the lock is live — a hand-edit to the shipped baseline is detected and demoted rather than silently accepted (finding C-5, closed).
+
+The checksum is `SHA256(JsonConvert.SerializeObject(drawingType, Formatting.None))` with `Checksum` nulled first — a hash of the **C# object's serialisation, not the file's bytes**. It is therefore stamped by `tools/StampDrawingTypeChecksums`, a `net8.0` console project that `<Compile Include>`s `Core/Drawing/DrawingType.cs` and `Core/Drawing/AnnotationRulePack.cs` (both Revit-free) so the hash comes from the same source the plugin runs. **Re-run it after any change to `STING_DRAWING_TYPES.json` and after any field added to or removed from those two model files** — a model change alters the serialisation and therefore every hash, even with the data untouched. `-- --check` verifies without writing and is CI-gate ready.
 
 ### Pipeline order (final)
 
@@ -975,6 +1289,68 @@ a default `manifest.json` seeded from `ProjectInformation` and
    per the runner PDF. `PRJ_ORG_SIGNATURE_PROVIDER_TXT` and
    `PRJ_ORG_AI_EXTRACT_ENABLED_BOOL` are already defined so enabling
    them is additive only.
+
+## Project Output Folder Layout (read before writing any file)
+
+Everything StingTools writes for a project goes inside **one folder**: `<rvtDir>/<PROJECT_CODE>/`.
+`PROJECT_CODE` comes from Revit Project Information → Number (sanitised, ≤8 chars, else `PRJ`), and
+is stamped into ExtensibleStorage so renaming the project number does **not** fork a new tree.
+
+### The rule
+
+> **Never build a project path by hand. Resolve it through `Core/StingPaths.cs`.**
+
+`StingPaths` is the single legal entry point; it delegates to `ProjectFolderEngine`, which owns the
+tree, the per-document root cache and the legacy migration. `tools/check_path_discipline.ps1` fails
+the build on new hand-rolled paths — Tier 1 (legacy bucket names) and Tier 2 (raw-directory
+`_BIM_COORD`) are both **hard zero**, with an empty baseline.
+
+| Need | Call |
+|---|---|
+| A CDE state folder | `StingPaths.Cde(doc, "WIP", discipline, contentType)` |
+| A routed export folder | `StingPaths.Export(doc, "PDF")` · `StingPaths.ExportFile(doc, "BOQ", name, ".xlsx")` |
+| A metadata directory | `StingPaths.Meta(doc, "_BIM_COORD", "sub")` |
+| A metadata **file** | `StingPaths.MetaFile(doc, "_BIM_COORD", "thing.json")` |
+| Same, holding only a model **path** | `StingPaths.MetaFrom(rvtPath, …)` · `StingPaths.MetaFileFrom(rvtPath, …)` |
+| Transient outbound staging | `StingPaths.Staging(doc, "acc")` |
+| The recycle bin | `StingPaths.Recycle(doc)` |
+| A coordination store | `CoordStores.Issues(doc)` · `.Meetings` · `.Register` · `.Transmittals` · `.Revisions` |
+
+`MetaFile` is the one to reach for when migrating an old call site: it returns the consolidated path
+if that file exists, else an existing legacy sibling, else the consolidated path — so a project whose
+data predates consolidation keeps working, and new data is born consolidated. It moves nothing.
+
+### The tree
+
+Three modes, selected once per project and persisted in `<root>/_data/project_setup.json`:
+
+| Mode | When | Shape |
+|---|---|---|
+| **CdeFirst** | default for greenfield projects (`CDE_FIRST_LAYOUT=true`) | 12 top folders; `00_WIP`/`01_SHARED`/`02_PUBLISHED` each hold 7 content-type subfolders |
+| **BIM** | any project with an existing root, legacy folders, or a prior setup | 20 numbered folders `01_WIP`…`20_MISC`; discipline subfolders under WIP/SHARED/PUBLISHED/DRAWINGS |
+| **Mini** | opt-in | 5 flat folders |
+
+Folder display names carry a `_<CODE>` suffix (`01_WIP_FIRESTONE`) unless `FOLDER_CODE_SUFFIX=false`.
+Set that **before** a project's first setup — the names are persisted, so flipping it mid-project
+creates unsuffixed folders alongside the suffixed ones.
+
+`<root>/_data/` holds **all machine state and no deliverables**: `coord/` (the single coordination
+bucket — `_BIM_COORD`, `STING_BIM_MANAGER`, `_bim_manager` and `.bimmanager` are aliases that all
+resolve here), `staging/<channel>/`, `recycle/`, `folder_templates/`, `project_setup.json`.
+
+### Two behaviours worth knowing
+
+- **Folders are created lazily.** `AUTO_CREATE_CDE_FOLDERS` defaults to **false**; every resolver
+  creates the directory it returns. Set it true only to pre-seed the tree — it materialises ~53
+  (CdeFirst) to ~60 (BIM) empty directories on document open.
+- **The legacy migration is opt-in and at-most-once.** `MigrateFromLegacy` requires explicit consent
+  (the `Folders_Consolidate` command), never deletes — drained folders become `*.migrated_yyyyMMdd` —
+  and records every relocation in `_data/.sting_consolidation.json`. That breadcrumb is
+  schema-versioned; bump `ConsolidationSchemaVersion` when adding a step existing projects still need.
+
+Dated assessment of how this got messy, and what is left: [`docs/FOLDER_STRUCTURE_REVIEW_2026-08.md`](docs/FOLDER_STRUCTURE_REVIEW_2026-08.md).
+
+---
 
 ## Technology Stack
 
@@ -1320,7 +1696,7 @@ STINGTOOLS/
 - Contains `ToggleDockPanelCommand`
 
 ### `StingLog` (static) — `Core/StingLog.cs` (127 lines)
-- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Thread-safe file logger, alongside the DLL. **The filename is date-stamped — `StingTools_yyyyMMdd.log`, not `StingTools.log`.** Searching for the undated name finds nothing and reads as "the plugin never logged", which is a different and much more alarming conclusion; it cost a wrong call on 2026-08-17. The DLL's location is whatever the installed `.addin` points at, and that moves — see [[project-stingtools-deploy-target]] / grep `<Assembly>` first.
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
 - `Shutdown()` flushes and closes the log file
@@ -1620,7 +1996,7 @@ Sibling dockable panel to `StingElectricalPanel` and `StingPlumbingPanel` — sa
 | DUCT | Duct types + per-region standard-size table + gauge/seam breakpoints + insulation + fab defaults | `CreateDuctsCommand`, `ModelCreateDuctCommand`, `AutoDropCommand`, `GenerateLayoutCommand`, `DuctSeamAuditCommand`, `PlaceHangersCommand`, `ValidateFillsCommand` |
 | LOADS | Spaces × envelope × internal gains × ventilation × computed loads; engine + code pickers | TaskDialog stubs for `Hvac_RunLoads` / `Hvac_ExportGbxml` (Phase 181 Loads + gbXML wizard target); `MEPSpaceAnalysisCommand`, `VentilationCommand` |
 | FAB | Spool grid + Assembly / Hangers / Outputs expanders | `Fabrication_OpenWorkspace`, `ExportCutListCommand`, `ExportIsometricsCommand`, `ExportWeldMapCommand`, `HangerTakedownCommand`, `FlangeRatingCommand`, `SpoolWeightCommand`, `ExportNCCommand` |
-| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync` |
+| RPRT | Health KPIs + drift + workflow-run grid + export action row | `Hvac_ReloadRules`, `Mep_SystemAnalyse`, `V6Carbon`, `DocPackage`, `PlatformSync`, `Hvac_FanStaticReport` (index-run fan external static) |
 
 ### Header context strip
 
@@ -1651,7 +2027,7 @@ Edit either JSON in a text editor and click **RPRT → Reload rules** to pick up
 ### Caveats
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
-2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection (rather than the project-wide `branch` / `chw` defaults) is still pending — the data path is in place.
+2. Phase 181 wired the sizing engines (`MepAutoSizeDuctCommand`, `MepAutoSizePipeCommand`, `MepAutoSizeConduitCommand`), the balancing engine (`MEPBalancingEngine.BalanceSystem` with a new `Document`-aware overload) and the fitting-loss dictionary (`FittingLossCalculator` with a JSON-overlay path) through `MepSizingRegistry`. Hardcoded constants remain as `*Fallback` safety nets only. Per-element segment-role / pipe-service detection is **shipped**: `Core/Mep/HvacSegmentRoleDetector.cs` (Phase 182 — connector-graph walk classifying each duct as main / branch / runout, cached to `HVC_SEGMENT_ROLE_TXT`) and `Core/Mep/PipeServiceDetector.cs` (Phase 183 — `MEPSystem` abbreviation match against `STING_MEP_SERVICE_MAP.json`) replace the old project-wide `branch` / `chw` defaults and are used per-element in the auto-size pass (`DuctSizingApplyEngine.DetectRoles` → `HvacSegmentRoleDetector.DetectRolesBatch`). The old project-wide defaults survive only as fail-soft fallbacks when the connector graph is disconnected or the system carries no abbreviation.
 3. `Hvac_RunLoads` (`Commands/Hvac/HvacRunLoadsCommand`) posts `PostableCommand.AnalyzeHeatingAndCoolingLoads` after an MEP-Spaces pre-flight. `Hvac_ExportGbxml` (`Commands/Hvac/HvacExportGbxmlCommand`) calls `Document.Export` with `GBXMLExportOptions` after a 3D-view check. Both are real, no TaskDialog stubs.
 4. The EQPT / SYS / SpoolGrid / DriftGrid / WorkflowGrid `ObservableCollection`s start empty — commands push rows back into the panel singleton (`StingHvacPanel.Instance`) on completion (same pattern `StingElectricalPanel` uses).
 5. PaneGuid `D7E8F9A0-B1C2-3D4E-5F60-1A2B3C4D5E6F` is stable from this point so users' Revit `UIState.dat` re-locates the panel between sessions.
@@ -1812,21 +2188,26 @@ The Cost Management module extends the BOQ system into a full construction cost 
 | `GUIDES/KUT_BIM_MANAGER_PLAYBOOK.md` | BIM Manager self-guide playbook for the KUT project — step-by-step checklist for weekly / monthly / milestone BIM management tasks |
 | `GUIDES/KUT_MIDP_TEMPLATE.csv` | Master Information Delivery Plan CSV template pre-seeded with KUT deliverable codes |
 
-#### KUT KPI Dashboard
+#### Owner KPI Dashboard (was KUT KPI Dashboard)
 
-`Commands/Kpi/KutKpiDashboardCommand.cs` — tag `KUT_KpiDashboard`. Read-only command generating a monthly BIM status report for the KUT project:
+`Commands/Kpi/OwnerKpiDashboardCommand.cs` — tag `Owner_KpiDashboard`, with `KUT_KpiDashboard` retained as a dispatch alias in both `StingCommandHandler` and `WorkflowEngine.ResolveCommand`. Read-only command generating a monthly BIM status report:
 - Gathers: tag/naming compliance %, per-discipline breakdown
-- Persists `KutKpiSnapshot` records to `<project>/_BIM_COORD/kpi/kut_kpi_log.jsonl`
-- Exports HTML + CSV for monthly status report attachment
+- Derives the reporting code from `PRJ_ORG_PROJECT_CODE_TXT` on Project Information, falling back to `STING` — nothing in the 471 lines was ever temple-specific, only the surface was
+- Persists `OwnerKpiSnapshot` records to `<project>/_BIM_COORD/kpi/<CODE>_kpi_log.jsonl`; an existing `kut_kpi_log.jsonl` is read and appended to rather than orphaned
+- Exports HTML + CSV (`STING_<CODE>_KPI_*`) for monthly status report attachment
 - Snapshot fields: `CompliancePct`, `StrictPct`, `RevisionPct`
 
 ### Phase 192B1 — LOD Verification Engine
 
-`Core/LODValidationCommand.cs` + validation rules in `Core/Validation/`. Per-element LOD (Level of Detail / Level of Development) audit:
-- Reads `STING_LOD_VERIFICATION_RULES.json`
-- Commands: `LOD_Verify`, `LOD_SetTarget`, `LOD_Report`, `LOD_Colorize`
-- Writes `LOD_TARGET_TXT` + `LOD_ACTUAL_TXT` + `LOD_PASS_BOOL` per element
-- Integrates with `ComplianceScan` as an additional compliance dimension
+`Core/Validation/LodVerificationEngine.cs` + `Commands/Validation/LodVerifyCommand.cs`. Per-element LOD (Level of Development) audit:
+- Reads `Data/STING_LOD_MATRIX.json` (corporate baseline) layered with a project overlay at `<project>/_BIM_COORD/lod_matrix.json`, merged by milestone `id` / rule `category`
+- Milestones are **deliverable-keyed**, not RIBA-keyed, and the matrix defines the full standard ladder **100 / 200 / 300 / 350 / 400 / 500** for every category
+- Commands: `LOD_Verify` (ReadOnly — summary TaskDialog + CSV + JSON gate report under `_BIM_COORD/lod_reports/`), `LOD_Stamp` (Manual), and `LODValidation` ("LOD Check" — same engine, `StingResultPanel` output, plus the `STING_LOD_*_VISIBLE` family-switch audit)
+- **Read-only by default.** Only `LOD_Stamp` writes, and it writes exactly one parameter: `ASS_LOD_VERIFIED_TXT` (the milestone id) on passing elements. There is no `LOD_TARGET_TXT` / `LOD_ACTUAL_TXT` / `LOD_PASS_BOOL`
+- Checks are a **parameter + naming + geometry-presence maturity proxy, not a geometric survey** — STING cannot verify dimensional accuracy
+- Not wired into `ComplianceScan`; LOD is reported separately
+- **An empty scope is not a pass.** An element whose category resolves to no check (no rule and no `*` fallback) is *skipped*, not counted, so it leaves the denominator. `OverallPct` returns `100.0` when `Total == 0`, which is why `LodTally.NoElementsInScope` exists and why every caller branches on it first. Skips are counted per category and surfaced in the TaskDialog, the CSV header and the JSON gate report (`skippedNoRule` / `skippedByCategory`); a run with nothing in scope reports "NO ELEMENTS IN SCOPE" and the gate report's `overallPct` is `null`
+- The Revit-free half — the matrix model, `*`-fallback resolution (`LodRuleResolver`) and the pass/fail/skip tally (`LodTally`) — lives in `Core/Validation/LodMatrixModel.cs` and is `<Compile Include>`d by `StingTools.Tags.Tests`. `LodVerificationEngine.Resolve` delegates to `LodRuleResolver`, so the plugin and the tests exercise one copy of the resolution code
 
 ### Phase 192C1 — Fohlio Room Finishes Integration
 
@@ -1931,7 +2312,23 @@ databases:
     plan: starter               # £6/mo
 ```
 
-**Cost at launch**: API £6 + DB £6 = **£12/month**. Redis is optional — refresh-token tracking + JTI blacklist degrade gracefully without it.
+> **The YAML above is abridged and out of date.** It shows the retired 2-service
+> shape (api + db). The live blueprint at [`render.yaml`](render.yaml) provisions
+> **7 services** — api, worker, web, converter, redis, minio (+disk), db — and
+> the database plan names changed (`starter` → `basic-256mb`). Read the real file.
+
+**Cost at launch**: Render bills in USD. All-starter across the 7 services ≈
+**$54/month** (api $7 + worker $7 + web $7 + converter $7 + redis $10 + minio $7
++ 10 GB disk ~$2.50 + db $6). The **£12/month** previously quoted here was the
+2-service shape only. Redis is optional for a single instance (refresh-token
+tracking + JTI blacklist degrade gracefully) but required once you run more than
+one API instance — it is the SignalR backplane.
+
+**Capacity**: size on *active* coordinators (driving issues/markup/CRDT), not on
+logged-in users. Starter ≈ 10–15 active, Standard ≈ 30–50, Pro ≈ 80–120 and the
+first tier with autoscaling. Note that DB **connection ceiling does not scale
+with RAM** — every basic tier and `pro-4gb` allows 100 (~97 usable). Full table,
+connection budget and PgBouncer procedure: [`docs/DEPLOY_RUNBOOK.md`](docs/DEPLOY_RUNBOOK.md).
 
 **Deploy steps**:
 1. Render dashboard → Blueprints → New Blueprint Instance → connect `beckykyomugisha/stingtools`
@@ -2178,10 +2575,69 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 
 ### Deployment
 
-1. Build to produce `StingTools.dll`
-2. Copy `StingTools.addin` to `C:\ProgramData\Autodesk\Revit\Addins\2025\` (machine) or `%APPDATA%\Autodesk\Revit\Addins\2025\` (user)
-3. Copy `StingTools.dll` + `Newtonsoft.Json.dll` + `ClosedXML.dll` + `data/` folder alongside
-4. Restart Revit
+> **Confirm where Revit is actually loading from before trusting any deploy
+> instruction, including this one.** One command settles it:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> Copying into a folder that is *not* in that manifest **fails silently** — the
+> copy succeeds, Revit loads a different DLL, and you debug code that never ran.
+
+| Script | What it does |
+|---|---|
+| `build.bat` | Compile Release + stage to **this checkout's** `CompiledPlugin/`. Does **not** touch Revit — a parallel agent can verify a build without hijacking the add-in slot. |
+| `deploy.bat` | `STING_DEPLOY=1` + `build.bat` → also rewrites the manifest to point at **this checkout's** `CompiledPlugin/`. This is "make my checkout the live plugin". |
+
+`deploy.bat` is the only script that repoints Revit. Run it from the checkout you
+want live, then restart Revit.
+
+Close Revit first — it holds `StingTools.dll` and ~17 dependencies, and the
+Planscape Companion tray app holds them too and must be stopped, or the copy
+half-fails silently.
+
+**`C:\Dev\STING_PLACEMENT_GOLD` is retired.** It was an isolated deploy folder
+with its own `deploy-gold.bat`, which re-pinned the manifest to GOLD to escape
+parallel agents rebuilding the shared `CompiledPlugin`. The two scripts were
+mutually exclusive — whichever ran last won — so the deploy target moved, and the
+loser's folder went stale unannounced. That is the root cause of a long-running
+"my change did nothing" class of bug. The script was deleted on 2026-08-06, when
+the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
+for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
+use the manifest.
+
+### What the repo says is not what is serving — check the live thing
+
+> **Before concluding a change is broken, or that a fix worked, verify against the
+> thing actually running.** Five separate instances of this cost hours on
+> 2026-08-16/17 alone. In every one, a correct change had no effect, and the
+> absence of an error read as "the code is wrong".
+
+The pattern: a repo artefact *describes* a deployment, and something else *is* the
+deployment. The artefact is not lying so much as inert, and nothing warns you.
+
+| Surface | The trap | The check |
+|---|---|---|
+| **Revit plugin** | The `.addin` `<Assembly>` path moves between checkouts — it changed **five times** in two days, twice to another agent's worktree. Building the right code into the wrong folder succeeds silently. | `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin \| sort -u` |
+| **marketing-site** | No git-connected Pages build (#651). **Merging deploys nothing** — a human must run `npm run deploy`. Pages' static fallback then makes an undeployed Function return 405/200-HTML, indistinguishable from a route that never existed. | Probe a known-good Function, the new one, and a nonsense path; compare all three |
+| **Pages secrets** | Bindings are captured at **deployment** time (#674). `wrangler pages secret list` showing a name proves it is **stored**, not **bound**. Setting a secret and re-probing yields the *old* behaviour. | Set it, **redeploy**, then probe |
+| **Render** | `render.yaml` declares `planscape-api`; production is `planscape-api-free` (#717). The blueprint governs **nothing** — editing `autoDeploy` there changes no behaviour. Dashboard Auto-Deploy is the real trigger, and it is unfiltered, so a Revit-plugin commit rebuilds the .NET API. | `curl -o /dev/null -w "%{http_code}" https://planscape-api.onrender.com/` → 404 |
+| **D1 schema** | A new table in `schema.sql` does **not** exist in production until applied. Deploying first gives a runtime `no such table`. Never re-run the whole file — it holds bare `ALTER TABLE`s that fail on re-run. | Apply only the new DDL, **before** deploying |
+
+**Two corollaries worth internalising.**
+
+*An absent side effect never tells you why.* A silent no-op looks identical to a
+wrong fix, a bad credential, and a command that never ran. When something
+reportedly done has no observable effect, stop re-running it and get the error —
+a log, a tail, a screenshot. Prefer making the next attempt self-recording over
+asking for the same output twice.
+
+*Verify the instrument before trusting its silence.* A `wrangler pages deployment
+tail` binds to one deployment id, so **any deploy invalidates it** — watching a
+superseded deployment reports zero requests forever. Prove the tail is alive
+(generate a request, watch the line count move) before reading "no traffic" as
+evidence of anything.
 
 ### Branching
 
@@ -2197,6 +2653,67 @@ dotnet build StingTools/StingTools.csproj -p:RevitApiPath="C:\Program Files\Auto
 - Clear, concise commit messages in imperative mood
 - One logical change per commit
 - No secrets, credentials, `.env` files, or API keys
+
+---
+
+## The failure mode this codebase produces
+
+**Nothing here fails loudly.** Every serious defect found in the 2026-08 audit
+looked like it was working:
+
+- The 3D viewer **fabricated clash data**, synthesising pairs from real element
+  GUIDs so the fakes carried genuine element names. It never queried the server
+  at all — a `USE_MOCK_CLASHES = true` flag commented *"server endpoint may not
+  exist yet"* long after it did.
+- **"Run clash detection" ran nothing** — it invented results client-side and
+  toasted "complete".
+- A **Create-issue** handler fabricated a stand-in issue on failure, inserted it,
+  and reported success; the row vanished on reload.
+- A **validation toast rendered underneath the modal backdrop**, so the only
+  feedback was invisible.
+- The BCC **"Save" wrote a local JSON file the server never saw**, so members
+  silently vanished on refresh. Three separate panels had this shape.
+- A documented cleanup command **could never run** — RESTRICT foreign keys made
+  it abort every time, leaving full residue.
+- Eleven permission gates compared `ProjectRole == "PM"`, a code that only
+  exists in the *other* column's vocabulary, so they **could never open for
+  anyone**.
+- A quota axis counted `ProjectRole == "Author"`, a literal **no writer
+  produces** — so one axis read 0 forever and the other counted everyone.
+- A data-rights export returned **200 with an unparseable archive**; its tests
+  asserted substrings and never parsed.
+- A Pages Function was **merged but never deployed** (`marketing-site` has no
+  git-connected build), and the static fallback made an undeployed route
+  indistinguishable from a nonexistent one.
+
+### What to do about it
+
+**Never invent fallback data.** Real data, an empty state, or a visible error.
+A fabricated value a user can act on is worse than a blank screen.
+
+**Prefer fixes that make the failure inexpressible, not merely absent.** The
+ones that held up:
+
+- one seat-count function that both the spending and reporting paths call, so
+  the two cannot drift
+- deleting an unused enum member so a stale reference is a *compile error*
+  rather than falling through to a permissive default
+- a test that enumerates `Enum.GetValues<T>()` instead of listing cases, so a
+  new member is covered without anyone remembering
+- a migration that refuses to run against a half-approved sheet
+- a probe that distinguishes *undeployed* from *nonexistent*
+
+**Prove the error path is reachable.** When you touch a failure branch, show a
+user can actually see it. Several of the above were error handling that could
+never execute.
+
+**"Merged" is not "deployed", and 200 is not "working".** Verify the artefact
+that actually serves the request. Compare a target route against both a
+known-good and a known-bad one.
+
+**Assert on non-empty data.** `PlanscapeDbContext`'s tenant filter falls back to
+`Guid.Empty` without an `ITenantContext`, so a test can pass against an empty
+result set. Prove RED before GREEN and report both numbers.
 
 ---
 

@@ -40,6 +40,7 @@ on:
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
       - 'Planscape/**'
+      - 'planscape-web/**'
       - '.github/workflows/contract-drift.yml'
   pull_request:
     paths:
@@ -49,6 +50,7 @@ on:
       - 'stingtools-core/python/**'
       - 'StingBridge/**'
       - 'Planscape/**'
+      - 'planscape-web/**'
       - '.github/workflows/contract-drift.yml'
   workflow_dispatch:
 

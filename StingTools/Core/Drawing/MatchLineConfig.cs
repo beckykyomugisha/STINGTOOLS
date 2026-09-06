@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — Drawing Template Manager · Phase 168 — Match-line subsystem
 //
 // Configuration POCO for the Match-Line engine. Loaded from
@@ -135,7 +135,7 @@ namespace StingTools.Core.Drawing
                 // 2. Project override at <project>/_BIM_COORD/match_lines.json
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    var dir = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", "_BIM_COORD");
+                    var dir = StingPaths.Meta(doc, "_BIM_COORD");
                     var proj = Path.Combine(dir, "match_lines.json");
                     if (File.Exists(proj))
                     {

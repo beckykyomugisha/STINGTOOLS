@@ -82,7 +82,13 @@ public class BimManagerOrAdminHandlerTests
 
         // Per-test isolated in-memory DB.
         var services = new ServiceCollection();
-        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        // Name the store ONCE, outside the options lambda. AddDbContext invokes
+        // that lambda every time it builds options — i.e. once per scope — so a
+        // Guid.NewGuid() inside it handed every scope its own empty database.
+        // Seed in one scope, read in the handler's scope, see nothing.
+        var dbName = Guid.NewGuid().ToString();
+        services.AddDbContext<PlanscapeDbContext>(o => o.UseInMemoryDatabase(dbName));
+        services.AddAuthorizationTestDoubles();
         var sp = services.BuildServiceProvider();
 
         using (var scope = sp.CreateScope())
@@ -95,6 +101,8 @@ public class BimManagerOrAdminHandlerTests
             {
                 db.ProjectMembers.Add(new ProjectMember
                 {
+                    // Required: the global tenant filter excludes rows whose TenantId is unset.
+                    TenantId = tenantId,
                     UserId = userId,
                     ProjectId = projectId,
                     Iso19650Role = "K",
@@ -103,6 +111,10 @@ public class BimManagerOrAdminHandlerTests
             }
             await db.SaveChangesAsync();
         }
+
+        // The global tenant filter reads ITenantContext; without this the
+        // seeded rows above are invisible to every query below.
+        sp.UseTenant(tenantId);
 
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
         var handler = new BimManagerOrAdminHandler(scopeFactory);

@@ -95,7 +95,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: warm the per-document caches so every per-level
                 // / per-DrawingType Apply call hits the (template name →
@@ -161,25 +161,45 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
                 DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
-                var scopes = new FilteredElementCollector(doc)
+                // P-13c / K-C5: one parser. This used to prefix-filter here and
+                // Split("::") by index below, which accepted names the binder
+                // rejects — so a box could reach production with a drawing-type
+                // id containing a space and fail later, deeper, less legibly.
+                // ScopeBoxBinder.TryParseName is now the only grammar in the tree.
+                var scopes = new List<Element>();
+                var bindingByName = new Dictionary<string, ScopeBoxBinding>(StringComparer.Ordinal);
+                var malformed = new List<string>();
+                foreach (var e in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
-                    // P-13c: OrdinalIgnoreCase to match ScopeBoxBinder's canonical filter.
-                    // Ordinal silently dropped a "sting::" box here while the
-                    // binder surfaced it as a fixable name warning.
-                    .Where(e => (e.Name ?? "").StartsWith("STING::", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                    .WhereElementIsNotElementType())
+                {
+                    var nm = e.Name ?? "";
+                    if (ScopeBoxBinder.TryParseName(nm, out var b, out var why))
+                    {
+                        b.ScopeBox = e;
+                        scopes.Add(e);
+                        bindingByName[nm] = b;
+                    }
+                    else if (why != null) malformed.Add(nm);
+                }
                 if (scopes.Count == 0)
                 {
-                    TaskDialog.Show("STING", "No STING::… scope boxes found in this project.");
+                    TaskDialog.Show("STING",
+                        malformed.Count == 0
+                            ? "No STING::… scope boxes found in this project."
+                            : $"No usable STING::… scope boxes.\n\n{malformed.Count} box(es) carry the "
+                              + $"STING:: prefix but fail the naming grammar:\n  • "
+                              + string.Join("\n  • ", malformed.Take(10))
+                              + "\n\nUse the Scope Box Manager to fix them.");
                     return Result.Succeeded;
                 }
-                var dtIds = scopes.Select(s => (s.Name ?? "").Split(new[] { "::" }, StringSplitOptions.None)[1])
+                var dtIds = bindingByName.Values.Select(b => b.DrawingTypeId)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
@@ -201,10 +221,10 @@ namespace StingTools.Commands.Drawing
                     {
                         var scope = scopes.FirstOrDefault(s => s.Name == scopeName);
                         if (scope == null) continue;
-                        var parts = (scope.Name ?? "").Split(new[] { "::" }, StringSplitOptions.None);
-                        var dtId = parts.Length > 1 ? parts[1] : null;
-                        var levelName = parts.Length > 2 ? parts[2] : null;
-                        var tag = parts.Length > 3 ? parts[3] : null;
+                        if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
+                        var dtId = bnd.DrawingTypeId;
+                        var levelName = bnd.LevelCode;
+                        var tag = bnd.Tag;
                         var dt = types.FirstOrDefault(t => string.Equals(t.Id, dtId, StringComparison.OrdinalIgnoreCase));
                         if (dt == null) continue;
                         var lvl = levels.FirstOrDefault(l => string.Equals(l.Name, levelName, StringComparison.OrdinalIgnoreCase));
@@ -237,7 +257,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches before per-room loop.
                 DrawingTypePresentation.Prewarm(doc);
@@ -314,7 +334,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
@@ -425,7 +445,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
@@ -539,7 +559,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
                 if (packs.Count == 0)
@@ -597,7 +617,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
@@ -622,7 +642,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }
@@ -652,7 +672,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
+                var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
                 var packages = DrawingPackageManager.GetPackages(doc);
                 if (packages.Count == 0) { TaskDialog.Show("STING", "No drawing packages found."); return Result.Succeeded; }

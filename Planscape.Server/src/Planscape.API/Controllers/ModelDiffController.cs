@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
 using Planscape.Infrastructure.Data;
 
 namespace Planscape.API.Controllers;
@@ -12,8 +13,17 @@ namespace Planscape.API.Controllers;
 /// the viewer renders with one applyOverlay() call. No bespoke diff render
 /// path — the diff IS just another overlay feed.
 /// </summary>
+/// <remarks>
+/// Read-only, so <c>[ProjectAccess]</c> alone is the gate. The existing
+/// tenant-only check below (<c>Projects.AnyAsync(p.TenantId == tenantId)</c>)
+/// admitted any authenticated user in the tenant to any project's element-level
+/// change history; the attribute narrows that to admin / author / active member.
+/// The action's absolute route carries <c>{projectId}</c>, which is what the
+/// attribute resolves.
+/// </remarks>
 [ApiController]
 [Authorize]
+[ProjectAccess]
 public class ModelDiffController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;

@@ -21,11 +21,57 @@ references are resolved lazily.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from .category_inference import infer_disc_sys
+
 logger = logging.getLogger("stingtools_bonsai.core.bonsai")
+
+
+def _bonsai_prefixes() -> list[str]:
+    """Base package names under which Bonsai may be importable, best first.
+
+    Covers the legacy top-level names (``bonsai`` / ``bonsai_bim`` /
+    ``blenderbim``) AND the Blender 4.2+ extension namespace
+    ``bl_ext.<repo>.bonsai``. The ``<repo>`` segment (``user_default``,
+    ``blender_org``, …) is DISCOVERED from the enabled add-ons rather than
+    hardcoded — that discovery is the fix for "Bonsai is required" showing even
+    though Bonsai is installed, because as an extension Bonsai is NOT importable
+    as top-level ``bonsai``; it lives under ``bl_ext.user_default.bonsai``.
+    """
+    prefixes = ["bonsai", "bonsai_bim", "blenderbim"]
+    try:
+        import bpy  # noqa: PLC0415 — lazy: keeps the module importable headless
+        for key in bpy.context.preferences.addons.keys():
+            if key.startswith("bl_ext.") and key.rsplit(".", 1)[-1] in ("bonsai", "bonsai_bim"):
+                if key not in prefixes:
+                    prefixes.insert(0, key)  # the extension form is the real one on 4.2 — try first
+    except Exception:  # noqa: BLE001 — no bpy / restricted context → legacy names only
+        pass
+    return prefixes
+
+
+def _version_from_manifest(module: Any) -> Optional[str]:
+    """Read the version from the extension's blender_manifest.toml.
+
+    A Blender 4.2 extension carries its version in the manifest, not in a
+    module ``__version__`` — so without this the panel shows "Bonsai vunknown".
+    Returns None on any failure so the caller falls back to "unknown".
+    """
+    try:
+        import pathlib
+        import tomllib  # stdlib on 3.11+, which Blender 4.2 ships
+        path = pathlib.Path(getattr(module, "__file__", "")).parent / "blender_manifest.toml"
+        if path.is_file():
+            with open(path, "rb") as fh:
+                version = tomllib.load(fh).get("version")
+                return str(version) if version else None
+    except Exception:  # noqa: BLE001 — version display is cosmetic; never raise
+        pass
+    return None
 
 
 @dataclass(frozen=True)
@@ -79,22 +125,19 @@ class BonsaiBridge:
         return self.capabilities.installed
 
     def _probe(self) -> BonsaiCapabilities:
-        # Look for any of the known Bonsai module identifiers. The add-on
-        # has gone through several renamings: blenderbim → bonsai →
-        # bonsai-bim (extension form). Check them in order.
-        candidates = [
-            "bonsai",          # 2024+ standalone module name
-            "bonsai_bim",      # extensions-form module name
-            "blenderbim",      # pre-rename
-        ]
+        # Resolve Bonsai across its several packaging forms — legacy top-level
+        # names AND the Blender 4.2 extension namespace bl_ext.<repo>.bonsai
+        # (see _bonsai_prefixes). importlib.import_module (not __import__) is
+        # used so a DOTTED extension name resolves to the actual package rather
+        # than to the top-level `bl_ext`.
         bonsai_mod = None
         api_path: Optional[str] = None
-        for name in candidates:
+        for name in _bonsai_prefixes():
             try:
-                bonsai_mod = __import__(name)
+                bonsai_mod = importlib.import_module(name)
                 api_path = getattr(bonsai_mod, "__file__", None) or name
                 break
-            except ImportError:
+            except Exception:  # noqa: BLE001 — try the next candidate form
                 continue
 
         if bonsai_mod is None:
@@ -109,9 +152,13 @@ class BonsaiBridge:
 
         # Probe individual capabilities behind try/except so a renamed
         # internal sub-module doesn't tank detection of the parent.
+        # As a Blender 4.2 extension Bonsai exposes no __version__, so the raw
+        # module attributes fall through to "unknown". Read the version from the
+        # extension's blender_manifest.toml sitting next to the package instead.
         version = (
             getattr(bonsai_mod, "__version__", None)
             or getattr(bonsai_mod, "VERSION", None)
+            or _version_from_manifest(bonsai_mod)
             or "unknown"
         )
 
@@ -126,20 +173,16 @@ class BonsaiBridge:
             pass
 
         has_context = False
-        try:
-            # Bonsai exposes an IfcStore with a .get_file() class method
-            from bonsai.bim.ifc import IfcStore  # type: ignore
-            has_context = IfcStore is not None
-        except ImportError:
+        # Bonsai exposes an IfcStore with a .get_file() class method. Resolve it
+        # under whichever prefix Bonsai actually lives at (extension or legacy).
+        for prefix in _bonsai_prefixes():
             try:
-                from bonsai_bim.bim.ifc import IfcStore  # type: ignore
-                has_context = IfcStore is not None
-            except ImportError:
-                try:
-                    from blenderbim.bim.ifc import IfcStore  # type: ignore
-                    has_context = IfcStore is not None
-                except ImportError:
-                    pass
+                mod = importlib.import_module(f"{prefix}.bim.ifc")
+                if getattr(mod, "IfcStore", None) is not None:
+                    has_context = True
+                    break
+            except Exception:  # noqa: BLE001 — renamed submodule must not tank detection
+                continue
 
         return BonsaiCapabilities(
             installed=True,
@@ -175,13 +218,9 @@ class BonsaiBridge:
         """
         if not self.installed:
             return None
-        for store_path in (
-            "bonsai.bim.ifc",
-            "bonsai_bim.bim.ifc",
-            "blenderbim.bim.ifc",
-        ):
+        for prefix in _bonsai_prefixes():
             try:
-                mod = __import__(store_path, fromlist=["IfcStore"])
+                mod = importlib.import_module(f"{prefix}.bim.ifc")
                 store = getattr(mod, "IfcStore", None)
                 if store is None:
                     continue
@@ -205,9 +244,9 @@ class BonsaiBridge:
         Stays defensive: any Bonsai API drift falls through to the IFC
         attribute fallbacks rather than raising.
         """
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 getter = getattr(ifc_tool, "get_object", None) if ifc_tool else None
                 if getter is None:
@@ -237,9 +276,9 @@ class BonsaiBridge:
         """
         if obj is None:
             return None
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 getter = getattr(ifc_tool, "get_entity", None) if ifc_tool else None
                 if getter is None:
@@ -264,9 +303,9 @@ class BonsaiBridge:
         """
         if not self.installed:
             return None
-        for tool_path in ("bonsai.tool", "bonsai_bim.tool", "blenderbim.tool"):
+        for _prefix in _bonsai_prefixes():
             try:
-                mod = __import__(tool_path, fromlist=["Ifc"])
+                mod = importlib.import_module(f"{_prefix}.tool")
                 ifc_tool = getattr(mod, "Ifc", None)
                 if ifc_tool is not None and hasattr(ifc_tool, "run"):
                     return ifc_tool
@@ -293,6 +332,11 @@ class BonsaiBridge:
         Routes through Bonsai's ``tool.Ifc.run`` when Bonsai is loaded (so Ctrl-Z
         works and Bonsai's property panel refreshes); falls back to direct
         ``ifcopenshell.api.run`` only in headless/standalone. Returns True on success.
+
+        Idempotent with respect to pset existence: if a pset with ``pset_name``
+        already exists on the element, this method calls ``pset.edit_pset`` directly
+        on the existing entity rather than calling ``pset.add_pset`` (which would
+        create a duplicate pset).
         """
         try:
             import ifcopenshell.api  # type: ignore  # noqa: F401 — ensures API present
@@ -302,12 +346,129 @@ class BonsaiBridge:
             model = self.active_ifc()
             if model is None:
                 return False
-            pset = self._run("pset.add_pset", model, product=element, name=pset_name)
-            self._run("pset.edit_pset", model, pset=pset, properties=properties)
+
+            # Find an existing pset with this name to avoid creating a duplicate.
+            existing_pset = None
+            try:
+                for rel in getattr(element, "IsDefinedBy", []):
+                    definition = getattr(rel, "RelatingPropertyDefinition", None)
+                    if definition is not None and getattr(definition, "Name", None) == pset_name:
+                        existing_pset = definition
+                        break
+            except Exception:  # noqa: BLE001 — defensive; fall through to add path
+                pass
+
+            if existing_pset is not None:
+                self._run("pset.edit_pset", model, pset=existing_pset, properties=properties)
+            else:
+                pset = self._run("pset.add_pset", model, product=element, name=pset_name)
+                self._run("pset.edit_pset", model, pset=pset, properties=properties)
             return True
         except Exception as e:
             logger.error("add_pset failed: %s", e, exc_info=True)
             return False
+
+    # ------------------------------------------------------------------
+    # pset property helpers
+    # ------------------------------------------------------------------
+
+    def _read_pset_property(self, element: Any, pset_name: str, prop_name: str) -> Optional[str]:
+        """Return a single property value from a pset on element, or None."""
+        try:
+            import ifcopenshell.util.element as ifc_util  # type: ignore
+            psets = ifc_util.get_psets(element)
+            pset = psets.get(pset_name, {})
+            val = pset.get(prop_name)
+            return str(val) if val is not None else None
+        except Exception as e:
+            logger.debug("_read_pset_property(%s.%s): %s", pset_name, prop_name, e)
+            return None
+
+    def _write_pset_property(
+        self, element: Any, pset_name: str, prop_name: str, value: str
+    ) -> bool:
+        """Write a single property onto element's pset, creating the pset if absent."""
+        return self.add_pset(element, pset_name, {prop_name: value})
+
+    # ------------------------------------------------------------------
+    # STING tag-segment write with TokenLock + TagHistory
+    # ------------------------------------------------------------------
+
+    _TOKEN_LOCK_PROP  = "TokenLock"   # CSV list of locked segment names, e.g. "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT"
+    _TOKEN_LOCK_PSET  = "Pset_StingTags"
+    _PREV_TAG_PROP    = "PreviousTag"
+    _MODIFIED_AT_PROP = "ModifiedAt"
+
+    def write_tag_segment(
+        self, element: Any, param_name: str, value: str
+    ) -> bool:
+        """Write one STING tag segment (param_name in Pset_StingTags) on element.
+
+        Raises StingTokenLockError when TokenLock (in Pset_StingTags) is a
+        CSV list that includes param_name and the existing value differs from
+        value.  Records audit trail in PreviousTag + ModifiedAt before
+        overwriting.
+
+        Returns True on success.
+        """
+        from .exceptions import StingTokenLockError
+        import datetime
+
+        locked_val = self._read_pset_property(
+            element, self._TOKEN_LOCK_PSET, self._TOKEN_LOCK_PROP
+        )
+        # TokenLock is an IFCLABEL CSV list of locked segment names, e.g.
+        # "ASS_DISCIPLINE_COD_TXT,ASS_LOC_TXT".  An element is locked for
+        # *this* segment when param_name appears in that list.
+        is_locked = bool(locked_val) and param_name in [
+            s.strip() for s in locked_val.split(",") if s.strip()
+        ]
+
+        existing = self._read_pset_property(element, self._TOKEN_LOCK_PSET, param_name)
+
+        if is_locked and existing is not None and existing != value:
+            raise StingTokenLockError(param_name, existing, value)
+
+        # No-op when the stored value already matches — avoids unnecessary IFC writes
+        # and duplicate audit-trail entries.
+        if existing is not None and existing == value:
+            return True
+
+        # Record audit trail before writing new value
+        if existing is not None and existing != value:
+            self._write_pset_property(
+                element, self._TOKEN_LOCK_PSET, self._PREV_TAG_PROP, existing
+            )
+            self._write_pset_property(
+                element,
+                self._TOKEN_LOCK_PSET,
+                self._MODIFIED_AT_PROP,
+                datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+            )
+
+        return self._write_pset_property(element, self._TOKEN_LOCK_PSET, param_name, value)
+
+    # ------------------------------------------------------------------
+    # discipline inference
+    # ------------------------------------------------------------------
+
+    def auto_infer_discipline(self, element: Any) -> tuple[Optional[str], Optional[str]]:
+        """Return (DISC, SYS) for an IFC element using its entity type.
+
+        Uses category_inference._MAP — same table as TagConfig.SysMap in the
+        C# plugin.  Returns (None, None) when the entity type is unmapped.
+
+        Args:
+            element: an ifcopenshell entity (has .is_a() method).
+
+        Returns:
+            (disc_code, sys_code) e.g. ("M", "HVAC"), or (None, None).
+        """
+        try:
+            ifc_type = element.is_a()
+        except AttributeError:
+            return (None, None)
+        return infer_disc_sys(ifc_type)
 
     def edit_attribute(self, element: Any, attributes: dict) -> bool:
         """Set built-in IFC attributes (Name, Description, etc) on an element.

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingHVACExecution</Name>
+    <Definition>STING HVAC execution parameters — flow rates, load results, sizing outputs, pressure class, and acoustic targets for MEP coordination. Written by HvacBlockLoadCommand, MepAutoSizeDuctCommand, HvacNcPredictionCommand, HvacRefrigerantSizeCommand, and related calc engines.</Definition>
+    <IfdGuid>uuid:a1d15c11-0006-4001-9000-000000000006</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.7.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ASHRAE 90.1; CIBSE Guide A; SMACNA HVAC Duct Construction Standards; BS EN 13779; VDI 2081; NFPA 99 §5.1</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_TYPEDRIVENOVERRIDE</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcDistributionFlowElement</ApplicableEntity>
+    <ApplicableEntity>IfcDuctSegment</ApplicableEntity>
+    <ApplicableEntity>IfcPipeSegment</ApplicableEntity>
+    <ApplicableEntity>IfcFlowSegment</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="HVC_PEAK_SENS_W" cardinality="optional">
+      <Definition>Peak sensible cooling or heating load (W) from the block-load calculation. Written by HvacBlockLoadCommand.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>W</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_PEAK_LAT_W" cardinality="optional">
+      <Definition>Peak latent cooling load (W) from the block-load calculation.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>W</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_PEAK_HOUR" cardinality="optional">
+      <Definition>Hour of day (0–23) at which the design-day peak load occurs.</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_OA_LS" cardinality="optional">
+      <Definition>Outside air flow rate (L/s) required for this zone per ventilation calculation.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>L/s</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_FLOW_LS" cardinality="optional">
+      <Definition>Supply or extract air flow rate (L/s) after sizing.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>L/s</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_DP_PA" cardinality="optional">
+      <Definition>Pressure drop across this duct/pipe segment (Pa).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>Pa</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_VEL_MS" cardinality="optional">
+      <Definition>Air or fluid velocity (m/s) in this segment after sizing.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>m/s</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_DN" cardinality="optional">
+      <Definition>Nominal diameter or duct dimension after sizing (e.g. DN200 or 400x250).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_PRESSURE_CLASS_TXT" cardinality="optional">
+      <Definition>SMACNA/HVCA duct pressure class: Low / Medium / High.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_LOAD_SOURCE_TXT" cardinality="optional">
+      <Definition>Source of the load data: BlockLoad / Manual / Imported.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_LOAD_STALE_BOOL" cardinality="optional">
+      <Definition>True when the stored load data is stale relative to the current geometry or schedules. Set by StingStaleMarker when geometry changes.</Definition>
+      <DataType>IfcBoolean</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_PROD_REF_TXT" cardinality="optional">
+      <Definition>Manufacturer product reference for the selected equipment item.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_SELECTED_IDU_ID_TXT" cardinality="optional">
+      <Definition>Selected IDU catalogue identifier from STING_IDU_CATALOGUE.json.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_SELECTED_IDU_LABEL_TXT" cardinality="optional">
+      <Definition>Human-readable display label for the selected IDU.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_IDU_MOUNTING_TXT" cardinality="optional">
+      <Definition>IDU mounting type: Ceiling / Wall / Floor / Cassette / Concealed.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_SPACE_TYPE_TXT" cardinality="optional">
+      <Definition>ASHRAE 90.1 / CIBSE Guide A space type classification used for load defaults.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_NC_PREDICTED" cardinality="optional">
+      <Definition>Predicted NC curve value at the room listener position per VDI 2081 / ASHRAE A48 attenuation model.</Definition>
+      <DataType>IfcReal</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_REFRIG_TYPE_TXT" cardinality="optional">
+      <Definition>Refrigerant type for VRF/DX systems: R410A / R32 / R134a / CO2.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_REFRIG_PIPE_OD_MM" cardinality="optional">
+      <Definition>Selected refrigerant pipe outside diameter (mm) from RefrigerantPipeSolver.</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_SIZING_STRATEGY_TXT" cardinality="optional">
+      <Definition>Duct sizing strategy applied: EqualFriction / StaticRegain / VelocityReduction / T-method.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+    <Property name="HVC_INSULATION_SPEC_TXT" cardinality="optional">
+      <Definition>Insulation specification reference per BS 5422 / project spec clause.</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.7.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>59dd723bd6f122ac1df1b6d55b026e91a2fac66cc27c4c83678438902f90d1c0</Sha256>
+    <LockedAtVersion>5.0.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

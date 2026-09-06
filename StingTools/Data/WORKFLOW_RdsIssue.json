@@ -3,8 +3,8 @@
   "name": "Room Data Sheet issue sweep",
   "description": "Refresh tag tokens + render RDS for every clinical room.",
   "steps": [
-    { "tag": "FullAutoPopulate",           "description": "Refresh ASS_ROOM_* + finishes + occupancy" },
-    { "tag": "Healthcare_BatchRDS",        "description": "Render RDS for every clinical room" },
-    { "tag": "Healthcare_RdsCompleteness", "description": "RDS completeness validator" }
+    { "commandTag": "FullAutoPopulate",           "label": "Refresh ASS_ROOM_* + finishes + occupancy" },
+    { "commandTag": "Healthcare_BatchRDS",        "label": "Render RDS for every clinical room" },
+    { "commandTag": "Healthcare_RdsCompleteness", "label": "RDS completeness validator" }
   ]
 }

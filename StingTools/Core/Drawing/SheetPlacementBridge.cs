@@ -81,7 +81,7 @@ namespace StingTools.Core.Drawing
                 if (SlotOptsIntoFamilyGrid(slot))
                 {
                     var ctx = famCtx ?? BuildFamilySlotContext(doc, sheet, dt, result);
-                    var bounds = ResolveUnifiedSlotBounds(slot, ctx);
+                    var bounds = ResolveUnifiedSlotBounds(slot, ctx, result);
                     if (bounds?.Bbox != null)
                     {
                         // Slot bounds are in feet, origin at the title-block
@@ -182,14 +182,77 @@ namespace StingTools.Core.Drawing
             try
             {
                 if (!v.CropBoxActive) return; // can't measure intended footprint
-                var outline = v.Outline;
-                if (outline == null) return;
-                double curW = outline.Max.U - outline.Min.U;
-                double curH = outline.Max.V - outline.Min.V;
-                if (curW < 1e-9 || curH < 1e-9) return;
-                int curScale = v.Scale > 0 ? v.Scale : 100;
-                double fit = Math.Max(curW * curScale / sp.WidthFt,
-                                      curH * curScale / sp.HeightFt);
+
+                // View.Outline is PAPER-space and only recomputes on regeneration,
+                // so measuring it right after setting a crop in the same transaction
+                // read stale dimensions. Regenerating here fixed that but cost a
+                // full document regeneration per viewport — on a 20-type × 4-level
+                // batch that is 80+ regenerations inside one transaction, which
+                // reads as a hang. So measure MODEL-space geometry instead: both
+                // sources below are readable immediately, with no regeneration.
+                double modelW = 0, modelH = 0;
+
+                // 1. A scope box drives the crop — its own bounding box is the
+                //    intended extent, and it is independent of the view's
+                //    not-yet-regenerated crop.
+                //    PLAN VIEWS ONLY. get_BoundingBox(null) is model-space and
+                //    axis-aligned, so its X/Y are the view's horizontal axes only
+                //    for a plan. On a section or elevation the view's vertical axis
+                //    is model Z, so treating model Y as height would compute a
+                //    nonsense scale — those fall through to CropBox below, which is
+                //    expressed in the view's own frame and is correct for any type.
+                if (IsPlanFamily(v))
+                {
+                    try
+                    {
+                        var sbId = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId();
+                        if (sbId != null && sbId != ElementId.InvalidElementId)
+                        {
+                            var sbb = doc?.GetElement(sbId)?.get_BoundingBox(null);
+                            if (sbb != null)
+                            {
+                                modelW = Math.Abs(sbb.Max.X - sbb.Min.X);
+                                modelH = Math.Abs(sbb.Max.Y - sbb.Min.Y);
+                            }
+                        }
+                    }
+                    catch (Exception exS) { StingTools.Core.StingLog.Warn($"ApplyFitScale scope box: {exS.Message}"); }
+                }
+
+                // 2. Otherwise the crop box — which DrawingCropApplier just set
+                //    itself for TightBbox / RoomBoundary, so it is current.
+                if (modelW < 1e-9 || modelH < 1e-9)
+                {
+                    try
+                    {
+                        var cb = v.CropBox;
+                        if (cb != null)
+                        {
+                            modelW = Math.Abs(cb.Max.X - cb.Min.X);
+                            modelH = Math.Abs(cb.Max.Y - cb.Min.Y);
+                        }
+                    }
+                    catch (Exception exC) { StingTools.Core.StingLog.Warn($"ApplyFitScale crop box: {exC.Message}"); }
+                }
+
+                double fit;
+                if (modelW > 1e-9 && modelH > 1e-9)
+                {
+                    // Model feet ÷ paper feet = the scale that makes it fit.
+                    fit = Math.Max(modelW / sp.WidthFt, modelH / sp.HeightFt);
+                }
+                else
+                {
+                    // Last resort — the historic paper-space path.
+                    var outline = v.Outline;
+                    if (outline == null) return;
+                    double curW = outline.Max.U - outline.Min.U;
+                    double curH = outline.Max.V - outline.Min.V;
+                    if (curW < 1e-9 || curH < 1e-9) return;
+                    int curScale = v.Scale > 0 ? v.Scale : 100;
+                    fit = Math.Max(curW * curScale / sp.WidthFt,
+                                   curH * curScale / sp.HeightFt);
+                }
                 int fitScale = RoundUpToStandardScale(fit);
                 int target = sp.ScaleHint.HasValue ? Math.Max(fitScale, sp.ScaleHint.Value) : fitScale;
                 if (target > 0 && target != v.Scale)
@@ -200,6 +263,24 @@ namespace StingTools.Core.Drawing
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ApplyFitScale: {ex.Message}");
+            }
+        }
+
+        /// <summary>Plan-family views only — the ones whose paper axes are the
+        /// model's X/Y. Sections and elevations map paper-vertical to model Z, so
+        /// a model-space axis-aligned box cannot be read as width × height.</summary>
+        private static bool IsPlanFamily(View v)
+        {
+            if (v == null) return false;
+            switch (v.ViewType)
+            {
+                case ViewType.FloorPlan:
+                case ViewType.CeilingPlan:
+                case ViewType.AreaPlan:
+                case ViewType.EngineeringPlan:
+                    return true;
+                default:
+                    return false;
             }
         }
 
@@ -448,7 +529,8 @@ namespace StingTools.Core.Drawing
         /// PurposeTag (semantic, exact then alias chain) first, then SlotRef
         /// (exact family slot id). Returns null when neither resolves, letting
         /// the caller fall back to the norm* subdivision.</summary>
-        private static StingTools.Commands.Drawing.SlotBounds ResolveUnifiedSlotBounds(DrawingSlot slot, FamilySlotContext ctx)
+        private static StingTools.Commands.Drawing.SlotBounds ResolveUnifiedSlotBounds(
+            DrawingSlot slot, FamilySlotContext ctx, ProduceResult result = null)
         {
             if (slot == null || ctx?.Map == null || ctx.Map.Count == 0) return null;
 
@@ -464,6 +546,27 @@ namespace StingTools.Core.Drawing
             if (!string.IsNullOrWhiteSpace(slot.SlotRef)
                 && ctx.Map.TryGetValue(slot.SlotRef, out var byId) && byId?.Bbox != null)
                 return byId;
+
+            // SLOT-4: neither key resolved. The caller falls back to the norm*
+            // fractions, which usually LOOK plausible — so a mistyped purposeTag
+            // or a slotRef the family doesn't carry used to place the view in a
+            // silently different pocket with no clue why. Say so, and list what
+            // the family actually offers. Mirrors the existing SLOT-3 warning on
+            // view/slot TYPE mismatch, which was the only one of the pair present.
+            if (result != null)
+            {
+                var wanted = !string.IsNullOrWhiteSpace(slot.PurposeTag)
+                    ? $"purposeTag '{slot.PurposeTag}'"
+                    : $"slotRef '{slot.SlotRef}'";
+                var offered = string.Join(", ", ctx.Map.Values
+                    .Select(b => string.IsNullOrWhiteSpace(b?.PurposeTag) ? b?.Id : $"{b.Id}={b.PurposeTag}")
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .OrderBy(s => s));
+                result.Warnings.Add(
+                    $"Slot '{slot.Label}': {wanted} did not match the title-block family's slot grid — " +
+                    $"fell back to the normX/normY fractions, so the view may not land where the profile intends. " +
+                    $"Family offers: {offered}.");
+            }
 
             return null;
         }

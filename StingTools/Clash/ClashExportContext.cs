@@ -106,7 +106,7 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(
                     _currentDocGuid,
                     _currentLinkInstanceId,
-                    (int)elementId.Value,
+                    elementId.Value,
                     _currentUniqueId,
                     _currentIfcGuid);
 

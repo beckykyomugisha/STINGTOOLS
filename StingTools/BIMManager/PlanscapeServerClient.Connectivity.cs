@@ -103,7 +103,19 @@ public sealed partial class PlanscapeServerClient
         }
 
         if (ex is TaskCanceledException || ex is OperationCanceledException)
-            return $"Login failed: request to {serverUrl} timed out before the server responded.";
+            // Name the likely cause. "Timed out before the server responded" is true
+            // and useless: it reads as "the server is broken", so the natural next
+            // move is to re-check the password — which cannot help. On a free-tier
+            // host this is almost always an idled instance waking up; measured
+            // 2026-08-20, the first request after an idle period did not answer within
+            // 180s and the next took 66.6s. Waiting and retrying is the fix, and the
+            // message should say so.
+            return $"Login failed: {serverUrl} did not respond in time.\n\n"
+                 + "The server may have been idle and is waking up. On the free tier the "
+                 + "first request after a quiet period can take a couple of minutes. Wait a "
+                 + "moment and press Connect again — the second attempt usually succeeds.\n\n"
+                 + "If it keeps failing, check the Server URL and that this machine can "
+                 + "reach it.";
 
         // FIX 1 — TLS / scheme-mismatch / proxy classification.
         //

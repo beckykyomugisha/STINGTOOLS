@@ -94,7 +94,12 @@ table.inv tr:last-child td { border-bottom: 0; }
         <div><dd id="v-trial">—</dd></div>
         <div><dt>Plan</dt></div>
         <div><dd id="v-plan">—</dd></div>
-        <div><dt>Seats</dt></div>
+        <!-- "Team members", not "Seats". This row counts ACCOUNTS (members plus
+             pending invitations) and is unaffected by licences. Labelled "Seats"
+             it read as a licence count — a firm with one account and one
+             licensed machine saw "Seats 1 of 10" on both this page and
+             /licences, two different tens for two different things (#693). -->
+        <div><dt>Team members</dt></div>
         <div><dd id="v-seats">—</dd></div>
         <div><dt>Billing currency</dt></div>
         <div><dd id="v-currency">—</dd></div>
@@ -102,6 +107,7 @@ table.inv tr:last-child td { border-bottom: 0; }
 
       <div class="acct-actions">
         <a class="btn-primary" href="/downloads">Downloads</a>
+        <a class="btn-secondary" href="/licences">Licences</a>
         <button type="button" class="btn-secondary" id="cloud-btn">Open Planscape cloud</button>
         <button type="button" class="link-btn" id="logout-btn">Log out</button>
       </div>

@@ -412,6 +412,31 @@ internal static class PlatformSchemaPatcher
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_TenantId"" ON ""IfcAlignmentReports"" (""TenantId"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_ProjectId_ProjectModelId"" ON ""IfcAlignmentReports"" (""ProjectId"", ""ProjectModelId"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_IfcAlignmentReports_ProjectId_ValidatedAt"" ON ""IfcAlignmentReports"" (""ProjectId"", ""ValidatedAt"")",
+
+        // ── #552 — ApprovalChain.RevisionSnapshot ──
+        // Purely additive and nullable. Existing rows land on NULL, which the gate in
+        // DocumentsController.CheckApprovalGate treats as "matches any revision" — the
+        // same way DocumentApproval.RevisionSnapshot has always handled its own null
+        // case. So already-COMPLETED chains keep satisfying their gates and no live
+        // publish is blocked the day this ships. New chains stamp the revision at
+        // creation and are scoped from then on.
+        //
+        // No DEFAULT and no NOT NULL on purpose: a default would fabricate a revision
+        // for rounds whose real revision is unknown, which is exactly the confident-
+        // wrong-answer this field exists to prevent.
+        @"ALTER TABLE ""ApprovalChains"" ADD COLUMN IF NOT EXISTS ""RevisionSnapshot"" text",
+
+        // ── ProjectModel.SourceDocGuid — the ProjectModel ↔ FederatedElement link ──
+        // Additive and nullable. Existing rows land on NULL, and NULL is exactly
+        // the case ModelsController.Delete refuses to cascade on — so shipping
+        // this cannot retire anything on the strength of a value nobody set. New
+        // publishes carry the authoring document's GUID and get a real cascade.
+        //
+        // Per ADR 0001 this patcher, not an EF migration, is how the column
+        // reaches an existing production database.
+        @"ALTER TABLE ""ProjectModels"" ADD COLUMN IF NOT EXISTS ""SourceDocGuid"" character varying(100)",
+        @"CREATE INDEX IF NOT EXISTS ""IX_ProjectModels_ProjectId_SourceDocGuid""
+            ON ""ProjectModels"" (""ProjectId"", ""SourceDocGuid"")",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

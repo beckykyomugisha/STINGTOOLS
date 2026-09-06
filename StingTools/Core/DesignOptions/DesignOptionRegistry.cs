@@ -51,9 +51,7 @@ namespace StingTools.Core.DesignOptions
         // ── Sidecar location ─────────────────────────────────────────────
         public static string GetSidecarPath(Document doc)
         {
-            string projDir = OutputLocationHelper.GetOutputDirectory(doc);
-            string bimCoord = Path.Combine(projDir, "_BIM_COORD");
-            return Path.Combine(bimCoord, "design_options.json");
+            return Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "design_options.json");
         }
 
         // ── Cache (per-document, by hash code) ───────────────────────────

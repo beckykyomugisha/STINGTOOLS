@@ -1,4 +1,4 @@
-// StingTools — Content Library coverage diagnostic
+﻿// StingTools — Content Library coverage diagnostic
 //
 // Content_Coverage is a read-only command that prints the content ledger: how
 // many tag families / model-family seeds / catalogues are declared in the
@@ -24,7 +24,7 @@ namespace StingTools.Commands.Content
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData?.Application?.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetDoc(commandData);
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
             try
@@ -106,7 +106,7 @@ namespace StingTools.Commands.Content
             {
                 var dir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var outDir = Path.Combine(dir, "_BIM_COORD");
+                var outDir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(outDir);
                 var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var path = Path.Combine(outDir, $"content_coverage_{stamp}.csv");

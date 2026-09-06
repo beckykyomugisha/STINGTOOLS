@@ -215,6 +215,13 @@ namespace StingTools.ExLink
 
                     if (props.ContainsKey(paramName)) continue;
 
+                    // A superseded parameter is not offered for a NEW mapping:
+                    // nothing downstream reads it, so a link built on one would
+                    // silently carry no data. It stays in the registry and stays
+                    // bound -- see ParamRegistry.DeprecatedParams for why it is
+                    // not deleted.
+                    if (ParamRegistry.IsDeprecated(paramName)) continue;
+
                     var group = ClassifyStingParameterGroup(paramName);
                     var validationList = GetStingTokenValidationList(paramName);
 

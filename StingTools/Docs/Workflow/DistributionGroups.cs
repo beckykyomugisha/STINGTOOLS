@@ -1,4 +1,4 @@
-// DistributionGroups.cs — template engine v1.1 (S18).
+﻿// DistributionGroups.cs — template engine v1.1 (S18).
 //
 // Persistent distribution groups for transmittals and deliverable issues.
 // Stored in _BIM_COORD/distribution_groups.json; suggested per deliverable
@@ -96,10 +96,19 @@ namespace Planscape.Docs.Workflow
 
         private static string Safe(Func<string> f) { try { return f(); } catch { return null; } }
 
+        /// <summary>
+        /// Where this store lives. Public because readers outside the template engine
+        /// (the BCC transmittal panel) were resolving it independently and landing in
+        /// the STING_BIM_MANAGER bucket while this writer used _BIM_COORD — so the
+        /// panel reported "No distribution_groups.json found" no matter how many
+        /// groups existed. One owner, one path.
+        /// </summary>
+        public static string ResolveStorePath(Document doc) => StorePath(doc);
+
         private static string StorePath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
-            string dir  = Path.Combine(root, "_BIM_COORD");
+            string dir  = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(dir);
             return Path.Combine(dir, "distribution_groups.json");
         }

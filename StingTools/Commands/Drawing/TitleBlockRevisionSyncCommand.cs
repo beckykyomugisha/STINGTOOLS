@@ -19,7 +19,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application?.ActiveUIDocument?.Document;
+            var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
             var result = TitleBlockRevisionSyncer.SyncAll(doc);

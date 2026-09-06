@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Autodesk.Revit.DB;
 using Newtonsoft.Json;
 using StingTools.Core;
 
@@ -9,6 +10,19 @@ namespace StingTools.Core.Clash
 {
     public static class ClashPersistence
     {
+        /// <summary>
+        /// The ONE canonical clashes.json location: the project output folder, where
+        /// ClashRunCommand writes it and where the XLSX / BCF / issue-sync exports, the KPI
+        /// dashboard, the clash-budget gate AND the Clash Manager dialog all now read it.
+        /// Centralised here so the location has a single definition and the reader/writer
+        /// mismatch can never reopen. (Its trend history lives in the sibling "archive/"
+        /// folder; moving clash STATE into _data/_BIM_COORD would have to relocate that
+        /// archive + carry the history over, so it is a separate refactor — see
+        /// docs/ROADMAP.md.)
+        /// </summary>
+        public static string CanonicalPath(Document doc)
+            => Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath(), "clashes.json");
+
         // F3: Ring-buffer cap for the archive directory. Older entries are
         // pruned during Save so the directory size stays bounded. Two months
         // at one run/day is a comfortable history window for trend reporting.
