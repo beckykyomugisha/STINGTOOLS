@@ -2,6 +2,65 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 247 — the screed that contributed nothing)
+
+`STING RC Slab 150 - Ceramic Tiled` carries a 40 mm **Cement Screed** Substrate layer. It reached
+no export, produced no cement and no sand, and raised no warning — because the compound-structure
+walk asked exactly one question of exactly one kind of layer: *"is this Finish1 or Finish2, and is
+its material a tile?"*. Every screeded floor in every project was short its cement and its sand,
+and the only evidence was an absence.
+
+**The fix is a refactor before it is a feature.** `ReadTiledFinish` owned the `CompoundStructure`
+walk outright and was tile-shaped. It is now split: `HostLayerCache` returns **every** layer with
+its function, its material name and its thickness (`CompoundStructureLayer.Width`, feet → m), cached
+per TYPE because a compound structure belongs to the type; each consumer applies its own predicate
+and keeps its own tally. The tile answer is unchanged — same layers, same predicate, same counts —
+and T2/T3 ride the same primitive.
+
+**Emitted:** `screed` (m², memorandum), `screed_cement` (bag), `screed_sand` (m³), off the
+FLOOR/ROOF path only. A wall's "sand-cement" substrate is its render, which the wall path already
+measures as plaster; measuring it again here would not add a material, it would double-count one.
+
+**Five invariants this had to satisfy, and how.**
+
+* **The driver is never assumed.** The layer's declared width is the thickness. A screed layer of
+  zero width emits **nothing** — not a zero-quantity row, which would read as a measurement — and
+  the scan reports it as its own count, separate from a rejection, because "the name was right and
+  the driver was missing" sends someone to a different place than "the name was wrong".
+  `MATERIAL_LOOKUP` ships `SCREED,*,THICKNESS_M`; it is deliberately **not** read.
+* **Wastage stays in one place.** Engine quantities are NET; the supplier-unit rule owns the
+  allowance. `SCREED,*,WASTE_PCT` is likewise not read.
+* **No new commodities.** `screed_cement` joins the existing `cement` rule's `matchKinds` and
+  `screed_sand` joins `sand`. Minting a parallel "screed cement" would split one order into two
+  part-loads and round each up separately.
+* **No new mix table.** `MATERIAL_LOOKUP` already had `SCREED,STANDARD/HEAVY_DUTY/DEFAULT` rows in
+  the PLASTER shape (`MIX_CEMENT_BAGS_PER_M3` / `MIX_SAND_RATIO`). Those are consumed as they
+  stand — two figures for one ratio is a disagreement nobody would ever compare — and a test
+  asserts the 1:4 screed matches the 1:4 mortar, and the 1:3 matches the 1:3.
+* **Disjoint from tiling by construction.** `FinishTextClassifier.IsScreed` returns false for
+  anything `IsTile` accepts, rather than hoping two patterns never overlap. "Terrazzo Screed" is
+  the case that proves they can. It also refuses `plaster`, `render`, `mortar` and `skim`
+  outright — each is already measured somewhere else.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 465 → **520 green**.
+All four gates pass (`check_command_doc_acquisition`, `check_path_discipline`,
+`check_workflow_wiring`, plus the shipped-data seam tests). **Fourteen deliberately wrong inputs
+were each shown to make the matching gate FAIL, then restored** — an invented default thickness, a
+second wastage multiplier, cement emitted in m³, the classifier widened onto plaster, the
+tile-disjointness guard removed, a `ScreedKey` naming a row that does not exist, the screed 1:4
+silently disagreeing with the mortar 1:4, a zeroed lookup ratio, `screed_cement` losing its
+commodity, the stage route dropped, the intermediate declaration dropped, the intermediate declared
+with only one child, and two ways of making the tally lie.
+
+**What was NOT verified, and must not be read as working.** *Nothing Revit-side has been run by
+anyone.* `HostLayerCache`, `ReadScreed` and the screed constituents have **never executed against a
+real model**, and neither has the tile layer reader they were extracted from — MATSCHED-1 has said
+so since #780 and still says so. The runner for this work opens with a gate requiring a real export
+that shows tiling appearing under FINISHES; **that gate has not been satisfied**, so the entire
+layer-reading path is unverified and the screed feature inherits that status in full. What is
+proven is the arithmetic, the classifier, the diagnostic message and the shipped-data seams — every
+part that can run without Revit.
+
 #### Completed (Phase 246 — three reachability failures, and the gate that ends them)
 
 Phase 245 shipped the model-authoring baseline. Then a user clicked its button and nothing happened,

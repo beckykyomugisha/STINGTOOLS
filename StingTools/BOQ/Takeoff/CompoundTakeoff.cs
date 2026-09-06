@@ -25,7 +25,8 @@ namespace StingTools.BOQ.Takeoff
                                     // "mortar_cement" | "mortar_sand" | "plaster" |
                                     // "plaster_cement" | "plaster_sand" | "concrete" |
                                     // "rebar" | "formwork" | "floor_tile" |
-                                    // "wall_tile" | "tile_adhesive" | "tile_grout"
+                                    // "wall_tile" | "tile_adhesive" | "tile_grout" |
+                                    // "screed" | "screed_cement" | "screed_sand"
         public string Description;
         public string Unit;         // "m2" | "m3" | "nr" | "kg" | "bag"
         public double Quantity;
@@ -87,6 +88,29 @@ namespace StingTools.BOQ.Takeoff
         public string TileLabel;         // material name, for the description
         public double AdhesiveKgPerM2;   // manufacturer spreading rate
         public double GroutKgPerM2;      // joint width / tile size dependent
+    }
+
+    /// <summary>
+    /// MATSCHED-T1 — screed, measured from the host's own SUBSTRATE (or finish)
+    /// layer, exactly as tiling is measured from its finish layer.
+    ///
+    /// A 40 mm cement screed under a tiled floor is a real purchase whose
+    /// thickness the model already STATES. It contributed nothing before,
+    /// because the layer walk inspected finish layers only and only for tile
+    /// materials, so every screeded floor in every project was missing its
+    /// cement and sand.
+    ///
+    /// The thickness is the driver and it is never assumed: a screed layer that
+    /// declares zero width yields nothing, because a screed with no volume has
+    /// no cement in it and a default thickness would be an invention.
+    /// </summary>
+    public struct ScreedInput
+    {
+        public double AreaM2;            // the screeded area — the host's own area
+        public double ThicknessM;        // from CompoundStructureLayer.Width, feet → m
+        public string ScreedLabel;       // material name, for the description
+        public double CementBagsPerM3;   // from the SCREED mix (MATERIAL_LOOKUP)
+        public double SandRatio;         // m³ sand per m³ of screed
     }
 
     public struct RcElementInput
@@ -400,6 +424,45 @@ namespace StingTools.BOQ.Takeoff
             if (t.GroutKgPerM2 > 0)
                 lines.Add(new CompoundLine("tile_grout", "Tile grout", "kg",
                     area * t.GroutKgPerM2, SecPlaster));
+
+            return lines;
+        }
+
+        /// <summary>
+        /// MATSCHED-T1 — screed constituents for one screeded surface.
+        ///
+        /// Modelled on the plaster block of MasonryWall: an area and a thickness
+        /// give a volume, and the mix ratios turn that volume into cement and
+        /// sand. Quantities are NET of wastage — the supplier-unit rule owns the
+        /// allowance, as it does for every other constituent; applying it here
+        /// too is what made blocks arrive at ~10% instead of 5%.
+        ///
+        /// The area row is an INTERMEDIATE measure: you do not buy square metres
+        /// of screed, you buy the cement and sand below it. It is declared in
+        /// intermediateMeasures so the document keeps it for checking and zeroes
+        /// its money.
+        /// </summary>
+        public static List<CompoundLine> Screed(ScreedInput s)
+        {
+            var lines = new List<CompoundLine>();
+            double area = Math.Max(0, s.AreaM2);
+            double thk = Math.Max(0, s.ThicknessM);
+            // No area or no stated thickness → emit NOTHING. Never a default
+            // quantity: a missing driver is a fact about the model, and the
+            // scan reports it by name rather than papering over it here.
+            if (area <= 0 || thk <= 0) return lines;
+
+            string label = string.IsNullOrWhiteSpace(s.ScreedLabel)
+                ? "cement/sand screed" : s.ScreedLabel.Trim();
+            lines.Add(new CompoundLine("screed", $"Screed — {label}", "m2", area, SecPlaster));
+
+            double vol = area * thk;
+            if (s.CementBagsPerM3 > 0)
+                lines.Add(new CompoundLine("screed_cement", "Screed — cement", "bag",
+                    vol * s.CementBagsPerM3, SecPlaster));
+            if (s.SandRatio > 0)
+                lines.Add(new CompoundLine("screed_sand", "Screed — sand", "m3",
+                    vol * s.SandRatio, SecPlaster));
 
             return lines;
         }
