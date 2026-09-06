@@ -16,6 +16,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
@@ -31,18 +32,50 @@ namespace StingTools.BOQ.Rates
             = new ConcurrentDictionary<string, RateProviderRegistry>(StringComparer.OrdinalIgnoreCase);
 
         private readonly List<IRateProvider> _providers;
+        private readonly RatePolicy _policy;
         private readonly double _ugxPerUsd;
         private readonly double _ugxPerGbp;
 
         private RateProviderRegistry(IEnumerable<IRateProvider> providers,
+                                     RatePolicy policy,
                                      double ugxPerUsd, double ugxPerGbp)
         {
+            _policy = policy ?? RatePolicy.Empty;
             _providers = providers
                 .Where(p => p != null)
-                .OrderByDescending(p => p.Priority)
+                // Order by the POLICY-effective priority so a project-scoped
+                // boq_rate_policy.json can re-rank the chain without a recompile.
+                // Disabled providers stay in the list and are skipped at Resolve time,
+                // which keeps the ResolveAll diagnostics honest about what exists.
+                .OrderByDescending(EffPriority)
                 .ToList();
             _ugxPerUsd = ugxPerUsd > 0 ? ugxPerUsd : 3700.0;
             _ugxPerGbp = ugxPerGbp > 0 ? ugxPerGbp : 4700.0;
+        }
+
+        /// <summary>Policy-effective priority for a provider (project override, else the
+        /// provider's compiled-in baseline).</summary>
+        private int EffPriority(IRateProvider p) => _policy.EffectivePriority(p.Id, p.Priority);
+
+        /// <summary>Read &lt;project&gt;/_BIM_COORD/boq_rate_policy.json. Never throws - a
+        /// missing or malformed file yields an empty (no-op) policy, because a broken
+        /// overlay must not be able to stop a project costing.</summary>
+        private static RatePolicy LoadPolicy(Document doc)
+        {
+            try
+            {
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", "boq_rate_policy.json");
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return RatePolicy.Empty;
+                var policy = RatePolicy.Parse(File.ReadAllText(path));
+                if (policy?.Providers != null && policy.Providers.Count > 0)
+                    StingLog.Info($"RateProviderRegistry: applied boq_rate_policy.json ({policy.Providers.Count} provider override(s)).");
+                return policy ?? RatePolicy.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RateProviderRegistry.LoadPolicy: {ex.Message}");
+                return RatePolicy.Empty;
+            }
         }
 
         /// <summary>
@@ -58,7 +91,7 @@ namespace StingTools.BOQ.Rates
             double ugxPerGbp = 0)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -71,11 +104,16 @@ namespace StingTools.BOQ.Rates
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
+            RatePolicy policy,
             double ugxPerUsd, double ugxPerGbp)
         {
             var providers = new List<IRateProvider>
             {
                 new ParameterOverrideRateProvider(),
+                // Owner FF&E procurement price (96) — above the material library and the
+                // CSV category rate, below an explicit inline override. Returns null when
+                // the element carries no Fohlio cost, so non-FF&E models are unaffected.
+                new FohlioRateProvider(),
                 new ExtensibleStorageRateProvider(),
                 // P3.4 — project rate card (incl. QS-Bill-imported rates at
                 // <project>/_BIM_COORD/rate_card.json). Priority 87 sits above
@@ -110,7 +148,7 @@ namespace StingTools.BOQ.Rates
             }
             catch (Exception ex) { StingLog.Warn($"RateProviderRegistry feeds: {ex.Message}"); }
 
-            return new RateProviderRegistry(providers, ugxPerUsd, ugxPerGbp);
+            return new RateProviderRegistry(providers, policy, ugxPerUsd, ugxPerGbp);
         }
 
         /// <summary>
@@ -172,7 +210,9 @@ namespace StingTools.BOQ.Rates
         {
             if (provider == null) return;
             _providers.Add(provider);
-            _providers.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            // Re-sort by POLICY-effective priority so an externally-registered provider
+            // lands at its overlaid rank, or at its baseline when the policy is silent.
+            _providers.Sort((a, b) => EffPriority(b).CompareTo(EffPriority(a)));
             StingLog.Info($"RateProviderRegistry: registered {provider.Id} (priority {provider.Priority}).");
         }
 
@@ -193,6 +233,9 @@ namespace StingTools.BOQ.Rates
                 // Fetch-live-rates action (results land as model overrides) and
                 // remain visible in the ResolveAll diagnostic. Skip them here.
                 if (provider.RequiresNetwork) continue;
+                // A project policy may switch a provider off outright - e.g. disable a
+                // live HTTP feed so a tender prices deterministically and reproducibly.
+                if (!_policy.IsEnabled(provider.Id)) continue;
                 try
                 {
                     var lookup = provider.Resolve(req);
@@ -217,6 +260,9 @@ namespace StingTools.BOQ.Rates
             var results = new List<(IRateProvider, RateLookup)>(_providers.Count);
             foreach (var provider in _providers)
             {
+                // Report a policy-disabled provider as present-but-silent rather than
+                // hiding it: the heat-map should show WHY nothing came from it.
+                if (!_policy.IsEnabled(provider.Id)) { results.Add((provider, null)); continue; }
                 try { results.Add((provider, provider.Resolve(req))); }
                 catch (Exception ex)
                 {
@@ -255,7 +301,10 @@ namespace StingTools.BOQ.Rates
                 FetchedUtc = lookup.FetchedUtc,
                 Confidence = lookup.Confidence,
                 Provenance = $"{lookup.Provenance} (FX {source}→{target})",
-                MatchedKey = lookup.MatchedKey
+                MatchedKey = lookup.MatchedKey,
+                // Carried, not just written into the provenance string, so the bill can
+                // show the FX basis in its own column instead of a caller re-parsing prose.
+                SourceCurrencyCode = source
             };
         }
 

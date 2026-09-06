@@ -120,6 +120,53 @@ namespace StingTools.UI.PlacementCenter
                 "", "FRONT_600", "FRONT_1000", "SIDES_300", "TOP_900",
             };
 
+        /// <summary>
+        /// Auto-place checklist rows, generated from PlacementCategoryRegistry
+        /// rather than declared in XAML. Rebuilt by
+        /// <see cref="RebuildCategoryChecklist"/> whenever the rule set changes,
+        /// so the checklist cannot drift from what the engine can place.
+        /// </summary>
+        public ObservableCollection<PlacementCategoryCheckItem> CategoryChecklist { get; }
+            = new ObservableCollection<PlacementCategoryCheckItem>();
+
+        /// <summary>
+        /// Regenerate <see cref="CategoryChecklist"/> from the category registry
+        /// and the currently-loaded rules. Ticks are preserved across a rebuild
+        /// so reloading rules doesn't silently clear the user's selection.
+        /// </summary>
+        public void RebuildCategoryChecklist(Autodesk.Revit.DB.Document doc)
+        {
+            var previouslyTicked = new System.Collections.Generic.HashSet<string>(
+                CategoryChecklist.Where(i => i.IsChecked).Select(i => i.Category),
+                StringComparer.OrdinalIgnoreCase);
+
+            System.Collections.Generic.List<StingTools.Core.Placement.PlacementCategorySupport> rows;
+            try
+            {
+                rows = StingTools.Core.Placement.PlacementCategoryRegistry.GetSupport(
+                    doc, Rules.Select(r => r.Model));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PlacementRulesViewModel.RebuildCategoryChecklist: {ex.Message}");
+                return; // keep whatever is already shown rather than blanking the checklist
+            }
+
+            CategoryChecklist.Clear();
+            foreach (var row in rows)
+            {
+                var item = new PlacementCategoryCheckItem(row);
+                // IsChecked's setter refuses non-placeable categories, so a stale
+                // tick on a category that just became non-placeable drops itself.
+                if (previouslyTicked.Contains(item.Category)) item.IsChecked = true;
+                CategoryChecklist.Add(item);
+            }
+
+            StingLog.Info($"PlacementCenter: Auto-place checklist rebuilt — {CategoryChecklist.Count} categories " +
+                          $"({CategoryChecklist.Count(i => !i.IsPlaceable)} non-placeable, " +
+                          $"{CategoryChecklist.Count(i => i.IsInert)} with no rules in the active pack).");
+        }
+
         public ObservableCollection<string> HeightStandardKeys { get; }
             = new ObservableCollection<string>
             {

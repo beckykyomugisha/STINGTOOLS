@@ -29,6 +29,27 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> TraceRefs = new List<string>();
 
         /// <summary>
+        /// The Revit categories this commodity was measured FROM, sorted.
+        ///
+        /// Aggregation groups by commodity key and had been dropping this, so a
+        /// row reading "Generic - 225mm, 610 m2, unpriced" gave a QS no way to
+        /// tell it was a ROOF — the one fact needed to price it. Cement comes
+        /// from several categories at once, so it is a set rather than a single
+        /// value; collapsing it to "the first one" would name a source that is
+        /// only part of the truth.
+        /// </summary>
+        public List<string> Categories = new List<string>();
+
+        /// <summary>
+        /// The model TYPE names behind this row, sorted, capped at a few.
+        ///
+        /// For an unmatched row the key IS the type name and this adds nothing;
+        /// for cement it says which walls and slabs produced it, which is what
+        /// makes a rate checkable rather than merely enterable.
+        /// </summary>
+        public List<string> TypeNames = new List<string>();
+
+        /// <summary>
         /// True when a supplier-unit rule matched this row's CATEGORY but not its
         /// type, so the quantity stayed in measured units rather than being
         /// converted on a guess. Surfaced by reconciler rule R5 — a wrong trade
@@ -148,6 +169,17 @@ namespace StingTools.Core.MaterialSchedule
         /// closed, so a workbook reviewed later could not say why it looked the
         /// way it did. A deliverable has to carry its own explanation.
         /// </summary>
+        /// <summary>
+        /// The project rate file this run resolved, absolute.
+        ///
+        /// Carried on the document because the reconciler is Revit-free and
+        /// cannot ask StingPaths. It matters: every message used to name
+        /// "_BIM_COORD/commodity_rates.csv", which is the ALIAS. The live
+        /// folder is _data/coord, and a user following the text literally
+        /// landed in a stale legacy folder and concluded the file was missing.
+        /// </summary>
+        public string ProjectRatesPath = "";
+
         public List<string> Warnings = new List<string>();
 
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.

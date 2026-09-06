@@ -650,6 +650,45 @@ namespace StingTools.BOQ.Takeoff
         /// Quantities are NET; the supplier-unit rule owns the cutting and
         /// jointing allowance, as it does for every other constituent.
         /// </summary>
+        // ══ What a decomposition actually MEASURED ═════════════════
+        //
+        //  A constituent row either measures the host itself (its concrete, its
+        //  tiling, its screed) or sits ON the host without measuring it (a
+        //  fascia runs along an edge and says nothing about the roof's area).
+        //
+        //  The distinction exists because a non-empty decomposition SUPPRESSES
+        //  the composite row for the element. When the only thing a roof
+        //  produced was its fascia, suppressing the composite deleted 856 m² of
+        //  roof covering from an issued schedule with no warning anywhere — and
+        //  took the roof_covering_m2 consumable driver down with it, so the roof
+        //  fastener rule reported "driver is zero" and looked like a considered
+        //  refusal rather than a missing input.
+        //
+        //  Kept as a LIST rather than a "not in the measuring set" test: a new
+        //  kind added tomorrow measures its host until somebody says otherwise,
+        //  which is the safe default — it can double-count, which review catches,
+        //  where the other default silently drops quantities, which review does
+        //  not.
+        private static readonly HashSet<string> AccessoryKinds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "fascia_board" };
+
+        /// <summary>True for a row that sits on the host without measuring it.</summary>
+        public static bool IsAccessoryKind(string kind) =>
+            !string.IsNullOrWhiteSpace(kind) && AccessoryKinds.Contains(kind.Trim());
+
+        /// <summary>
+        /// True when a decomposition measured the host, so the composite row for
+        /// that element may stand down. An empty decomposition measured nothing.
+        /// </summary>
+        public static bool MeasuresHost(IEnumerable<string> constituentKinds)
+        {
+            if (constituentKinds == null) return false;
+            foreach (string k in constituentKinds)
+                if (!IsAccessoryKind(k)) return true;
+            // Nothing, or accessories only. Both mean the host is unmeasured.
+            return false;
+        }
+
         public static List<CompoundLine> RoofAccessories(RoofEdgeInput r)
         {
             var lines = new List<CompoundLine>();

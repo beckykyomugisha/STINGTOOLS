@@ -36,6 +36,12 @@
     <!-- RC-1 — Document-free material-key canonicaliser. -->
     <Compile Include="..\StingTools\Core\Materials\MaterialKeyCanonicaliser.cs" Link="Materials\MaterialKeyCanonicaliser.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
+    <!-- ROADMAP LIFE-3: the markup waterfall. Revit-free, but not previously
+         compiled here, so the OH&amp;P base had no test. -->
+    <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BoqTotals.cs" />
+    <!-- ROADMAP LIFE-3: pure take-off unit conversion, split out of TakeoffRule.cs
+         (which imports the Revit API) so a wrong factor is caught by a test. -->
+    <Compile Include="..\StingTools\BOQ\Takeoff\TakeoffUnitConversion.cs" Link="Takeoff\TakeoffUnitConversion.cs" />
     <Compile Include="..\StingTools\BOQ\BoqUnits.cs" Link="BoqUnits.cs" />
     <!-- MAT-3 — Document-free compound take-off engine. -->
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
@@ -56,15 +62,46 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\CeilingScanTally.cs" Link="MaterialSchedule\CeilingScanTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\MembraneScanTally.cs" Link="MaterialSchedule\MembraneScanTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesCalculator.cs" Link="MaterialSchedule\ConsumablesCalculator.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\RateEditorSeed.cs" Link="MaterialSchedule\RateEditorSeed.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\RateProvenanceLabel.cs" Link="MaterialSchedule\RateProvenanceLabel.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\RatePasteParser.cs" Link="MaterialSchedule\RatePasteParser.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\SupplierUnitPatch.cs" Link="MaterialSchedule\SupplierUnitPatch.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\TypePatternPlanner.cs" Link="MaterialSchedule\TypePatternPlanner.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesTally.cs" Link="MaterialSchedule\ConsumablesTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\BaselineAugmentReport.cs" Link="Baseline\BaselineAugmentReport.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\TypeCataloguePack.cs" Link="Baseline\TypeCataloguePack.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\TypeHarvest.cs" Link="Baseline\TypeHarvest.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\HarvestDimensionRules.cs" Link="Baseline\HarvestDimensionRules.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
          is testable, not just the model behind it. -->
     <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
     <Compile Include="..\StingTools\BOQ\MaterialSchedule\MaterialScheduleXlsxWriter.cs" Link="MaterialSchedule\MaterialScheduleXlsxWriter.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
+    <!-- OmniClass / classification - the three Revit-free halves of the classification
+         layer: the CSI-grammar rule parser + resolver, the OmniClass table registry, and
+         the per-project policy POCO. The commands that walk the model stay out. -->
+    <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
+    <Compile Include="..\StingTools\Core\Classification\OmniClassTables.cs" Link="Classification\OmniClassTables.cs" />
+    <Compile Include="..\StingTools\Core\Classification\ClassificationPolicy.cs" Link="Classification\ClassificationPolicy.cs" />
+    <!-- Spec store + tender gate + rate policy + FF&amp;E vocabulary - the Revit-free
+         halves of the KUT lifecycle BOQ work. SpecCompletenessGate needs the BOQ model
+         (BOQLineItem / BOQDocument), which is itself Document-free. -->
+    <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
+    <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
+    <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
+    <!-- The FX-provenance rule: a fixing date is reported only on a line whose rate was
+         actually converted. BOQCostManager imports the Revit API and cannot be linked. -->
+    <Compile Include="..\StingTools\BOQ\BoqFxProvenance.cs" Link="BoqFxProvenance.cs" />
+    <!-- BMS commissioning-valuation arithmetic + the point-status decision. Revit-free
+         and network-free on purpose: the command walks the model and queries the
+         station, this only does the maths. -->
+    <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
+    <!-- The oBIX/JSON shape handling under the certification decision. Extracted from
+         NiagaraJsonClient.cs, which logs through StingLog and so cannot be linked here. -->
+    <Compile Include="..\StingTools\Core\Twin\NiagaraPointParser.cs" Link="Twin\NiagaraPointParser.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -101,6 +138,59 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_PROJECT_BASELINE.json" Link="Data\STING_PROJECT_BASELINE.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_TYPE_CATALOGUES.json" Link="Data\STING_TYPE_CATALOGUES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- OmniClass - the SHIPPED maps, so the tests assert against the codes that
+         actually reach a project rather than against a fixture that restates them. -->
+    <None Include="..\StingTools\Data\STING_OMNICLASS_13_MAP.csv" Link="Data\STING_OMNICLASS_13_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_21_MAP.csv" Link="Data\STING_OMNICLASS_21_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_23_MAP.csv" Link="Data\STING_OMNICLASS_23_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_41_MAP.csv" Link="Data\STING_OMNICLASS_41_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED CSI MasterFormat map, so the CSI-&gt;NRM2 bridge test asserts the
+         codes that actually reach a bill rather than a fixture restating them. -->
+    <None Include="..\StingTools\Data\STING_CSI_MASTERFORMAT_MAP.csv" Link="Data\STING_CSI_MASTERFORMAT_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT rate-policy overlay - JSON field types are not compile-checked. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\boq_rate_policy.json" Link="Data\kut_boq_rate_policy.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT Fohlio overlay - it decides how FF&amp;E is carried in a
+         priced bill, and a mistyped key there is a silent default, not an error. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\fohlio_map.json" Link="Data\kut_fohlio_map.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The parameter sources the Fohlio rate chain depends on. None of this is
+         compile-checked: a parameter absent from the shared-parameter file cannot be
+         loaded, and one absent from RESOLVED_BINDINGS.csv is read by SharedParamGuids
+         as intentionally UNBOUND. Both failures read as "no Fohlio price". -->
+    <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\MR_PARAMETERS.csv" Link="Data\MR_PARAMETERS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\RESOLVED_BINDINGS.csv" Link="Data\RESOLVED_BINDINGS.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\PARAMETER_REGISTRY.json" Link="Data\PARAMETER_REGISTRY.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:
+         a mistyped field leaves the POCO at its default and goes runtime-dead. Parsing
+         the real file with the real parser is what catches that. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\classification_policy.json" Link="Data\kut_classification_policy.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

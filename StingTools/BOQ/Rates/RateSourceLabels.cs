@@ -18,6 +18,7 @@ namespace StingTools.BOQ.Rates
             {
                 case "param-override": return "Override";
                 case "es-override":    return "Override";
+                case "fohlio":         return "Fohlio";
                 case "csv-default":    return "CSV";
                 case "cobie-typemap":  return "COBie";
                 case "default-baseline": return "Default";

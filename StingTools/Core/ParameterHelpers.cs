@@ -541,6 +541,30 @@ namespace StingTools.Core
         /// Also writes the formatted string to the corresponding _TXT mirror param when bound.
         /// </summary>
         /// <param name="displayFormat">Format string for the _TXT mirror value. Defaults to "G".</param>
+        /// <summary>Read a numeric parameter as a double, with a fallback. Handles Double,
+        /// Integer and String storage; a String is parsed culture-invariantly, because a
+        /// value that round-tripped through a text mirror must not read differently on a
+        /// machine with a comma decimal separator.</summary>
+        public static double GetDouble(Element el, string paramName, double defaultValue = 0)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return defaultValue;
+                switch (p.StorageType)
+                {
+                    case StorageType.Double: return p.AsDouble();
+                    case StorageType.Integer: return p.AsInteger();
+                    case StorageType.String:
+                        string s = p.AsString();
+                        return double.TryParse(s, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : defaultValue;
+                    default: return defaultValue;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDouble({paramName}): {ex.Message}"); return defaultValue; }
+        }
+
         public static bool SetDouble(Element el, string paramName, double value,
             bool overwrite = false, string displayFormat = null)
         {

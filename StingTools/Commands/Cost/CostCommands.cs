@@ -353,6 +353,12 @@ namespace StingTools.Commands.Cost
             BOQCostManager.InvalidateRateTables();
             StingTools.Temp.BOQTemplateLibrary.Invalidate();
             StingTools.Core.Materials.SlabSystemLoader.Invalidate();
+            // The CSI rule list, the CSI->NRM2 / unit bridges and the SpecLink section
+            // store are cached per document too; an edited csi_map.csv or a re-imported
+            // spec is invisible to the next build without this.
+            StingTools.Commands.Classification.CsiMap.Invalidate();
+            // The Fohlio map decides FF&E treatment per category and is read per element.
+            StingTools.ExLink.FohlioMap.Invalidate();
 
             // Phase 2B — external live-rate feeds (BCIS / Planscape) are now part
             // of the default build chain (RateProviderRegistry.Build →

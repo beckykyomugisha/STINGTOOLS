@@ -343,11 +343,12 @@ namespace StingTools.Core
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
-            "CSI_Assign", "SpecLink_Reconcile",
+            "CSI_Assign", "SpecLink_Reconcile", "SpecLink_ImportFolder",
             "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit",
             "Fohlio_ExportFinishes", "Fohlio_ImportFinishes", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
+            "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -1592,6 +1593,7 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "SpecLink_ImportFolder": return new Commands.Classification.SpecLinkImportCommand();
                 case "Classification_SetStandard": return new Commands.Classification.ClassificationSetStandardCommand();
                 case "Keynote_Assign": return new Commands.Classification.KeynoteAssignCommand();
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();
@@ -1601,6 +1603,9 @@ namespace StingTools.Core
                 case "Fohlio_ImportFinishes": return new ExLink.FohlioImportFinishesCommand();
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
+                case "KUT_ValuationFromBms":       return new Commands.Twin.KutValuationFromBmsCommand();
+                case "KUT_LifecycleReconcile":     return new Commands.Twin.KutLifecycleReconcileCommand();
+                case "KUT_PushLifecycleGapsToAcc": return new Commands.Twin.KutPushLifecycleGapsToAccCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 // "Lite_ComCheck" is the Electrical panel's button tag for this same
                 // command. A user writing a project-local preset reasonably copies the

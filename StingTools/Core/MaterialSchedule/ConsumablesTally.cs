@@ -56,6 +56,18 @@ namespace StingTools.Core.MaterialSchedule
         public readonly SortedSet<string> UnusableRules =
             new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Roof covering measured but not attributable to a product, in m².
+        ///
+        /// This exists to stop one sentence lying. A zero driver was reported as
+        /// "that is the intended behaviour — with no driver the quantity would be
+        /// invented", which is right when the model has no roof and wrong when it
+        /// has 856 m² of roof nobody could name. Same zero, opposite action:
+        /// nothing to do, versus name the roof type or count the fixing pattern
+        /// by hand.
+        /// </summary>
+        public double RoofCoveringUnattributedM2;
+
         /// <summary>Driver rows skipped because their measured unit disagreed
         /// with the unit the driver is counted in. Carried through from
         /// ConsumableDrivers so one line reports the whole source.</summary>
@@ -71,6 +83,7 @@ namespace StingTools.Core.MaterialSchedule
             DriversAbsent.Clear();
             UnusableRules.Clear();
             UnitMismatches.Clear();
+            RoofCoveringUnattributedM2 = 0;
         }
 
         public void Consider(string kind) { RulesConsidered++; }
@@ -119,6 +132,20 @@ namespace StingTools.Core.MaterialSchedule
                    + (DriversAbsent.Count > MaxNamesShown ? ", …" : "")
                    + ". That is the intended behaviour — with no driver the quantity would be "
                    + "invented, not estimated.";
+
+                // ... unless the driver is zero because nothing could be
+                // IDENTIFIED, which is a different fact with a different fix.
+                if (RoofCoveringUnattributedM2 > 0
+                    && DriversAbsent.ContainsKey("roof_covering_m2"))
+                {
+                    s += $" Read that carefully for the roof: {RoofCoveringUnattributedM2:N0} m² of "
+                       + "roof covering WAS measured, but its type name matched no supplier pattern, so "
+                       + "the product is unknown — and the fastener ratio is product-specific (11/m² is "
+                       + "corrugated sheeting fixed at every second corrugation; a tiled roof of the same "
+                       + "area takes clips at another rate). Applying it here would give a confident "
+                       + "number for the wrong roof. Name the roof type so it matches a pattern in "
+                       + "STING_SUPPLIER_UNITS.json, or count the specified fixing pattern by hand.";
+                }
             }
 
             if (UnusableRules.Count > 0)

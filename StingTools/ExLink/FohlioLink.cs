@@ -53,6 +53,43 @@ namespace StingTools.ExLink
             new FohlioColumn { Header = "Fohlio Ref",    Param = "FOHLIO_REF_TXT",       WriteBack = true },
         };
 
+        // ---- FF&E BOQ treatment --------------------------------------------------
+        // How Fohlio FF&E is carried in the bill. An item is exactly ONE of these -
+        // never double-counted.
+        //   "ffe"                    DEFAULT - transparent Owner-procured FF&E category
+        //                            (NRM1 group 8 / ICMS): a visible model line, priced
+        //                            at cost from the Fohlio register, flagged so the
+        //                            spec gate does not chase a specification the
+        //                            contractor never writes
+        //   "measured"               contractor-supplied - a normal priced line
+        //   "ownerSupplied-excluded" out of this bill entirely (the element is skipped)
+        //   "pcSum"                  explicit contractual provisional / prime-cost sum
+        public string BoqTreatment { get; set; } = "ffe";
+        public Dictionary<string, string> BoqTreatmentByCategory { get; set; }
+
+        /// <summary>Canonical treatment for a category - delegates to the pure,
+        /// unit-tested <see cref="StingTools.BOQ.FfeTreatment"/>.</summary>
+        public string TreatmentFor(string category)
+            => StingTools.BOQ.FfeTreatment.Resolve(category, BoqTreatment, BoqTreatmentByCategory);
+
+        public bool IsFfeCategory(string category)
+        {
+            if (string.IsNullOrEmpty(category) || Categories == null) return false;
+            foreach (var c in Categories)
+                if (string.Equals(c, category, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        // Per-document cache: the BOQ build asks once per FF&E element, so the JSON must
+        // be read once per run. Cleared by Cost_ReloadRules alongside the rate registry.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, FohlioMap> _cache
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, FohlioMap>(StringComparer.OrdinalIgnoreCase);
+
+        public static FohlioMap Cached(Document doc)
+            => _cache.GetOrAdd(doc?.PathName ?? "default", _ => Load(doc));
+
+        public static void Invalidate() => _cache.Clear();
+
         public static FohlioMap Load(Document doc)
         {
             var map = new FohlioMap();

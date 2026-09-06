@@ -69,18 +69,21 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IPermissionRevocationStore _revocations;
     private readonly IConnectionMultiplexer _redis;
+    private readonly Planscape.Core.Interfaces.IReplayGuard _replayGuard;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(PlanscapeDbContext db,
                           IConfiguration config,
                           IPermissionRevocationStore revocations,
                           IConnectionMultiplexer redis,
+                          Planscape.Core.Interfaces.IReplayGuard replayGuard,
                           ILogger<AuthController> logger)
     {
         _db = db;
         _config = config;
         _revocations = revocations;
         _redis = redis;
+        _replayGuard = replayGuard;
         _logger = logger;
     }
 
@@ -1090,7 +1093,13 @@ public class AuthController : ControllerBase
     [EnableRateLimiting("auth")]
     public async Task<ActionResult> HandoffExchange([FromBody] HandoffExchangeRequest req)
     {
-        var secret = Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
+        // Read via IConfiguration (environment variables are a config source, so a
+        // deployed PLANSCAPE_HANDOFF_SECRET env var still resolves here). This lets a
+        // WebApplicationFactory inject the secret through config instead of setting a
+        // process-global env var that leaks across parallel test classes. The direct
+        // env-var read is kept as a belt-and-braces fallback.
+        var secret = _config?["PLANSCAPE_HANDOFF_SECRET"]
+                     ?? Environment.GetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET");
         if (string.IsNullOrEmpty(secret))
         {
             _logger.LogError("Handoff exchange attempted but PLANSCAPE_HANDOFF_SECRET is unset");
@@ -1137,9 +1146,8 @@ public class AuthController : ControllerBase
         // duplicate session for the same legitimate user inside a 120s window.
         try
         {
-            var redisDb = _redis.GetDatabase();
-            var fresh = await redisDb.StringSetAsync(
-                $"handoff:jti:{p.Jti}", 1, TimeSpan.FromMinutes(5), When.NotExists);
+            var fresh = await _replayGuard.TryClaimAsync(
+                $"handoff:jti:{p.Jti}", TimeSpan.FromMinutes(5));
             if (!fresh)
                 return Unauthorized(new { message = "Ticket already used — go back to planscape.build and try again." });
         }

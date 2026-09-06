@@ -62,6 +62,98 @@ namespace StingTools.BOQ.Rates
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    //  1b. Fohlio FF&E procurement rate (priority 96)
+    //  Owner-procured FF&E carries the supplier's purchase-order price, and that
+    //  price is the truth - not a rate-book average. STING COEXISTS with Fohlio
+    //  (link, never duplicate): the rate is read from FOHLIO_UNIT_COST_NR, written
+    //  by the official Fohlio Revit add-in or by STING's Fohlio_Import, falling back
+    //  to the ES import snapshot. Sits above the material-library / CSV rates so the
+    //  Owner's PO price wins, and below an explicit inline override (100).
+    // ──────────────────────────────────────────────────────────────────────
+    internal sealed class FohlioRateProvider : IRateProvider
+    {
+        public string Id => "fohlio";
+        public int Priority => 96;
+        public bool RequiresNetwork => false;
+
+        // An UNBOUND parameter and a bound-but-empty one both read as 0, and this
+        // provider treats 0 as "no Fohlio price" either way — correct as a rate
+        // decision, useless as a diagnosis. A project that never loaded the shared
+        // parameters would see FF&E priced off the rate book with nothing said. Latched
+        // so it is one log line per session, not one per element.
+        private static int _unboundReported;
+
+        public RateLookup Resolve(RateRequest req)
+        {
+            if (req?.Element == null) return null;
+            try
+            {
+                double cost = ParameterHelpers.GetDouble(req.Element, ParamRegistry.FOHLIO_UNIT_COST, 0);
+                string currency = ParameterHelpers.GetString(req.Element, ParamRegistry.FOHLIO_CURRENCY);
+
+                if (cost <= 0)
+                {
+                    // Fall back to the snapshot captured at the last Fohlio import, so a
+                    // model whose parameter was cleared still prices off the last known PO.
+                    var snap = StingFohlioSnapshotSchema.Read(req.Element);
+                    if (snap != null && snap.UnitCost > 0)
+                    {
+                        cost = snap.UnitCost;
+                        if (string.IsNullOrEmpty(currency)) currency = snap.Currency;
+                    }
+                }
+                if (cost <= 0) { ReportIfUnbound(req.Element); return null; }
+
+                return new RateLookup
+                {
+                    UnitRate = cost,
+                    // Fohlio quotes USD unless the export says otherwise; the registry's
+                    // FX adapter converts to the document currency.
+                    CurrencyCode = string.IsNullOrEmpty(currency) ? "USD" : currency.Trim().ToUpperInvariant(),
+                    Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                    SourceId = Id,
+                    Confidence = 95,
+                    Provenance = "Fohlio FF&E procurement",
+                    MatchedKey = ParameterHelpers.GetString(req.Element, ParamRegistry.FOHLIO_REF)
+                };
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FohlioRateProvider: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Say so, once, when FOHLIO_UNIT_COST_NR is not bound on the element at
+        /// all — which means this provider can never fire in this model, however much
+        /// Fohlio data the project has imported. Distinguished from bound-and-empty,
+        /// which is the ordinary "this element is not an FF&amp;E item" case and says
+        /// nothing.</summary>
+        private static void ReportIfUnbound(Element el)
+        {
+            if (System.Threading.Interlocked.CompareExchange(ref _unboundReported, 1, 0) != 0) return;
+            try
+            {
+                if (ParameterHelpers.CachedLookup(el, ParamRegistry.FOHLIO_UNIT_COST) != null)
+                {
+                    // Bound — nothing to report. Release the latch so a later element that
+                    // genuinely lacks the binding can still be the one that reports.
+                    System.Threading.Interlocked.Exchange(ref _unboundReported, 0);
+                    return;
+                }
+                StingLog.Warn(
+                    $"FohlioRateProvider: {ParamRegistry.FOHLIO_UNIT_COST} is not bound in this model, so Owner-procured " +
+                    "FF&E cannot be priced from the Fohlio register and will fall through to the material-library / CSV " +
+                    "rate. Run Load Shared Parameters to bind it, then re-run the BOQ. (Reported once per session.)");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FohlioRateProvider unbound check: {ex.Message}");
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     //  2. Extensible Storage override (priority 95)
     //  Reads StingCostRateOverrideSchema. CA-1 — a stored override is in the
     //  project BASE currency (UGX) unless it carries an explicit ovr.Currency;
