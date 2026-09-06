@@ -642,17 +642,61 @@ namespace StingTools.BOQ.Takeoff
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase
                 | System.Text.RegularExpressions.RegexOptions.Compiled);
 
+        /// <summary>
+        /// What the tile scan looked at, so "no tiling appeared" stops being
+        /// silence and starts being evidence.
+        ///
+        /// The first export after tiling shipped produced ZERO tiling rows and
+        /// no errors, and two very different causes fit that output exactly:
+        /// the model describes no finish layers at all, or it describes them
+        /// under names the pattern does not recognise. Nothing in the workbook
+        /// or the log separated the two. An absent side effect never tells you
+        /// why — so the scan now reports its own denominator.
+        ///
+        /// Keyed by TYPE: a compound structure belongs to the type, so this also
+        /// stops re-walking the same layers once per instance.
+        /// </summary>
+        /// <summary>
+        /// Per-run tile-scan cache and tally. Keyed by TYPE: a compound
+        /// structure belongs to the type, so this also stops re-walking the same
+        /// layers once per instance. See TileScanTally for why the counts exist.
+        /// </summary>
+        internal static class TileFinishScan
+        {
+            private static readonly Dictionary<long, (int Faces, string Label)> Cache =
+                new Dictionary<long, (int, string)>();
+
+            public static readonly StingTools.Core.MaterialSchedule.TileScanTally Tally =
+                new StingTools.Core.MaterialSchedule.TileScanTally();
+
+            public static void Reset() { Cache.Clear(); Tally.Reset(); }
+
+            public static bool TryGet(long typeId, out (int Faces, string Label) hit)
+                => Cache.TryGetValue(typeId, out hit);
+
+            public static void Store(long typeId, (int Faces, string Label) hit)
+                => Cache[typeId] = hit;
+
+            public static string Summary() => Tally.Summary();
+        }
+
         /// <summary>Tiled finish layers on a host type: how many, and named by the first.</summary>
         private static (int Faces, string Label) ReadTiledFinish(Document doc, Element el)
         {
             try
             {
-                var hoa = doc?.GetElement(el.GetTypeId()) as HostObjAttributes;
+                var typeId = el?.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return (0, "");
+                long key = typeId.Value;
+                if (TileFinishScan.TryGet(key, out var cached)) return cached;
+
+                var hoa = doc?.GetElement(typeId) as HostObjAttributes;
                 var cs = hoa?.GetCompoundStructure();
                 var layers = cs?.GetLayers();
-                if (layers == null) return (0, "");
+                if (layers == null) { TileFinishScan.Store(key, (0, "")); return (0, ""); }
 
-                int faces = 0; string label = "";
+                TileFinishScan.Tally.TypesInspected++;
+                int faces = 0; string label = ""; bool anyFinishLayer = false;
                 foreach (var layer in layers)
                 {
                     if (layer == null) continue;
@@ -660,15 +704,27 @@ namespace StingTools.BOQ.Takeoff
                     // and admitting those would count a screed as tiling.
                     if (layer.Function != MaterialFunctionAssignment.Finish1
                      && layer.Function != MaterialFunctionAssignment.Finish2) continue;
+                    anyFinishLayer = true;
                     if (layer.MaterialId == null || layer.MaterialId == ElementId.InvalidElementId) continue;
                     if (!(doc.GetElement(layer.MaterialId) is Material mat)) continue;
                     if (string.IsNullOrWhiteSpace(mat.Name)) continue;
-                    if (!TileMaterialPattern.IsMatch(mat.Name)) continue;
+                    if (!TileMaterialPattern.IsMatch(mat.Name))
+                    {
+                        // Recorded, not discarded: if the pattern is the thing
+                        // that is wrong, these names are the evidence for it.
+                        TileFinishScan.Tally.RejectedMaterials.Add(mat.Name.Trim());
+                        continue;
+                    }
 
                     faces++;
                     if (label.Length == 0) label = mat.Name.Trim();
                 }
-                return (faces, label);
+                if (anyFinishLayer) TileFinishScan.Tally.TypesWithFinishLayer++;
+                if (faces > 0) TileFinishScan.Tally.TypesMatched++;
+
+                var hit = (faces, label);
+                TileFinishScan.Store(key, hit);
+                return hit;
             }
             catch (Exception ex)
             {
