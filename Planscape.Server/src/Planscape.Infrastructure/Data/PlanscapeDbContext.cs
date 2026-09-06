@@ -379,6 +379,10 @@ public class PlanscapeDbContext : DbContext
             e.Property(x => x.FileName).HasMaxLength(260);
             e.Property(x => x.StoragePath).HasMaxLength(600);
             e.Property(x => x.ContentHash).HasMaxLength(64);
+            // Same width as FederatedElement.SourceDocGuid — they hold the same
+            // string and the model-delete cascade joins on it.
+            e.Property(x => x.SourceDocGuid).HasMaxLength(100);
+            e.HasIndex(x => new { x.ProjectId, x.SourceDocGuid });
             e.Property(x => x.ThumbnailPath).HasMaxLength(600);
             e.Property(x => x.ElementMapPath).HasMaxLength(600);
             e.Property(x => x.Units).HasMaxLength(8);
@@ -659,6 +663,16 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(t => new { t.ProjectId, t.UniqueId })
                 .IsUnique()
                 .HasFilter("\"UniqueId\" <> ''");
+            // R1 (2b) — the canonical cross-host key, now UNIQUE per project: one
+            // row per physical element. Safe because both ingest doors resolve
+            // GlobalId-first (no new duplicate is inserted) and existing duplicates
+            // are collapsed by IdentityReconciliationService first. Fresh DBs get
+            // this via CreateTables (no rows to violate it); existing DBs get it
+            // from the patcher AFTER reconciliation (guarded — see Program.cs).
+            // Also serves the Revit pull-back reverse lookup (R2).
+            e.HasIndex(t => new { t.ProjectId, t.IfcGlobalId })
+                .IsUnique()
+                .HasFilter("\"IfcGlobalId\" IS NOT NULL");
             e.HasIndex(t => t.Tag1);
             e.HasIndex(t => t.Disc);
             e.HasIndex(t => t.IsStale);
@@ -1484,6 +1498,12 @@ public class PlanscapeDbContext : DbContext
             e.HasIndex(x => x.TenantId);
             e.Property(x => x.AppliedBy).HasMaxLength(200);
             e.Property(x => x.Notes).HasMaxLength(2000);
+            // B1 — auto-apply. Left unconstrained in length deliberately: the
+            // startup patcher adds these to pre-existing DBs as plain `text`,
+            // and a HasMaxLength here would make SchemaDriftChecker report a
+            // type mismatch between the EF model and the patched column.
+            e.Property(x => x.Confidence);
+            e.Property(x => x.Source);
             e.HasOne(x => x.Model).WithMany().HasForeignKey(x => x.ProjectModelId).OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -174,27 +174,54 @@ namespace StingTools.Tags
             string[] paraNames = ParamRegistry.AllParaStates;
 
             TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category tier depth
-            int updated = 0;
-            using (Transaction tx = new Transaction(doc, "STING Set Paragraph Depth"))
+            int updated = 0, carriers = 0;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            // PERF: the all-types scope sweeps EVERY ElementType in the project, but only a
+            // small subset (tag families + STING-bound model types) carries the PARA_STATE
+            // params. Probe the first param once and skip non-carriers — this removes ~90%
+            // of the LookupParameter calls that made project-wide Set depth take minutes.
+            // A progress dialog (with Escape) covers the genuinely large sweeps.
+            StingProgressDialog progress = null;
+            if (targetTypeIds.Count > 500)
+                progress = StingProgressDialog.Show("Set Paragraph Depth", targetTypeIds.Count);
+            bool userCancelled = false;
+            try
             {
-                tx.Start();
-                foreach (ElementId typeId in targetTypeIds)
+                using (Transaction tx = new Transaction(doc, "STING Set Paragraph Depth"))
                 {
-                    Element typeEl = doc.GetElement(typeId);
-                    if (typeEl == null) continue;
-                    // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
-                    // the panel global; otherwise every type gets the global depth.
-                    int effDepth = depth;
-                    var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
-                    if (ov != null && ov.Depth.HasValue)
-                        effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
-                    bool anySet = false;
-                    for (int i = 0; i < MaxTier; i++)
-                        anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
-                    if (anySet) updated++;
+                    tx.Start();
+                    int i2 = 0;
+                    foreach (ElementId typeId in targetTypeIds)
+                    {
+                        i2++;
+                        if (progress != null)
+                        {
+                            progress.Increment($"{updated} type(s) updated");
+                            if ((i2 % 100) == 0 && progress.IsCancelled) { userCancelled = true; break; }
+                        }
+                        Element typeEl = doc.GetElement(typeId);
+                        if (typeEl == null) continue;
+                        // Early skip: no PARA_STATE_1 → the other 9 won't be there either.
+                        if (typeEl.LookupParameter(paraNames[0]) == null) continue;
+                        carriers++;
+                        // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
+                        // the panel global; otherwise every type gets the global depth.
+                        int effDepth = depth;
+                        var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
+                        if (ov != null && ov.Depth.HasValue)
+                            effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
+                        bool anySet = false;
+                        for (int i = 0; i < MaxTier; i++)
+                            anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
+                        if (anySet) updated++;
+                    }
+                    tx.Commit();
                 }
-                tx.Commit();
             }
+            finally { progress?.Close(); }
+            long typeLoopMs = sw.ElapsedMilliseconds;
+            if (userCancelled)
+                StingLog.Info($"Set depth: cancelled by user after {typeLoopMs} ms");
 
             // ── Live token-visibility + SEQ zero-pad apply ───────────────────
             // After tier depth, refresh the on-drawing display (segment mask +
@@ -275,7 +302,11 @@ namespace StingTools.Tags
                     $"Paragraph depth set to: {depthName}\n" +
                     $"Element types updated: {updated}");
             }
-            StingLog.Info($"Paragraph depth set to {depthName} on {updated} types");
+            // PERF telemetry: phase timings so any residual slowness is attributable
+            // (type sweep vs live display refresh) instead of an opaque multi-minute wait.
+            StingLog.Info($"Paragraph depth set to {depthName} on {updated} types " +
+                $"(scanned={targetTypeIds.Count}, carriers={carriers}, typeLoop={typeLoopMs} ms, " +
+                $"displayRefresh={sw.ElapsedMilliseconds - typeLoopMs} ms, displayUpdated={displayUpdated})");
             return Result.Succeeded;
         }
 

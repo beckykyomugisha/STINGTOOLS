@@ -3,28 +3,27 @@ using Planscape.Core.Entities;
 namespace Planscape.Tests;
 
 /// <summary>
-/// <c>Tenant.MaxUsers</c> is derived from the plan's seat total at tenant
-/// creation, and consumed as <c>userCount &gt;= tenant.MaxUsers</c>
-/// (<c>AdminController</c>, <c>ProjectMembersController</c>). A non-positive
-/// cap is therefore true at <c>userCount = 0</c> — the tenant is refused its
-/// very first user, with a message (<c>User limit (-2) reached</c>) that points
-/// at nothing.
+/// <c>BillingPlanLimits.Limits.TotalSeats</c> is the headcount a plan is MARKETED
+/// with — "up to 6 users" on the pricing page. Since #653 it is <b>display only</b>:
+/// <c>Tenant.MaxUsers</c> is no longer derived from it (see
+/// <c>AccountCeilingTests</c> for what replaced it).
 ///
-/// C# arithmetic is unchecked by default, so <c>MaxAuthors + MaxCoordinators</c>
-/// wraps negative the moment either side is <c>int.MaxValue</c>:
+/// This file survives the decoupling on purpose. The arithmetic is still wrong in a
+/// way that is easy to reintroduce: C# is unchecked by default, so
+/// <c>MaxAuthors + MaxCoordinators</c> wraps NEGATIVE the moment either side is
+/// <c>int.MaxValue</c>:
 ///
 ///     1 + int.MaxValue            = -2,147,483,648
 ///     int.MaxValue + int.MaxValue = -2
 ///
-/// Enterprise is <c>(int.MaxValue, int.MaxValue)</c> today, so this is reachable
-/// on main right now. It is latent only because both tenant-creation paths
-/// (<c>AuthController</c> registration and the D1 handoff) assign
-/// <c>BillingPlan.Trial</c>, which is <c>1 + 0</c>. It goes live the moment any
-/// plan with an unlimited axis is assigned at creation.
+/// Enterprise is <c>(int.MaxValue, int.MaxValue)</c> today. A wrapped figure is a bug
+/// even as a display value, and keeping the saturation pinned means that if anyone
+/// ever rewires this to a cap again it degrades to "unlimited" rather than to the #616
+/// lockout, where a tenant was denied its FIRST user by <c>User limit (-2) reached</c>.
 ///
-/// See #616. The loop enumerates <see cref="BillingPlan"/> rather than listing
-/// plans on purpose: a plan added later is covered without anyone remembering
-/// this file exists.
+/// See #616 and #653. The loop enumerates <see cref="BillingPlan"/> rather than listing
+/// plans on purpose: a plan added later is covered without anyone remembering this file
+/// exists.
 /// </summary>
 public class BillingPlanSeatTotalTests
 {
@@ -36,9 +35,9 @@ public class BillingPlanSeatTotalTests
             var total = BillingPlanLimits.For(plan).TotalSeats;
 
             Assert.True(total > 0,
-                $"{plan} yields TotalSeats = {total}. A non-positive cap is written to " +
-                "Tenant.MaxUsers and compared as `userCount >= MaxUsers`, so it denies " +
-                "the tenant its first user. The sum must saturate, not wrap.");
+                $"{plan} yields TotalSeats = {total}. The sum must saturate, not wrap — " +
+                "a negative headcount is nonsense on the pricing page, and is a lockout " +
+                "for anyone who rewires this to a cap again. See #616.");
         }
     }
 

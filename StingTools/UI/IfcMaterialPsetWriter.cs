@@ -13,13 +13,19 @@ namespace StingTools.UI
     /// </summary>
     public static class IfcMaterialPsetWriter
     {
-        public static void Stamp(Element el, BOQLineItem item)
+        /// <summary>
+        /// H-1 — returns the number of parameters that ACTUALLY took a value.
+        /// Zero means every target param was unbound or read-only and nothing
+        /// was written; the caller must not report that as a success.
+        /// </summary>
+        public static int Stamp(Element el, BOQLineItem item)
         {
-            if (el == null || item == null) return;
+            if (el == null || item == null) return 0;
+            int written = 0;
             try
             {
                 string matName = ReadPrimaryMaterialName(el);
-                if (string.IsNullOrWhiteSpace(matName)) return;
+                if (string.IsNullOrWhiteSpace(matName)) return 0;
                 var mat = MaterialNameCache.ResolveMaterial(el.Document, matName);
 
                 double carbon = item.EmbodiedCarbonKg;
@@ -42,21 +48,22 @@ namespace StingTools.UI
                 // IFC4 Pset_EnvironmentalImpactIndicators (subset).
                 // WP-C — the headline GWP is the A1-A3 FOSSIL figure (RICS WLCA);
                 // biogenic (≤ 0) is written as a SEPARATE indicator, never netted in.
-                Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_PerLifeCycle", carbon);
-                Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_Biogenic", item.BiogenicKg);
-                SetString(el, "Pset_EnvironmentalImpactIndicators", "ReferenceUnit", "kgCO2e");
-                SetString(el, "Pset_EnvironmentalImpactIndicators", "CarbonScope", "A1-A3 fossil (upfront)");
+                if (Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_PerLifeCycle", carbon)) written++;
+                if (Set(el, "Pset_EnvironmentalImpactIndicators", "GlobalWarmingPotential_Biogenic", item.BiogenicKg)) written++;
+                if (SetString(el, "Pset_EnvironmentalImpactIndicators", "ReferenceUnit", "kgCO2e")) written++;
+                if (SetString(el, "Pset_EnvironmentalImpactIndicators", "CarbonScope", "A1-A3 fossil (upfront)")) written++;
                 if (!string.IsNullOrEmpty(epdSrc))
-                    SetString(el, "Pset_EnvironmentalImpactIndicators", "ProductionReference", epdSrc);
+                    if (SetString(el, "Pset_EnvironmentalImpactIndicators", "ProductionReference", epdSrc)) written++;
 
                 // STING custom material Pset.
-                SetString(el, "Pset_StingMaterial", "MaterialName", matName);
-                SetString(el, "Pset_StingMaterial", "MaterialClass", mat?.MaterialClass ?? "");
-                SetString(el, "Pset_StingMaterial", "UniclassCode", uniclass ?? "");
-                SetString(el, "Pset_StingMaterial", "EpdSource",  epdSrc);
-                SetString(el, "Pset_StingMaterial", "EpdDate",    epdDate);
+                if (SetString(el, "Pset_StingMaterial", "MaterialName", matName)) written++;
+                if (SetString(el, "Pset_StingMaterial", "MaterialClass", mat?.MaterialClass ?? "")) written++;
+                if (SetString(el, "Pset_StingMaterial", "UniclassCode", uniclass ?? "")) written++;
+                if (SetString(el, "Pset_StingMaterial", "EpdSource",  epdSrc)) written++;
+                if (SetString(el, "Pset_StingMaterial", "EpdDate",    epdDate)) written++;
             }
             catch (Exception ex) { StingLog.WarnRateLimited("IfcMatPset", $"IfcMaterialPsetWriter.Stamp: {ex.Message}"); }
+            return written;
         }
 
         private static string ReadPrimaryMaterialName(Element el)
@@ -81,24 +88,30 @@ namespace StingTools.UI
         // IFC Pset values are written through Revit's "<Pset>_<Property>" param
         // convention. Revit's IFC exporter picks these up when project
         // ProjectIfcExportSetup is configured to include user-defined Psets.
-        private static void SetString(Element el, string pset, string prop, string value)
+        /// <summary>True only when the value actually landed on a parameter.</summary>
+        private static bool SetString(Element el, string pset, string prop, string value)
         {
             try
             {
                 var p = el.LookupParameter($"{pset}_{prop}");
-                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String) p.Set(value ?? "");
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
+                    return p.Set(value ?? "");
             }
             catch (Exception ex) { StingLog.WarnRateLimited("IfcMatPset.Str", $"SetString '{pset}_{prop}': {ex.Message}"); }
+            return false;
         }
 
-        private static void Set(Element el, string pset, string prop, double value)
+        /// <summary>True only when the value actually landed on a parameter.</summary>
+        private static bool Set(Element el, string pset, string prop, double value)
         {
             try
             {
                 var p = el.LookupParameter($"{pset}_{prop}");
-                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) p.Set(value);
+                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                    return p.Set(value);
             }
             catch (Exception ex) { StingLog.WarnRateLimited("IfcMatPset.Num", $"Set '{pset}_{prop}': {ex.Message}"); }
+            return false;
         }
     }
 }

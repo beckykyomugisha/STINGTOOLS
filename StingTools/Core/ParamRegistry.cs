@@ -2171,6 +2171,7 @@ namespace StingTools.Core
 
                 // DATA-02: Load required/optional flags from all param sections
                 LoadRequiredFlags(root);
+                LoadDeprecatedFlags(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {RequiredParams.Count} required params loaded");
 
                 // Load warning thresholds (v5.5)
@@ -2248,6 +2249,101 @@ namespace StingTools.Core
                         _extendedParams[key] = paramName;
                 }
             }
+        }
+
+        /// <summary>
+        /// Parameter names whose registry description begins "DEPRECATED".
+        ///
+        /// They are NOT removed from the registry and their GUIDs are NOT
+        /// unbound: a deprecated parameter may already be bound in a live model
+        /// and hold real data, so deleting it would orphan that data. A prior
+        /// session established this and chose deprecation over removal
+        /// deliberately. What this set exists for is to stop them being OFFERED:
+        /// a picker that lists a superseded parameter beside its replacement
+        /// invites someone to write the wrong one, and nothing downstream reads
+        /// it.
+        ///
+        /// Membership is by DESCRIPTION, never by name. ASS_INSTALL_DATE_TXT is
+        /// both a deprecated registry entry AND the name of a C# constant that
+        /// was redirected to the canonical parameter -- the constant resolves to
+        /// "ASS_INSTALLATION_DATE_TXT" and must keep working. Filtering on a name
+        /// pattern would have caught the wrong thing.
+        /// </summary>
+        public static HashSet<string> DeprecatedParams { get; private set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>True if this parameter is superseded and should not be offered.</summary>
+        public static bool IsDeprecated(string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(paramName)) return false;
+            EnsureLoaded();
+            return DeprecatedParams.Contains(paramName.Trim());
+        }
+
+        /// <summary>
+        /// Order a parameter list for a human to choose from: current parameters
+        /// first, superseded ones last.
+        ///
+        /// Sorted to the end rather than removed. A deprecated parameter may
+        /// still carry a value on an element in an older model, and someone
+        /// auditing that model has to be able to find it; hiding it outright
+        /// would make real data unreachable from the lookup. Last in the list is
+        /// enough to stop it being picked by accident.
+        /// </summary>
+        public static List<string> PickerOrder(IEnumerable<string> names)
+        {
+            EnsureLoaded();
+            var list = (names ?? Enumerable.Empty<string>()).ToList();
+            list.Sort((a, b) =>
+            {
+                bool da = DeprecatedParams.Contains(a ?? ""), db = DeprecatedParams.Contains(b ?? "");
+                if (da != db) return da ? 1 : -1;
+                return string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+            });
+            return list;
+        }
+
+        /// <summary>
+        /// Scan every param section for a description beginning "DEPRECATED".
+        /// </summary>
+        private static void LoadDeprecatedFlags(JObject root)
+        {
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Scan(JToken section)
+            {
+                if (section is JArray arr)
+                {
+                    foreach (var it in arr.OfType<JObject>())
+                    {
+                        string name = it["param_name"]?.ToString();
+                        string desc = it["description"]?.ToString();
+                        if (!string.IsNullOrEmpty(name) && desc != null &&
+                            desc.TrimStart().StartsWith("DEPRECATED", StringComparison.OrdinalIgnoreCase))
+                            found.Add(name);
+                    }
+                }
+                else if (section is JObject obj)
+                {
+                    foreach (var kv in obj) Scan(kv.Value);
+                }
+            }
+
+            try
+            {
+                Scan(root["source_tokens"]);
+                Scan(root["support_params"]);
+                Scan(root["container_groups"]);
+                Scan(root["extended_params"]);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ParamRegistry: deprecated-flag scan failed: {ex.Message}");
+            }
+
+            DeprecatedParams = found;
+            if (found.Count > 0)
+                StingLog.Info($"ParamRegistry: {found.Count} deprecated parameter(s) will be listed last in pickers: {string.Join(", ", found.OrderBy(x => x))}");
         }
 
         /// <summary>

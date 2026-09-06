@@ -240,8 +240,21 @@ namespace StingTools.Core.Validation.Cost
                         rule.QuantitySource.StartsWith("literal:", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    double q = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
-                    if (q <= 0.0001)
+                    // A-1 — null means the measured source did not resolve at all,
+                    // which is a stronger statement than "computed to zero". Report
+                    // them distinctly so the modeller knows which one they are
+                    // looking at; both remain Errors.
+                    double? qOpt = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                    if (!qOpt.HasValue)
+                    {
+                        results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
+                            "COST.QTY.UNRESOLVED",
+                            $"{cat} '{el.Name}' has NO resolvable quantity under rule '{rule.Id}' " +
+                            $"(source: {rule.QuantitySource}, unit: {rule.Unit}). The source is missing " +
+                            "or unbound — the row would otherwise bill at zero.",
+                            Tag));
+                    }
+                    else if (qOpt.Value <= 0.0001)
                     {
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                             "COST.QTY.ZERO",

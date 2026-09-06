@@ -86,6 +86,31 @@ namespace StingTools.Core
         /// <summary>Revision records.</summary>
         public static string Revisions(Document doc) => Resolve(doc, CoordBucket, "revisions.json");
 
+        // Stores the Document Management Center owns. They were reached by hand-rolling
+        // Path.Combine(GetBimManagerDir(doc), "<name>.json"), which lands on the same physical
+        // file but SKIPS Resolve's legacy merge — so whether a project's pre-consolidation rows
+        // were visible depended on whether some other subsystem happened to call CoordStores
+        // first in that session. Routing them here makes that deterministic.
+
+        /// <summary>Sticky notes attached to elements or to the project.</summary>
+        public static string StickyNotes(Document doc) => Resolve(doc, CoordBucket, "sticky_notes.json");
+
+        /// <summary>Queued notifications awaiting delivery.</summary>
+        public static string Notifications(Document doc) => Resolve(doc, CoordBucket, "notification_queue.json");
+
+        /// <summary>Model-health trend snapshots.</summary>
+        public static string ModelHealth(Document doc) => Resolve(doc, CoordBucket, "model_health.json");
+
+        /// <summary>Project BIM Execution Plan document.</summary>
+        public static string Bep(Document doc) => Resolve(doc, CoordBucket, "project_bep.json");
+
+        /// <summary>
+        /// Project team registry (roles, companies, distribution groups). A JSON OBJECT, not an
+        /// array — resolve the path here, but read/write it with the caller's own object I/O
+        /// rather than ReadArray/WriteArray.
+        /// </summary>
+        public static string Team(Document doc) => ResolvePathOnly(doc, CoordBucket, "project_team.json");
+
         // ── Document-free resolution ──────────────────────────────────────
         //
         // A few readers (the BCC meetings panels, the parallel file loader) only
@@ -182,9 +207,111 @@ namespace StingTools.Core
             WriteArray(path, rows);
         }
 
+        // ── Status history ────────────────────────────────────────────────
+        //
+        // "status_history" was written two incompatible ways for the SAME row: the canonical
+        // writers (IssueSchema.ApplyStatus, BIMManagerCommands' transmittal creator) store a
+        // JArray of {from,to,by,at,note} objects, while the Document Manager did
+        //
+        //     row["status_history"] = row["status_history"]?.ToString() + "|<text>"
+        //
+        // which serialises the ARRAY to its JSON text and appends a pipe-delimited string,
+        // replacing the array with a string. The damage is not cosmetic: the next canonical
+        // write hits `if (row["status_history"] is not JArray) { new JArray(); }` and DISCARDS
+        // the entire prior history — an audit trail lost on an ISO 19650 register.
+        //
+        // History() is the one accessor. It returns the JArray, converting a legacy string into
+        // a first entry rather than dropping it, so existing projects keep what they had.
+
+        /// <summary>
+        /// The row's history array, healing the legacy pipe-delimited string form in place.
+        /// Always returns a live JArray attached to <paramref name="row"/>.
+        /// </summary>
+        public static JArray AppendHistory(JObject row, JObject entry, string field = "status_history")
+        {
+            if (row == null) return new JArray();
+
+            if (row[field] is not JArray hist)
+            {
+                hist = new JArray();
+                // Preserve whatever the legacy form held instead of overwriting it.
+                string legacy = row[field]?.Type == JTokenType.String ? row[field].ToString() : null;
+                if (!string.IsNullOrWhiteSpace(legacy))
+                {
+                    foreach (string line in legacy.Split(new[] { '|', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string t = line.Trim();
+                        if (t.Length > 0) hist.Add(new JObject { ["note"] = t, ["migrated"] = true });
+                    }
+                }
+                row[field] = hist;
+            }
+
+            if (entry != null) hist.Add(entry);
+            return hist;
+        }
+
+        /// <summary>Convenience: append a {from,to,by,at,note} entry matching IssueSchema's shape.</summary>
+        public static JArray AppendHistory(JObject row, string from, string to, string user,
+                                           string note = null, string field = "status_history")
+            => AppendHistory(row, new JObject
+            {
+                ["from"] = from ?? "",
+                ["to"]   = to ?? "",
+                ["by"]   = string.IsNullOrWhiteSpace(user) ? Environment.UserName : user,
+                ["at"]   = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                ["note"] = note ?? "",
+            }, field);
+
+        /// <summary>
+        /// Render a history field for display, accepting either shape. Newest last, one line each.
+        /// </summary>
+        public static string FormatHistory(JToken token)
+        {
+            if (token == null) return "";
+            if (token.Type == JTokenType.String) return token.ToString();
+            if (token is not JArray hist) return "";
+
+            var lines = new List<string>();
+            foreach (var e in hist.OfType<JObject>())
+            {
+                string at   = e["at"]?.ToString() ?? "";
+                if (DateTime.TryParse(at, out DateTime dt)) at = dt.ToString("yyyy-MM-dd HH:mm");
+                string from = e["from"]?.ToString() ?? "";
+                string to   = e["to"]?.ToString() ?? "";
+                string by   = e["by"]?.ToString() ?? "";
+                string note = e["note"]?.ToString() ?? "";
+
+                string change = !string.IsNullOrEmpty(to)
+                    ? (string.IsNullOrEmpty(from) ? to : $"{from}→{to}")
+                    : "";
+                string line = string.Join(" ", new[] { at, change, string.IsNullOrEmpty(by) ? "" : $"by {by}", note }
+                                              .Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (line.Length > 0) lines.Add(line);
+            }
+            return string.Join("\n", lines);
+        }
+
         // ── Resolution + legacy merge ─────────────────────────────────────
 
         private static string Resolve(Document doc, string bucket, string fileName)
+        {
+            string canonical = ResolvePathOnly(doc, bucket, fileName);
+            if (!string.IsNullOrEmpty(canonical)) MergeLegacy(doc, canonical, fileName);
+            return canonical;
+        }
+
+        /// <summary>
+        /// Resolve a store path WITHOUT the legacy row-merge.
+        /// <para>
+        /// For stores whose root JSON token is an object rather than an array. The merge is
+        /// array-shaped throughout (TryReadArray → dedup by row id → append), so on an object
+        /// store it can only fail — safely, since TryReadArray returns false and MergeFile bails
+        /// without writing or marking, but it logs a parse warning on every single access.
+        /// Skipping it keeps the log honest.
+        /// </para>
+        /// </summary>
+        private static string ResolvePathOnly(Document doc, string bucket, string fileName)
         {
             string dir = null;
             try { dir = ProjectFolderEngine.GetMetaPath(doc, bucket); }
@@ -201,9 +328,7 @@ namespace StingTools.Core
                 try { Directory.CreateDirectory(dir); } catch (Exception ex) { StingLog.Warn($"CoordStores fallback dir: {ex.Message}"); }
             }
 
-            string canonical = Path.Combine(dir, fileName);
-            MergeLegacy(doc, canonical, fileName);
-            return canonical;
+            return Path.Combine(dir, fileName);
         }
 
         /// <summary>

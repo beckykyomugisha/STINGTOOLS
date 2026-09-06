@@ -43,7 +43,9 @@ class PlanscapeClient:
 
     def __init__(self, base_url: str, token: Optional[str] = None, timeout: int = 30,
                  refresh_token: Optional[str] = None):
-        self.base_url = (base_url or "").rstrip("/")
+        # .strip() before .rstrip("/"): a Project ID pasted with a stray tab or
+        # newline used to reach the request layer intact and crash the push.
+        self.base_url = (base_url or "").strip().rstrip("/")
         self.token = token or None
         # The refresh token lets a long tagging session survive access-token
         # expiry (free-tier tokens are short-lived) without the user having to
@@ -58,7 +60,13 @@ class PlanscapeClient:
                  token: Optional[str] = None, _allow_refresh: bool = True) -> Any:
         if not self.base_url:
             raise PlanscapeError("server URL is empty — set it in STING preferences")
-        url = self.base_url + path
+        # Strip raw control chars (tab/newline/CR) from the URL. A value pasted
+        # into a Blender text field — most often the Project ID copied with a
+        # stray leading tab — otherwise reaches urllib as e.g.
+        # "/api/projects/\t<guid>/ifc/data" and dies with
+        # http.client.InvalidURL. Raw whitespace never legitimately belongs in a
+        # URL (spaces are %-encoded), so removing it is always safe.
+        url = "".join(ch for ch in (self.base_url + path) if ch not in "\t\r\n ")
         data = json.dumps(body).encode("utf-8") if body is not None else None
 
         req = urllib.request.Request(url, data=data, method=method.upper())

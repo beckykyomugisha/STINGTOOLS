@@ -35,7 +35,27 @@ database_name = "planscape-waitlist"
 database_id   = "b7029da2-6019-4ceb-bd87-22870a313db7"
 ```
 
-If you ever re-create the D1 database, update the `database_id` here (and in the `[[env.preview.d1_databases]]` + `[[env.production.d1_databases]]` blocks at the bottom) before the next deploy.
+If you ever re-create the D1 database, update the `database_id` here (and in the `[[env.production.d1_databases]]` block at the bottom) before the next deploy.
+
+> **`env.preview` deliberately points at a DIFFERENT database** —
+> `planscape-waitlist-preview` (`75855f69-…`), created 2026-08-17. Do not "fix"
+> the mismatch by pointing it back at `planscape-waitlist`.
+>
+> All three blocks used to share one id, so a preview deployment read and wrote
+> live licence data: issuing real licences against a real tenant's cap, revoking
+> them, stamping `last_seen_at` — none of it distinguishable afterwards from
+> legitimate activity, because it landed in the same rows the production path
+> writes (#652). That mattered more once #621 made `licenses` the seat-entitlement
+> source of truth.
+>
+> **When you change `schema.sql`, apply it to both** or preview breaks in ways
+> production does not:
+> ```
+> npx wrangler d1 execute planscape-waitlist         --remote --file=./functions/api/schema.sql
+> npx wrangler d1 execute planscape-waitlist-preview --remote --file=./functions/api/schema.sql
+> ```
+> Careful with the first one on an existing database: `schema.sql` contains bare
+> `ALTER TABLE` statements that fail on re-run. Apply only new DDL to production.
 
 > Note: the Cloudflare dashboard's **+ Add binding** button is greyed out for projects using `wrangler.toml` — that's intentional. The toml is the source of truth; the dashboard shows the binding as read-only after the next deploy.
 

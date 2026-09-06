@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using System.Linq;
 
@@ -21,6 +22,7 @@ namespace Planscape.Docs.Templates
         public Dictionary<string, object> Project     { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
         public Dictionary<string, object> People      { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
         public Dictionary<string, object> Transmittal { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
+        public Dictionary<string, object> Meeting     { get; } = new Dictionary<string, object>(StringComparer.Ordinal);
         public Dictionary<string, List<Dictionary<string, object>>> Loops { get; } =
             new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.Ordinal);
 
@@ -32,6 +34,7 @@ namespace Planscape.Docs.Templates
             Prefix(o, "project.",     Project);
             Prefix(o, "people.",      People);
             Prefix(o, "transmittal.", Transmittal);
+            Prefix(o, "meeting.",     Meeting);
             foreach (var kv in Loops)
                 o["loops." + kv.Key] = kv.Value;
             // Convenience roots so MiniWord templates can also foreach top-level names.
@@ -105,6 +108,14 @@ namespace Planscape.Docs.Templates
             if (m?.Project != null) PopulateProject(ctx, m.Project);
             if (r == null) return ctx;
 
+            // doc.* is the header/footer block every template shares. FromDeliverable populated
+            // it and this factory did not, so {{doc.generated_at}} could only ever render as
+            // <TOKEN_NOT_FOUND> on a transmittal — visible in the issued document.
+            ctx.Doc["generated_at"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'");
+            ctx.Doc["generator"]    = "StingTools";
+            ctx.Doc["number"]       = r.TransmittalId ?? "";
+            ctx.Doc["type"]         = "TRANSMITTAL";
+
             ctx.Transmittal["id"]             = r.TransmittalId ?? "";
             ctx.Transmittal["subject"]        = r.Subject ?? "";
             ctx.Transmittal["reason"]         = r.Reason ?? "";
@@ -135,7 +146,110 @@ namespace Planscape.Docs.Templates
             return ctx;
         }
 
+        /// <summary>
+        /// Builds a context from a meetings.json row for the D14 minutes template.
+        /// <para>
+        /// The store and the template disagree on field names — the store writes
+        /// <c>assigned_to</c>/<c>due_date</c>/<c>num</c>/<c>duration_min</c>, the template asks
+        /// for <c>owner</c>/<c>due</c>/<c>no</c>/<c>duration</c> — so the mapping happens here
+        /// rather than by renaming either side. Empty collections still get one visible
+        /// "none recorded" row: a blank table in an issued minute reads as an omission, whereas
+        /// an explicit row states that nothing was recorded.
+        /// </para>
+        /// </summary>
+        public static TokenContext FromMeeting(JObject meeting, Document doc, TemplateManifest m)
+        {
+            var ctx = new TokenContext();
+            if (m?.Project != null) PopulateProject(ctx, m.Project);
+            if (meeting == null) return ctx;
+
+            string id = meeting["id"]?.ToString() ?? "";
+            ctx.Doc["generated_at"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'");
+            ctx.Doc["generator"]    = "StingTools";
+            ctx.Doc["number"]       = id;
+            ctx.Doc["type"]         = "MEETING_MINUTES";
+
+            ctx.Meeting["id"]       = id;
+            ctx.Meeting["type"]     = meeting["type"]?.ToString() ?? "";
+            ctx.Meeting["date"]     = meeting["date"]?.ToString() ?? "";
+            ctx.Meeting["time"]     = meeting["time"]?.ToString() ?? "";
+            ctx.Meeting["location"] = meeting["location"]?.ToString() ?? "";
+            ctx.Meeting["chair"]    = meeting["chair"]?.ToString() ?? "";
+            ctx.Meeting["status"]   = meeting["status"]?.ToString() ?? "";
+            ctx.Meeting["minutes"]  = meeting["minutes"]?.ToString() ?? "";
+            ctx.People["issued_by"] = meeting["created_by"]?.ToString() ?? "";
+
+            ctx.Loops["attendees"] = Rows(meeting["attendees"], (a, i) => new Dictionary<string, object>
+            {
+                { "name",    Str(a, "name") },
+                { "role",    Str(a, "role") },
+                { "company", First(Str(a, "company"), Str(a, "discipline")) },
+                { "email",   Str(a, "email") },
+            }, "attendees", new[] { "name", "role", "company", "email" });
+
+            ctx.Loops["agenda"] = Rows(meeting["agenda"], (a, i) => new Dictionary<string, object>
+            {
+                { "no",       First(Str(a, "no"), Str(a, "num"), (i + 1).ToString()) },
+                { "topic",    Str(a, "topic") },
+                { "lead",     First(Str(a, "lead"), Str(a, "source")) },
+                { "duration", First(Str(a, "duration"), Str(a, "duration_min")) },
+            }, "agenda", new[] { "no", "topic", "lead", "duration" });
+
+            ctx.Loops["actions"] = Rows(meeting["actions"], (a, i) => new Dictionary<string, object>
+            {
+                { "no",          First(Str(a, "no"), Str(a, "id"), (i + 1).ToString()) },
+                { "description", Str(a, "description") },
+                { "owner",       First(Str(a, "owner"), Str(a, "assigned_to")) },
+                { "due",         First(Str(a, "due"), Str(a, "due_date")) },
+                { "status",      Str(a, "status") },
+            }, "actions", new[] { "no", "description", "owner", "due", "status" });
+
+            ctx.Loops["discussion"] = Rows(meeting["discussion"], (a, i) => new Dictionary<string, object>
+            {
+                { "topic",      Str(a, "topic") },
+                { "ref",        Str(a, "ref") },
+                { "discussion", Str(a, "discussion") },
+                { "decision",   Str(a, "decision") },
+            }, "discussion", new[] { "topic", "ref", "discussion", "decision" });
+
+            return ctx;
+        }
+
         // ── Helpers ─────────────────────────────────────────────────────────
+
+        private static string Str(JToken t, string field) => t?[field]?.ToString() ?? "";
+
+        private static string First(params string[] candidates)
+        {
+            foreach (string c in candidates)
+                if (!string.IsNullOrWhiteSpace(c)) return c;
+            return "";
+        }
+
+        /// <summary>
+        /// Project a stored JArray into loop rows, substituting a single "none recorded" row
+        /// when the collection is absent or empty so the table never renders as a blank box.
+        /// </summary>
+        private static List<Dictionary<string, object>> Rows(
+            JToken source, Func<JToken, int, Dictionary<string, object>> map,
+            string label, string[] fields)
+        {
+            var rows = new List<Dictionary<string, object>>();
+            if (source is JArray arr)
+            {
+                int i = 0;
+                foreach (var item in arr) rows.Add(map(item, i++));
+            }
+            if (rows.Count == 0)
+            {
+                var placeholder = new Dictionary<string, object>(StringComparer.Ordinal);
+                foreach (string f in fields) placeholder[f] = "";
+                // Put the notice in the widest column so it reads as a sentence, not a gap.
+                placeholder[fields.Length > 1 ? fields[1] : fields[0]] = $"(no {label} recorded)";
+                rows.Add(placeholder);
+            }
+            return rows;
+        }
 
         private static void PopulateProject(TokenContext ctx, ProjectManifestBlock p)
         {

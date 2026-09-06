@@ -25,15 +25,18 @@ namespace StingTools.BOQ
     [Regeneration(RegenerationOption.Manual)]
     public class BOQExportCommand : IExternalCommand
     {
-        private static readonly XLColor NavyFill = XLColor.FromArgb(26, 58, 92);
-        private static readonly XLColor HeaderFill = XLColor.FromArgb(46, 94, 142);
+        // MAT-SCHED: the three shared with the material-schedule renderer now live
+        // on BoqXlsxStyle so both workbooks cannot drift apart. Aliased here so the
+        // existing call sites read unchanged.
+        private static readonly XLColor NavyFill = BoqXlsxStyle.NavyFill;
+        private static readonly XLColor HeaderFill = BoqXlsxStyle.HeaderFill;
         private static readonly XLColor ArchDisc = XLColor.FromArgb(214, 228, 240);
         private static readonly XLColor StrDisc = XLColor.FromArgb(235, 230, 250);
         private static readonly XLColor MepDisc = XLColor.FromArgb(255, 243, 224);
         private static readonly XLColor EleDisc = XLColor.FromArgb(252, 235, 235);
         private static readonly XLColor PlmDisc = XLColor.FromArgb(225, 245, 238);
         private static readonly XLColor PsDisc  = XLColor.FromArgb(237, 231, 246);
-        private static readonly XLColor ManualRow = XLColor.FromArgb(255, 251, 230);
+        private static readonly XLColor ManualRow = BoqXlsxStyle.ManualRow;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -88,7 +91,8 @@ namespace StingTools.BOQ
                 {
                     BuildSummarySheet(wb.Worksheets.Add("BOQ Summary"), boq);
                     BuildItemScheduleSheet(wb.Worksheets.Add("Item Schedule"), boq);
-                    BuildMaterialScheduleSheet(wb.Worksheets.Add("Material Schedule"), boq);
+                    // NOT "Material Schedule" — see BuildMaterialScheduleSheet.
+                    BuildMaterialScheduleSheet(wb.Worksheets.Add("Measured by Material"), boq);
                     BuildProvisionalSumsSheet(wb.Worksheets.Add("Provisional Sums"), boq);
                     // G3 — itemised preliminaries get their own section when active.
                     if (boq.PrelimsItemised && boq.PrelimLines != null && boq.PrelimLines.Count > 0)
@@ -359,9 +363,24 @@ namespace StingTools.BOQ
             foreach (var c in ws.ColumnsUsed()) c.AdjustToContents();
         }
 
+        /// <summary>
+        /// A VIEW of the BOQ, not a material schedule.
+        ///
+        /// This sheet filters BOQ rows to the ones measured in m2 / m3 / kg and
+        /// prints them in those measured units. It was called "Material
+        /// Schedule", which was defensible while nothing else claimed the name.
+        /// A real material schedule now exists — MaterialScheduleXlsxWriter,
+        /// which converts to supplier units, sections by construction stage and
+        /// reconciles — and two different documents answering to one name is how
+        /// somebody prices square metres of blockwork as though they were
+        /// blocks. The banner says what the sheet actually is.
+        /// </summary>
         private void BuildMaterialScheduleSheet(IXLWorksheet ws, BOQDocument boq)
         {
-            BannerRow(ws, "Material Schedule — items with material-relevant measurement");
+            BannerRow(ws, "Measured by Material — BOQ rows measured in m2 / m3 / kg, "
+                        + "in MEASURED units. This is a view of the BOQ, not the material "
+                        + "schedule: for buyable quantities in supplier units use "
+                        + "Export Material Schedule.");
             string[] cols = { "NRM2 §", "Category", "Material", "Quantity", "Unit", "Rate UGX", "Rate USD",
                 "Total UGX", "Source", "Level", "Carbon kgCO₂e" };
             WriteHeader(ws, 3, cols);
@@ -532,19 +551,9 @@ namespace StingTools.BOQ
 
         // ── Sheet helpers ──────────────────────────────────────────────────
 
-        private void BannerRow(IXLWorksheet ws, string text)
-        {
-            ws.Cell(1, 1).Value = text;
-            ws.Range(1, 1, 1, 16).Merge().Style.Font.SetBold().Font.SetFontSize(12)
-                .Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(NavyFill);
-        }
+        private void BannerRow(IXLWorksheet ws, string text) => BoqXlsxStyle.BannerRow(ws, text);
 
-        private void WriteHeader(IXLWorksheet ws, int row, string[] cols)
-        {
-            for (int i = 0; i < cols.Length; i++) ws.Cell(row, i + 1).Value = cols[i];
-            ws.Range(row, 1, row, cols.Length).Style.Font.SetBold().Font.SetFontColor(XLColor.White)
-                .Fill.SetBackgroundColor(HeaderFill);
-        }
+        private void WriteHeader(IXLWorksheet ws, int row, string[] cols) => BoqXlsxStyle.WriteHeader(ws, row, cols);
 
         private XLColor DisciplineColor(string disc)
         {

@@ -143,10 +143,18 @@ public class StatusController : ControllerBase
     ///   ownersSeeded            allow-listed Owner rows present in the platform tenant
     ///   ownersLoginable         …of those, how many are active (can sign in)
     ///   ready                   platform tenant present AND ≥1 loginable owner
+    ///   emailProvider           which IEmailService is registered
+    ///   emailConfigured         it has the credentials it needs to send
     /// </summary>
     [HttpGet("bootstrap")]
     public async Task<ActionResult> Bootstrap([FromServices] IConfiguration config, CancellationToken ct)
     {
+        // GetService, not [FromServices]: an unregistered service makes the latter throw
+        // during model binding, and a DIAGNOSTIC endpoint that 500s when something is
+        // missing reports nothing about the very condition it exists to report. One
+        // provider is always registered today; this survives the day one is not.
+        var email = HttpContext.RequestServices.GetService<Planscape.Core.Interfaces.IEmailService>();
+
         // Read across the tenant query filter (no HTTP tenant context here).
         _db.BypassTenantFilter = true;
 
@@ -178,7 +186,33 @@ public class StatusController : ControllerBase
             ownersSeeded            = seeded,
             ownersLoginable         = loginable,
             ready                   = tenant != null && loginable >= 1,
+
+            // Whether invites and password resets can actually be delivered. Added
+            // because an email misconfiguration was undiagnosable from outside: the
+            // only symptom was an invite answering 500 with an EMPTY BODY, which reads
+            // as "the endpoint is broken" rather than "the provider rejected the
+            // recipient". Answering that needed Render's logs.
+            //
+            // The provider TYPE, never its credentials — this endpoint is anonymous.
+            // "configured" is the provider's own IsConfigured, so it means "has what it
+            // needs to try", not "the last send succeeded"; a valid key can still be
+            // refused per-recipient. That is why the send sites log their reason.
+            emailProvider           = email?.GetType().Name ?? "(none registered)",
+            emailConfigured         = EmailConfiguredSafely(email),
+
             checkedUtc              = DateTime.UtcNow,
         });
+    }
+
+    /// <summary>
+    /// <c>IsConfigured</c> reads provider configuration, so a malformed value could
+    /// throw — and this endpoint must answer even then. false means "cannot confirm it
+    /// can send", which is the honest reading of a provider that cannot describe itself.
+    /// </summary>
+    private static bool EmailConfiguredSafely(Planscape.Core.Interfaces.IEmailService? email)
+    {
+        if (email == null) return false;
+        try { return email.IsConfigured; }
+        catch { return false; }
     }
 }

@@ -69,6 +69,37 @@ public class InviteTokenTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
     }
 
+    /// <summary>
+    /// Accepting an invite must hand back a LIVE SESSION, not just a "please log
+    /// in" message. The accept page is served by the API while the product lives
+    /// on another origin, so this response is the only way it can deliver a
+    /// signed-in browser — without it the invitee sets a password and is dumped
+    /// on a guarded route with no session, which is the "page opens and stops"
+    /// report this exists to prevent.
+    /// </summary>
+    [Fact]
+    public async Task AcceptingAnInvite_ReturnsAUsableSession()
+    {
+        var token = await SeedPendingInviteeAsync("pending-session@test.org", DateTime.UtcNow.AddDays(7));
+        var client = _factory.CreateClient();
+
+        var resp = await client.PostAsJsonAsync("/api/auth/reset-password",
+            new { token, newPassword = "BrandNewPass1!" });
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var body = await resp.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        var accessToken = body.GetProperty("accessToken").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(accessToken));
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("refreshToken").GetString()));
+
+        // And it must actually authenticate — a token the API itself rejects
+        // would reproduce the bug with extra steps.
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var me = await client.GetAsync("/api/projects");
+        Assert.NotEqual(HttpStatusCode.Unauthorized, me.StatusCode);
+    }
+
     [Fact]
     public async Task InviteToken_ExpiredIsRejected()
     {

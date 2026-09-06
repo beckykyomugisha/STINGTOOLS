@@ -102,7 +102,7 @@ namespace StingTools.UI
                     return;
                 }
                 status.Text = "Loading…";
-                List<SitePhotoDto> photos;
+                List<SitePhotoDto>? photos;
                 try
                 {
                     photos = await PlanscapeServerClient.Instance.ListSitePhotosAsync(
@@ -112,6 +112,21 @@ namespace StingTools.UI
                 {
                     StingLog.Warn($"GridSubTab.Load: {ex.Message}");
                     status.Text = "Failed — see log";
+                    wrap.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                        "Could not load photos.", ex.Message));
+                    return;
+                }
+
+                if (photos == null)
+                {
+                    // Was "0 photos" + "No photos to show." over every failure,
+                    // including a refusal. Both are answers the grid did not have.
+                    var refused = PlanscapeServerClient.Instance.LastStatus == 403;
+                    status.Text = refused ? "not permitted" : "load failed";
+                    wrap.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
+                        "Could not load photos.",
+                        "Site photos are not available to you on this project.",
+                        PlanscapeCapability.ApproveSitePhotos));
                     return;
                 }
 
