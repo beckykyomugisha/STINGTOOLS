@@ -132,13 +132,14 @@
       elementMap: {},
       meshMeta: new Map(),     // mesh.uuid → meta (M0 resolver — verified at load)
       guidMeshes: new Map(),   // guid → mesh[] (multi-mesh elements)
-      // Only the signed-in user, who is known without asking the server. This
-      // used to seed two named colleagues, so a viewer that was offline or
-      // lacked roster permission still offered real people as assignees —
-      // on projects they may not even be on. loadProjectMembers() replaces
-      // this with the canonical roster; when it can't, the pickers say the
-      // roster is unavailable rather than inventing one.
-      members: [{ id: 'me', name: 'You', initials: 'YO' }],
+      // Assignable people. The ONLY source is GET /api/projects/{id}/members.
+      // No seed, and no synthetic "You" entry: that carried the literal id
+      // 'me', which is not a user id, so an issue assigned to it could never
+      // resolve to a person server-side. An empty list means "we do not know
+      // who is on this project" and the pickers say so rather than offering
+      // someone who might be wrong.
+      members: [],
+      rosterState: 'loading',   // loading | ok | empty | unavailable
       activeDisciplines: new Set(),   // empty = all visible
       selectedElementGuid: null,      // PRIMARY (last-clicked) — kept for
                                       // backward-compat with downstream
@@ -346,8 +347,10 @@
           const initials = (name || 'YO').split(/[\s@]+/).filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase();
           $('#userChip').textContent = initials || 'YO';
           $('#userChip').title = name;
-          // Replace the placeholder "me" member with the real one.
-          state.members = [{ id, name, initials }, ...state.members.filter(m => m.id !== 'me')];
+          // Deliberately does NOT add the current user to state.members.
+          // Being signed in does not make you assignable on this project —
+          // only the project roster decides that, and loadProjectMembers()
+          // pins you to the top of it if you are on it.
         }
       }
       if (apiEnabled && !projectId) {
@@ -641,10 +644,14 @@
     }
 
     async function loadProjectMembers() {
-      if (!projectId) return;
+      if (!projectId) { state.members = []; state.rosterState = 'unavailable'; return; }
       const data = await api(`/api/projects/${projectId}/members`);
+      // api() returns null for every failure — a 403 from a member who can't
+      // read the roster looks the same as a timeout. Either way we don't know
+      // who is on this project, which is different from knowing it is empty.
+      if (data === null) { state.members = []; state.rosterState = 'unavailable'; return; }
       const list = Array.isArray(data) ? data : (data?.items || data?.members || []);
-      if (!list.length) return;     // roster empty/unauth — keep "You" only
+      if (!list.length) { state.members = []; state.rosterState = 'empty'; return; }
       const me = state.currentUser;
       const meId = me && (me.id || me.userId);
       const mapped = list.map(m => {
@@ -662,6 +669,36 @@
         return (a.name || '').localeCompare(b.name || '');
       });
       state.members = sorted;
+      state.rosterState = 'ok';
+    }
+
+    /// Why the people pickers are empty, in words the user can act on.
+    /// Never returns a person — an unavailable roster offers nobody.
+    function rosterEmptyReason() {
+      switch (state.rosterState) {
+        case 'loading':     return 'Loading project members…';
+        case 'empty':       return 'No members on this project yet';
+        case 'unavailable': return 'Project members unavailable';
+        default:            return 'No members available';
+      }
+    }
+
+    /// Fill a <select> from the canonical roster. When the roster is empty the
+    /// control is disabled and explains itself, so nobody can be assigned by
+    /// accident — assigning an issue to the wrong person is worse than not
+    /// being able to assign it yet.
+    function fillMemberSelect(sel, placeholder) {
+      if (!sel) return;
+      if (!state.members.length) {
+        sel.innerHTML = `<option value="">${escapeHtml(rosterEmptyReason())}</option>`;
+        sel.disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+        state.members.map(m =>
+          `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`
+        ).join('');
     }
 
     // Forward a command to the original viewer's handleCommand by dispatching
@@ -5223,18 +5260,11 @@
       modal.dataset.linked = JSON.stringify(linked);
       renderLinkedElements(linked);
 
-      // assignee + watcher pickers — populated from project members API
-      // (see loadProjectMembers in bootstrap), with the demo-seed members
-      // as fallback so first-time / offline runs aren't empty.
-      const assigneeSel = $('#imAssignee');
-      assigneeSel.innerHTML = '<option value="">— Unassigned —</option>' +
-        state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
-
-      const watchSel = $('#imWatchersSelect');
-      if (watchSel) {
-        watchSel.innerHTML = '<option value="">— Add a watcher —</option>' +
-          state.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}${m.role ? ' · ' + escapeHtml(m.role) : ''}</option>`).join('');
-      }
+      // Assignee + watcher pickers, sourced ONLY from the canonical project
+      // roster (GET /api/projects/{id}/members). No free text and no seed:
+      // if we don't know who is on the project, we offer nobody and say why.
+      fillMemberSelect($('#imAssignee'), '— Unassigned —');
+      fillMemberSelect($('#imWatchersSelect'), '— Add a watcher —');
       modal.dataset.watchers = '[]';
       const chips = $('#imWatcherChips'); if (chips) chips.innerHTML = '';
 
