@@ -741,7 +741,10 @@ namespace StingTools.Temp
         {
             try
             {
-                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                // GetDoc, not commandData.Application: null from the dock panel, which
+                // made this command load the Uniclass map for no document and report a
+                // clean empty result.
+                var doc = ParameterHelpers.GetDoc(commandData);
                 UniclassMapRegistry.Reload();
                 var map = UniclassMapRegistry.Get(doc);
 
