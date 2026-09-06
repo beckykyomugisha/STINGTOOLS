@@ -273,6 +273,7 @@ SUFFIX_REPLACEMENTS = [
     ('_LM_W', '_TXT'), ('_SQ_M', '_TXT'), ('_CU_M', '_TXT'),
     ('_MM2', '_TXT'), ('_M2K_W', '_TXT'), ('_W_M2K', '_TXT'),
     ('_KN_M2', '_TXT'), ('_INT', '_TXT'), ('_NR', '_TXT'),
+    ('_BOOL', '_TXT'),
     ('_DBL', '_TXT'),
     ('_MM', '_TXT'), ('_M2', '_TXT'), ('_KW', '_TXT'),
     ('_KPA', '_TXT'), ('_KNM', '_TXT'), ('_KA', '_TXT'),
@@ -363,11 +364,19 @@ def main():
         current_type = p[3]
 
         # ── Rule 1: Any _BOOL param that is TEXT → YESNO ─────────────────────
+        # YESNO is the right storage for a flag, and for a gate used as the
+        # condition of a formula. It is the wrong storage for anything a LABEL
+        # reads, so a label-referenced flag falls through to rule 4 for a mirror
+        # instead of returning here. Without that, regenerating from a state
+        # where the flag is still TEXT would convert it and skip the mirror --
+        # the exact hole that left fourteen labels reading a Yes/No parameter.
         if name.endswith('_BOOL') and current_type == 'TEXT':
             p[3] = 'YESNO'
+            current_type = 'YESNO'
             bool_fixed += 1
-            out_lines.append(build_param_line(p))
-            continue
+            if name not in label_referenced():
+                out_lines.append(build_param_line(p))
+                continue
 
         # ── Rule 2 + 3: Native-typed params ──────────────────────────────────
         # ...except where COBie writes the parameter. COBie import writes every
@@ -440,8 +449,7 @@ def main():
         # _BOOL parameters are NOT handled here. fix_label_definitions.py leaves
         # them alone by design, so remapping them would produce a mirror nothing
         # points at. They are a separate decision.
-        if (current_type != 'TEXT' and not name.endswith('_BOOL')
-                and name in label_referenced()):
+        if current_type != 'TEXT' and name in label_referenced():
             mirror_name = make_mirror_name(name)
             out_lines.append(build_param_line(p))
             if mirror_name != name and mirror_name not in existing_names:

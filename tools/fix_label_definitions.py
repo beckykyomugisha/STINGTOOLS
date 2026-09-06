@@ -5,7 +5,7 @@ Rewrite LABEL_DEFINITIONS.json so every 'param' value that references
 a native-typed param is changed to the corresponding _TXT mirror.
 
 Rules:
-- If param already ends with _TXT or _BOOL: leave alone
+- If param already ends with _TXT or _DT: leave alone
 - If param ends with _DT: it's a date TEXT param, leave alone
 - Otherwise: apply same suffix-replacement logic to get mirror name
   If mirror exists in MR_PARAMETERS.txt: use it
@@ -29,6 +29,7 @@ SUFFIX_REPLACEMENTS = [
     ('_LM_W', '_TXT'), ('_SQ_M', '_TXT'), ('_CU_M', '_TXT'),
     ('_MM2', '_TXT'), ('_M2K_W', '_TXT'), ('_W_M2K', '_TXT'),
     ('_KN_M2', '_TXT'), ('_INT', '_TXT'), ('_NR', '_TXT'),
+    ('_BOOL', '_TXT'),
     ('_DBL', '_TXT'),
     ('_MM', '_TXT'), ('_M2', '_TXT'), ('_KW', '_TXT'),
     ('_KPA', '_TXT'), ('_KNM', '_TXT'), ('_KA', '_TXT'),
@@ -45,7 +46,16 @@ SUFFIX_REPLACEMENTS = [
 ]
 
 def mirror_name(name):
-    if name.endswith('_TXT') or name.endswith('_BOOL') or name.endswith('_DT'):
+    # _BOOL is NOT skipped any more. A label-referenced Yes/No parameter is
+    # exactly what LabelParamTypeValidator forbids: "Revit label formulas
+    # cannot use YESNO parameters as the condition of if(...)". Phase 188's
+    # rule 1 converted every _BOOL from TEXT to YESNO without asking whether a
+    # label referenced it, and skipping them here left fourteen labels reading
+    # a type Revit will not accept. They now read a mirror, and the flag itself
+    # stays YESNO, which is the right storage for a gate.
+    #
+    # _DT stays: date parameters are held as TEXT already.
+    if name.endswith('_TXT') or name.endswith('_DT'):
         return name
     for suffix, replacement in SUFFIX_REPLACEMENTS:
         if name.endswith(suffix):
@@ -102,7 +112,7 @@ def main():
         json.dump(data, f, indent=2, ensure_ascii=False)
 
     print(f"Remapped: {stats['remapped']}, No mirror (left as-is): {stats['no_mirror']}, "
-          f"Unchanged (already _TXT/_BOOL/_DT): {stats['unchanged']}")
+          f"Unchanged (already _TXT/_DT): {stats['unchanged']}")
 
 if __name__ == '__main__':
     main()

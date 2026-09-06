@@ -1,4 +1,4 @@
-# v6.8 | 20260906 | 3571 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 20260906 | 3585 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3580,3 +3580,17 @@ Generic Models,CLN_DESIGN_ACH_TXT,54585940-def4-5b44-8cb7-5be896bfaf2b,TEXT,CLN_
 Generic Models,CLN_DESIGN_PRESSURE_DELTA_PA_TXT,5d74a16b-b783-59e7-bce9-602f2b43b76b,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_PRESSURE_DELTA_PA_INT display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,CLN_DESIGN_RH_PCT_TXT,1af62727-9c3a-5bae-ae04-fd8b3922d570,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_RH_PCT_INT display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,CLN_DESIGN_TEMP_C_TXT,f10b18c6-2247-5dab-a9cf-05b88bf10067,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_TEMP_C_DBL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,ASS_TIEIN_CONNECTED_TXT,a78e02c6-8025-5326-832d-caf45625a45c,TEXT,ASS_MNG,Instance,ASS_TIEIN_CONNECTED_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,RGL_KCCA_APPROVAL_REQ_TXT,4a0862b4-6bb6-5c6a-b24a-226fab405683,TEXT,RGL_CMPL,Instance,RGL_KCCA_APPROVAL_REQ_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CST_IMPORT_REQUIRED_TXT,05a80ccb-448d-53f7-a7c9-fb29eda7f53f,TEXT,COM_DAT,Instance,CST_IMPORT_REQUIRED_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CST_LOCAL_MAT_TXT,2fd89c42-0d29-5ce5-bc6f-4d2b9bad9b20,TEXT,COM_DAT,Instance,CST_LOCAL_MAT_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,ELC_CBT_SHOP_DRAWING_REQ_TXT,b7434e90-6ece-5ebc-9239-7ce93c34ccae,TEXT,ELC_PWR,Instance,ELC_CBT_SHOP_DRAWING_REQ_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,HVC_DCT_SHOP_DRAWING_REQ_TXT,dc5bf2a8-1bbe-585c-bdc6-ae5184be4d7e,TEXT,HVC_SYSTEMS,Instance,HVC_DCT_SHOP_DRAWING_REQ_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,PLM_PPE_SHOP_DRAWING_REQ_TXT,04a21c59-3d58-5586-b088-b3fa9e69728f,TEXT,PLM_DRN,Instance,PLM_PPE_SHOP_DRAWING_REQ_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,RGL_NWSC_APPROVAL_REQ_TXT,1030f4bd-5c97-501c-b1eb-a3b7ecc8286f,TEXT,RGL_CMPL,Instance,RGL_NWSC_APPROVAL_REQ_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,PER_CONDENSATION_RISK_TXT,50a067ec-afd3-55a0-bfb5-3d1fafd4003f,TEXT,PER_SUST,Instance,PER_CONDENSATION_RISK_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_GLAZING_TXT,4bb218e5-fa70-5af6-90c6-000a98b16a75,TEXT,BLE_ELES,Instance,BLE_DOOR_GLAZING_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,BLE_RAMP_HANDRAIL_TXT,e8d38671-8d8b-5902-a545-d7d6f0a2477e,TEXT,BLE_ELES,Instance,BLE_RAMP_HANDRAIL_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_HOIST_TRACK_TXT,3531c44b-b6bc-593b-a444-0d33d92c0a00,TEXT,CLN_CLINICAL,Instance,CLN_HOIST_TRACK_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,HVC_SIZE_STALE_TXT,5de70b4b-5edd-5121-a237-c134befdfe49,TEXT,HVC_SYSTEMS,Instance,HVC_SIZE_STALE_BOOL display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,ASS_CST_STALE_TXT,59de159f-ea20-5f57-b508-5679ddc19d37,TEXT,CST_PROC,Instance,ASS_CST_STALE_BOOL display mirror [auto-generated],False,,,MULTI,1,0
