@@ -281,6 +281,21 @@ namespace StingTools.BOQ
             return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
         }
 
+        /// <summary>First material on the element, or "". Never throws.</summary>
+        private static string SafePrimaryMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                var ids = el?.GetMaterialIds(false);
+                if (ids != null)
+                    foreach (var id in ids)
+                        if (id != null && id.Value > 0)
+                            return doc.GetElement(id)?.Name ?? "";
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("BoqMat", "SafePrimaryMaterialName: " + ex.Message); }
+            return "";
+        }
+
         private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
         {
             // Store an isolated clone so a later caller mutating the returned rows
@@ -819,6 +834,11 @@ namespace StingTools.BOQ
                 ItemName = GetElementDisplayName(el),
                 FamilyName = GetFamilyName(el),
                 TypeName = el.Name ?? "",
+                // The material, for supplier-unit matching. This is the row that
+                // produced "Generic - 225mm" for a roof whose material said
+                // "Asphalt Shingle" — the type name was wrong by a factor of
+                // ten and the material was exactly right.
+                MaterialName = SafePrimaryMaterialName(doc, el),
                 Quantity = quantity,
                 Unit = unit,
                 GrossQuantity = grossQty,

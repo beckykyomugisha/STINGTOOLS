@@ -403,6 +403,7 @@ namespace StingTools.BOQ.Takeoff
                     ItemName = c.Description,
                     FamilyName = GetFamilyName(doc, el),
                     TypeName = el.Name ?? "",
+                    MaterialName = GetPrimaryMaterialName(doc, el) ?? "",
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
                     ConstituentKind = c.Kind,
