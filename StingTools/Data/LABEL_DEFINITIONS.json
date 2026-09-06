@@ -2187,7 +2187,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -3018,7 +3018,7 @@
           "size": "2.0"
         },
         {
-          "param": "BLE_DOOR_GLAZING_BOOL",
+          "param": "BLE_DOOR_GLAZING_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Glazed:",
@@ -4360,7 +4360,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -6093,7 +6093,7 @@
           "size": "2.0"
         },
         {
-          "param": "BLE_RAMP_HANDRAIL_BOOL",
+          "param": "BLE_RAMP_HANDRAIL_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Handrail:",
@@ -6494,7 +6494,7 @@
           "size": "2.0"
         },
         {
-          "param": "PER_CONDENSATION_RISK_BOOL",
+          "param": "PER_CONDENSATION_RISK_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Cond:",
@@ -8521,7 +8521,7 @@
           "size": "2.0"
         },
         {
-          "param": "PER_CONDENSATION_RISK_BOOL",
+          "param": "PER_CONDENSATION_RISK_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Cond Risk:",
@@ -8575,7 +8575,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -30745,7 +30745,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -31258,7 +31258,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -46256,7 +46256,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -46424,7 +46424,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -46796,7 +46796,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -47178,7 +47178,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -47441,7 +47441,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_DCT_SHOP_DRAWING_REQ_BOOL",
+          "param": "HVC_DCT_SHOP_DRAWING_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Shop:",
@@ -47593,7 +47593,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Local:",
@@ -47753,7 +47753,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -48165,7 +48165,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -48954,7 +48954,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -49122,7 +49122,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -49543,7 +49543,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -49907,7 +49907,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -50290,7 +50290,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -50542,7 +50542,7 @@
           "size": "2.0"
         },
         {
-          "param": "PLM_PPE_SHOP_DRAWING_REQ_BOOL",
+          "param": "PLM_PPE_SHOP_DRAWING_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Shop:",
@@ -50683,7 +50683,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Local:",
@@ -50843,7 +50843,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -51102,7 +51102,7 @@
           "size": "2.0"
         },
         {
-          "param": "RGL_NWSC_APPROVAL_REQ_BOOL",
+          "param": "RGL_NWSC_APPROVAL_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "NWSC:",
@@ -51198,7 +51198,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Local:",
@@ -51341,7 +51341,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -51509,7 +51509,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -51757,7 +51757,7 @@
           "size": "2.0"
         },
         {
-          "param": "RGL_KCCA_APPROVAL_REQ_BOOL",
+          "param": "RGL_KCCA_APPROVAL_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "KCCA:",
@@ -52176,7 +52176,7 @@
           "size": "2.0"
         },
         {
-          "param": "RGL_KCCA_APPROVAL_REQ_BOOL",
+          "param": "RGL_KCCA_APPROVAL_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "KCCA:",
@@ -52279,7 +52279,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Local:",
@@ -52412,7 +52412,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -53063,7 +53063,7 @@
           "size": "2.0"
         },
         {
-          "param": "ELC_CBT_SHOP_DRAWING_REQ_BOOL",
+          "param": "ELC_CBT_SHOP_DRAWING_REQ_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Shop:",
@@ -53146,7 +53146,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -53279,7 +53279,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -54059,7 +54059,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -54192,7 +54192,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -55165,7 +55165,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -55740,7 +55740,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -56695,7 +56695,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -57234,7 +57234,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -57696,7 +57696,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -58151,7 +58151,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -58615,7 +58615,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -59431,7 +59431,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -59819,7 +59819,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Local:",
@@ -59828,7 +59828,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_IMPORT_REQUIRED_BOOL",
+          "param": "CST_IMPORT_REQUIRED_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Import:",
@@ -59979,7 +59979,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -60811,7 +60811,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -61312,7 +61312,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -61800,7 +61800,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -64619,7 +64619,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_CST_STALE_BOOL",
+          "param": "ASS_CST_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Stale: ",
@@ -64777,7 +64777,7 @@
           "size": "2.0"
         },
         {
-          "param": "HVC_SIZE_STALE_BOOL",
+          "param": "HVC_SIZE_STALE_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "StaleSize: ",
@@ -74615,7 +74615,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -74979,7 +74979,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -75316,7 +75316,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -75652,7 +75652,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -75999,7 +75999,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -76354,7 +76354,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_TIEIN_CONNECTED_BOOL",
+          "param": "ASS_TIEIN_CONNECTED_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "Resolved:",
@@ -77950,7 +77950,7 @@
           "size": "2.0"
         },
         {
-          "param": "CST_LOCAL_MAT_BOOL",
+          "param": "CST_LOCAL_MAT_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Local:",
@@ -79272,7 +79272,7 @@
           "size": "2.0"
         },
         {
-          "param": "CLN_HOIST_TRACK_BOOL",
+          "param": "CLN_HOIST_TRACK_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",

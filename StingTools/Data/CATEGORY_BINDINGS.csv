@@ -1,4 +1,4 @@
-# v3.9 | 20260906 | 1273 rows binding 130 _TXT mirror params to their source categories (Phase 188)
+# v3.9 | 20260906 | 1361 rows binding 136 _TXT mirror params to their source categories (Phase 188)
 # v3.8 | 20260708 | fix cross-discipline over-bindings: HVC_TERMINAL->Air Terminals; +LIG/ICT/COM/NCL/SEC/MED/MGS/RAD/CEQ/CLN discipline-scoped rows (param->category binding accuracy)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
 # v3.6 | 20260630 | +30 Tier-2 element-bound param bindings (electrical/plumbing/design-option/sheet/view/clash/IFC)
@@ -18554,3 +18554,91 @@ CLN_DESIGN_TEMP_C_TXT,Specialty Equipment,Instance,True
 CLN_DESIGN_TEMP_C_TXT,Medical Equipment,Instance,True
 CLN_DESIGN_TEMP_C_TXT,Mechanical Equipment,Instance,True
 CLN_NOISE_NR_TXT,Rooms,Instance,True
+ASS_CST_STALE_TXT,Air Terminals,Type,True
+ASS_CST_STALE_TXT,Cable Trays,Type,True
+ASS_CST_STALE_TXT,Casework,Type,True
+ASS_CST_STALE_TXT,Conduits,Type,True
+ASS_CST_STALE_TXT,Electrical Equipment,Type,True
+ASS_CST_STALE_TXT,Electrical Fixtures,Type,True
+ASS_CST_STALE_TXT,Furniture,Type,True
+ASS_CST_STALE_TXT,Generic Models,Type,True
+ASS_CST_STALE_TXT,Lighting Fixtures,Type,True
+ASS_CST_STALE_TXT,Mechanical Equipment,Type,True
+ASS_CST_STALE_TXT,Plumbing Equipment,Type,True
+ASS_CST_STALE_TXT,Plumbing Fixtures,Type,True
+ASS_CST_STALE_TXT,Specialty Equipment,Type,True
+ASS_CST_STALE_TXT,Sprinklers,Type,True
+ASS_CST_STALE_TXT,Communication Devices,Type,True
+ASS_CST_STALE_TXT,Telephone Devices,Type,True
+ASS_CST_STALE_TXT,Data Devices,Type,True
+ASS_CST_STALE_TXT,Security Devices,Type,True
+ASS_CST_STALE_TXT,Nurse Call Devices,Type,True
+CLN_HOIST_TRACK_TXT,Rooms,Instance,True
+CST_IMPORT_REQUIRED_TXT,Air Terminals,Type,True
+CST_IMPORT_REQUIRED_TXT,Cable Trays,Type,True
+CST_IMPORT_REQUIRED_TXT,Casework,Type,True
+CST_IMPORT_REQUIRED_TXT,Conduits,Type,True
+CST_IMPORT_REQUIRED_TXT,Electrical Equipment,Type,True
+CST_IMPORT_REQUIRED_TXT,Electrical Fixtures,Type,True
+CST_IMPORT_REQUIRED_TXT,Furniture,Type,True
+CST_IMPORT_REQUIRED_TXT,Generic Models,Type,True
+CST_IMPORT_REQUIRED_TXT,Lighting Fixtures,Type,True
+CST_IMPORT_REQUIRED_TXT,Mechanical Equipment,Type,True
+CST_IMPORT_REQUIRED_TXT,Plumbing Equipment,Type,True
+CST_IMPORT_REQUIRED_TXT,Plumbing Fixtures,Type,True
+CST_IMPORT_REQUIRED_TXT,Specialty Equipment,Type,True
+CST_IMPORT_REQUIRED_TXT,Sprinklers,Type,True
+CST_LOCAL_MAT_TXT,Air Terminals,Type,True
+CST_LOCAL_MAT_TXT,Cable Trays,Type,True
+CST_LOCAL_MAT_TXT,Casework,Type,True
+CST_LOCAL_MAT_TXT,Conduits,Type,True
+CST_LOCAL_MAT_TXT,Electrical Equipment,Type,True
+CST_LOCAL_MAT_TXT,Electrical Fixtures,Type,True
+CST_LOCAL_MAT_TXT,Furniture,Type,True
+CST_LOCAL_MAT_TXT,Generic Models,Type,True
+CST_LOCAL_MAT_TXT,Lighting Fixtures,Type,True
+CST_LOCAL_MAT_TXT,Mechanical Equipment,Type,True
+CST_LOCAL_MAT_TXT,Plumbing Equipment,Type,True
+CST_LOCAL_MAT_TXT,Plumbing Fixtures,Type,True
+CST_LOCAL_MAT_TXT,Specialty Equipment,Type,True
+CST_LOCAL_MAT_TXT,Sprinklers,Type,True
+HVC_SIZE_STALE_TXT,Ducts,Instance,True
+HVC_SIZE_STALE_TXT,Flex Ducts,Instance,True
+RGL_KCCA_APPROVAL_REQ_TXT,Air Terminals,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Cable Trays,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Casework,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Ceilings,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Conduits,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Curtain Panels,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Curtain Wall Mullions,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Doors,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Ducts,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Electrical Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Electrical Fixtures,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Floors,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Furniture,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Generic Models,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Lighting Fixtures,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Mechanical Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Pipe Accessories,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Pipe Fittings,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Pipes,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Plumbing Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Plumbing Fixtures,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Ramps,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Roofs,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Rooms,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Specialty Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Sprinklers,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Stairs,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Walls,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Windows,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Flex Ducts,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Duct Accessories,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Duct Fittings,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Columns,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Curtain Systems,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Flex Pipes,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Furniture Systems,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Medical Equipment,Type,True
+RGL_KCCA_APPROVAL_REQ_TXT,Railings,Type,True
