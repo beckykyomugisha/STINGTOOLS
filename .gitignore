@@ -142,3 +142,7 @@ stingtools-bonsai/wheels/*.whl
 # user-created at runtime under <project>/_BIM_COORD/ and must never be committed.
 niagara_connection.json
 **/niagara_connection.json
+
+# hand-back watcher runtime state (see the watcher script)
+.handback.lock
+.handback.log
