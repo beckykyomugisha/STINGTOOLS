@@ -73,10 +73,10 @@
 | 2.4 | Tender issue | M9–M10 | 350 | Tender set issued from the CDE |
 | 2.5 | **Conformed set** | M11 | 350 | Addenda incorporated, set reissued |
 | 3.1 | Construction administration | M12–M43 | 400 | Fabrication/installation-ready information |
-| 3.2 | FF&E installation | M40–M43 | 400 | FF&E installed and reconciled to Fohlio |
-| 3.3 | Close-out — **Deliverable D** | M44–M45 | 500 | Verified record model + handover data |
+| 3.2 | FF&E installation | M44–M47 | 400 | FF&E installed and reconciled to Fohlio |
+| 3.3 | Close-out — **Deliverable D** | M48–M49 | 500 | Verified record model + handover data |
 
-> **LOD 500 at Deliverable D.** This was previously stated as 400. It is now 500, with LOD 400 sitting at the construction stage. LOD 500 means *verified as-built* — the element matches what was actually installed, and carries its asset data (serial number, installation date). Plan for it from Stage 3.1, not from M44.
+> **LOD 500 at Deliverable D.** This was previously stated as 400. It is now 500, with LOD 400 sitting at the construction stage. LOD 500 means *verified as-built* — the element matches what was actually installed, and carries its asset data (serial number, installation date). Plan for it from Stage 3.1, not from M48.
 
 ---
 
@@ -520,13 +520,13 @@ Addenda and tender-stage changes incorporated; the set is regenerated and reissu
 
 **Exit:** construction information complete; as-built capture current to within one month.
 
-## 6.7 STAGE 3.2 — FF&E installation · M40–M43
+## 6.7 STAGE 3.2 — FF&E installation · M44–M47
 
 FF&E installed; the model and the Fohlio record reconciled item by item; finishes verified against the installed condition.
 
 **Exit:** FF&E schedule reconciled; no unlinked FF&E items; O&M data collected in Fohlio.
 
-## 6.8 STAGE 3.3 — Close-out · Deliverable D · LOD 500 · M44–M45
+## 6.8 STAGE 3.3 — Close-out · Deliverable D · LOD 500 · M48–M49
 
 Within 60 days of furniture installation.
 

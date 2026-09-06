@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
+import kut_docs_lib as K  # noqa: E402
 
 OUT = 'KUT_BIM_Execution_Plan.docx'
 
@@ -117,8 +118,9 @@ c.table(['Item', 'Detail'],
          ['Description', '[FILL — temple and ancillary buildings, gross floor area, storeys]'],
          ['Procurement route', '[FILL]'],
          ['Form of contract', '[FILL]'],
-         ['Programme', '49 months. Phase 2 (design) 11 months; Phase 3 (construction and close-out) 38 months. '
-                       'See Section 9'],
+         ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months. '
+                       'See Section 9'
+                       % (K.TOTAL_MONTHS, K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'])],
          ['Key dates', '[FILL — appointment, Deliverables A to D, practical completion]']],
         widths=[4.4, 12.2])
 
@@ -338,7 +340,7 @@ c.table(['Field', 'Length', 'Permitted values'],
          ['Originator', '[FILL — 3, subject to Section 4.2.1]', 'Per the originator register'],
          ['Volume', '2', '01 to 06 per Section 1.3; 00 site-wide; ZZ all volumes'],
          ['Level', '2', 'B1, GF, 01 upward, RF, ZZ all levels, XX not applicable'],
-         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR'],
+         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR, TR, BQ'],
          ['Role', '1 to 2', 'A, S, M, E, P, FP, LV, G. Z is used for multi-discipline and federated containers'],
          ['Number', '4', 'Sequential within the set']],
         widths=[2.6, 3.6, 10.4])
@@ -745,15 +747,12 @@ c.para('Each task team submits a Task Information Delivery Plan setting out its 
        'information need and responsible person. The Information Manager aggregates these into the Master '
        'Information Delivery Plan, which is baselined at mobilisation and reissued at each stage and data drop.')
 c.table(['Milestone', 'Stage', 'LOD', 'Planned (relative month)'],
-        [['Basis of Design (Deliverable A)', '2.1', '200', 'M1'],
-         ['Developed Design (Deliverable B)', '2.2', '300', 'M4'],
-         ['Technical Design (Deliverable C)', '2.3', '350', 'M8'],
-         ['Tender issue and award', '2.4', '—', 'M9 to M11'],
-         ['Conformed set', '2.5', '350', 'M11'],
-         ['Construction', '3.1', '400', 'M12 to M43'],
-         ['FF&E installation', '3.2', '400', 'M40 to M43'],
-         ['Close-out (Deliverable D)', '3.3', '500', 'M45']],
+        [[title, stage, lod or '—', K.programme_label(stage)]
+         for stage, title, lod, _months, _kind in K.WORK_PROGRAMME],
         widths=[6.4, 2.4, 2.0, 5.8])
+c.para('Months are counted from the appointment and run in sequence: %d months for Phase 2 and %d for Phase 3, '
+       '%d in total. Calendar dates are fixed against the appointment date once it is confirmed.'
+       % (K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'], K.TOTAL_MONTHS))
 
 # ── 10 ──────────────────────────────────────────────────────────────────────
 c.h1('10  Quality assurance and model validation')
@@ -944,7 +943,7 @@ c.table(['Data', 'A', 'B', 'C', 'FF&E', 'D'],
          ['Maintenance interval', 'Yes', '—', '—', '—', '—'],
          ['Recommended spares', 'Yes', '—', '—', '—', '—'],
          ['Commissioning date', 'Yes', '—', '—', '—', '—'],
-         ['FF&E reference', '—', '—', '—', 'Yes', '—']],
+         ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes', '—']],
         widths=[6.2, 2.2, 3.6, 2.2, 1.6, 2.4], font=8)
 c.callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
           'cause-and-effect schedule, the panel and any future maintenance actually use; a device serial '
@@ -1008,8 +1007,17 @@ c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],
          ['15', 'TIDPs returned by every appointed party', 'Section 9', 'Task Team Managers', '[OPEN]'],
          ['16', 'MIDP baselined from the TIDPs', 'Section 9', 'Information Manager', '[OPEN]'],
          ['17', 'Capability and capacity assessed', 'Section 12.1', 'Lead Appointed Party', '[OPEN]'],
-         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]']],
+         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]'],
+         ['18a', 'FF&E catalogue scope confirmed — which categories are procured and '
+                 'specified through the FF&E database', 'Section 14.2', 'Appointing Party', '[OPEN]']],
         widths=[1.0, 6.6, 3.4, 3.4, 2.2], font=8)
+c.callout('Item 18a affects what is required at handover. The project position is that six categories carry an '
+          'FF&E reference: furniture, furniture systems, casework, lighting fixtures, plumbing fixtures and '
+          'specialty equipment. That is the set the FF&E export covers, so it is the set the close-out check '
+          'enforces. If the Appointing Party procures only loose furniture through the catalogue, the other '
+          'four categories come out of scope and the requirement narrows accordingly. Settling this at the '
+          'kickoff costs nothing; settling it at Deliverable D means either an unenforceable requirement or a '
+          'retrospective data-capture exercise.', 'One to confirm at the kickoff')
 
 c.h2('15.3  Before the first coordination share')
 c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],

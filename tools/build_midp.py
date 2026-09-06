@@ -123,16 +123,46 @@ R = [
     ('Z-513', 'Contractor', 'Asset data capture (tiered schedule, BEP section 14)', 'Schedule', '3.1 Construction', '400', 'XLSX', 'S2', 'Shared', 'M12-M43', 'Contractor', 'TIDP-C', 'Tier A serialised plant, Tier B maintainable devices, Tier C warranted fabric. Required for LOD 500; reported monthly from the first month of construction'),
     ('Z-514', 'Information Management', 'Asset data completeness report', 'Report', '3.1 Construction', '400', 'XLSX/PDF', 'S2', 'Shared', 'M12-M43', 'Information Manager', 'TIDP-Z', 'Monthly, by tier and by volume. A tier below 95 per cent at the Deliverable D gate is a gate failure'),
     ('M-520', 'Mechanical', 'Commissioning point list', 'Schedule', '3.1 Construction', '400', 'CSV', 'S2', 'Shared', 'M40', 'MEP lead', 'TIDP-M', 'Produced from the model for the controls contractor'),
-    ('FF-600', 'FF&E', 'FF&E final schedule and procurement record', 'Schedule', '3.2 FF&E', '400', 'XLSX', 'A1', 'Published', 'M43', 'Interior Designer', 'TIDP-FF', 'Reconciled item by item'),
-    ('A-700', 'Architecture', 'As-built architectural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'Architecture lead', 'TIDP-A', 'Verified as-built'),
-    ('S-700', 'Structure', 'As-built structural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'Structural lead', 'TIDP-S', ''),
-    ('M-700', 'Mechanical', 'As-built MEP model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'MEP lead', 'TIDP-M', 'Includes Tier A and Tier B asset data'),
-    ('Z-700', 'Information Management', 'COBie handover dataset', 'Schedule', '3.3 Deliverable D', '500', 'XLSX', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', 'COBie 2.4'),
-    ('Z-701', 'Information Management', 'Operation and maintenance / asset data pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-702', 'Information Management', 'Reconciled building management system point register', 'Schedule', '3.3 Deliverable D', '500', 'CSV/PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', 'Model reconciled to the live station'),
-    ('Z-703', 'Information Management', 'Deliverable D gate pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-704', 'Information Management', 'Final transmittal and project archive', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Archived', 'M45', 'Information Manager', 'TIDP-Z', ''),
+    ('FF-600', 'FF&E', 'FF&E final schedule and procurement record', 'Schedule', '3.2 FF&E', '400', 'XLSX', 'A1', 'Published', 'M47', 'Interior Designer', 'TIDP-FF', 'Reconciled item by item'),
+    ('A-700', 'Architecture', 'As-built architectural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M49', 'Architecture lead', 'TIDP-A', 'Verified as-built'),
+    ('S-700', 'Structure', 'As-built structural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M49', 'Structural lead', 'TIDP-S', ''),
+    ('M-700', 'Mechanical', 'As-built MEP model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M49', 'MEP lead', 'TIDP-M', 'Includes Tier A and Tier B asset data'),
+    ('Z-700', 'Information Management', 'COBie handover dataset', 'Schedule', '3.3 Deliverable D', '500', 'XLSX', 'A1', 'Published', 'M49', 'Information Manager', 'TIDP-Z', 'COBie 2.4'),
+    ('Z-701', 'Information Management', 'Operation and maintenance / asset data pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M49', 'Information Manager', 'TIDP-Z', ''),
+    ('Z-702', 'Information Management', 'Reconciled building management system point register', 'Schedule', '3.3 Deliverable D', '500', 'CSV/PDF', 'A1', 'Published', 'M49', 'Information Manager', 'TIDP-Z', 'Model reconciled to the live station'),
+    ('Z-703', 'Information Management', 'Deliverable D gate pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M49', 'Information Manager', 'TIDP-Z', ''),
+    ('Z-704', 'Information Management', 'Final transmittal and project archive', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Archived', 'M49', 'Information Manager', 'TIDP-Z', ''),
 ]
+
+
+def _check_months():
+    """Every planned month must fall inside the stage that owns the row.
+
+    The August pack had FF-600 planned at M43 while stage 3.2 ran M44-M47, and
+    the whole 3.3 block at M45 against a stage running M48-M49. Both read as
+    ordinary dates; nothing connected the Month column to the Stage column, so
+    the contradiction was invisible until the programme was added up by hand.
+    Stage ranges come from kut_docs_lib.WORK_PROGRAMME -- the Owner's durations.
+    """
+    ranges = K.stage_months()
+    bad = []
+    for row in R:
+        stage, month = row[4], row[9]
+        key = stage.split()[0]
+        if key not in ranges or not month.startswith('M'):
+            continue                      # Mobilisation and n/a rows carry no stage
+        start, end, _ = ranges[key]
+        for part in month.lstrip('M').split('-'):
+            if not part.isdigit():
+                continue
+            if not start <= int(part) <= end:
+                bad.append('%s planned %s, but stage %s runs M%d to M%d'
+                           % (row[0], month, key, start, end))
+    if bad:
+        raise SystemExit('MIDP month/stage mismatch:\n  ' + '\n  '.join(bad))
+
+
+_check_months()
 
 
 def style_header(ws, row, ncols):

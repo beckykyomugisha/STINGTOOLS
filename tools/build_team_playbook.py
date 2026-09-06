@@ -13,6 +13,7 @@ from docx.shared import Cm, Pt, RGBColor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
+import kut_docs_lib as K  # noqa: E402
 
 OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
 c = CorporateDoc()
@@ -138,7 +139,8 @@ table(['Item', 'Detail'],
        ['Lead Appointed Party', 'Symbion Consulting Group Studios'],
        ['Information Manager', 'Symbion Consulting Group Studios'],
        ['Procurement route', '[FILL]'],
-       ['Programme', '49 months. Phase 2 (design) 11 months; Phase 3 (construction and close-out) 38 months'],
+       ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months'
+                     % (K.TOTAL_MONTHS, K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'])],
        ['Key dates', '[FILL — appointment, Deliverables A to D, practical completion]']],
       widths=[5.0, 11.6])
 
@@ -170,14 +172,19 @@ table(['Volume code', 'Volume', 'Numbering value'],
 h2('2.4  Stages and information gates')
 table(['Stage', 'Name', 'Months', 'LOD', 'Gate'],
       [['0', 'Mobilisation', 'M0 to M1', '—', 'Kit issued, teams trained, CDE operational'],
-       ['2.1', 'Basis of Design (Deliverable A)', 'M1', '200', 'Massing and generic systems coordinated'],
-       ['2.2', 'Developed Design (Deliverable B, 50%)', 'M2 to M4', '300', 'Real geometry, correctly located'],
-       ['2.3', 'Technical Design (Deliverable C, 100%)', 'M5 to M8', '350', 'Interfaces and connections resolved'],
-       ['2.4', 'Tender', 'M9 to M10', '350', 'Tender set issued from the CDE'],
-       ['2.5', 'Conformed set', 'M11', '350', 'Addenda incorporated and reissued'],
-       ['3.1', 'Construction administration', 'M12 to M43', '400', 'Fabrication and installation-ready information'],
-       ['3.2', 'FF&E installation', 'M40 to M43', '400', 'FF&E installed and reconciled'],
-       ['3.3', 'Close-out (Deliverable D)', 'M44 to M45', '500', 'Verified record model and handover data']],
+       ['2.1', 'Basis of Design (Deliverable A)', K.span_label('2.1'), '200',
+        'Massing and generic systems coordinated'],
+       ['2.2', 'Developed Design (Deliverable B, 50%)', K.span_label('2.2'), '300',
+        'Real geometry, correctly located'],
+       ['2.3', 'Technical Design (Deliverable C, 100%)', K.span_label('2.3'), '350',
+        'Interfaces and connections resolved'],
+       ['2.4', 'Tender', K.span_label('2.4'), '350', 'Tender set issued from the CDE'],
+       ['2.5', 'Conformed set', K.span_label('2.5'), '350', 'Addenda incorporated and reissued'],
+       ['3.1', 'Construction administration', K.span_label('3.1'), '400',
+        'Fabrication and installation-ready information'],
+       ['3.2', 'FF&E installation', K.span_label('3.2'), '400', 'FF&E installed and reconciled'],
+       ['3.3', 'Close-out (Deliverable D)', K.span_label('3.3'), '500',
+        'Verified record model and handover data']],
       widths=[1.6, 5.4, 2.6, 1.4, 5.6])
 callout('Deliverable D is delivered at LOD 500, not LOD 400. LOD 500 requires verification that the modelled '
         'element corresponds to the element actually installed, together with its asset data. For serviceable '
@@ -285,7 +292,8 @@ table(['Code', 'Type', 'Code', 'Type'],
        ['DR', 'Drawing', 'RD', 'Room data sheet'],
        ['SH', 'Sheet', 'MS', 'Method statement'],
        ['SC', 'Schedule', 'PP', 'Presentation'],
-       ['SP', 'Specification', 'CR', 'Clash or coordination report']],
+       ['SP', 'Specification', 'CR', 'Clash or coordination report'],
+       ['TR', 'Transmittal or notice', 'BQ', 'Bill of quantities']],
       widths=[2.0, 6.3, 2.0, 6.3])
 
 h2('4.5  Level codes')
@@ -483,7 +491,7 @@ table(['Data', 'A', 'B', 'C', 'FF&E'],
        ['Maintenance interval', 'Yes', '—', '—', '—'],
        ['Recommended spares', 'Yes', '—', '—', '—'],
        ['Commissioning date', 'Yes', '—', '—', '—'],
-       ['FF&E reference', '—', '—', '—', 'Yes']],
+       ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes']],
       widths=[6.6, 2.4, 4.0, 2.4, 1.8], font=8)
 callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
         'cause-and-effect schedule, the panel and future maintenance actually use.', 'Fire alarm devices')
@@ -559,13 +567,13 @@ stage('8.4', 'Stage 2.3 — Technical Design, Deliverable C (M5 to M8, LOD 350)'
       'LOD 350 verification passed; no unresolved clashes; specification gaps closed or formally accepted; FF&E linked; '
       'review comments closed.')
 
-h2('8.5  Stages 2.4 and 2.5 — Tender and conformed set (M9 to M11)')
+h2('8.5  Stages 2.4 and 2.5 — Tender and conformed set (%s)' % K.span_label('2.4'))
 para('The tender set is issued from the CDE at suitability A1. Queries are raised and answered as formal requests '
      'for information and are logged. No model change is made except by instruction. Following award, addenda and '
      'tender stage changes are incorporated and the set is regenerated and reissued as the conformed baseline '
      'against which construction proceeds. The register must show every superseded revision as archived.')
 
-stage('8.6', 'Stage 3.1 — Construction administration (M12 to M43, LOD 400)',
+stage('8.6', 'Stage 3.1 — Construction administration (%s, LOD 400)' % K.span_label('3.1'),
       'Conformed set published; contractor mobilised.',
       [['Contractor', 'Shop drawings and fabrication models; progressive as-built capture; requests for information through the CDE'],
        ['Design team', 'Responses to requests for information; revisions issued with revision data; site queries'],
@@ -576,12 +584,12 @@ stage('8.6', 'Stage 3.1 — Construction administration (M12 to M43, LOD 400)',
       'reports; progressive asset data capture.',
       'Construction information complete; as-built capture current to within one month; asset data capture on programme.')
 
-h2('8.7  Stage 3.2 — FF&E installation (M40 to M43)')
+h2('8.7  Stage 3.2 — FF&E installation (%s)' % K.span_label('3.2'))
 para('FF&E is installed and reconciled item by item against the Fohlio record. Finishes are verified against the '
      'installed condition. The gate requires the FF&E schedule to be reconciled with no unlinked items, and O&M '
      'information to be collected.')
 
-stage('8.8', 'Stage 3.3 — Close-out, Deliverable D (M44 to M45, LOD 500)',
+stage('8.8', 'Stage 3.3 — Close-out, Deliverable D (%s, LOD 500)' % K.span_label('3.3'),
       'Practical completion of the relevant works; within 60 days of furniture installation.',
       [['Contractor', 'Final as-built information; commissioning records; warranties and O&M documentation'],
        ['Controls contractor', 'Live Niagara station reconciled against the model equipment and points'],
