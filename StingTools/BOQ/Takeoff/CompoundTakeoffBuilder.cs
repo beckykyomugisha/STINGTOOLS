@@ -105,7 +105,7 @@ namespace StingTools.BOQ.Takeoff
                 // ROOF is just as likely to be sheeting, and calling that concrete
                 // would invent 137 m3 that does not exist.
                 if (cat.IndexOf("Roof", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return BuildRcSlab(doc, el, csvRates, requireExplicitConcrete: true);
+                    return BuildRcSlab(doc, el, csvRates, requireExplicitConcrete: true, hostIsRoof: true);
                 // MATSCHED-T2 — Ceilings appeared in NO branch, so a suspended
                 // gypsum ceiling decomposed into nothing at all, silently. It is
                 // matched before the framing/column tests because none of those
@@ -202,6 +202,9 @@ namespace StingTools.BOQ.Takeoff
                 // is plastered as backing but never painted.
                 TiledFaces = ReadTiledFinish(doc, el).Faces
             };
+
+            // MATSCHED-T3 — counted, never measured. See NoteWallMembranes.
+            NoteWallMembranes(doc, el);
             var constituents = CompoundTakeoff.MasonryWall(input);
             // Up to both faces: unlike a floor, a wall can be tiled on each side,
             // and the compound structure names one finish layer per side.
@@ -213,7 +216,7 @@ namespace StingTools.BOQ.Takeoff
         // ── RC slab (concrete net + rebar + formwork) ───────────────────────
         private static List<BOQLineItem> BuildRcSlab(Document doc, Element el,
             Dictionary<string, (double rate, string unit)> csvRates,
-            bool requireExplicitConcrete = false)
+            bool requireExplicitConcrete = false, bool hostIsRoof = false)
         {
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
             bool isConcrete = material.Contains("concrete") || material.Contains("rc");
@@ -234,6 +237,14 @@ namespace StingTools.BOQ.Takeoff
             // path can measure the STRUCTURE: a timber deck still has a screed,
             // and dropping the element wholesale would lose it.
             finishes.AddRange(ScreedConstituents(doc, el, areaM2));
+
+            // MATSCHED-T3 — the DPM under a ground slab, or the underlay under a
+            // roof covering. Same layer walk again. hostIsRoof is its OWN
+            // parameter rather than a reuse of requireExplicitConcrete, which
+            // happens to be true on the same call today: two meanings behind one
+            // flag agree until the day one of them changes, and then they
+            // disagree silently.
+            finishes.AddRange(MembraneConstituents(doc, el, areaM2, hostIsRoof));
 
             if (!isRc)
                 return finishes.Count > 0
@@ -404,6 +415,8 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
                 case "screed": return "Screed";
+                case "dpm": return "Damp-proof Membrane";
+                case "roof_underlay": return "Roof Underlay";
                 case "ceiling_board": return "Ceiling Board";
                 case "ceiling_furring": return "Ceiling Furring";
                 case "screed_cement": return "Cement";
@@ -811,6 +824,7 @@ namespace StingTools.BOQ.Takeoff
             TileFinishScan.Reset();
             ScreedScan.Reset();
             CeilingScan.Reset();
+            MembraneScan.Reset();
         }
 
         /// <summary>
@@ -921,6 +935,168 @@ namespace StingTools.BOQ.Takeoff
             string key = StingTools.Core.MaterialSchedule.FinishTextClassifier.ScreedKey(screedName);
             return (Prop($"SCREED {key}", "MIX_CEMENT_BAGS_PER_M3", "SCREED DEFAULT"),
                     Prop($"SCREED {key}", "MIX_SAND_RATIO", "SCREED DEFAULT"));
+        }
+
+        // -- membrane scan (MATSCHED-T3) -------------------------------------
+
+        /// <summary>A type's membrane layers, counted by kind and named by the first.</summary>
+        internal struct MembraneHit
+        {
+            public int DpmLayers;
+            public string DpmLabel;
+            public int UnderlayLayers;
+            public string UnderlayLabel;
+
+            public bool Any => DpmLayers > 0 || UnderlayLayers > 0;
+        }
+
+        /// <summary>Per-run membrane-scan cache and tally. See MembraneScanTally
+        /// for why the counts exist — including the two counters that report
+        /// what this take-off deliberately does NOT price.</summary>
+        internal static class MembraneScan
+        {
+            private static readonly Dictionary<long, MembraneHit> Cache = new Dictionary<long, MembraneHit>();
+
+            public static readonly StingTools.Core.MaterialSchedule.MembraneScanTally Tally =
+                new StingTools.Core.MaterialSchedule.MembraneScanTally();
+
+            /// <summary>Wall types already counted, so a 300-instance wall does
+            /// not report its one membrane layer 300 times.</summary>
+            private static readonly HashSet<long> WallTypesCounted = new HashSet<long>();
+
+            public static void Reset() { Cache.Clear(); WallTypesCounted.Clear(); Tally.Reset(); }
+
+            public static bool TryGet(long typeId, out MembraneHit hit) => Cache.TryGetValue(typeId, out hit);
+            public static void Store(long typeId, MembraneHit hit) { Cache[typeId] = hit; }
+            public static bool FirstWallSighting(long typeId) => WallTypesCounted.Add(typeId);
+            public static string Summary() => Tally.Summary();
+        }
+
+        /// <summary>Membrane layers on a floor or roof type.</summary>
+        private static MembraneHit ReadMembranes(Document doc, Element el, bool hostIsRoof)
+        {
+            try
+            {
+                var typeId = el?.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return default(MembraneHit);
+                long key = typeId.Value;
+                if (MembraneScan.TryGet(key, out var cached)) return cached;
+
+                var layers = HostLayerCache.Get(doc, el);
+                if (layers == null) { MembraneScan.Store(key, default(MembraneHit)); return default(MembraneHit); }
+
+                MembraneScan.Tally.TypesInspected++;
+                var hit = new MembraneHit();
+                bool anyMembraneLayer = false;
+
+                foreach (var layer in layers)
+                {
+                    // Insulation is reported wherever it sits, membrane-function
+                    // or its own. The caution for this task is not "do not match
+                    // it" but "say that you saw it": insulation is bought by
+                    // THICKNESS, so absorbing it into a per-m2 roll commodity
+                    // would silently mis-price both.
+                    if (layer.Function == MaterialFunctionAssignment.Insulation
+                     || (!string.IsNullOrEmpty(layer.MaterialName)
+                         && StingTools.Core.MaterialSchedule.FinishTextClassifier.IsInsulation(layer.MaterialName)))
+                    {
+                        MembraneScan.Tally.InsulationLayersSeen++;
+                        if (!string.IsNullOrEmpty(layer.MaterialName))
+                            MembraneScan.Tally.InsulationMaterials.Add(layer.MaterialName);
+                        continue;
+                    }
+
+                    if (layer.Function != MaterialFunctionAssignment.Membrane) continue;
+                    anyMembraneLayer = true;
+                    if (string.IsNullOrEmpty(layer.MaterialName)) continue;
+
+                    string kind = StingTools.Core.MaterialSchedule.FinishTextClassifier
+                        .MembraneKind(layer.MaterialName, hostIsRoof);
+                    if (kind == "dpm")
+                    {
+                        hit.DpmLayers++;
+                        if (string.IsNullOrEmpty(hit.DpmLabel)) hit.DpmLabel = layer.MaterialName;
+                    }
+                    else if (kind == "roof_underlay")
+                    {
+                        hit.UnderlayLayers++;
+                        if (string.IsNullOrEmpty(hit.UnderlayLabel)) hit.UnderlayLabel = layer.MaterialName;
+                    }
+                    else
+                    {
+                        // Recorded, not discarded: if the pattern is the thing
+                        // that is wrong, these names are the evidence for it.
+                        MembraneScan.Tally.RejectedMaterials.Add(layer.MaterialName);
+                    }
+                }
+
+                if (anyMembraneLayer) MembraneScan.Tally.TypesWithMembraneLayer++;
+                if (hit.Any) MembraneScan.Tally.TypesMatched++;
+
+                MembraneScan.Store(key, hit);
+                return hit;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("Membranes", $"ReadMembranes {el?.Id}: {ex.Message}");
+                return default(MembraneHit);
+            }
+        }
+
+        /// <summary>
+        /// Membrane constituents for a floor or roof, or an empty list.
+        /// </summary>
+        private static List<CompoundLine> MembraneConstituents(Document doc, Element el,
+            double areaM2, bool hostIsRoof)
+        {
+            var empty = new List<CompoundLine>();
+            if (areaM2 <= 0) return empty;
+
+            var found = ReadMembranes(doc, el, hostIsRoof);
+            if (!found.Any) return empty;
+
+            return CompoundTakeoff.Membranes(new MembraneInput
+            {
+                AreaM2 = areaM2,
+                DpmLayers = found.DpmLayers,
+                DpmLabel = found.DpmLabel,
+                UnderlayLayers = found.UnderlayLayers,
+                UnderlayLabel = found.UnderlayLabel
+            });
+        }
+
+        /// <summary>
+        /// A wall's membrane layers are COUNTED and never measured.
+        ///
+        /// A layer's area on a wall is the wall FACE area, and a horizontal
+        /// damp-proof course occupies one course of it — measuring the face
+        /// would over-order by an order of magnitude, and nothing in the layer
+        /// distinguishes a one-course DPC from a full-height cavity membrane.
+        /// Emitting nothing is the honest answer; emitting nothing SILENTLY is
+        /// the failure this whole task exists to remove, so the scope boundary
+        /// is reported instead of assumed.
+        /// </summary>
+        private static void NoteWallMembranes(Document doc, Element el)
+        {
+            try
+            {
+                var typeId = el?.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return;
+                if (!MembraneScan.FirstWallSighting(typeId.Value)) return;   // once per TYPE
+
+                var layers = HostLayerCache.Get(doc, el);
+                if (layers == null) return;
+                foreach (var layer in layers)
+                {
+                    if (layer.Function != MaterialFunctionAssignment.Membrane) continue;
+                    MembraneScan.Tally.WallMembraneLayersSeen++;
+                    return;   // one sighting per type is the finding, not per layer
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("WallMembranes", $"NoteWallMembranes {el?.Id}: {ex.Message}");
+            }
         }
 
         // -- ceiling scan (MATSCHED-T2) --------------------------------------
