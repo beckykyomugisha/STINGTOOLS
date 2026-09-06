@@ -2,6 +2,78 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 244 — Material Schedule: the first real export, and the six defects it exposed)
+
+Phase 236 left the material schedule merged but never run. It was run, and the export
+disagreed with itself in ways no unit test could have caught, because every defect lived in the
+seam between two things that were each individually correct.
+
+**1 — It could not produce materials at all.** `COST_COMPOUND_TAKEOFF` defaults off and is set in
+**no shipped file**, so cement, sand, blocks and bricks were never emitted. The first export said it
+plainly — *"60 of 60 model rows carried no constituent kind"* — and totalled UGX 0. The command now
+detects this **before** building and offers to enable it for that export only. The override drops
+`BOQCostManager`'s host take-off cache on entry and exit, without which it would have changed
+nothing: the cached non-compound rows come straight back (#716).
+
+**2 — Furniture was sold as a building material.** The aggregator's *"no rule → keep the measured
+unit"* fallback fired on every unmatched row, so `Bed_Double_Nightstands` and
+`2D_Chair_&_Ottoman_Accent` became purchasable commodities. Three buckets now, not two: converted
+commodity, material awaiting a rate, and excluded-not-a-material — the last **counted and reported**,
+never silently dropped. Doors, windows and fixtures are deliberately **not** excluded; they are bought
+(#716). A later pass added description-pattern exclusion, because the worst offender — an OPENING sold
+**1,187 times** — was category `Generic Models`, which elsewhere holds real building elements (#724).
+
+**3 — Square metres were sold as pieces.** The sheet read `Bricks · No. · 364.31`. That was 364
+**square metres** of brickwork relabelled as a brick count: `MasonryWall` emits `brickwork` in m², the
+`brick` rule buys per `nr`, and **nothing checked that a rule's sourceUnit matched the measured unit**.
+Worse, `blockwork` (m²) and `units` (nr) both mapped to commodity `block`, so an area was *added to a
+piece count* — the export's block figure implied 2,024 m² of wall while its mortar implied 994 m², and
+both derive from the same `area` in the same function. The aggregator now refuses unlike-unit
+conversions, and area measures are no longer commodities (#728).
+
+**4 — Wastage was applied twice.** Engine and supplier-unit rule both applied it: blocks carried ~10%
+instead of 5%, plaster cement ~23% instead of 2.5%. It now lives in **exactly one place**, the
+supplier-unit rule, which is what the converter's own documentation already claimed. `UnitWastePct`
+and `PlasterWastePct` survive as retired no-ops so callers compile, with a test asserting they change
+nothing (#728).
+
+**5 — Columns and foundations were under-measured.** `CompoundTakeoffBuilder` handled Walls, Floors
+and Structural Framing only — *"Columns/foundations retain the composite line for now"* — so three RC
+columns arrived as unpriced m³ lumps and no SUB-STRUCTURE section appeared at all. Both now
+decompose. Formwork is the part that needed thought: a column shutters all four faces with no soffit,
+a round column uses its circumference (treating Ø152 as a square over-orders shuttering by ~27%), a
+pad shutters only its sides because it bears on the ground, and blinding carries no rebar (#725).
+
+**6 — Order quantities were raw floats.** `164.48145 m³` of concrete, `0.479999210217142 m³` of column
+concrete. Order quantity is what someone buys and what the amount derives from, so binary residue was
+reaching the money column. Countable units still round **up** — you cannot buy 2.08 truck trips —
+while divisible units round to 2 dp *away from zero*, so an order can never fall below the measured
+net and quietly under-order (#724).
+
+**Also landed.** Painting is measured properly: the painted area IS the plastered face area
+(`area × PlasterFaces`), which the engine already derived and simply never emitted; it is now its own
+constituent kind, split interior/exterior from `WallType.Function`, and an unplastered wall emits no
+paint at all (#712). Roof sheets and tiles convert by category **narrowed by a type-name pattern**, so
+a concrete flat roof cannot come out as a sheet count — it stays measured and is flagged R5 (#709).
+Three unsound finish rules and two unreachable ones were **withdrawn** rather than left to produce
+confident wrong numbers, and the data seam that let them through is now pinned by tests (#710). The
+hot path was indexed and the cache flush scoped to one document (#719).
+
+**Site tools (MATSCHED-9).** The schedule now opens with a tools section, derived
+`work → trade-days → gang → tools`. **There is no standard for this** — NRM2 prices tools in
+preliminaries and no measurement standard publishes a wheelbarrows-per-mason ratio — so it ships as an
+editable table calibrated against the reference schedule, and says so in the JSON, the class header
+and a banner on every export. With no programme duration it produces **nothing** rather than inventing
+a crew; duration comes from `PRJ_DURATION_DAYS` with a dialog fallback, and storeys are counted from
+the model's own Levels (#736).
+
+**Tests 196 → 351.** Build 0/0 throughout. Three existing tests encoded the old double-wastage
+behaviour and were **corrected, not loosened**; three more failed first and turned out to be wrong
+themselves — a 6-dp assertion against a 4-dp contract, and a storey test contradicting its own comment.
+
+**Not verified.** Everything from #728 onward — the unit guard, single wastage, columns, foundations
+and tools — has passed tests and CI but **has not been seen in a real export**. See MATSCHED-1.
+
 #### Completed (Phase 243 — the KUT mobilisation pack was being relied on with no gate)
 
 Mobilisation began the week of 25 August 2026 and the pack — a BEP, a delivery
