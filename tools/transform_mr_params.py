@@ -10,7 +10,15 @@ Transform MR_PARAMETERS.txt:
 """
 
 import uuid, re, shutil, os, sys
+import pathlib
 from pathlib import Path
+
+# Repo root, discovered from this file's location. The original of this script
+# ran in a sandbox and hard-coded /home/user/STINGTOOLS/..., so it could not be
+# run anywhere else -- which is why the data it generates sat unregenerated on a
+# branch for three months while main's copies of the same files moved on.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 
 # ── UUIDv5 namespace ──────────────────────────────────────────────────────────
 NS = uuid.UUID('7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00')
@@ -19,6 +27,54 @@ def make_guid(name: str) -> str:
     return str(uuid.uuid5(NS, name))
 
 # ── Target native types ───────────────────────────────────────────────────────
+_LABEL_DEFS = ROOT / 'StingTools/Data/LABEL_DEFINITIONS.json'
+_label_cache = None
+
+
+def label_referenced():
+    """Every parameter a label tier references, read from LABEL_DEFINITIONS.json.
+
+    Read rather than listed, for the same reason the COBie exclusion is read:
+    a restated list is right until the day a label is added.
+    """
+    global _label_cache
+    if _label_cache is None:
+        if not _LABEL_DEFS.exists():
+            print('WARNING: %s not found; no label mirrors generated' % _LABEL_DEFS)
+            _label_cache = set()
+        else:
+            src = _LABEL_DEFS.read_text(encoding='utf-8-sig', errors='replace')
+            _label_cache = set(re.findall(r'"param"\s*:\s*"([^"]+)"', src))
+    return _label_cache
+
+
+_COBIE_MAP = ROOT / 'StingTools/Core/Cobie/CobieFieldMap.cs'
+_cobie_cache = None
+
+
+def cobie_targets():
+    """Every shared parameter COBie writes, read from CobieFieldMap.cs.
+
+    COBie import writes with SetString, which refuses a non-TEXT parameter, so
+    any target retyped here becomes unwritable on import. Read from the C# file
+    rather than restated, because a restated list is right until the day a field
+    is added to the map -- and then wrong silently.
+
+    Returns an empty set if the file is missing, which is the safe direction:
+    nothing is excluded, and StingTools.Tags.Tests fails loudly rather than the
+    build shipping an unwritable field.
+    """
+    global _cobie_cache
+    if _cobie_cache is None:
+        if not _COBIE_MAP.exists():
+            print('WARNING: %s not found; no COBie exclusions applied' % _COBIE_MAP)
+            _cobie_cache = set()
+        else:
+            src = _COBIE_MAP.read_text(encoding='utf-8', errors='replace')
+            _cobie_cache = set(re.findall(r'"([A-Z][A-Z0-9_]*_[A-Z0-9_]+)"', src))
+    return _cobie_cache
+
+
 TARGET_TYPES = {
     # AREA
     'CST_CALC_AREA_M2':                      'AREA',
@@ -217,6 +273,8 @@ SUFFIX_REPLACEMENTS = [
     ('_LM_W', '_TXT'), ('_SQ_M', '_TXT'), ('_CU_M', '_TXT'),
     ('_MM2', '_TXT'), ('_M2K_W', '_TXT'), ('_W_M2K', '_TXT'),
     ('_KN_M2', '_TXT'), ('_INT', '_TXT'), ('_NR', '_TXT'),
+    ('_BOOL', '_TXT'),
+    ('_DBL', '_TXT'),
     ('_MM', '_TXT'), ('_M2', '_TXT'), ('_KW', '_TXT'),
     ('_KPA', '_TXT'), ('_KNM', '_TXT'), ('_KA', '_TXT'),
     ('_KN', '_TXT'), ('_LPS', '_TXT'), ('_LPM', '_TXT'),
@@ -263,24 +321,25 @@ def build_param_line(parts: list) -> str:
 
 
 def main():
-    # Path was hardcoded to the original author's Linux sandbox. Parameterised so
-    # the analysis is reproducible on any checkout:
-    #   python tools/transform_mr_params.py --dry-run
+    # --dry-run exists so the migration can be *measured* before it is run: the
+    # counts printed at the end are the answer to "how much does #338 actually
+    # change", and producing them should not require writing the file and
+    # restoring it from the backup afterwards.
     import argparse
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--file', default='StingTools/Data/MR_PARAMETERS.txt')
+    ap = argparse.ArgumentParser(description='Transform MR_PARAMETERS.txt (Phase 188).')
     ap.add_argument('--dry-run', action='store_true',
-                    help='report what would change; write nothing')
+                    help='report what would change; write nothing (no backup either)')
     args = ap.parse_args()
 
-    src = Path(args.file)
+    src = ROOT / 'StingTools/Data/MR_PARAMETERS.txt'
     backup = src.with_suffix('.txt.bak')
 
     if not src.exists():
         print(f"ERROR: {src} not found", file=sys.stderr)
         sys.exit(1)
 
-    # Backup (skipped on a dry run — a dry run must not touch the tree)
+    # Backup. Skipped under --dry-run: a backup of a file about to be left
+    # untouched is noise, and it would overwrite a real backup from a prior run.
     if not args.dry_run:
         shutil.copy2(src, backup)
         print(f"Backup: {backup}")
@@ -302,6 +361,7 @@ def main():
     bool_fixed = 0
     native_fixed = 0
     mirrors_added = 0
+    label_mirrors = []
     already_correct = 0
 
     # ── Second pass: transform ────────────────────────────────────────────────
@@ -316,14 +376,33 @@ def main():
         current_type = p[3]
 
         # ── Rule 1: Any _BOOL param that is TEXT → YESNO ─────────────────────
+        # YESNO is the right storage for a flag, and for a gate used as the
+        # condition of a formula. It is the wrong storage for anything a LABEL
+        # reads, so a label-referenced flag falls through to rule 4 for a mirror
+        # instead of returning here. Without that, regenerating from a state
+        # where the flag is still TEXT would convert it and skip the mirror --
+        # the exact hole that left fourteen labels reading a Yes/No parameter.
         if name.endswith('_BOOL') and current_type == 'TEXT':
             p[3] = 'YESNO'
+            current_type = 'YESNO'
             bool_fixed += 1
-            out_lines.append(build_param_line(p))
-            continue
+            if name not in label_referenced():
+                out_lines.append(build_param_line(p))
+                continue
 
         # ── Rule 2 + 3: Native-typed params ──────────────────────────────────
-        if name in TARGET_TYPES:
+        # ...except where COBie writes the parameter. COBie import writes every
+        # field with SetString, which refuses a non-TEXT parameter outright, so
+        # retyping one of its targets does not merely change a type -- it makes
+        # that field silently unwritable on import. StingTools.Tags.Tests has
+        # asserted "every COBie target is TEXT" since before this transform
+        # existed, and caught exactly one casualty: ASS_EXPECTED_LIFE_YEARS_YRS.
+        #
+        # The exclusion is READ FROM CobieFieldMap.cs rather than listed here.
+        # A second copy of that list is the drift this whole workstream keeps
+        # finding: the copy would be right today and wrong the first time a
+        # field is added to the map.
+        if name in TARGET_TYPES and name not in cobie_targets():
             target = TARGET_TYPES[name]
             if current_type != target:
                 p[3] = target
@@ -364,22 +443,59 @@ def main():
             mirrors_added += 1
             continue
 
+        # ── Rule 4: already-native params that a LABEL references ─────────────
+        # A label needs something TEXT to read. Rules 2 and 3 only mirror params
+        # this script CONVERTS, so a parameter that was already INTEGER or NUMBER
+        # before Phase 188 never reached the mirror step -- and the label kept
+        # pointing straight at it. LabelParamTypeValidator states the rule these
+        # violate: "every parameter referenced by a label/calculated-value
+        # template must be TEXT, because Revit label formulas cannot use YESNO
+        # parameters as the condition of if(...)".
+        #
+        # Five clinical parameters were in that state: CLN_DESIGN_ACH_INT,
+        # CLN_DESIGN_PRESSURE_DELTA_PA_INT, CLN_DESIGN_RH_PCT_INT,
+        # CLN_DESIGN_TEMP_C_DBL and CLN_NOISE_NR_NR. They are not converted --
+        # they are correctly typed already, and the value belongs in a number --
+        # they gain the mirror the label should have been reading.
+        #
+        # _BOOL parameters are NOT handled here. fix_label_definitions.py leaves
+        # them alone by design, so remapping them would produce a mirror nothing
+        # points at. They are a separate decision.
+        if current_type != 'TEXT' and name in label_referenced():
+            mirror_name = make_mirror_name(name)
+            out_lines.append(build_param_line(p))
+            if mirror_name != name and mirror_name not in existing_names:
+                mirror_parts = [
+                    'PARAM', make_guid(mirror_name), mirror_name, 'TEXT', '',
+                    p[5], '1', f'{name} display mirror [auto-generated]', '1',
+                ]
+                out_lines.append(build_param_line(mirror_parts))
+                existing_names[mirror_name] = mirror_parts[1]
+                mirrors_added += 1
+                label_mirrors.append((name, mirror_name))
+            continue
+
         # ── Passthrough ───────────────────────────────────────────────────────
         out_lines.append(build_param_line(p))
 
     # Write output
-    if args.dry_run:
-        print("[dry-run] nothing written")
-    else:
+    if not args.dry_run:
         src.write_text(''.join(out_lines), encoding='utf-8')
 
-    print(f"\nTransformation complete:")
-    print(f"  _BOOL TEXT→YESNO fixes : {bool_fixed}")
+    print(f"\nTransformation {'PREVIEW (nothing written)' if args.dry_run else 'complete'}:")
+    # ASCII "->", not an arrow. Windows consoles default to cp1252, which cannot
+    # encode U+2192, so this line raised UnicodeEncodeError *after* the file had
+    # already been written -- the run looked failed while the write had happened.
+    print(f"  _BOOL TEXT->YESNO fixes : {bool_fixed}")
     print(f"  Native type fixes       : {native_fixed}")
     print(f"  Already correct (skip)  : {already_correct}")
     print(f"  _TXT mirrors added      : {mirrors_added}")
+    if label_mirrors:
+        print(f"  ...of which mirror an already-native, label-referenced param: {len(label_mirrors)}")
+        for src_name, mir in label_mirrors:
+            print(f"       {src_name:<40} -> {mir}")
     print(f"  Total output lines      : {len(out_lines)}")
-    print(f"\nWritten: {src}" if not args.dry_run else "\n(dry run — no file written)")
+    print(f"\n{'Would write' if args.dry_run else 'Written'}: {src}")
 
 
 if __name__ == '__main__':

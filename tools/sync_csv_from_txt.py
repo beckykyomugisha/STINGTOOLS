@@ -5,11 +5,20 @@ Sync MR_PARAMETERS.csv from the transformed MR_PARAMETERS.txt:
   1. Update Data_Type for all params whose type changed in TXT
   2. Add rows for new _TXT mirror params
 """
+import datetime as _dt
 import shutil
+import pathlib
 from pathlib import Path
 
-TXT = Path('/home/user/STINGTOOLS/StingTools/Data/MR_PARAMETERS.txt')
-CSV = Path('/home/user/STINGTOOLS/StingTools/Data/MR_PARAMETERS.csv')
+# Repo root, discovered from this file's location. The original of this script
+# ran in a sandbox and hard-coded /home/user/STINGTOOLS/..., so it could not be
+# run anywhere else -- which is why the data it generates sat unregenerated on a
+# branch for three months while main's copies of the same files moved on.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+TXT = ROOT / 'StingTools/Data/MR_PARAMETERS.txt'
+CSV = ROOT / 'StingTools/Data/MR_PARAMETERS.csv'
 
 REVIT_TYPE_MAP = {
     'TEXT': 'TEXT', 'YESNO': 'YESNO', 'INTEGER': 'INTEGER',
@@ -105,8 +114,24 @@ def main():
     for row in new_rows:
         out_lines.append(','.join(row) + '\n')
 
-    # Update version header
-    new_header = f'# v6.8 | 20260620 | +{added} mirror params, {type_fixes} type fixes — Phase 188 native-type + _TXT mirror sync\n'
+    # Update the version header. REPLACE it, never prepend: the original
+    # inserted unconditionally, so a second run stacked a second header reading
+    # "+0 mirror params, 0 type fixes" on top of the first, and the script that
+    # describes itself as idempotent was not. The date comes from the clock
+    # rather than a literal -- the one it carried was three months stale by the
+    # time this was next run.
+    # It states what the FILE holds, not what this run did. A header carrying
+    # the run's delta reads "+5 mirror params" on the first run and "+0" on the
+    # second, so the file changes on every regeneration and the script still is
+    # not idempotent -- replacing the header instead of stacking it fixed only
+    # half of that. What the run did is printed to the console, where a figure
+    # that varies per run belongs.
+    stamp = _dt.date.today().strftime('%Y%m%d')
+    total = len([l for l in out_lines
+                 if not l.startswith('#') and l.strip() and not l.startswith('Revit')])
+    new_header = (f'# v6.8 | {stamp} | {total} parameter rows'
+                  f' — Phase 188 native-type + _TXT mirror sync\n')
+    out_lines = [l for l in out_lines if not l.startswith('# v6.8 |')]
     out_lines.insert(0, new_header)
 
     CSV.write_text(''.join(out_lines), encoding='utf-8')
