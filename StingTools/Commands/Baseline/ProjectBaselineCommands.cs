@@ -239,12 +239,42 @@ namespace StingTools.Commands.Baseline
             }
 
             foreach (var t in wanted)
-                Try(r, $"{group} '{t.Name}'", () =>
+            {
+                // NOT the shared Try() helper: minting a host type is two steps,
+                // and the first real run failed on the SECOND one. Duplicate had
+                // already committed, so the model kept five types named for the
+                // baseline that carried the SOURCE type's layers — a floor called
+                // "Ceramic Tiled" with no tile in it. Worse, the next audit reads
+                // those as existing and refuses to touch them, so the failure
+                // becomes permanent and silent.
+                //
+                // A half-made type is deleted. Either the type is what the
+                // baseline describes or it is not there at all.
+                HostObjAttributes created = null;
+                try
                 {
-                    var created = source.Duplicate(t.Name.Trim()) as HostObjAttributes;
+                    created = source.Duplicate(t.Name.Trim()) as HostObjAttributes;
                     if (created == null) throw new InvalidOperationException("Duplicate returned null");
-                    created.SetCompoundStructure(BuildStructure(t, materials));
-                });
+                    created.SetCompoundStructure(BuildStructure(t, materials, SafeStructure(source)));
+                    r.Created++;
+                }
+                catch (Exception ex)
+                {
+                    if (created != null)
+                    {
+                        try { doc.Delete(created.Id); }
+                        catch (Exception delEx)
+                        {
+                            StingLog.Warn($"BaselineMinter rollback '{t.Name}': {delEx.Message}");
+                            r.Failed.Add($"{group} '{t.Name}': {ex.Message} "
+                                       + "— AND the half-made type could not be removed, so delete it by hand");
+                            continue;
+                        }
+                    }
+                    r.Failed.Add($"{group} '{t.Name}': {ex.Message}");
+                    StingLog.Warn($"BaselineMinter {group} '{t.Name}': {ex.Message}");
+                }
+            }
         }
 
         private static CompoundStructure SafeStructure(HostObjAttributes t)
@@ -253,8 +283,27 @@ namespace StingTools.Commands.Baseline
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
+        /// <summary>
+        /// <paramref name="template"/> is the SOURCE type's own structure, and it
+        /// is what makes this work for floors and ceilings.
+        ///
+        /// CreateSimpleCompoundStructure returns a structure with a wall-shaped
+        /// EndCapCondition. Revit accepts that on a WallType and rejects it
+        /// everywhere else — "Input compound structure has wrong EndCap
+        /// condition for this element type" — which is why the first real run
+        /// created 12 materials, 4 walls and 3 roofs and failed on all 4 floor
+        /// types and the ceiling. The floors are the ones carrying the tiled
+        /// finish layer, so the one thing the baseline exists to fix was the one
+        /// thing that did not get created.
+        ///
+        /// Editing the source's structure in place inherits every class-specific
+        /// property already valid for that element type, rather than guessing
+        /// which ones Revit will object to. GetCompoundStructure returns a copy,
+        /// so the source type is untouched.
+        /// </summary>
         private static CompoundStructure BuildStructure(BaselineHostType t,
-                                                        Dictionary<string, ElementId> materials)
+                                                        Dictionary<string, ElementId> materials,
+                                                        CompoundStructure template = null)
         {
             var layers = new List<CompoundStructureLayer>();
             foreach (var l in t.Layers)
@@ -265,7 +314,16 @@ namespace StingTools.Commands.Baseline
                     matId ?? ElementId.InvalidElementId));
             }
 
-            var cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+            CompoundStructure cs;
+            if (template != null)
+            {
+                cs = template;
+                cs.SetLayers(layers);
+            }
+            else
+            {
+                cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+            }
 
             // Shell layers are everything OUTSIDE the structural core. Revit
             // rejects a structure whose core is empty or discontiguous, so the
