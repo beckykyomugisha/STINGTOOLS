@@ -1,4 +1,4 @@
-// StingTools — Wire profile system for the WireAnnotation feature.
+﻿// StingTools — Wire profile system for the WireAnnotation feature.
 //
 // Mirrors ricaun's WireInConduit cable-type catalogue. Each profile
 // is a named cable spec (cores, CSA, material, insulation, weight,
@@ -139,7 +139,7 @@ namespace StingTools.Core.Electrical
             if (doc == null) return null;
             var dir = Path.GetDirectoryName(doc.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", "wire_profiles.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "wire_profiles.json");
         }
 
         public static string CircuitMapPath(Document doc)
@@ -147,7 +147,7 @@ namespace StingTools.Core.Electrical
             if (doc == null) return null;
             var dir = Path.GetDirectoryName(doc.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", "circuit_wire_map.json");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "circuit_wire_map.json");
         }
 
         private static int SafePoles(ElectricalSystem sys)

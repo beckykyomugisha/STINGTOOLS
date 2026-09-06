@@ -72,6 +72,37 @@ public class DocumentsController : ControllerBase
         "PUBLISHED->SUPERSEDED" // Superseding a published document also requires approval
     };
 
+    /// <summary>
+    /// #633 — the state machine's answer for one document, attached to the response.
+    ///
+    /// Computed from the two dictionaries directly above, which are the same ones
+    /// TransitionState, TransitionStateMobile, RequestApproval and SyncFromPlugin
+    /// all enforce against. One source, so a client cannot hold a stale copy.
+    ///
+    /// Deliberately excludes TransitionRoleRequirements and the per-folder ACL:
+    /// those are per-caller, and answering them here would make a list projection
+    /// do a per-row authorization pass while implying the result is a permission
+    /// grant. It is affordance. The server still gates every transition, and a
+    /// client that shows a button from this list must still handle a refusal.
+    ///
+    /// An unknown current state yields an EMPTY list, not null — the state machine
+    /// was consulted and had nothing to offer. Null is reserved for "not computed",
+    /// which is a different statement and the one clients read as unknown.
+    /// </summary>
+    private static IReadOnlyList<CdeTransitionOption> AllowedTransitionsFor(string cdeStatus)
+        => (ValidTransitions.TryGetValue(cdeStatus, out var targets) ? targets : Array.Empty<string>())
+            .Select(t => new CdeTransitionOption(
+                t, ApprovalRequiredTransitions.Contains($"{cdeStatus}->{t}")))
+            .ToArray();
+
+    /// <summary>Fills <see cref="DocumentRecord.AllowedTransitions"/> in place and
+    /// returns the same instance, so a projection reads as one expression.</summary>
+    private static DocumentRecord WithAllowedTransitions(DocumentRecord doc)
+    {
+        doc.AllowedTransitions = AllowedTransitionsFor(doc.CdeStatus);
+        return doc;
+    }
+
     private readonly IFileStorageService _storage;
     private readonly IGeofenceValidationService _geofence;
     private readonly IThumbnailService _thumbnails;
@@ -271,6 +302,9 @@ public class DocumentsController : ControllerBase
         var total = await query.CountAsync();
         var docs = await query.OrderByDescending(d => d.UploadedAt)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        // #633 — additive. Every existing field is untouched; clients that do not
+        // read allowedTransitions are unaffected.
+        foreach (var d in docs) WithAllowedTransitions(d);
         return Ok(new { items = docs, total, page, pageSize });
     }
 
@@ -1551,8 +1585,20 @@ public class DocumentsController : ControllerBase
             var hasLegacyApproval = await _db.DocumentApprovals
                 .AnyAsync(a => a.DocumentId == docId && a.Transition == transitionKey && a.Status == "APPROVED"
                     && (a.RevisionSnapshot == null || a.RevisionSnapshot == currentRevision));
+            // #552 — scope the CHAIN path exactly as the legacy path above. Until
+            // ApprovalChain carried a RevisionSnapshot there was no field to filter on,
+            // so this branch matched on (DocumentId, Transition) alone. The two are
+            // OR'd, which meant the UNSCOPED branch won: a chain completed against P01
+            // satisfied the gate for P02, P03 and every revision after, while the
+            // scoped legacy check beside it correctly refused. The bypass left a
+            // COMPLETED chain in the audit trail, so it was invisible after the fact.
+            //
+            // NULL still matches, mirroring the legacy predicate — see the field's own
+            // remarks on ApprovalChain for why that compatible choice is deliberate and
+            // what exposure it leaves.
             var hasCompletedChain = await _db.ApprovalChains
-                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED");
+                .AnyAsync(c => c.DocumentId == docId && c.Transition == transitionKey && c.Status == "COMPLETED"
+                    && (c.RevisionSnapshot == null || c.RevisionSnapshot == currentRevision));
             if (!hasLegacyApproval && !hasCompletedChain)
                 return BadRequest(new
                 {

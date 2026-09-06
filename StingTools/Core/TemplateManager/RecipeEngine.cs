@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -89,7 +89,7 @@ namespace StingTools.Core.TemplateManager
             {
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string dir = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD", ProjectRecipeDir);
+                    string dir = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectRecipeDir);
                     if (Directory.Exists(dir))
                     {
                         foreach (var path in Directory.GetFiles(dir, "*.json"))
@@ -116,7 +116,7 @@ namespace StingTools.Core.TemplateManager
                 throw new InvalidOperationException("Document has no save path — save the project first.");
             if (string.IsNullOrWhiteSpace(recipe.Id))
                 recipe.Id = $"recipe-{DateTime.UtcNow:yyyyMMddHHmmss}";
-            string dir = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD", ProjectRecipeDir);
+            string dir = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectRecipeDir);
             Directory.CreateDirectory(dir);
             string path = Path.Combine(dir, recipe.Id + ".json");
             File.WriteAllText(path, JsonConvert.SerializeObject(recipe, Formatting.Indented));
@@ -125,7 +125,7 @@ namespace StingTools.Core.TemplateManager
         public static void DeleteProject(Document doc, string recipeId)
         {
             if (doc == null || string.IsNullOrEmpty(doc.PathName) || string.IsNullOrEmpty(recipeId)) return;
-            string path = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD", ProjectRecipeDir, recipeId + ".json");
+            string path = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectRecipeDir, recipeId + ".json");
             try { if (File.Exists(path)) File.Delete(path); }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"RecipeRegistry delete: {ex.Message}"); }
         }

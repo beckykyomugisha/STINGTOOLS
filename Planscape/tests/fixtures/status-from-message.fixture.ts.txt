@@ -1,0 +1,61 @@
+// Fixture for the `no-status-from-message` lint rule.
+//
+// Every BAD form below is a real shape that existed in this repo (or is one
+// keystroke away from one). Every GOOD form must NOT be flagged. Verified by
+// tests/lint-rule.test.mjs, which lints this file and compares the reported
+// lines against the expectations recorded there.
+//
+// Kept as .ts.txt so it is not itself compiled or linted by the project gates.
+
+declare const msg: string;
+declare const err: { status?: number; message: string };
+declare function alert(a: string, b?: string): void;
+
+export function bad() {
+  // BAD 1 — documents.tsx:172 / project-settings/index.tsx:85 / members.tsx:174
+  if (msg.includes('HTTP 403')) alert('denied');
+
+  // BAD 2 — issues.tsx:550
+  if (msg.includes('HTTP 400') && msg.toLowerCase().includes('latitude')) alert('bad latitude');
+
+  // BAD 3 — offlineQueue.ts:531, regex-literal receiver
+  const permanent = /HTTP 4(0[0-79]|1[013-9])/.test(msg);
+
+  // BAD 4 — offlineQueue.ts:532
+  const conflict = /HTTP 409/.test(msg);
+
+  // BAD 5 — regex literal as an argument
+  const m = msg.match(/HTTP 403/);
+
+  // BAD 6 — indexOf form
+  if (msg.indexOf('HTTP 401') >= 0) alert('expired');
+
+  // BAD 7 — startsWith form
+  if (msg.startsWith('HTTP 500')) alert('server');
+
+  // BAD 8 — \d escape rather than a literal number
+  const any4xx = /HTTP \d{3}/.test(msg);
+
+  return { permanent, conflict, m, any4xx };
+}
+
+export function good() {
+  // GOOD 1 — read the status off the error, which is where it lives
+  if (err.status === 403) alert('denied');
+
+  // GOOD 2 — the template literal that CONSTRUCTS the fallback message in
+  // client.ts. Must never be flagged: it is the producer, not a status test.
+  const fallback = `HTTP ${err.status}`;
+
+  // GOOD 3 — a status test against a numeric range
+  const permanent = err.status != null && err.status >= 400 && err.status < 500;
+
+  // GOOD 4 — matching on the server's own reason text is legitimate; it is
+  // only the STATUS that must not be recovered from prose.
+  const geofence = msg.toLowerCase().includes('geofence');
+
+  // GOOD 5 — an unrelated string that happens to contain digits
+  const label = 'Error 403 pages are configured in nginx';
+
+  return { fallback, permanent, geofence, label };
+}

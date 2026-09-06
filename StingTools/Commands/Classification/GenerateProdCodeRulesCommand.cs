@@ -110,7 +110,7 @@ namespace StingTools.Commands.Classification
                 }
 
                 // _BIM_COORD dir + non-destructive target selection
-                string bimCoord = Path.Combine(Path.GetDirectoryName(projPath), "_BIM_COORD");
+                string bimCoord = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(bimCoord);
                 string target = Path.Combine(bimCoord, "prod_codes.csv");
                 bool wroteSuggested = false;

@@ -56,8 +56,8 @@ namespace StingTools.Core.Clash
                 }
 
                 var sw = Stopwatch.StartNew();
-                var toFlag = new HashSet<int>();
-                var toClear = new HashSet<int>();
+                var toFlag = new HashSet<long>();
+                var toClear = new HashSet<long>();
                 int processed = 0;
 
                 while (LiveClashUpdater.DirtyQueue.TryDequeue(out var entry) && sw.ElapsedMilliseconds < 200)
@@ -110,7 +110,7 @@ namespace StingTools.Core.Clash
                         {
                             if (sw.ElapsedMilliseconds >= 200) break;
                             int idx = (start + i) % ordered.Count;
-                            int watchedId = ordered[idx];
+                            long watchedId = ordered[idx];
                             try
                             {
                                 var r = session.RefreshElement(watchedId);

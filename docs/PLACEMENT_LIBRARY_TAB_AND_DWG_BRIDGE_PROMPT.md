@@ -1,5 +1,13 @@
 # Implementation Prompt — Placement Centre "Library" tab + DWG-MEP → seed → swap bridge
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 > **For the implementing agent.** Make the STING Placement Centre the *fixture-
 > lifecycle hub* by surfacing the already-existing seed/symbol/swap commands and
 > the DWG-MEP importer, then build the bridge that turns DWG MEP symbols into

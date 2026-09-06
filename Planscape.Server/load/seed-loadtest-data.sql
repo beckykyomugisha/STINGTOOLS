@@ -22,10 +22,24 @@
 -- measurement flatters the server badly: the same box measured a knee at
 -- 240 req/s empty versus roughly 120-180 req/s with real rows.
 --
+-- ── CLEANING UP ─────────────────────────────────────────────────────────────
+-- Prefer load/run-capacity.sh, which seeds, measures and cleans up on every
+-- exit path (including a failed or interrupted k6 run). To clean up by hand:
+--
+--   docker exec -i docker-postgres-1 psql -U planscape -d planscape \
+--     < load/cleanup-loadtest-data.sql
+--
+-- This file used to document its own cleanup as two DELETEs, the second being
+--   DELETE FROM "Users" WHERE "Email" LIKE 'loadtest%';
+-- That CANNOT SUCCEED: FK_ProjectMembers_Users_UserId is RESTRICT and the
+-- membership INSERT below gives every loadtest user a row, so the delete aborts
+-- on a foreign-key violation and all 400 users stay. Following those
+-- instructions left a demo tenant holding 426 users against a cap of 50, which
+-- was later read as a live onboarding blocker. cleanup-loadtest-data.sql
+-- deletes the RESTRICT dependants first and asserts the result before COMMIT.
+--
 -- Idempotent: re-running will not duplicate members. Users and issues WILL
--- duplicate on a second run -- clean up first if you need an exact count:
---   DELETE FROM "Issues" WHERE "IssueCode" LIKE 'ISS-%';
---   DELETE FROM "Users"  WHERE "Email" LIKE 'loadtest%';
+-- duplicate on a second run -- clean up first if you need an exact count.
 
 \set ON_ERROR_STOP on
 

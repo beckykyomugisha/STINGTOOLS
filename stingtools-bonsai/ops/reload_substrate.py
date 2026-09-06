@@ -14,14 +14,15 @@ class StingReloadSubstrateOperator(bpy.types.Operator):
     bl_options = {"REGISTER"}
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        # Drop cached registry references; they'll be rebuilt on next access
         try:
-            import stingtools_core
-            # The registries are constructed lazily by callers, so there's no
-            # global singleton to invalidate yet — but when a singleton lands
-            # in `core/state.py` this is where its `.invalidate()` is called.
-            self.report({"INFO"}, "STING substrate caches cleared")
+            import stingtools_core  # noqa: F401 — confirms package is importable
         except ImportError as e:
             self.report({"ERROR"}, f"stingtools-core not available: {e}")
             return {"CANCELLED"}
+        try:
+            from ..core.state import StingState
+            StingState.get().invalidate()
+            self.report({"INFO"}, "STING substrate caches cleared")
+        except Exception as e:
+            self.report({"WARNING"}, f"Cache invalidation error: {e}")
         return {"FINISHED"}

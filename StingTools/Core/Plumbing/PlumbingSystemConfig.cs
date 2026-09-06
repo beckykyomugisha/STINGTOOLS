@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // PlumbingSystemConfig — Phase 179a foundation.
 //
 // Project-scoped configuration that every other plumbing engine reads:
@@ -127,7 +127,7 @@ namespace StingTools.Core.Plumbing
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 var dir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var coord = Path.Combine(dir, "_BIM_COORD");
+                var coord = StingPaths.Meta(doc, "_BIM_COORD");
                 return Path.Combine(coord, "plumbing_system_config.json");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }

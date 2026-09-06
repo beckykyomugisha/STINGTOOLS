@@ -13,7 +13,7 @@ import {
   toPublicTenant,
   audit,
 } from "../auth/_lib/db";
-import { resolveCap, evaluateCap } from "../auth/_lib/limits";
+import { resolveMemberCap, evaluateCap } from "../auth/_lib/limits";
 import { clip, normCountry } from "../auth/_lib/validate";
 
 export const onRequestOptions: PagesFunction = async ({ request }) =>
@@ -26,7 +26,7 @@ export const onRequestGet = withHandler(async ({ request, env }) => {
 
   const members = await countActiveMembers(env.WAITLIST_DB, tenant.id);
   const pending = await countPendingInvites(env.WAITLIST_DB, tenant.id);
-  const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+  const cap = resolveMemberCap(tenant.plan_product, tenant.plan_tier);
   const capState = evaluateCap(members + pending, cap, tenant.cap_exceeded_since, Date.now());
 
   return {

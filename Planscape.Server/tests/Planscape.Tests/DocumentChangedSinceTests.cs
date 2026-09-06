@@ -176,13 +176,19 @@ public class DocumentChangedSinceTests : IClassFixture<PlanscapeWebApplicationFa
         // than as a hard-coded expectation: sync writes files to disk, so its
         // surface must be a SUBSET of what the same caller can already see.
         //
-        // Stated as a subset check on purpose. ProjectMemberAcl.ResolveAsync
-        // currently hard-codes its three allow-list columns to null (a deliberate
-        // migration-safety choice — see its comment), so no narrowing happens for
-        // anyone today. Asserting "PUBLISHED is filtered out" would therefore be
-        // asserting a behaviour that does not exist. This assertion holds now AND
-        // keeps holding the day those columns are read for real, because both
-        // endpoints route through the same helper.
+        // Stated as a subset check on purpose, and it is the right shape either
+        // way — both endpoints route through ProjectMemberAcl, so sync cannot
+        // outrun the list regardless of what the ACL allows.
+        //
+        // The previous version of this comment noted that ResolveAsync hard-coded
+        // its three allow-list columns to null, so no narrowing happened for
+        // anyone. That is no longer true: #631 restored the real column reads.
+        // The narrowing itself is asserted directly in ProjectMemberAclTests;
+        // this test deliberately does NOT duplicate it, because what it is here
+        // to protect is the subset relationship, not the filter.
+        //
+        // Note the seeded user is a tenant Owner and therefore bypasses the ACL
+        // entirely, which is why both documents are still expected below.
         SeedDocument("CS-SUBSET-WIP.pdf", DateTime.UtcNow.AddMinutes(-5), cdeStatus: "WIP");
         SeedDocument("CS-SUBSET-PUB.pdf", DateTime.UtcNow.AddMinutes(-5), cdeStatus: "PUBLISHED");
         var client = await _factory.CreateAuthenticatedClientAsync();
