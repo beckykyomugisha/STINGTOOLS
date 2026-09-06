@@ -114,6 +114,7 @@ GENERATED = {
     # quotes the plan's own open items, so it is gated like the rest.
     "KUT_Mobilisation_Information_Request.docx": ("tools/build_symbion_request.py",
                                                   "tools/corporate_docx.py",
+                                                  "tools/kut_naming.py",
                                                   "tools/kut_docs_lib.py"),
     "KUT_Master_Information_Delivery_Plan.xlsx": ("tools/build_midp.py",
                                                   "tools/midp_rows.py",
