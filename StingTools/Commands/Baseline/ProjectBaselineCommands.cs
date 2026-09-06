@@ -298,13 +298,36 @@ namespace StingTools.Commands.Baseline
         }
     }
 
+    internal static class BaselineDoc
+    {
+        /// <summary>
+        /// The panel dispatcher calls Execute(null, ...) on purpose and expects
+        /// CurrentApp as the fallback. A command that only reads
+        /// commandData.Application works from a ribbon button and is silently
+        /// dead from the dock panel — no exception, no dialog, a clean
+        /// start/done in the log.
+        /// </summary>
+        public static Document Resolve(ExternalCommandData data)
+            => (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)
+               ?.ActiveUIDocument?.Document;
+    }
+
     [Transaction(TransactionMode.ReadOnly)]
     public class BaselineAuditCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var doc = data?.Application?.ActiveUIDocument?.Document;
-            if (doc == null) return Result.Cancelled;
+            // StingCommandHandler.RunCommand passes NULL for ExternalCommandData
+            // and expects commands to fall back to CurrentApp. Reading
+            // data.Application here returned null, so both commands returned
+            // Cancelled instantly and showed nothing — a dead button that logged
+            // a clean start/done and no error.
+            var doc = BaselineDoc.Resolve(data);
+            if (doc == null)
+            {
+                TaskDialog.Show("STING Project Baseline", "No active document.");
+                return Result.Cancelled;
+            }
 
             var audit = BaselineAuditor.Audit(BaselineRegistry.Load(doc), BaselineModelReader.Read(doc));
             TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
@@ -318,8 +341,12 @@ namespace StingTools.Commands.Baseline
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
-            var doc = data?.Application?.ActiveUIDocument?.Document;
-            if (doc == null) return Result.Cancelled;
+            var doc = BaselineDoc.Resolve(data);
+            if (doc == null)
+            {
+                TaskDialog.Show("STING Project Baseline", "No active document.");
+                return Result.Cancelled;
+            }
 
             var baseline = BaselineRegistry.Load(doc);
             var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc));
