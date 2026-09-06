@@ -37,6 +37,13 @@
 # implied by their division and this file's existing convention. They are worth a
 # QS's eye before a site-works tender - they are data, and changing one is a
 # one-line edit here.
+#
+# Do not hand-edit those 36 rows to "fix" a code. There is a round trip for it:
+#     python tools/qs_nrm2_review.py --export    -> docs/qs_review/
+#     ... a QS fills QS_VERDICT / QS_NRM2 ...
+#     python tools/qs_nrm2_review.py --apply
+# which refuses a code that appears nowhere else in this file, refuses a stale
+# sheet, and records the reviewer's note beside the answer. See ROADMAP LIFE-2.
 # ---------------------------------------------------------------------------
 Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2,Unit
 Doors,,,,08 11 00,Metal Doors and Frames,20,each
