@@ -377,8 +377,9 @@
   <div class="modal">
     <div class="head"><h2>Create issue</h2><button class="close" id="imClose">✕</button></div>
     <div class="body">
-      <label>Title</label>
-      <input id="imTitle" placeholder="Short summary" />
+      <label for="imTitle">Title <span class="req" aria-hidden="true">*</span></label>
+      <input id="imTitle" placeholder="Short summary" required aria-required="true" />
+      <div class="field-error" id="imTitleError" role="alert" hidden>A title is required.</div>
 
       <label>Priority</label>
       <div class="choice-group" id="imPriority">

@@ -82,6 +82,63 @@ namespace StingTools.Core.Baseline
         public string Guidance = "";
     }
 
+    /// <summary>One type parameter to set on a minted family type.</summary>
+    public sealed class BaselineFamilyTypeParam
+    {
+        /// <summary>Set by NAME, not by built-in enum: door and window families
+        /// vary, and the enum a generic family uses is not the one a vendor
+        /// family uses.</summary>
+        public string Name = "";
+        public double ValueMm;
+    }
+
+    /// <summary>
+    /// A TYPE to mint inside a family that is already loaded.
+    ///
+    /// It cannot conjure the family. If nothing loaded matches, this is
+    /// reported as guidance — the same honest split that reports
+    /// "Structural Columns: 0 of 1 expected type(s) match" today.
+    /// </summary>
+    public sealed class BaselineFamilyType
+    {
+        public string Category = "";
+        /// <summary>Ordered preference list. The FIRST loaded family in the
+        /// category whose name contains any of these hosts the type. Never a
+        /// family from a different category.</summary>
+        public List<string> FamilyNamePatterns = new List<string>();
+        public string TypeName = "";
+        public string Purpose = "";
+        public List<BaselineFamilyTypeParam> Parameters = new List<BaselineFamilyTypeParam>();
+
+        /// <summary>
+        /// The "STING " prefix is the identification contract, exactly as
+        /// "STING VIS - " is for visibility filters. A vendor reissue reloaded
+        /// with overwrite wipes minted types; the prefix is what lets the next
+        /// audit recognise them as ours and re-mint them.
+        /// </summary>
+        public const string MintedPrefix = "STING ";
+        public bool CarriesMintedPrefix =>
+            (TypeName ?? "").StartsWith(MintedPrefix, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Shared parameters to add to every loaded family in a category.
+    ///
+    /// SHARED, not local. FamilyManager.AddParameter(name, group, spec,
+    /// isInstance) creates a family-local parameter with no GUID, so two
+    /// families given "the same" parameter hold two unrelated ones and cannot
+    /// be scheduled together. The ExternalDefinition overload is the only one
+    /// that produces a parameter the schedule can read across a project.
+    /// </summary>
+    public sealed class BaselineFamilyParameterSet
+    {
+        public string Category = "";
+        public List<string> Parameters = new List<string>();
+        /// <summary>False — a door type's leaf material does not vary per instance.</summary>
+        public bool IsInstance;
+        public string Group = "IdentityData";
+    }
+
     /// <summary>A level the baseline expects, by name and elevation.</summary>
     public sealed class BaselineLevel
     {
@@ -101,6 +158,16 @@ namespace StingTools.Core.Baseline
         public List<BaselineHostType> CeilingTypes = new List<BaselineHostType>();
         public List<BaselineLevel> Levels = new List<BaselineLevel>();
         public List<BaselineFamilyExpectation> FamilyExpectations = new List<BaselineFamilyExpectation>();
+
+        /// <summary>Layer 2 — types minted inside already-loaded families.</summary>
+        public List<BaselineFamilyType> FamilyTypes = new List<BaselineFamilyType>();
+
+        /// <summary>Layer 3 — shared parameters added to loaded families.</summary>
+        public List<BaselineFamilyParameterSet> FamilyParameters = new List<BaselineFamilyParameterSet>();
+
+        /// <summary>Catalogue pack ids this project adopts. Empty by default:
+        /// no pack applies unless a project asks for it by id.</summary>
+        public List<string> AdoptCatalogues = new List<string>();
 
         public IEnumerable<BaselineHostType> AllHostTypes =>
             (WallTypes ?? new List<BaselineHostType>())
@@ -143,6 +210,52 @@ namespace StingTools.Core.Baseline
                         problems.Add($"'{t.Name}' layer names material '{l.Material}', "
                                    + "which the baseline does not declare");
                 }
+            }
+
+            // Layer 2 — a type with no name mints nothing; a parameter with no
+            // name sets nothing. Both fail silently in Revit, so they are caught
+            // here, before any model is touched.
+            foreach (var ft in FamilyTypes ?? new List<BaselineFamilyType>())
+            {
+                if (ft == null) continue;
+                if (string.IsNullOrWhiteSpace(ft.TypeName))
+                { problems.Add("a family type has no typeName"); continue; }
+                if (string.IsNullOrWhiteSpace(ft.Category))
+                    problems.Add($"family type '{ft.TypeName}' names no category");
+                if (ft.FamilyNamePatterns == null || ft.FamilyNamePatterns.Count == 0
+                    || ft.FamilyNamePatterns.All(string.IsNullOrWhiteSpace))
+                    problems.Add($"family type '{ft.TypeName}' declares no familyNamePatterns, "
+                               + "so no loaded family can host it");
+                if (!ft.CarriesMintedPrefix)
+                    problems.Add($"family type '{ft.TypeName}' does not start with "
+                               + $"'{BaselineFamilyType.MintedPrefix}' — the prefix is what lets a "
+                               + "later audit recognise a minted type after a vendor family reload");
+                foreach (var prm in ft.Parameters ?? new List<BaselineFamilyTypeParam>())
+                    if (prm != null && string.IsNullOrWhiteSpace(prm.Name))
+                        problems.Add($"family type '{ft.TypeName}' has a parameter with no name");
+            }
+
+            var ftDupes = (FamilyTypes ?? new List<BaselineFamilyType>())
+                .Where(t => t != null && !string.IsNullOrWhiteSpace(t.TypeName))
+                .GroupBy(t => (t.Category ?? "") + "|" + t.TypeName.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1).Select(g => g.Key);
+            foreach (string d in ftDupes) problems.Add($"family type '{d}' is declared more than once");
+
+            // Layer 3 — an empty parameter list augments nothing, which would
+            // report families as "would be augmented" and then change nothing.
+            foreach (var fp in FamilyParameters ?? new List<BaselineFamilyParameterSet>())
+            {
+                if (fp == null) continue;
+                if (string.IsNullOrWhiteSpace(fp.Category))
+                { problems.Add("a familyParameters entry names no category"); continue; }
+                var named = (fp.Parameters ?? new List<string>())
+                    .Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                if (named.Count == 0)
+                    problems.Add($"familyParameters for '{fp.Category}' lists no parameters");
+                if (fp.IsInstance)
+                    problems.Add($"familyParameters for '{fp.Category}' asks for INSTANCE parameters; "
+                               + "the material schedule reads type parameters, so a per-instance "
+                               + "value would be invisible to it");
             }
 
             var dupes = AllHostTypes.Where(t => t != null && !string.IsNullOrWhiteSpace(t.Name))
