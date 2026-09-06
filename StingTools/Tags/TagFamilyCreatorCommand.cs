@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1006,10 +1006,20 @@ namespace StingTools.Tags
         /// Seed families are the gold standard — they have Label → ASS_TAG_1_TXT
         /// already configured, so they work immediately without manual Family Editor steps.
         ///
-        /// Search order:
-        ///   1. Data/TagFamilies/Seeds/  (distributed seed files)
-        ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
-        /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
+        /// Searched in Data/TagFamilies/ — the one tag family set, and the same
+        /// folder Configure Labels writes to, so a family configured once is found
+        /// on the next run.
+        ///
+        /// Data/TagFamilies/Seeds/ IS NO LONGER SEARCHED and no longer exists. It
+        /// held 137 pre-Phase-188 files whose labels reference parameters Phase 188
+        /// retyped, which is what produced the recurring "Inconsistent Units" error.
+        /// It was searched FIRST, so a stale seed shadowed the current family for
+        /// every category it covered. Do not reinstate it.
+        ///
+        /// This method previously documented a second search of Data/TagFamilies/
+        /// and never performed it: it checked Seeds/ alone and returned null
+        /// otherwise, so a user-configured family was never found. That second
+        /// search is what this now does.
         /// </summary>
         public static string FindSeedFamily(BuiltInCategory bic)
         {
@@ -1018,17 +1028,15 @@ namespace StingTools.Tags
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath)) return null;
 
-            // Check Seeds/ subdirectory first (distributed with the plugin)
-            string seedDir = Path.Combine(dataPath, "TagFamilies", "Seeds");
-            if (Directory.Exists(seedDir))
-            {
-                string seedPath = Path.Combine(seedDir, baseName);
-                if (File.Exists(seedPath)) return seedPath;
+            string dir = Path.Combine(dataPath, "TagFamilies");
+            if (!Directory.Exists(dir)) return null;
 
-                // Also check for _seed suffix variant
-                string seedSuffix = Path.Combine(seedDir, nameNoExt + "_seed.rfa");
-                if (File.Exists(seedSuffix)) return seedSuffix;
-            }
+            string path = Path.Combine(dir, baseName);
+            if (File.Exists(path)) return path;
+
+            // "_seed" suffix variant, kept for families named that way by hand.
+            string suffixed = Path.Combine(dir, nameNoExt + "_seed.rfa");
+            if (File.Exists(suffixed)) return suffixed;
 
             return null;
         }
@@ -2000,7 +2008,7 @@ namespace StingTools.Tags
                 report.AppendLine("author label rows; they come from the universal master.");
                 report.AppendLine();
                 report.AppendLine("TIP: after propagating, copy finished .rfa files to");
-                report.AppendLine("Data/TagFamilies/Seeds/ to skip creation next time.");
+                report.AppendLine("Data/TagFamilies/ to skip creation next time.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
@@ -2806,7 +2814,7 @@ namespace StingTools.Tags
                     ? "Run this command again to configure remaining families."
                     : "All tag families have been opened for configuration.\n\n" +
                       "TIP: Copy finished .rfa files from Data/TagFamilies/ to\n" +
-                      "Data/TagFamilies/Seeds/ so they auto-load next time.");
+                      "Data/TagFamilies/ so they auto-load next time.");
             summary.Show();
 
             StingLog.Info($"ConfigureTagLabels: configured={configured}, skipped={skipped}");
