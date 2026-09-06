@@ -211,6 +211,156 @@ field is on a consuming path.
 - **Untagged-count** in the standards-gate warning now counts non-null rules only.
 - **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
   coerces a rejected tick, so a TwoWay binding reverts its visual.
+#### Completed (Phase 251 — one roof accessory measured, two refused out loud)
+
+Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
+This phase measures that one and spends most of its effort saying, in the export, why the other two
+are missing.
+
+| Accessory | Where its length lives | Outcome |
+|---|---|---|
+| **Fascia** | along the eaves — and an eave is horizontal, so the footprint's **plan length IS its length** | **measured** → `fascia_board` (m → Lengths of 4.2 m) |
+| **Barge board** | up the **rake** of a gable — longer than the gable's plan length by 1/cos(pitch) | **not measured**; the plan length is reported, labelled as not the answer |
+| **Ridge cap** | an internal line the footprint does **not carry at all** | **not measured**; no boundary data could give it |
+
+**How the eaves are identified.** A `FootPrintRoof`'s sketch records which boundary curves *define
+slope*. Those are the eaves; the rest are gable edges. That is a fact the model states, not an
+inference from form. Only the **first** profile loop is measured — later loops are openings, and an
+opening's edge is not an eave.
+
+**Why the barge board is refused.** Recovering a rake length from a plan length needs the pitch, and
+`FootPrintRoof.get_SlopeAngle` returns a value whose units this work could not confirm against a
+running Revit — the same instrument problem that runs through all of T1–T5. Shipping a length that
+is right only if a guess about units is right would be worse than shipping none. The scan therefore
+reports the gable edges' **plan** total, hard-labelled as *not* the barge length, so a QS can finish
+the calculation by hand knowing exactly what is missing.
+
+**Deriving either from the roof AREA is refused explicitly, in the export text**, because the reader
+who wants a ridge length is precisely the person most likely to reach for the area.
+
+**Also stated in the scan:** timber rafters and purlins are out of scope here and are measured only
+when modelled as Structural Framing, where they already decompose — so their absence reads as a
+scope boundary rather than an omission. Concrete roofs are skipped (a flat RC slab has no fascia) and
+say so; extrusion roofs and roofs by face carry no boundary sketch and say so separately, because the
+two have different fixes.
+
+**A gate did not fire, and that is reported rather than papered over.** Removing the `Math.Max(0, …)`
+clamp on the eaves length moved no test — because the `if (eaves <= 0)` guard below it already
+rejects a negative. The two are redundant *by design*; a comment now says so, and removing **both**
+was verified to fail the gate. That is a different finding from a blind gate and is written up as
+such.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings — which also confirms `FootPrintRoof.GetProfiles`
+and `get_DefinesSlope` resolve against the real Revit API. `StingTools.Boq.Tests` 689 → **716 green**.
+All four gates pass. **Twenty-four deliberately wrong inputs were each shown to make the matching
+gate FAIL, then restored**: a ridge cap derived from the eaves, a barge board emitted at the eaves
+length, a dropped zero-length guard, fascia emitted in m², a doubled cutting allowance, and ten ways
+of weakening the scan — dropping the ridge/barge sentence, un-labelling the plan length, telling a
+hip roof its barge could not be measured, dropping the area refusal, dropping the rafters note, and
+folding the footprint-less / concrete / opening cases into the general count — plus a mismatched
+unit, fractional lengths, a per-metre "Lengths" label, a zeroed allowance, an invented ridge
+commodity, a missing rate, a lost kind route and a wrongly declared intermediate. One pre-existing
+gate fired as well.
+
+**What was NOT verified, and it matters more here than anywhere in T1–T4.** *Nothing Revit-side has
+been run by anyone.* `ReadRoofEavesLengthM` is a **new Revit reader** — the first since T3 — and it
+has never executed against a real model. It compiles, so the API surface is real, but whether
+`get_DefinesSlope` classifies a given project's roof edges as expected is exactly the class of thing
+that has only ever been settled by an export. Treat every fascia length as unconfirmed until
+MATSCHED-T-VERIFY is closed.
+
+**T6 was not attempted**, per its own instruction that the deliverable is a written proposal first.
+
+#### Completed (Phase 250 — the first numbers this schedule does not measure)
+
+T1–T3 measured what the model **states**: a screed layer's thickness, a board layer's area, a
+membrane layer's function. Nothing in T4 is stated anywhere. Hoop iron, binding wire, formwork nails
+and roofing fasteners exist in the schedule only because a table says how much of each goes with
+work that *was* measured.
+
+**A ratio presented as a measurement is worse than no number at all, because nobody checks it.** So
+the deliverable here is as much the honesty machinery as the quantities.
+
+**Emitted** — each from a driver the bill already carries, NET of wastage:
+
+| Kind | Driver | Ratio | Bought as |
+|---|---|---|---|
+| `hoop_iron` | walled area (m²) | 1.2 m/m² | Rolls of 30 m |
+| `binding_wire` | rebar (kg) | 1.25% | Rolls of 20 kg |
+| `formwork_nails` | formwork (m²) | 0.20 kg/m² | Kg |
+| `roof_fastener` | roof covering (m²) | 11 nr/m² | Packs of 100 |
+
+**Six rules the design had to satisfy.**
+
+1. **No ratio in C#.** All four live in the new `STING_CONSUMABLES.json`, with a project override at
+   `_BIM_COORD/consumables.json` merged by kind. `ConsumablesCalculator` knows none of its own — a
+   test empties the table against enormous drivers and asserts nothing is produced.
+2. **Every ratio states its source.** Each rule carries a `sourceNote` giving the derivation, not a
+   citation-shaped phrase: hoop iron is *"one strip in every 4th course of 200 mm block = 1 m per
+   0.84 m of height = 1.19 m/m², taken as 1.2; DOUBLE IT for a strip near each face"*. A test fails
+   on an empty note **and on one shorter than 40 characters**, because "industry standard" explains
+   nothing.
+3. **No driver, no row.** Not a minimum, not a fixed quantity, not a zero-quantity row — a
+   zero-quantity row reads as a measurement of nothing rather than an absence of information. A job
+   with no modelled steel simply gets no binding wire, and the scan says so *and says it is
+   intended*.
+4. **The banner quotes the arithmetic.** It names each rule that fired with its actual driver value
+   and ratio (`hoop_iron = 564.22 × 1.2 m per m² of walling`), so the figure can be checked against
+   the specified detail without opening the JSON. That is the difference between a disclaimer and a
+   diagnostic. Wording follows `SiteToolsCalculator`: *PRACTICE HEURISTICS, not a standard … Review
+   before issue.* It is conditional on something having been derived.
+5. **The qualification is on the row, not only in the banner.** Each commodity rule's description —
+   which is what the aggregator actually prints — reads *"(DERIVED from … by a practice ratio — not
+   measured)"*. A banner alone can be scrolled past; a row carries its own caveat wherever it goes.
+6. **Derived rows go through the ordinary machinery.** They are returned as `ConstituentInput`s and
+   fed back into the aggregator, so a consumable is staged, unit-guarded, converted and priced by
+   exactly the same code as a measured commodity. The site-tools section bypasses all of that; a
+   second untested path to the page was not worth repeating. Drivers are read *before* the derived
+   rows are appended, so a consumable can never become another consumable's driver — pinned by a
+   test.
+
+**Five gates were found BLIND, and that is the part worth reading.** Each passed with the thing it
+protected deleted:
+
+* `Rebar_Sums_Rebar_But_Not_Mesh` — the mesh row was in m², so the **unit** check turned it away and
+  the kind check never ran. Retargeted at a kg mesh row.
+* `A_Roof_That_Is_Not_A_Covering…` — the concrete row was in m³, so again the unit check caught it
+  first. Replaced with a row that **is** on a roof **and is** in m² (`"Green Roof Substrate
+  Buildup"`), which only the supplier table's type patterns can reject.
+* `Mesh_In_Its_Normal_Unit…` — mesh never enters the rebar branch at all, so dropping that branch's
+  unit check changed nothing. Retargeted at a `rebar`/m² row.
+* `End_To_End_…Convert` — it called `SupplierUnitConverter` directly, which converts whatever it is
+  handed; the unit **guard** lives in `CommodityAggregator`. It now runs the real aggregator and
+  asserts `ConversionBlocked` is false, the pack is whole, the row is priced and it is not a
+  memorandum.
+* `End_To_End_…Sections` — twice. First, the roof stage's `"roofing"` typePattern matched the row's
+  *description*, so `roof_fastener` reached the roof section with its kind route deleted;
+  descriptions are now blanked so only the kind can route. Then `superstructure` turned out to be
+  the **default** stage, so the other three landed correctly regardless; the test now points the
+  default at `external`, making all four routes observable.
+
+None of these was a live defect — the shipped behaviour was right in every case. All five were tests
+that could not fail, which is the failure mode that has now cost this codebase eight findings across
+T1–T4.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 644 → **689 green**. All
+four gates pass. **Thirty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored**, including the delete-the-thing-it-protects check on every new gate: an
+invented driver, a negative driver, a hardcoded fallback ratio, a built-in rule table, an accepted
+unknown driver, a dropped trace ref, mesh admitted to the rebar driver, dropped unit checks in three
+branches, a bare category test for roof covering, six ways of weakening the banner, four ways of
+making the scan lie, an emptied and a token source note, a bad driver name, a mismatched unit, an
+out-of-band ratio, a de-disclaimed library note, a de-qualified commodity description, fractional
+packs, a lost supplier rule, a missing rate, dropped stage routes, and a consumable wrongly declared
+an intermediate. Two pre-existing gates (`Every_Rule_Is_Reachable`,
+`Every_Commodity_Rule_Has_A_Baseline_Rate`) fired as well.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone* — T1–T3 included. T4 itself is
+Revit-free end to end: the drivers are summed from constituent rows the aggregator already holds, so
+there is no new reader. But those rows come from take-off paths that have never executed against a
+real model, so **the driver values these ratios multiply are themselves unverified**. The arithmetic,
+the classifier of drivers, the banner, the scan and the shipped-data seams are all proven headlessly.
+
 #### Completed (Phase 249 — the membranes nobody was buying)
 
 `MaterialFunctionAssignment.Membrane` layers were ignored entirely. A ground-bearing slab's DPM and
