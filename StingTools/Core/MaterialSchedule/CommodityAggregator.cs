@@ -35,6 +35,8 @@ namespace StingTools.Core.MaterialSchedule
         public string DefaultStageId = "";
         /// <summary>Categories that are not materials — see StageLibrary.ExcludedCategories.</summary>
         public List<string> ExcludedCategories = new List<string>();
+        /// <summary>Filled during the pass, for the export note. See MaterialMatchTally.</summary>
+        public MaterialMatchTally MaterialScan = new MaterialMatchTally();
         /// <summary>Description/type substrings that are never materials.</summary>
         public List<string> ExcludedDescriptionPatterns = new List<string>();
         /// <summary>Categories no description pattern may exclude — see StageLibrary.</summary>
@@ -156,6 +158,25 @@ namespace StingTools.Core.MaterialSchedule
                 // A category hit whose type did not match is NOT converted. Record
                 // why, so the reconciler can name it and the QS can either fix the
                 // rule or price the measured row by hand.
+                // The material scan. Only rows with no constituent kind of
+                // their own could ever be decided by material, so those are the
+                // denominator — counting the rest would report a coverage the
+                // feature was never asked for.
+                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null)
+                {
+                    var scan = input.MaterialScan;
+                    scan.RowsInspected++;
+                    bool hasMaterial = !string.IsNullOrWhiteSpace(row.MaterialName);
+                    if (hasMaterial) scan.RowsWithMaterial++;
+                    if (res.Match == SupplierUnitMatch.ByMaterial) scan.MatchedByMaterial++;
+                    else if (hasMaterial && res.Rule == null)
+                    {
+                        scan.UnplacedMaterials.Add(row.MaterialName.Trim());
+                        if (!string.IsNullOrWhiteSpace(row.Category))
+                            scan.UnplacedCategories.Add(row.Category.Trim());
+                    }
+                }
+
                 if (res.Match == SupplierUnitMatch.CategoryTypeMismatch)
                 {
                     a.ConversionBlocked = true;

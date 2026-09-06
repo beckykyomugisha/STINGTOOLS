@@ -156,6 +156,12 @@ namespace StingTools.BOQ.MaterialSchedule
             string mapped = SupplierUnitPatcher.Summary(LastPatchesApplied);
             if (!string.IsNullOrEmpty(mapped)) msDoc.Warnings.Add(mapped);
 
+            // Alongside the tiling / screed / membrane / room-finish scans, and
+            // outside the priced block for the same reason: a material match
+            // decides a row's UNIT, which a quantities-only buy-list needs too.
+            string matScan = inputs.MaterialScan?.Summary();
+            if (!string.IsNullOrEmpty(matScan)) msDoc.Warnings.Add(matScan);
+
             if (msDoc.Options.ShowPrices)
             {
                 string provenance = RateProvenanceLabel.Summary(
