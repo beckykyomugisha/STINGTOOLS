@@ -167,6 +167,70 @@ def check_freshness(root: Path, f: Findings, verbose: bool):
 
 # -- 2. the three documents agree with each other ----------------------------
 
+def check_programme(bep_t, pb_t, f: Findings, verbose: bool):
+    """Stage months in the issued documents must match the Owner's durations.
+
+    WHY THIS EXISTS. Every other check in this file compares the documents to
+    EACH OTHER. That is exactly what let the programme break: the BEP, the
+    playbook and the MIDP all agreed that FF&E ran M40-M43 and close-out ended
+    at M45, so a consistency check passed -- while all three contradicted the
+    49-month total printed on their own front pages. Agreement between three
+    copies of a wrong number is not correctness.
+
+    So this check compares against something OUTSIDE the documents:
+    kut_docs_lib.WORK_PROGRAMME, which holds the Owner's stage durations as
+    transcribed from the Work Program, and computes the months sequentially.
+    """
+    want = K.stage_months()
+
+    t = find_table(bep_t, "Milestone", "Stage", "LOD")
+    if t is None:
+        f.fail(BEP, 'no "Milestone / Stage / LOD" table to check the programme against')
+    else:
+        seen = 0
+        for row in t[1:]:
+            key = stage_key(cell(row, 1))
+            if key not in want:
+                continue
+            got, expect = cell(row, 3).strip(), want[key][2]
+            seen += 1
+            if got != expect:
+                f.fail(BEP, "stage %s is stated as %r; the Owner's durations put it at %r"
+                            % (key, got, expect))
+        if seen != len(want):
+            f.fail(BEP, "programme table covers %d of the %d stages in the Work Program"
+                        % (seen, len(want)))
+        f.ok()
+
+    t = find_table(pb_t, "Stage", "Name", "Months", "LOD")
+    if t is not None:
+        for row in t[1:]:
+            key = stage_key(cell(row, 0))
+            if key not in want:
+                continue                      # Mobilisation is not an Owner stage
+            start, end, _ = want[key]
+            expect = "M%d" % end if start == end else "M%d to M%d" % (start, end)
+            got = cell(row, 2).strip()
+            if got != expect:
+                f.fail(PLAYBOOK, "stage %s months stated as %r; expected %r"
+                                 % (key, got, expect))
+        f.ok()
+
+    # The totals printed in prose must equal the totals the durations produce.
+    for doc, tables in ((BEP, bep_t), (PLAYBOOK, pb_t)):
+        blob = " ".join(cell(r, i) for t2 in tables for r in t2 for i in range(len(r)))
+        for label, value in (("total", K.TOTAL_MONTHS),
+                             ("Phase 2", K.PHASE_SUBTOTALS["2"]),
+                             ("Phase 3", K.PHASE_SUBTOTALS["3"])):
+            if "%d months" % value not in blob and "%d month" % value not in blob:
+                f.fail(doc, "does not state the %s of %d months anywhere in its tables"
+                            % (label, value))
+        f.ok()
+
+    if verbose:
+        print("  programme: %s" % ", ".join("%s=%s" % (k, v[2]) for k, v in want.items()))
+
+
 def check_stages(bep_t, pb_t, midp, f: Findings, verbose: bool):
     """Stage -> LOD must be one answer across BEP, playbook and MIDP."""
     sources: dict[str, dict[str, int]] = {}
@@ -733,6 +797,7 @@ def main() -> int:
     pb_t = K.docx_tables(root / PLAYBOOK)
     midp_path = root / MIDP
 
+    check_programme(bep_t, pb_t, f, args.verbose)
     check_stages(bep_t, pb_t, midp_path, f, args.verbose)
     check_suitability(bep_t, pb_t, midp_path, f, args.verbose)
     check_volumes(bep_t, pb_t, f, args.verbose)

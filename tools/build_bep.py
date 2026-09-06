@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
+import kut_docs_lib as K  # noqa: E402
 
 OUT = 'KUT_BIM_Execution_Plan.docx'
 
@@ -117,8 +118,9 @@ c.table(['Item', 'Detail'],
          ['Description', '[FILL — temple and ancillary buildings, gross floor area, storeys]'],
          ['Procurement route', '[FILL]'],
          ['Form of contract', '[FILL]'],
-         ['Programme', '49 months. Phase 2 (design) 11 months; Phase 3 (construction and close-out) 38 months. '
-                       'See Section 9'],
+         ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months. '
+                       'See Section 9'
+                       % (K.TOTAL_MONTHS, K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'])],
          ['Key dates', '[FILL — appointment, Deliverables A to D, practical completion]']],
         widths=[4.4, 12.2])
 
@@ -745,15 +747,12 @@ c.para('Each task team submits a Task Information Delivery Plan setting out its 
        'information need and responsible person. The Information Manager aggregates these into the Master '
        'Information Delivery Plan, which is baselined at mobilisation and reissued at each stage and data drop.')
 c.table(['Milestone', 'Stage', 'LOD', 'Planned (relative month)'],
-        [['Basis of Design (Deliverable A)', '2.1', '200', 'M1'],
-         ['Developed Design (Deliverable B)', '2.2', '300', 'M4'],
-         ['Technical Design (Deliverable C)', '2.3', '350', 'M8'],
-         ['Tender issue and award', '2.4', '—', 'M9 to M11'],
-         ['Conformed set', '2.5', '350', 'M11'],
-         ['Construction', '3.1', '400', 'M12 to M43'],
-         ['FF&E installation', '3.2', '400', 'M40 to M43'],
-         ['Close-out (Deliverable D)', '3.3', '500', 'M45']],
+        [[title, stage, lod or '—', K.programme_label(stage)]
+         for stage, title, lod, _months, _kind in K.WORK_PROGRAMME],
         widths=[6.4, 2.4, 2.0, 5.8])
+c.para('Months are counted from the appointment and run in sequence: %d months for Phase 2 and %d for Phase 3, '
+       '%d in total. Calendar dates are fixed against the appointment date once it is confirmed.'
+       % (K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'], K.TOTAL_MONTHS))
 
 # ── 10 ──────────────────────────────────────────────────────────────────────
 c.h1('10  Quality assurance and model validation')

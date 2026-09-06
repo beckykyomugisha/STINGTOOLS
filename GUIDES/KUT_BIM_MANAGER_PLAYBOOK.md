@@ -186,11 +186,13 @@ Durations are from your revised work plan. Months are **relative** (M1 = first m
 | 2.5 | Conformed Set / Construction Documentation | — | (within above) | M11 | Jul 2027 |
 | **PHASE 3 — Construction Administration** | | | **38 mo** | | |
 | 3.1 | Supervise the Building Construction Contract | LOD 400 | 32 | M12–M43 | Aug 2027 – Mar 2030 |
-| 3.2 | Supervise Furniture, Fittings & Equipment (FF&E) | LOD 400 | 4 | M40–M43* | Dec 2029 – Mar 2030 |
-| 3.3 | Provide Close-Out Documents / **Deliverable D** | LOD 500 | 2 | M44–M45 | Apr 2030 – May 2030 |
-| | **TOTAL** | | **49 mo** | | ≈ Sep 2026 – ~mid 2030 |
+| 3.2 | Supervise Furniture, Fittings & Equipment (FF&E) | LOD 400 | 4 | M44–M47 | Apr 2030 – Jul 2030 |
+| 3.3 | Provide Close-Out Documents / **Deliverable D** | LOD 500 | 2 | M48–M49 | Aug 2030 – Sep 2030 |
+| | **TOTAL** | | **49 mo** | | ≈ Sep 2026 – Sep 2030 |
 
-\* 3.2 FF&E overlaps the tail of 3.1 (fit-out happens near completion).
+> Calendar dates are illustrative, assuming an appointment in August 2026 (M0). They are fixed once the
+> appointment date is confirmed. Month offsets are the controlling figures: the stages run in sequence,
+> which is what makes the 11 + 38 subtotals reach the stated 49.
 
 ## 2.3 The repeating "coordination cycle" (your weekly rhythm)
 
@@ -725,7 +727,7 @@ You'll be judged on whether the **team** can follow the system, not just you. Ke
 `Share → Clash (ACC+STING) → Coordinate → Issue → Report`
 
 ## 11.5 The data drops
-`B = Dev Design (M4) · C = Tech Design (M8) · D = Close-out (M45)`
+`B = Dev Design (M4) · C = Tech Design (M8) · D = Close-out (M49)`
 
 ## 11.6 Tool → job
 `Revit=author · ACC=CDE+clash · STINGTOOLS=automate/QA · Speckle=share/view · Fohlio=FF&E/O&M · Niagara=operate/twin`
