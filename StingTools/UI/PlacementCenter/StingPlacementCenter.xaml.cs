@@ -176,6 +176,100 @@ namespace StingTools.UI.PlacementCenter
             btnCatAll.Click  += (_,__) => SetAllCategoryChecks(true);
             btnCatNone.Click += (_,__) => SetAllCategoryChecks(false);
 
+            // Glazing + maintenance-clearance write-back. These three editors
+            // were populated from the selected rule but had no commit handler,
+            // so every edit was discarded on selection change — which is the
+            // real reason the fields looked "edited but never consumed".
+            if (chkToughenedGlazing != null)
+            {
+                chkToughenedGlazing.Checked   += (_,__) => CommitField(() => VM.Selected.ToughenedGlazingRequired = true);
+                chkToughenedGlazing.Unchecked += (_,__) => CommitField(() => VM.Selected.ToughenedGlazingRequired = false);
+            }
+            if (cmbGlazingSpec != null)
+                cmbGlazingSpec.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.GlazingSpec = cmbGlazingSpec.SelectedItem as string ?? "");
+            if (cmbMaintenanceClearance != null)
+                cmbMaintenanceClearance.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.MaintenanceClearance = cmbMaintenanceClearance.SelectedItem as string ?? "");
+
+            // Phase 224 — the rest of the uncommitted editor cards.
+            //
+            // An audit of the per-rule sync block (every control assigned from a
+            // `s.<Property>`) found 16 further editors populated from the selected
+            // rule with no write-back handler, so their edits were discarded on
+            // selection change exactly as the glazing / clearance ones were.
+            // Notably this included txtStandardsCsv — the ApplicableStandards
+            // editor itself could not be edited.
+            //
+            // Read-only displays (txtSourcePack, txtRuleError) are deliberately
+            // excluded: SourcePack is loader-owned and txtRuleError renders
+            // validation output.
+
+            // Clearances / geometry (numeric)
+            if (txtWallClearance != null)
+                txtWallClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.WallClearanceMm = ParseDouble(txtWallClearance.Text, VM.Selected.WallClearanceMm));
+            if (txtObstructionClearance != null)
+                txtObstructionClearance.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ObstructionClearanceMm = ParseDouble(txtObstructionClearance.Text, VM.Selected.ObstructionClearanceMm));
+            if (txtRouteMinBendRadius != null)
+                txtRouteMinBendRadius.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.RouteMinBendRadiusMm = ParseDouble(txtRouteMinBendRadius.Text, VM.Selected.RouteMinBendRadiusMm));
+            if (txtSillHeight != null)
+                txtSillHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.SillHeightMm = ParseDouble(txtSillHeight.Text, VM.Selected.SillHeightMm));
+            if (txtHeadHeight != null)
+                txtHeadHeight.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.HeadHeightMm = ParseDouble(txtHeadHeight.Text, VM.Selected.HeadHeightMm));
+            if (txtCillToFloor != null)
+                txtCillToFloor.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.CillToFloorMm = ParseDouble(txtCillToFloor.Text, VM.Selected.CillToFloorMm));
+
+            // Free text
+            if (txtIpRatingMin != null)
+                txtIpRatingMin.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.IpRatingMin = txtIpRatingMin.Text ?? "");
+            if (txtStandardsCsv != null)
+                txtStandardsCsv.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.ApplicableStandardsCsv = txtStandardsCsv.Text ?? "");
+            if (txtPostAuditTag != null)
+                txtPostAuditTag.LostFocus += (_,__) =>
+                    CommitField(() => VM.Selected.PostAuditTag = txtPostAuditTag.Text ?? "");
+
+            // Combos. The sync block substitutes a default when the rule value is
+            // empty ("INTERIOR" for RouteFace, "NONE" for WetZoneExclusion); the
+            // commit path mirrors that so a round-trip is stable rather than
+            // rewriting the rule with the placeholder on first selection.
+            if (cmbRouteFace != null)
+                cmbRouteFace.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.RouteFace = cmbRouteFace.SelectedItem as string ?? VM.Selected.RouteFace);
+            if (cmbBuildingType != null)
+                cmbBuildingType.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.BuildingType = cmbBuildingType.SelectedItem as string ?? VM.Selected.BuildingType);
+            if (cmbWetZone != null)
+                cmbWetZone.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.WetZoneExclusion = cmbWetZone.SelectedItem as string ?? VM.Selected.WetZoneExclusion);
+            if (cmbHeightStandard != null)
+                cmbHeightStandard.SelectionChanged += (_,__) =>
+                    CommitField(() => VM.Selected.HeightStandard = cmbHeightStandard.SelectedItem as string ?? VM.Selected.HeightStandard);
+
+            // Checkboxes
+            if (chkAccessibilityCheck != null)
+            {
+                chkAccessibilityCheck.Checked   += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = true);
+                chkAccessibilityCheck.Unchecked += (_,__) => CommitField(() => VM.Selected.AccessibilityCheck = false);
+            }
+            if (chkRequiresCOBieFields != null)
+            {
+                chkRequiresCOBieFields.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = true);
+                chkRequiresCOBieFields.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresCOBieFields = false);
+            }
+            if (chkRequiresIfcMapping != null)
+            {
+                chkRequiresIfcMapping.Checked   += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = true);
+                chkRequiresIfcMapping.Unchecked += (_,__) => CommitField(() => VM.Selected.RequiresIfcMapping = false);
+            }
+
             // Per-rule field handlers — wired manually so we can validate after each edit
             cmbCategory.LostFocus       += (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
             cmbCategory.SelectionChanged+= (_,__) => CommitField(() => VM.Selected.CategoryFilter   = (cmbCategory.Text ?? "").Trim());
@@ -269,6 +363,12 @@ namespace StingTools.UI.PlacementCenter
             VM.AttachFilteredView();
             gridRules.ItemsSource = VM.FilteredRules;
             if (VM.Rules.Count > 0) gridRules.SelectedIndex = 0;
+
+            // Generate the Auto-place checklist from the category registry +
+            // the rules just loaded. Must run after LoadFromProject so per-row
+            // rule counts are real.
+            try { VM.RebuildCategoryChecklist(_doc); }
+            catch (Exception cEx) { StingLog.Warn($"Auto-place checklist first-build: {cEx.Message}"); }
 
             // Phase D — populate history grid on first open so the
             // panel surface isn't a wall of empties.
@@ -2097,61 +2197,52 @@ namespace StingTools.UI.PlacementCenter
                 UpdateStatus();
         }
 
-        // Phase 139.8 — checklist plumbing.
-        private (System.Windows.Controls.CheckBox cb, string cat)[] CategoryChecklist()
-            => new (System.Windows.Controls.CheckBox, string)[]
-            {
-                (cbCatElec,   "Electrical Fixtures"),
-                (cbCatLtgDev, "Lighting Devices"),
-                (cbCatLtgFix, "Lighting Fixtures"),
-                (cbCatComm,   "Communication Devices"),
-                (cbCatData,   "Data Devices"),
-                (cbCatSec,    "Security Devices"),
-                (cbCatFire,   "Fire Alarm Devices"),
-                (cbCatPlm,    "Plumbing Fixtures"),
-                (cbCatHvac,   "Air Terminals"),
-                (cbCatSpr,    "Sprinklers"),
-                (cbCatMech,   "Mechanical Equipment"),
-                (cbCatCond,   "Conduits"),
-                (cbCatJBox,   "Junction Boxes"),
-                (cbCatPipe,   "Pipes"),
-                (cbCatTray,   "Cable Trays"),
-                (cbCatSpec,   "Specialty Equipment"),
-                (cbCatFurn,   "Furniture"),
-                (cbCatNurse,  "Nurse Call Devices"),
-            };
+        // Auto-place checklist plumbing.
+        //
+        // The checklist is generated from PlacementCategoryRegistry into
+        // VM.CategoryChecklist and rendered by an ItemsControl, so there are no
+        // named CheckBox fields to keep in sync with the engine any more. The
+        // old "N of M checkboxes are NULL → stale XAML build" diagnostic is
+        // replaced by an empty-collection check, which is the equivalent failure
+        // for the generated path.
 
         private System.Collections.Generic.HashSet<string> ReadCategoryChecklist()
         {
             var s = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
-            // Phase 139.20 — log every checkbox state + null-state. If
-            // many cb fields are null, the XAML auto-generated bindings
-            // didn't compile (stale build). If all fields exist but the
-            // user thinks they ticked one and we report unchecked, the
-            // problem is UI confusion not code. Either way the user can
-            // read the StingLog and we know which root cause to chase.
-            int totalCb = 0, nullCb = 0, checkedCb = 0;
-            var checkedNames = new System.Collections.Generic.List<string>();
-            var nullNames    = new System.Collections.Generic.List<string>();
-            foreach (var (cb, cat) in CategoryChecklist())
+            var items = VM?.CategoryChecklist;
+            if (items == null || items.Count == 0)
             {
-                totalCb++;
-                if (cb == null) { nullCb++; nullNames.Add(cat); continue; }
-                if (cb.IsChecked == true) { checkedCb++; checkedNames.Add(cat); s.Add(cat); }
+                StingLog.Warn("PlacementCenter: Auto-place checklist is empty — the category registry produced " +
+                              "no rows (STING_CATEGORY_TO_SEED_MAP.json missing from the data path?). " +
+                              "Treating the run as 'every category in the active rule pack allowed'.");
+                return s;
             }
-            StingLog.Info($"PlacementCenter: category checklist read — {totalCb} controls, " +
-                          $"{nullCb} NULL ({(nullNames.Count > 0 ? string.Join(", ", nullNames) : "")}), " +
-                          $"{checkedCb} ticked ({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
-            if (nullCb > 0)
-                StingLog.Warn($"PlacementCenter: {nullCb} of {totalCb} category checkboxes are NULL — " +
-                              "XAML auto-generated bindings did not compile. Rebuild the plug-in.");
+
+            var checkedNames = new System.Collections.Generic.List<string>();
+            foreach (var item in items)
+            {
+                if (item == null || !item.IsChecked) continue;
+                checkedNames.Add(item.Category);
+                s.Add(item.Category);
+            }
+
+            StingLog.Info($"PlacementCenter: category checklist read — {items.Count} categories, " +
+                          $"{items.Count(i => !i.IsPlaceable)} non-placeable, " +
+                          $"{checkedNames.Count} ticked " +
+                          $"({(checkedNames.Count > 0 ? string.Join(", ", checkedNames) : "<none>")}).");
             return s;
         }
 
+        /// <summary>
+        /// "All" / "None". Non-placeable categories are never ticked — the item's
+        /// IsChecked setter refuses them — so "All" means "all placeable".
+        /// </summary>
         private void SetAllCategoryChecks(bool on)
         {
-            foreach (var (cb, _) in CategoryChecklist())
-                if (cb != null) cb.IsChecked = on;
+            var items = VM?.CategoryChecklist;
+            if (items == null) return;
+            foreach (var item in items)
+                if (item != null) item.IsChecked = on;
         }
 
         private void UpdateStatus()
@@ -3239,6 +3330,424 @@ namespace StingTools.UI.PlacementCenter
                 StingLog.Warn($"StingPlacementCenter.EnsureResources: {ex.Message}");
             }
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        #region Family Converter
+        // Family Converter tab — change a family's host / placement type and keep
+        // it working across the project. All model/family work marshals to the
+        // Revit API thread via RunInlineAction (mirrors OnRebuildSeeds_Click); all
+        // output renders into the shared inline Report panel. The grid is the
+        // single source of truth; buttons act on grid state. OS file/folder
+        // pickers are the only allowed dialogs and always run on the WPF thread
+        // FIRST, before the ExternalEvent is raised.
+
+        private readonly FamilyHostConverter _fcConverter = new FamilyHostConverter();
+        private readonly System.Collections.ObjectModel.ObservableCollection<FamilyConverterRow> _fcRows
+            = new System.Collections.ObjectModel.ObservableCollection<FamilyConverterRow>();
+        private FamilyHostTemplates _fcTemplates;
+        private bool _fcGridBound;
+
+        private void FcEnsureGrid()
+        {
+            if (_fcGridBound || gridConverter == null) return;
+            gridConverter.ItemsSource = _fcRows;
+            _fcGridBound = true;
+        }
+
+        // Repopulate the grid on the WPF thread from a fresh scan.
+        private void FcPopulate(Document doc, IReadOnlyList<FamilyHostInfo> infos)
+        {
+            try
+            {
+                FcEnsureGrid();
+                _fcTemplates = FamilyHostTemplateRegistry.Get(doc);
+                _fcRows.Clear();
+                if (infos != null)
+                    foreach (var i in infos) _fcRows.Add(new FamilyConverterRow(_fcTemplates, i));
+                Toast($"Loaded {_fcRows.Count} families into the converter grid.");
+            }
+            catch (Exception ex) { StingLog.Warn($"FcPopulate: {ex.Message}"); }
+        }
+
+        private void OnFcScan_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Scan Families", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ScanProjectFamilies(doc);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport("Family Converter — Scan", infos);
+            });
+        }
+
+        private void OnFcImportFolder_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            string folder = null;
+            using (var fbd = new System.Windows.Forms.FolderBrowserDialog
+            { Description = "Pick a folder of .rfa families to load (searched recursively)" })
+            {
+                if (fbd.ShowDialog() == System.Windows.Forms.DialogResult.OK) folder = fbd.SelectedPath;
+            }
+            if (string.IsNullOrEmpty(folder)) { Toast("Import cancelled."); return; }
+
+            RunInlineAction("Import Folder", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ImportFolder(doc, folder);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport($"Family Converter — Import Folder", infos)
+                    .AddSection("SOURCE").Text(folder);
+            });
+        }
+
+        private void OnFcLoadRfa_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Revit Family (*.rfa)|*.rfa",
+                Multiselect = false,
+                Title = "Load a family (.rfa)"
+            };
+            if (dlg.ShowDialog() != true) { Toast("Load cancelled."); return; }
+            string path = dlg.FileName;
+
+            RunInlineAction("Load .rfa", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var infos = _fcConverter.ImportFile(doc, path);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return FcBuildScanReport("Family Converter — Load .rfa", infos)
+                    .AddSection("SOURCE").Text(path);
+            });
+        }
+
+        private StingResultPanel.Builder FcBuildScanReport(string title, IReadOnlyList<FamilyHostInfo> infos)
+        {
+            infos = infos ?? new List<FamilyHostInfo>();
+            int conv = infos.Count(i => i.Convertible);
+            var panel = StingResultPanel.Create($"STING — {title}")
+                .SetSubtitle("Loaded model families with their current host / placement type (read-only).")
+                .AddSection("SUMMARY")
+                .Metric("Families", infos.Count.ToString())
+                .Metric("Convertible", conv.ToString())
+                .Metric("Not convertible", (infos.Count - conv).ToString());
+            panel.AddSection("FAMILIES (top 60)");
+            foreach (var i in infos.Take(60))
+                panel.Text($"{i.Name}  ·  {i.Category}  ·  {i.CurrentPlacementType} ({i.CurrentHostKind})  ·  {i.InstanceCount} inst"
+                    + (i.Convertible ? "" : $"  — {i.BlockReason}"));
+            if (infos.Count > 60) panel.Text($"… and {infos.Count - 60} more (see the grid).");
+            return panel;
+        }
+
+        // Dry run — no model changes. Reads the grid's current pending targets.
+        private void OnFcAudit_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = _fcRows.ToList();
+            if (rows.Count == 0) { Toast("Run 'Scan Project Families' first."); return; }
+
+            var pending = rows.Where(r => r.HasPendingTarget).ToList();
+            var panel = StingResultPanel.Create("STING — Family Converter Audit (dry run)")
+                .SetSubtitle("No model changes. Conversion path + fidelity risk per pending row.")
+                .AddSection("SUMMARY")
+                .Metric("Rows", rows.Count.ToString())
+                .Metric("Pending", pending.Count.ToString())
+                .Metric("P1 lossless", pending.Count(r => r.PathHint.StartsWith("P1")).ToString())
+                .Metric("P2 rebuild", pending.Count(r => r.PathHint.StartsWith("P2")).ToString());
+
+            if (pending.Count == 0)
+            {
+                panel.AddSection("NOTE").Text("No rows have a Target Host selected. Pick a target in the '→ Target Host' column, then Audit or Apply.");
+            }
+            else
+            {
+                panel.AddSection("PER-FAMILY");
+                foreach (var r in pending)
+                {
+                    if (r.PathHint.StartsWith("P1"))
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P1 lossless (checkbox toggle — geometry/params/connectors untouched, instances survive)");
+                    else
+                    {
+                        string instNote = r.InstanceCount <= 0 ? ""
+                            : IsHostedTarget(_fcTemplates?.ByLabel(r.TargetLabel))
+                                ? $"; {r.InstanceCount} instance(s) WILL BE DELETED (hosted target — re-place from scratch)"
+                                : $"; {r.InstanceCount} instance(s) will be re-placed free-standing";
+                        panel.Text($"{r.Name}: {r.CurrentPlacementType} → {r.TargetLabel}  ·  P2 REBUILD (lossy — new .rfa from template; MEP connectors are harvested and re-created, any that cannot be placed are listed with coordinates; host-relative geometry re-anchors to template default; review after){instNote}");
+                    }
+                }
+                if (pending.Any(r => r.PathHint.StartsWith("P2")))
+                    panel.AddSection("NOTE").Text("Enable '⚠ Allow lossy rebuild (P2)' before Apply, or the P2 rows report as Skipped.");
+            }
+
+            // Shared-parameter pre-flight for the P2 rows — reading it needs the
+            // Revit API thread (each family document is opened and closed), so it
+            // runs through the standard inline-action bridge and reports there.
+            var p2Ids = pending.Where(r => r.PathHint.StartsWith("P2")).Select(r => r.Id).ToList();
+            if (p2Ids.Count == 0)
+            {
+                Report("Audit Only", panel);
+                return;
+            }
+
+            Toast($"Auditing {p2Ids.Count} rebuild row(s) — checking shared parameters…");
+            RunInlineAction("Audit Only", uiapp =>
+            {
+                var doc = uiapp?.ActiveUIDocument?.Document;
+                if (doc == null)
+                {
+                    panel.AddSection("SHARED-PARAMETER PRE-FLIGHT").Text("No active document — pre-flight skipped.");
+                    return panel;
+                }
+
+                var pf = new FamilyHostConverter().PreflightSharedParameters(doc, p2Ids);
+
+                panel.AddSection("SHARED-PARAMETER PRE-FLIGHT")
+                     .Text($"Families inspected: {pf.FamiliesInspected}  ·  shared params seen: {pf.SharedParamsSeen}  ·  would fall back: {pf.WouldFallBack}")
+                     .Text($"STING MR_PARAMETERS.txt: {(string.IsNullOrEmpty(pf.StingFile) ? "NOT FOUND" : pf.StingFile)}")
+                     .Text($"Project's current file: {(string.IsNullOrEmpty(pf.UserFile) ? "(none set)" : pf.UserFile)}")
+                     .Text("Both are searched by GUID during a rebuild — STING's first, then the project's. " +
+                           "A parameter only degrades to a plain family parameter when it is in neither.");
+
+                if (pf.WouldFallBack == 0)
+                {
+                    panel.Text("✓ No shared parameters would fall back. Tags, schedules, ExLink and COBie bindings survive the rebuild.");
+                }
+                else
+                {
+                    panel.Text($"⚠ {pf.WouldFallBack} shared parameter(s) would fall back to plain family parameters. " +
+                               "Their shared binding is lost, so tags / schedules / ExLink / COBie that rely on them " +
+                               "stop reading on the converted family until it is re-bound.")
+                         .Text("Fix before applying: add the missing definitions to a shared-parameter file, or accept the loss knowingly.");
+                    foreach (var n in pf.FallbackNames) panel.Text($"    • {n}");
+                }
+
+                if (pf.Warnings.Count > 0)
+                {
+                    panel.AddSection("PRE-FLIGHT WARNINGS");
+                    foreach (var w in pf.Warnings) panel.Text(w);
+                }
+                return panel;
+            });
+        }
+
+        private void OnFcApplySelected_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = gridConverter?.SelectedItems?.Cast<FamilyConverterRow>()
+                .Where(r => r != null && r.HasPendingTarget).ToList() ?? new List<FamilyConverterRow>();
+            FcApply(rows, "Apply Selected", batch: false);
+        }
+
+        private void OnFcApplyAll_Click(object sender, RoutedEventArgs e)
+        {
+            var rows = _fcRows.Where(r => r.HasPendingTarget).ToList();
+            FcApply(rows, "Apply All Pending", batch: true);
+        }
+
+        private void FcApply(List<FamilyConverterRow> rows, string title, bool batch)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            if (rows == null || rows.Count == 0)
+            {
+                Toast("No pending conversions — pick a Target Host on a row first.");
+                return;
+            }
+
+            bool rehost = chkFcRehost?.IsChecked == true;
+            bool allowLossy = chkFcAllowLossy?.IsChecked == true;
+
+            // A lossy P2 rebuild to a HOSTED placement (wall/ceiling/floor/roof)
+            // cannot keep free-standing instances: Revit DELETES them on reload and
+            // they must be re-placed from scratch. Confirm the destruction explicitly
+            // — the "Allow lossy rebuild" checkbox alone is not clear enough.
+            if (allowLossy)
+            {
+                var destructive = rows.Where(r =>
+                    r != null && r.InstanceCount > 0 &&
+                    string.Equals(r.PathHint, "P2 rebuild", StringComparison.OrdinalIgnoreCase) &&
+                    IsHostedTarget(_fcTemplates?.ByLabel(r.TargetLabel))).ToList();
+
+                if (destructive.Count > 0)
+                {
+                    int totalInst = destructive.Sum(r => r.InstanceCount);
+                    var confirm = new TaskDialog("STING — Family Converter")
+                    {
+                        MainInstruction = $"{totalInst} placed instance(s) WILL BE DELETED",
+                        MainContent =
+                            $"{destructive.Count} family(ies) convert to a hosted placement (wall/ceiling/floor/roof) via a " +
+                            "lossy rebuild. A free-standing instance cannot exist without a host, so Revit DELETES the " +
+                            "existing placements on reload — they cannot be auto-rehosted and must be RE-PLACED from scratch " +
+                            "on the new family.",
+                        ExpandedContent = string.Join("\n",
+                            destructive.Select(r => $"{r.Name} — {r.InstanceCount} instance(s) → {r.TargetLabel}")),
+                        CommonButtons = TaskDialogCommonButtons.None
+                    };
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        $"Delete {totalInst} instance(s) and rebuild", "I will re-place them from scratch afterwards.");
+                    confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Cancel — make no changes");
+                    confirm.DefaultButton = TaskDialogResult.CommandLink2;
+                    if (confirm.Show() != TaskDialogResult.CommandLink1)
+                    {
+                        Toast("Family conversion cancelled — no changes made.");
+                        return;
+                    }
+                }
+            }
+
+            // Capture request data on the WPF thread; the row objects travel with
+            // the jobs so statuses can be updated after each conversion.
+            var jobs = rows.Select(r => (Row: r, Request: new FamilyHostConversionRequest
+            {
+                FamilyId = r.Id,
+                TargetId = _fcTemplates?.ByLabel(r.TargetLabel)?.Id ?? r.TargetLabel,
+                RehostInstances = rehost,
+                AllowLossyRebuild = allowLossy
+            })).ToList();
+
+            RunInlineAction(title, app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                var results = new List<(FamilyConverterRow Row, FamilyHostConversionResult Res)>();
+
+                // Bracket the whole run — batch OR single selection — in a
+                // TransactionGroup so it is one undo item; per-family failures are
+                // isolated (continue on error) so one bad family never aborts the run.
+                TransactionGroup grp = null;
+                try { grp = new TransactionGroup(doc, batch ? "STING Family Convert (batch)" : "STING Family Convert (selected)"); grp.Start(); }
+                catch (Exception ex) { StingLog.Warn($"FcApply group: {ex.Message}"); grp = null; }
+                try
+                {
+                    foreach (var job in jobs)
+                    {
+                        FamilyHostConversionResult res;
+                        try { res = _fcConverter.Convert(doc, job.Request); }
+                        catch (Exception ex)
+                        {
+                            res = new FamilyHostConversionResult { FamilyName = job.Row.Name, PathUsed = "Skipped" };
+                            res.Warnings.Add(ex.Message);
+                            StingLog.Error($"FcApply Convert '{job.Row.Name}'", ex);
+                        }
+                        results.Add((job.Row, res));
+                        var rr = res; var rn = job.Row.Name;
+                        try { Dispatcher.BeginInvoke(new Action(() => Toast($"{title}: {rn} — {(rr.Success ? "ok" : rr.PathUsed)}"))); } catch { }
+                    }
+                }
+                finally
+                {
+                    if (grp != null)
+                    {
+                        try { grp.Assimilate(); }
+                        catch (Exception ex) { StingLog.Warn($"FcApply assimilate: {ex.Message}"); try { grp.RollBack(); } catch { } }
+                    }
+                }
+
+                // Update per-row Status on the WPF thread.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    foreach (var (row, res) in results) row.Status = FcStatus(res);
+                }));
+
+                return FcBuildApplyReport(title, results);
+            });
+        }
+
+        // A target host is "hosted" (deletes free-standing instances on a P2
+        // rebuild) unless it is a level-based / work-plane-based non-hosted type.
+        private static bool IsHostedTarget(FamilyHostTarget tgt)
+        {
+            if (tgt == null) return false;
+            return !string.Equals(tgt.PlacementType, "WorkPlaneBased", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(tgt.PlacementType, "OneLevelBased", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string FcStatus(FamilyHostConversionResult res)
+        {
+            if (res == null) return "";
+            if (res.PathUsed == "Skipped") return "⚠ skipped";
+            if (res.Success) return $"✓ {res.PathUsed}" + (res.Warnings.Count > 0 ? " (warnings)" : "");
+            return "✗ failed";
+        }
+
+        private StingResultPanel.Builder FcBuildApplyReport(string title,
+            List<(FamilyConverterRow Row, FamilyHostConversionResult Res)> results)
+        {
+            int converted = results.Count(x => x.Res.Success);
+            int skipped = results.Count(x => x.Res.PathUsed == "Skipped");
+            int failed = results.Count(x => !x.Res.Success && x.Res.PathUsed != "Skipped");
+            int rehosted = results.Sum(x => x.Res.InstancesRehosted);
+            int rehostFail = results.Sum(x => x.Res.InstancesFailed);
+
+            var panel = StingResultPanel.Create($"STING — {title}")
+                .AddSection("SUMMARY")
+                .Metric("Converted", converted.ToString())
+                .Metric("Skipped", skipped.ToString())
+                .Metric("Failed", failed.ToString())
+                .Metric("Instances re-placed", rehosted.ToString())
+                .Metric("Instances deleted / to re-place", rehostFail.ToString());
+
+            panel.AddSection("PER-FAMILY");
+            foreach (var (row, res) in results)
+            {
+                string outcome = res.Success ? "OK" : res.PathUsed == "Skipped" ? "skipped" : "FAILED";
+                panel.Text($"{res.FamilyName}: {res.FromPlacement} → {res.ToPlacement}  ·  {res.PathUsed}  ·  {outcome}");
+                foreach (var w in res.Warnings) panel.Text($"   ! {w}");
+            }
+
+            var nextSteps = results.SelectMany(x => x.Res.Notes).Where(n => n.Contains("NEXT STEP")).Distinct().ToList();
+            var otherNotes = results.SelectMany(x => x.Res.Notes).Where(n => !n.Contains("NEXT STEP")).ToList();
+            if (nextSteps.Count > 0)
+            {
+                panel.AddSection("NEXT STEPS");
+                foreach (var n in nextSteps) panel.Text(n);
+            }
+            if (otherNotes.Count > 0)
+            {
+                panel.AddSection("NOTES");
+                foreach (var n in otherNotes.Take(40)) panel.Text(n);
+            }
+            var rfas = results.Where(x => !string.IsNullOrEmpty(x.Res.NewRfaPath)).Select(x => x.Res.NewRfaPath).ToList();
+            if (rfas.Count > 0)
+            {
+                panel.AddSection("NEW .RFA FILES");
+                foreach (var p in rfas) panel.Text(p);
+            }
+            return panel;
+        }
+
+        private void OnFcSaveReload_Click(object sender, RoutedEventArgs e)
+        {
+            if (_doc == null) { Toast("No document open."); return; }
+            RunInlineAction("Save / Reload", app =>
+            {
+                var doc = app?.ActiveUIDocument?.Document ?? _doc;
+                string dir = FamilyHostConverter.ResolveConvertedDir(doc);
+                var panel = StingResultPanel.Create("STING — Family Converter Save / Reload")
+                    .SetSubtitle("Reload converted families from disk (belt-and-braces — P1/P2 already load on apply).")
+                    .AddSection("RESULT");
+
+                string[] files = System.IO.Directory.Exists(dir)
+                    ? System.IO.Directory.GetFiles(dir, "*.rfa")
+                    : Array.Empty<string>();
+                int loaded = 0, failed = 0;
+                var opts = new StingTools.Tags.StingFamilyLoadOptions(true);
+                foreach (var f in files)
+                {
+                    try { if (doc.LoadFamily(f, opts, out _)) loaded++; else failed++; }
+                    catch (Exception ex) { failed++; StingLog.Warn($"FcSaveReload '{f}': {ex.Message}"); }
+                }
+                panel.Metric("Converted-family folder", dir)
+                     .Metric("Reloaded", loaded.ToString())
+                     .Metric("Failed", failed.ToString());
+                if (files.Length == 0)
+                    panel.Text("No converted .rfa files on disk yet — run a P2 rebuild first (P1 conversions don't write a new file).");
+
+                var infos = _fcConverter.ScanProjectFamilies(doc);
+                Dispatcher.BeginInvoke(new Action(() => FcPopulate(doc, infos)));
+                return panel;
+            });
+        }
+        #endregion
     }
 
     /// <summary>
@@ -3275,6 +3784,81 @@ namespace StingTools.UI.PlacementCenter
         }
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
             => System.Windows.Data.Binding.DoNothing;
+    }
+
+    /// <summary>
+    /// One row in the Family Converter grid. Exposes the family's current host
+    /// info plus a two-way <see cref="TargetLabel"/> whose setter recomputes the
+    /// live <see cref="PathHint"/> (P1 lossless / P2 rebuild) so the Path cell
+    /// updates the moment the user changes the Target Host combo.
+    /// </summary>
+    public sealed class FamilyConverterRow : INotifyPropertyChanged
+    {
+        private readonly FamilyHostTemplates _tpl;
+        private readonly FamilyPlacementType _fpt;
+
+        public ElementId Id { get; }
+        public string Name { get; }
+        public string Category { get; }
+        public string CurrentPlacementType { get; }
+        public string CurrentHostKind { get; }
+        public string SourceTargetId { get; }
+        public int InstanceCount { get; }
+        public bool Convertible { get; }
+        public string BlockReason { get; }
+        public List<string> AllowedTargets { get; }
+        public string CurrentHostDisplay => $"{CurrentPlacementType} · {CurrentHostKind}";
+
+        public FamilyConverterRow(FamilyHostTemplates tpl, FamilyHostInfo info)
+        {
+            _tpl = tpl;
+            _fpt = info.Placement;
+            Id = info.Id;
+            Name = info.Name;
+            Category = info.Category;
+            CurrentPlacementType = info.CurrentPlacementType;
+            CurrentHostKind = info.CurrentHostKind;
+            SourceTargetId = info.SourceTargetId;
+            InstanceCount = info.InstanceCount;
+            Convertible = info.Convertible;
+            BlockReason = string.IsNullOrEmpty(info.BlockReason) ? "Convertible" : info.BlockReason;
+            AllowedTargets = info.AllowedTargets ?? new List<string>();
+        }
+
+        private string _targetLabel;
+        public string TargetLabel
+        {
+            get => _targetLabel;
+            set { if (_targetLabel == value) return; _targetLabel = value; OnPropertyChanged(nameof(TargetLabel)); RecomputePath(); }
+        }
+
+        private string _pathHint = "";
+        public string PathHint
+        {
+            get => _pathHint;
+            private set { if (_pathHint == value) return; _pathHint = value; OnPropertyChanged(nameof(PathHint)); }
+        }
+
+        private string _status = "";
+        public string Status
+        {
+            get => _status;
+            set { if (_status == value) return; _status = value; OnPropertyChanged(nameof(Status)); }
+        }
+
+        public bool HasPendingTarget => Convertible && !string.IsNullOrEmpty(TargetLabel);
+
+        private void RecomputePath()
+        {
+            if (string.IsNullOrEmpty(_targetLabel) || _tpl == null) { PathHint = ""; return; }
+            var tgt = _tpl.ByLabel(_targetLabel);
+            if (tgt == null) { PathHint = ""; return; }
+            string p = FamilyHostConverter.ResolvePath(_tpl, SourceTargetId, tgt.Id, _fpt);
+            PathHint = p == "P1_Checkbox" ? "P1 lossless" : "P2 rebuild";
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void OnPropertyChanged(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 
     /// <summary>

@@ -325,7 +325,13 @@ namespace StingTools.BOQ
                 "Rate UGX", "Total UGX", "Rate USD", "Total USD", "Source", "Note", "Source Model", "Revit ElementId",
                 "UniqueId", "Level", "Location", "Embodied kgCO2e", "Lifecycle UGX", "Rate confidence",
                 // G4 — per-unit labour / plant / material split (blank when none).
-                "Labour UGX", "Plant UGX", "Material UGX" };
+                "Labour UGX", "Plant UGX", "Material UGX",
+                // FX provenance. Blank on a line whose rate was already in the document
+                // currency; on a converted line these two say what it was converted FROM
+                // and which day's rate did it — the pair a QS defends at valuation.
+                // APPENDED, never inserted: the re-import maps columns by header text and
+                // an inserted column would shift every mapping after it.
+                "Rate currency", "FX fixed" };
             WriteHeader(ws, 3, cols);
 
             int row = 4;
@@ -356,6 +362,8 @@ namespace StingTools.BOQ
                 if (it.LabourUGX.HasValue) ws.Cell(row, 23).Value = it.LabourUGX.Value;
                 if (it.PlantUGX.HasValue) ws.Cell(row, 24).Value = it.PlantUGX.Value;
                 if (it.MaterialUGX.HasValue) ws.Cell(row, 25).Value = it.MaterialUGX.Value;
+                ws.Cell(row, 26).Value = it.RateSourceCurrency ?? "";
+                ws.Cell(row, 27).Value = it.RateFxDate ?? "";
                 row++;
             }
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();

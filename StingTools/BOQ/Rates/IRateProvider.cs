@@ -87,6 +87,15 @@ namespace StingTools.BOQ.Rates
         /// <summary>Optional matched key (category name, PROD code, MAT_CODE) — useful for logging.</summary>
         public string MatchedKey { get; set; } = "";
 
+        /// <summary>The currency this rate was QUOTED in, when the registry had to convert
+        /// it to the document currency. Empty when no conversion happened.
+        ///
+        /// <para>Set by the FX adapter, not by the provider, because only the registry knows
+        /// the target. It is what makes an FX-fixing date meaningful on a bill: "UGX 1,200,000"
+        /// is a fact, but "UGX 1,200,000, converted from USD at a rate fixed on 2026-09-06"
+        /// is the fact a QS has to defend at valuation.</para></summary>
+        public string SourceCurrencyCode { get; set; } = "";
+
         // ── G4 — optional labour / plant / material split (per-unit, same
         // currency + unit as UnitRate). Null when the source carries no split;
         // the rate then stays a single number (no regression). When all three

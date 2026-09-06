@@ -3260,6 +3260,8 @@
                                                 ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
                                         <Button Style="{StaticResource BlueBtn}" Content="Material Schedule" Tag="MaterialSchedule_Export" Click="Cmd_Click"
                                                 ToolTip="Export a stage-sectioned material schedule in supplier units (Bags / Trips / No.) as XLSX, with an include/exclude prices toggle"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Price Commodities" Tag="MaterialSchedule_PriceCommodities" Click="Cmd_Click"
+                                                ToolTip="Price the material schedule in a grid. Rows are seeded from the schedule so no commodity key is ever retyped; saves to the project commodity_rates.csv and never touches the corporate baseline."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Import" Tag="BOQImport" Click="Cmd_Click"
                                                 ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Snap Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"
@@ -3743,12 +3745,38 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
                             <StackPanel>
-                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="MasterFormat (work results) + OmniClass (elements) classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
-                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT (MasterFormat) from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="OmniClass Table…" Tag="OmniClass_SetTable" Click="Cmd_Click"
+                                            ToolTip="Pick the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces ship maps; the other 11 tables resolve via _BIM_COORD/omniclass_map.csv). Sets classification_policy.json — drives OmniClass Assign / Audit"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="OmniClass Assign" Tag="OmniClass_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write ASS_OMNICLASS_TXT for the active OmniClass table (per classification_policy.json). A native-authored OmniClass Number on the type wins; the map is the bootstrap"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="OmniClass Audit" Tag="OmniClass_Audit" Click="Cmd_Click"
+                                            ToolTip="Read-only dry-run: % classified, unmapped keys, and ambiguous (tied-rule) elements for the active OmniClass table — CSV + summary. Run before Assign to see the holes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification on Tags…" Tag="ClassificationTags_Set" Click="Cmd_Click"
+                                            ToolTip="Optionally stamp a classification code (MasterFormat / OmniClass / both / none) into each element's rich TAG7 narrative so it shows on drawings. Per-project, data-driven (classification_policy.json), off by default. Re-run Auto Tag / Build Tags to refresh"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SpecLink Import" Tag="SpecLink_ImportFolder" Click="Cmd_Click"
+                                            ToolTip="Read the SpecLink project-manual CSV(s) dropped in _BIM_COORD/speclink/ into sections.json. The issued clause text then writes the BOQ line descriptions instead of a generated NRM2 template. Newest export wins on a section collision"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
                                             ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LIFECYCLE JOIN (spec -> cost -> procurement -> commissioning) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LIFECYCLE JOIN"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Joins the four ledgers keyed off the same element: SpecLink (specified) → BOQ (priced) → Fohlio (procured) → Niagara (commissioned)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Lifecycle Reconcile" Tag="KUT_LifecycleReconcile" Click="Cmd_Click"
+                                            ToolTip="Read-only four-ledger join into one asset register (XLSX), surfacing the two gaps a single-ledger reconcile cannot see: priced assets with no BMS point, and station points with no priced line"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="BMS Valuation" Tag="KUT_ValuationFromBms" Click="Cmd_Click"
+                                            ToolTip="Read the Niagara station and report what share of the priced monitorable scope is live and therefore certifiable as commissioned. Falls back to the last cached read when the station is down, and says so"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Push Gaps to ACC" Tag="KUT_PushLifecycleGapsToAcc" Click="Cmd_Click"
+                                            ToolTip="Push the model-derivable lifecycle gaps (priced-unspecified, priced-no-BMS-point) to ACC Issues. Idempotent — re-runs skip anything already pushed"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

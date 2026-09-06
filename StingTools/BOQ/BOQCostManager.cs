@@ -22,6 +22,7 @@ using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
+using StingTools.Core.Classification;
 using StingTools.Core.Storage;
 using StingTools.Temp;
 
@@ -250,11 +251,49 @@ namespace StingTools.BOQ
         {
             if (Takeoff.CompoundTakeoffBuilder.Enabled())
             {
-                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(doc, el, csvRates, cobieCostCodes, measStd);
-                if (compound != null && compound.Count > 0) return compound;
+                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(
+                    doc, el, csvRates, cobieCostCodes, measStd, out bool hostMeasured);
+                if (compound != null && compound.Count > 0)
+                {
+                    if (hostMeasured) return compound;
+
+                    // The decomposition produced accessories only — a fascia along
+                    // a roof's eaves, nothing describing the roof. A non-empty
+                    // decomposition normally REPLACES the composite row, and that
+                    // deleted 856 m² of roof covering from an issued schedule
+                    // without a warning of any kind: the row vanished, its two
+                    // unpriced-item flags vanished with it, and the consumable
+                    // driver it fed read zero, which printed as a considered
+                    // refusal rather than a missing measurement.
+                    //
+                    // So both rows stand. The composite carries the element's own
+                    // quantity and its writeback; the accessory rows must not also
+                    // claim the element, or the CST_* stamp becomes last-one-wins
+                    // between two rows describing different things.
+                    var host = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    if (host == null) return compound;
+                    foreach (var c in compound) { c.RevitElementId = -1; c.UniqueId = ""; }
+                    compound.Insert(0, host);
+                    return compound;
+                }
             }
             var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
             return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
+        }
+
+        /// <summary>First material on the element, or "". Never throws.</summary>
+        private static string SafePrimaryMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                var ids = el?.GetMaterialIds(false);
+                if (ids != null)
+                    foreach (var id in ids)
+                        if (id != null && id.Value > 0)
+                            return doc.GetElement(id)?.Name ?? "";
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("BoqMat", "SafePrimaryMaterialName: " + ex.Message); }
+            return "";
         }
 
         private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
@@ -664,12 +703,31 @@ namespace StingTools.BOQ
             // Skip phase-demolished or temporary elements — they don't belong in the cost plan.
             if (IsPhaseDemolished(doc, el)) return null;
 
+            // FF&E treatment. Fohlio-mapped categories are Owner procurement, not
+            // contractor-supplied work, and how they appear in the bill is a project
+            // decision (_BIM_COORD/fohlio_map.json). Resolved ONCE, up front, so exactly
+            // one treatment applies per element and nothing is double-counted.
+            string ffeTreatment = null;   // null => not an FF&E (Fohlio-mapped) category
+            try
+            {
+                var fmap = StingTools.ExLink.FohlioMap.Cached(doc);
+                if (fmap != null && fmap.IsFfeCategory(catName))
+                {
+                    ffeTreatment = fmap.TreatmentFor(catName);
+                    // Owner-supplied and outside this bill: leave the row out entirely
+                    // rather than pricing it at zero, which would read as free work.
+                    if (ffeTreatment == StingTools.BOQ.FfeTreatment.Excluded) return null;
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("FfeTreatment", $"FF&E treatment: {ex.Message}"); }
+
             // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
             string rateSource;
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
                 doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
-                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+                out string rateSourceCurrency);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
@@ -726,6 +784,45 @@ namespace StingTools.BOQ
 
             string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
+
+            // (f) Spec reference + CSI -> NRM2 bridge.
+            //
+            // The element carries CSI_SECTION_TXT once CSI_Assign has run. When it has
+            // not, resolve the section straight from the shipped map so the bill's
+            // MasterFormat column is populated for the WHOLE model rather than only for
+            // elements that happened to be pre-stamped - the stamp still wins when
+            // present, so an assign pass is an override, not a prerequisite.
+            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION) ?? "";
+            string csiTitle = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
+            CsiRule csiRule = null;
+            try
+            {
+                var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
+                if (rules != null && rules.Count > 0)
+                    csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
+                if (csiRule != null)
+                {
+                    if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";
+                    if (string.IsNullOrEmpty(csiTitle)) csiTitle = csiRule.Title ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiResolve", $"CSI map resolve: {ex.Message}"); }
+
+            // A rule that names its NRM2 work section overrides the category derivation,
+            // so a SYS-specific row (Pipes+SAN -> 32, Pipes+CHW -> 33) bills under the
+            // section its specification sits in instead of one bucket for every pipe.
+            // Nrm2For reads the MATCHED RULE first - six shipped rows share section
+            // 03 30 00 with two different answers, and a section-keyed lookup alone would
+            // bill every concrete slab and foundation under masonry.
+            try
+            {
+                string bridged = CsiMasterFormat.Nrm2For(csiRule,
+                    StingTools.Commands.Classification.CsiMap.SectionToNrm2(doc), csiSection);
+                if (!string.IsNullOrEmpty(bridged)) nrm2Section = bridged;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiNrm2", $"CSI-NRM2 bridge: {ex.Message}"); }
+
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
 
@@ -737,6 +834,11 @@ namespace StingTools.BOQ
                 ItemName = GetElementDisplayName(el),
                 FamilyName = GetFamilyName(el),
                 TypeName = el.Name ?? "",
+                // The material, for supplier-unit matching. This is the row that
+                // produced "Generic - 225mm" for a roof whose material said
+                // "Asphalt Shingle" — the type name was wrong by a factor of
+                // ten and the material was exactly right.
+                MaterialName = SafePrimaryMaterialName(doc, el),
                 Quantity = quantity,
                 Unit = unit,
                 GrossQuantity = grossQty,
@@ -768,6 +870,9 @@ namespace StingTools.BOQ
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
+                CsiSection = csiSection,
+                CsiTitle = csiTitle,
+                RateSourceCurrency = rateSourceCurrency,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
                 MaterialUGX = splitMaterial,
@@ -775,6 +880,105 @@ namespace StingTools.BOQ
                 CarbonQuality = carbonQuality,
                 CarbonMaterial = carbonMaterial
             };
+
+            // The SPEC writes the bill. When the element's CSI section is described by an
+            // issued SpecLink store, that text becomes the line description - one source
+            // of truth instead of a generated NRM2 template that drifts from what was
+            // actually specified. A no-op for every project that has not run
+            // SpecLink_ImportFolder, which is the dominant case.
+            //
+            // The Unit is deliberately NOT overridden. The rate's unit and the quantity's
+            // unit must agree, so a spec that measures a section differently from the way
+            // it is priced is surfaced as a QA note for the QS, never silently re-measured.
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var spec = SpecStore.Get(
+                        StingTools.Commands.Classification.CsiMap.SpecSections(doc), csiSection);
+                    if (spec != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(spec.Description))
+                        {
+                            line.ResolvedNRM2Paragraph = spec.Description;
+                            line.SpecSourced = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(spec.Unit)) line.CsiUnit = spec.Unit;
+                    }
+                    // No spec opinion? the map's own Unit column is the advisory fallback.
+                    if (string.IsNullOrWhiteSpace(line.CsiUnit))
+                    {
+                        if (csiRule != null && !string.IsNullOrWhiteSpace(csiRule.Unit)) line.CsiUnit = csiRule.Unit;
+                        else
+                        {
+                            var unitMap = StingTools.Commands.Classification.CsiMap.SectionToUnit(doc);
+                            if (unitMap != null && unitMap.TryGetValue(
+                                    CsiMasterFormat.NormalizeSection(csiSection), out string cu) &&
+                                !string.IsNullOrWhiteSpace(cu))
+                                line.CsiUnit = cu;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(line.CsiUnit) && !string.IsNullOrWhiteSpace(line.Unit) &&
+                        !BoqUnits.Align(line.CsiUnit, line.Unit))
+                    {
+                        string m = $"Measurement-vs-spec: priced per {line.Unit}, specified per {line.CsiUnit}";
+                        line.Note = string.IsNullOrEmpty(line.Note) ? m : line.Note + "; " + m;
+                    }
+                }
+                catch (Exception ex) { StingLog.WarnRateLimited("SpecText", $"Spec-text bridge: {ex.Message}"); }
+            }
+
+            // A stamped rate override that declares overhead or profit IS a loaded rate —
+            // a subcontractor quote already carrying the contractor's margin. Derived from
+            // the percentages the schema already stores rather than a new ES field:
+            // ExtensibleStorage schemas are immutable once registered, so adding a field
+            // would mean a new GUID and a migration for every stamped element.
+            try
+            {
+                var ovr = StingCostRateOverrideSchema.Read(el);
+                if (ovr != null && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
+                {
+                    line.RateIncludesOhp = true;
+                    string ohpNote = $"Rate loaded (OH {ovr.OverheadPercent:0.##}% + profit " +
+                                     $"{ovr.ProfitPercent:0.##}%) — excluded from the document OH&P base";
+                    line.Note = string.IsNullOrEmpty(line.Note) ? ohpNote : $"{line.Note}; {ohpNote}";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Boq.LoadedRate", $"loaded-rate read: {ex.Message}"); }
+
+            // Apply the FF&E treatment resolved above. "measured" needs nothing — it is
+            // a normal model line that happens to be priced from the Fohlio rate.
+            if (ffeTreatment == StingTools.BOQ.FfeTreatment.Ffe)
+            {
+                line.FfeOwnerProcured = true;
+                string note = "FF&E — Owner-procured via the Fohlio register (at cost; excl. OH&P + contingency)" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? note : $"{line.Note}; {note}";
+            }
+            else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
+            {
+                line.Source = BOQRowSource.ProvisionalSum;
+                string pcNote = "PC sum — Fohlio FF&E register" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
+            }
+
+            // FX provenance. ASS_CST_FX_DATE_DT records WHEN the exchange rate behind a
+            // foreign-currency rate was fixed — the fact a QS is asked to defend at
+            // valuation, and until now written by Fohlio_Import, CostStamp and
+            // Cost_MigrateCurrencyParams and read by nothing.
+            //
+            // Only carried when an FX conversion actually happened. Stamping a fixing date
+            // on a line whose rate was already in the document currency would imply a
+            // conversion that did not occur, which is worse than showing nothing.
+            if (BoqFxProvenance.WasConverted(rateSourceCurrency))
+            {
+                string stamped = ParameterHelpers.GetString(el, ParamRegistry.CST_FX_DATE_DT);
+                line.RateFxDate = BoqFxProvenance.FxDateFor(rateSourceCurrency, stamped);
+                string fxNote = BoqFxProvenance.MissingFixingDateNote(rateSourceCurrency, stamped);
+                if (fxNote != null)
+                    line.Note = string.IsNullOrEmpty(line.Note) ? fxNote : line.Note + "; " + fxNote;
+            }
 
             // Mark provisional sums on the element if configured via existing parameter.
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
@@ -868,9 +1072,11 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence,
-            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+            out string rateSourceCurrency)
         {
             splitLabour = splitPlant = splitMaterial = null;
+            rateSourceCurrency = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -906,6 +1112,7 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            rateSourceCurrency = lookup.SourceCurrencyCode ?? "";
             splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
             splitPlant = lookup.PlantRate;
             splitMaterial = lookup.MaterialRate;

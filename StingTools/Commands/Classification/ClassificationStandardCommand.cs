@@ -28,12 +28,23 @@ namespace StingTools.Commands.Classification
 
                 var current = ClassificationStandard.Active(doc);
 
+                // A project that authored its own classification_policy.json "order" has
+                // already overridden this selector. Saying so beats letting the dialog
+                // report success while the ladder it set is ignored.
+                bool overridden = ClassificationReader.HasExplicitPolicyOrder(doc);
+
                 var td = new TaskDialog("STING — Classification Standard")
                 {
                     MainInstruction = "Choose the authoritative classification standard",
                     MainContent = $"Current: {ClassificationStandard.Label(current)}.\n\n" +
                                   "This leads the BOQ / COBie / handover / IFC grouping cascade. " +
-                                  "Uniclass is the default; the others promote their codes to the front.",
+                                  "Uniclass is the default; the others promote their codes to the front." +
+                                  (overridden
+                                      ? "\n\n\u26A0 This project defines its own classification ladder in " +
+                                        "_BIM_COORD/classification_policy.json (\"order\"), which takes precedence. " +
+                                        "Your choice here will be recorded but will NOT change grouping until that " +
+                                        "\"order\" is removed."
+                                      : ""),
                     AllowCancellation = true
                 };
                 td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Uniclass 2015", "Uniclass Pr → Ss → Ef (STING default)");

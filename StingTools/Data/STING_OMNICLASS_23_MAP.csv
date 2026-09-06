@@ -1,0 +1,91 @@
+# STING OmniClass Table 23 (Products) map (Phase 199c). Active when
+# classification_policy.json sets "omniClassTable": "23". Classifies each element
+# by product TYPE and stamps ASS_OMNICLASS_TXT. Table 23 is the axis Revit itself
+# uses (the "OmniClass Number" family property) — these codes are taken from
+# Autodesk's Classification Manager database "US-WITH CATEGORIES.xlsx" (OmniClass
+# Table 23, May 2012), i.e. the exact OmniClass-number ↔ Revit-category mapping
+# Revit ships. Grammar matches the other maps:
+#   Category   Revit category name (exact, case-insensitive). "*" = any.
+#   FamilyRegex optional regex on the family name (case-insensitive).
+#   TypeRegex  optional regex on the type/symbol name.
+#   Sys        optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
+#   Section    OmniClass Table 23 number.
+#   Title      OmniClass product title (NO commas — the parser is comma-split).
+# Most-specific row wins (more matched qualifiers = higher score; ties: first).
+# Source: Autodesk Classification Manager (OmniClass Table 23, May 2012). Projects
+# refine via _BIM_COORD/omniclass_map.csv (loaded first so it wins ties).
+Category,FamilyRegex,TypeRegex,Sys,Section,Title
+Doors,,,,23-17 11 00,Doors
+Windows,,,,23-17 13 00,Windows
+Curtain Panels,,,,23-17 13 00,Windows
+Curtain Wall Mullions,,,,23-17 13 00,Windows
+Walls,,,,23-15 15 00,Wall Coverings Claddings and Linings
+Floors,,,,23-15 17 00,Floor Coverings
+Ceilings,,,,23-15 19 00,Ceiling Coverings Claddings and Linings
+Roofs,,,,23-13 41 00,Roof Specialties and Accessories
+Stairs,,,,23-17 23 17,Stairs
+Railings,,,,23-17 23 17,Stairs
+Ramps,,,,23-17 23 17,Stairs
+Structural Framing,,,,23-13 35 11,Structural Frames
+Structural Columns,,,,23-13 35 11,Structural Frames
+Structural Trusses,,,,23-13 35 19,Trusses
+Structural Foundations,,,,23-13 29 00,Foundations
+Structural Rebar,,,,23-13 35 11,Structural Frames
+Plumbing Fixtures,,,,23-31 00 00,Plumbing Specific Products and Equipment
+Plumbing Fixtures,(?i)basin|lavatory|sink,,,23-31 13 00,Sinks
+Plumbing Fixtures,(?i)\bwc\b|toilet|water closet|cistern,,,23-31 19 00,Toilets
+Plumbing Fixtures,(?i)urinal,,,23-31 21 00,Urinals
+Plumbing Fixtures,(?i)shower,,,23-31 17 00,Showers
+Plumbing Fixtures,(?i)\bbath\b|bathtub,,,23-31 15 00,Bathtubs
+Plumbing Fixtures,(?i)tap|faucet|mixer,,,23-31 11 00,Faucets
+Plumbing Fixtures,(?i)drinking|water fountain,,,23-31 31 00,Drinking Fountains
+Pipes,,,,23-27 39 00,Piping
+Pipes,,,FP,23-29 33 00,Fire Suppression System Components
+Pipe Fittings,,,,23-27 39 00,Piping
+Ducts,,,,23-33 49 00,HVAC Ductwork
+Duct Fittings,,,,23-33 49 00,HVAC Ductwork
+Flex Ducts,,,,23-33 49 00,HVAC Ductwork
+Duct Accessory,,,,23-33 29 00,HVAC Dampers
+Air Terminals,,,,23-33 41 00,HVAC Air Terminals
+Mechanical Equipment,,,,23-33 00 00,HVAC Specific Products and Equipment
+Mechanical Equipment,(?i)ahu|air handling,,,23-33 25 00,Air Handling Units
+Mechanical Equipment,(?i)\bfcu\b|fan coil,,,23-33 33 00,HVAC Fan Coil Units
+Mechanical Equipment,(?i)boiler,,,23-33 11 00,Commercial Boilers
+Mechanical Equipment,(?i)chiller,,,23-33 21 00,Chillers
+Mechanical Equipment,(?i)cooling tower,,,23-33 23 00,Cooling Towers
+Mechanical Equipment,(?i)heat pump,,,23-33 17 00,Heat Pumps
+Mechanical Equipment,(?i)furnace,,,23-33 13 00,Furnaces
+Mechanical Equipment,(?i)condens,,,23-33 37 00,Refrigerant Condensing Units
+Mechanical Equipment,(?i)water heater|calorifier|cylinder|dhw,,,23-31 29 00,Hot Water Heaters
+Mechanical Equipment,(?i)pump,,,23-27 17 00,Pumps
+Mechanical Equipment,(?i)elevator|lift|escalator,,,23-23 00 00,Conveying Systems and Material Handling Products
+Electrical Equipment,,,,23-35 00 00,Electrical and Lighting Specific Products and Equipment
+Electrical Equipment,(?i)transformer,,,23-35 13 00,Transformers
+Electrical Equipment,(?i)generator,,,23-35 11 00,Electrical Generators
+Electrical Equipment,(?i)switchgear|switchboard|distribution board|panel|\bdb\b|\bmdb\b,,,23-35 31 00,Electrical Power Distribution Devices
+Electrical Equipment,(?i)\bups\b|inverter,,,23-35 23 00,Power Conditioning Equipment
+Electrical Fixtures,,,,23-35 37 00,Electrical Switches
+Lighting Fixtures,,,,23-35 47 00,Electrical Lighting
+Lighting Devices,,,,23-35 47 00,Electrical Lighting
+Conduits,,,,23-35 33 00,Electrical Ducting Wireways Components
+Conduit Fittings,,,,23-35 33 00,Electrical Ducting Wireways Components
+Cable Trays,,,,23-35 33 00,Electrical Ducting Wireways Components
+Cable Tray Fittings,,,,23-35 33 00,Electrical Ducting Wireways Components
+Sprinklers,,,,23-29 33 00,Fire Suppression System Components
+Fire Alarm Devices,,,,23-29 29 00,Fire Detection Devices
+Communication Devices,,,,23-37 00 00,Information and Communication Specific Products and Equipment
+Data Devices,,,,23-37 13 00,Information Technology Equipment
+Telephone Devices,,,,23-37 00 00,Information and Communication Specific Products and Equipment
+Security Devices,,,,23-29 11 00,Security Detection and Monitoring
+Nurse Call Devices,,,,23-37 00 00,Information and Communication Specific Products and Equipment
+Specialty Equipment,,,,23-19 00 00,Specialty Products
+Specialty Equipment,(?i)elevator|lift|escalator,,,23-23 00 00,Conveying Systems and Material Handling Products
+Furniture,,,,23-21 11 00,Commercial Furniture
+Furniture Systems,,,,23-21 11 00,Commercial Furniture
+Casework,,,,23-21 19 00,Casework
+Topography,,,,23-11 00 00,Site Products
+Pads,,,,23-11 00 00,Site Products
+Roads,,,,23-11 21 00,Pavements
+Parking,,,,23-11 21 00,Pavements
+Planting,,,,23-11 27 00,Landscaping
+Site,,,,23-11 00 00,Site Products

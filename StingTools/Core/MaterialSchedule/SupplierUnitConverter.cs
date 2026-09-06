@@ -45,6 +45,35 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> MatchTypePatterns = new List<string>();
 
         /// <summary>
+        /// Substrings matched against the element's MATERIAL name.
+        ///
+        /// Added because type names lie and material names mostly do not. A real
+        /// roof in a delivered model was typed "Generic - 225mm", was 25 mm
+        /// thick, and carried the material "Asphalt Shingle" — the name was
+        /// wrong by a factor of ten and the material was exactly right.
+        ///
+        /// Material also survives the thing that defeated every type pattern
+        /// here: nobody renames a material to make a schedule work, whereas
+        /// type names are whatever somebody typed at 5pm.
+        ///
+        /// Checked BEFORE type patterns, and on its own — a material match does
+        /// not also require a type match, or a correctly-materialled roof with a
+        /// nonsense name would still fail.
+        /// </summary>
+        public List<string> MatchMaterialPatterns = new List<string>();
+
+        /// <summary>
+        /// Where the conversion factor came from, and what to check before
+        /// trusting it.
+        ///
+        /// A cover figure multiplies the WHOLE roof area, so one that cannot say
+        /// where it came from is a guess wearing a standard's clothes. Nominal
+        /// cover varies by profile, pitch and lap, and the difference between
+        /// 0.47 and 0.42 m² per sheet is 12% of the order.
+        /// </summary>
+        public string SourceNote = "";
+
+        /// <summary>
         /// The construction stage this commodity belongs to, overriding whatever
         /// stage the ELEMENT's category routes to. Required on any category rule.
         ///
@@ -84,6 +113,18 @@ namespace StingTools.Core.MaterialSchedule
         /// converted on a guess and never dropped.
         /// </summary>
         public SupplierUnitResolution Resolve(string constituentKind, string category, string typeName)
+            => Resolve(constituentKind, category, typeName, null);
+
+        /// <summary>
+        /// As above, with the element's material name.
+        ///
+        /// Order is kind → material → type, because that is decreasing
+        /// reliability: a constituent kind is emitted by our own take-off, a
+        /// material is chosen deliberately by whoever built the model, and a
+        /// type name is free text.
+        /// </summary>
+        public SupplierUnitResolution Resolve(string constituentKind, string category,
+                                              string typeName, string materialName)
         {
             var byKind = ResolveByKind(constituentKind);
             if (byKind != null)
@@ -91,6 +132,20 @@ namespace StingTools.Core.MaterialSchedule
 
             if (string.IsNullOrWhiteSpace(category))
                 return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+
+            // Material first among the category-scoped tests. A roof whose
+            // material says "Asphalt Shingle" is a shingle roof whatever its
+            // type is called.
+            string mat = (materialName ?? "").Trim();
+            if (mat.Length > 0)
+                foreach (var r in Rules)
+                {
+                    if (r?.MatchMaterialPatterns == null || r.MatchMaterialPatterns.Count == 0) continue;
+                    if (!CategoryAllows(r, category)) continue;
+                    if (r.MatchMaterialPatterns.Any(p => !string.IsNullOrWhiteSpace(p)
+                            && mat.IndexOf(p.Trim(), StringComparison.OrdinalIgnoreCase) >= 0))
+                        return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+                }
 
             // PERF: single pass, no LINQ closure and no candidates List per row.
             string cat = category.Trim();
@@ -106,8 +161,18 @@ namespace StingTools.Core.MaterialSchedule
                 if (firstCategoryHit == null) firstCategoryHit = r;
 
                 // No patterns ⇒ the whole category converts.
+                //
+                // UNLESS the rule discriminates by MATERIAL. A material-matched
+                // rule that also swallowed its whole category would claim every
+                // roof in the model the moment it was added — the material
+                // patterns are its discriminator, and having them means the
+                // category alone is not enough. Without this, adding one
+                // shingle rule silently re-routes every roof.
                 if (r.MatchTypePatterns == null || r.MatchTypePatterns.Count == 0)
+                {
+                    if (r.MatchMaterialPatterns != null && r.MatchMaterialPatterns.Count > 0) continue;
                     return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+                }
 
                 // A blank type name can never satisfy a pattern. Guarding this
                 // explicitly because "".IndexOf(p) is -1 but p.IndexOf("") is 0 —
@@ -127,6 +192,20 @@ namespace StingTools.Core.MaterialSchedule
                 Match = SupplierUnitMatch.CategoryTypeMismatch,
                 CandidateCommodityKey = firstCategoryHit.CommodityKey
             };
+        }
+
+        /// <summary>
+        /// True when the rule's categories permit this one. An EMPTY category
+        /// list means the material pattern stands on its own — some materials
+        /// (a specific shingle, a named tile) identify a commodity wherever
+        /// they appear.
+        /// </summary>
+        private static bool CategoryAllows(SupplierUnitRule r, string category)
+        {
+            if (r.MatchCategories == null || r.MatchCategories.Count == 0) return true;
+            if (string.IsNullOrWhiteSpace(category)) return false;
+            return r.MatchCategories.Any(c =>
+                string.Equals(c, category.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>First rule listing this constituent kind, or null.</summary>

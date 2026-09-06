@@ -2,6 +2,419 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 253 — pricing becomes possible, and the instruction that was impossible is retired)
+
+Ten PRs in one session, all of them started by reading a real export rather than
+by reasoning about the code. That is the through-line: **five of the six defects
+below were invisible from the source and obvious from the output.**
+
+**The roof deleted its own covering (#819).** Phase 251 routed Roofs through
+`BuildRcSlab` so a concrete roof would decompose. A roof that produced only a
+FASCIA then returned a non-empty decomposition, which suppressed the composite
+fallback — and 856 m² of roof covering left the schedule with no row, no flag and
+no warning. The fix is a rule, not a patch: an accessory-only decomposition does
+not measure its host, so the composite row still stands. Restored 3 rows and 6
+validation issues; the grand total did not move, because the rows were unpriced —
+which is exactly why nobody would have noticed.
+
+**A zero that lied about which zero it was (#820).** The same export said the
+roof-fastener driver was zero and explained "that is the intended behaviour —
+with no driver the quantity would be invented". True of a model with no roof.
+That model had 856 m² of roof, measured, three rows above the sentence.
+`SupplierUnitTable.Resolve` returns `CategoryTypeMismatch` with a NULL rule, and
+the driver sum only read `res.Rule`. **The quantity is still not derived, and
+that is correct** — 11 fasteners/m² is corrugated sheeting and the roof carries
+high-profile tiles, so the tempting fix would give a confident number for the
+wrong roof. That mutation fails four tests, which is the point of it being in the
+suite. What changed is the sentence: same zero, opposite action.
+
+**An instruction that could not be followed (#821).** The reconciler had been
+telling users to "add a row keyed 'RD_Breeze Block 01_Panel — Concrete' to
+commodity_rates.csv" — a file **nothing in the codebase had ever written**, in a
+folder named by an alias that resolved elsewhere, keyed by a string where 21 of
+25 carry a non-ASCII em dash against an exact `OrdinalIgnoreCase` lookup. Type a
+hyphen and the row stays unpriced with no error. So the keys come from the
+schedule and the user types only a number. Storage stays a plain CSV — diffable,
+hand-editable, and copyable to the next project, which Extensible Storage would
+not be. `ParseCsv` gained quote handling in the same pass: it had never been
+asked to read back anything it wrote, because there was no writer.
+
+**Rates that could not be told apart (#822).** `RateSource` had been populated
+since the first export and written to no sheet, so 28,000 against cement printed
+identically whether it was a supplier quote or the shipped guess. The labels are
+deliberately not the tokens: "baseline" reads as authority and the file it comes
+from says the opposite in its own header, so the sheet says **Indicative**.
+
+**The message, retired (#824), and the button, moved (#827).** The unpriced
+message now names the ACTION and the resolved path is stated once instead of 25
+times. Two regression tests assert it names neither `_BIM_COORD` nor the file.
+The editor had shipped with one button, on the dock panel; a QS pricing a job is
+in the BOQ & Cost Manager, and the first person to look for it did not find it.
+
+**Excel, because typing 58 numbers is the work the grid was meant to remove
+(#828).** Paste column, fill down, clear, copy keys. Three parsing decisions
+carry tests because each is a silent-failure route — a blank line consumes its
+row, a line with no number is reported rather than zeroed, and a multi-column
+paste takes the LAST numeric field.
+
+**Harvest read the wrong parameters (#830).** Found by running B4 on a real
+model: one flat list asked `Width` of a `Concrete-Rectangular-Column` and got
+4500 × 12000 — extents, beside the 450 × 450 section in `b`/`h`. The pack
+proposed minting a column 4.5 m wide, and a pack is DATA, so nothing downstream
+would have complained. Harmless only because packs are adopted by nobody, which
+is the property that bought the time to find it.
+
+**The grid says what a row IS (#833).** `ConstituentInput` carried `Category` and
+`TypeName` all along and aggregation dropped both. Carried through as SETS, with
+a From column, a tooltip and four collapsible detail columns. **No tag column**:
+a commodity is an aggregate and no single tag identifies one.
+
+**Mapping, in a file that cannot say more (#836).** `supplier_units.json`
+replaces a rule wholesale, so a file written to add one type pattern would also
+reset the conversion factor and wastage to their defaults — silently, across the
+schedule. A UI promising not to do that is a promise; a file shape that cannot
+express it is a guarantee. `supplier_unit_patches.json` carries a key, a pattern
+and a reason, and a test asserts by reflection that the type has no conversion
+field.
+
+**Tests 766 → 1,065.** Build 0/0 throughout, all four gates on every PR, and a
+mutation pass on every change that carried logic — **33 verified failing across
+eight PRs**, counted from the runs recorded in each PR body rather than estimated.
+
+**Six mutations proved nothing and are recorded rather than counted.** Three were
+redundant or behaviour-equivalent guards. One reported PASS because it had silently failed to apply —
+the source strips a non-breaking space and the mutation string carried an
+ordinary one, so the suite was green for the wrong reason; checking the bytes
+rather than the result found it. Two found REAL test gaps: assertions compared
+against a constant rather than the user-visible word, and every category test set
+`Categories` by hand so nothing exercised the aggregation that fills it. Both are
+closed. A mutation that proves nothing is worth less than no mutation, because
+it reads as evidence.
+
+**What ran in Revit, and what did not.** The T1-T5 readers, the harvest pass,
+#830's fix and the rate editor opening all executed against a real model. The
+paste path, the mapping dialog, `FamilySymbol.Duplicate`, the `EditFamily` round
+trip and catalogue adoption have still never run. See MATSCHED-T-VERIFY.
+
+#### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
+
+Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
+(#338). The mechanical regeneration was **deliberately not performed**; the
+measurement is the deliverable. Full write-up:
+[`NATIVE_TYPE_MIGRATION_ANALYSIS.md`](NATIVE_TYPE_MIGRATION_ANALYSIS.md).
+
+- **Scope, measured against main** (not the stale branch's month-old base):
+  157 datatype flips, 27 `_BOOL`→`YESNO`, **175 new `_TXT` mirror params**
+  (3,488 → 3,663 lines). 123 of the 157 are already bound to categories.
+- **Blocking finding:** Revit will not redefine an existing GUID with a
+  different data type. `LoadSharedParamsCommand` already detects this exact case
+  and **skips** — its own comments record the "unrecoverable 'cannot be added'
+  Error-severity modal" that motivated the guard. So in every existing project
+  the migration binds the 175 empty mirrors and migrates **none** of the 123
+  bound params, while the C# side would be writing native doubles into params
+  that are still TEXT. New projects would diverge silently from existing ones.
+- **No migration path exists.** Adopting the flip requires unbind → delete →
+  rebind → re-parse every value with unit conversion, per param per project. The
+  only related API in the repo (`ReInsert`) is documented in that same file as
+  silently unreliable.
+- **The review's "~40 native double write sites" is not what the code shows.**
+  Measured: **2** `SetDouble` sites, **26** `SetString`/`SetIfEmpty` sites (which
+  would fail at runtime after a flip) and 31 `GetString` sites. The wiring risk
+  is the inverse of the one described.
+- **Recommendation:** drop the 157-param flip and the mirrors; keep the
+  lower-risk `_BOOL`→`YESNO` track (#337/#479); adopt native types for **new**
+  parameters going forward; and if the migration is ever wanted, ship a verified
+  binding-migration command first and go discipline-by-discipline.
+- **Kept:** the localized unit-conversion fixes on `claude/review-5zi8sy-338`
+  (#467) are correct independently of the migration and build clean.
+- `tools/transform_mr_params.py` imported from the stale branch, its hardcoded
+  Linux path parameterised and a `--dry-run` mode added, so every figure above
+  is reproducible: `python tools/transform_mr_params.py --dry-run`.
+- Also found: `ASS_CST_STALE_BOOL` is `YESNO` in `FAMILY_PARAMETER_BINDINGS.csv`
+  but `TEXT` in `MR_PARAMETERS.txt` — pre-existing on main, not introduced by
+  #337/#479 (verified against that branch's blob).
+
+No C# or shipped data files were modified on this branch.
+
+---
+
+#### Completed (Phase 226 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
+
+Verification pass on #458 with a real toolchain. The headline is that the test
+project had **never been executed** — the sandbox that wrote it has no `dotnet`,
+and CI builds only `StingTools/StingTools.csproj`. Everything below was proven
+locally, not asserted.
+
+**1. The test suite runs, and is not vacuous.**
+`dotnet test StingTools.Placement.Tests` → **69 passed / 0 failed** (the earlier
+"45"/"48" claims were never observed by a runner). The shims still match the real
+types, so the project compiles. Because a passing suite proves nothing on its own,
+each load-bearing behaviour was mutation-tested — the fix was reverted and the
+suite re-run:
+
+| Mutation | Result |
+|---|---|
+| zero-coercion removed from `PlacementRule.MaintenanceClearance` | **4 failed** |
+| edition-year stripping disabled in `StandardsTokenMatcher` | **2 failed** |
+| `/` removed from the separator set (the exact pre-fix bug) | **2 failed** |
+| rule-pack data reverted to pre-Phase-224 | **4 failed** |
+
+**2. `StandardsTokenMatcher` had a live false-positive bug — found by cleaning the data.**
+The trailing-year strip fired on any 4-digit group in 1800–2199, so **`"BS EN 1838"`
+(emergency lighting) normalised to `"BSEN"`** — which then substring-matched every
+other BS EN standard. The whole Eurocode family (`EN 1990`–`EN 1999`) is in that
+window. The bug was masked because the mangled space-free tokens (`BSEN1838`) never
+hit the space-separated branch; cleaning them exposed it.
+
+A space-separated 4-digit group is now only treated as an edition year when the
+citation still carries a number without it: `"BS 8233 2014"` → `BS8233` (strip),
+`"BS EN 1838"` → `BSEN1838` (keep), `"Equality Act 2010"` → `EQUALITYACT2010` (keep).
+
+**3. Standards token vocabulary cleaned.**
+Phase 225's backfill built tokens by stripping whitespace out of free text, gluing
+prose onto identifiers: `"ADA §604.4 (432-483mm seat height)"` →
+`"ADA§604.4(432-483mmseatheight)"`, `"BS 8233 daylight"` → `"BS8233daylight"`, and
+three separate spellings of CIBSE Guide B. 284 rules re-tokenised to clean
+identifiers; **155 → 121 distinct tokens, 45 → 0 mangled**. Proven
+behaviour-preserving: a 451-rule × 15-profile gate snapshot taken before and after
+shows **0 changed outcomes** once the matcher bug above is fixed.
+
+**4. All 117 untagged rules tagged — the gate is now total.**
+Rules carrying neither `ApplicableStandards` nor `StandardRef` passed the gate
+unconditionally. All 117 are now tagged with the governing standard for their
+category, refined by category-scoped RuleId keywords. Coverage is **451/451**;
+`onlyStandardRef` and `untagged` are both **0**.
+
+> **Behaviour change — read before upgrading.** Those 117 rules used to be included
+> by *every* profile. A single-standard profile now sees far fewer rules: e.g.
+> `ActiveStandards: ["BS 7671"]` goes from 175 included rules to 79. This is the
+> gate working as designed (a BS 7671-only profile should not place windows), but
+> profiles should list **all** applicable standards, not one. The engine already
+> reports `"Building profile … filtered out N of M rule(s)"` on every run.
+
+An earlier pass of this tagging mis-fired: unscoped RuleId keywords tagged
+`win-residential-bathroom` (a Window) with BS 7671 wet-zone rules and
+`win-carpark-perimeter` with external-lighting rules. Keywords are now scoped to
+the categories they can legitimately apply to, and merge with the category default
+rather than replacing it.
+
+**5. The remaining uncommitted editor cards are wired.**
+Phase 225 fixed three; a systematic audit (every control assigned from a
+`s.<Property>` in the per-rule sync block, cross-referenced against wired handlers)
+found **16 more** populated from the selected rule with no write-back, so their
+edits were discarded on selection change. Notably `txtStandardsCsv` — the
+`ApplicableStandards` editor itself could not be edited. All 16 now commit via
+`CommitField`. The only remaining uncommitted controls are the two intentional
+read-only displays (`txtSourcePack`, `txtRuleError`).
+
+**6. Rule-pack loading is now runtime-verified, not just build-verified.**
+New `RulePackDataTests` deserialises all 17 packs through the real
+`PlacementRuleSet` + `StringOrCsvArrayConverter` path and asserts the coverage and
+token-hygiene invariants, plus the `STING_CATEGORY_TO_SEED_MAP.json` v2
+`placeable`/`reason` contract and that the routing-output categories are
+non-placeable. This is what previously could only happen inside Revit.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**.
+
+**Still not verified — no Revit runtime was available.** `StingTools.Headless` is a
+Design Automation *library* (`OutputType: Library`, read-only engines, no local
+entry point), so it cannot host the Placement Centre. The interactive checks —
+checklist rendering, disabled/muted states, the `ItemsControl` binding and
+`ToolTipService.ShowOnDisabled`, All/None, tick preservation, the clearance and
+glazing round-trips, "Push to Families", and the `MaintenanceAccessValidator` type-
+fallback read path — remain outstanding and are listed in the PR. The stretch
+wall/ceiling/floor-follow router was not attempted for the same reason.
+
+#### Completed (Phase 225 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
+
+Closes three of the four residual gaps under ROADMAP § "Placement Centre —
+residual gaps". Built and tested on this machine; **not exercised inside Revit**
+— see the verification checklist in the PR.
+
+**1. The Auto-place checklist is generated, not hand-declared.**
+The 19 category checkboxes were `x:Name`d in XAML with a parallel
+`CategoryChecklist()` tuple array in code-behind and hand-written tooltips —
+three places to keep in sync with the engine, and `Cable Trays` was already
+absent from the seed map it was supposed to mirror. The list now comes from a
+new `Core/Placement/PlacementCategoryRegistry`, which joins
+`STING_CATEGORY_TO_SEED_MAP.json` (bumped to v2 with a `placeable` / `reason` /
+`group` / `order` contract) against the rules actually loaded for the run:
+
+- non-placeable categories (Conduits / Pipes / **Ducts** / **Cable Trays** /
+  Stairs) render **disabled** with the registry's own reason as the tooltip,
+  and `ToolTipService.ShowOnDisabled` so the reason is actually readable;
+- placeable-but-ruleless categories render **muted italic** with a generated
+  "ticking this places nothing until a rule pack covers it" reason — the state
+  that used to look like a bug;
+- a category named only by a rule's `CategoryFilter` and absent from the map is
+  still offered, flagged as having no declared seed, rather than silently dropped;
+- "All" means "all placeable" — `PlacementCategoryCheckItem.IsChecked` refuses
+  non-placeable categories at the setter, so no code path can tick one.
+
+The old "N of M checkboxes are NULL → stale XAML build" diagnostic is replaced
+by the equivalent check for the generated path (empty collection → warn, and
+fall back to "every category allowed").
+
+**2. Rule specification fields are consumed — and the ledger is honest.**
+The ROADMAP listed ten fields as "loaded + edited but not consumed". Auditing
+them found that is true of only some, and that two *separate* defects were
+hiding underneath:
+
+| Field | Actual state before this change |
+|---|---|
+| `MinSlopePercent` | consumed — `InWallChaseRouter` / `WallFollowerRouter` → `SlopeValidator` |
+| `NominalDiameterMm` | consumed — chase depth + `RoutingSupportPlacer` |
+| `InsulationThicknessMm` | consumed — `RoutingSupportPlacer`, `InWallChaseRouter` |
+| `MinUniformityRatio` | consumed — `LightingGridCalculator` |
+| `ExposureClass` | consumed — `InWallChaseRouter` → `ConcreteCoverTable` |
+| `EmitSupports` | consumed — `RoutingSupportPlacer`, `WallFollowerRouter` |
+| `Material` | consumed on the routing path only |
+| `MaintenanceClearance` | **not consumed, and the editor was broken** |
+| `GlazingSpec`, `ToughenedGlazingRequired` | **not consumed, and the editors were broken** |
+
+- **`MaintenanceClearance` was typed `double`** while its editor is a ComboBox
+  offering class codes (`FRONT_600`, `SIDES_300`, …) and `MaintenanceAccessValidator`
+  reads a class-code *string* from `STING_MAINT_CLEAR_TXT`. The view-model parsed
+  the selection with `double.TryParse("FRONT_600")`, which always failed, so the
+  field was always `0` and every selection was silently discarded. Retyped to
+  the class-code string. No rule pack set the field, so there is no data to migrate.
+- **`chkToughenedGlazing`, `cmbGlazingSpec` and `cmbMaintenanceClearance` had no
+  commit handler at all** — populated from the selected rule, never written back,
+  so edits were lost on selection change. This is the real reason the fields
+  looked unconsumed: they were never *edited*. Handlers added.
+- `FamilyHintsBridge.PushRuleToFamilyTypes` now pushes `Material`, `GlazingSpec`,
+  `ToughenedGlazingRequired`, `InsulationThicknessMm`, `NominalDiameterMm` and
+  `MaintenanceClearance` onto the family types. **Writing `STING_MAINT_CLEAR_TXT`
+  is what activates `MaintenanceAccessValidator`** — nothing had ever written that
+  parameter, so that validator could not previously fire.
+- New `Core/Placement/PlacementAdvisoryValidator` runs post-placement and reports
+  fields that are set but cannot take effect on that rule's configuration
+  (`MinSlopePercent` with `RoutingMode: NONE`, `MinUniformityRatio` off a
+  lighting-grid anchor, an unrecognised clearance class code, `ToughenedGlazingRequired`
+  contradicting `GlazingSpec`, …). Advisory only — never blocks a run, never edits
+  the model, capped at 25 entries with the remainder logged. Fields that are
+  push-only rather than dead say so explicitly instead of being reported as discarded.
+
+**3. The standards gate is active.**
+`ApplicableStandards` backfilled from free-text `StandardRef` across **128 rules
+in 8 packs**, taking structured coverage from 206/408 to **334/408**; no rule now
+carries `StandardRef` without `ApplicableStandards`. Backfill was
+formatting-preserving (per-rule text insertion matching local indentation and
+inline style), so the diff is 128 added lines and nothing else.
+
+Matching moved to a new `Core/Placement/StandardsTokenMatcher`, because the
+previous inline comparison missed the pairings that actually occur in the packs
+— `"BS 7671"` vs `"BS7671"`, `"BS EN 12464"` vs `"BS EN 12464-1:2011"`, and
+`"Approved Doc M / BS 8300-2"` (`/` was not a separator). A missed match silently
+drops a rule from the run. The matcher splits on `,;|/`, strips edition years
+while keeping part numbers, and compares on letters+digits only. The
+warn-when-inert fallback is retained and sharpened: with rules tagged, it now
+reports how many rules carry neither field and therefore bypass the gate.
+
+**Tests — new `StingTools.Placement.Tests` (45 passing).** A pure-logic project
+following the `StingTools.Routing.Tests` pattern (no Revit assemblies; minimal
+shims in `TestHelpers/`). Deliberately does **not** touch `StingTools.Tags.Tests`,
+which is owned by an in-flight change. Covers the matcher's regression pairings
+and both halves of the advisory contract — fires when inert, silent when the
+field is on a consuming path.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**, unchanged from baseline.
+
+**Review follow-up (same PR).** Seven points from code review addressed:
+
+- **`MaintenanceAccessValidator` now reads the type as well as the instance.**
+  `PushRuleToFamilyTypes` writes `STING_MAINT_CLEAR_TXT` onto family *types*, but
+  the validator read it via an instance-side `LookupParameter`, which does not
+  resolve a type-bound parameter — so the write could land and still never be
+  read. `ReadString` now falls back to `el.Document.GetElement(el.GetTypeId())`.
+  This is what actually closes the "activates `MaintenanceAccessValidator`" loop.
+- **Backfill token hygiene.** The `StandardRef`→`ApplicableStandards` split ran on
+  prose in the toilet-fixtures pack (`/` inside `l/s` and parentheticals),
+  producing non-standard tokens like `sminextractforWC`, `17inchrim)` and
+  `standardresidential1500mmAFF`. Gating still worked (the real citations survived
+  as prefixes) but the structured field carried noise; 15 arrays re-curated to
+  clean identifiers (`["Approved Doc F", "BS 5720", "CIBSE Guide B2"]`, …).
+- **Legacy-`"0"` coercion.** `PlacementRule.MaintenanceClearance` now coerces a
+  purely-zero numeric to empty, so re-importing an Excel sheet exported under the
+  old `double` shape does not resurrect a `"0"` that the validator would skip and
+  Push-to-Families would stamp. A non-zero typo like `"600"` is kept so the
+  advisory still flags it. Pinned by `PlacementRuleMaintenanceClearanceTests`.
+- **Advisory scoping comment** corrected to state that a null/empty result (tests,
+  or a run that placed nothing) reports on all rules, matching the code.
+- **Test shim fidelity.** `PlacementResultShim.CountsByRule` uses the default
+  case-sensitive comparer, matching the real `PlacementResult`, so it can't be
+  more forgiving than production.
+- **Untagged-count** in the standards-gate warning now counts non-null rules only.
+- **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
+  coerces a rejected tick, so a TwoWay binding reverts its visual.
+#### Completed (Phase 252 — the baseline reaches family-backed elements, and a catalogue that renews itself)
+
+Phase 246 shipped a baseline that could create wall, floor, roof and ceiling types and could only
+REPORT on doors, windows and structural families. Four layers close that, and the T6 proposal that
+preceded them had to be corrected first.
+
+**The correction.** The T6 proposal said adding parameters to families was "yours — not a code task".
+It was wrong: `FamilyAugmentationEngine` has done the `EditFamily` → `AddParameter` → `LoadFamily`
+round trip for symbol families all along. The row is amended in place with the correction visible
+rather than quietly edited, so anyone reading it later sees both the error and why (#809).
+
+**B1 — types minted inside loaded families (#811).** `FamilySymbol.Duplicate`, which nothing in this
+codebase had used before; only `TextNoteType` and `DimensionType` were ever duplicated. What it still
+will not do is conjure the family: a type whose category has no family matching its
+`familyNamePatterns` is GUIDANCE, never Missing, so Apply cannot promise a mint that must fail —
+deleting that branch fails three tests.
+
+Two failures already paid for were pre-empted. `Duplicate` commits BEFORE the parameter set runs, so
+a failure would leave a type named for the baseline carrying the source's dimensions, which the next
+audit reads as conforming — #798, exactly. Half-made types are deleted. And same name, different
+size is a CONFLICT: the model's 800×2100 may be deliberate.
+
+Three details earned their comments. Findings gained a `MatchKey`, because two categories can want
+the same type name and the minter would otherwise re-parse a display string the auditor formatted.
+The audit and the mint now share ONE inventory — reading twice would let the model change between the
+report somebody approves and the write that follows. And a sub-millimetre difference is rounding, not
+a conflict: Revit stores feet, so 900 mm returns as 899.9997.
+
+**B2 — shared type parameters on loaded families (#813).** Two constraints shaped it, neither in the
+spec. `Document.EditFamily` **cannot run inside an open transaction**, so layer 3 does not join the
+mint's transaction; it runs after that commits, each round trip owning its own — the shape
+`VisibilityEngine.Reset` uses for the same reason. And the parameters must be SHARED:
+`FamilyManager.AddParameter(name, group, spec, isInstance)` creates a family-LOCAL parameter with no
+GUID, so two families given "the same" parameter hold two unrelated ones that cannot be scheduled
+together — correct-looking in any single family and useless in aggregate.
+
+An unresolvable parameter name blocks Apply before a single family is opened. The report is
+Revit-free and tested because of one case: total failure, every family refusing, nothing added — a
+summary mentioning only successes would print NOTHING there, indistinguishable from "not asked to
+act".
+
+**B3 — catalogue packs, opt-in and adopted by nobody (#814).** Shipping thirty East African types in
+the corporate baseline would make one reading of the market a standard every project is audited
+against; a project whose doors are genuinely 850 wide would be told on every run that it is missing a
+type it does not want. So packs are adopted BY ID, additive, overridable per type, and versioned in
+the id so V1 → V2 is a migration rather than a silent redefinition. An unknown pack id is REPORTED —
+silently ignoring a typo leaves somebody believing they adopted a catalogue they did not.
+
+**B4 — harvest (#815).** The piece that stops the catalogue ossifying: it reads the types actually
+PLACED in a delivered model and writes a pack for review, so the catalogue grows from work that was
+built and paid for. PLACED only — a type nobody used is evidence that somebody loaded a family. Two
+refusals carry tests: our own minted types are not harvested back, or the catalogue becomes a record
+of ITSELF; and the family's own name is the only pattern used, because inferring "Door" from
+"M_Single-Flush" is the inference-from-a-name that #710 withdrew.
+
+**Tests 716 → 766**, build 0/0 throughout, all four gates PASS, **11 mutations verified failing**
+before their tests were kept.
+
+**One mutation proved nothing, and that is recorded rather than counted.** A B3 mutation removed the
+early-return guard on an empty `adoptCatalogues` list and nothing failed — an empty list simply does
+not loop, so the guard is a fast path and not the protection. The real mutation makes the loop
+iterate every pack, and that does fail. A mutation that proves nothing is worth less than no
+mutation, because it reads as evidence.
+
+**Not verified.** Nothing here has run in Revit. `FamilySymbol.Duplicate`, `EditFamily`,
+`AddParameter`, `LoadFamily` and the harvest pass are all unexercised, on top of the five features
+from Phases 247-251 that are also unexercised. See MATSCHED-T-VERIFY.
+
 #### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
 
 Two pools of work were invisible: **40 remote branches that had never had a PR opened on
@@ -5519,6 +5932,111 @@ in Revit — the one-family (Duct) smoke test is the user's next step before sca
   discipline. Wired to the CREATE tab ("Propagate Universal" button, tag `Propagate_UniversalTag`).
 - Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
   section-normalization failures, unrelated to this work).
+
+#### Completed (Family Converter — change a family's host / placement type)
+
+Branch `claude/family-converter-7fa3c2`. **Build-verified** `dotnet build -t:Rebuild` = 0 errors /
+0 new warnings vs the 6-warning baseline (new files emit 0 warnings). **Runtime-unverified** — the
+sandbox compiles but cannot drive Revit's UI; the tab appearing and a real conversion re-hosting an
+instance need a running Revit (see the PR handover checklist).
+
+A durable tool that changes a Revit family's host / placement type (e.g. Ceiling-hosted → Face-based)
+and keeps it working across the project library. `Family.FamilyPlacementType` is read-only in the API,
+so the engine picks one of two mechanisms per `(source → target)` pair:
+
+- **New `Core/Placement/FamilyHostConverter.cs`** — pure engine (no UI / no `TaskDialog`).
+  - **P1 — checkbox toggle (lossless):** Unhosted level-based → Face-based by setting
+    `BuiltInParameter.FAMILY_WORK_PLANE_BASED` on the `OwnerFamily` inside the family doc, then
+    `LoadFamily` overwrite. Geometry / params / connectors untouched; existing instances survive.
+    (The design spec named `FAMILY_WORK_PLANE_BASED_PARAM`, which does not exist in the Revit 2025 API —
+    the real member is `FAMILY_WORK_PLANE_BASED`.)
+  - **P2 — template rebuild (lossy, gated behind the "Allow lossy rebuild" toggle):** `NewFamilyDocument`
+    from the target host `.rft`, `ElementTransformUtils.CopyElements` for geometry + reference planes,
+    recreate family parameters (shared by GUID via the shared-parameter file where present, family by
+    name/type otherwise), formulas, and types via `FamilyManager`, re-apply the original category
+    (gated through `FamilyCategoryCompatibility.ModelFamilyGroup`), `SaveAs` a new `.rfa` under
+    `_BIM_COORD/Families/Converted`, then `LoadFamily` overwrite. Best-effort non-interactive instance
+    rehost (free-standing re-place for Face-based / Unhosted targets; hosted targets are flagged for a
+    manual host pick — a face/host cannot be picked in batch). MEP connectors do **not** survive
+    `CopyElements` and are transferred by `FamilyConnectorTransfer` (see the addendum block below);
+    host-relative geometry re-anchors to the template default and is flagged for review.
+  - Per-document registry (`FamilyHostTemplateRegistry`) layering corporate baseline over a
+    `<project>/_BIM_COORD/family_host_templates.json` override, mirroring `MepSizingRegistry`.
+  - §9 edge cases: non-model / in-place / curve-driven families refused; already-at-target reported as
+    no-change; missing `.rft` skipped with the resolved path; workshared families owned by another user
+    skipped with an ownership note; nested-usage families flagged.
+- **New `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`** — 6-target matrix (Face / Unhosted / Wall /
+  Ceiling / Floor / Roof) + path rules (`Unhosted → FaceBased` = P1; everything else = P2).
+- **New "Family Converter" tab** in the modeless Placement Centre (`StingPlacementCenter.xaml[.cs]`),
+  immediately after "Library". Scan / Import-folder / Load-`.rfa` toolbar, a per-row
+  `DataGridTemplateColumn` target combo (per-row `AllowedTargets`, not a column-wide list) with a live
+  P1/P2 Path hint that recomputes on selection, and Apply Selected / Apply All Pending / Save-Reload /
+  Audit Only. Everything routes through the existing `RunInlineAction` bridge and renders into the shared
+  inline Report panel (`bdrReport`) — no pop-ups except the OS file/folder pickers. Batch runs isolate
+  per-family failures so one bad family never aborts the run. Reuses `StingFamilyLoadOptions`,
+  `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
+  `SymbolLibraryCreator.ResolveTemplateFolder`.
+
+
+#### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
+
+Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
+`docs/superpowers/specs/2026-07-18-family-converter-addendum.md`. **Build-verified**
+`dotnet build -t:Rebuild` against Revit 2025 = 0 errors / 0 warnings (the tree's current baseline is
+0/0 — the addendum predicted 6, but `origin/main` has moved 186 commits since it was written and the
+0/0 fix has landed). **Runtime-unverified** — whether connectors survive a real ceiling→face
+conversion and mate to a system needs a running Revit.
+
+- **A — MEP connectors now survive a P2 rebuild.** `ElementTransformUtils.CopyElements` does not carry
+  `ConnectorElement`s between family documents, so a rebuilt MEP family previously had none and could
+  not join a system; the engine merely counted them and said "re-add manually". New
+  **`Core/Placement/FamilyConnectorTransfer.cs`** is a two-tier transfer engine:
+  - **Tier 1 (STING seeds)** — resolve the backing `SymbolDefinition` from `Data/Seeds/STING_SEED_*.json`
+    (matched on seed id, definition name, or a type-variant name) and re-mint declaratively via
+    `SymbolLibraryCreator.AddConnectors` (widened `private` → `internal`). Exact, no geometric guessing.
+    A re-mint that yields nothing falls through to Tier 2 rather than reporting a false success.
+  - **Tier 2 (any vendor / legacy family)** — harvest every connector (domain, system classification,
+    origin, coordinate system, profile, radius/width/height, primary flag, description and every
+    writable non-dimensional parameter), then re-create each with three attempts, best fidelity first:
+    **(A)** the copied `PlanarFace` whose plane contains the origin (0.5 mm tol), whose normal aligns
+    (dot > 0.999) and onto which the origin genuinely projects — created on `face.Reference`;
+    **(B)** a minted `ModelCurve` at the harvested origin/normal, created on its endpoint reference —
+    the same technique `SymbolLibraryCreator.AddConnectorList` already uses to author seed connectors;
+    **(C)** reported as manual with exact origin XYZ, normal, domain, shape and size.
+    Geometry options set `ComputeReferences = true` — without it `face.Reference` is null and connector
+    creation silently fails.
+  - The blanket "connectors were NOT transferred" note is replaced with real accounting:
+    `{harvested} harvested · {recreated} re-created ({n} on copied faces, {n} on reference lines) ·
+    {n} need manual re-add`, plus the per-connector detail list. Only connectors actually created are
+    claimed, and reference-line placements are counted separately and flagged for review.
+  - *Deviation from the spec:* the addendum went straight from "no face match" to "report as manual".
+    Attempt B is inserted before that, recovering connectors hosted on reference planes or whose host
+    face failed to copy.
+- **B — shared-parameter integrity.** `CopyFamilyParameters` previously resolved shared params through
+  whatever file the user happened to have pointed, so every STING shared parameter would silently
+  degrade to a plain family parameter — the family still loads, but tags, schedules, ExLink and COBie
+  quietly stop working on it. Now:
+  - STING's `MR_PARAMETERS.txt` is **pinned** for the duration of the copy and **always restored in a
+    `finally`**, even on throw.
+  - **Both** files are searched by GUID — STING's first, then the user's original — so vendor shared
+    params that exist only in the user's file still resolve. A parameter only falls back when it is in
+    neither. Implemented as ordered passes (pin file → add what it defines → move on) because an
+    `ExternalDefinition` is only reliably usable while its own file is the pinned one.
+  - **Pre-flight in Audit Only**: `FamilyHostConverter.PreflightSharedParameters` opens each pending
+    P2 family read-only and reports "N shared parameter(s) would fall back", naming each one and both
+    resolved file paths, so the loss is a decision rather than a discovery. It runs through the existing
+    `RunInlineAction` bridge and appends to the same Audit report.
+- **C — build baseline.** No code change; `origin/main` merged in (186 commits, not the 2 the addendum
+  predicted). The one conflict was `docs/CHANGELOG.md`, resolved keeping both sides.
+
+**API notes** — verified against Revit 2025 `RevitAPI.dll` / `RevitAPI.xml` rather than assumed:
+the addendum's `ConnectorElement.Create*` signature list is correct as written;
+`Domain.DomainCableTrayConduit` covers both conduit and cable tray and they are discriminated via
+`BuiltInParameter.RBS_CABLETRAYCONDUIT_CONNECTORELEM_TYPE`; `ConnectorElement` exposes
+`SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
+1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
+factories reject `UndefinedSystemType`).
+
 
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
@@ -18686,6 +19204,204 @@ engineering" now have first-shipped implementations:
 - `Data/STING_CTF_COEFFICIENTS.json`
 
 
+---
+
+## Server test-health pass — DEP-5 / DEP-6a / DEP-10 / DEP-11
+
+Scope: `Planscape.Server` only. Integration-suite failures **73 → 9**
+(430 passing). `check-new-failures.sh` exits 0; `known-failing-tests.txt`
+shrank from 66 entries to 9, and every remaining entry now carries a diagnosis.
+
+### The headline: five of the "drifted assertions" were real bugs
+
+DEP-10 assumed the 73 failures were stale test expectations. Five were not.
+
+| Bug | Effect in production |
+|---|---|
+| `ProjectVisibility.IsTenantAdmin` read `FindFirst("role")`, which JWT inbound claim mapping had already rewritten to the `ClaimTypes.Role` URI | The claim was always null, so the method was **always false**. Tenant Owners and SecurityOfficers lost their see-everything privilege and fell through to the author-or-member predicate: they saw only projects they personally created and got 404 on deep links to any other project in their own tenant. Root cause of ~28 of the 73 failures |
+| `DocumentsController.GetUserRole()` — same claim bug | Every CDE state transition was evaluated as if the caller were a `Viewer`, so nobody could move a document out of WIP |
+| `/api/auth/refresh` missing `IgnoreQueryFilters()` | `AppUser` is `ITenantScoped` and the endpoint is anonymous, so the global tenant filter ran with `CurrentTenantId == Guid.Empty` and matched zero rows — **every refresh returned 401**. Login, ForgotPassword and ResetPassword all bypass the filter and say why; refresh was missed |
+| `/api/auth/license/activate` missing `IgnoreQueryFilters()` | Same mechanism on `LicenseKey`. Licence activation from the Revit add-in — which calls this before any session exists — **could never succeed for anyone**. Its companion test `ActivateLicense_InvalidKey_ReturnsInvalid` was passing for the wrong reason |
+| `TagSyncController.SyncElements` returned on an empty batch **above** the tenant check | This controller takes `projectId` from the body, so `[ProjectAccess]` does not apply and those three lines are its only isolation. A caller from any tenant got 200 for any `projectId` — an existence oracle, and a live hazard the moment anything is added to the empty-batch path |
+
+Also fixed: `DocumentRecord.Project` ↔ `Project.Documents` is a serialization
+cycle, and several controllers return raw entities, so any successful create
+threw mid-response once EF fixup populated the navigation. Latent only because
+the visibility bug 404'd those endpoints first. `ReferenceHandler.IgnoreCycles`
+is now set on the MVC JSON options.
+
+### Fixture rot (the genuine test drift)
+
+- **Global tenant query filter** starved fixtures written before it landed. Handler
+  unit tests built a `DbContext` with no `ITenantContext`, so `CurrentTenantId`
+  was `Guid.Empty` and every seeded row was filtered out — both DB grant paths in
+  `BimManagerOrAdminHandler` were dead. Fixed with a stub tenant context and
+  `TenantId` on seeded `ProjectMember` rows, *not* by bypassing the filter, which
+  would have made the denial tests pass vacuously.
+- **`AddDbContext` invokes its options lambda per context instance**, so
+  `UseInMemoryDatabase(Guid.NewGuid().ToString())` gave the fixture and the
+  handler's own scope two different empty stores. Hoisted to a local.
+- **`Tenant.Plan` was never seeded** in the test factory, defaulting to `Trial`,
+  which now allows one project — and one was already seeded, so every create
+  402'd. `SeedData.cs:60-63` had hit and documented the identical trap.
+- **The seeded project had no `CreatedById` and no `ProjectMember`**, so it was
+  invisible to everyone under the visibility model.
+- **EF InMemory raises `TransactionIgnoredWarning` as an error**, 500-ing any
+  handler that opens a transaction.
+- Assertions genuinely stale: Trial project cap 3 → 1 and Network 10 →
+  unlimited after the repricing; `register` returns `plan`, not `tier`;
+  `/health` is gated to private-network callers (the liveness probe is
+  `/health/live`); `/meetings/actions/open` returns a paginated envelope.
+
+### DEP-6a — `IReplayGuard`
+
+`Core/Interfaces/IReplayGuard.cs` + `Infrastructure/Services/RedisReplayGuard.cs`,
+faked by `TestReplayGuard`. The implementation deliberately does **not** swallow
+transport exceptions: whether an unreachable store fails open or closed is a
+security decision that belongs at the call site, next to the thing it protects.
+Fail-open semantics are unchanged. Four tests cover replay-blocked,
+distinct-tickets-independent, fail-open-on-throw, and guard-actually-consulted.
+
+### Harness
+
+`check-new-failures.sh` required a space immediately before `[FAIL]`, so the `(`
+of a theory case ended the match and **every failing theory case was invisible to
+CI** — a newly-broken theory would have sailed through. Now matched and collapsed
+to the base method name.
+
+### Known limits, stated honestly
+
+- **3 tests need real PostgreSQL** and cannot pass on the InMemory harness:
+  `EF.Functions.ILike` is Npgsql-only, and `SequenceCounterService` runs
+  `INSERT … ON CONFLICT … RETURNING` via `SqlQueryRaw`. Not bugs; they belong in
+  the real-Postgres suite. **Not run against Postgres in this pass.**
+- **6 tests are confirmed production defects in `DeliverableStateMachine`**
+  (ROADMAP DEP-14) — including `"BLOCKED".Contains("LOCKED")` misclassifying
+  every `BLOCKED*` state as terminal. Not fixed here: each remedy changes how
+  every tenant's custom workflow vocabulary is classified.
+- **~22 further `FindFirst("role")` sites remain unmapped** (ROADMAP DEP-12).
+  Audited as fail-closed, so this degrades function rather than opening access.
+  The central fix touches every claim reader and needs its own security review.
+- **Log output cannot be asserted from an integration test** (ROADMAP DEP-13):
+  Serilog's `Log.Logger` is process-global and concurrent hosts race over it.
+- **Two lines were ADDED to the baseline** (the file still went 66 → 11 net):
+  `Login_NonexistentUser_Returns401` and
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly`. Both are pre-existing
+  order/parallelism flakes, confirmed by running `origin/main` — the Login one
+  fails 3/3 there in the full suite and passes in isolation, so the previous
+  baseline simply captured a luckier run. The ETag one stands up a second
+  `WebApplicationFactory`, which is exactly the DEP-7 hazard. Listing them makes
+  CI deterministic instead of randomly red; the check script still prints a
+  "now PASS" notice on runs where they succeed, so they stay visible.
+  A shared never-disposed `JobStorage` was tried as a DEP-7 mitigation and made
+  the suite *worse* (cross-factory state bleed) — reverted, not shipped.
+
+---
+
+## Follow-up — review of #460 (rate-limiter scope + refresh soft-delete guard)
+
+Two fixes stacked on the test-health pass, from a code review of #460.
+
+### Rate limiter: `refresh` and `license/activate` off the shared `auth` bucket
+
+The test-health pass put `[EnableRateLimiting("auth")]` on both endpoints. The
+`auth` policy is a single 5-req/5-min sliding window keyed by **IP only**
+(`Program.cs`) and shared across *every* auth endpoint (login, forgot/reset,
+handoff, PAT exchange). That is right for login but too tight for these two:
+
+- `refresh` is automatic and periodic. Behind a shared egress IP (corporate
+  NAT / VPN) the combined refresh traffic of a handful of users exhausts the
+  bucket and 429s everyone — including re-login, which draws from the same
+  bucket. Moved to the `api` policy (100/60s, per-user or per-IP). The refresh
+  token is a 128-bit random secret, so a strict brute-force limiter adds little.
+- `license/activate` is a validity oracle, so it keeps a limiter — but on its
+  own dedicated per-IP `license` policy (20/5min), not shared with login. The
+  Revit add-in calls it pre-session, so a multi-engineer office activates from
+  one public IP; 20/5min covers that while staying far too slow to walk a
+  high-entropy keyspace.
+
+### `refresh` soft-delete guard
+
+`RefreshToken` disables **all** global query filters with `IgnoreQueryFilters()`
+but re-stated only `IsActive`. Its two sibling anonymous lookups both exclude
+soft-deleted users (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an
+explicit `user.IsDeleted` guard), and `AppUser`'s global `!IsDeleted` filter is
+itself overwritten by the reflection-applied tenant filter — so nothing else
+excluded a soft-deleted user from token refresh. Added `&& !u.IsDeleted` to the
+predicate.
+
+Built without `dotnet build` verification (no .NET SDK in the sandbox); the
+changes are attribute/predicate-level and mirror existing adjacent patterns.
+
+---
+
+## Follow-up 2 — review of #460 (dead soft-delete filter + handoff-secret test leak)
+
+Two more items from the #460 review, both flagged in #463's notes.
+
+### `AppUser` soft-delete query filter was dead (real, pre-existing bug)
+
+`AppUser` sets a soft-delete global filter (`e.HasQueryFilter(u => !u.IsDeleted)` in
+its entity block) **and** is `ITenantScoped`, so `ApplyTenantQueryFilters` — which
+runs *after* the entity blocks — called `HasQueryFilter` again with the tenant
+predicate. EF Core's `HasQueryFilter` **replaces** rather than combines, so the
+tenant filter silently clobbered the soft-delete one: soft-deleted users stayed
+visible to every normal query, contradicting the entity-block comment and the two
+anonymous lookups (handoff, PAT exchange) that rely on `!IsDeleted`.
+
+Fix: `ApplyTenantQueryFilters` now reads each entity's existing filter via
+`GetQueryFilter()` and `AND`s it with the tenant predicate under one shared
+parameter (a small `ParameterReplacer : ExpressionVisitor` rebinds the existing
+lambda's parameter). General, not an AppUser special-case — any future entity with
+its own filter is preserved too. No behavioural change today (nothing sets
+`AppUser.IsDeleted = true` yet), but the guarantee is now real — and pinned by a
+regression test (`SecurityCriticalPathTests.SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters`):
+a soft-deleted row is absent from a normal query and present under
+`IgnoreQueryFilters`, with a live row in the same tenant proving the combine did not
+break tenant scoping.
+
+### Handoff-secret test isolation
+
+`AuthController.HandoffExchange` read `PLANSCAPE_HANDOFF_SECRET` via
+`Environment.GetEnvironmentVariable`, which forced two test classes to set a
+**process-global** env var in their constructors — leaking across the parallel
+xunit suite. Now read via `IConfiguration` (env vars remain a config source, so a
+deployed secret still resolves; the direct read stays as a fallback). The factory
+injects a known `HandoffSecret` through `ConfigureAppConfiguration` (reached because
+the secret is read at request time, not host-build), and both `HandoffProvisioning`
+and `HandoffReplayGuard` tests drop their `Environment.SetEnvironmentVariable` calls.
+
+### Not done (deliberately)
+
+- **Baselined flakes** `Login_NonexistentUser_Returns401` /
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly` are downstream of the process-global
+  state in **DEP-7** (Hangfire `JobStorage.Current`) / **DEP-13** (Serilog
+  `Log.Logger`). Those are large infra refactors whose mitigations the test-health
+  pass already measured and reverted; not churned here.
+
+Built **without `dotnet build` verification** (no .NET SDK in the sandbox);
+compile is covered by CI's full-solution build (`contract-drift.yml`). The EF filter
+change is exercised by the whole tenant-isolation suite, which runs in
+`planscape-server.yml` — worth confirming that job runs on this PR.
+
+### Follow-up 2b — test-harness fixes from the #475 build review
+
+Two non-blocking observations from running the build/verify pass:
+
+- **`check-new-failures.sh` completion guard was invocation-fragile.** It required a
+  `^(Passed!|Failed!)` line, which only the VSTest per-project console logger emits;
+  a solution-level `dotnet test Planscape.sln` (or Microsoft.Testing.Platform) prints
+  a different summary, so the gate errored `no test summary` and exited 1 on an
+  otherwise-valid run. The guard now accepts all three summary shapes (`Passed!`/
+  `Failed!`, `Total tests:`, `Test summary:`). Broadening the guard added a
+  false-green risk (a summary whose `[FAIL]` lines we can't parse), so a cross-check
+  now bails if the run's own summary reports failures but none were parsed.
+- **3 Postgres-only `CoreApiTests` were baseline *failures*, not skips.**
+  `Search_ValidQuery_ReturnsResults` (`EF.Functions.ILike`) and `Transmittals_CreateAndList`
+  / `_MarkSent` (`INSERT … ON CONFLICT … RETURNING`) run on the always-InMemory test
+  host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
+  `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
+  the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.
 #### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
 
 **Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`

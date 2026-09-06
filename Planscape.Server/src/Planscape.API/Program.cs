@@ -1196,6 +1196,12 @@ builder.Services.AddOpenTelemetry()
         .AddRedisInstrumentation(redisMux)
         .AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint)));
 
+// Replay protection for single-use identifiers (handoff ticket jti). Behind an
+// interface so the blocking half is drivable from a test host, which cannot
+// reach Redis — see Planscape.Core.Interfaces.IReplayGuard.
+builder.Services.AddSingleton<Planscape.Core.Interfaces.IReplayGuard,
+                              Planscape.Infrastructure.Services.RedisReplayGuard>();
+
 var app = builder.Build();
 
 // ── Pipeline ──

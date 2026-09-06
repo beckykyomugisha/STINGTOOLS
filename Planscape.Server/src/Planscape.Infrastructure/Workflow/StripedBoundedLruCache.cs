@@ -68,6 +68,19 @@ internal sealed class StripedBoundedLruCache<TKey, TValue> where TKey : notnull
         return stripe.GetOrAdd(key, factory);
     }
 
+    /// <summary>
+    /// Test-only: drop every entry across all stripes.
+    ///
+    /// The L1 caches built on this are <c>static</c> by design, so they outlive
+    /// the scoped objects that own them. A test cannot simulate a cold process
+    /// just by constructing a new instance — without this, a "fresh instance"
+    /// still reads the previous test's L1 and never reaches L2.
+    /// </summary>
+    internal void Clear()
+    {
+        foreach (var stripe in _stripes) stripe.Clear();
+    }
+
     /// <summary>Test-only: peek without promoting. See
     /// <see cref="BoundedLruCache{TKey,TValue}.TryPeek"/>.</summary>
     internal bool TryPeek(TKey key, out TValue value) =>

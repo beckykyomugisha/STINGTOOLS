@@ -46,10 +46,31 @@ namespace StingTools.BOQ.MeasurementStandard
         string BuildDescription(BOQLineItem line, Element el);
 
         /// <summary>
+        /// Whether <see cref="ApplyDeductions"/> can change the quantity. Declared by the
+        /// implementation rather than listed by callers, so it cannot drift: whoever
+        /// implements deductions for a standard flips it on the same class, in the same
+        /// edit. The standard picker surfaces it, so a user is told at selection time
+        /// whether the standard they chose will re-measure or only re-classify.
+        /// </summary>
+        bool AppliesDeductions { get; }
+
+        /// <summary>
         /// Apply deduction rules to a quantity (e.g. CESMM4 deducts
         /// window/door openings from external wall areas at &gt; 0.5 m²).
         /// Returns the net quantity.
         /// </summary>
+        /// <remarks>
+        /// NOT every standard implements this. Choosing a measurement standard mainly
+        /// changes how rows are CLASSIFIED, described and grouped; only NRM2 and CESMM4
+        /// currently change the measured QUANTITY. POMI, ICMS 3 and MMHW return the
+        /// quantity unchanged, so switching to them re-sections the bill without
+        /// re-measuring it.
+        /// <para>This distinction is easy to miss and expensive to assume: a quantity
+        /// surveyor selecting "POMI" may reasonably expect POMI deduction rules to have
+        /// been applied to the areas they are about to price. Implementations that do not
+        /// deduct say so on their own <c>ApplyDeductions</c>, and the standard picker
+        /// reports it to the user at selection time.</para>
+        /// </remarks>
         double ApplyDeductions(BOQLineItem line, Element el);
     }
 }

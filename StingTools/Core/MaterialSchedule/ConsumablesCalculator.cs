@@ -43,6 +43,23 @@ namespace StingTools.Core.MaterialSchedule
         public double FormworkM2;
         public double RoofCoveringM2;
 
+        /// <summary>
+        /// Roof covering that WAS measured but could not be attributed to a
+        /// product: the category resolved to a roof commodity and the type name
+        /// matched no pattern, so the supplier table refused to convert it.
+        ///
+        /// Kept OUT of RoofCoveringM2 on purpose. The fastener ratio is
+        /// product-specific — 11/m² is corrugated sheeting fixed at every second
+        /// corrugation, and a tiled roof of the same area takes clips at a
+        /// different rate — so multiplying an unidentified covering by it would
+        /// produce a confident number for the wrong roof.
+        ///
+        /// It is tracked separately because zero-because-nothing-is-there and
+        /// zero-because-nothing-could-be-identified call for opposite actions,
+        /// and the export said the first when it meant the second.
+        /// </summary>
+        public double RoofCoveringUnattributedM2;
+
         /// <summary>Rows whose measured unit disagreed with the unit a driver is
         /// counted in, and were therefore NOT summed. The `formwork` kind is
         /// emitted as "item" for a permanent-formwork void slab, and adding that
@@ -50,6 +67,11 @@ namespace StingTools.Core.MaterialSchedule
         /// defect all over again.</summary>
         public readonly SortedSet<string> UnitMismatches =
             new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static bool IsRoofCovering(string commodityKey) =>
+            !string.IsNullOrWhiteSpace(commodityKey)
+            && (commodityKey.Equals("roof-sheet", StringComparison.OrdinalIgnoreCase)
+             || commodityKey.Equals("roof-tile", StringComparison.OrdinalIgnoreCase));
 
         public double Value(string driver)
         {
@@ -115,13 +137,17 @@ namespace StingTools.Core.MaterialSchedule
                 // matches it by category and type pattern.
                 if (units != null && string.IsNullOrEmpty(kind))
                 {
-                    var rule = units.Resolve(r.ConstituentKind, r.Category, r.TypeName).Rule;
-                    if (rule != null
-                        && (rule.CommodityKey.Equals("roof-sheet", StringComparison.OrdinalIgnoreCase)
-                         || rule.CommodityKey.Equals("roof-tile", StringComparison.OrdinalIgnoreCase)))
+                    var res = units.Resolve(r.ConstituentKind, r.Category, r.TypeName);
+                    if (res.Rule != null && IsRoofCovering(res.Rule.CommodityKey))
                     {
                         if (Is("m2")) d.RoofCoveringM2 += r.Quantity;
-                        else d.UnitMismatches.Add($"{rule.CommodityKey} in '{r.Unit}'");
+                        else d.UnitMismatches.Add($"{res.Rule.CommodityKey} in '{r.Unit}'");
+                    }
+                    else if (res.Match == SupplierUnitMatch.CategoryTypeMismatch
+                             && IsRoofCovering(res.CandidateCommodityKey) && Is("m2"))
+                    {
+                        // A roof whose product is unknown. Measured, not usable.
+                        d.RoofCoveringUnattributedM2 += r.Quantity;
                     }
                 }
             }
