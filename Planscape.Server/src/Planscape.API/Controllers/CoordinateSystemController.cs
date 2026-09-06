@@ -3,6 +3,8 @@ namespace Planscape.API.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
@@ -15,9 +17,17 @@ using Planscape.Infrastructure.Data;
 /// this definition.
 /// Route: /api/projects/{projectId}/coordinate-system
 /// </summary>
+/// <remarks>
+/// The CRS is the frame every model in the project is aligned against, so an
+/// unauthorised edit silently mis-places the whole federation. Gated like
+/// <see cref="IfcIngestController"/>: <c>[ProjectAccess]</c> for read (404) and
+/// <see cref="ControllerProjectMembershipExtensions.RequireProjectMemberAsync"/>
+/// on every mutation (403).
+/// </remarks>
 [ApiController]
 [Route("api/projects/{projectId:guid}/coordinate-system")]
 [Authorize]
+[ProjectAccess]
 public class CoordinateSystemController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -51,6 +61,8 @@ public class CoordinateSystemController : ControllerBase
         [FromBody] CoordinateSystemDto dto,
         CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var existing = await _db.ProjectCoordinateSystems
             .AnyAsync(x => x.ProjectId == projectId && x.TenantId == _tenant.TenantId, ct);
 
@@ -92,6 +104,8 @@ public class CoordinateSystemController : ControllerBase
         [FromBody] CoordinateSystemDto dto,
         CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var entity = await _db.ProjectCoordinateSystems
             .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.TenantId == _tenant.TenantId, ct);
 
@@ -122,6 +136,8 @@ public class CoordinateSystemController : ControllerBase
     [HttpDelete]
     public async Task<IActionResult> Delete(Guid projectId, CancellationToken ct)
     {
+        if (await this.RequireProjectMemberAsync(_db, projectId, ct) is { } denied) return denied;
+
         var entity = await _db.ProjectCoordinateSystems
             .FirstOrDefaultAsync(x => x.ProjectId == projectId && x.TenantId == _tenant.TenantId, ct);
 

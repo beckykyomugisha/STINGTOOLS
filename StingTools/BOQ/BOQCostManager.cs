@@ -683,6 +683,7 @@ namespace StingTools.BOQ
             double quantity;
             double grossQty = 0, deductQty = 0, wasteQty = 0;
             string measNote = null;
+            bool qtyUnresolved = false;
             if (std != null)
             {
                 quantity = MeasureQuantity(el, unit, catName, std,
@@ -690,7 +691,7 @@ namespace StingTools.BOQ
             }
             else
             {
-                quantity = DeriveQuantity(el, unit);
+                quantity = DeriveQuantity(el, unit, out qtyUnresolved);
                 grossQty = quantity;
             }
 
@@ -741,7 +742,13 @@ namespace StingTools.BOQ
                 GrossQuantity = grossQty,
                 DeductionQuantity = deductQty,
                 WastageQuantity = wasteQty,
-                MeasurementNote = measNote,
+                // A-1 — a measured line whose quantity source never resolved. The
+                // quantity reads 0; without this flag it is indistinguishable from
+                // a genuine zero and prices as a real, cheap item.
+                QuantityResolved = !qtyUnresolved,
+                MeasurementNote = qtyUnresolved
+                    ? (string.IsNullOrEmpty(measNote) ? "" : measNote + " ") + "[QUANTITY NOT RESOLVED]"
+                    : measNote,
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
@@ -930,8 +937,14 @@ namespace StingTools.BOQ
         // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity
         // so cost totals exactly match the existing 5D Cost Trace output.
 
-        private static double DeriveQuantity(Element el, string unit)
+        /// <param name="unresolved">
+        /// A-1 — true when a take-off rule matched but its MEASURED quantity source
+        /// did not resolve. The returned quantity is 0 in that case, and the caller
+        /// must flag the line rather than bill it.
+        /// </param>
+        private static double DeriveQuantity(Element el, string unit, out bool unresolved)
         {
+            unresolved = false;
             // P0 refactor — first consult the data-driven TakeoffRuleRegistry.
             // When a rule matches AND its declared unit aligns with the
             // caller's requested unit, the rule's quantitySource +
@@ -949,7 +962,21 @@ namespace StingTools.BOQ
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
                     {
-                        double q = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        double? qOpt = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        // A-1 — a measured unit whose source did not resolve. Do NOT
+                        // fall through to the legacy geometry path: the rule matched,
+                        // so this element's measurement is governed by it, and a
+                        // legacy guess would bury the failure under a plausible
+                        // number. Record it and let the caller gate on it.
+                        if (!qOpt.HasValue)
+                        {
+                            unresolved = true;
+                            StingLog.WarnRateLimited("BOQ.QtyUnresolved",
+                                $"BOQ quantity unresolved: element {el?.Id} under rule '{rule.Id}' " +
+                                $"(unit {rule.Unit}, source {rule.QuantitySource}) — line marked, not billed at zero.");
+                            return 0.0;
+                        }
+                        double q = qOpt.Value;
                         // Apply rule-level wastage (P0 reserves; full waste
                         // pipeline lands in P5.2 once star-rates use it).
                         if (rule.WastePercent > 0)
@@ -1125,7 +1152,14 @@ namespace StingTools.BOQ
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
-                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule) * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
+                    {
+                        // A-1 — gross measure. An unresolved measured source yields 0
+                        // here; the net path (DeriveQuantity) is what flags the line,
+                        // so this stays a plain number and does not double-report.
+                        double? gq = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        if (gq.HasValue) return gq.Value * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
+                        return 0.0;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
@@ -2895,6 +2929,11 @@ namespace StingTools.BOQ
                 if (IsFreeCategoryForCost(i.Category)) continue;
                 bool measured = IsMeasuredUnit(i.Unit);
                 if (measured && i.Quantity <= 0.0001) r.CouldNotMeasureCount++;
+                // A-1 — the EXPLICIT count. CouldNotMeasureCount above INFERS the
+                // problem from a zero quantity, which cannot separate "never
+                // measured" from "measured, and genuinely zero". QuantityResolved
+                // is set by the take-off itself, so this counts only real failures.
+                if (measured && !i.QuantityResolved) r.QuantityUnresolvedCount++;
 
                 bool zeroRate = i.RateUGX <= 0 ||
                     string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);

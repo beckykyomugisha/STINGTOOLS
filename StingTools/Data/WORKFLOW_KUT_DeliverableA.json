@@ -1,0 +1,16 @@
+{
+  "name": "KUT Deliverable A",
+  "description": "Kampala Uganda Temple — Deliverable A (schematic / Basis of Design) verification gate, A1 Phase 1. Verified at LOD 200: elements exist, are categorised and carry their STING tag; nothing is expected to be manufacturer-specified yet, so this gate is deliberately light and most failures at this stage are information-management gaps rather than design gaps. Populates the ISO 19650 tokens, audits what tagging WOULD produce before writing it, validates the tags that exist, verifies LOD 200 maturity against the unified matrix, and runs the A1 program audit. PROGRAM AUDIT: A1 requires a comprehensive program audit at Deliverables A, B and C — the Owner's live shared Excel template plus a pdf of the full audit and a deficiency log. Program_Audit is the STING half of that requirement; the Owner's template is completed from its output. Authoring stays with the design consultants; this workflow verifies, it does not author.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "FullAutoPopulate", "label": "1. Populate ISO 19650 tokens across the model" },
+    { "commandTag": "PreTagAudit", "label": "2. Dry-run tag audit — predict tags and surface gaps before writing", "optional": true },
+    { "commandTag": "ValidateTags", "label": "3. Tag validation — all 8 segments present + code-valid" },
+    { "commandTag": "TokenConfidenceAudit", "label": "4. Token-fill confidence — flags silent defaults early, while they are cheap to fix", "optional": true },
+    { "commandTag": "LOD_Verify", "label": "5. LOD 200 schematic verification (pick 'deliverable-a' at the milestone prompt)" },
+    { "commandTag": "Program_Audit", "label": "6. A1 program audit — room/area programme vs the Owner's brief (feeds the Owner's shared Excel + deficiency log)" },
+    { "commandTag": "ExportModelHealth", "label": "7. Model-health snapshot — baseline for the rest of the engagement", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "8. Composite compliance dashboard — Deliverable A sign-off" }
+  ]
+}

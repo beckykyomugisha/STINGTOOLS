@@ -28,7 +28,7 @@ import { withHandler, readJson } from "../auth/_lib/handler";
 import { handlePreflight } from "../auth/_lib/cors";
 import { bad, notFound, serverError, unauthorized } from "../auth/_lib/errors";
 import { getTenantById, audit } from "../auth/_lib/db";
-import { resolveCap } from "../auth/_lib/limits";
+import { resolveMachineCap } from "../auth/_lib/limits";
 import { verifyLicense } from "./_lib/crypto";
 import { countLicensedSeats } from "./_lib/seats";
 import type { Env } from "../auth/_lib/types";
@@ -166,7 +166,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   }
 
   const tenant = await getTenantById(db, row.tenant_id);
-  const cap = resolveCap(tenant?.plan_product ?? null, tenant?.plan_tier ?? null);
+  const cap = resolveMachineCap(tenant?.plan_product ?? null, tenant?.plan_tier ?? null);
   const inUse = await countLicensedSeats(db, row.tenant_id, nowIso);
 
   // Everything below is information, not instruction. The plugin logs it and

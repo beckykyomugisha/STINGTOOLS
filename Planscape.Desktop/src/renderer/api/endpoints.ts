@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, apiFetchBlob } from './client'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -96,4 +96,36 @@ export const transmittals = {
   list:   (projectId: string) => apiFetch<TransmittalDto[]>(`/api/projects/${projectId}/transmittals`),
   create: (projectId: string, p: Partial<TransmittalDto>) =>
     apiFetch<TransmittalDto>(`/api/projects/${projectId}/transmittals`, { method: 'POST', body: JSON.stringify(p) })
+}
+
+// ── Data rights (GDPR / POPIA) ────────────────────────────────────────────────
+//
+// Server: DataRightsController, [Authorize(Roles = "Owner,Admin")].
+// The confirmation phrase is enforced server-side; the UI asks for it as well
+// so the user is never surprised by a 400, but the client check is a courtesy,
+// not the gate.
+
+export const ERASE_CONFIRMATION_PHRASE = 'ERASE EVERYTHING'
+
+export interface EraseResponse {
+  tenantId: string
+  /** ISO timestamp when the irreversible hard-delete runs. */
+  erasureCompletesAt: string
+  message: string
+}
+
+export const dataRights = {
+  /** Subject-access export — a ZIP of every row held for the caller's tenant. */
+  exportArchive: () => apiFetchBlob('/api/data-rights/export'),
+
+  /** Freezes the tenant and schedules the hard-delete 30 days out. Reversible until then. */
+  erase: (confirmationPhrase: string) =>
+    apiFetch<EraseResponse>('/api/data-rights/erase', {
+      method: 'POST',
+      body: JSON.stringify({ confirmationPhrase })
+    }),
+
+  /** Aborts a pending erasure inside the cooling-off window and reactivates the tenant. */
+  cancelErase: () =>
+    apiFetch<{ message: string }>('/api/data-rights/cancel-erase', { method: 'POST' })
 }

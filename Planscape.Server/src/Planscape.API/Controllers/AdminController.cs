@@ -17,6 +17,7 @@ public class AdminController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly Planscape.Infrastructure.Authorization.IPermissionRevocationStore _revocations;
+    private readonly Planscape.Core.Interfaces.IIdentityReconciliationService _identityReconcile;
 
     /// <summary>
     /// Can this account reach the admin surfaces? Mirrors
@@ -28,10 +29,12 @@ public class AdminController : ControllerBase
 
     public AdminController(
         PlanscapeDbContext db,
-        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations)
+        Planscape.Infrastructure.Authorization.IPermissionRevocationStore revocations,
+        Planscape.Core.Interfaces.IIdentityReconciliationService identityReconcile)
     {
         _db = db;
         _revocations = revocations;
+        _identityReconcile = identityReconcile;
     }
 
     // ── Organization Management ──
@@ -83,8 +86,12 @@ public class AdminController : ControllerBase
         if (tenant == null) return NotFound("Tenant not found");
 
         var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-        if (userCount >= tenant.MaxUsers)
-            return BadRequest($"User limit ({tenant.MaxUsers}) reached for {tenant.Tier} tier");
+        // Via AccountCeilingPolicy, not a raw >=: a non-positive cap must read as
+        // unlimited rather than denying the tenant its first user (#616, #653).
+        if (!Planscape.Core.AccountCeilingPolicy.Allows(userCount, tenant))
+            return BadRequest(
+                $"Account limit ({Planscape.Core.AccountCeilingPolicy.Label(tenant.MaxUsers)}) " +
+                "reached for this organisation.");
 
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return Conflict($"Email {req.Email} already exists");
@@ -244,6 +251,23 @@ public class AdminController : ControllerBase
 
     private static string HashPassword(string password)
         => BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+
+    // ── R1 identity reconciliation (Phase A / Increment 2) ──
+    // Backfill IfcGlobalId onto Revit rows from ExternalElementMapping, then merge
+    // each (ProjectId, IfcGlobalId) group down to one row. Human-triggered with a
+    // dry-run first, because it mutates element rows; re-running is a no-op once
+    // clean. Admin/Owner only (class-level [Authorize]). Optional ?projectId
+    // scopes to one project; omit to reconcile the whole tenant.
+
+    /// <summary>Dry-run: report what identity reconciliation WOULD do. Mutates nothing.</summary>
+    [HttpPost("identity/reconcile/analyze")]
+    public async Task<ActionResult> AnalyzeIdentityReconciliation([FromQuery] Guid? projectId, CancellationToken ct)
+        => Ok(await _identityReconcile.AnalyzeAsync(GetTenantId(), projectId, ct));
+
+    /// <summary>Apply identity reconciliation (backfill + merge). Idempotent.</summary>
+    [HttpPost("identity/reconcile/apply")]
+    public async Task<ActionResult> ApplyIdentityReconciliation([FromQuery] Guid? projectId, CancellationToken ct)
+        => Ok(await _identityReconcile.ApplyAsync(GetTenantId(), projectId, ct));
 }
 
 public record CreateUserRequest(string Email, string DisplayName, string Password, string? Role, string? Iso19650Role);

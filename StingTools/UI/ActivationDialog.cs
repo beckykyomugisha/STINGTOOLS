@@ -25,11 +25,16 @@ namespace StingTools.UI
                 Text = "STING Tools is not activated on this machine.",
                 FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8) });
             root.Children.Add(new TextBlock {
-                Text = "Send this machine code to Planscape (support@planscape.app) to receive your license file.",
+                Text = "Get your licence at https://planscape.build/licences — sign in, " +
+                       "paste the machine code below, and download the file.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
 
             var codeBox = new TextBox {
-                Text = LicenseGate.MachineCode, IsReadOnly = true,
+                // Stable, not LicenseGate.MachineCode (== MachineFingerprint.Current).
+                // Current mixes in three WMI factors that fail transiently and flip the
+                // code, silently invalidating a valid licence. VerifyEither accepts
+                // either, so licences already issued against Current keep working.
+                Text = MachineFingerprint.Stable, IsReadOnly = true,
                 FontFamily = new System.Windows.Media.FontFamily("Consolas"),
                 FontSize = 16, Margin = new Thickness(0, 0, 0, 4) };
             root.Children.Add(codeBox);
@@ -37,7 +42,7 @@ namespace StingTools.UI
             var copyBtn = new Button {
                 Content = "Copy machine code", Width = 160,
                 HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12) };
-            copyBtn.Click += (s, e) => { try { Clipboard.SetText(LicenseGate.MachineCode); } catch { } };
+            copyBtn.Click += (s, e) => { try { Clipboard.SetText(MachineFingerprint.Stable); } catch { } };
             root.Children.Add(copyBtn);
 
             root.Children.Add(new TextBlock { Text = "Paste your license below, then click Apply:", Margin = new Thickness(0, 0, 0, 4) });

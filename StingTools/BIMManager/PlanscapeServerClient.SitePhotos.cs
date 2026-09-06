@@ -583,6 +583,11 @@ namespace StingTools.BIMManager
             if (ExportSelectionRejected(albumId, photoIds, isPdf)) return null;
 
             var http = SnapshotHttpClient();
+            // This path streams the response, so it does NOT go through
+            // GetAsync/PostJsonAsync and has to record LastStatus itself.
+            // Missing it would make a refused export report as a transport
+            // failure — the exact confusion #558 removes.
+            LastStatus = null;
             if (http == null) { LastError = "Not connected."; return null; }
 
             try
@@ -599,6 +604,8 @@ namespace StingTools.BIMManager
                 using var resp = await http
                     .SendAsync(req, HttpCompletionOption.ResponseHeadersRead)
                     .ConfigureAwait(false);
+
+                LastStatus = (int)resp.StatusCode;
 
                 if (!resp.IsSuccessStatusCode)
                 {

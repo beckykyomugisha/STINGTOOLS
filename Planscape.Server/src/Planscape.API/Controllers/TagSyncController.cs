@@ -103,6 +103,12 @@ public class TagSyncController : ControllerBase
             // Runs inside the transaction so the snapshot is consistent for the
             // duration of the entire sync.
             var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
+            // R1 (2b) — the canonical cross-host keys carried in this push, used to
+            // find an existing ArchiCAD/IFC-origin row for the SAME element and
+            // converge onto it instead of inserting a Revit-keyed duplicate.
+            var incomingGids = request.Elements
+                .Where(e => !string.IsNullOrWhiteSpace(e.IfcGlobalId))
+                .Select(e => e.IfcGlobalId!).ToHashSet();
             // IgnoreQueryFilters is REQUIRED here, not an optimisation.
             // Tombstoned rows are hidden from every normal read by the global
             // soft-delete filter, but the UPSERT must still see them: an
@@ -117,17 +123,38 @@ public class TagSyncController : ControllerBase
             // table's unique key space — a row under this ProjectId is by
             // definition this project's data. Row-set is therefore exactly what
             // it was before, plus the previously-hidden tombstones.
-            var existingElements = await _db.TaggedElements
+            // Load rows matching EITHER the Revit ElementId OR the canonical
+            // IfcGlobalId, then index by both so a dto can be resolved GlobalId-first
+            // (converge onto the ArchiCAD/IFC twin) with a RevitElementId fallback.
+            var existingRows = await _db.TaggedElements
                 .IgnoreQueryFilters()
-                .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
-                .ToDictionaryAsync(e => e.RevitElementId);
+                .Where(e => e.ProjectId == project.Id
+                            && (incomingIds.Contains(e.RevitElementId)
+                                || (e.IfcGlobalId != null && incomingGids.Contains(e.IfcGlobalId))))
+                .ToListAsync();
+            var existingElements = new Dictionary<long, TaggedElement>();
+            var existingByGid = new Dictionary<string, TaggedElement>();
+            foreach (var e in existingRows)
+            {
+                if (e.RevitElementId > 0) existingElements[e.RevitElementId] = e;
+                if (!string.IsNullOrEmpty(e.IfcGlobalId)) existingByGid[e.IfcGlobalId!] = e;
+            }
 
             // Process in batches to limit EF change tracker pressure.
             foreach (var batch in request.Elements.Chunk(SyncBatchSize))
             {
                 foreach (var dto in batch)
                 {
-                    if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
+                    // R1 (2b) — resolve GlobalId-first so a Revit push lands on the
+                    // existing ArchiCAD/IFC-origin row for the same element (merging
+                    // the two doors into one row); fall back to the Revit ElementId.
+                    TaggedElement? existing = null;
+                    if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId))
+                        existingByGid.TryGetValue(dto.IfcGlobalId!, out existing);
+                    if (existing is null)
+                        existingElements.TryGetValue(dto.RevitElementId, out existing);
+
+                    if (existing is not null)
                     {
                         // Conflict detection: last-write-wins via LastModifiedUtc.
                         // - If the client did not supply a timestamp, accept the update (legacy client).
@@ -229,6 +256,8 @@ public class TagSyncController : ControllerBase
                         entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
                         _db.TaggedElements.Add(entity);
                         existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
+                        if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId))
+                            existingByGid[dto.IfcGlobalId!] = entity;  // …by GlobalId too
                         created++;
                     }
                 }
@@ -573,6 +602,12 @@ public class TagSyncController : ControllerBase
     {
         entity.RevitElementId = dto.RevitElementId;
         entity.UniqueId = dto.UniqueId;
+        // R1 — persist the canonical cross-host key the DTO already carries (was
+        // previously dropped), and stamp origin so a Revit-authored row is
+        // distinguishable from its ArchiCAD/IFC twin. Only overwrite with a
+        // non-empty value so a push that omits it can't blank an existing key.
+        if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId)) entity.IfcGlobalId = dto.IfcGlobalId;
+        entity.Source = "revit";
         entity.Disc = dto.Disc; entity.Loc = dto.Loc; entity.Zone = dto.Zone;
         entity.Lvl = dto.Lvl; entity.Sys = dto.Sys; entity.Func = dto.Func;
         entity.Prod = dto.Prod; entity.Seq = dto.Seq;

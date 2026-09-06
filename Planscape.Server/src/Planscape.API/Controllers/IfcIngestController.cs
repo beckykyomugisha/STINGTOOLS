@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Planscape.API.Authorization;
 using Planscape.API.Services;
+using Planscape.Core.Coordinates;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.SignalR;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -65,6 +67,7 @@ public class IfcIngestController : ControllerBase
     private readonly Planscape.Core.Interfaces.IIfcAlignmentValidator _alignmentValidator;
     private readonly IHubContext<FederatedModelHub> _modelHub;
     private readonly IHubContext<NotificationHub> _notificationHub;
+    private readonly Planscape.Infrastructure.Services.IModelGeorefWriter _georefWriter;
     private readonly ILogger<IfcIngestController> _logger;
 
     public IfcIngestController(
@@ -75,6 +78,7 @@ public class IfcIngestController : ControllerBase
         Planscape.Core.Interfaces.IIfcAlignmentValidator alignmentValidator,
         IHubContext<FederatedModelHub> modelHub,
         IHubContext<NotificationHub> notificationHub,
+        Planscape.Infrastructure.Services.IModelGeorefWriter georefWriter,
         ILogger<IfcIngestController> logger)
     {
         _db = db;
@@ -84,12 +88,22 @@ public class IfcIngestController : ControllerBase
         _alignmentValidator = alignmentValidator;
         _modelHub = modelHub;
         _notificationHub = notificationHub;
+        _georefWriter = georefWriter;
         _logger = logger;
     }
 
     [HttpPost("ingest")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxIfcSize)]
+    // C5 - RequestSizeLimit caps the raw HTTP body; the MULTIPART PARSER has its
+    // own, separate ceiling. Program.cs sets a global 200 MB
+    // FormOptions.MultipartBodyLengthLimit, so this endpoint advertised a 2 GB
+    // cap and then failed anything over 200 MB with a bare HTTP 400 from the
+    // parser - before the action ran, so the "file_too_large" branch below never
+    // fired and the caller got no usable reason. Either the cap or the parser
+    // limit had to move; the cap is the documented contract, so the parser limit
+    // follows it here.
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxIfcSize, ValueLengthLimit = int.MaxValue)]
     public async Task<ActionResult> Ingest(
         Guid projectId,
         IFormFile file,
@@ -191,10 +205,7 @@ public class IfcIngestController : ControllerBase
                 if (ar.HasMapConversion && (ar.SurveyEasting.HasValue || ar.SurveyNorthing.HasValue))
                 {
                     await UpsertProjectModelTransformAsync(
-                        projectId, effectiveModelId, tenantId,
-                        ar.SurveyEasting ?? 0, ar.SurveyNorthing ?? 0, ar.SurveyElevation ?? 0,
-                        ar.MapConversionRotationDeg ?? 0, result.UnitScaleToMm,
-                        ct);
+                        projectId, effectiveModelId, tenantId, ar, result.UnitScaleToMm, ct);
                 }
             }
             catch (Exception aex)
@@ -611,68 +622,39 @@ public class IfcIngestController : ControllerBase
 
     /// <summary>
     /// Gap 4: Create or update a ProjectModelTransform row from IfcMapConversion data.
-    /// The translation is the negative of the survey origin so applying it brings
-    /// georeferenced model coordinates back to the project origin.
-    /// Called automatically during ingest when IfcMapConversion is present.
+    ///
+    /// <para><b>B2 — this now delegates to <see cref="IModelGeorefWriter"/>.</b> The
+    /// translation convention, the metres→mm conversion, the confidence grading
+    /// and the "never overwrite a confirmed transform" rule used to live here as
+    /// one of two copies; the Revit GLB upload path needed the same logic, and a
+    /// third copy is how a building ends up in a different place depending on
+    /// which pipeline last touched it. The behaviour is unchanged — the shared
+    /// writer was built around this method's convention deliberately — but there
+    /// is now exactly one place to change it.</para>
     /// </summary>
     private async Task UpsertProjectModelTransformAsync(
         Guid projectId, Guid projectModelId, Guid tenantId,
-        double eastingM, double northingM, double elevationM,
-        double rotationDeg, double unitScaleToMm,
+        IfcAlignmentReport report, double unitScaleToMm,
         CancellationToken ct)
     {
         try
         {
-            var existing = await _db.ProjectModelTransforms
-                .FirstOrDefaultAsync(t =>
-                    t.ProjectId == projectId &&
-                    t.ProjectModelId == projectModelId &&
-                    t.TenantId == tenantId, ct);
+            var georef = new ModelGeoref(
+                EastingM      : report.SurveyEasting  ?? 0,
+                NorthingM     : report.SurveyNorthing ?? 0,
+                ElevationM    : report.SurveyElevation ?? 0,
+                TrueNorthDeg  : report.MapConversionRotationDeg ?? 0,
+                CrsCode       : report.CrsName,
+                HasDeclaredCrs: report.HasProjectedCrs,
+                LengthUnit    : report.LengthUnit,
+                SourceLabel   : "ifc-map-conversion",
+                // Previously dropped: the ingest computed a scaleFactor whose
+                // two branches both returned 1.0, so a declared map-conversion
+                // scale never reached the transform.
+                MapConversionScale: report.MapConversionScale);
 
-            // Convert survey origin from metres to mm (project length unit default).
-            double txMm = -eastingM  * 1000.0;   // negate: shift model to project origin
-            double tyMm = -northingM * 1000.0;
-            double tzMm = -elevationM * 1000.0;
-            // Scale correction: if model is in mm (unitScaleToMm=1) but CRS is in m,
-            // apply the inverse as a uniform scale on the transform.
-            double scaleFactor = (unitScaleToMm > 0 && Math.Abs(unitScaleToMm - 1000.0) < 1.0)
-                ? 1.0   // metres — no scale correction needed
-                : 1.0;  // mm — coordinates are already in mm, no scale correction
-
-            if (existing != null)
-            {
-                // Only auto-update if not manually confirmed by a coordinator.
-                if (!existing.IsConfirmed)
-                {
-                    existing.TranslationX   = txMm;
-                    existing.TranslationY   = tyMm;
-                    existing.TranslationZ   = tzMm;
-                    existing.RotationDeg    = rotationDeg;
-                    existing.ScaleFactor    = scaleFactor;
-                    existing.IsAutoComputed = true;
-                    existing.UpdatedAt      = DateTime.UtcNow;
-                    existing.Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}";
-                }
-            }
-            else
-            {
-                _db.ProjectModelTransforms.Add(new Planscape.Core.Entities.ProjectModelTransform
-                {
-                    TenantId       = tenantId,
-                    ProjectId      = projectId,
-                    ProjectModelId = projectModelId,
-                    TranslationX   = txMm,
-                    TranslationY   = tyMm,
-                    TranslationZ   = tzMm,
-                    RotationDeg    = rotationDeg,
-                    ScaleFactor    = scaleFactor,
-                    IsAutoComputed = true,
-                    IsConfirmed    = false,
-                    AppliedAt      = DateTime.UtcNow,
-                    Notes          = $"Auto-computed from IfcMapConversion at {DateTime.UtcNow:u}",
-                });
-            }
-            await _db.SaveChangesAsync(ct);
+            var write = await _georefWriter.WriteAsync(
+                projectId, projectModelId, tenantId, georef, report.Verdict, ct);
 
             // Gap 14: Write an audit log entry for the coordinate correction.
             try
@@ -680,17 +662,22 @@ public class IfcIngestController : ControllerBase
                 await _audit.LogAsync("TRANSFORM_UPSERT", "ProjectModelTransform", projectModelId.ToString(),
                     System.Text.Json.JsonSerializer.Serialize(new {
                         projectId,
-                        translationXMm = txMm, translationYMm = tyMm, translationZMm = tzMm,
-                        rotationDeg, scaleFactor,
+                        surveyEastingM  = report.SurveyEasting,
+                        surveyNorthingM = report.SurveyNorthing,
+                        rotationDeg     = report.MapConversionRotationDeg ?? 0,
                         source = "IfcMapConversion",
                         autoComputed = true,
+                        // B1 — a model that MOVES on its own must say so in the
+                        // audit trail, and say what it was trusting when it did.
+                        confidence = TransformConfidencePolicy.ToStorageString(write.Confidence),
+                        appliedAutomatically = write.Written
+                                               && TransformConfidencePolicy.ShouldAutoApply(write.Confidence),
+                        translationXMm = write.TranslationXMm,
+                        translationYMm = write.TranslationYMm,
+                        frameSource = write.FrameSource,
                     }));
             }
             catch { /* audit failure is non-fatal */ }
-
-            _logger.LogInformation(
-                "Gap 4: upserted ProjectModelTransform for model {ModelId}: T=({Tx:F1},{Ty:F1},{Tz:F1})mm rot={Rot:F2}°",
-                projectModelId, txMm, tyMm, tzMm, rotationDeg);
         }
         catch (Exception ex)
         {
