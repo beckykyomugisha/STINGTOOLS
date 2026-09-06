@@ -493,6 +493,10 @@ namespace StingTools.Core.Symbols
                 return null;
             }
 
+            // A Generic Model stand-in carries the wrong category; correct it before any
+            // geometry, parameters or connectors are added.
+            ApplySubstituteCategory(fdoc, def, templateFile, result);
+
             // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
             if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
                 result.Warnings.Add($"[DRAFT] {def.Id}: using approximate JSON geometry. " +
@@ -800,6 +804,40 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        /// <summary>
+        /// Creates one curve in a family document, picking the API the template actually
+        /// supports.
+        ///
+        /// <para>Annotation templates have NO sketch plane — ResolveSketchPlane returns
+        /// null for them deliberately, because SketchPlane.Create is forbidden there. The
+        /// draw path nevertheless passed that null straight into NewSymbolicCurve, whose
+        /// sketchPlane argument is mandatory, so every curve in every GenericAnnotation
+        /// family threw "Value cannot be null. Parameter name: sketchPlane", was caught,
+        /// warned and skipped. The families still saved — empty. Annotation curves belong
+        /// on the family's own view via NewDetailCurve, which needs no plane.</para>
+        /// </summary>
+        private static void CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
+            Curve curve, bool isAnnotation, string id, SymbolCreationResult result)
+        {
+            if (isAnnotation)
+            {
+                if (view == null)
+                {
+                    result.Warnings.Add($"{id}: no view available for annotation curve — skipped.");
+                    return;
+                }
+                fdoc.FamilyCreate.NewDetailCurve(view, curve);
+                return;
+            }
+
+            if (sketch == null)
+            {
+                result.Warnings.Add($"{id}: no sketch plane available for model curve — skipped.");
+                return;
+            }
+            fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+        }
+
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
@@ -820,12 +858,8 @@ namespace StingTools.Core.Symbols
                 Line line = Line.CreateBound(p1, p2);
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
@@ -868,10 +902,7 @@ namespace StingTools.Core.Symbols
                 // warnings were swallowed by SymbolFailureSwallow.)
                 if (fdoc.IsFamilyDocument)
                 {
-                    if (isAnnotation)
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result);
                 }
                 else
                 {
@@ -917,12 +948,8 @@ namespace StingTools.Core.Symbols
 
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(curve, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, curve,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
@@ -2407,6 +2434,70 @@ namespace StingTools.Core.Symbols
         /// returning the first match. Returns null (never throws) when no template
         /// is found so the caller can skip that symbol gracefully.
         /// </summary>
+        /// <summary>
+        /// When a family was built from a Generic Model stand-in because its proper
+        /// template is absent, sets the category the symbol actually needs.
+        ///
+        /// <para>The accessory .rft files ship in Autodesk's MEP content pack, which is
+        /// an optional install — this machine has 1328 templates and not one
+        /// *Accessory*.rft. Autodesk's own guidance for that case is to start from the
+        /// generic-model template and change the category, and OwnerFamily.FamilyCategory
+        /// is settable inside a family document.</para>
+        ///
+        /// <para>Graceful degradation, not parity: a re-categorised Generic Model may
+        /// differ from a true accessory in work-plane basedness and in how it breaks into
+        /// a run. Connectors are unaffected — those are added explicitly either way. The
+        /// substitution is therefore warned about, not performed silently.</para>
+        /// </summary>
+        private static void ApplySubstituteCategory(Document fdoc, SymbolDefinition def,
+            string templateFile, SymbolCreationResult result)
+        {
+            try
+            {
+                if (fdoc == null || !fdoc.IsFamilyDocument || def == null) return;
+                if (!string.Equals(def.FamilyType, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                // Only when the resolver actually fell through to a generic stand-in.
+                string tpl = Path.GetFileName(templateFile) ?? "";
+                if (tpl.IndexOf("Generic Model", StringComparison.OrdinalIgnoreCase) < 0) return;
+
+                bool isDuct = string.Equals(def.Discipline, "Mechanical", StringComparison.OrdinalIgnoreCase)
+                              && def.Connectors != null
+                              && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase));
+                var target = isDuct ? BuiltInCategory.OST_DuctAccessory : BuiltInCategory.OST_PipeAccessory;
+
+                var cat = Category.GetCategory(fdoc, target);
+                if (cat == null)
+                {
+                    result.Warnings.Add($"{def.Id}: built from '{tpl}' but category {target} is " +
+                                        "unavailable in this document — left as Generic Model.");
+                    return;
+                }
+
+                using (var tx = new Transaction(fdoc, "STING Set substitute family category"))
+                {
+                    tx.Start();
+                    fdoc.OwnerFamily.FamilyCategory = cat;
+                    tx.Commit();
+                }
+
+                result.Warnings.Add($"{def.Id}: '{TrueAccessoryTemplate(isDuct)}' is not installed; " +
+                    $"built from '{tpl}' and re-categorised to {target}. Install the Autodesk MEP " +
+                    "content pack for a true accessory family.");
+            }
+            catch (Exception ex)
+            {
+                // Never fail the build over this — the family is still usable, just
+                // categorised as a Generic Model.
+                result.Warnings.Add($"{def.Id}: substitute category not applied — {ex.Message}");
+                StingLog.Warn($"ApplySubstituteCategory {def?.Id}: {ex.Message}");
+            }
+        }
+
+        private static string TrueAccessoryTemplate(bool isDuct)
+            => isDuct ? "Metric Duct Accessory.rft" : "Metric Pipe Accessory.rft";
+
         private static string ResolveTemplateFile(SymbolDefinition def, string folder, SymbolCreationResult result)
         {
             if (string.IsNullOrEmpty(folder))
@@ -2580,10 +2671,18 @@ namespace StingTools.Core.Symbols
             }
             if (string.Equals(ft, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
             {
+                // The Generic Model tail matters: the accessory .rft files ship in the
+                // Autodesk MEP content pack, which is an optional install. Without it
+                // this branch resolved nothing and every MEPAccessory symbol failed —
+                // 42 of them — while the 838 others built, because every OTHER MEP
+                // branch already carried this same fallback. BuildOne restores the real
+                // category afterwards (see ApplySubstituteCategory).
                 if (string.Equals(disc, "Mechanical", StringComparison.OrdinalIgnoreCase)
                     && def.Connectors != null && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase)))
-                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft" };
-                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft" };
+                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
+                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft",
+                               "Metric Generic Model.rft", "Generic Model.rft" };
             }
             if (string.Equals(ft, "MEPEquipment", StringComparison.OrdinalIgnoreCase))
             {

@@ -55,6 +55,39 @@ namespace StingTools.Core.Calc
         public double FittingLossK  { get; set; }
         /// <summary>Darcy-Weisbach friction factor (pre-calc via Swamee-Jain).</summary>
         public double FrictionFactor { get; set; }
+
+        // ── Control-valve / PICV (Tier-3 item 3.2) ──────────────────────
+        // A balancing / control valve on this pipe adds a controllable
+        // resistance term to the branch head loss. Two data paths:
+        //   * ValveKvs > 0  → resistance from Kvs: ΔP_Pa = 1e5·(Q_m3h/Kvs)².
+        //   * PicvQMaxLs > 0 → PICV; holds Q constant while its measured ΔP
+        //     stays inside [PicvDpMinKpa, PicvDpMaxKpa]. Its authority term
+        //     is treated as a fixed design ΔP (the valve absorbs whatever
+        //     head the branch does not), so it contributes a constant head
+        //     rather than a Q²-varying one inside the window.
+        // Both terms are ADDITIVE and default to zero — a pipe with no valve
+        // data behaves exactly as before.
+
+        /// <summary>Valve flow coefficient Kvs (m³/h at 1 bar). 0 = no valve.</summary>
+        public double ValveKvs      { get; set; }
+        /// <summary>Human label for the resolved valve (brand + code). Optional.</summary>
+        public string ValveLabel    { get; set; } = "";
+        /// <summary>PICV max controllable flow (L/s). 0 = not a PICV.</summary>
+        public double PicvQMaxLs    { get; set; }
+        /// <summary>PICV authority-window lower ΔP bound (kPa).</summary>
+        public double PicvDpMinKpa  { get; set; }
+        /// <summary>PICV authority-window upper ΔP bound (kPa).</summary>
+        public double PicvDpMaxKpa  { get; set; }
+
+        // ── Post-solve valve diagnostics (filled by HardyCrossSolver) ────
+        /// <summary>Valve/PICV head loss at the solved flow, m of fluid. 0 = none.</summary>
+        public double ValveHeadM    { get; set; }
+        /// <summary>Valve/PICV pressure drop at the solved flow, kPa. 0 = none.</summary>
+        public double ValveDpKpa    { get; set; }
+        /// <summary>Valve authority β = ΔP_valve / ΔP_branch_total (0..1). 0 = n/a.</summary>
+        public double ValveAuthority { get; set; }
+        /// <summary>True when a PICV is inside its authority window at the solved flow.</summary>
+        public bool   PicvInWindow  { get; set; }
     }
 
     public class NetworkLoop
@@ -336,7 +369,68 @@ namespace StingTools.Core.Calc
                     break;
                 }
             }
+
+            // Post-solve valve diagnostics (Tier-3 3.2). Populates per-branch
+            // valve ΔP / head / authority / PICV-window on every pipe that
+            // carries valve data. No-op when no pipe has a valve.
+            ComputeValveDiagnostics(pipes, rho);
             return r;
+        }
+
+        /// <summary>
+        /// Fill per-pipe valve diagnostics from the converged flows. Valve
+        /// authority β is the classic control-valve definition:
+        ///   β = ΔP_valve(design) / ΔP_variable(branch)
+        /// where the variable branch head is everything downstream of the
+        /// balancing point that changes with flow — here approximated per
+        /// pipe as (valve ΔP + that pipe's own friction + fitting ΔP). A
+        /// well-authorised valve targets β ≈ 0.3–0.5; below ~0.25 the valve
+        /// loses control (BSRIA BG 2/2010, CIBSE Commissioning Code W).
+        /// Every field defaults to zero — pipes without valve data are
+        /// untouched.
+        /// </summary>
+        private static void ComputeValveDiagnostics(List<NetworkPipe> pipes, double rho)
+        {
+            if (pipes == null) return;
+            const double g = 9.80665;
+            foreach (var p in pipes)
+            {
+                bool hasValve = p.ValveKvs > 0 || p.PicvQMaxLs > 0;
+                if (!hasValve) continue;
+
+                double q = p.FlowM3S;
+                double specificEnergyValve = ValveSpecificEnergy(p, q, rho); // J/kg
+                double dpValvePa = specificEnergyValve * rho;                 // Pa
+                p.ValveDpKpa = dpValvePa / 1000.0;
+                p.ValveHeadM = dpValvePa / (rho * g);
+
+                // Pipe-side variable head (friction + fittings) at solved Q.
+                double pipeSpecific = 0;
+                if (p.DiameterM > 0 && p.LengthM > 0)
+                {
+                    double area = Math.PI * p.DiameterM * p.DiameterM * 0.25;
+                    double v = Math.Abs(q) / area;
+                    double f = p.FrictionFactor;
+                    if (f <= 0)
+                    {
+                        double re = rho * v * p.DiameterM / (WaterViscosityPaS);
+                        f = re < 2300 ? 64.0 / Math.Max(re, 1.0) : 0.316 / Math.Pow(Math.Max(re, 1.0), 0.25);
+                    }
+                    double hPipe = f * (p.LengthM / p.DiameterM) * 0.5 * v * v;
+                    double hFit  = p.FittingLossK * 0.5 * v * v;
+                    pipeSpecific = hPipe + hFit;
+                }
+                double dpPipePa = pipeSpecific * rho;
+                double denom = dpValvePa + dpPipePa;
+                p.ValveAuthority = denom > 1e-9 ? dpValvePa / denom : 0;
+
+                if (p.PicvQMaxLs > 0)
+                {
+                    double qLs = Math.Abs(q) * 1000.0;
+                    p.PicvInWindow = qLs > 0 && qLs <= p.PicvQMaxLs * 1.05
+                        && p.ValveDpKpa >= p.PicvDpMinKpa && p.ValveDpKpa <= p.PicvDpMaxKpa;
+                }
+            }
         }
 
         /// <summary>
@@ -363,11 +457,52 @@ namespace StingTools.Core.Calc
                 else f = 0.316 / Math.Pow(re, 0.25);
             }
 
-            // h_pipe = f · (L / D) · (v²/2g)  with g cancelled
+            // h_pipe = f · (L / D) · (v²/2g)  with g cancelled → units of J/kg (m²/s²).
             double hPipe = f * (p.LengthM / p.DiameterM) * 0.5 * v * Math.Abs(v);
             double hFit  = p.FittingLossK * 0.5 * v * Math.Abs(v);
+            // Control-valve / PICV term (Tier-3 3.2). Additive, guarded — zero
+            // unless the pipe carries valve data. ΔP is computed in the same
+            // specific-energy units (ΔP/ρ = J/kg) so it stacks on hPipe/hFit
+            // without a g-conversion, exactly as the friction terms do.
+            double hValve = ValveSpecificEnergy(p, q, rho);
             // Preserve sign of v for the iteration.
-            return Math.Sign(v) * (hPipe + hFit);
+            return Math.Sign(v) * (hPipe + hFit + hValve);
+        }
+
+        /// <summary>
+        /// Control-valve / PICV head contribution in specific-energy units
+        /// (ΔP/ρ, J/kg) so it stacks directly on the Darcy friction terms.
+        /// Returns 0 (unsigned magnitude) when the pipe carries no valve data.
+        ///
+        /// Kvs relation (EU convention): ΔP_bar = (Q_m3h / Kvs)²  ⇒
+        ///   ΔP_Pa = 1e5·(Q_m3h / Kvs)²   ⇒   ΔP/ρ = 1e5·(Q_m3h/Kvs)² / ρ.
+        ///
+        /// A PICV inside its authority window holds flow constant by
+        /// absorbing surplus head; there its ΔP is essentially fixed at the
+        /// window mid-point rather than tracking Q². Outside the window it
+        /// reverts to Kvs behaviour (if a Kvs is also supplied).
+        /// </summary>
+        private static double ValveSpecificEnergy(NetworkPipe p, double q, double rho)
+        {
+            double qM3h = Math.Abs(q) * 3600.0;  // m³/s → m³/h
+            double qLs  = Math.Abs(q) * 1000.0;  // m³/s → L/s
+
+            // PICV path: when the current flow is within the device's rated
+            // band, model the authority ΔP as the window mid-point (kPa).
+            if (p.PicvQMaxLs > 0 && qLs <= p.PicvQMaxLs * 1.05)
+            {
+                double dpMidKpa = 0.5 * (p.PicvDpMinKpa + p.PicvDpMaxKpa);
+                if (dpMidKpa <= 0) dpMidKpa = Math.Max(p.PicvDpMinKpa, 10.0);
+                return (dpMidKpa * 1000.0) / rho;   // kPa → Pa → J/kg
+            }
+
+            if (p.ValveKvs > 0)
+            {
+                double ratio = qM3h / p.ValveKvs;
+                double dpPa  = 1e5 * ratio * ratio;
+                return dpPa / rho;                  // Pa → J/kg
+            }
+            return 0;
         }
     }
 }

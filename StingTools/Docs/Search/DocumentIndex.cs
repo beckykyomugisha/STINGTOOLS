@@ -67,8 +67,7 @@ namespace Planscape.Docs.Search
 
         public static DocumentIndex Build(Autodesk.Revit.DB.Document revitDoc)
         {
-            string root = ResolveProjectRoot(revitDoc);
-            string indexDir = Path.Combine(root, "_BIM_COORD", "search_index");
+            string indexDir = StingPaths.Meta(revitDoc, "_BIM_COORD", "search_index");
             System.IO.Directory.CreateDirectory(indexDir);
             var dir = FSDirectory.Open(indexDir);
 
@@ -192,11 +191,10 @@ namespace Planscape.Docs.Search
 
         private static IEnumerable<IndexedDoc> LoadAllRegistered(Autodesk.Revit.DB.Document revitDoc)
         {
-            string root = ResolveProjectRoot(revitDoc);
             foreach (string fileName in new[] { "document_register.json", "deliverables.json" })
             {
-                string path = Path.Combine(root, "_BIM_COORD", fileName);
-                if (!File.Exists(path)) continue;
+                string path = StingPaths.MetaFile(revitDoc, "_BIM_COORD", fileName);
+                if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
                 JArray arr;
                 try { arr = JArray.Parse(File.ReadAllText(path)); }
                 catch (Exception ex) { StingLog.Warn($"DocumentIndex: {fileName} parse failed: {ex.Message}"); continue; }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -99,7 +99,7 @@ namespace StingTools.Core.Validation
                 string dir = DocKey(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string proj = Path.Combine(dir, "_BIM_COORD", ProjectFileName);
+                    string proj = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFileName);
                     if (File.Exists(proj))
                     {
                         var overlay = JsonConvert.DeserializeObject<OwnerStandardsPackDef>(File.ReadAllText(proj));

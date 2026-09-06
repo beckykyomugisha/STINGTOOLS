@@ -124,7 +124,7 @@ namespace StingTools.Core.Clash
                 }
                 // Cache owner-name lookups so the same element doesn't pay
                 // the GetWorksharingTooltipInfo cost twice across groups.
-                var ownerCache = new Dictionary<int, string>();
+                var ownerCache = new Dictionary<long, string>();
                 int i = 0;
                 foreach (var g in run.Groups ?? new List<ClashGroupRecord>())
                 {
@@ -160,14 +160,14 @@ namespace StingTools.Core.Clash
         }
 
         private static string ResolveOwnerForElementSide(Document doc, ClashElementRecord side,
-            Dictionary<int, string> cache)
+            Dictionary<long, string> cache)
         {
             if (side == null || side.LinkInstanceId != -1 || side.ElementId <= 0) return "";
             if (cache.TryGetValue(side.ElementId, out var cached)) return cached;
             string owner = "";
             try
             {
-                var el = doc.GetElement(new ElementId((long)side.ElementId));
+                var el = doc.GetElement(new ElementId(side.ElementId));
                 if (el != null)
                 {
                     var info = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
@@ -186,11 +186,11 @@ namespace StingTools.Core.Clash
                 if (c == null) return "";
                 // Prefer a host element (LinkInstanceId == -1) so we resolve
                 // worksets in the active document, not in a linked-doc.
-                int eid = -1;
+                long eid = -1;
                 if (c.ElementA != null && c.ElementA.LinkInstanceId == -1) eid = c.ElementA.ElementId;
                 else if (c.ElementB != null && c.ElementB.LinkInstanceId == -1) eid = c.ElementB.ElementId;
                 if (eid <= 0) return "";
-                var el = doc.GetElement(new ElementId((long)eid));
+                var el = doc.GetElement(new ElementId(eid));
                 if (el == null) return "";
                 var info = WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id);
                 string owner = info?.Owner ?? "";

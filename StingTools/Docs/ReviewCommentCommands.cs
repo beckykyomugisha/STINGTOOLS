@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -55,7 +55,7 @@ namespace StingTools.Docs
         {
             string dir = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", name);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", name);
         }
     }
 

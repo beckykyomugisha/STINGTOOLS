@@ -151,11 +151,75 @@ namespace StingTools.Commands.Routing
                 }
             }
 
-            ShowResult(net, hcRes, apply, written);
+            // Attempt a pump duty point when a pump curve is resolvable.
+            // No STING data source defines pump curves yet, so this normally
+            // yields (0,0) and the report says the intersection is pending a
+            // data source. When a curve is present it intersects the solved
+            // system-resistance curve along the longest tree path.
+            double opFlow = 0, opHead = 0;
+            try
+            {
+                var pump = ResolvePumpCurve(doc);
+                if (pump != null && net.Pipes.Count > 0)
+                {
+                    var seriesPath = net.Pipes
+                        .OrderByDescending(p => p.LengthM)
+                        .Take(Math.Max(1, net.Pipes.Count))
+                        .ToList();
+                    var op = HardyCrossSolver.OperatingPoint(seriesPath, pump, NetworkFluid.Water);
+                    opFlow = op.PumpOpFlowM3S;
+                    opHead = op.PumpOpHeadM;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Pump duty point: {ex.Message}"); }
+
+            ShowResult(net, hcRes, apply, written, opFlow, opHead);
             return Result.Succeeded;
         }
 
-        private void ShowResult(NetworkExtraction net, HardyCrossResult hc, bool applied, int written)
+        /// <summary>
+        /// Resolve a pump head-curve for the duty-point intersection. STING
+        /// has no dedicated pump-curve data file yet; this reads three
+        /// optional ProjectInformation params — PRJ_PUMP_SHUTOFF_QH,
+        /// PRJ_PUMP_BEP_QH, PRJ_PUMP_RUNOUT_QH (each "Q_lps,H_m") — so a
+        /// project team can supply a curve without a code change. Returns
+        /// null (and the report says so) when none are present.
+        /// </summary>
+        private static PumpCurve ResolvePumpCurve(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi == null) return null;
+                if (!TryReadQh(pi, "PRJ_PUMP_SHUTOFF_QH", out var shut)) return null;
+                if (!TryReadQh(pi, "PRJ_PUMP_BEP_QH",     out var bep))  return null;
+                if (!TryReadQh(pi, "PRJ_PUMP_RUNOUT_QH",  out var run))  return null;
+                return PumpCurve.FromQuadraticThreePoints(shut, bep, run);
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolvePumpCurve: {ex.Message}"); return null; }
+        }
+
+        private static bool TryReadQh(Element el, string param, out (double q, double h) qh)
+        {
+            qh = (0, 0);
+            try
+            {
+                var s = el.LookupParameter(param)?.AsString();
+                if (string.IsNullOrWhiteSpace(s)) return false;
+                var parts = s.Split(',', ';');
+                if (parts.Length < 2) return false;
+                if (!double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double qLps)) return false;
+                if (!double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out double hM)) return false;
+                qh = (qLps * 1e-3, hM);   // L/s → m³/s, head in m
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private void ShowResult(NetworkExtraction net, HardyCrossResult hc, bool applied, int written,
+            double opFlow, double opHead)
         {
             var panel = StingResultPanel.Create("v4 Hardy Cross (Water Network)");
             panel.SetSubtitle(hc.Converged
@@ -180,6 +244,53 @@ namespace StingTools.Commands.Routing
             panel.AddSection("SOLVED FLOWS (first 60)");
             foreach (var p in net.Pipes.Take(60))
                 panel.Text($"{p.Id} {p.NodeA}→{p.NodeB}  Ø{p.DiameterM*1000:F0}  L={p.LengthM:F2}m  Q={p.FlowM3S*1000:F3} l/s");
+
+            // ── Control-valve / PICV authority (Tier-3 3.2) ──────────────
+            var valved = net.Pipes.Where(p => p.ValveKvs > 0 || p.PicvQMaxLs > 0).ToList();
+            if (valved.Count > 0)
+            {
+                panel.AddSection("CONTROL VALVES / PICV AUTHORITY")
+                     .Metric("Valved branches", valved.Count.ToString());
+                foreach (var p in valved.Take(60))
+                {
+                    string picv = p.PicvQMaxLs > 0
+                        ? (p.PicvInWindow ? " · PICV IN window" : " · PICV OUT of window")
+                        : "";
+                    panel.Text($"{p.Id} {p.ValveLabel}: ΔP {p.ValveDpKpa:F1} kPa · " +
+                               $"authority β={p.ValveAuthority:F2}{picv}" +
+                               (p.ValveAuthority > 0 && p.ValveAuthority < 0.25
+                                   ? "  ⚠ low authority (<0.25 — poor control)" : ""));
+                }
+            }
+            else
+            {
+                panel.AddSection("CONTROL VALVES / PICV AUTHORITY");
+                panel.Text("No control valves / PICVs resolved on this network. Valve " +
+                           "authority is folded into the balance only when a pipe accessory " +
+                           "matches a (brand:code) entry in STING_MEP_SIZING_RULES.json " +
+                           "(valveCv / picvCurves) — behaviour is otherwise unchanged.");
+            }
+
+            // ── Pump duty point (Tier-3 3.2) ─────────────────────────────
+            // OperatingPoint intersects the system-resistance curve with a
+            // pump head-curve. STING carries no pump-curve data source yet
+            // (neither the model nor STING_MEP_SIZING_RULES.json define one),
+            // so this reports the duty point only when a curve was resolvable.
+            panel.AddSection("PUMP DUTY POINT");
+            if (opFlow > 0)
+            {
+                panel.Metric("Duty flow", $"{opFlow*1000:F2} l/s")
+                     .Metric("Duty head", $"{opHead:F2} m");
+            }
+            else
+            {
+                panel.Text("Not computed — no pump head-curve is available. Provide a " +
+                           "pump curve (shut-off / BEP / run-out (Q,H) points) via a future " +
+                           "STING_PUMP_CURVES.json or ProjectInformation params to intersect " +
+                           "the solved system-resistance curve and report the real duty point. " +
+                           "The intersection solver (HardyCrossSolver.OperatingPoint) is wired " +
+                           "and ready; only the curve data source is pending.");
+            }
 
             if (net.Warnings.Count > 0)
             {

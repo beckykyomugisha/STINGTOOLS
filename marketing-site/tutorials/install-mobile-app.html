@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Install &amp; log into the mobile app — Planscape tutorial</title>
+<meta name="description" content="Install Planscape on iOS or Android, log in, sync your first project. 5-minute walkthrough.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/tutorials/install-mobile-app.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/tutorials/">Tutorials</a> &rsaquo; Install &amp; log into the mobile app</div>
+  <h1>Install &amp; log into the mobile app</h1>
+  <div class="meta">⏱️ 5 minutes · Beginner · Last updated 2026-05-23</div>
+
+  <p>Five minutes from "no app" to "logged in with your first project synced for offline use". This tutorial covers both iOS and Android.</p>
+
+  <h2>Step 1 — Download</h2>
+  <p>On your phone:</p>
+  <ul>
+    <li><strong>iOS:</strong> <a href="https://apps.apple.com/app/planscape" target="_blank" rel="noopener">App Store</a> (search "Planscape BIM")</li>
+    <li><strong>Android:</strong> <a href="https://play.google.com/store/apps/details?id=com.planscape.co" target="_blank" rel="noopener">Play Store</a> (search "Planscape BIM")</li>
+  </ul>
+  <p>The app is around 85 MB. On a decent connection the download takes a couple of minutes.</p>
+
+  <h2>Step 2 — First launch</h2>
+  <p>Open the app. You'll see a brief 3-screen intro carousel — swipe through or tap Skip.</p>
+
+  <h2>Step 3 — Grant permissions</h2>
+  <p>The app asks for four permissions. For this tutorial, allow all four (you can revoke later):</p>
+  <ul>
+    <li>📷 <strong>Camera</strong> — for site photos and QR scanning</li>
+    <li>📍 <strong>Location</strong> — for the GPS site map ("Allow While Using App" is fine)</li>
+    <li>🖼️ <strong>Photos</strong> — to attach existing photos</li>
+    <li>🔔 <strong>Notifications</strong> — for issue assignments and comments</li>
+  </ul>
+
+  <h2>Step 4 — Sign in</h2>
+  <p>Enter the email and password you used for the web app. Tap <strong>Sign in</strong>.</p>
+  <p>If your firm uses SSO, tap <strong>Sign in with SSO</strong> instead — you'll be redirected to your identity provider.</p>
+  <div class="callout">
+    <strong>Tip:</strong> The app remembers your login. Subsequent launches go straight to the project picker. You only need to re-authenticate every 30 days (or when you sign out).
+  </div>
+
+  <h2>Step 5 — Pick a project</h2>
+  <p>The project picker appears. For this tutorial, pick the project you created in <a href="/tutorials/create-first-project.html">Create your first project</a>. If you don't have one yet, do that first.</p>
+
+  <h2>Step 6 — Pre-sync</h2>
+  <p>You land on the project home screen. Top-right corner has a cloud icon. Tap it → <strong>Full pre-sync</strong>.</p>
+  <p>You'll see a progress bar with three phases:</p>
+  <ol>
+    <li><strong>Metadata</strong> — issue list, team list, document register (~5 seconds).</li>
+    <li><strong>Documents</strong> — PDFs marked "Site reference" (variable; depends on count and size).</li>
+    <li><strong>Map tiles</strong> — Mapbox tiles for 5km radius around project pin (~30 seconds on 4G).</li>
+  </ol>
+  <p>On a normal 4G connection the whole pre-sync takes 2–10 minutes depending on project size. For a fresh demo project it's well under a minute.</p>
+
+  <h2>Step 7 — Verify it works offline</h2>
+  <p>Quick offline test:</p>
+  <ol>
+    <li>Put your phone in airplane mode.</li>
+    <li>Switch back to Planscape.</li>
+    <li>Tap the <strong>Map</strong> tab — the map should still render with the project pin visible.</li>
+    <li>Tap the <strong>Issues</strong> tab — the list shows (currently empty, that's fine).</li>
+    <li>Tap <strong>+ New issue</strong>, fill in a quick title ("Test offline"), tap Save.</li>
+    <li>You should see a small yellow chip: <strong>"Queued — will sync when online"</strong>.</li>
+    <li>Turn airplane mode off. Within 10–30 seconds the chip disappears and the issue is on the server.</li>
+  </ol>
+  <p>If all of that worked, you're ready for a real site visit.</p>
+
+  <h2>Step 8 — Explore the bottom tab bar</h2>
+  <p>Five tabs, left to right:</p>
+  <ul>
+    <li><strong>🏠 Home</strong> — project summary + quick actions</li>
+    <li><strong>📋 Issues</strong> — issue list, raise new issue</li>
+    <li><strong>🗺️ Map</strong> — GPS site map with pins</li>
+    <li><strong>📄 Docs</strong> — document register, view PDFs</li>
+    <li><strong>👤 Profile</strong> — settings, sign-out, switch project</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>What you've achieved</h2>
+  <ul>
+    <li>App installed on your phone.</li>
+    <li>Signed in with your firm credentials.</li>
+    <li>A project pre-synced for offline use.</li>
+    <li>Confirmed offline mode works end-to-end.</li>
+  </ul>
+
+  <h2>What's next</h2>
+  <ul>
+    <li>Try <a href="/tutorials/raise-issue-from-mobile.html">raising an issue from your phone</a> (6 min)</li>
+    <li>Try <a href="/tutorials/gps-site-map.html">using the GPS site map</a> (7 min)</li>
+    <li>Try <a href="/tutorials/capture-site-photos.html">capturing site photos</a> (5 min)</li>
+    <li>Read the <a href="/guides/mobile-onboarding.html">mobile onboarding guide</a> for the full feature tour</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/tutorials/create-first-project.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Create your first project
+    </a>
+    <a href="/tutorials/install-revit-plugin.html" class="next">
+      <span class="lbl">Next →</span>
+      Install the Revit plugin
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

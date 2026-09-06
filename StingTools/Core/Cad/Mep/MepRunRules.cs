@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // MepRunRules.cs — Phase: MEP-from-DWG P6-3 (data-driven run rules).
 //
 // Moves the run engine's hardcoded policy — per-kind default size + run
@@ -191,7 +191,7 @@ namespace StingTools.Core.Cad.Mep
             {
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(dir)) return null;
-                string path = Path.Combine(dir, "_BIM_COORD", ProjectFile);
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFile);
                 if (!File.Exists(path)) return null;
                 return JsonConvert.DeserializeObject<MepRunRules>(File.ReadAllText(path));
             }

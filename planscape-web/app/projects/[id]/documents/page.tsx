@@ -1,5 +1,6 @@
 'use client';
 
+import { describeFailure } from '@/lib/api';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
@@ -124,7 +125,14 @@ export default function DocumentsPage() {
       toast(`${d.fileName} → ${n.to}`, 'success');
       load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Transition failed', 'error');
+      // This gate DOES send a reason ("Insufficient role for WIP->SHARED…"),
+      // so describeFailure shows the server's sentence rather than a client
+      // copy of the rule. The fallback only fires if it ever stops.
+      const d = describeFailure(e, {
+        forbidden: 'You do not have the role required for this CDE transition.',
+        fallback: 'Transition failed',
+      });
+      toast(d.message, d.tone);
     }
   }
 

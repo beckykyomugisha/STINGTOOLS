@@ -8,7 +8,7 @@ import { requireRole, roleLevel, ASSIGNABLE_ROLES } from "../../auth/_lib/auth";
 import { bad, conflict, unauthorized } from "../../auth/_lib/errors";
 import { normEmail } from "../../auth/_lib/validate";
 import { randomToken, sha256Hex, uuid } from "../../auth/_lib/tokens";
-import { resolveCap, GRACE_DAYS } from "../../auth/_lib/limits";
+import { resolveMemberCap, GRACE_DAYS } from "../../auth/_lib/limits";
 import {
   getTenantById,
   getUserById,
@@ -80,7 +80,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
   const pending = await countPendingInvites(env.WAITLIST_DB, tenant.id);
   const committed = members + pending;
   const wouldBe = committed + 1; // this invite reserves a seat
-  const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+  const cap = resolveMemberCap(tenant.plan_product, tenant.plan_tier);
   const now = Date.now();
 
   let warning: { code: string; upgradeBy: string } | null = null;

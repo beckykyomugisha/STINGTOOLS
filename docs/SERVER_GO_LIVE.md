@@ -4,9 +4,21 @@ Short, ordered path from "nothing deployed" to "`api.planscape.build` answers".
 For the long-form reference (per-secret tables, cost notes, optional feature
 smoke tests) see **[DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md)**.
 
-> **Status as of 2026-07-20:** `api.planscape.build` does not resolve — the
-> server is not deployed. The Cloudflare side (marketing site, auth/billing on
-> D1, gated downloads on R2) *is* in production and independent of this.
+> **Status as of 2026-08-17 (#705):** `api.planscape.build` still does not
+> resolve (NXDOMAIN) — but **the server IS deployed.** Those are two different
+> problems, and the earlier wording conflated them.
+>
+> The live API is **`planscape-api-free`**, not the `planscape-api` this document
+> and `render.yaml` name: `planscape-api-free.onrender.com/health/live` → 200,
+> while `planscape-api.onrender.com` → 404. It auto-deploys from `main` and its
+> `/health/ready` passes, so the database is reachable too.
+>
+> What is missing is only the **custom domain attachment**, and it is the last
+> step here. Note the instance is free-tier and spins down: a cold
+> `/health/live` measured **53.6s** on 2026-08-17.
+>
+> The Cloudflare side (marketing site, auth/billing on D1, gated downloads on R2)
+> *is* in production and independent of this.
 
 Secrets live outside the repo and are never committed. The go-live package
 (`SECRETS.txt` + `GO-LIVE-CHECKLIST.md`) is generated locally for the owner.
@@ -36,10 +48,12 @@ Secrets live outside the repo and are never committed. The go-live package
    (converter internal URL, set on **both** api and worker). Redeploy after.
 4. **Handoff secret** — `PLANSCAPE_HANDOFF_SECRET` is shared with the marketing
    site and must be set on **both** sides (see below).
-5. **DNS** — `api.planscape.build` → planscape-api, `app.planscape.build` →
-   planscape-web, both CNAME to the `.onrender.com` host Render shows. TLS is
-   automatic once the CNAME verifies. Both hosts are already in the CORS
-   allow-list and `NEXT_PUBLIC_API_BASE` is baked to `https://api.planscape.build`.
+5. **DNS** — `api.planscape.build` → **planscape-api-free** (NOT `planscape-api`,
+   which does not exist), CNAME to the `.onrender.com` host Render shows on the
+   Custom Domains screen. TLS is automatic once the CNAME verifies. Both hosts are
+   already in the CORS allow-list and `NEXT_PUBLIC_API_BASE` is baked to
+   `https://api.planscape.build`, so no code change is needed.
+   **`app.planscape.build` is already attached and serving — skip it.**
 6. **Smoke test** — runbook §5.
 
 ### The handoff secret spans two providers

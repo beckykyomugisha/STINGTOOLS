@@ -382,7 +382,7 @@ namespace StingTools.Core
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
-        public const string STING_SHEET_SEQUENCE       = "STING_SHEET_SEQUENCE_INT";
+        public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -504,22 +504,32 @@ namespace StingTools.Core
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
         public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
         public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
-        // Canonical home for these toggles is TB_SHOW_*_BOOL on the GROUP 26 TBL_TITLEBLOCK
-        // FamilyInstance (added in Drawing Template Manager). The PRJ_TB_SHOW_*_BOOL
-        // constants below are kept on ViewSheet for backwards compat with sheets that
-        // were authored before STING TB v1; new title block families should bind to the
-        // GROUP 26 TB_ versions.
-        public const string TB_SHOW_KEYPLAN        = "TB_SHOW_KEY_PLAN_BOOL";
+        // Canonical home for these toggles is the GROUP 26 TBL_TITLEBLOCK FamilyInstance
+        // (added in Drawing Template Manager). All five constants below name GROUP 26
+        // params; the root title-block spec A1_common_v2.0 declares them, so
+        // TitleBlockFactory mints them as INSTANCE family params onto every family it
+        // builds, and TITLE_BLOCK.csv seeds them through TitleBlockPopulate.
+        //
+        // Their GROUP 13 near-namesakes (PRJ_TB_SHOW_KEYPLAN_BOOL, ...SCALEBAR...,
+        // ...NORTHARROW..., ...DISCBAND...) are NOT a project-wide override tier — no
+        // code reads or writes them, and they bind to Generic Models / Project
+        // Information rather than Title Blocks. They remain in MR_PARAMETERS.txt only so
+        // models that already bound them keep the binding.
+        public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
         public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
-        public const string TB_SHOW_SCALEBAR       = "TB_SHOW_SCALEBAR_BOOL";
+        public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
         public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
-        public const string TB_SHOW_NORTHARROW     = "TB_SHOW_NORTH_ARROW_BOOL";
+        public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
         public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
-        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCBAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "483f47d7-a6cd-5fa7-bfde-ff2ab6e43178";
+        // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
+        // / 483f47d7) while its three siblings above already pointed at their GROUP 26
+        // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
+        // TB_ versions". Repointed to match.
+        public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
+        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
         // Gates the revision-history zone (the native Revit revision schedule
         // created by TitleBlockFactory for slots with purposeTag "revision-history").
-        public const string TB_SHOW_REV_TABLE      = "TB_SHOW_REV_TABLE_BOOL";
+        public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";
         public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
@@ -541,7 +551,7 @@ namespace StingTools.Core
         public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
         /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
-        /// (19 originals plus TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
+        /// (19 originals plus PRJ_TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
         /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
@@ -2161,6 +2171,7 @@ namespace StingTools.Core
 
                 // DATA-02: Load required/optional flags from all param sections
                 LoadRequiredFlags(root);
+                LoadDeprecatedFlags(root);
                 StingLog.Info($"ParamRegistry.LoadFromFile: {RequiredParams.Count} required params loaded");
 
                 // Load warning thresholds (v5.5)
@@ -2238,6 +2249,101 @@ namespace StingTools.Core
                         _extendedParams[key] = paramName;
                 }
             }
+        }
+
+        /// <summary>
+        /// Parameter names whose registry description begins "DEPRECATED".
+        ///
+        /// They are NOT removed from the registry and their GUIDs are NOT
+        /// unbound: a deprecated parameter may already be bound in a live model
+        /// and hold real data, so deleting it would orphan that data. A prior
+        /// session established this and chose deprecation over removal
+        /// deliberately. What this set exists for is to stop them being OFFERED:
+        /// a picker that lists a superseded parameter beside its replacement
+        /// invites someone to write the wrong one, and nothing downstream reads
+        /// it.
+        ///
+        /// Membership is by DESCRIPTION, never by name. ASS_INSTALL_DATE_TXT is
+        /// both a deprecated registry entry AND the name of a C# constant that
+        /// was redirected to the canonical parameter -- the constant resolves to
+        /// "ASS_INSTALLATION_DATE_TXT" and must keep working. Filtering on a name
+        /// pattern would have caught the wrong thing.
+        /// </summary>
+        public static HashSet<string> DeprecatedParams { get; private set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>True if this parameter is superseded and should not be offered.</summary>
+        public static bool IsDeprecated(string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(paramName)) return false;
+            EnsureLoaded();
+            return DeprecatedParams.Contains(paramName.Trim());
+        }
+
+        /// <summary>
+        /// Order a parameter list for a human to choose from: current parameters
+        /// first, superseded ones last.
+        ///
+        /// Sorted to the end rather than removed. A deprecated parameter may
+        /// still carry a value on an element in an older model, and someone
+        /// auditing that model has to be able to find it; hiding it outright
+        /// would make real data unreachable from the lookup. Last in the list is
+        /// enough to stop it being picked by accident.
+        /// </summary>
+        public static List<string> PickerOrder(IEnumerable<string> names)
+        {
+            EnsureLoaded();
+            var list = (names ?? Enumerable.Empty<string>()).ToList();
+            list.Sort((a, b) =>
+            {
+                bool da = DeprecatedParams.Contains(a ?? ""), db = DeprecatedParams.Contains(b ?? "");
+                if (da != db) return da ? 1 : -1;
+                return string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+            });
+            return list;
+        }
+
+        /// <summary>
+        /// Scan every param section for a description beginning "DEPRECATED".
+        /// </summary>
+        private static void LoadDeprecatedFlags(JObject root)
+        {
+            var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void Scan(JToken section)
+            {
+                if (section is JArray arr)
+                {
+                    foreach (var it in arr.OfType<JObject>())
+                    {
+                        string name = it["param_name"]?.ToString();
+                        string desc = it["description"]?.ToString();
+                        if (!string.IsNullOrEmpty(name) && desc != null &&
+                            desc.TrimStart().StartsWith("DEPRECATED", StringComparison.OrdinalIgnoreCase))
+                            found.Add(name);
+                    }
+                }
+                else if (section is JObject obj)
+                {
+                    foreach (var kv in obj) Scan(kv.Value);
+                }
+            }
+
+            try
+            {
+                Scan(root["source_tokens"]);
+                Scan(root["support_params"]);
+                Scan(root["container_groups"]);
+                Scan(root["extended_params"]);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ParamRegistry: deprecated-flag scan failed: {ex.Message}");
+            }
+
+            DeprecatedParams = found;
+            if (found.Count > 0)
+                StingLog.Info($"ParamRegistry: {found.Count} deprecated parameter(s) will be listed last in pickers: {string.Join(", ", found.OrderBy(x => x))}");
         }
 
         /// <summary>

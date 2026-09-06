@@ -724,3 +724,717 @@ after the geometry GLB push, calls `PushIfcDataAsync(CurrentProjectId, …, host
 So Revit is now a first-class `/ifc/data` producer. Plugin builds against the
 Revit 2025 API (0 errors). Code and docs now AGREE: H-1 = implemented + wired;
 residual = real-Revit runtime validation (checklist).
+
+---
+
+# PART IV — FEDERATION HARDENING (Security → Placement → Reliability)
+
+A follow-up review of multi-tool federation (Revit + ArchiCAD + Tekla-via-IFC →
+Planscape web viewer) split the remaining work into three independent tracks:
+
+| Track | Theme | Status |
+|---|---|---|
+| **A** | Security — cross-project (within-tenant) access control | **CLOSED** (below) |
+| **B** | Placement — automatic, correct model alignment | open — see [`PERFECT_PLACEMENT_PROMPT.md`](PERFECT_PLACEMENT_PROMPT.md) |
+| **C** | Reliability — silent geometry loss, deletes, versioning | open |
+
+Deliberately NOT re-opened: the identity round-trip (PRs #654–660 — IFC GlobalId
+canonical, deduped, UNIQUE-enforced), the coordinator's manually-confirmed
+transform always winning, the per-file StingBridge IFC-drop `doc_guid`, and the
+global `ITenantScoped` filter.
+
+## 18. Track A — cross-project access control (CLOSED)
+
+### The defect
+
+Cross-TENANT isolation was already sound: `PlanscapeDbContext` applies a global
+`ITenantScoped` query filter that falls back to `Guid.Empty` (matching no rows),
+so it fails closed. **Tenant is not the unit of authorization for federation
+data, though.** Five controllers carried only `[Authorize]` and filtered by
+tenant, so a user invited to ANY ONE project in a tenant could read and modify
+EVERY OTHER project in that tenant:
+
+| Surface | Exposure before |
+|---|---|
+| `ModelTransformController` | `PUT/DELETE .../transform` — overwrite or delete another project's coordinate transform |
+| `CoordinateSystemController` | `POST/PUT/DELETE .../coordinate-system` — redefine the CRS every model aligns against |
+| `AlignmentController` | `POST .../auto-align` (writes a transform), `POST .../coherence` |
+| `SceneNodesController` | `GET /projects/{id}/scene` + `GET /scene-nodes/{nodeId}/file` — download another project's geometry |
+| `ModelDiffController` | `GET .../diff` — another project's element-level change history |
+
+`ModelsController` and `IfcIngestController` already applied the documented gate
+(`ProjectAccessExtensions` / `[ProjectAccess]`); these five were simply missed.
+
+### The fix
+
+Mirrors `IfcIngestController` exactly — two layers, because they answer different
+questions and return different codes:
+
+- **`[ProjectAccess]`** (read gate → **404**) at the controller level. Admits
+  tenant Admin/Owner/SecurityOfficer, the project author, or an active member.
+  404 rather than 403 so a denial does not confirm the project exists.
+- **`RequireProjectMemberAsync`** (write gate → **403**) as the first statement of
+  every mutating action.
+
+Two endpoints needed bespoke handling:
+
+- `SceneNodesController.GetChunkFile` is routed by `{nodeId}`, not `{projectId}`,
+  so the attribute cannot resolve a project from route data. The owning project
+  is resolved off the node and checked explicitly against
+  `ProjectVisibility.CanSeeProjectAsync`, returning 404 to match.
+- `SceneNodesController.Ingest` is `[AllowAnonymous]` (converter shared bearer)
+  and likewise has no `{projectId}`; the attribute falls through by design and
+  the bearer check stands.
+
+**`FederatedModelHub.JoinProject` (A2)** had no check at all — the SignalR group
+name was the only key, so any authenticated user could subscribe to any project's
+`ModelUpdated` stream, across tenants. It now validates membership through the
+same `ProjectMembershipGuard`.
+
+> **Why the hub reads its tenant from the JWT rather than the ambient filter.**
+> `ITenantContext.TenantId` resolves off `IHttpContextAccessor`, which is not
+> reliably populated inside a SignalR hub method (the documented accessor is
+> `Context.GetHttpContext()`). An unresolved tenant makes `CurrentTenantId`
+> `Guid.Empty`, which the global filter treats as "matches no rows" — fail-closed,
+> but it would have denied every legitimate member too. The hub therefore reads
+> the tenant off the connection's principal, bypasses the ambient filter for that
+> one query, and re-applies tenant scope by hand. `NotificationHub.JoinProject`
+> carries the same latent fragility; it was left alone as out of scope.
+
+**`AutoAlignService.ComputeAsync` (A3)** persisted with a bare "overwrite if
+exists", ignoring `IsConfirmed`. The IFC-ingest path has always respected the flag
+("Only auto-update if not manually confirmed by a coordinator"); auto-align did
+not, so any run silently destroyed a coordinator's hand-set alignment. It now
+refuses — and, because this path is an explicit user action rather than an upload
+side effect, returns the transform it WOULD have applied so the coordinator can
+compare and decide deliberately.
+
+### Verification
+
+`tests/Planscape.Tests/` — 26 new tests across `FederationAuthorizationTests`,
+`FederatedModelHubAuthorizationTests`, `AutoAlignConfirmedTransformTests`.
+
+Every attacker in them is a real, active, authenticated member of the **same
+tenant** as the victim project, just a member of a different project. This is the
+distinguishing detail: a cross-tenant test passes against the unfixed code and
+proves nothing, which is exactly why the pre-existing tenant-isolation suite
+never caught this.
+
+The suite was run against the **unfixed** code with the source changes stashed:
+**13 failed, 8 passed** — every denial and gate test failed, while the happy-path
+tests passed, confirming the tests detect the defect rather than restate the fix
+and that the fixture is not simply denying everything. With the fix: 26/26 pass,
+and the full suite is **659 passed / 0 failed / 11 skipped**.
+
+Covered: the in-action 403 gate (controllers constructed directly against real
+SQLite with real `ProjectMember` rows), the `[ProjectAccess]` 404 gate (filter
+driven directly with a hand-built `ActionExecutingContext`), and a reflection
+test pinning the attribute onto all five controllers so removing it fails a test.
+NOT covered: end-to-end MVC wiring — no host is booted, because a
+`WebApplicationFactory` cannot run against SQLite (Program.cs issues a
+Postgres-only `information_schema` query with no try/catch) and a second factory
+is unreliable in this assembly (ROADMAP DEP-7).
+
+## 19. Track B / P1 — auto-applied transforms (CLOSED)
+
+### The defect
+
+The alignment machinery was sound and **not wired to the screen**. Both automatic
+writers — the IFC ingest path and `AutoAlignService` — store
+`IsConfirmed = false`, and the viewer's gate was:
+
+```js
+const confirmed = (t.isConfirmed !== false);
+if (!confirmed || isIdentity) return;
+```
+
+So a correct, survey-derived alignment was computed, persisted, sent to the
+viewer, and then discarded by that one line — every time — until a human
+confirmed it by hand. That is the whole "same-site models from different tools
+don't line up on their own" symptom, and it lived in four tokens of JavaScript.
+
+### The fix
+
+`IsAutoComputed` records HOW the numbers were obtained; it could not also record
+whether they are LIVE. `ProjectModelTransform` gains three columns:
+
+| Column | Meaning |
+|---|---|
+| `AppliedAutomatically` | the platform applied this on its own, because the georeferencing graded HIGH |
+| `Confidence` | `HIGH` / `LOW` / `NONE` — what was trusted |
+| `Source` | `manual` / `ifc-map-conversion` / `auto-align` / `revit-georef` — which pipeline produced it |
+
+The viewer now applies when `isConfirmed === true` **OR**
+`appliedAutomatically === true`.
+
+**Only HIGH-confidence transforms move a model.** `TransformConfidencePolicy`
+(`Planscape.Core/Coordinates/`) is the single shared rule: a survey origin from
+IfcMapConversion, plus a CRS that either declares itself (IfcProjectedCRS) or
+matches the project's own, plus a non-FAIL alignment report. Anything less is
+stored as a suggestion and left for a coordinator. A model with **no** usable
+georeference stays at the origin — deliberately not "apply a best guess": an
+un-placed model at the origin is obviously un-placed and is fixed in seconds,
+whereas a model flung 500 km by a guess looks placed and costs an investigation.
+
+The policy is shared and Revit-free precisely because three pipelines produce
+automatic transforms (ingest, auto-align, and the Revit GLB path in P2); if each
+carried its own notion of "good enough", the same model would render in different
+places depending on which one touched it last.
+
+**Precedence is enforced at WRITE time, not render time.** The automatic writers
+refuse to touch a row with `IsConfirmed = true`, so a confirmed row always holds
+the coordinator's numbers and there is nothing to reconcile when drawing. A
+manual PUT additionally clears `AppliedAutomatically` and stamps
+`Source = "manual"`, which makes the rule total.
+
+### Verification
+
+- **19 policy unit tests** (`TransformConfidencePolicyTests`) — exhaustive over a
+  pure function. Includes the load-bearing case that `CrsEquivalent(null, null)`
+  is **false**: if unknown matched unknown, every model without a declared CRS in
+  a project without one would grade HIGH and be moved on no evidence at all.
+- **3 write-path tests** on `AutoAlignService` — HIGH is marked auto-applied;
+  unanchored and FAILed evidence are stored but NOT auto-applied.
+- **12 viewer-gate assertions** (`tests/web-harness/transform-gate.mjs`) — the
+  shipped `applyModelTransform` is extracted from `viewer.html` on disk and run in
+  a `vm` sandbox against a fake three.js root. Re-introducing the old gate
+  (`const live = confirmed;`) was tried: **3 of 12 fail**, including the headline
+  "auto-applied transform actually moves the model".
+- **Schema patch proven on real Postgres 16**: against a database recreated in its
+  pre-B1 shape, the three `ADD COLUMN IF NOT EXISTS` statements applied cleanly,
+  were idempotent on a second pass, and left a pre-existing row at
+  `AppliedAutomatically = false` — so no existing project starts rendering
+  differently because of a deploy.
+- Full suite **691 passed / 0 failed / 11 skipped**; build 0 errors.
+
+Schema follows ADR 0001 (EnsureCreated + idempotent patcher). `dotnet ef
+migrations add` remains unsafe here — the model snapshot is stale and a new
+migration would try to re-create existing tables.
+
+## 20. Track B / P2 — the Revit GLB path gains a georef source (CLOSED)
+
+### The defect
+
+Revit exports geometry about the **project internal origin**
+(`ClashExportContext` uses `Transform.Identity`), so a published GLB carried no
+survey position and **every Revit model landed at 0,0,0** regardless of where the
+building actually is. The coordinate sidecar that was supposed to carry the
+position (`RevitGltfExporter.ExportCoordinateSidecar`) had three separate faults:
+
+1. Its easting/northing were **always null**, behind a comment claiming
+   `BasePoint.GetCoordinateSystem()` is unavailable in the Revit 2025 API. That is
+   true and beside the point — `ProjectLocation.GetProjectPosition(XYZ.Zero)` has
+   always returned `EastWest` / `NorthSouth` / `Elevation` / `Angle`, the method
+   was **already being called**, and the code read `Angle` and `Elevation` while
+   dropping the two coordinates that place the building.
+   (`ProjectSetupCommand.cs` uses `EastWest`/`NorthSouth` a few files away.)
+2. `exportMode` was hardcoded `"ProjectInternal"` with a `TODO`.
+3. It was **never uploaded** — nothing read the file.
+
+### The fix
+
+The survey position travels as **metadata beside the geometry, never baked into
+the mesh**. That is not a shortcut: a site at easting 432,000 m would put every
+vertex ~432 km from the origin, where 32-bit float mesh coordinates lose
+millimetre precision and surfaces visibly z-fight. It is also exactly what the
+IFC path does with `IfcMapConversion`.
+
+- `RevitGeoref` (plugin) reads `ProjectPosition` once — used by BOTH the sidecar
+  and the upload, so the two cannot disagree.
+- `UploadModelRequest` gains an optional georef block (easting/northing/elevation
+  in metres, true north, CRS, length unit, export mode).
+- `ModelsController.Upload` writes the transform through a shared writer.
+
+**`ModelGeorefWriter` is now the ONE place** that turns a host's georeferencing
+into a stored transform, and `IfcIngestController` was collapsed onto it. Before
+this there was one copy for IFC and none for Revit; adding a second copy is how a
+building ends up in a different place depending on which pipeline last touched
+it — the most expensive class of bug in this system and the hardest to attribute.
+The writer was built around the IFC path's existing convention (`t = -origin`,
+metres → mm) deliberately, so introducing it changes no existing IFC behaviour.
+
+Two "do nothing" cases are as important as the placement:
+
+- **No survey origin → no transform row at all.** Not an identity transform, and
+  emphatically not a guess.
+- **`SharedCoordinates` export → no transform.** That geometry already sits in
+  the survey frame; applying the origin again would double-count it. The plugin
+  only produces `ProjectInternal` today, but the mode is reported as fact rather
+  than assumed, so a future shared-coordinates export cannot silently break.
+
+### The CRS caveat (honest limitation)
+
+Revit has **no native CRS concept**. Without a CRS anchor the transform grades
+LOW and is stored as a suggestion rather than applied, so a Revit model would
+still need one confirmation. The plugin therefore reads an optional
+`PRJ_CRS_EPSG_TXT` project parameter; set it once per project (to match the
+project's declared coordinate system on the server) and every future publish
+auto-places. This is a **project-level declaration, not a per-model transform
+entry**, so the Track B definition of done still holds — but it is a setup step
+and is logged explicitly by the plugin when absent.
+
+### Verification
+
+- **9 tests** on `ModelGeorefWriter`, including
+  `The_ifc_source_label_produces_the_same_numbers_as_the_revit_one` — two hosts
+  reporting the same survey origin must land in the same place, which is the
+  whole point of collapsing the two writers into one.
+- Revit plugin builds against the Revit 2025 API: **0 errors, 0 warnings**.
+- Server build 0 errors; full suite **700 passed / 0 failed / 11 skipped**.
+
+**NOT verified:** `RevitGeoref.Read` itself. It needs a live Revit `Document`, so
+no unit test can reach it — the numbers it produces are asserted only from the
+server side, against hand-written inputs. Reading a real document's survey point
+remains a Revit-session check.
+
+## 21. Track B / P3 — unit reconciliation (CLOSED)
+
+### The defect
+
+**Two GLB writers in this repo disagreed by a factor of 1000.**
+`GlbSerializer` converted Revit feet → **metres** (`0.3048`);
+`RevitGltfExporter` converted feet → **millimetres** (`304.8`). Both upload to
+the same endpoint and are rendered by the same viewer, which assumes metres —
+glTF 2.0 says "The units for all linear distances are meters", and
+`applyModelTransform` divides the stored millimetre translation by 1000 precisely
+because the geometry it positions is metres.
+
+It hid because **a model viewed alone looks correct at any uniform scale**: the
+camera fits to whatever bounds it finds, so a building rendered 1000x too large
+looks perfectly normal. The mismatch only appears once a Revit model is federated
+with a model from another tool — and then it presents as "the models don't line
+up", which reads as a coordinate problem and sends you looking in the wrong
+place.
+
+Alongside it: `ProjectModel.Units` was written on every upload and **read by
+nothing**, and the ingest path computed a `scaleFactor` whose two branches both
+returned `1.0`, silently discarding any declared `IfcMapConversion` scale.
+
+### The fix
+
+**One convention: the metre.** `RevitGltfExporter` now writes metre vertices, and
+the published bounds moved with it — they describe the same geometry, so leaving
+them in millimetres would have swapped a visible 1000x render bug for an
+invisible bounds one.
+
+`ProjectModel.Units` now means something. It rides on the transform payload the
+viewer already fetches (`meshUnitScale`), and the viewer applies it
+**unconditionally** — a millimetre model needs rescaling whether or not it is
+georeferenced, so it must not sit behind the "is this transform live" gate.
+
+**Mesh unit and georeferencing scale are kept separate and multiplied**, not
+merged. They answer different questions: `ScaleFactor` is a survey correction
+declared by an `IfcMapConversion`; the mesh unit is how the vertex data happens
+to be written. Conflating them makes a unit fix look like a survey error. (A
+deliberate deviation from the runner's "compute scaleFactor from model unit";
+the rendered result is identical because both factors multiply.) The
+previously-dead `scaleFactor` is now real: `ModelGeoref` carries
+`MapConversionScale` and the writer inverts it, matching `AutoAlignService`.
+
+### Two traps found while doing it
+
+1. **The IFC-to-GLB job copied the SOURCE IFC's unit onto the GLB derivative.**
+   Harmless while nothing read the field; the moment `Units` drives scaling it
+   would have shrunk every converted model by 1000. The converter emits glTF, so
+   the derivative is metres by construction. Fixed, plus a **targeted idempotent
+   backfill** for rows already written that way, scoped by `UploadedBy` and
+   `Format = 0` so the source IFC row and every hand-published model are
+   untouched.
+2. **The server defaulted an undeclared unit to `"mm"`.** Any uploader that
+   omitted the field would have been scaled by 1/1000. The default is now the
+   canonical metre; an unknown unit also reads as metres, because the fail-safe
+   direction for "I do not recognise this" is *change nothing* — a wrong guess
+   silently rescales a whole building.
+
+### Verification
+
+- **16 unit tests** on `MeshUnits`, including that unknown/blank reads as metres
+  rather than as a guess.
+- **10 harness assertions** (`tests/web-harness/mesh-units.mjs`) against the
+  shipped sources: the viewer scales a mm mesh with no transform at all; mesh
+  unit and georef scale multiply rather than replace; an absent `meshUnitScale`
+  changes nothing; and a grep-level guard that the two Revit writers still agree
+  — crude, but it is the only thing that fails when someone edits one and not the
+  other.
+- **Backfill SQL proven on real Postgres 16** against a four-row fixture: the
+  mislabelled converted GLB is corrected, an already-correct one is untouched,
+  and both the source IFC row and a genuinely-millimetre hand-published Revit
+  model are left alone. Idempotent on a second pass.
+- Server build 0 errors; Revit plugin builds against the Revit 2025 API with
+  **0 errors, 0 warnings**; full suite **719 passed / 0 failed / 12 skipped**
+  (all skips pre-existing environment-gated Postgres/API tests).
+
+**Behaviour change worth stating plainly:** Revit models published BEFORE this
+change are stored with millimetre meshes and `Units = "mm"`. They now render at
+the correct size because the viewer honours that unit — but a model whose row
+predates the `Units` column entirely would read as metres. Re-publishing puts any
+model on the canonical footing.
+
+## 22. Track B / P4 — StingBridge / core producer georef (CLOSED)
+
+### The defect
+
+`GeorefDescriptor` existed with **zero consumers**. Nothing built a complete one
+and nothing sent one anywhere, so an ArchiCAD or Tekla IFC pushed through the
+bridge arrived at the server with no survey position, landed at the project
+origin, and had to be placed by hand — the manual step this track exists to
+remove.
+
+`IfcFileHostAdapter.georef_descriptor` read only `IfcMapConversion`'s eastings /
+northings / height / scale. Three fields were unset or wrong:
+
+| Field | Before | Why it mattered |
+|---|---|---|
+| `crs_epsg` | never read | The server's confidence policy grades an unanchored survey origin LOW, stores the transform as a *suggestion*, and leaves the model at the origin until someone confirms it. Reading `IfcProjectedCRS.Name` is what makes a model auto-place. |
+| `true_north_deg` | never read | A model's rotation was silently dropped. A building at the right easting and northing but rotated 20° off is arguably worse than one at the origin, because it *looks* placed. |
+| `length_unit` | defaulted `"mm"` | Eastings/northings are metres by IFC definition, so any consumer that trusted the field was off by 1000. |
+
+### The fix
+
+- **True north** from `XAxisAbscissa` / `XAxisOrdinate` via
+  `atan2(XAxisOrdinate, XAxisAbscissa)` — **the same formula the server uses** in
+  `IfcAlignmentValidator.MapConversionRotationDeg`. It has to be: the same file
+  described by this adapter and ingested by the server must not disagree about
+  which way the building faces.
+- **CRS** from `IfcProjectedCRS.Name`, which also raises the LoGeoRef tier
+  (50 with a named CRS, 30 without — coordinates whose system is unstated are a
+  weaker claim).
+- **Length unit** read from the model via
+  `ifcopenshell.util.unit.calculate_unit_scale`, falling back to metres.
+- The descriptor's default `length_unit` changed `"mm"` → `"m"`, so an
+  un-populated descriptor now means *change nothing* rather than *rescale by
+  1000*. (One existing test pinned the old default and was updated with the
+  reason.)
+- `PlanscapeClient.upload_model` accepts a descriptor and flattens it onto the
+  multipart upload as the same `Georef*` fields the Revit path uses.
+
+### Verification
+
+- **14 tests** on the extraction (`stingtools-core/python/tests/test_georef_descriptor.py`),
+  driven through a stand-in model so no `ifcopenshell` install is needed — the
+  defects were all in extraction and arithmetic, which is what these pin.
+- **8 tests** on the wire contract (`StingBridge/tests/test_upload_georef.py`).
+  These matter because a field-name typo is **not an error at either end**:
+  ASP.NET model binding leaves the property null, the server writes no
+  transform, and the model quietly stays at the origin. Nothing fails; the
+  building is just in the wrong place. Also pinned: a model with no survey
+  origin sends **no** georef block at all, and a zero true north is sent rather
+  than dropped by a falsy check ("no rotation" ≠ "rotation unknown").
+- Full Python suites green: **118 core**, **179 StingBridge**.
+
+**NOT verified:** extraction against a real `.ifc`. `ifcopenshell` is not a core
+dependency — that is the point of core — so the unit-scale branch and `by_type`
+against a real file remain an environment-gated check.
+
+## 23. Track B / P5 — one translation convention, and fresh chunk bounds (CLOSED)
+
+### The defect: the translation was mirrored
+
+Both automatic writers computed the **negation** of the correct translation. The
+IFC ingest path used `t = -modelOrigin`; `AutoAlignService` used
+`t = referenceOrigin - modelOrigin`.
+
+A model's geometry is authored about its own internal origin, and its
+georeferencing states where that origin sits in the survey CRS. So a physical
+point `S` sits at local coordinate `S - A` in model A. The transform maps local
+to world as `world = t + local`:
+
+```
+t = +A  →  world = A + (S - A) = S        ✓ both models agree on S
+t = -A  →  world = -A + (S - A) = S - 2A  ✗ and B lands at S - 2B
+```
+
+Two models therefore came out **mirrored about the origin** — an east-west pair
+swaps sides. The correct transform is `t = modelSurveyOrigin - projectFrameOrigin`.
+
+**Why the existing "overlay proof" did not catch it.** `ModelTransformMathTests`
+inverts a transform and re-applies *the same* transform, which proves
+`Apply(Inverse(w)) == w` for any transform whatsoever. It proves the math is
+self-consistent — never that the transform was *derived* correctly from survey
+data. `FederationFrameTests` derives it, and asserts the sign explicitly, because
+a magnitude-only check passes against the bug.
+
+### One frame, resolved once
+
+`ModelGeorefWriter` now resolves the project frame in one place, strongest
+evidence first: the declared `ProjectCoordinateSystem` benchmark → the
+coordinator's nominated reference model → zero (raw CRS). The **same** frame is
+subtracted from every model, so relative placement is identical whichever is
+chosen; a site-local frame only buys precision (a site at easting 432 km rendered
+about a zero origin puts geometry where 32-bit float stops resolving
+millimetres).
+
+`AutoAlignService` no longer does its own transform arithmetic — it delegates to
+the same writer, so the two cannot drift. Its old frame ("the most recently
+validated sibling model") is dropped and is now **reporting only**: that origin
+moved every time another model was uploaded, so a transform computed on Monday
+was expressed against a different origin from one computed on Tuesday and the two
+silently disagreed.
+
+The writer returns what it computed **even when it refuses to write** (a
+coordinator-confirmed transform). A refusal that cannot say what the survey data
+implies is useless at exactly the moment the answer matters — and having the
+caller recompute it is how the two implementations drifted apart to begin with.
+
+### The defect: chunk bounds went stale, and could not simply be refreshed
+
+The world-space AABB recompute lived inline in `ModelTransformController.Upsert`
+and had two problems that compounded:
+
+1. **It ran only there.** Both automatic writers moved models without touching
+   the bounds, so the federation manifest described where chunks *used to be*.
+   The viewer culls against those bounds — the symptom is geometry that vanishes
+   when the camera looks straight at it, or streams in nowhere near the frustum.
+2. **It transformed an already-transformed box.** So the obvious fix — call it
+   after every transform write — would have made things *worse*, compounding the
+   transform on each call.
+
+Fixing (2) had to come first. `SceneNode` gains a nullable **local** AABB
+(`BaseMinX`…), so the world box is a pure function of (local, transform) and can
+be recomputed any number of times with the same answer. `SceneNodeAabbRefresher`
+is now called from the manual PUT, the manual DELETE (resetting to identity moves
+the model too) and the shared writer — which covers both automatic paths at once.
+
+Rows written before this have no local box; the refresher captures the current
+values the first time it sees one — correct for a chunk that was never
+transformed, and the best available otherwise. Re-publishing restores truth,
+since ingest now writes both boxes.
+
+### Verification
+
+- **7 frame tests** — true relative offset preserved; the offset is not mirrored
+  (asserted by sign, not magnitude); a point shared by two models maps to one
+  world coordinate; a declared benchmark and a nominated reference model each
+  become the frame; rotation is frame-relative.
+- **7 refresher tests** — refreshing twice equals refreshing once (the
+  regression); the local box is never mutated; removing the transform returns the
+  box to its local position; a pre-existing row has its local box captured; a
+  rotated box encloses all eight transformed corners (a two-corner shortcut
+  produces an inverted, too-small box that culls visible geometry); scale applies
+  before translation.
+- Existing sign expectations in `ModelGeorefWriterTests` and
+  `AutoAlignConfirmedTransformTests` were updated **with the reason recorded in
+  each test**, since they pinned the mirrored behaviour.
+- Schema patch verified on real Postgres 16: idempotent, and a pre-existing row
+  keeps its box with the local box left NULL for first-refresh capture.
+- Full suite **734 passed / 0 failed / 11 skipped**; both web harnesses green;
+  server build 0 errors.
+
+**Behaviour change, stated plainly:** every automatically-placed model moves.
+That is the point — they were mirrored. Coordinator-confirmed transforms are
+untouched, and a re-publish or an auto-align run re-derives the rest.
+
+## 24. Track B / P6 + payoff — Tekla-via-IFC, verified on PostgreSQL (CLOSED)
+
+### Tekla needs no connector, and has none
+
+Tekla has no native producer and is not getting one. Its route into the
+federation is a **Tekla-authored IFC uploaded through the generic ingest**, which
+already recognises it: `XbimIfcIngester` sets
+`source = hasAcPsets ? "archicad" : hasTeklaPsets ? "tekla" : "ifc"`, and `tekla`
+is a first-class host constant (`MappingHosts.Tekla`) used by the GlobalId
+registry and the cross-host DTOs.
+
+Placement is host-agnostic by construction after P1–P5: everything downstream of
+`IfcMapConversion` + `IfcProjectedCRS` runs through `ModelGeorefWriter`, which
+does not know or care which tool wrote the file. A Tekla IFC with a map
+conversion therefore places on exactly the same path as an ArchiCAD one — that
+is the property the payoff test pins, by federating a model labelled ARCH with
+one labelled STRUCT and asserting they overlay.
+
+**A native Tekla plugin remains out of scope.**
+
+### The payoff test
+
+`PostgresFederationPlacementTests` — four `[SkippableFact]`s on real PostgreSQL,
+each in a rolled-back transaction:
+
+1. **Two models of one site are placed automatically and overlay.** Two models,
+   different survey origins, shared CRS, no manual transform. Asserts: both grade
+   HIGH and are marked auto-applied; neither is marked *confirmed* (that word is
+   reserved for a human); their true relative offset survives (60 m east, 45 m
+   north); a column both models contain maps to **one** world coordinate; and the
+   scene-chunk world AABBs land where the transforms put them — including that
+   the two chunks do **not** overlap in X, because a test that only asserted "the
+   boxes moved" would pass with both models stacked on top of each other.
+2. **Relative placement does not depend on whether a project frame is declared.**
+   The frame shifts the whole federation; if it changed relative placement,
+   declaring a benchmark mid-project would silently move buildings apart.
+3. **A model without georeferencing stays at the origin** — no transform row at
+   all, rather than a guessed one.
+4. **A coordinator's confirmed transform survives an automatic pass**, and the
+   caller is still told what the survey data implies.
+
+### Fixture trap worth recording
+
+The first run of these tests failed with "expected 2 transforms, found 0". The
+context had been built from the options-only constructor, so
+`CurrentTenantId` was `Guid.Empty` and the global filter matched nothing — rows
+were written that the very next read could not see. Worse, the writer's own "is
+there an existing transform?" lookup was equally blind, so the
+**not-overwritten** assertion would have passed for entirely the wrong reason.
+The tenant id is now minted before the context and supplied to it. This is the
+same trap `MaterialSyncAuthorizationTests` documents; it is easy to fall into
+because the failure mode is silence, not an error.
+
+### Verification
+
+With `PLANSCAPE_TEST_PG` pointed at a throwaway PostgreSQL 16:
+
+**749 passed / 0 failed / 0 skipped.** Nothing gated out — every previously
+environment-skipped Postgres test ran too.
+
+Without it, the same suite is 734 passed / 0 failed / 11 skipped.
+
+---
+
+# PART V — TRACK C: RELIABILITY (CLOSED)
+
+Track C's theme: the ArchiCAD/Python side was already robust; the Revit
+geometry-delta path and the server's model lifecycle were not. Every defect here
+**fails silently**, and most of them present to a coordinator as "the server's
+model just isn't the same as mine" — which is the hardest possible symptom to
+attribute.
+
+| Item | Defect | Status |
+|---|---|---|
+| C1 | A failed Revit delta was permanently lost | CLOSED |
+| C2 | Only 9 categories ever synced; the clash flag disabled all of it | CLOSED |
+| C3 | Deletions never propagated from hosts pushing full exports | CLOSED |
+| C4 | Deleted models kept rendering; no cascade; the promised purge job did not exist; `Force` unread | CLOSED |
+| C5 | Advertised upload caps exceeded the multipart parser's | CLOSED |
+| C6 | Delta apply non-atomic and non-idempotent | CLOSED |
+| C7 | Converter failure invisible; orphaned code with misleading docstrings | CLOSED |
+
+## 25. C1 + C2 — the Revit delta pipeline
+
+**C1.** `GeometrySyncHandler` drained the change queue and fired the upload as a
+discard-result `Task.Run`. Draining is destructive, and
+`PostGeometryDeltaAsync` returns false on an unset project id, a non-2xx, or an
+idle-expired token — all of which looked identical to success. The elements were
+never considered again and the two models diverged permanently, with the next
+edit to a *different* element syncing fine, which makes the gap look like it
+never happened.
+
+Fixed by checking the project link **before** draining, reading the result, and
+re-queueing on failure. Only what was actually sendable is retried: an element
+that cannot be tessellated would fail again every save, turning one lost delta
+into an infinite retry. Deletions are always retried — a lost tombstone leaves
+the element visible in the federated model forever.
+
+**C2.** `LiveClashUpdater` was the sole producer for the geometry queue, over the
+nine categories *clash* cares about. Doors, windows, equipment, fixtures,
+furniture, generic models, stairs, railings, roofs and curtain panels never
+reached the server automatically. And because the clash trigger is opt-out,
+`LIVE_CLASH_TRIGGERS_ENABLED=false` silently disabled **all** geometry sync while
+tag sync kept flowing — the model looked connected and was not.
+
+Geometry sync now has its own updater over every model element instance,
+expressed as filters rather than a category list, *because a list is exactly how
+the clash trigger ended up missing doors*.
+
+**Testing limit, stated:** the handler needs a `UIApplication` and a live
+`Document`, so it is unreachable from the pure-logic test projects. The two
+decisions that govern whether a change reaches the server — the queue's sign
+encoding and the retry rule — were extracted into `GeometrySyncPlan` and pinned
+by 8 tests. The handler's ordering, the re-queue call, and the new updater's
+trigger scope need Revit.
+
+## 26. C5 + C6 — the delta endpoint
+
+**C5.** `RequestSizeLimit` caps the HTTP body; the multipart parser has its own
+200 MB global ceiling. `IfcIngestController.Ingest` advertised 2 GB and
+`PostDelta` advertised 256 MB, neither with `[RequestFormLimits]`, so anything
+between 200 MB and the advertised cap died with a bare parser 400 raised *before
+the action ran* — the ingest controller's own `file_too_large` branch never
+fired.
+
+**C6.** Deletes committed immediately via `ExecuteUpdateAsync`; the GLB store and
+`SaveChangesAsync` followed, untransacted. A failure between them left deletions
+applied and additions lost — the worst available partial state, because **no
+retry can recover it**: the deletions are already marked, so the next delta's
+`!e.IsDeleted` filter excludes them. Now one transaction (relational providers
+only; InMemory escalates `TransactionIgnoredWarning` to an exception).
+
+A delta is replayable — the plugin re-sends after a failure (C1) and a timed-out
+client cannot know whether the server applied it. It now honours the platform's
+existing `X-Idempotency-Key`, recorded **inside** the transaction so a replay
+cannot be marked handled by a delta that rolled back.
+
+Two bare `catch { }` became logged failures: a malformed `deletedIds` dropped
+every tombstone while the GLB half applied, and a malformed GLB produced zero
+nodes — both answering 200 and looking like "a delta that changed nothing".
+
+## 27. C4 — model lifecycle
+
+Three ways the product said one thing and did another:
+
+- **Soft-delete did not cascade.** The read paths filtered on
+  `SceneNode.DeletedAt`, a column nothing ever set, so a deleted model kept
+  streaming into the viewer and answering element queries.
+- **The promised purge job did not exist.** `ProjectModel.DeletedAt`'s own doc
+  comment says "purged by a Hangfire job after 30 days". There was none; every
+  soft-deleted model's bytes stayed in object storage forever. *A documented
+  retention promise that nothing implements is worse than no promise — it is the
+  reason nobody goes looking.*
+- **`Force` was never read.** The plugin's "publish as a new revision" mode did a
+  metadata refresh on the old row and reported success. It could not simply
+  insert (the unique filtered index rejects identical bytes), so `Force` now
+  retires the previous row and links it forward via `SupersededByModelId`.
+
+`ModelPurgeJob` deletes bytes **before** the row: a failed byte deletion retains
+the row for the next run, because a row-less blob is unfindable and therefore
+unrecoverable cost.
+
+## 28. C3 — deletions from full-export hosts
+
+An ingest is an upsert, so an element that disappears is simply not mentioned —
+indistinguishable from "unchanged, partial push". A wall deleted in ArchiCAD
+stayed on the server forever. **Absence cannot mean deletion.**
+
+`RemovedGlobalIds` carries removals explicitly; matching elements are
+**soft**-deleted (they carry tag history, issues and clash references). Removals
+are scoped to the reporting host document — two hosts contribute to one project,
+so a full-export diff from the ArchiCAD file lists every Revit GlobalId as
+absent, and without the scope this feature would convert a missing-delete bug
+into a **data-loss** one.
+
+Client-side, `SyncedIdStore` records what each document last pushed and diffs it.
+`should_send_removals` refuses a removal set covering more than half the known
+elements: a crashed export yielding 3 elements instead of 30,000 looks exactly
+like a mass deletion, and one of those readings is catastrophic while the other
+costs one sync cycle.
+
+## 29. C7 — converter status and orphaned code
+
+`IfcToGlbConversionJob` is best-effort by design, but nothing recorded a failure
+anywhere the product could see, while the upload endpoint had already promised
+"a renderable GLB derivative … will appear shortly". For a failed conversion that
+sentence never stops being false. `ConversionStatus` / `ConversionError` now
+track Pending → Converting → Done/Failed across all five of the job's early
+returns; the test that matters asserts no terminal path leaves a model reading
+"Converting", because that is the state a coordinator waits on forever.
+
+`FederationLinkedWalker` and `AsBuiltReconciler` have **zero callers**, and
+`FederationLinkedWalker`'s header claimed it was "used by Clash triage (S6.1),
+As-built reconciliation (S6.5), and any BCC dashboard metric". None of those
+consume it, and cross-tool clash does not exist. **Kept, not deleted** — the code
+is sound and rewriting it later costs more than carrying it — but the headers now
+say NOT WIRED. An orphan is a cost; an orphan advertising itself as shipped is a
+trap, because an audit of whether federated clash works finds a docstring
+asserting it does and stops looking.
+
+## Track C verification
+
+- Server: **774 passed / 0 failed / 0 skipped** against real PostgreSQL 16.
+- Python: **313 passed** (core + StingBridge).
+- Revit plugin: **0 errors, 0 warnings** against the Revit 2025 API.
+- `StingTools.Clash.Tests`: 71 passed, 1 failed — pre-existing on `origin/main`
+  (CLAUDE.md #596), verified untouched.
+- The C6 atomicity test and the P1 viewer gate were each confirmed against the
+  UNFIXED code and fail there, so they detect the defect rather than restate the
+  fix.
+
+Follow-ups are in [`ROADMAP.md`](ROADMAP.md), including `IfcController`'s missing
+project-membership gate — the same defect class Track A fixed, deliberately left
+out of scope because changing the plugin's push path needs verification.
