@@ -1327,9 +1327,21 @@ namespace StingTools.UI
 
             sp.Children.Add(BuildActionGroup("Procurement (Material Schedule)",
                 "The buy-list, not the bill. Converts measured work into commodities in supplier " +
-                "units — bags of cement, trips of sand, No. of blocks — sectioned by construction stage.",
+                "units — bags of cement, trips of sand, No. of blocks — sectioned by construction stage. " +
+                "Price the commodities first; the schedule reads those rates.",
                 new[]
                 {
+                    // Beside the export, not on the dock panel alone. A QS lives
+                    // in this window, and the first run of the editor was missed
+                    // entirely because its only button was on the other surface.
+                    // It is listed FIRST because it is the prerequisite: an
+                    // unpriced commodity totals zero in the schedule below it.
+                    ("Price Commodities", "MaterialSchedule_PriceCommodities",
+                     "Price the material schedule in a grid, seeded from the schedule itself so no commodity " +
+                     "key is ever retyped — most of them contain characters that cannot be typed reliably. " +
+                     "Unpriced rows sort first. A blank cell leaves that rate alone and a zero is never " +
+                     "written. Saves to the project's commodity_rates.csv; the shipped corporate baseline is " +
+                     "never touched.", false),
                     ("★ Material Schedule", "MaterialSchedule_Export",
                      "Export a stage-sectioned material schedule as XLSX. Commodities are aggregated across " +
                      "the project, converted to supplier units with a visible wastage step, and priced from the " +
