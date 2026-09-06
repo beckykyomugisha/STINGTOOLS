@@ -65,7 +65,12 @@ def resolve(n,desc,depth=0):
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
     if pre in("Qto","VT","TB","TBL","SHT","VIEW"): return "NONE","excluded"
-    if pre=="CSI": return "UNIVERSAL","classification"
+    # A classification code is a property of the thing, not of a discipline, so every
+    # classification axis binds universally. CSI was here alone; UNICLASS (Pr/Ss/EF),
+    # NBS and the per-element RFI URL are the other four ClassificationReader.Read()
+    # consults, and without a rule they fell through to UNRESOLVED and bound NOWHERE.
+    if pre in ("CSI","UNICLASS","NBS"): return "UNIVERSAL","classification"
+    if n=="ASSET_RFI_URL_TXT": return "UNIVERSAL","classification"
     if pre=="STRUCT":
         if sub=="COL": return "COLUMN","struct-col"
         return "STRUCT","struct"
