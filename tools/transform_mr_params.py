@@ -27,6 +27,33 @@ def make_guid(name: str) -> str:
     return str(uuid.uuid5(NS, name))
 
 # ── Target native types ───────────────────────────────────────────────────────
+_COBIE_MAP = ROOT / 'StingTools/Core/Cobie/CobieFieldMap.cs'
+_cobie_cache = None
+
+
+def cobie_targets():
+    """Every shared parameter COBie writes, read from CobieFieldMap.cs.
+
+    COBie import writes with SetString, which refuses a non-TEXT parameter, so
+    any target retyped here becomes unwritable on import. Read from the C# file
+    rather than restated, because a restated list is right until the day a field
+    is added to the map -- and then wrong silently.
+
+    Returns an empty set if the file is missing, which is the safe direction:
+    nothing is excluded, and StingTools.Tags.Tests fails loudly rather than the
+    build shipping an unwritable field.
+    """
+    global _cobie_cache
+    if _cobie_cache is None:
+        if not _COBIE_MAP.exists():
+            print('WARNING: %s not found; no COBie exclusions applied' % _COBIE_MAP)
+            _cobie_cache = set()
+        else:
+            src = _COBIE_MAP.read_text(encoding='utf-8', errors='replace')
+            _cobie_cache = set(re.findall(r'"([A-Z][A-Z0-9_]*_[A-Z0-9_]+)"', src))
+    return _cobie_cache
+
+
 TARGET_TYPES = {
     # AREA
     'CST_CALC_AREA_M2':                      'AREA',
@@ -320,7 +347,18 @@ def main():
             continue
 
         # ── Rule 2 + 3: Native-typed params ──────────────────────────────────
-        if name in TARGET_TYPES:
+        # ...except where COBie writes the parameter. COBie import writes every
+        # field with SetString, which refuses a non-TEXT parameter outright, so
+        # retyping one of its targets does not merely change a type -- it makes
+        # that field silently unwritable on import. StingTools.Tags.Tests has
+        # asserted "every COBie target is TEXT" since before this transform
+        # existed, and caught exactly one casualty: ASS_EXPECTED_LIFE_YEARS_YRS.
+        #
+        # The exclusion is READ FROM CobieFieldMap.cs rather than listed here.
+        # A second copy of that list is the drift this whole workstream keeps
+        # finding: the copy would be right today and wrong the first time a
+        # field is added to the map.
+        if name in TARGET_TYPES and name not in cobie_targets():
             target = TARGET_TYPES[name]
             if current_type != target:
                 p[3] = target

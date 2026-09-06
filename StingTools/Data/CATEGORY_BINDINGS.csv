@@ -1,4 +1,4 @@
-# v3.9 | 20260906 | 1275 rows binding 126 _TXT mirror params to their source categories (Phase 188)
+# v3.9 | 20260906 | 1256 rows binding 125 _TXT mirror params to their source categories (Phase 188)
 # v3.8 | 20260708 | fix cross-discipline over-bindings: HVC_TERMINAL->Air Terminals; +LIG/ICT/COM/NCL/SEC/MED/MGS/RAD/CEQ/CLN discipline-scoped rows (param->category binding accuracy)
 # v3.7 | 20260630 | +5 STING_PLACER_* idempotency-stamp bindings (detail/annotation symbol categories)
 # v3.6 | 20260630 | +30 Tier-2 element-bound param bindings (electrical/plumbing/design-option/sheet/view/clash/IFC)
@@ -17442,25 +17442,6 @@ ASS_DESIGN_OCCUPANCY_TXT,Data Devices,Type,True
 ASS_DESIGN_OCCUPANCY_TXT,Security Devices,Type,True
 ASS_DESIGN_OCCUPANCY_TXT,Nurse Call Devices,Type,True
 ASS_DESIGN_OCCUPANCY_TXT,Project Information,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Air Terminals,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Cable Trays,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Casework,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Conduits,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Electrical Equipment,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Electrical Fixtures,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Furniture,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Generic Models,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Lighting Fixtures,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Mechanical Equipment,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Plumbing Equipment,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Plumbing Fixtures,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Specialty Equipment,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Sprinklers,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Communication Devices,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Telephone Devices,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Data Devices,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Security Devices,Type,True
-ASS_EXPECTED_LIFE_YEARS_TXT,Nurse Call Devices,Type,True
 ASS_MAINTENANCE_FREQUENCY_MONTHS_TXT,Air Terminals,Type,True
 ASS_MAINTENANCE_FREQUENCY_MONTHS_TXT,Cable Trays,Type,True
 ASS_MAINTENANCE_FREQUENCY_MONTHS_TXT,Casework,Type,True

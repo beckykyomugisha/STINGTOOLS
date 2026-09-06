@@ -51164,7 +51164,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_EXPECTED_LIFE_YEARS_TXT",
+          "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -56555,7 +56555,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_EXPECTED_LIFE_YEARS_TXT",
+          "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -59811,7 +59811,7 @@
           "size": "2.0"
         },
         {
-          "param": "ASS_EXPECTED_LIFE_YEARS_TXT",
+          "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -61146,7 +61146,7 @@
           "formula": "if(TAG_PARA_STATE_3_BOOL, ASS_INSTALL_DATE_TXT, \"\")"
         },
         {
-          "param": "ASS_EXPECTED_LIFE_YEARS_TXT",
+          "param": "ASS_EXPECTED_LIFE_YEARS_YRS",
           "spaces": 0,
           "break": false,
           "prefix_override": "Life:",

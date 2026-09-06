@@ -1,4 +1,4 @@
-# v6.8 | 20260906 | +175 mirror params, 184 type fixes — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 20260906 | +174 mirror params, 183 type fixes — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -634,7 +634,7 @@ Generic Models,BLE_STAIR_TREAD_FINISH_TXT,138dc87d-fb13-50b6-a5cf-07c9b2478746,T
 Generic Models,ENV_ROOF_TAG_TXT,9a1ef97d-12f7-419d-93f9-60f3773e55ef,TEXT,BLE_ELES,Type,"Roof specification tag: covering, waterproofing, R-value, slope [ISO 19650-1:2018]",False,,,MULTI,1,0
 Generic Models,CST_IMPORT_REQUIRED_BOOL,9e582b7e-a208-5c68-96b1-569156796d54,YESNO,COM_DAT,Type,Cst Import Required Bool [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_APP-IMAGE,eaaf3b80-c7f9-508a-8e4e-2aafba2d2f76,TEXT,CST_PROC,Type,Ble App-image [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ASS_EXPECTED_LIFE_YEARS_YRS,3bc7b880-b296-532f-9faf-8c41d69df5c3,NUMBER,ASS_MNG,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,ASS_EXPECTED_LIFE_YEARS_YRS,3bc7b880-b296-532f-9faf-8c41d69df5c3,TEXT,ASS_MNG,Type,Ass Expected Life Years Yrs [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,MAT_EPD_REF_TXT,9858e380-29bb-430b-82d0-7f2898d2fd3d,TEXT,MAT_INFO,Type,Environmental Product Declaration reference number per ISO 22057 [ISO 22057:2022],False,,,MULTI,1,0
 Generic Models,PRJ_DWG_ISSUE_PURPOSE_TXT,a3bf9281-16ad-5bc3-a389-da4fa300b2d4,TEXT,PRJ_INFORMATION,Type,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,LTG_CONTROLS_SPARE_02_TXT,444ed381-01e5-4d94-a1e8-c5f22377a01e,TEXT,LTG_CONTROLS,Type,Spare parameter 2 for LTG_CONTROLS group,False,,,MULTI,1,0
@@ -3483,7 +3483,6 @@ Generic Models,BLE_RAMP_SLOPE_TXT,6d067dcc-a4a8-534e-89a0-7ef33a11d653,TEXT,CST_
 Generic Models,ASS_CRITICALITY_RATING_TXT,ab05e034-3374-5996-a39f-cefdf502e852,TEXT,ASS_MNG,Instance,ASS_CRITICALITY_RATING_NR display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,LTG_CLR_TEMP_TXT,137315a5-f948-53a9-8745-25bad90d0770,TEXT,LTG_CONTROLS,Instance,LTG_CLR_TEMP_K display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,COM_C_DEV_BACNET_INSTANCE_TXT,a5ed6a44-3ebc-5c87-900c-75c69d413ed3,TEXT,COM_DAT,Instance,COM_C_DEV_BACNET_INSTANCE_INT display mirror [auto-generated],False,,,MULTI,1,0
-Generic Models,ASS_EXPECTED_LIFE_YEARS_TXT,8a640eab-e9ee-5aea-ad41-2be625cbadd4,TEXT,ASS_MNG,Instance,ASS_EXPECTED_LIFE_YEARS_YRS display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,BLE_STRUCT_LD_CAP_KN_TXT,e276658b-1928-5a8a-acd6-cc39845d344f,TEXT,CST_PROC,Instance,BLE_STRUCT_LD_CAP_KN_NR display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,CST_CALC_LENGTH_TXT,227ec904-3722-558d-941a-4353dd1e86a9,TEXT,COM_DAT,Instance,CST_CALC_LENGTH_M display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,CST_FIX_LUMEN_OUTPUT_TXT,2faac999-b3b7-55bc-9fd4-57a40f64e14c,TEXT,COM_DAT,Instance,CST_FIX_LUMEN_OUTPUT_LM display mirror [auto-generated],False,,,MULTI,1,0
