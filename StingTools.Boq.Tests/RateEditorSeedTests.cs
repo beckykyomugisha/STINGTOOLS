@@ -218,5 +218,124 @@ namespace StingTools.Boq.Tests
         {
             Assert.Empty(RateEditorSeed.Validate(new[] { Edit("cement", 28000), Edit("sand", 1400000) }));
         }
-    }
+    
+        // ── origin, sort order and stakes ───────────────────────────────────
+
+        [Fact]
+        public void A_Row_Carries_The_Categories_It_Was_Measured_From()
+        {
+            // "Generic - 225mm, 610 m2, unpriced" gave a QS no way to tell it
+            // was a ROOF — the one fact needed to price it.
+            var c = C("Generic - 225mm", qty: 610);
+            c.Categories = new List<string> { "Roofs" };
+
+            Assert.Equal("Roofs", RateEditorSeed.Build(Doc(c)).Rows.Single().Origin);
+        }
+
+        [Fact]
+        public void A_Commodity_From_Several_Categories_Names_Them_All()
+        {
+            // Cement comes from walls AND floors. Collapsing that to "the first
+            // one" would name a source that is only part of the truth.
+            var c = C("cement", rate: 28000, source: "baseline");
+            c.Categories = new List<string> { "Floors", "Walls" };
+
+            Assert.Equal("Floors, Walls", RateEditorSeed.Build(Doc(c)).Rows.Single().Origin);
+        }
+
+        [Fact]
+        public void Quantities_Are_Never_Sorted_Across_Units()
+        {
+            // 610 m2 sorted above 29 each said the roof mattered more than the
+            // ridge caps. Those two numbers cannot support that comparison.
+            var m2 = C("roof", qty: 610); m2.SupplierUnit = "m2";
+            var each = C("caps", qty: 29); each.SupplierUnit = "each";
+            var m2small = C("small-roof", qty: 21); m2small.SupplierUnit = "m2";
+
+            var rows = RateEditorSeed.Build(Doc(m2, each, m2small)).Rows;
+
+            // Grouped by unit first: both "each" rows together, both m2 together.
+            Assert.Equal(new[] { "caps", "roof", "small-roof" },
+                         rows.Select(r => r.CommodityKey).ToArray());
+        }
+
+        [Fact]
+        public void Within_A_Unit_The_Largest_Quantity_Still_Leads()
+        {
+            var big = C("big", qty: 610); big.SupplierUnit = "m2";
+            var small = C("small", qty: 21); small.SupplierUnit = "m2";
+
+            var rows = RateEditorSeed.Build(Doc(small, big)).Rows;
+
+            Assert.Equal("big", rows[0].CommodityKey);
+        }
+
+        [Fact]
+        public void The_Stakes_Line_Says_The_Priced_Total_Is_Short_Not_Complete()
+        {
+            var priced = C("cement", qty: 93, rate: 28000, source: "baseline");
+            var seed = RateEditorSeed.Build(Doc(priced, C("roof", qty: 610)));
+
+            string s = seed.Stakes();
+
+            Assert.Contains("2,604,000", s);
+            Assert.Contains("1 row(s) still unpriced", s);
+            Assert.Contains("short by whatever they are worth, not by zero", s);
+        }
+
+        [Fact]
+        public void A_Fully_Priced_Schedule_Says_So_Without_A_Warning()
+        {
+            string s = RateEditorSeed.Build(Doc(C("cement", qty: 93, rate: 28000, source: "baseline"))).Stakes();
+
+            Assert.Contains("every commodity carries a rate", s);
+            Assert.DoesNotContain("still unpriced", s);
+        }
+
+        // ── the identification detail ───────────────────────────────────────
+
+        [Fact]
+        public void A_Row_Backed_By_One_Element_Names_It()
+        {
+            var c = C("gate", qty: 1);
+            c.TraceRefs = new List<string> { "E-16438" };
+
+            var row = RateEditorSeed.Build(Doc(c)).Rows.Single();
+
+            Assert.Equal(1, row.ContributingRows);
+            Assert.Equal("E-16438", row.SingleTraceRef);
+        }
+
+        [Fact]
+        public void A_Row_Backed_By_Many_Names_None_Of_Them()
+        {
+            // A commodity is an aggregate. "The first of 40" would be a
+            // confident label for something untrue of the row.
+            var c = C("cement", rate: 28000, source: "baseline");
+            c.TraceRefs = new List<string> { "W1", "W2", "F1" };
+
+            var row = RateEditorSeed.Build(Doc(c)).Rows.Single();
+
+            Assert.Equal(3, row.ContributingRows);
+            Assert.Equal("", row.SingleTraceRef);
+        }
+
+        [Fact]
+        public void The_Reason_A_Row_Stayed_In_Measured_Units_Is_Carried()
+        {
+            var c = C("Generic - 225mm", qty: 610);
+            c.ConversionNote = "category 'Roofs' maps to 'roof-sheet', but type matches no pattern";
+
+            Assert.Contains("roof-sheet", RateEditorSeed.Build(Doc(c)).Rows.Single().ConversionNote);
+        }
+
+        [Fact]
+        public void The_Constituent_Kind_Is_Carried()
+        {
+            var c = C("cement", rate: 28000, source: "baseline");
+            c.SourceKind = "mortar_cement";
+
+            Assert.Equal("mortar_cement", RateEditorSeed.Build(Doc(c)).Rows.Single().SourceKind);
+        }
+}
 }

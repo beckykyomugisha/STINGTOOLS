@@ -163,6 +163,8 @@ namespace StingTools.Core.MaterialSchedule
                 }
                 a.SourceQuantity += row.Quantity;
                 if (!string.IsNullOrWhiteSpace(row.TraceRef)) a.TraceRefs.Add(row.TraceRef);
+                if (!string.IsNullOrWhiteSpace(row.Category)) a.Categories.Add(row.Category.Trim());
+                if (!string.IsNullOrWhiteSpace(row.TypeName)) a.TypeNames.Add(row.TypeName.Trim());
             }
 
             // Materialise stages in definition order, dropping empties.
@@ -203,6 +205,8 @@ namespace StingTools.Core.MaterialSchedule
                         RateUGX = rate.RateUGX,
                         RateSource = rate.Source,
                         TraceRefs = a.TraceRefs,
+                        Categories = a.Categories.ToList(),
+                        TypeNames = a.TypeNames.Take(8).ToList(),
                         SourceKind = a.SourceKind,
                         ConversionBlocked = a.ConversionBlocked,
                         ConversionNote = a.ConversionNote
@@ -246,6 +250,10 @@ namespace StingTools.Core.MaterialSchedule
             public bool ConversionBlocked;
             public string ConversionNote = "";
             public List<string> TraceRefs = new List<string>();
+            public readonly SortedSet<string> Categories =
+                new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            public readonly SortedSet<string> TypeNames =
+                new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
 }
