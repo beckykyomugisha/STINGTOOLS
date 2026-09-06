@@ -93,6 +93,11 @@ namespace StingTools.Core.Baseline
         public List<BaselineFinding> Findings = new List<BaselineFinding>();
         public List<string> BaselineProblems = new List<string>();
 
+        /// <summary>B3 — which catalogue packs this run adopted, if any. Null
+        /// when nothing was resolved; the report then says nothing about
+        /// catalogues, which is correct for a project that adopts none.</summary>
+        public CatalogueAdoption Adoption;
+
         public int MissingCount => Findings.Count(f => f.Kind == BaselineFindingKind.Missing);
         public int ConflictCount => Findings.Count(f => f.Kind == BaselineFindingKind.Conflict);
         public int GuidanceCount => Findings.Count(f => f.Kind == BaselineFindingKind.Guidance);
@@ -443,6 +448,16 @@ namespace StingTools.Core.Baseline
                 sb.AppendLine($"CANNOT CREATE — {r.GuidanceCount} item(s) need families loaded by hand:");
                 foreach (var f in r.Findings.Where(x => x.Kind == BaselineFindingKind.Guidance))
                     sb.AppendLine($"    ? {f.Name}: {f.Detail}");
+            }
+
+            // Adoption is a STATED DECISION and is reported as one. A project
+            // that believes it adopted a pack and did not is exactly the silent
+            // absence this mechanism exists to avoid, so an unknown id is named.
+            string adopted = r.Adoption?.Summary();
+            if (!string.IsNullOrEmpty(adopted))
+            {
+                sb.AppendLine();
+                sb.AppendLine(adopted);
             }
 
             sb.AppendLine();

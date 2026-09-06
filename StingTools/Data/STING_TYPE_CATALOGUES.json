@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0",
+  "note": "Catalogue packs are OPT-IN. NO pack applies unless a project adopts it by id, in <project>/_data/coord/project_baseline.json: { \"adoptCatalogues\": [\"EA-RESIDENTIAL-V1\"] }. This is deliberate. A fixed corporate catalogue would be one person's reading of the market applied to every future project and reported by the audit as though it were a standard, so a project whose doors are genuinely 850 wide would be told on every run that it is missing a type it does not want. A new market is a NEW PACK, not a change to the universal baseline; packs are versioned in the id, so -V1 to -V2 is an explicit migration and never a silent redefinition of what a project already adopted.",
+  "packs": [
+    {
+      "id": "EA-RESIDENTIAL-V1",
+      "title": "East African residential — provisional starter",
+      "status": "provisional",
+      "sourceNote": "PROVISIONAL AND ADOPTED BY NOBODY. Seeded from common Ugandan residential practice, NOT from a standard and NOT from a completed project. It is a SHAPE showing what a pack looks like, not a recommendation of these sizes. Replace it by harvesting a delivered model with Baseline_HarvestTypes, so the catalogue grows from work that was actually built and paid for rather than from anyone's recollection of the market. After two or three delivered projects this pack should be replaced outright.",
+      "familyTypes": [
+        {
+          "category": "Doors",
+          "familyNamePatterns": ["M_Single-Flush", "Single-Flush", "Single Flush", "Door"],
+          "typeName": "STING Door Flush 900x2100",
+          "purpose": "Main internal single leaf",
+          "parameters": [
+            { "name": "Width", "valueMm": 900 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Doors",
+          "familyNamePatterns": ["M_Single-Flush", "Single-Flush", "Single Flush", "Door"],
+          "typeName": "STING Door Flush 800x2100",
+          "purpose": "Bedroom and store internal leaf",
+          "parameters": [
+            { "name": "Width", "valueMm": 800 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Doors",
+          "familyNamePatterns": ["M_Single-Flush", "Single-Flush", "Single Flush", "Door"],
+          "typeName": "STING Door Flush 700x2100",
+          "purpose": "Bathroom and WC leaf",
+          "parameters": [
+            { "name": "Width", "valueMm": 700 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Doors",
+          "familyNamePatterns": ["M_Double-Flush", "Double-Flush", "Double", "Door"],
+          "typeName": "STING Door Entrance 1200x2400",
+          "purpose": "Main entrance, double leaf",
+          "parameters": [
+            { "name": "Width", "valueMm": 1200 },
+            { "name": "Height", "valueMm": 2400 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": ["M_Fixed", "Fixed", "Casement", "Window"],
+          "typeName": "STING Window 1200x1200",
+          "purpose": "Habitable room window",
+          "parameters": [
+            { "name": "Width", "valueMm": 1200 },
+            { "name": "Height", "valueMm": 1200 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": ["M_Fixed", "Fixed", "Casement", "Window"],
+          "typeName": "STING Window 1500x1200",
+          "purpose": "Living room window",
+          "parameters": [
+            { "name": "Width", "valueMm": 1500 },
+            { "name": "Height", "valueMm": 1200 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": ["M_Fixed", "Fixed", "Casement", "Window"],
+          "typeName": "STING Window 600x600",
+          "purpose": "Bathroom and WC high-level light",
+          "parameters": [
+            { "name": "Width", "valueMm": 600 },
+            { "name": "Height", "valueMm": 600 }
+          ]
+        }
+      ]
+    }
+  ]
+}

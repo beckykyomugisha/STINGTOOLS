@@ -49,6 +49,70 @@ namespace StingTools.Commands.Baseline
             Merge(b.CeilingTypes, over.CeilingTypes, t => t.Name);
             Merge(b.Levels, over.Levels, l => l.Name);
             Merge(b.FamilyExpectations, over.FamilyExpectations, f => f.Category);
+
+            // These three were NOT merged, and the corporate file ships all
+            // three empty — so the only place layer 2 and layer 3 content can
+            // come from is the project override, and it was being dropped on
+            // the floor. Both layers were unreachable: a project declaring
+            // familyTypes got a clean audit and no explanation.
+            //
+            // Keyed on category+name for types (the same "STING 900x2100" may
+            // legitimately exist for a door and a window) and on category for
+            // parameter sets.
+            Merge(b.FamilyTypes, over.FamilyTypes, t => t.Category + "|" + t.TypeName);
+            Merge(b.FamilyParameters, over.FamilyParameters, f => f.Category);
+
+            // Adoption is a project decision and REPLACES rather than adds to
+            // the corporate list, which is empty by design: a corporate
+            // baseline that adopted a pack would be the fixed catalogue this
+            // whole mechanism exists to avoid.
+            if (over.AdoptCatalogues != null && over.AdoptCatalogues.Count > 0)
+                b.AdoptCatalogues = over.AdoptCatalogues;
+
+            return b;
+        }
+
+        /// <summary>Corporate catalogue packs. No project override: a pack is
+        /// shared, versioned content, and a project that wants different types
+        /// declares them directly in familyTypes.</summary>
+        public static TypeCatalogueLibrary LoadCatalogues()
+        {
+            try
+            {
+                string path = StingToolsApp.FindDataFile("STING_TYPE_CATALOGUES.json");
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    StingLog.Warn("BaselineRegistry: STING_TYPE_CATALOGUES.json not found; "
+                                + "no catalogue pack can be adopted.");
+                    return new TypeCatalogueLibrary();
+                }
+                return JsonConvert.DeserializeObject<TypeCatalogueLibrary>(File.ReadAllText(path))
+                       ?? new TypeCatalogueLibrary();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BaselineRegistry.LoadCatalogues: {ex.Message}");
+                return new TypeCatalogueLibrary();
+            }
+        }
+
+        /// <summary>
+        /// The baseline a run should actually use: corporate + project override,
+        /// with any adopted catalogue packs folded in. One entry point, so the
+        /// audit and the apply can never disagree about what was adopted.
+        /// </summary>
+        public static ProjectBaseline LoadResolved(Document doc, out CatalogueAdoption adoption)
+        {
+            var b = Load(doc);
+            var lib = LoadCatalogues();
+            adoption = TypeCatalogueResolver.Apply(b, lib);
+
+            // A broken LIBRARY is reported through the same channel as a broken
+            // baseline, because from a user's seat it is the same failure: the
+            // data that decides what reaches their model is wrong.
+            foreach (string problem in lib.Validate())
+                StingLog.Warn($"BaselineRegistry catalogue: {problem}");
+
             return b;
         }
 
@@ -561,9 +625,10 @@ namespace StingTools.Commands.Baseline
                 return Result.Cancelled;
             }
 
-            var baseline = BaselineRegistry.Load(doc);
+            var baseline = BaselineRegistry.LoadResolved(doc, out var adoption);
             var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
             audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
+            audit.Adoption = adoption;
             TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
             return Result.Succeeded;
         }
@@ -582,12 +647,13 @@ namespace StingTools.Commands.Baseline
                 return Result.Cancelled;
             }
 
-            var baseline = BaselineRegistry.Load(doc);
+            var baseline = BaselineRegistry.LoadResolved(doc, out var adoption);
             // The SAME inventory feeds the audit and the mint. Reading twice
             // would let the model change between them, so Apply could mint
             // against facts the user never saw in the report.
             var inventory = BaselineModelReader.Read(doc, baseline);
             var audit = BaselineAuditor.Audit(baseline, inventory);
+            audit.Adoption = adoption;
 
             // A shared-parameter name that the FILE does not define cannot be
             // added to anything. Resolving it here means Apply refuses before a

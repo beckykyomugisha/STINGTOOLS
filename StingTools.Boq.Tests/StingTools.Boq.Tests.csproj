@@ -60,6 +60,9 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <!-- B3 - opt-in catalogue packs. Adoption decides what reaches a model,
+         so it is Revit-free and tested. -->
+    <Compile Include="..\StingTools\Core\Baseline\TypeCatalogue.cs" Link="Baseline\TypeCatalogue.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAugmentReport.cs" Link="Baseline\BaselineAugmentReport.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
          is testable, not just the model behind it. -->
@@ -99,6 +102,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_MATERIAL_STAGES.json" Link="Data\STING_MATERIAL_STAGES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_TYPE_CATALOGUES.json" Link="Data\STING_TYPE_CATALOGUES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_PROJECT_BASELINE.json" Link="Data\STING_PROJECT_BASELINE.json">

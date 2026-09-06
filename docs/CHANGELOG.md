@@ -2,6 +2,64 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 254 — B3: catalogue packs nobody has adopted, and the merge that made layers 2 and 3 reachable)
+
+**The defect found on the way in.** `BaselineRegistry.Load` merged materials, host types, levels and
+family *expectations* from the project override — but **not `familyTypes`, `familyParameters` or
+`adoptCatalogues`**. The corporate file ships all three empty, so the project override was the
+**only possible source** for layers 2 and 3, and it was being dropped on the floor. Both layers
+shipped unreachable: a project declaring `familyTypes` got a clean audit and no explanation. Fixed
+here because B3's adoption mechanism could not have worked either.
+
+**Why not a fixed corporate catalogue.** Shipping ~30 East African types in the universal baseline
+would be **one person's reading of the market**, applied to every future project and reported by the
+audit as though it were a standard. A project whose doors are genuinely 850 wide would be told, on
+every run, that it is missing a type it does not want. That is the familiar failure: a confident
+default nobody asked for, that nobody checks.
+
+**So: named, versioned packs in `STING_TYPE_CATALOGUES.json`, none active by default.** A project
+adopts by id in its own override — `{ "adoptCatalogues": ["EA-RESIDENTIAL-V1"] }` — which makes
+adoption a **stated decision**, reported in the audit. Properties that make it sustainable:
+
+* **Additive, and the project wins.** A project can adopt a pack and still override individual types
+  by declaring them itself; overrides are counted and named so they are visible rather than
+  mysterious.
+* **A new market is a new pack**, not a code change and not a change to the universal baseline.
+* **Packs are versioned in the id**, so `-V1` → `-V2` is an explicit migration, never a silent
+  redefinition of what a project already adopted.
+* **An adopted id matching no pack is NAMED, never ignored.** A project that believes it adopted a
+  catalogue and did not is exactly the confident absence this codebase keeps paying for.
+* **Pack types are held to the same layer-2 rules**, by borrowing `ProjectBaseline.Validate` rather
+  than restating them — which is what keeps the two from drifting.
+
+**One pack ships: `EA-RESIDENTIAL-V1`, provisional, adopted by nobody.** Its `sourceNote` says the
+sizes are seeded from common Ugandan residential practice, **not** from a standard and **not** from a
+completed project, that it is a *shape* rather than a recommendation, and that it should be replaced
+by harvesting a delivered model (B4). Validation **requires** a source note on any provisional pack:
+one that does not say why it is provisional reads exactly like a standard.
+
+A provisional pack nobody has adopted can be wrong without costing anything. A corporate default
+cannot.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 772 → **776 green** on top
+of #811/#813. All four gates pass. **Twenty-seven deliberately wrong inputs were each shown to make
+the matching gate FAIL, then restored**, including the delete-the-thing-it-protects check on every
+new gate: packs applying unadopted, an unknown id ignored, the pack overwriting a project
+declaration, the override match ignoring the category, an invented "0 packs" finding, six ways of
+weakening the summary and the validation, the corporate baseline adopting a pack or declaring the
+types inline, the shipped pack claiming to be reviewed, its source note losing its disclaimer, its id
+losing its version, a pack type losing the STING prefix or its size, windows dropped from the pack, a
+pack type that would break the baseline it joins, and adoption accumulating instead of replacing.
+
+One test failed on its own premise rather than on the code: the family name `M_Single-Flush` does not
+contain the pattern `Door`, so the audit correctly reported guidance. The **test** was fixed.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone* — across T1–T5 and all three
+baseline layers. The adoption resolver and the library validation are Revit-free and fully tested;
+`LoadResolved` and the override merge read files through `StingPaths` and have **never executed
+against a real model**. In particular, **the claim that layers 2 and 3 are now reachable is untested
+in Revit** — it is a code-reading finding with a repaired merge behind it, not an observed export.
+
 #### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
 
 Two pools of work were invisible: **40 remote branches that had never had a PR opened on
