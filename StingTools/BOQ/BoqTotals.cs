@@ -40,10 +40,15 @@ namespace StingTools.BOQ
     ///   7. Contract Sum        = Net + V        (the canonical GrandTotal, incl VAT)
     ///
     /// Contingency is applied *after* prelims and OH&P per standard practice.
+    ///
     /// Per-element rate-level OH&P (the opt-in ES override loaded rate, i.e. a
-    /// subcontractor's already-loaded quote) is a DIFFERENT layer baked into the
-    /// net unit rate — it is part of <c>Works</c>, not re-applied here, so the
-    /// document OH&P never double-fires against the project markup.
+    /// subcontractor's already-loaded quote) is a DIFFERENT layer, baked into the net
+    /// unit rate. It is part of <c>Works</c> — and therefore part of the OH&amp;P base
+    /// unless it is declared, which is what <paramref name="ohpLoadedWorks"/> is for.
+    /// This docstring previously claimed the document OH&amp;P "never double-fires"
+    /// against such a line; nothing implemented that, and step 3 above marks up the
+    /// whole works subtotal including the loaded portion. Declaring the loaded Σ is now
+    /// the mechanism that makes the claim true (ROADMAP LIFE-3).
     /// </summary>
     public static class BoqTotals
     {
@@ -57,21 +62,40 @@ namespace StingTools.BOQ
         /// establishment, storage and handling are earned on Owner-supplied goods too.
         /// <para>DEFAULTS TO 0, which reproduces the previous arithmetic exactly.</para>
         /// </param>
+        /// <param name="ohpLoadedWorks">
+        /// The portion of <paramref name="works"/> whose unit rate ALREADY carries the
+        /// contractor's overhead and profit — a stamped rate override from a
+        /// subcontractor's loaded quote. The document OH&amp;P percentage must not fire
+        /// against it a second time.
+        /// <para>Distinct from <paramref name="markupExemptWorks"/>, and deliberately not
+        /// folded into it: Owner-procured FF&amp;E leaves the OH&amp;P base AND the
+        /// contingency base, because the contractor neither earns margin nor carries risk
+        /// on goods the Owner buys. A loaded rate leaves the OH&amp;P base ONLY — the work
+        /// is still contractor-executed and still carries design/construction risk, so it
+        /// stays in the contingency base. Merging the two parameters would silently stop
+        /// charging contingency on subcontracted work.</para>
+        /// <para>DEFAULTS TO 0, which reproduces the previous arithmetic exactly.</para>
+        /// </param>
         public static BoqMarkupBreakdown Compute(double works, double prelimsAbsolute,
             double overheadPct, double contingencyPct, double vatPct,
-            double markupExemptWorks = 0)
+            double markupExemptWorks = 0, double ohpLoadedWorks = 0)
         {
             var b = new BoqMarkupBreakdown
             {
                 Works = works,
                 Prelims = prelimsAbsolute
             };
-            // Never let a bad exempt figure invert the base.
+            // Never let a bad exempt figure invert the base. The two exemptions are
+            // clamped together as well as individually: a line can be both Owner-procured
+            // and loaded, and double-subtracting it would drive the base negative.
             double exempt = Math.Max(0, Math.Min(markupExemptWorks, works));
+            double loaded = Math.Max(0, Math.Min(ohpLoadedWorks, works - exempt));
             double sub1 = works + b.Prelims;
-            double ohpBase = sub1 - exempt;
+            double ohpBase = sub1 - exempt - loaded;
             b.Overhead = ohpBase * (overheadPct / 100.0);
-            double contBase = ohpBase + b.Overhead;
+            // Contingency base excludes the FF&E only -- the loaded lines are added back,
+            // because risk is carried on them even though margin is not earned twice.
+            double contBase = ohpBase + loaded + b.Overhead;
             b.Contingency = contBase * (contingencyPct / 100.0);
             b.NetExVat = sub1 + b.Overhead + b.Contingency;
             b.Vat = b.NetExVat * (vatPct / 100.0);

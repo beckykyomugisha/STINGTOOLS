@@ -302,6 +302,14 @@ namespace StingTools.BOQ
         /// Fohlio v2 work.</summary>
         public bool FfeOwnerProcured;
 
+        /// <summary>The unit rate on this line already carries the contractor's overhead
+        /// and profit — set when a stamped rate override declares a non-zero overhead or
+        /// profit percentage, i.e. a subcontractor's loaded quote. Such a line is removed
+        /// from the document OH&amp;P base (see <see cref="BoqTotals"/>) so the project
+        /// markup does not fire against it a second time. It stays in the contingency
+        /// base: the work is still contractor-executed and still carries risk.</summary>
+        public bool RateIncludesOhp;
+
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
 
@@ -459,6 +467,15 @@ namespace StingTools.BOQ
         /// project that has not set an FF&amp;E treatment, so the totals are unchanged.</summary>
         public double FfeOwnerProcuredUGX => AllItems.Where(i => i.FfeOwnerProcured).Sum(i => i.TotalUGX);
 
+        /// <summary>Σ of line totals whose unit rate already carries overhead and profit
+        /// (a stamped loaded rate). Removed from the OH&amp;P base only — see
+        /// <see cref="BoqTotals.Compute"/>. Excludes Owner-procured FF&amp;E, which is
+        /// already out of that base through <see cref="FfeOwnerProcuredUGX"/>; counting a
+        /// line in both would subtract it twice. Zero for every project with no stamped
+        /// loaded rates, so the totals are unchanged.</summary>
+        public double OhpLoadedWorksUGX =>
+            AllItems.Where(i => i.RateIncludesOhp && !i.FfeOwnerProcured).Sum(i => i.TotalUGX);
+
         /// <summary>
         /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
         /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
@@ -466,7 +483,7 @@ namespace StingTools.BOQ
         /// </summary>
         public BoqMarkupBreakdown Markup =>
             BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct,
-                              FfeOwnerProcuredUGX);
+                              FfeOwnerProcuredUGX, OhpLoadedWorksUGX);
 
         public double OverheadProfitUGX => Markup.Overhead;
         public double ContingencyUGX    => Markup.Contingency;

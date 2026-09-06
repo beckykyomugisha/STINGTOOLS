@@ -906,6 +906,24 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.WarnRateLimited("SpecText", $"Spec-text bridge: {ex.Message}"); }
             }
 
+            // A stamped rate override that declares overhead or profit IS a loaded rate —
+            // a subcontractor quote already carrying the contractor's margin. Derived from
+            // the percentages the schema already stores rather than a new ES field:
+            // ExtensibleStorage schemas are immutable once registered, so adding a field
+            // would mean a new GUID and a migration for every stamped element.
+            try
+            {
+                var ovr = StingCostRateOverrideSchema.Read(el);
+                if (ovr != null && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
+                {
+                    line.RateIncludesOhp = true;
+                    string ohpNote = $"Rate loaded (OH {ovr.OverheadPercent:0.##}% + profit " +
+                                     $"{ovr.ProfitPercent:0.##}%) — excluded from the document OH&P base";
+                    line.Note = string.IsNullOrEmpty(line.Note) ? ohpNote : $"{line.Note}; {ohpNote}";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Boq.LoadedRate", $"loaded-rate read: {ex.Message}"); }
+
             // Apply the FF&E treatment resolved above. "measured" needs nothing — it is
             // a normal model line that happens to be priced from the Fohlio rate.
             if (ffeTreatment == StingTools.BOQ.FfeTreatment.Ffe)

@@ -36,6 +36,12 @@
     <!-- RC-1 — Document-free material-key canonicaliser. -->
     <Compile Include="..\StingTools\Core\Materials\MaterialKeyCanonicaliser.cs" Link="Materials\MaterialKeyCanonicaliser.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
+    <!-- ROADMAP LIFE-3: the markup waterfall. Revit-free, but not previously
+         compiled here, so the OH&amp;P base had no test. -->
+    <Compile Include="..\StingTools\BOQ\BoqTotals.cs" Link="BoqTotals.cs" />
+    <!-- ROADMAP LIFE-3: pure take-off unit conversion, split out of TakeoffRule.cs
+         (which imports the Revit API) so a wrong factor is caught by a test. -->
+    <Compile Include="..\StingTools\BOQ\Takeoff\TakeoffUnitConversion.cs" Link="Takeoff\TakeoffUnitConversion.cs" />
     <Compile Include="..\StingTools\BOQ\BoqUnits.cs" Link="BoqUnits.cs" />
     <!-- MAT-3 — Document-free compound take-off engine. -->
     <Compile Include="..\StingTools\BOQ\Takeoff\CompoundTakeoff.cs" Link="Takeoff\CompoundTakeoff.cs" />
