@@ -1247,12 +1247,19 @@ namespace StingTools.Core.Placement
 
         public static string ResolveConvertedDir(Document doc)
         {
-            string projDir = !string.IsNullOrEmpty(doc?.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
-                : null;
-            if (string.IsNullOrEmpty(projDir))
-                projDir = Path.Combine(Path.GetTempPath(), "STING_FamilyConverter");
-            return Path.Combine(projDir, "_BIM_COORD", "Families", "Converted");
+            // Resolved through StingPaths, not Path.Combine'd by hand: on a
+            // consolidated project the metadata tree is not a sibling of the .rvt,
+            // so a hand-built <projDir>/_BIM_COORD/... writes converted families
+            // somewhere nothing reads them. tools/check_path_discipline.ps1 gates
+            // this, and the gate is the reason it was caught.
+            if (!string.IsNullOrEmpty(doc?.PathName))
+            {
+                try { return StingPaths.Meta(doc, "_BIM_COORD", "Families", "Converted"); }
+                catch (Exception ex) { StingLog.Warn($"ResolveConvertedDir: {ex.Message}"); }
+            }
+            // Unsaved document: no project tree to resolve against, so fall back to
+            // a temp folder. Deliberately keeps the same leaf shape.
+            return Path.Combine(Path.GetTempPath(), "STING_FamilyConverter", "Families", "Converted");
         }
 
         private static string Sanitize(string name)
