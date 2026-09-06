@@ -12,6 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc  # noqa: E402
+import kut_naming as N  # noqa: E402
 
 OUT = 'KUT_Mobilisation_Information_Request.docx'
 ORIGINATOR = 'SMB'
@@ -27,7 +28,7 @@ c.title_page(
         ('Document reference', 'KUT-%s-ZZ-ZZ-RP-Z-0004' % ORIGINATOR),
         ('Revision', 'P01'),
         ('Status / suitability', 'S3 — for review and response'),
-        ('From', '[FILL — name], Information Management'),
+        ('From', 'Mayanja Davis, Information Management'),
         ('To', '[FILL — name], Symbion Consulting Group Studios (Lead Appointed Party)'),
         ('Copied to', '[FILL]'),
         ('Date', '[FILL]'),
@@ -39,13 +40,15 @@ c.footer('KUT Mobilisation Information Request   |   Rev P01')
 
 # ── 1 ───────────────────────────────────────────────────────────────────────
 c.h1('1  Purpose', page_break=False)
-c.para('The BIM Execution Plan and the Project Delivery Playbook are drafted and ready to issue. Eleven items '
-       'in Section 15.1 of the plan must be settled before the kickoff, because they determine the project '
+c.para('The mobilisation set is drafted and ready to issue: the BIM Execution Plan, the Project Delivery '
+       'Playbook, the Document Control Standard and the Master Information Delivery Plan. Eleven items in '
+       'Section 15.1 of the plan must be settled before the kickoff, because they determine the project '
        'template every appointed party starts from. Training a team on standards that are not yet decided '
        'produces a team that has to be retrained, and models that have to be redone.')
-c.para('This request lists those items in one place, states what each unblocks, and where the answer sits '
-       'with the Appointing Party rather than the Lead Appointed Party, says so. Nothing here is a decision '
-       'for information management to take alone.')
+c.para('Those eleven items are asked for here as nine requests — several of them are answered by the same '
+       'document, and asking twice for one answer wastes your time. Section 5 lists the nine and what each '
+       'unblocks. Where an answer sits with the Appointing Party rather than the Lead Appointed Party, it '
+       'says so; nothing here is a decision for information management to take alone.')
 c.callout('Two items have consequences that cannot be undone later and are marked accordingly: the site '
           'survey, which sets the coordinate system, and the classification of restricted information. Both '
           'are dealt with in Section 2.', 'Two items that cannot be corrected later')
@@ -134,8 +137,8 @@ c.h2('3.3  Level and grid register')
 c.table(['Required', 'Detail'],
         [['Levels', 'Level names and reduced levels, and which volumes each applies to'],
          ['Grids', 'The grid naming convention'],
-         ['Confirmation', 'That the seven volumes — Temple, Meetinghouse, Housing and Ancillary, Grounds, '
-                          'Utility, Guard House and site-wide — are correct and complete']],
+         ['Confirmation', 'That the volumes are correct and complete: '
+                          + ', '.join(v for _n, _c, v, _a in N.VOLUMES if _c != 'ZZ')]],
         widths=[3.6, 13.0])
 c.para('Level codes appear in every container name, so a level renamed after issue invalidates every '
        'reference to it.')
@@ -174,8 +177,17 @@ c.table(['Item', 'Who must be present', 'Reference'],
          ['Model health thresholds — file size, warning counts', 'All discipline leads', 'BEP 10.2'],
          ['Task Information Delivery Plans — returns and dates', 'Task Team Managers', 'BEP 9'],
          ['Capability and capacity — confirmation of named individuals and time', 'Task Team Managers',
-          'BEP 12.1']],
+          'BEP 12.1'],
+         ['Sheet number banding — the first digit of a sheet number carries meaning. Three schemes were in '
+          'use across earlier drafts and one must be adopted', 'All discipline leads',
+          'Document Control Standard 3'],
+         ['FF&E catalogue scope — which categories are procured and specified through the catalogue, which '
+          'sets what must be linked at handover', 'Interior designer, Appointing Party', 'BEP 15.2 item 18a']],
         widths=[7.4, 6.0, 3.2])
+c.callout('**No sheet numbers can be allocated until the banding is settled.** A sheet renumbered after '
+          'issue invalidates every drawing reference, every transmittal and every register row that names '
+          'it. It is a five-minute decision at the kickoff and an expensive one afterwards.',
+          'One that blocks drawing production')
 c.callout('The clash tolerances are the item most often deferred and most expensive to defer. Until they are '
           'agreed, clash detection reports geometric collisions only, and nothing about access or '
           'maintainability is being checked at all. They are required before the first coordination cycle of '
