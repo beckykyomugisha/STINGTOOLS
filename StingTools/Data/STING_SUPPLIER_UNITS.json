@@ -266,6 +266,38 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "ceiling-board",
+      "description": "Ceiling board (gypsum / plasterboard)",
+      "spec": "1200x2400 sheet = 2.88 m2",
+      "supplierUnit": "Sheets",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 2.88,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "ceiling_board"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "ceiling-furring",
+      "description": "Ceiling furring / suspension grid (DERIVED from area by a practice ratio - not measured)",
+      "spec": "3.6 m length",
+      "supplierUnit": "Lengths",
+      "sourceUnit": "m",
+      "sourceUnitsPerSupplierUnit": 3.6,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "ceiling_furring"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

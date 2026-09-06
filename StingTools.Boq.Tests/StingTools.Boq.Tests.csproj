@@ -53,6 +53,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\FinishTextClassifier.cs" Link="MaterialSchedule\FinishTextClassifier.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoomFinishTally.cs" Link="MaterialSchedule\RoomFinishTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ScreedScanTally.cs" Link="MaterialSchedule\ScreedScanTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\CeilingScanTally.cs" Link="MaterialSchedule\CeilingScanTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself

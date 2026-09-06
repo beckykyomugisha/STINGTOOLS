@@ -136,6 +136,18 @@ namespace StingTools.BOQ.MaterialSchedule
             string screedScan = Takeoff.CompoundTakeoffBuilder.ScreedScan.Summary();
             if (!string.IsNullOrEmpty(screedScan)) result.Warnings.Add(screedScan);
 
+            // MATSCHED-T2 — ceilings decomposed into nothing at all before this,
+            // and an empty result is indistinguishable from a model with no
+            // ceilings unless the scan says which it was.
+            string ceilingScan = Takeoff.CompoundTakeoffBuilder.CeilingScan.Summary();
+            if (!string.IsNullOrEmpty(ceilingScan)) result.Warnings.Add(ceilingScan);
+
+            // The furring banner is separate and CONDITIONAL: a ratio must never
+            // be presented as a measurement, and a banner qualifying a row that
+            // was never emitted is noise.
+            string furringBanner = Takeoff.CompoundTakeoffBuilder.CeilingScan.Tally.FurringBanner();
+            if (!string.IsNullOrEmpty(furringBanner)) result.Warnings.Add(furringBanner);
+
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
 

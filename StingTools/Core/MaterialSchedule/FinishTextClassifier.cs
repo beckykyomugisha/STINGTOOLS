@@ -101,6 +101,67 @@ namespace StingTools.Core.MaterialSchedule
             return "STANDARD";
         }
 
+        // ── ceilings (MATSCHED-T2) ────────────────────────────────────────
+
+        /// <summary>
+        /// Board products sold as 1200x2400 SHEETS. The commodity rule converts
+        /// m² to sheets at 2.88 m² each, so the predicate has to mean "sold by
+        /// that sheet" and nothing looser.
+        ///
+        /// A BOARD WORD IS REQUIRED. The first draft matched bare "gypsum", and
+        /// the test for "Gypsum Skim" caught it: a wet gypsum skim would have
+        /// been priced as sheets of plasterboard — wrong in the count, the rate
+        /// and the trade. Gypsum is the material; board is the product.
+        /// </summary>
+        private static readonly Regex CeilingBoardPattern = new Regex(
+            @"plasterboard|plaster\s*board|gypsum\s*(wall\s*)?board|gyproc|drywall|wall\s*board|cement\s*board",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Ceiling finishes that are NOT sheet board. Every one of these is a
+        /// real product bought a different way — a mineral-fibre tile by the
+        /// tile, PVC and T&amp;G by the length — so pricing them per 2.88 m² sheet
+        /// would be wrong in both the count and the rate. They are rejected and
+        /// NAMED by the scan rather than absorbed.
+        ///
+        /// It names product FORMS, not adjectives. The first draft carried bare
+        /// `acoustic` and bare `metal`, which would have rejected "Acoustic
+        /// Plasterboard" — a genuine 1200x2400 sheet. Over-exclusion is not the
+        /// safe direction: it drops a real material silently, exactly like the
+        /// omission this whole task exists to fix.
+        /// </summary>
+        private static readonly Regex NotCeilingBoardPattern = new Regex(
+            @"ceiling tile|mineral fibre|mineral fiber|acoustic tile|pvc|t&g|tongue|timber|softwood|hardwood|aluminium|aluminum|metal pan|metal tile",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static bool IsCeilingBoard(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            if (NotCeilingBoardPattern.IsMatch(name)) return false;
+            return CeilingBoardPattern.IsMatch(name);
+        }
+
+        /// <summary>
+        /// A wet plaster or skim coat on a ceiling. Distinct from board: it is
+        /// bought as cement and sand, not as sheets, and a ceiling can carry
+        /// BOTH (board skimmed after fixing) — which is why these are two
+        /// predicates and not one classification.
+        /// </summary>
+        private static readonly Regex CeilingPlasterPattern = new Regex(
+            @"plaster|skim|render|stucco",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static bool IsCeilingPlaster(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            // "Plasterboard" and "Gypsum Plaster Board" both contain "plaster"
+            // and are neither of them a wet coat. Board wins outright, so the
+            // two predicates can never both accept the same layer.
+            if (IsCeilingBoard(name)) return false;
+            if (name.IndexOf("board", StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            return CeilingPlasterPattern.IsMatch(name);
+        }
+
         /// <summary>
         /// True when a Base Finish names something real to buy. Rooms carry the
         /// literal strings "None", "N/A" and "-" far more often than they carry

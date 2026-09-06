@@ -106,6 +106,12 @@ namespace StingTools.BOQ.Takeoff
                 // would invent 137 m3 that does not exist.
                 if (cat.IndexOf("Roof", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcSlab(doc, el, csvRates, requireExplicitConcrete: true);
+                // MATSCHED-T2 — Ceilings appeared in NO branch, so a suspended
+                // gypsum ceiling decomposed into nothing at all, silently. It is
+                // matched before the framing/column tests because none of those
+                // can claim it, and after Roofs because neither name overlaps.
+                if (cat.IndexOf("Ceiling", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return BuildCeiling(doc, el, csvRates);
                 if (cat.IndexOf("Structural Framing", StringComparison.OrdinalIgnoreCase) >= 0
                     || cat.IndexOf("Beam", StringComparison.OrdinalIgnoreCase) >= 0)
                     return BuildRcBeam(doc, el, csvRates);
@@ -398,6 +404,8 @@ namespace StingTools.BOQ.Takeoff
                 case "mortar_sand": return "Sand";
                 case "plaster": return "Plaster";
                 case "screed": return "Screed";
+                case "ceiling_board": return "Ceiling Board";
+                case "ceiling_furring": return "Ceiling Furring";
                 case "screed_cement": return "Cement";
                 case "screed_sand": return "Sand";
                 case "paint_interior": return "Painting";
@@ -802,6 +810,7 @@ namespace StingTools.BOQ.Takeoff
             HostLayerCache.Reset();
             TileFinishScan.Reset();
             ScreedScan.Reset();
+            CeilingScan.Reset();
         }
 
         /// <summary>
@@ -912,6 +921,150 @@ namespace StingTools.BOQ.Takeoff
             string key = StingTools.Core.MaterialSchedule.FinishTextClassifier.ScreedKey(screedName);
             return (Prop($"SCREED {key}", "MIX_CEMENT_BAGS_PER_M3", "SCREED DEFAULT"),
                     Prop($"SCREED {key}", "MIX_SAND_RATIO", "SCREED DEFAULT"));
+        }
+
+        // -- ceiling scan (MATSCHED-T2) --------------------------------------
+
+        /// <summary>A type's ceiling finish: the board it names, the wet coat it
+        /// names, and that coat's declared thickness.</summary>
+        internal struct CeilingHit
+        {
+            public string BoardLabel;
+            public string PlasterLabel;
+            public double PlasterThicknessM;
+
+            /// <summary>False when the type named neither, so the caller falls
+            /// back to the composite line instead of emitting an empty section.</summary>
+            public bool Any => !string.IsNullOrEmpty(BoardLabel) || !string.IsNullOrEmpty(PlasterLabel);
+        }
+
+        /// <summary>Per-run ceiling-scan cache and tally. See CeilingScanTally for
+        /// why the counts exist.</summary>
+        internal static class CeilingScan
+        {
+            private static readonly Dictionary<long, CeilingHit> Cache = new Dictionary<long, CeilingHit>();
+
+            public static readonly StingTools.Core.MaterialSchedule.CeilingScanTally Tally =
+                new StingTools.Core.MaterialSchedule.CeilingScanTally();
+
+            public static void Reset() { Cache.Clear(); Tally.Reset(); }
+
+            public static bool TryGet(long typeId, out CeilingHit hit) => Cache.TryGetValue(typeId, out hit);
+            public static void Store(long typeId, CeilingHit hit) { Cache[typeId] = hit; }
+            public static string Summary() => Tally.Summary();
+        }
+
+        /// <summary>Board and plaster layers on a ceiling type.</summary>
+        private static CeilingHit ReadCeilingFinish(Document doc, Element el)
+        {
+            try
+            {
+                var typeId = el?.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return default(CeilingHit);
+                long key = typeId.Value;
+                if (CeilingScan.TryGet(key, out var cached)) return cached;
+
+                var layers = HostLayerCache.Get(doc, el);
+                if (layers == null)
+                {
+                    // A ceiling drawn from a plain type is the likeliest reason
+                    // for an empty result, and it is a fact about the MODEL. It
+                    // gets its own counter so the export can say so instead of
+                    // reporting nothing and leaving it to be guessed at.
+                    CeilingScan.Tally.TypesWithoutCompoundStructure++;
+                    CeilingScan.Store(key, default(CeilingHit));
+                    return default(CeilingHit);
+                }
+
+                CeilingScan.Tally.TypesInspected++;
+                var hit = new CeilingHit();
+                bool anyFinishLayer = false;
+                foreach (var layer in layers)
+                {
+                    if (layer.Function != MaterialFunctionAssignment.Finish1
+                     && layer.Function != MaterialFunctionAssignment.Finish2) continue;
+                    anyFinishLayer = true;
+                    if (string.IsNullOrEmpty(layer.MaterialName)) continue;
+
+                    if (StingTools.Core.MaterialSchedule.FinishTextClassifier.IsCeilingBoard(layer.MaterialName))
+                    {
+                        if (string.IsNullOrEmpty(hit.BoardLabel)) hit.BoardLabel = layer.MaterialName;
+                        continue;
+                    }
+                    if (StingTools.Core.MaterialSchedule.FinishTextClassifier.IsCeilingPlaster(layer.MaterialName))
+                    {
+                        if (string.IsNullOrEmpty(hit.PlasterLabel))
+                        {
+                            hit.PlasterLabel = layer.MaterialName;
+                            hit.PlasterThicknessM = layer.ThicknessM;
+                        }
+                        continue;
+                    }
+                    // Recorded, not absorbed. A mineral-fibre tile or a PVC
+                    // ceiling is a real product bought by the tile or the length;
+                    // converting it at 2.88 m2 a sheet would be wrong in both the
+                    // count and the rate.
+                    CeilingScan.Tally.RejectedMaterials.Add(layer.MaterialName);
+                }
+
+                if (anyFinishLayer) CeilingScan.Tally.TypesWithFinishLayer++;
+                if (!string.IsNullOrEmpty(hit.BoardLabel)) CeilingScan.Tally.TypesWithBoard++;
+                if (!string.IsNullOrEmpty(hit.PlasterLabel)) CeilingScan.Tally.TypesWithPlaster++;
+
+                CeilingScan.Store(key, hit);
+                return hit;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("CeilingFinish", $"ReadCeilingFinish {el?.Id}: {ex.Message}");
+                return default(CeilingHit);
+            }
+        }
+
+        /// <summary>
+        /// Furring metres per m2 of boarded ceiling. RATIO-DERIVED: the model
+        /// does not state grid spacing, so this is a practice figure and the
+        /// export says so. 0 (missing row) emits no furring at all rather than a
+        /// default quantity.
+        /// </summary>
+        internal static double CeilingFurringRatio()
+            => MaterialLookupCsv.GetProperty("CEILING DEFAULT", "FURRING_M_PER_M2");
+
+        // -- Ceiling (MATSCHED-T2) -------------------------------------------
+        private static List<BOQLineItem> BuildCeiling(Document doc, Element el,
+            Dictionary<string, (double rate, string unit)> csvRates)
+        {
+            // Scan FIRST, so the type tally is honest even for an instance whose
+            // area cannot be read: those are different failures with different fixes.
+            var found = ReadCeilingFinish(doc, el);
+            if (!found.Any) return null;   // nothing recognised -> composite fallback
+
+            double areaM2 = ReadAreaM2(el);
+            if (areaM2 <= 0)
+            {
+                CeilingScan.Tally.InstancesWithNoArea++;
+                return null;
+            }
+
+            double furring = string.IsNullOrEmpty(found.BoardLabel) ? 0 : CeilingFurringRatio();
+            if (furring > 0) CeilingScan.Tally.FurringDerived = true;
+
+            // The wet-coat mix reuses the PLASTER rows, exactly as the wall path
+            // does. The THICKNESS does not: the ceiling layer states its own, and
+            // falling back to a table default would invent a coat.
+            var lines = CompoundTakeoff.Ceiling(new CeilingInput
+            {
+                AreaM2 = areaM2,
+                BoardLabel = found.BoardLabel,
+                FurringMPerM2 = furring,
+                PlasterLabel = found.PlasterLabel,
+                PlasterThicknessM = found.PlasterThicknessM,
+                PlasterCementBagsPerM3 = Prop("PLASTER STANDARD", "MIX_CEMENT_BAGS_PER_M3", "PLASTER DEFAULT"),
+                PlasterSandRatio = Prop("PLASTER STANDARD", "MIX_SAND_RATIO", "PLASTER DEFAULT")
+            });
+
+            if (lines.Count == 0) return null;
+            return Materialise(doc, el, lines, csvRates, "A", new Resolution());
         }
 
         /// <summary>Tiled finish layers on a host type: how many, and named by the first.</summary>
