@@ -2,6 +2,73 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 246 — three reachability failures, and the gate that ends them)
+
+Phase 245 shipped the model-authoring baseline. Then a user clicked its button and nothing happened,
+and the four PRs that followed are all about the same thing: **code that compiles, dispatches, builds
+and logs cleanly, and still does not run.** Each looked correct at the layer that was checked.
+
+**1 — A `case` label is not a wiring.** #789's commit said "neither is born unreachable", meaning both
+commands had a dispatch case in `StingCommandHandler`. There was no button in any XAML, no `.addin`
+external-command entry and no `WorkflowEngine.ResolveCommand` binding, so **nothing could reach the
+case.** The claim is what hid it: a green build plus a present `case` reads as wired. Buttons added to
+the SETUP tab under MODEL BASELINE (#792).
+
+**2 — A button is not a working command.** With the buttons in place both were still lifeless, and
+the log said exactly why:
+
+    10:12:01 RunCommand<BaselineAuditCommand>: start
+    10:12:01 RunCommand<BaselineAuditCommand>: done
+
+They RAN, five times, returned instantly, and showed nothing. `RunCommand<T>` calls
+`cmd.Execute(NULL, …)` **by design** and expects the `StingCommandHandler.CurrentApp` fallback; both
+commands read `data?.Application?…`, got null, and returned `Cancelled` on their first line. The
+textbook ribbon-command pattern is silently dead from the dock panel (#794).
+
+**3 — And it was never only these two.** 38 sites across 23 files carried the same shape, all routed
+through the `ParameterHelpers.GetDoc / GetUIDoc / GetApp` helpers that already existed for it. Two
+were worse than dead buttons: **`MasterSetupCommand` step 20 read the healthcare profile through the
+null `commandData`, so Healthcare Pack setup skipped itself on every panel-run Master Setup** — a
+skipped step logs nothing — and `WorkflowEngine`'s plugin-hook fallback took the same path, so custom
+plugin commands could never resolve from the panel.
+
+**The gate is the deliverable.** This defect had already been fixed twice: 28 sites across
+`Commands/Drawing`, then `Commands/Cost` — `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` §A.4 even
+prescribes the grep. Three rounds of one defect is a missing gate, not three mistakes.
+`tools/check_command_doc_acquisition.ps1` now fails the build on a dispatched command that reads
+`commandData` directly, and runs in CI beside the path-discipline and wiring checks, baseline zero.
+It was verified BOTH ways before being kept: its first run failed on the comments explaining the fix
+— a gate that cries wolf over prose is a gate somebody disables — and after that was fixed, a
+repaired site was deliberately re-broken and it caught it (#796).
+
+**4 — Then the baseline ran, and running it found two more.** First real Apply: 12 materials, 4 wall
+types and 3 roof types created; **all 4 floor types and the ceiling rejected** with *"Input compound
+structure has wrong EndCap condition for this element type."* `CreateSimpleCompoundStructure` returns
+a wall-shaped `EndCapCondition`, which Revit accepts on a `WallType` and refuses elsewhere — hence the
+clean split by element class. The floor types are the ones carrying the tiled finish layer, so the
+single thing the baseline exists to fix was the one thing that did not get created.
+
+The second defect there is worse. Minting is two steps and it failed on the second, so `Duplicate`
+had already committed: the model kept five types **named for the baseline** while carrying the source
+type's layers — a floor called "Ceramic Tiled" with no tile in it. The next audit reads those as
+existing and refuses to touch them, because a name match with a different build-up is a conflict, not
+something to overwrite. The failure would have become permanent, and the audit would have reported
+the model as *closer* to conforming than before Apply ran. A half-made type is now deleted: either
+the type is what the baseline describes or it is not there at all (#798).
+
+**Verified in Revit.** The re-run created **24 of 24 with no failures**, and the re-audit reports
+"nothing to create — already conforming: 32". The two outstanding items are family-backed
+(Structural Columns, Structural Foundations) and are reported as guidance, never as work Apply will
+do — the honest split behaving as designed.
+
+**Also: the mislabelled sheet, finally.** `BOQExportCommand` emitted a sheet called "Material
+Schedule" that is BOQ rows filtered to m2/m3/kg in MEASURED units. Defensible while nothing else
+claimed the name; now actively dangerous, because two documents answering to one name is how somebody
+prices square metres of blockwork as though they were blocks. Renamed **"Measured by Material"**, with
+a banner saying what it is and pointing at the real export. Closes MATSCHED-6.
+
+Build 0/0 throughout, tests 465.
+
 #### Completed (Phase 245 — Material Schedule: what a model has to SAY before it can be measured)
 
 Phase 244 fixed the six defects the first real export exposed. Running it again exposed a
