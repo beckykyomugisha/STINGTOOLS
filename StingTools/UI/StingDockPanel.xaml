@@ -3745,10 +3745,18 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
                             <StackPanel>
-                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="MasterFormat (work results) + OmniClass (elements) classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
-                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT (MasterFormat) from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="OmniClass Table…" Tag="OmniClass_SetTable" Click="Cmd_Click"
+                                            ToolTip="Pick the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces ship maps; the other 11 tables resolve via _BIM_COORD/omniclass_map.csv). Sets classification_policy.json — drives OmniClass Assign / Audit"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="OmniClass Assign" Tag="OmniClass_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write ASS_OMNICLASS_TXT for the active OmniClass table (per classification_policy.json). A native-authored OmniClass Number on the type wins; the map is the bootstrap"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="OmniClass Audit" Tag="OmniClass_Audit" Click="Cmd_Click"
+                                            ToolTip="Read-only dry-run: % classified, unmapped keys, and ambiguous (tied-rule) elements for the active OmniClass table — CSV + summary. Run before Assign to see the holes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification on Tags…" Tag="ClassificationTags_Set" Click="Cmd_Click"
+                                            ToolTip="Optionally stamp a classification code (MasterFormat / OmniClass / both / none) into each element's rich TAG7 narrative so it shows on drawings. Per-project, data-driven (classification_policy.json), off by default. Re-run Auto Tag / Build Tags to refresh"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
                                             ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
                                 </WrapPanel>

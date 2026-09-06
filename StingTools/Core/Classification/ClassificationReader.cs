@@ -5,7 +5,12 @@
 // (already injected by InjectAutomationPresentationPack) so hybrid projects
 // that only populated OmniClass remain fully functional.
 
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
 using Autodesk.Revit.DB;
+using StingTools.Core;
 
 namespace StingTools.Core.Classification
 {
@@ -45,6 +50,95 @@ namespace StingTools.Core.Classification
             return c;
         }
 
+        // ---- per-project classification policy (classification_policy.json) --------
+        // Cached per open document. A missing / malformed file yields the DEFAULT
+        // policy, whose Order is the historic ladder and whose HasExplicitOrder is false,
+        // so nothing below changes behaviour until a project opts in.
+        private static readonly ConcurrentDictionary<string, ClassificationPolicy> _policyCache
+            = new ConcurrentDictionary<string, ClassificationPolicy>(StringComparer.OrdinalIgnoreCase);
+
+        private static ClassificationPolicy PolicyFor(Document doc)
+        {
+            // Key on the MODEL PATH, not the resolved policy path. ResolveFallback runs
+            // per element across a whole-project BOQ, and StingPaths.MetaFile probes the
+            // consolidated and legacy locations on every call - doing that per element
+            // would put thousands of File.Exists calls in the take-off loop. The model
+            // path is free, and InvalidatePolicy() is what makes an edit visible.
+            string key = string.IsNullOrEmpty(doc?.PathName) ? "<unsaved>" : doc.PathName;
+            return _policyCache.GetOrAdd(key, _ =>
+            {
+                string path = null;
+                try { path = StingPaths.MetaFile(doc, "_BIM_COORD", "classification_policy.json"); }
+                catch (Exception ex) { StingLog.Warn($"ClassificationReader policy path: {ex.Message}"); }
+                if (string.IsNullOrEmpty(path)) return ClassificationPolicy.Default;
+                try
+                {
+                    if (!File.Exists(path)) return ClassificationPolicy.Default;
+                    var p = ClassificationPolicy.Parse(File.ReadAllText(path));
+                    StingLog.Info($"ClassificationReader: applied classification_policy.json " +
+                                  $"(table {p.OmniClassTableNumber}, explicit order: {p.HasExplicitOrder}).");
+                    return p;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ClassificationReader: classification_policy.json unreadable ({ex.Message}) - using defaults.");
+                    return ClassificationPolicy.Default;
+                }
+            });
+        }
+
+        /// <summary>Drop the cached policy so an edited classification_policy.json is re-read.</summary>
+        public static void InvalidatePolicy() => _policyCache.Clear();
+
+        /// <summary>True when the project authored an explicit <c>order</c> in
+        /// classification_policy.json, which takes precedence over
+        /// <see cref="ClassificationStandard"/>. Surfaced so the standard picker can say
+        /// its choice will be overridden instead of appearing to work and doing nothing.</summary>
+        public static bool HasExplicitPolicyOrder(Document doc) => PolicyFor(doc).HasExplicitOrder;
+
+        /// <summary>The project's active OmniClass table number ("21" / "13" / ...), from
+        /// classification_policy.json (default "21"). Read by OmniClass_Assign / _Audit.</summary>
+        public static string OmniClassTable(Document doc) => PolicyFor(doc).OmniClassTableNumber;
+
+        /// <summary>The classification parameter(s) the project stamps into the TAG7
+        /// narrative (so they show on drawings). Empty list =&gt; none. Read by the tag
+        /// narrative builder.</summary>
+        public static IReadOnlyList<string> TagClassifications(Document doc)
+            => PolicyFor(doc).TagClassifications ?? new List<string>();
+
+        /// <summary>Human label for a classification parameter, for the tag narrative
+        /// ("CSI_SECTION_TXT" -&gt; "MasterFormat"). Unknown params fall back to a tidied
+        /// name so a new axis still stamps with something readable.</summary>
+        public static string ClassificationLabel(string paramName)
+        {
+            switch ((paramName ?? "").ToUpperInvariant())
+            {
+                case "CSI_SECTION_TXT":
+                case "CSI_TITLE_TXT":           return "MasterFormat";
+                case "ASS_OMNICLASS_TXT":
+                case "CLS_OMNICLASS_TITLE_TXT": return "OmniClass";
+                case "ASS_UNIFORMAT_TXT":
+                case "ASS_UNIFORMAT_DESC_TXT":  return "Uniformat";
+                case "UNICLASS_PR_TXT":         return "Uniclass Pr";
+                case "UNICLASS_SS_TXT":         return "Uniclass Ss";
+                case "UNICLASS_EF_TXT":         return "Uniclass EF";
+                default:
+                    string n = (paramName ?? "").Trim();
+                    if (n.EndsWith("_TXT", StringComparison.OrdinalIgnoreCase)) n = n.Substring(0, n.Length - 4);
+                    return n.Replace('_', ' ');
+            }
+        }
+
+        /// <summary>Read a classification value type-first (classification is usually authored
+        /// on the type) then instance - used by the tag narrative stamp.</summary>
+        public static string ReadClassificationValue(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return "";
+            Element type = null;
+            try { type = el.Document.GetElement(el.GetTypeId()); } catch { }
+            return TypeFirst(el, type, paramName);
+        }
+
         /// <summary>
         /// Pack 126 / Gap J — single canonical fallback chain used by BOQ /
         /// COBie / handover / IFC export. Ordered by specificity:
@@ -77,6 +171,22 @@ namespace StingTools.Core.Classification
             var csiB  = ("CSI:" + csi,   "CSI.MasterFormat", csi);
             var omniB = ("OMNI:" + omni, "OmniClass23", omni);
             var natB  = ("NATIVE:" + famTypeKey, "Native.Family", famTypeKey);
+
+            // An EXPLICIT classification_policy.json "order" wins: it can name parameters
+            // (a bespoke owner table) that the four-way standard selector cannot express.
+            // Absent one - the overwhelmingly common case - fall through to the standard
+            // selector below, unchanged.
+            var policy = PolicyFor(el?.Document);
+            if (policy.HasExplicitOrder)
+            {
+                foreach (var src in policy.Order)
+                {
+                    if (src.IsNative) return natB;
+                    string pv = TypeFirst(el, type, src.Param);
+                    if (!string.IsNullOrEmpty(pv)) return (src.Prefix + ":" + pv, src.Label, pv);
+                }
+                return natB;   // policy with no terminal native rung - guarantee a key
+            }
 
             // Order the cascade by the project's chosen standard (Phase G). Uniclass
             // is the default and preserves the historic order exactly; the others
