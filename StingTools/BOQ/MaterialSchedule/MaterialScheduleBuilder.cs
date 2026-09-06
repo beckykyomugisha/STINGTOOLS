@@ -114,6 +114,7 @@ namespace StingTools.BOQ.MaterialSchedule
                 var conLib = LoadConsumables(doc);
                 var drivers = ConsumableDrivers.From(inputs.Constituents, inputs.Units);
                 foreach (string m in drivers.UnitMismatches) consumablesTally.UnitMismatches.Add(m);
+                consumablesTally.RoofCoveringUnattributedM2 = drivers.RoofCoveringUnattributedM2;
                 inputs.Constituents.AddRange(
                     ConsumablesCalculator.Quantify(drivers, conLib.Rules, consumablesTally));
             }
