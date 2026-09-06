@@ -2,7 +2,6 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-<<<<<<< HEAD
 #### Completed (Phase 226 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
 
 Verification pass on #458 with a real toolchain. The headline is that the test
@@ -212,7 +211,6 @@ field is on a consuming path.
 - **Untagged-count** in the standards-gate warning now counts non-null rules only.
 - **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
   coerces a rejected tick, so a TwoWay binding reverts its visual.
-=======
 #### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
 
 Two pools of work were invisible: **40 remote branches that had never had a PR opened on
@@ -319,7 +317,6 @@ test would pass or fail on whether a docker Redis happened to be running.
   choice stays a decision, not an accident.
 
 Closes ROADMAP **DEP-6a**.
->>>>>>> origin/main
 #### Completed (Phase 251 — one roof accessory measured, two refused out loud)
 
 Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
