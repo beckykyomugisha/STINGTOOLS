@@ -238,8 +238,13 @@ namespace StingTools.Commands.MaterialSchedule
                           + "\n\nCancel and fix them by hand if they matter.");
                 }
 
+                // The same table the build used, so the editor's mapping preview
+                // and the schedule can never disagree about what converts.
+                var units = built.UnitsUsed;
+                string patchPath = StingPaths.MetaFile(doc, "_BIM_COORD", "supplier_unit_patches.json");
+
                 bool saved = StingTools.UI.CommodityRateEditor.ShowDialog(
-                    doc, built.Document, existing, target);
+                    doc, built.Document, existing, target, units, patchPath);
 
                 return saved ? Result.Succeeded : Result.Cancelled;
             }

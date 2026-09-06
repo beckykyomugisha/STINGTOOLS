@@ -152,12 +152,20 @@ namespace StingTools.UI
         private readonly string _seedStakes;
         private Button _detailsButton;
         private bool _detailsShown;
+        private readonly SupplierUnitTable _units;
+        private readonly string _patchPath;
+        private readonly MaterialScheduleDocument _schedule;
 
         public bool Saved { get; private set; }
 
         private CommodityRateEditor(Document doc, RateSeedResult seed,
-                                    List<CommodityRate> existingProject, string targetPath)
+                                    List<CommodityRate> existingProject, string targetPath,
+                                    SupplierUnitTable units, string patchPath,
+                                    MaterialScheduleDocument schedule)
         {
+            _units = units;
+            _patchPath = patchPath;
+            _schedule = schedule;
             _doc = doc;
             _existingProject = existingProject ?? new List<CommodityRate>();
             _targetPath = targetPath;
@@ -248,6 +256,13 @@ namespace StingTools.UI
                 "Clear the typed rate in the selected rows. The row keeps whatever rate it "
               + "already had - clearing is not the same as pricing at zero.",
                 (a, b) => ClearSelected()));
+
+            bar.Children.Add(ToolButton("Map to commodity…",
+                "Say which commodity the selected row's model type belongs to — a roof named "
+              + "'Generic - 225mm' can be sheeting or tiles, and the schedule cannot tell. Shows "
+              + "every row the mapping would claim and what each becomes BEFORE writing anything. "
+              + "Writes only the mapping; conversion factors and wastage stay in the shipped table.",
+                (a, b) => MapToCommodity()));
 
             _detailsButton = ToolButton("Show detail",
                 "Show the columns that identify a row rather than price it: the exact key written to "
@@ -558,6 +573,99 @@ namespace StingTools.UI
             _grid.Items.Refresh();
         }
 
+        /// <summary>
+        /// Map the selected row's model type to a commodity.
+        ///
+        /// Two things happen before anything is written: the RENAME is offered
+        /// first, and the mapping is previewed.
+        ///
+        /// The rename comes first because it is the better fix and the mapping
+        /// is the escape hatch. Calling a roof "IT4 Corrugated Sheet Roof 225"
+        /// matches the shipped pattern with no override at all, and the name
+        /// then means something to the schedule, the bill, the drawings and the
+        /// next consultant. A mapping fixes one project and leaves the name
+        /// wrong everywhere else — which is right when the type is in a linked
+        /// model, a vendor family or somebody else's file, and those are common
+        /// enough that the escape hatch has to exist.
+        /// </summary>
+        private void MapToCommodity()
+        {
+            var vm = _grid.CurrentCell.Item as RateEditorRowVm;
+            if (vm == null) { _status.Text = "Select a row first."; return; }
+            if (_units == null || _schedule == null)
+            {
+                MessageBox.Show(this, "The supplier-unit table was not loaded, so nothing can be mapped.",
+                    Caption, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var candidates = TypePatternPlanner.Candidates(_units);
+            if (candidates.Count == 0)
+            {
+                MessageBox.Show(this, "The supplier-unit table declares no commodities to map to.",
+                    Caption, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var dlg = new TypeMappingDialog(vm.Description, candidates, _units, _schedule) { Owner = this };
+            if (dlg.ShowDialog() != true || dlg.Chosen == null) return;
+
+            try
+            {
+                var file = LoadPatches(_patchPath);
+                file.TypePatterns.Add(new SupplierUnitPatch
+                {
+                    CommodityKey = dlg.Chosen.CommodityKey,
+                    Pattern = dlg.ChosenPattern,
+                    Why = dlg.Why,
+                    AddedBy = Environment.UserName ?? "",
+                    AddedUtc = DateTime.UtcNow.ToString("u")
+                });
+
+                string dir = Path.GetDirectoryName(_patchPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                string tmp = _patchPath + ".tmp";
+                File.WriteAllText(tmp,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(file, Newtonsoft.Json.Formatting.Indented),
+                    new UTF8Encoding(false));
+                if (File.Exists(_patchPath))
+                {
+                    string bak = _patchPath + ".bak";
+                    if (File.Exists(bak)) File.Delete(bak);
+                    File.Replace(tmp, _patchPath, bak);
+                }
+                else File.Move(tmp, _patchPath);
+
+                StingLog.Info($"CommodityRateEditor: mapped '{dlg.ChosenPattern}' -> {dlg.Chosen.CommodityKey}");
+                MessageBox.Show(this,
+                    $"'{dlg.ChosenPattern}' is now mapped to {dlg.Chosen.CommodityKey}.\n\n"
+                  + _patchPath
+                  + "\n\nRe-run the material schedule to see the converted quantities. The rows in "
+                  + "this grid still show the OLD unit — the mapping is applied when the schedule is "
+                  + "rebuilt, not here.",
+                    Caption, MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("CommodityRateEditor.MapToCommodity", ex);
+                MessageBox.Show(this, "The mapping could not be written:\n\n" + ex.Message,
+                    Caption, MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static SupplierUnitPatchFile LoadPatches(string path)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    return Newtonsoft.Json.JsonConvert
+                               .DeserializeObject<SupplierUnitPatchFile>(File.ReadAllText(path))
+                           ?? new SupplierUnitPatchFile();
+            }
+            catch (Exception ex) { StingLog.Warn("LoadPatches: " + ex.Message); }
+            return new SupplierUnitPatchFile();
+        }
+
         private const string Caption = "STING — Price commodities";
 
         private DataGridColumn AddReadOnly(string header, string path, double width)
@@ -681,7 +789,8 @@ namespace StingTools.UI
 
         /// <summary>Open the editor over a built schedule. Returns true if rates were written.</summary>
         public static bool ShowDialog(Document doc, MaterialScheduleDocument schedule,
-                                      List<CommodityRate> existingProject, string targetPath)
+                                      List<CommodityRate> existingProject, string targetPath,
+                                      SupplierUnitTable units, string patchPath)
         {
             var seed = RateEditorSeed.Build(schedule);
             if (seed.Rows.Count == 0)
@@ -691,7 +800,8 @@ namespace StingTools.UI
                 return false;
             }
 
-            var w = new CommodityRateEditor(doc, seed, existingProject, targetPath);
+            var w = new CommodityRateEditor(doc, seed, existingProject, targetPath,
+                                            units, patchPath, schedule);
             w.ShowDialog();
             return w.Saved;
         }
