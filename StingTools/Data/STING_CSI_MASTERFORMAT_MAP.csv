@@ -2,97 +2,234 @@
 # MasterFormat section + title for SpecLink reconciliation. Columns:
 #   Category    Revit category name (exact, case-insensitive). "*" = any.
 #   FamilyRegex optional regex tested against the family name (case-insensitive).
-#   TypeRegex   optional regex tested against the type/symbol name.
+#               ONLY USABLE ON LOADABLE-FAMILY CATEGORIES. ParameterHelpers.GetFamilyName
+#               returns "" for anything that is not a FamilyInstance, and Score treats an
+#               empty candidate as no-match — so a FamilyRegex on a SYSTEM category (Walls,
+#               Floors, Roofs, Ceilings, Pipes, Ducts, Conduits, Cable Trays, Stairs,
+#               Railings, Ramps, Topography, Toposolid, Pads) can NEVER fire. Put those
+#               discriminators in TypeRegex instead. Mixed categories exist: Structural
+#               Foundations isolated footings are FamilyInstance, wall footings are not.
+#   TypeRegex   optional regex tested against the type/symbol name. Safe on every category —
+#               CsiMap.TypeName falls back to the element type's name for system elements.
 #   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
 #   Section     CSI MasterFormat number (e.g. 23 31 00).
 #   Title       CSI section title.
 # Most-specific row wins (more matched qualifiers = higher score; ties: first).
 # Starter baseline — codes are common approximations to be confirmed against the
 # project's RIB SpecLink spec. Projects extend/override via _BIM_COORD/csi_map.csv.
-Category,FamilyRegex,TypeRegex,Sys,Section,Title
-Doors,,,,08 11 00,Metal Doors and Frames
-Doors,(?i)wood,,,08 14 00,Wood Doors and Frames
-Doors,(?i)glass|alum|storefront,,,08 41 00,Entrances and Storefronts
-Doors,(?i)overhead|coiling|roller,,,08 33 00,Coiling Doors and Grilles
-Windows,,,,08 50 00,Windows
-Curtain Panels,,,,08 44 00,Curtain Wall and Glazed Assemblies
-Curtain Wall Mullions,,,,08 44 00,Curtain Wall and Glazed Assemblies
-Walls,,,,09 29 00,Gypsum Board
-Walls,(?i)masonry|block|brick,,,04 20 00,Unit Masonry
-Walls,(?i)concrete,,,03 30 00,Cast-in-Place Concrete
-Floors,,,,09 60 00,Flooring
-Ceilings,,,,09 51 00,Acoustical Ceilings
-Roofs,,,,07 50 00,Membrane Roofing
-Specialty Equipment,,,,10 00 00,Specialties
-Specialty Equipment,(?i)sign,,,10 14 00,Signage
-Specialty Equipment,(?i)toilet|cubicle|partition,,,10 21 13,Toilet Compartments
-Specialty Equipment,(?i)locker,,,10 51 00,Lockers
-Specialty Equipment,(?i)extinguisher,,,10 44 00,Fire Protection Specialties
-Specialty Equipment,(?i)bench|pew|seating,,,12 60 00,Multiple Seating
-Furniture,,,,12 50 00,Furniture
-Furniture Systems,,,,12 50 00,Furniture
-Casework,,,,12 32 00,Manufactured Wood Casework
-Casework,(?i)custom|millwork|joinery,,,06 40 00,Architectural Woodwork
-Sprinklers,,,,21 13 00,Fire-Suppression Sprinkler Systems
-Pipes,,,FP,21 11 00,Facility Fire-Suppression Water-Service Piping
-Mechanical Equipment,(?i)fire pump,,,21 30 00,Fire Pumps
-Plumbing Fixtures,,,,22 40 00,Plumbing Fixtures
-Plumbing Fixtures,(?i)water closet|wc|urinal,,,22 42 13,Commercial Water Closets and Urinals
-Plumbing Fixtures,(?i)lavatory|basin|sink,,,22 42 16,Commercial Lavatories and Sinks
-Pipes,,,DCW,22 11 16,Domestic Water Piping
-Pipes,,,DHW,22 11 16,Domestic Water Piping
-Pipes,,,HWS,22 11 16,Domestic Water Piping
-Pipes,,,SAN,22 13 16,Sanitary Waste and Vent Piping
-Pipes,,,RWD,22 14 13,Facility Storm Drainage Piping
-Pipes,,,GAS,23 11 23,Facility Natural-Gas Piping
-Mechanical Equipment,(?i)water heater|calorifier|cylinder|dhw,,,22 33 00,Electric Domestic Water Heaters
-Mechanical Equipment,(?i)booster|pump set,,,22 11 23,Domestic Water Pumps
-Ducts,,,,23 31 00,HVAC Ducts and Casings
-Duct Fittings,,,,23 31 00,HVAC Ducts and Casings
-Flex Ducts,,,,23 31 00,HVAC Ducts and Casings
-Duct Accessory,,,,23 33 00,Air Duct Accessories
-Air Terminals,,,,23 37 13,Diffusers Registers and Grilles
-Pipes,,,CHW,23 21 13,Hydronic Piping
-Pipes,,,HHW,23 21 13,Hydronic Piping
-Pipes,,,LHW,23 21 13,Hydronic Piping
-Pipes,,,CWS,23 21 13,Hydronic Piping
-Pipes,,,REFRIG,23 23 00,Refrigerant Piping
-Pipe Fittings,,,,23 21 13,Hydronic Piping
-Mechanical Equipment,(?i)ahu|air handling,,,23 73 00,Indoor Central-Station Air-Handling Units
-Mechanical Equipment,(?i)fcu|fan coil,,,23 82 19,Fan Coil Units
-Mechanical Equipment,(?i)vav,,,23 36 00,Air Terminal Units
-Mechanical Equipment,(?i)chiller,,,23 64 00,Packaged Water Chillers
-Mechanical Equipment,(?i)boiler,,,23 52 00,Heating Boilers
-Mechanical Equipment,(?i)cooling tower,,,23 65 00,Cooling Towers
-Mechanical Equipment,(?i)pump,,,23 21 23,Hydronic Pumps
-Mechanical Equipment,(?i)\bfan\b|exhaust,,,23 34 00,HVAC Fans
-Mechanical Equipment,(?i)vrf|vrv|heat pump,,,23 81 26,Split-System Air-Conditioners
-Mechanical Equipment,(?i)doas|energy recovery|erv|hrv,,,23 72 00,Air-to-Air Energy Recovery Equipment
-Mechanical Equipment,,,,23 00 00,Heating Ventilating and Air Conditioning (HVAC)
-Electrical Equipment,(?i)panel|mdb|distribution board|\bdb\b,,,26 24 16,Panelboards
-Electrical Equipment,(?i)switchboard|switchgear,,,26 24 13,Switchboards
-Electrical Equipment,(?i)transformer,,,26 22 00,Low-Voltage Transformers
-Electrical Equipment,(?i)ats|transfer switch,,,26 36 00,Transfer Switches
-Electrical Equipment,(?i)generator|genset,,,26 32 13,Engine Generators
-Electrical Equipment,(?i)\bups\b,,,26 33 53,Static Uninterruptible Power Supply
-Electrical Equipment,(?i)busbar|busway,,,26 25 00,Enclosed Bus Assemblies
-Electrical Equipment,,,,26 00 00,Electrical
-Electrical Fixtures,,,,26 27 26,Wiring Devices
-Lighting Fixtures,,,,26 51 00,Interior Lighting
-Lighting Fixtures,(?i)exterior|flood|pole|bollard|external,,,26 56 00,Exterior Lighting
-Lighting Fixtures,(?i)emergency|exit,,,26 52 00,Emergency Lighting
-Lighting Devices,,,,26 09 23,Lighting Control Devices
-Conduits,,,,26 05 33,Raceways and Boxes for Electrical Systems
-Conduit Fittings,,,,26 05 33,Raceways and Boxes for Electrical Systems
-Cable Trays,,,,26 05 36,Cable Trays for Electrical Systems
-Cable Tray Fittings,,,,26 05 36,Cable Trays for Electrical Systems
-Communication Devices,,,,27 10 00,Structured Cabling
-Data Devices,,,,27 10 00,Structured Cabling
-Communication Devices,(?i)nurse call,,,27 52 23,Nurse Call and Code Blue Systems
-Communication Devices,(?i)pa\b|public address|speaker|tannoy,,,27 51 16,Public Address and Mass Notification Systems
-Telephone Devices,,,,27 10 00,Structured Cabling
-Fire Alarm Devices,,,,28 31 00,Fire Detection and Alarm
-Security Devices,,,,28 20 00,Electronic Surveillance
-Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance
-Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection
-Nurse Call Devices,,,,28 17 00,Nurse Call Systems
+# ---------------------------------------------------------------------------
+# Nrm2 / Unit (optional 7th + 8th columns)
+#
+#   Nrm2  the NRM2 work section this row's elements are BILLED under. When set it
+#         overrides BOQCostManager.DeriveNrm2Section, which can only key off the
+#         Revit CATEGORY - so a SYS-specific row (Pipes+SAN vs Pipes+CHW) bills
+#         under the section its specification sits in rather than one bucket for
+#         every pipe. Blank = let the category derivation decide.
+#   Unit  the section's preferred measurement basis. ADVISORY only: it never
+#         re-measures a quantity, it flags a line whose rate is priced per a
+#         different basis than the spec measures.
+#
+# The bridge resolves from the MATCHED RULE first. Section 03 30 00 is NRM2 5 for
+# a concrete floor and 14 for a concrete wall; a section-keyed lookup has to pick
+# one and would bill every slab, column and foundation under masonry.
+#
+# The division 31/32/33 site, civil and external-utility rows carry the mapping
+# implied by their division and this file's existing convention. They are worth a
+# QS's eye before a site-works tender - they are data, and changing one is a
+# one-line edit here.
+#
+# Do not hand-edit those 36 rows to "fix" a code. There is a round trip for it:
+#     python tools/qs_nrm2_review.py --export    -> docs/qs_review/
+#     ... a QS fills QS_VERDICT / QS_NRM2 ...
+#     python tools/qs_nrm2_review.py --apply
+# which refuses a code that appears nowhere else in this file, refuses a stale
+# sheet, and records the reviewer's note beside the answer. See ROADMAP LIFE-2.
+# ---------------------------------------------------------------------------
+Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2,Unit
+Doors,,,,08 11 00,Metal Doors and Frames,20,each
+Doors,(?i)wood,,,08 14 00,Wood Doors and Frames,20,
+Doors,(?i)glass|alum|storefront,,,08 41 00,Entrances and Storefronts,20,
+Doors,(?i)overhead|coiling|roller,,,08 33 00,Coiling Doors and Grilles,20,
+Windows,,,,08 50 00,Windows,20,
+Curtain Panels,,,,08 44 00,Curtain Wall and Glazed Assemblies,17,
+Curtain Wall Mullions,,,,08 44 00,Curtain Wall and Glazed Assemblies,17,
+Walls,,,,09 29 00,Gypsum Board,14,
+# Walls/Floors/Roofs/Ceilings/Pipes/Ducts/Conduits/Stairs/Railings/Toposolids are
+# SYSTEM elements: they have no family, so their discriminators must sit in the
+# TypeRegex column (3rd), not FamilyRegex (2nd). These two rows were on
+# FamilyRegex and had never fired — see CsiMap.TypeName in CsiCommands.cs.
+Walls,,(?i)masonry|block|brick,,04 20 00,Unit Masonry,14,
+Walls,,(?i)concrete,,03 30 00,Cast-in-Place Concrete,14,
+Floors,,,,09 60 00,Flooring,5,
+Ceilings,,,,09 51 00,Acoustical Ceilings,19,
+Roofs,,,,07 50 00,Membrane Roofing,17,
+Specialty Equipment,,,,10 00 00,Specialties,22,
+Specialty Equipment,(?i)sign,,,10 14 00,Signage,22,
+Specialty Equipment,(?i)toilet|cubicle|partition,,,10 21 13,Toilet Compartments,22,
+Specialty Equipment,(?i)locker,,,10 51 00,Lockers,22,
+Specialty Equipment,(?i)extinguisher,,,10 44 00,Fire Protection Specialties,22,
+Specialty Equipment,(?i)bench|pew|seating,,,12 60 00,Multiple Seating,22,
+Furniture,,,,12 50 00,Furniture,22,
+Furniture Systems,,,,12 50 00,Furniture,22,
+Casework,,,,12 32 00,Manufactured Wood Casework,22,
+Casework,(?i)custom|millwork|joinery,,,06 40 00,Architectural Woodwork,22,
+Sprinklers,,,,21 13 00,Fire-Suppression Sprinkler Systems,36,
+Pipes,,,FP,21 11 00,Facility Fire-Suppression Water-Service Piping,36,
+Mechanical Equipment,(?i)fire pump,,,21 30 00,Fire Pumps,36,
+Plumbing Fixtures,,,,22 40 00,Plumbing Fixtures,32,
+Plumbing Fixtures,(?i)water closet|wc|urinal,,,22 42 13,Commercial Water Closets and Urinals,32,
+Plumbing Fixtures,(?i)lavatory|basin|sink,,,22 42 16,Commercial Lavatories and Sinks,32,
+Pipes,,,DCW,22 11 16,Domestic Water Piping,32,
+Pipes,,,DHW,22 11 16,Domestic Water Piping,32,
+Pipes,,,HWS,22 11 16,Domestic Water Piping,32,
+Pipes,,,SAN,22 13 16,Sanitary Waste and Vent Piping,32,
+Pipes,,,RWD,22 14 13,Facility Storm Drainage Piping,32,
+Pipes,,,GAS,23 11 23,Facility Natural-Gas Piping,33,
+Mechanical Equipment,(?i)water heater|calorifier|cylinder|dhw,,,22 33 00,Electric Domestic Water Heaters,32,
+Mechanical Equipment,(?i)booster|pump set,,,22 11 23,Domestic Water Pumps,32,
+Ducts,,,,23 31 00,HVAC Ducts and Casings,33,
+Duct Fittings,,,,23 31 00,HVAC Ducts and Casings,33,
+Flex Ducts,,,,23 31 00,HVAC Ducts and Casings,33,
+Duct Accessory,,,,23 33 00,Air Duct Accessories,33,
+Air Terminals,,,,23 37 13,Diffusers Registers and Grilles,33,
+Pipes,,,CHW,23 21 13,Hydronic Piping,33,
+Pipes,,,HHW,23 21 13,Hydronic Piping,33,
+Pipes,,,LHW,23 21 13,Hydronic Piping,33,
+Pipes,,,CWS,23 21 13,Hydronic Piping,33,
+Pipes,,,REFRIG,23 23 00,Refrigerant Piping,33,
+Pipe Fittings,,,,23 21 13,Hydronic Piping,33,
+Mechanical Equipment,(?i)ahu|air handling,,,23 73 00,Indoor Central-Station Air-Handling Units,33,
+Mechanical Equipment,(?i)fcu|fan coil,,,23 82 19,Fan Coil Units,33,
+Mechanical Equipment,(?i)vav,,,23 36 00,Air Terminal Units,33,
+Mechanical Equipment,(?i)chiller,,,23 64 00,Packaged Water Chillers,33,
+Mechanical Equipment,(?i)boiler,,,23 52 00,Heating Boilers,33,
+Mechanical Equipment,(?i)cooling tower,,,23 65 00,Cooling Towers,33,
+Mechanical Equipment,(?i)pump,,,23 21 23,Hydronic Pumps,33,
+Mechanical Equipment,(?i)\bfan\b|exhaust,,,23 34 00,HVAC Fans,33,
+Mechanical Equipment,(?i)vrf|vrv|heat pump,,,23 81 26,Split-System Air-Conditioners,33,
+Mechanical Equipment,(?i)doas|energy recovery|erv|hrv,,,23 72 00,Air-to-Air Energy Recovery Equipment,33,
+Mechanical Equipment,,,,23 00 00,Heating Ventilating and Air Conditioning (HVAC),33,
+Electrical Equipment,(?i)panel|mdb|distribution board|\bdb\b,,,26 24 16,Panelboards,34,
+Electrical Equipment,(?i)switchboard|switchgear,,,26 24 13,Switchboards,34,
+Electrical Equipment,(?i)transformer,,,26 22 00,Low-Voltage Transformers,34,
+Electrical Equipment,(?i)ats|transfer switch,,,26 36 00,Transfer Switches,34,
+Electrical Equipment,(?i)generator|genset,,,26 32 13,Engine Generators,34,
+Electrical Equipment,(?i)\bups\b,,,26 33 53,Static Uninterruptible Power Supply,34,
+Electrical Equipment,(?i)busbar|busway,,,26 25 00,Enclosed Bus Assemblies,34,
+Electrical Equipment,,,,26 00 00,Electrical,34,
+Electrical Fixtures,,,,26 27 26,Wiring Devices,34,
+Lighting Fixtures,,,,26 51 00,Interior Lighting,35,
+Lighting Fixtures,(?i)exterior|flood|pole|bollard|external,,,26 56 00,Exterior Lighting,35,
+Lighting Fixtures,(?i)emergency|exit,,,26 52 00,Emergency Lighting,35,
+Lighting Devices,,,,26 09 23,Lighting Control Devices,35,
+Conduits,,,,26 05 33,Raceways and Boxes for Electrical Systems,34,
+Conduit Fittings,,,,26 05 33,Raceways and Boxes for Electrical Systems,34,
+Cable Trays,,,,26 05 36,Cable Trays for Electrical Systems,34,
+Cable Tray Fittings,,,,26 05 36,Cable Trays for Electrical Systems,34,
+Communication Devices,,,,27 10 00,Structured Cabling,34,
+Data Devices,,,,27 10 00,Structured Cabling,34,
+Communication Devices,(?i)nurse call,,,27 52 23,Nurse Call and Code Blue Systems,36,
+Communication Devices,(?i)pa\b|public address|speaker|tannoy,,,27 51 16,Public Address and Mass Notification Systems,34,
+Telephone Devices,,,,27 10 00,Structured Cabling,34,
+Fire Alarm Devices,,,,28 31 00,Fire Detection and Alarm,36,
+Security Devices,,,,28 20 00,Electronic Surveillance,36,
+Security Devices,(?i)cctv|camera,,,28 23 00,Video Surveillance,36,
+Security Devices,(?i)access control|card reader,,,28 13 00,Access Control and Intrusion Detection,36,
+Nurse Call Devices,,,,28 17 00,Nurse Call Systems,36,
+#
+# ── Division 02 — Existing Conditions — DELIBERATELY ABSENT ──────────────────
+# Naming-based Division 02 rows were drafted and then WITHDRAWN. Revit expresses
+# demolition through the PHASE system (Phase Created / Phase Demolished), and this
+# resolver matches on category / family / type / SYS only — it is never handed the
+# element's phase state. Nobody names a toposolid "demolition", so a rule keyed on
+# naming could not fire on a real model. It would have read as Division 02 coverage
+# in a review while delivering nothing, which is worse than the gap it papered over.
+#
+# Supporting it properly means passing phase state into CsiMasterFormat.Resolve and
+# adding an optional Phase qualifier column. That is a rule-shape change: it widens
+# every row from 6 fields to 7, and ParseCsvLines drops any row with fewer fields
+# than it expects — so every project's existing _BIM_COORD/csi_map.csv overlay would
+# silently stop loading. That needs its own change with its own verification pass.
+# Tracked as KUT-5 in docs/ROADMAP.md. Until then, Division 02 is UNSUPPORTED and
+# A1 Deliverable B's Existing Conditions & Removals Plan is classified by hand.
+#
+# ── Division 05 — Metals ─────────────────────────────────────────────────────
+# A2 Structural is full-service (floor/roof framing, columns, shear walls,
+# equipment grillages, and the exterior framing carrying the stone skin).
+# Framing defaults to steel and columns/foundations default to cast-in-place
+# concrete: that is the common split on this building type, and the concrete /
+# precast / steel discriminators above each default override it when the family
+# name says otherwise. Confirm against the SpecLink books and override in
+# _BIM_COORD/csi_map.csv.
+Structural Framing,(?i)precast,,,03 41 00,Precast Structural Concrete,5,
+Structural Framing,(?i)concrete|\bRC\b,,,03 30 00,Cast-in-Place Concrete,5,
+Structural Framing,(?i)joist|purlin,,,05 21 00,Steel Joist Framing,15,
+Structural Framing,,,,05 12 00,Structural Steel Framing,15,
+Structural Columns,(?i)precast,,,03 41 00,Precast Structural Concrete,5,
+Structural Columns,(?i)steel|\bUC\b|\bW\d|HSS|CHS|SHS|RHS,,,05 12 00,Structural Steel Framing,15,
+Structural Columns,,,,03 30 00,Cast-in-Place Concrete,5,
+Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,5,m
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,
+Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning,4,
+Structural Foundations,,,,03 30 00,Cast-in-Place Concrete,5,
+Floors,,(?i)metal deck|steel deck|profiled deck,,05 31 00,Steel Decking,15,
+Walls,,(?i)cold.?formed|\bSFS\b|stone skin|rainscreen,,05 40 00,Cold-Formed Metal Framing,15,
+Stairs,,(?i)metal|steel,,05 51 00,Metal Stairs,20,
+Stairs,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings,16,
+Stairs,,,,03 30 00,Cast-in-Place Concrete,5,
+Railings,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings,16,
+Railings,,(?i)decorative|ornamental|bronze|brass,,05 73 00,Decorative Metal Railings,20,
+Railings,,(?i)fence|gate,,32 31 00,Fences and Gates,4,m
+Railings,,,,05 52 00,Metal Railings,20,
+Ramps,,,,03 30 00,Cast-in-Place Concrete,5,
+#
+# ── Division 14 — Conveying Equipment ────────────────────────────────────────
+# A1 Deliverable C: "CIRCULATION: vertical circulation stairs and elevators".
+# Revit has no Elevators category — lifts are modelled as Specialty Equipment
+# or Generic Models, so both are matched by name.
+Specialty Equipment,(?i)elevator|\blift\b,,,14 20 00,Elevators,33,
+Specialty Equipment,(?i)escalator|moving walk,,,14 31 00,Escalators,33,
+Specialty Equipment,(?i)wheelchair lift|platform lift,,,14 42 00,Wheelchair Lifts,33,
+Generic Models,(?i)elevator|\blift\b,,,14 20 00,Elevators,33,
+Mechanical Equipment,(?i)elevator|\blift\b,,,14 20 00,Elevators,33,
+#
+# ── Division 31 — Earthwork (A2 Civil) ───────────────────────────────────────
+Topography,,,,31 20 00,Earth Moving,4,m3
+Toposolid,,,,31 20 00,Earth Moving,4,m3
+Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,4,
+Pads,,,,31 23 00,Excavation and Fill,4,m3
+Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,4,
+#
+# ── Division 32 — Exterior Improvements (A2 Civil + A1 Site/Landscape) ───────
+Roads,,(?i)concrete,,32 13 13,Concrete Paving,4,m2
+Roads,,,,32 12 16,Asphalt Paving,4,
+Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,4,
+Parking,,,,32 12 16,Asphalt Paving,4,
+Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,4,m2
+Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,4,m
+Walls,,(?i)retaining,,32 32 00,Retaining Walls,4,m2
+Generic Models,(?i)fence|gate|balustrade,,,32 31 00,Fences and Gates,4,m
+Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,4,
+Site,,,,32 30 00,Site Improvements,4,
+Entourage,,,,32 30 00,Site Improvements,4,
+Planting,(?i)tree,,,32 93 43,Trees,4,
+Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,4,m2
+Planting,,,,32 93 00,Plants,4,
+Pipes,,,IRR,32 84 00,Planting Irrigation,4,m
+Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,4,m
+#
+# ── Division 33 — Utilities (A2 Civil) ───────────────────────────────────────
+# Site runs are separated from in-building services by a TypeRegex on the pipe /
+# conduit TYPE name (site pipe types are named "Site …", "Buried …" etc.), which
+# scores above the plain SYS rows in Divisions 22/23/26 so the site utility wins.
+Pipes,,(?i)site|external|buried|underground,DCW,33 11 00,Water Utility Distribution Piping,32,m
+Pipes,,(?i)site|external|buried|underground,GAS,33 51 00,Natural-Gas Distribution,33,m
+Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping,32,m
+Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping,32,m
+Pipes,,,SDS,33 46 00,Subdrainage,32,m
+Conduits,,(?i)site|external|buried|underground,,33 71 00,Electrical Utility Transmission and Distribution,34,m
+Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures,32,
+Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains,32,
+Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,32,
+Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,32,
+Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,32,

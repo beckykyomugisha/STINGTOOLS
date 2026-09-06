@@ -734,6 +734,14 @@ namespace StingTools.Tags
                 StingLog.Warn($"LegendBuilder: failed to create FilledRegionType '{typeName}': {ex.Message}");
             }
 
+            // A-13: falling back to the BASE type means the swatch renders in
+            // whatever colour that type happens to carry — so a legend silently
+            // mis-states the colour it is documenting, which is worse than an
+            // obviously missing swatch. Still falls back (a legend with one
+            // wrong swatch beats no legend) but says so loudly.
+            StingLog.Warn(
+                $"LegendBuilder: swatch for RGB {color.Red}-{color.Green}-{color.Blue} fell back to base type " +
+                $"'{baseType.Name}' — this swatch will NOT show the documented colour.");
             return baseType.Id;
         }
 
@@ -985,14 +993,28 @@ namespace StingTools.Tags
         {
             if (sheet == null || legendView == null) return null;
 
-            // Check if this view can be added to the sheet
+            // A-12: CanAddViewToSheet does NOT protect against re-placing a
+            // legend on a sheet it is already on — legends are placeable on many
+            // sheets by design, so it keeps returning true. PlaceLegendOnAllSheets
+            // therefore stacked a second viewport at the identical point on every
+            // sheet, on every re-run. Check this sheet's own viewports first.
+            if (IsViewOnSheet(doc, sheet, legendView.Id))
+            {
+                StingLog.Info($"LegendBuilder: '{legendView.Name}' is already on sheet '{sheet.SheetNumber}' — left alone.");
+                return null;
+            }
             if (!Viewport.CanAddViewToSheet(doc, sheet.Id, legendView.Id))
             {
-                StingLog.Warn($"LegendBuilder: Cannot place '{legendView.Name}' on sheet '{sheet.SheetNumber}' — already placed or incompatible.");
+                StingLog.Warn($"LegendBuilder: Cannot place '{legendView.Name}' on sheet '{sheet.SheetNumber}' — incompatible.");
                 return null;
             }
 
             var (sheetWidth, sheetHeight) = GetSheetDimensions(doc, sheet);
+            // A-13: the title block's bounding box does not necessarily start at
+            // the origin. A family authored with its origin anywhere but
+            // bottom-left has a non-zero Min, and computing positions from size
+            // alone placed the legend off the sheet entirely.
+            var (originX, originY) = GetSheetOrigin(doc, sheet);
             double margin = 0.15; // feet (~46mm)
             // Legend viewport size estimate: ~0.4ft wide × 0.3ft tall for typical legend
             double legendW = 0.4;
@@ -1022,7 +1044,10 @@ namespace StingTools.Tags
 
             try
             {
-                Viewport vp = Viewport.Create(doc, sheet.Id, legendView.Id, new XYZ(x, y, 0));
+                // A-13: offset by the title block's own origin so the position
+                // is relative to the sheet's drawable frame, not to (0,0).
+                Viewport vp = Viewport.Create(doc, sheet.Id, legendView.Id,
+                    new XYZ(originX + x, originY + y, 0));
                 StingLog.Info($"LegendBuilder: placed '{legendView.Name}' on sheet '{sheet.SheetNumber}' at {position}");
                 return vp;
             }
@@ -1031,6 +1056,48 @@ namespace StingTools.Tags
                 StingLog.Warn($"LegendBuilder: failed to place on sheet: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// A-12: true when this sheet already hosts a viewport showing the
+        /// given view. Viewport.CanAddViewToSheet cannot answer this for
+        /// legends, which Revit permits on any number of sheets.
+        /// </summary>
+        internal static bool IsViewOnSheet(Document doc, ViewSheet sheet, ElementId viewId)
+        {
+            if (doc == null || sheet == null || viewId == null) return false;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc, sheet.Id).OfClass(typeof(Viewport)))
+                    if (el is Viewport vp && vp.ViewId == viewId) return true;
+            }
+            catch (Exception ex)
+            {
+                // Fail open: place it. A duplicate legend is visible and
+                // fixable; a silently omitted one is not.
+                StingLog.Warn($"IsViewOnSheet({sheet.SheetNumber}): {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// A-13: bottom-left corner of the sheet's title block in sheet
+        /// coordinates. GetSheetDimensions returns only the SIZE, so callers
+        /// that positioned from it assumed the frame starts at the origin.
+        /// </summary>
+        internal static (double x, double y) GetSheetOrigin(Document doc, ViewSheet sheet)
+        {
+            try
+            {
+                var tb = new FilteredElementCollector(doc, sheet.Id)
+                    .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType()
+                    .FirstOrDefault();
+                var bb = tb?.get_BoundingBox(null);
+                if (bb?.Min != null) return (bb.Min.X, bb.Min.Y);
+            }
+            catch (Exception ex) { StingLog.Warn($"GetSheetOrigin({sheet?.SheetNumber}): {ex.Message}"); }
+            return (0.0, 0.0);
         }
 
         // ── Tag Legend Engine ──────────────────────────────────────────
@@ -1309,7 +1376,10 @@ namespace StingTools.Tags
         /// For each category, shows: discipline swatch | category name | tag family name | sample tag.
         /// Attempts to place actual annotation instances (Strategy 2), falls back to drawn text.
         /// </summary>
-        private static void PopulateTagLegendContent(Document doc, View legendView,
+        // internal (was private) so UpdateLegendCommand can refresh a tag
+        // legend IN PLACE instead of deleting its content and telling the user
+        // to rebuild it by hand (A-3).
+        internal static void PopulateTagLegendContent(Document doc, View legendView,
             List<TagLegendEntry> entries, string title, string groupBy)
         {
             FillPatternElement solidFill = FindSolidFill(doc);
@@ -3285,14 +3355,29 @@ namespace StingTools.Tags
 
                     if (name.Contains("Tag Families") || name.Contains("Tag Legend"))
                     {
-                        // Tag legend — rebuild
+                        // A-3: refresh IN PLACE. This branch used to delete the
+                        // view's content, mint a SECOND "(Refreshed)" view, and
+                        // log "use Create Tag Legend to rebuild" — so the view
+                        // actually placed on sheets was left permanently blank
+                        // while a duplicate carried the content nowhere.
                         var entries = LegendBuilder.CollectTagFamilies(doc);
-                        if (entries.Count > 0)
-                            LegendBuilder.CreateTagLegendView(doc, entries, "Tag Families (Refreshed)", "Discipline");
-                        // We can't easily re-populate an existing tag legend view without recreating
-                        // So just log and continue — the view content was deleted and will appear blank
-                        // until they use CreateTagLegend again
-                        StingLog.Info($"UpdateLegend: cleared tag legend '{name}' — use Create Tag Legend to rebuild");
+                        if (entries != null && entries.Count > 0)
+                        {
+                            try
+                            {
+                                LegendBuilder.PopulateTagLegendContent(doc, legendView, entries, name, "Discipline");
+                                updated++;
+                                StingLog.Info($"UpdateLegend: refreshed tag legend '{name}' in place.");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Warn($"UpdateLegend: failed to refresh tag legend '{name}': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"UpdateLegend: no tag families found — '{name}' left empty.");
+                        }
                     }
                     else
                     {
@@ -3379,20 +3464,18 @@ namespace StingTools.Tags
 
                         if (entries != null && entries.Count > 0 && config != null)
                         {
-                            // Re-populate the existing view (don't create a new one)
-                            // Use reflection-style approach: call PopulateLegendContent directly
-                            // Since it's private, we call CreateLegendView which creates a new view,
-                            // but we already deleted content — so just populate this view
+                            // A-3: populate the EXISTING view. The previous code
+                            // called CreateLegendView on the belief that
+                            // PopulateLegendContent was private — it is
+                            // `internal static`, callable from here. Minting a
+                            // new view left the original (the one actually
+                            // placed on sheets) permanently blank, gave it a
+                            // "(1)" suffixed twin, and still reported success.
                             try
                             {
-                                // Workaround: create a temporary new view, but we actually want
-                                // to reuse the existing view. Let's use the public API instead.
-                                var newView = LegendBuilder.CreateLegendView(doc, entries, config);
-                                if (newView != null)
-                                {
-                                    updated++;
-                                    StingLog.Info($"UpdateLegend: refreshed '{name}' (created new '{newView.Name}')");
-                                }
+                                LegendBuilder.PopulateLegendContent(doc, legendView, entries, config);
+                                updated++;
+                                StingLog.Info($"UpdateLegend: refreshed '{name}' in place.");
                             }
                             catch (Exception ex)
                             {
@@ -3408,8 +3491,8 @@ namespace StingTools.Tags
             TaskDialog.Show("Update Legend",
                 $"Processed {toUpdate.Count} legends.\n" +
                 $"Updated: {updated}\n\n" +
-                "Legend views have been refreshed with current project data.\n" +
-                "Sheet placements are preserved.");
+                "Each legend was refreshed in place with current project data.\n" +
+                "Sheet placements stay live — no new views were created.");
 
             return Result.Succeeded;
         }

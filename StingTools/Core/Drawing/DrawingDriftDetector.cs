@@ -394,15 +394,16 @@ namespace StingTools.Core.Drawing
                         bool actualVisible;
                         try { actualVisible = v.GetFilterVisibility(filter.Id); }
                         catch { continue; }
-                        if (actualVisible != rule.Visible)
-                            mismatches.Add($"visible={actualVisible} vs {rule.Visible}");
+                        // V-9: a rule that states nothing cannot drift.
+                        if (rule.Visible.HasValue && actualVisible != rule.Visible.Value)
+                            mismatches.Add($"visible={actualVisible} vs {rule.Visible.Value}");
 
                         OverrideGraphicSettings fogs;
                         try { fogs = v.GetFilterOverrides(filter.Id); } catch { fogs = null; }
                         if (fogs != null)
                         {
-                            if (fogs.Halftone != rule.Halftone)
-                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone}");
+                            if (rule.Halftone.HasValue && fogs.Halftone != rule.Halftone.Value)
+                                mismatches.Add($"halftone {fogs.Halftone} vs {rule.Halftone.Value}");
                             if (rule.ProjectionLineWeight.HasValue
                                 && fogs.ProjectionLineWeight != rule.ProjectionLineWeight.Value)
                                 mismatches.Add($"projWeight {fogs.ProjectionLineWeight} vs {rule.ProjectionLineWeight.Value}");

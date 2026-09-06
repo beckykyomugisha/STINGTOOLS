@@ -1,4 +1,4 @@
-// StingTools — MEP System Filter command (Phase D).
+﻿// StingTools — MEP System Filter command (Phase D).
 //
 //   MEP_GenerateSystemFilters — turn the Phase A system-type definitions into
 //   abbreviation-keyed AEC filters ("STING - Sys: …"), persist them to the project
@@ -109,7 +109,7 @@ namespace StingTools.Commands.Mep
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return 0; // unsaved — can't persist
             string dir = Path.GetDirectoryName(doc.PathName);
             if (string.IsNullOrEmpty(dir)) return 0;
-            string coord = Path.Combine(dir, "_BIM_COORD");
+            string coord = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(coord);
             path = Path.Combine(coord, "aec_filters.json");
 

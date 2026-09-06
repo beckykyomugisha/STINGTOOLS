@@ -27,9 +27,16 @@ function decodeJwt(token: string): AuthUser | null {
     const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
     const p = JSON.parse(json) as Record<string, string>;
     return {
+      // LiveKitTokenFactory/AuthController mint snake_case claims (tenant_id,
+      // display_name — see MeetingRoomController.cs / AuthController.cs), not
+      // the tenant/tenantId/tid/name/given_name this was actually checking
+      // for. tenantId in particular was silently always undefined — nothing
+      // downstream that read AuthUser.tenantId (this file's own callers, the
+      // viewer iframe bootstrap) ever had it, camouflaged because most of
+      // them degrade gracefully rather than error when it's missing.
       email: p.email || p.sub || p.unique_name || 'user',
-      name: p.name || p.given_name,
-      tenantId: p.tenant || p.tenantId || p.tid,
+      name: p.name || p.given_name || p.display_name,
+      tenantId: p.tenant_id || p.tenant || p.tenantId || p.tid,
     };
   } catch {
     return null;

@@ -32,6 +32,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Nrm2Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => true;
+
         public string Id => "nrm2";
         public string Version => "NRM2 (2nd ed., 2012, reprint 2021)";
         public string DisplayName => "RICS NRM2";
@@ -85,6 +88,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Cesmm4Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => true;
+
         public string Id => "cesmm4";
         public string Version => "CESMM4 (2012)";
         public string DisplayName => "CESMM4";
@@ -165,6 +171,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class PomiStandard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "pomi";
         public string Version => "RICS POMI (2014)";
         public string DisplayName => "POMI (International)";
@@ -192,6 +201,11 @@ namespace StingTools.BOQ.MeasurementStandard
         public string BuildDescription(BOQLineItem line, Element el)
             => $"{line?.Category ?? "item"}, complete";
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }
@@ -201,6 +215,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Icms3Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "icms3";
         public string Version => "ICMS 3rd ed. (2021)";
         public string DisplayName => "ICMS 3 (cost + carbon)";
@@ -254,6 +271,11 @@ namespace StingTools.BOQ.MeasurementStandard
             return $"{line?.Category ?? "item"}, ICMS3 group 02{co2}";
         }
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }
@@ -263,6 +285,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class MmhwStandard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "mmhw";
         public string Version => "MMHW (DMRB Vol 4, 2021)";
         public string DisplayName => "MMHW (Highway works)";
@@ -294,6 +319,11 @@ namespace StingTools.BOQ.MeasurementStandard
         public string BuildDescription(BOQLineItem line, Element el)
             => $"{line?.Category ?? "item"}, in accordance with the Specification";
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }

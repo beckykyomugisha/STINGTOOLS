@@ -8,8 +8,12 @@ export default defineConfig({
     // (it guards on pathname !== '/login') — keeps test output clean.
     environmentOptions: { jsdom: { url: 'http://localhost/login' } },
     globals: true,
-    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx'],
+    include: ['lib/**/*.test.ts', 'lib/**/*.test.tsx', 'components/**/*.test.tsx'],
   },
+  // Component tests are TSX; Next compiles JSX itself, so vitest needs to be
+  // told to use the automatic runtime or every render() throws
+  // "React is not defined".
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('.', import.meta.url)),

@@ -48,7 +48,7 @@ namespace StingTools.Core.TemplateManager
                 if (doc == null || result == null) return "";
                 string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
                 if (string.IsNullOrEmpty(projDir)) return "";
-                string dir = Path.Combine(projDir, "_BIM_COORD");
+                string dir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 string file = Path.Combine(dir,
                     $"template_audit_log_{result.CompletedUtc:yyyy_MM}.jsonl");

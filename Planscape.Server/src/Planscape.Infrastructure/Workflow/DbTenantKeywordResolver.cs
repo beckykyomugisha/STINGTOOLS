@@ -47,6 +47,14 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
     private static readonly StripedBoundedLruCache<string, IReadOnlyDictionary<string, IReadOnlyCollection<string>>> _cache
         = new(totalCapacity: 256, stripeCount: 8, comparer: StringComparer.Ordinal);
 
+    /// <summary>
+    /// Test-only: evict the process-static L1 so the next resolve starts cold.
+    /// Constructing a new resolver is NOT enough — the cache is static on
+    /// purpose — so a test that wants to exercise the L2 read path has no other
+    /// way to get there.
+    /// </summary>
+    internal static void ClearL1ForTests() => _cache.Clear();
+
     private static readonly IReadOnlyDictionary<string, IReadOnlyCollection<string>> Empty
         = new Dictionary<string, IReadOnlyCollection<string>>();
 
@@ -113,8 +121,7 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
         // editing the JSON twice in quick succession would still see
         // the second edit because the hash space is the entire string
         // content space, not just 32 bits.
-        var hash = StableHash(json!);
-        var l1Key = $"{tenantId}:{hash}";
+        var l1Key = L1CacheKey(tenantId, json!);
 
         // L1 hit — fast path, no Redis round-trip.
         if (_cache.TryPeek(l1Key, out var hit)) return hit;
@@ -123,7 +130,7 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
         // path never throw — Redis blip falls back to the DB read.
         if (_l2 != null)
         {
-            var l2Key = $"tk:{l1Key}";
+            var l2Key = L2CacheKey(l1Key);
             try
             {
                 var raw = await _l2.GetStringAsync(l2Key, ct);
@@ -204,6 +211,24 @@ public sealed class DbTenantKeywordResolver : ITenantKeywordResolver
     }
 
     /// <summary>FNV-1a 64-bit. Cheap, stable, allocation-free.</summary>
+    /// <summary>
+    /// L1 cache key for a tenant's keyword JSON: tenant id plus a stable content
+    /// hash, so the key flips whenever the JSON does and stale entries are
+    /// bypassed without an explicit invalidation step.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private so tests can compute the same key and
+    /// pre-seed L2 — the only way to exercise an L1 miss with an L2 hit in a
+    /// single process, given L1 is a static shared by every instance. Exposes no
+    /// behaviour and adds no mutation surface; the resolver itself is the only
+    /// caller in production.
+    /// </remarks>
+    internal static string L1CacheKey(Guid tenantId, string json)
+        => $"{tenantId}:{StableHash(json)}";
+
+    /// <summary>L2 (distributed) key for the same entry.</summary>
+    internal static string L2CacheKey(string l1Key) => $"tk:{l1Key}";
+
     private static string StableHash(string s)
     {
         const ulong fnvOffset = 14695981039346656037UL;

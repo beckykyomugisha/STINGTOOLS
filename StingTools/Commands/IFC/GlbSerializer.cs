@@ -180,7 +180,10 @@ namespace StingTools.Commands.IFC
         {
             public string uniqueId;
             public string ifcGuid;
-            public int    elementId;
+            // 64-bit: the server reads this with GetInt64 and keys
+            // FederatedElement on it, so a narrowed id here would store one
+            // value on add and never match the delete that follows (#722).
+            public long   elementId;
             public string category;
         }
         private class GltfMesh      { public string name; public GltfPrimitive[] primitives; }

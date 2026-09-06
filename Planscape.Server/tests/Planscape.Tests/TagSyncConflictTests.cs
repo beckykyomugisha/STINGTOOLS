@@ -27,9 +27,30 @@ public class TagSyncConflictTests
 
         var options = new DbContextOptionsBuilder<PlanscapeDbContext>()
             .UseInMemoryDatabase($"TagSyncConflict_{Guid.NewGuid():N}")
+            // SyncElements wraps its batches in an explicit RepeatableRead
+            // transaction. The InMemory provider cannot honour that and EF
+            // escalates TransactionIgnoredWarning to an exception, so the test
+            // died on the provider rather than on the conflict logic it covers.
+            // Production is PostgreSQL, where the transaction is real.
+            .ConfigureWarnings(w =>
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId
+                    .TransactionIgnoredWarning))
             .Options;
 
         await using var db = new PlanscapeDbContext(options);
+
+        // This context is built directly, not through DI, so it takes the
+        // options-only constructor and _tenantContext stays null —
+        // CurrentTenantId is therefore Guid.Empty and the global tenant filter
+        // hides the very Project and TaggedElement rows seeded below, making
+        // SyncElements answer NotFound before reaching the conflict logic under
+        // test. BypassTenantFilter is the documented escape hatch for exactly
+        // this (migrations, jobs, tests).
+        //
+        // The controller's own explicit `p.TenantId == tenantId` check is
+        // unaffected and still exercised, so tenant scoping is not what this
+        // bypass relaxes.
+        db.BypassTenantFilter = true;
 
         db.Tenants.Add(new Tenant
         {

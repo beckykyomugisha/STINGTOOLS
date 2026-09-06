@@ -21,15 +21,14 @@ public class HandoffProvisioningTests : IClassFixture<PlanscapeWebApplicationFac
 {
     private readonly PlanscapeWebApplicationFactory _factory;
 
-    // Must be set before the host boots: AuthController reads this with
-    // Environment.GetEnvironmentVariable, not IConfiguration, so it cannot be
-    // supplied through the factory's config layer.
-    private const string Secret = "test-handoff-secret-not-a-real-one-0123456789";
+    // Injected into the test host's configuration by the factory
+    // (PlanscapeWebApplicationFactory.HandoffSecret). AuthController now reads the
+    // secret via IConfiguration, so no process-global environment variable is set.
+    private const string Secret = PlanscapeWebApplicationFactory.HandoffSecret;
 
     public HandoffProvisioningTests(PlanscapeWebApplicationFactory factory)
     {
         _factory = factory;
-        Environment.SetEnvironmentVariable("PLANSCAPE_HANDOFF_SECRET", Secret);
     }
 
     private static string B64Url(byte[] b) =>
@@ -199,6 +198,46 @@ public class HandoffProvisioningTests : IClassFixture<PlanscapeWebApplicationFac
     public async Task Handoff_MalformedTicket_Returns401()
     {
         await ExchangeAsync("not-a-ticket-at-all", HttpStatusCode.Unauthorized);
+    }
+
+    // ── Single-use / replay (DEP-6a) ─────────────────────────────────────────
+
+    // The jti single-use guard is a Redis `SET handoff:jti:{jti} … When.NotExists`.
+    // Proving it requires a REAL Redis: without one the guard FAILS OPEN (the
+    // controller logs a warning and proceeds — an availability-over-integrity
+    // choice, acceptable given the 120 s ticket TTL), so a replay would succeed
+    // and this assertion would be meaningless. It is therefore gated on
+    // PLANSCAPE_TEST_REDIS exactly like PostgresSequenceCounterTests gates on
+    // PLANSCAPE_TEST_PG: **Skipped**, never falsely Passed, when absent. The
+    // factory leaves the app's IConnectionMultiplexer at its default
+    // `localhost:6379`, so with `PLANSCAPE_TEST_REDIS=1` and the docker Redis up
+    // the guard is live end-to-end through the HTTP endpoint.
+    private static string? RedisSkipReason =>
+        string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PLANSCAPE_TEST_REDIS"))
+            ? "PLANSCAPE_TEST_REDIS is not set — no Redis to prove single-use against "
+              + "(the guard fails OPEN without it, by design; see the comment above)."
+            : null;
+
+    [SkippableFact]
+    public async Task Handoff_SameTicketReplayed_SecondRedemptionIsRejected()
+    {
+        Skip.If(RedisSkipReason is not null, RedisSkipReason!);
+
+        var email = $"replay-{Guid.NewGuid():N}@example.com";
+        var slug  = $"replay-{Guid.NewGuid():N}"[..20];
+
+        // ONE ticket — same jti both times. A replayed URL (prefetch, back
+        // button, shared link) must not mint a second session.
+        var ticket = MintTicket(email, slug);
+
+        await ExchangeAsync(ticket, HttpStatusCode.OK);            // first redemption: minted
+        await ExchangeAsync(ticket, HttpStatusCode.Unauthorized);  // replay: refused by the jti guard
+
+        // Exactly one account was provisioned — the replay created nothing.
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
+        db.BypassTenantFilter = true;
+        Assert.Equal(1, db.Users.Count(u => u.Email == email));
     }
 
     [Fact]

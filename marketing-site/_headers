@@ -8,7 +8,21 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), microphone=(), camera=(self), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com https://client.crisp.chat; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://api.planscape.build https://api.mapbox.com https://events.mapbox.com https://client.crisp.chat wss://client.relay.crisp.chat; frame-ancestors 'none'
+  # CSP. Third-party origins are listed per-directive; each one is here because
+  # something we deliberately use needs it.
+  #
+  # cloudflareinsights.com is Cloudflare Web Analytics (#694). Cloudflare injects
+  # its beacon at the edge, so it appears in no page source in this repo — and the
+  # CSP blocked it, meaning the analytics have never collected a single page view.
+  # Two hosts, two directives, and both are required:
+  #   static.cloudflareinsights.com  script-src   loads beacon.min.js
+  #   cloudflareinsights.com         connect-src  the beacon POSTs to /cdn-cgi/rum
+  #
+  # Note the injection only happens for real browser navigations — curl does not
+  # trigger it even with a browser User-Agent, so this can only be verified in a
+  # browser. Check the console for a CSP violation, and the network tab for the
+  # POST to cloudflareinsights.com.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com https://client.crisp.chat https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://api.mapbox.com; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://api.planscape.build https://api.mapbox.com https://events.mapbox.com https://client.crisp.chat wss://client.relay.crisp.chat https://cloudflareinsights.com; frame-ancestors 'none'
 
 # ---------- Long-lived static assets ----------
 /assets/*

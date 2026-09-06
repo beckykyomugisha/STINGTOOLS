@@ -32,6 +32,7 @@
          LiveClash*, ClashSession, ClashScheduler, ClashKernel, ClashRun/BcfExport
          commands) since they are Revit-bound. -->
     <Compile Include="..\StingTools\Clash\ClashMeshBuffer.cs"      Link="Clash\ClashMeshBuffer.cs" />
+    <Compile Include="..\StingTools\Clash\GeometrySyncPlan.cs"    Link="Clash\GeometrySyncPlan.cs" />
     <Compile Include="..\StingTools\Clash\MollerSat.cs"            Link="Clash\MollerSat.cs" />
     <Compile Include="..\StingTools\Clash\ObbTree.cs"              Link="Clash\ObbTree.cs" />
     <Compile Include="..\StingTools\Clash\AabbSweep.cs"            Link="Clash\AabbSweep.cs" />
@@ -47,6 +48,13 @@
     <Compile Include="..\StingTools\Clash\ClashGrouper.cs"         Link="Clash\ClashGrouper.cs" />
     <Compile Include="..\StingTools\Clash\ResolutionHeuristics.cs" Link="Clash\ResolutionHeuristics.cs" />
     <Compile Include="..\StingTools\Clash\BcfMarkupBuilder.cs"     Link="Clash\BcfMarkupBuilder.cs" />
+    <!-- #722: GlbSerializer is the plugin end of the federation wire — it
+         stamps the clash key's element id into the GLB node extras the server
+         reads with GetInt64. It imports Autodesk.Revit.DB but uses nothing from
+         it (namespace-only, same as the four files RevitStubs already covers),
+         so it links here and the 64-bit contract can be tested on the real
+         serializer instead of a hand-written GLB. -->
+    <Compile Include="..\StingTools\Commands\IFC\GlbSerializer.cs" Link="IFC\GlbSerializer.cs" />
     <!-- AabbSweep logs via StingTools.Core.StingLog. TestHelpers/StingLogShim.cs
          is auto-included by the net8.0 SDK default Compile glob; no explicit
          <Compile> entry needed. -->

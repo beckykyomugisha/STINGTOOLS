@@ -466,26 +466,30 @@ canvas { display: block; touch-action: none; }
   border: 1px solid var(--border);
   border-radius: 999px;
   max-width: 70%;
-  overflow-x: auto;
 }
-.level-strip::-webkit-scrollbar { display: none; }
-.level-pill {
+.level-select {
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
-  padding: 3px 10px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  cursor: pointer;
+  color: var(--text-primary);
+  padding: 3px 24px 3px 10px;
+  font-family: inherit;
   font-size: 11px; font-weight: 600;
   letter-spacing: 0.04em;
-  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  /* Caret drawn inline so no extra element or icon font is needed. */
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+                    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
 }
-.level-pill:hover { background: var(--bg-panel-hover); color: var(--text-primary); }
-.level-pill.active { background: var(--accent); color: white; }
-.level-strip .nav-arrow {
-  background: transparent; border: 0; color: var(--text-secondary);
-  cursor: pointer; padding: 0 4px;
-}
+.level-select:hover { border-color: var(--border-strong); }
+.level-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The strip sits on a translucent dark pill; the native popup inherits the
+   page background otherwise and renders dark-on-dark in some browsers. */
+.level-select option { background: var(--bg-panel); color: var(--text-primary); }
 
 .nav-controls {
   position: absolute;
@@ -569,7 +573,12 @@ canvas { display: block; touch-action: none; }
   position: absolute;
   top: 70px; right: 16px;
   display: flex; flex-direction: column; gap: 8px;
-  z-index: 1500;
+  /* Above .modal-backdrop (3000). Toasts are the ONLY feedback channel for
+     several in-modal failures — "Title required" among them — and at 1500
+     they rendered underneath the full-screen backdrop, so the user saw a
+     Create button that did nothing and said nothing. A toast that can be
+     covered by the surface that raised it is not a feedback channel. */
+  z-index: 3100;
   pointer-events: none;
 }
 .toast {
@@ -1051,6 +1060,21 @@ canvas { display: block; touch-action: none; }
 /* ── Issue modal — BCC-parity additions ─────────────────────── */
 .modal label .hint {
   font-weight: 400; opacity: 0.7; font-size: 10px; margin-left: 6px;
+}
+/* Required-field marker + inline validation. A toast alone is the wrong
+   channel for "this field is wrong" — it appears away from the field, it
+   expires, and it doesn't survive a scroll. */
+.modal label .req { color: var(--critical); margin-left: 2px; }
+.modal .field-error {
+  color: var(--critical);
+  font-size: 11px;
+  margin: -6px 0 8px;
+}
+.modal .field-error[hidden] { display: none; }
+.modal input.invalid,
+.modal textarea.invalid {
+  border-color: var(--critical);
+  outline: none;
 }
 .modal .row-2 {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
@@ -1774,3 +1798,48 @@ tr.row-selected td { color: var(--text-primary); }
 }
 .viewport-wrap.bp-collapsed .walk-joystick { bottom: calc(32px + 66px); }
 .viewport-wrap.bp-expanded  .walk-joystick { bottom: calc(60vh + 66px); }
+
+/* ── Phones ──────────────────────────────────────────────────────────────
+   .app-shell is a three-column grid: left | canvas | right. The panels are
+   240px + 260px = 500px of fixed columns, which is WIDER THAN A PHONE, so
+   at 375px the 1fr canvas column computed to ZERO width — the model was
+   simply invisible on a phone, and the toolbar started off-screen at x=378
+   so Meet / Issues could not be reached either.
+
+   Below 700px the canvas always owns the full width, and the panels become
+   overlays that sit on top of it. Overlaying (rather than keeping them in
+   the grid) is the point: if they still took a column, opening one would
+   squeeze the 3D view back to nothing on exactly the screens that can least
+   afford it. The header toggles still open and close them as before. */
+@media (max-width: 700px) {
+  .app-shell,
+  .app-shell.left-collapsed,
+  .app-shell.right-collapsed,
+  .app-shell.left-collapsed.right-collapsed {
+    grid-template-columns: 0 1fr 0;
+  }
+
+  /* Grid items default to min-width:auto, which lets wide content push the
+     item past the viewport — that is why the header measured 500px. */
+  .header { min-width: 0; overflow-x: auto; }
+  .toolbar { flex-wrap: nowrap; }
+
+  .left-panel,
+  .right-panel {
+    position: fixed;
+    top: var(--toolbar-height);
+    bottom: 0;
+    width: min(86vw, 320px);
+    z-index: 60;
+    box-shadow: 0 0 28px rgba(0, 0, 0, 0.55);
+  }
+  .left-panel  { left: 0; }
+  .right-panel { right: 0; }
+
+  /* On a phone "collapsed" means gone, not a zero-width column. */
+  .app-shell.left-collapsed  .left-panel  { display: none; }
+  .app-shell.right-collapsed .right-panel { display: none; }
+
+  /* Drag-to-resize rails are a mouse affordance and only steal touches. */
+  .rail-handle { display: none; }
+}

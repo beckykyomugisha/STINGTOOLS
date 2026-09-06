@@ -46,6 +46,19 @@ public class DocumentRecord : ITenantScoped
     // auto-transition the document from PUBLISHED to ARCHIVE on this date.
     public DateTime? RetentionExpiresAt { get; set; }
 
+    // #633 — where this document may go next, and whether approval is needed
+    // first. NOT PERSISTED and NOT part of the state machine: it is computed
+    // from DocumentsController's ValidTransitions + ApprovalRequiredTransitions
+    // and attached to the response, so a client stops keeping its own copy of
+    // rules the server already enforces. See CdeTransitionOption.
+    //
+    // NULL means "this response did not compute it" — an older server, or an
+    // endpoint that does not fill it. It does NOT mean "no transitions are
+    // available", and a client must not render it that way: unknown and
+    // none-allowed are different answers, and only one of them is a refusal.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public IReadOnlyList<CdeTransitionOption>? AllowedTransitions { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
     public CdeContainer? Container { get; set; }

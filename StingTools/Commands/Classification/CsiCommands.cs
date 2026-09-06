@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,6 +8,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using ClosedXML.Excel;
+using StingTools.BOQ;
 using StingTools.Core;
 using StingTools.Core.Classification;
 
@@ -33,7 +35,7 @@ namespace StingTools.Commands.Classification
                 string dir = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "csi_map.csv");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "csi_map.csv");
                     if (File.Exists(p))
                     {
                         var r = CsiMasterFormat.ParseCsvLines(File.ReadAllLines(p));
@@ -59,6 +61,86 @@ namespace StingTools.Commands.Classification
 
         public static List<Element> Scope(UIDocument uidoc, Document doc, out string label)
             => StingTools.Tags.TagSchemeCommandHelper.CollectScope(uidoc, doc, out label);
+
+        // ---- per-document caches -------------------------------------------------
+        // BuildLineItemFromElement asks for these once per element, so the CSV/JSON
+        // load must happen once per BuildBOQDocument run, not once per element.
+        // Mirrors RateProviderRegistry's per-PathName caching; Invalidate() is wired
+        // alongside it on Cost_ReloadRules and after SpecLink_ImportFolder writes.
+        private static readonly ConcurrentDictionary<string, List<CsiRule>> _rulesCache
+            = new ConcurrentDictionary<string, List<CsiRule>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, Dictionary<string, string>> _nrm2Cache
+            = new ConcurrentDictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, Dictionary<string, string>> _unitCache
+            = new ConcurrentDictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, Dictionary<string, SpecSection>> _specCache
+            = new ConcurrentDictionary<string, Dictionary<string, SpecSection>>(StringComparer.OrdinalIgnoreCase);
+
+        private static string CacheKey(Document doc) => doc?.PathName ?? "default";
+
+        /// <summary>Parsed corporate + project-overlay CSI rules, cached per document.</summary>
+        public static List<CsiRule> Rules(Document doc)
+            => _rulesCache.GetOrAdd(CacheKey(doc), _ => Load(doc, out int _, out int _));
+
+        /// <summary>Normalised CSI section -&gt; NRM2 work-section code. The fallback for an
+        /// element carrying a stamped section no rule matched - prefer
+        /// <see cref="CsiMasterFormat.Nrm2For"/>, which reads the matched rule first.</summary>
+        public static Dictionary<string, string> SectionToNrm2(Document doc)
+            => _nrm2Cache.GetOrAdd(CacheKey(doc), _ => CsiMasterFormat.BuildSectionToNrm2(Rules(doc)));
+
+        /// <summary>Normalised CSI section -&gt; preferred measurement unit (advisory).</summary>
+        public static Dictionary<string, string> SectionToUnit(Document doc)
+            => _unitCache.GetOrAdd(CacheKey(doc), _ => CsiMasterFormat.BuildSectionToUnit(Rules(doc)));
+
+        /// <summary>Normalised CSI section -&gt; issued SpecLink section text, from
+        /// &lt;project&gt;/_BIM_COORD/speclink/sections.json. EMPTY when the store is absent,
+        /// which is the dominant case - a project that has never run SpecLink_ImportFolder
+        /// sees no change to its bill.</summary>
+        public static Dictionary<string, SpecSection> SpecSections(Document doc)
+            => _specCache.GetOrAdd(CacheKey(doc), _ =>
+            {
+                var empty = new Dictionary<string, SpecSection>(StringComparer.Ordinal);
+                try
+                {
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "speclink", "sections.json");
+                    if (string.IsNullOrEmpty(p) || !File.Exists(p)) return empty;
+                    var store = SpecStore.Parse(File.ReadAllText(p));
+                    StingLog.Info($"CsiMap: loaded SpecLink store ({store.Count} section(s)) from {p}");
+                    return store;
+                }
+                catch (Exception ex) { StingLog.Warn($"Spec store load: {ex.Message}"); return empty; }
+            });
+
+        /// <summary>Drop every per-document cache so an edited map / re-imported spec is
+        /// picked up without restarting Revit.</summary>
+        public static void Invalidate()
+        {
+            _rulesCache.Clear(); _nrm2Cache.Clear(); _unitCache.Clear(); _specCache.Clear();
+        }
+
+        /// <summary>
+        /// The type name to match TypeRegex against.
+        ///
+        /// <para>ParameterHelpers.GetFamilySymbolName only answers for FamilyInstance;
+        /// it returns "" for every system element — Walls, Floors, Roofs, Ceilings,
+        /// Pipes, Ducts, Conduits, Cable Trays, Stairs, Railings, Toposolids. Score()
+        /// treats an empty candidate as "does not match", so before this fallback ANY
+        /// FamilyRegex/TypeRegex rule on those categories was unmatchable — the shipped
+        /// "Walls (?i)masonry|block|brick → 04 20 00" and "(?i)concrete → 03 30 00" rows
+        /// had never once fired, and every wall silently took the 09 29 00 Gypsum Board
+        /// default. Falling back to the element type's own name is what makes those rows,
+        /// and the site/civil discriminators, actually resolve.</para>
+        ///
+        /// <para>For a FamilyInstance the symbol name IS the type name, so the fallback
+        /// only ever fires for system elements and changes nothing for loadable families.</para>
+        /// </summary>
+        public static string TypeName(Document doc, Element el)
+        {
+            string t = ParameterHelpers.GetFamilySymbolName(el);
+            if (!string.IsNullOrEmpty(t)) return t;
+            try { return doc.GetElement(el.GetTypeId())?.Name ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"CSI TypeName {el?.Id}: {ex.Message}"); return ""; }
+        }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -103,7 +185,7 @@ namespace StingTools.Commands.Classification
                 {
                     string cat = ParameterHelpers.GetCategoryName(el);
                     string fam = ParameterHelpers.GetFamilyName(el);
-                    string type = ParameterHelpers.GetFamilySymbolName(el);
+                    string type = CsiMap.TypeName(doc, el);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
                     if (rule == null)

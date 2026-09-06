@@ -1,0 +1,565 @@
+{
+ "schemaVersion": "1.0",
+ "note": "Corporate baseline. Project override: <project>/_data/coord/supplier_units.json (merged by commodityKey).",
+ "rules": [
+  {
+   "commodityKey": "cement",
+   "description": "Cement (OPC 42.5N)",
+   "supplierUnit": "Bags",
+   "sourceUnit": "bag",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 2.5,
+   "matchKinds": [
+    "mortar_cement",
+    "plaster_cement",
+    "screed_cement"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "sand",
+   "description": "River and pit sand",
+   "supplierUnit": "Trips (Sino Truck)",
+   "sourceUnit": "m3",
+   "sourceUnitsPerSupplierUnit": 12.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "mortar_sand",
+    "plaster_sand",
+    "screed_sand"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "block",
+   "description": "Hollow blocks 8\"",
+   "supplierUnit": "No.",
+   "sourceUnit": "nr",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "block_units"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "brick",
+   "description": "Bricks",
+   "supplierUnit": "No.",
+   "sourceUnit": "nr",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "brick_units"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "rebar",
+   "description": "Steel reinforcement bars",
+   "supplierUnit": "Kg",
+   "sourceUnit": "kg",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 7.5,
+   "matchKinds": [
+    "rebar",
+    "mesh"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "formwork-timber",
+   "description": "Sawn timber for formwork",
+   "supplierUnit": "m²",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": false,
+   "defaultWastagePct": 15.0,
+   "matchKinds": [
+    "formwork"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "concrete-ready",
+   "description": "In-situ concrete",
+   "supplierUnit": "m³",
+   "sourceUnit": "m3",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": false,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "concrete",
+    "precast_rib"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "roof-sheet",
+   "description": "Roofing sheets (corrugated / IT4)",
+   "supplierUnit": "No.",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 2.4,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchTypePatterns": [
+    "sheet",
+    "it4",
+    "it5",
+    "corrugat",
+    "profil",
+    "metal",
+    "gauge",
+    "g28",
+    "g30"
+   ],
+   "stageId": "roof",
+   "matchMaterialPatterns": [
+    "corrugat",
+    "galvanis",
+    "galvaniz",
+    "iron sheet",
+    "metal deck",
+    "metal - roof",
+    "it4",
+    "it5"
+   ],
+   "sourceNote": "IT4/IT5 corrugated at 2.4 m2 effective cover per standard sheet after side and end laps. NOMINAL COVER - confirm against the product's own coverage table before ordering; cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "roof-tile",
+   "description": "Roof tiles",
+   "supplierUnit": "No.",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 0.09,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 7.5,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchTypePatterns": [
+    "tile",
+    "clay",
+    "concrete tile"
+   ],
+   "stageId": "roof",
+   "matchMaterialPatterns": [
+    "roof tile",
+    "tile - roof"
+   ],
+   "sourceNote": "0.09 m2 per tile is roughly 11 tiles per m2, a mid-range figure across Max-pan and clay profiles which run 10 to 16. NOMINAL COVER - confirm against the product's own coverage table before ordering."
+  },
+  {
+   "commodityKey": "paint-interior",
+   "description": "Interior paint (silk, incl. undercoat)",
+   "supplierUnit": "Bkts",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 60.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [
+    "paint_interior"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "paint-exterior",
+   "description": "Exterior paint (weather-guard, incl. undercoat)",
+   "supplierUnit": "Bkts",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 50.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [
+    "paint_exterior"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "floor-tile",
+   "description": "Floor tiles",
+   "spec": "600x600 (4 pcs = 1.44 m2 per box)",
+   "supplierUnit": "Boxes",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 1.44,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10,
+   "matchKinds": [
+    "floor_tile"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "wall-tile",
+   "description": "Wall tiles",
+   "spec": "300x600 (8 pcs = 1.44 m2 per box)",
+   "supplierUnit": "Boxes",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 1.44,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10,
+   "matchKinds": [
+    "wall_tile"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "tile-adhesive",
+   "description": "Tile adhesive",
+   "spec": "cementitious, 20 kg bag",
+   "supplierUnit": "Bags",
+   "sourceUnit": "kg",
+   "sourceUnitsPerSupplierUnit": 20.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 0,
+   "matchKinds": [
+    "tile_adhesive"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "tile-grout",
+   "description": "Tile grout",
+   "spec": "5 kg bag",
+   "supplierUnit": "Bags",
+   "sourceUnit": "kg",
+   "sourceUnitsPerSupplierUnit": 5.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 0,
+   "matchKinds": [
+    "tile_grout"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "skirting",
+   "description": "Skirting",
+   "spec": "per linear metre, as scheduled",
+   "supplierUnit": "m",
+   "sourceUnit": "m",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": false,
+   "defaultWastagePct": 5,
+   "matchKinds": [
+    "skirting"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "ceiling-board",
+   "description": "Ceiling board (gypsum / plasterboard)",
+   "spec": "1200x2400 sheet = 2.88 m2",
+   "supplierUnit": "Sheets",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 2.88,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [
+    "ceiling_board"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "ceiling-furring",
+   "description": "Ceiling furring / suspension grid (DERIVED from area by a practice ratio - not measured)",
+   "spec": "3.6 m length",
+   "supplierUnit": "Lengths",
+   "sourceUnit": "m",
+   "sourceUnitsPerSupplierUnit": 3.6,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [
+    "ceiling_furring"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "dpm",
+   "description": "Damp-proof membrane (polythene sheet)",
+   "spec": "1000 gauge, 4 m x 25 m roll = 100 m2",
+   "supplierUnit": "Rolls",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 100.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 15.0,
+   "matchKinds": [
+    "dpm"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "roof-underlay",
+   "description": "Roof underlay / sarking membrane",
+   "spec": "1 m x 45 m roll = 45 m2",
+   "supplierUnit": "Rolls",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 45.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 15.0,
+   "matchKinds": [
+    "roof_underlay"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "hoop-iron",
+   "description": "Hoop iron (DERIVED from walled area by a practice ratio - not measured)",
+   "spec": "30 m roll",
+   "supplierUnit": "Rolls",
+   "sourceUnit": "m",
+   "sourceUnitsPerSupplierUnit": 30.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "hoop_iron"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "binding-wire",
+   "description": "Binding wire (DERIVED from rebar mass by a practice ratio - not measured)",
+   "spec": "20 kg roll",
+   "supplierUnit": "Rolls",
+   "sourceUnit": "kg",
+   "sourceUnitsPerSupplierUnit": 20.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "binding_wire"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "formwork-nails",
+   "description": "Nails for formwork (DERIVED from contact area by a practice ratio - not measured)",
+   "spec": "sold by the kilogram",
+   "supplierUnit": "Kg",
+   "sourceUnit": "kg",
+   "sourceUnitsPerSupplierUnit": 1.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "formwork_nails"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "roof-fastener",
+   "description": "Roofing screws / nails (DERIVED from covering area by a practice ratio - not measured)",
+   "spec": "pack of 100",
+   "supplierUnit": "Packs",
+   "sourceUnit": "nr",
+   "sourceUnitsPerSupplierUnit": 100.0,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 5.0,
+   "matchKinds": [
+    "roof_fastener"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  },
+  {
+   "commodityKey": "roof-shingle",
+   "description": "Asphalt / bitumen shingles",
+   "spec": "bundle covers ~3.1 m2 (3 bundles = 1 square = 9.29 m2)",
+   "supplierUnit": "Bundles",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 3.1,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchMaterialPatterns": [
+    "asphalt shingle",
+    "bitumen shingle",
+    "shingle"
+   ],
+   "matchTypePatterns": [
+    "shingle"
+   ],
+   "stageId": "roof",
+   "sourceNote": "3 bundles per roofing square (9.29 m2) is the near-universal packing, so ~3.1 m2 per bundle. 10% covers hip/ridge cutting and the starter course. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "roof-tile-stonecoated",
+   "description": "Stone-coated steel roof tiles (Harvey / Decra / Versatile type)",
+   "spec": "sheet nominal 1330 x 420 mm; effective cover ~0.47 m2",
+   "supplierUnit": "No.",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 0.47,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 7.5,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchMaterialPatterns": [
+    "stone coated",
+    "stone-coated",
+    "harvey",
+    "decra",
+    "versatile",
+    "roman tile",
+    "milano"
+   ],
+   "matchTypePatterns": [
+    "harvey",
+    "decra",
+    "versatile",
+    "stone coat",
+    "stonecoat"
+   ],
+   "stageId": "roof",
+   "sourceNote": "Nominal sheet 1330 x 420 mm with side and head laps gives roughly 0.47 m2 of cover, about 2.1 sheets per m2 — suppliers commonly quote 2.2 to 2.3 per m2 depending on pitch. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "roof-tile-clay",
+   "description": "Clay roof tiles (Marseille / Roman profile)",
+   "spec": "~13 tiles per m2 at standard gauge",
+   "supplierUnit": "No.",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 0.077,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 8.0,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchMaterialPatterns": [
+    "clay tile",
+    "clay roof",
+    "marseille",
+    "terracotta"
+   ],
+   "matchTypePatterns": [
+    "clay tile",
+    "marseille"
+   ],
+   "stageId": "roof",
+   "sourceNote": "13 tiles per m2 (0.077 m2 each) is the usual Marseille-profile gauge; Roman and pantile profiles run 10 to 16. Breakage is why the waste allowance is higher than for steel. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "roof-tile-concrete",
+   "description": "Concrete roof tiles",
+   "spec": "~10 tiles per m2 at standard gauge",
+   "supplierUnit": "No.",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 0.1,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 7.5,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchMaterialPatterns": [
+    "concrete tile",
+    "concrete roof tile"
+   ],
+   "matchTypePatterns": [
+    "concrete tile"
+   ],
+   "stageId": "roof",
+   "sourceNote": "10 tiles per m2 (0.10 m2 each) at the common 300 mm gauge. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "roof-sheet-boxprofile",
+   "description": "Box-profile / trapezoidal steel roofing sheet",
+   "spec": "1 m nominal width, ~0.86 m effective cover; sold by the running metre of length",
+   "supplierUnit": "m",
+   "sourceUnit": "m2",
+   "sourceUnitsPerSupplierUnit": 0.86,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [],
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchMaterialPatterns": [
+    "box profile",
+    "box-profile",
+    "trapezoidal",
+    "kliplok",
+    "klip lok"
+   ],
+   "matchTypePatterns": [
+    "box profile",
+    "boxprofile",
+    "trapezoid",
+    "kliplok"
+   ],
+   "stageId": "roof",
+   "sourceNote": "Nominal 1 m sheet with one-rib side lap covers about 0.86 m. Sold by LENGTH, so the order quantity here is running metres of sheet, not a sheet count — lengths are cut to the rafter run. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area."
+  },
+  {
+   "commodityKey": "fascia-board",
+   "description": "Fascia board (measured along the eaves)",
+   "spec": "4.2 m length, sold whole",
+   "supplierUnit": "Lengths",
+   "sourceUnit": "m",
+   "sourceUnitsPerSupplierUnit": 4.2,
+   "roundUpToWhole": true,
+   "defaultWastagePct": 10.0,
+   "matchKinds": [
+    "fascia_board"
+   ],
+   "matchCategories": [],
+   "matchTypePatterns": [],
+   "stageId": ""
+  }
+ ]
+}

@@ -84,7 +84,7 @@ namespace StingTools.Model
                             string projDir = System.IO.Path.GetDirectoryName(doc.PathName);
                             if (!string.IsNullOrEmpty(projDir))
                             {
-                                string projPath = System.IO.Path.Combine(projDir, "_BIM_COORD", "fitting_losses.json");
+                                string projPath = System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "fitting_losses.json");
                                 if (System.IO.File.Exists(projPath)) ApplyOverlay(projPath, map);
                             }
                         }

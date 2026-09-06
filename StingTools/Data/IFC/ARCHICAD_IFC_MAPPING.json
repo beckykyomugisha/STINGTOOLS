@@ -790,11 +790,25 @@
       "notes": "Zone functional category name"
     },
     {
+      "pset_name": "Pset_ZoneCommon",
+      "property_name": "Reference",
+      "sting_param": "ASS_ZONE_TXT",
+      "element_types": ["IFCZONE"],
+      "notes": "Spatial zone designator (e.g. Z01, Z02) — correct source for the STING ZONE token on IfcZone. ZoneCategoryCode carries the functional category and must NOT be mapped to ASS_ZONE_TXT. See docs/archicad-zone-mapping-guide.md."
+    },
+    {
+      "pset_name": "AC_Pset_ZoneCategory",
+      "property_name": "ZoneCategoryCode",
+      "sting_param": "ASS_FUNC_TXT",
+      "element_types": ["IFCZONE", "IFCSPACE"],
+      "notes": "Functional category (e.g. OFFICE, WARD, PLANT) maps to the STING FUNC token. See docs/archicad-zone-mapping-guide.md."
+    },
+    {
       "pset_name": "AC_Pset_ZoneCategory",
       "property_name": "ZoneCategoryCode",
       "sting_param": "ZON_CATEGORY_CODE_TXT",
       "element_types": ["IFCZONE", "IFCSPACE"],
-      "notes": "Zone category short code"
+      "notes": "Zone category short code — also written to ZON_CATEGORY_CODE_TXT for legacy consumers."
     },
     {
       "pset_name": "AC_Pset_ZoneCategory",

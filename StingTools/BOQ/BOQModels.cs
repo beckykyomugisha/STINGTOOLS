@@ -95,6 +95,14 @@ namespace StingTools.BOQ
     {
         public int ZeroRateCount;        // measured/count model rows with no rate found
         public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
+        /// <summary>
+        /// A-1 — measured rows the take-off explicitly could NOT resolve a quantity
+        /// for. A strict subset of <see cref="CouldNotMeasureCount"/>, which infers
+        /// the same condition from a zero quantity and so also catches rows that
+        /// measured legitimately to zero. This one carries no false positives, which
+        /// is what lets it drive a hard export gate.
+        /// </summary>
+        public int QuantityUnresolvedCount;
         public int LowConfidenceCount;   // priced rows below the export confidence floor
         public double QtyAtRisk;         // Σ quantity of the zero-rate rows
         public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
@@ -128,6 +136,16 @@ namespace StingTools.BOQ
         public double Quantity;             // NET measured quantity — the value used for cost
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
 
+        /// <summary>
+        /// MAT-SCHED — the CompoundTakeoff constituent kind that produced this row
+        /// ("mortar_cement" / "plaster_sand" / "rebar" / …), or null for rows from
+        /// the non-compound path. Additive: defaults null so existing JSON
+        /// snapshots deserialise unchanged. The material schedule routes rows to
+        /// construction stages by this value; the "[Compound: …]" Note prefix
+        /// stays for human readers.
+        /// </summary>
+        public string ConstituentKind;
+
         // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
         // The gross→net derivation so a QS can see exactly how a modelled
         // geometry became a measured quantity. GrossQuantity is the raw Revit
@@ -144,6 +162,18 @@ namespace StingTools.BOQ
         public double DeductionQuantity;
         public double WastageQuantity;
         public string MeasurementNote;
+
+        /// <summary>
+        /// A-1 — false when this is a MEASURED line (m/m²/m³/kg) whose take-off
+        /// quantity source did not resolve. Quantity will read 0, but that 0 is a
+        /// failure, not a measurement: the row still carries a description, a
+        /// classification, a rate and an NRM2 section, so on paper it is
+        /// indistinguishable from a genuine cheap item. Defaults TRUE so every
+        /// existing construction site, snapshot and deserialised row keeps its
+        /// current meaning — only the take-off path can clear it.
+        /// </summary>
+        public bool QuantityResolved = true;
+
         public double RateUGX;
         public double RateUSD;
         public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
@@ -233,6 +263,15 @@ namespace StingTools.BOQ
         public string CarbonQuality;
         public string CarbonMaterial;
 
+        /// <summary>
+        /// The element's primary material name, for supplier-unit matching.
+        ///
+        /// A material is chosen deliberately; a type name is free text. One
+        /// delivered roof was typed "Generic - 225mm", measured 25 mm, and was
+        /// correctly materialled "Asphalt Shingle".
+        /// </summary>
+        public string MaterialName;
+
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
         // row, SimilarCount holds the element count and ConstituentElementIds
@@ -243,6 +282,55 @@ namespace StingTools.BOQ
         public int SimilarCount = 1;
         public List<long> ConstituentElementIds = new List<long>();
         public string AggregationKey;       // grouping key used to collapse the row (debug/export)
+
+        // -- spec reference (KUT lifecycle Phase A / H1) -----------------------
+        /// <summary>The element's CSI MasterFormat section (CSI_SECTION_TXT, or resolved
+        /// from the shipped map when the element was never CSI_Assign-stamped) and its
+        /// title. Carried on the line so the bill shows a spec reference per row, the
+        /// CSI-&gt;NRM2 bridge can bill it under its specification's work section, and the
+        /// spec-completeness gate can tell a priced line from an unspecified one.</summary>
+        public string CsiSection;
+        public string CsiTitle;
+
+        /// <summary>True when <see cref="ResolvedNRM2Paragraph"/> was taken VERBATIM from
+        /// the issued SpecLink section text rather than generated from an NRM2 template.
+        /// The paragraph enhancer must leave such a line alone - its appenders would
+        /// otherwise mutate contractual spec wording in a tender bill.</summary>
+        public bool SpecSourced;
+
+        /// <summary>The spec's preferred measurement basis for this line's CSI section.
+        /// ADVISORY: when it disagrees with <see cref="Unit"/> the line carries a
+        /// measurement-vs-spec note. It never re-measures the quantity - the rate's unit
+        /// and the quantity's unit have to stay the same dimension.</summary>
+        public string CsiUnit;
+
+        /// <summary>True when this line is Owner-procured FF&amp;E carried as a transparent
+        /// at-cost category rather than contractor-supplied work. Reserved by the spec
+        /// gate, which does not chase a spec for something the contractor never prices.
+        /// Nothing sets it yet - the Fohlio FF&amp;E treatment that does lands with the
+        /// Fohlio v2 work.</summary>
+        public bool FfeOwnerProcured;
+
+        /// <summary>The unit rate on this line already carries the contractor's overhead
+        /// and profit — set when a stamped rate override declares a non-zero overhead or
+        /// profit percentage, i.e. a subcontractor's loaded quote. Such a line is removed
+        /// from the document OH&amp;P base (see <see cref="BoqTotals"/>) so the project
+        /// markup does not fire against it a second time. It stays in the contingency
+        /// base: the work is still contractor-executed and still carries risk.</summary>
+        public bool RateIncludesOhp;
+
+        // -- FX provenance ------------------------------------------------------
+        /// <summary>The currency this line's rate was QUOTED in, when it had to be converted
+        /// to the document currency (e.g. "USD" for a Fohlio purchase-order price). Empty
+        /// when the rate was already in the document currency and no FX was applied.</summary>
+        public string RateSourceCurrency;
+
+        /// <summary>The date the FX rate behind this line was fixed, read from the element's
+        /// ASS_CST_FX_DATE_DT stamp. Only populated when an FX conversion actually happened —
+        /// showing a fixing date on a line that was never converted would imply a conversion
+        /// that did not occur. Empty here on a converted line is itself the finding, and the
+        /// line carries a note saying so.</summary>
+        public string RateFxDate;
 
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
@@ -263,10 +351,19 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
+                ConstituentKind = this.ConstituentKind,
                 GrossQuantity = this.GrossQuantity,
                 DeductionQuantity = this.DeductionQuantity,
                 WastageQuantity = this.WastageQuantity,
                 MeasurementNote = this.MeasurementNote,
+                QuantityResolved = this.QuantityResolved,   // A-1 — must survive the clone
+                CsiSection = this.CsiSection,
+                CsiTitle = this.CsiTitle,
+                CsiUnit = this.CsiUnit,
+                RateSourceCurrency = this.RateSourceCurrency,
+                RateFxDate = this.RateFxDate,
+                SpecSourced = this.SpecSourced,             // a clone must not become re-enhanceable
+                FfeOwnerProcured = this.FfeOwnerProcured,
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,
@@ -297,6 +394,7 @@ namespace StingTools.BOQ
                 CarbonSource = this.CarbonSource,
                 CarbonQuality = this.CarbonQuality,
                 CarbonMaterial = this.CarbonMaterial,
+                MaterialName = this.MaterialName,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),
@@ -387,13 +485,30 @@ namespace StingTools.BOQ
         public double PrelimContributionUGX =>
             PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
 
+        /// <summary>Σ of Owner-procured FF&amp;E line totals — a transparent at-cost
+        /// category bought direct from the Fohlio register, not contractor-supplied work.
+        /// Shown as its own subtotal and removed from the OH&amp;P + contingency base: a
+        /// main contractor does not earn profit on goods the Owner buys. Zero for every
+        /// project that has not set an FF&amp;E treatment, so the totals are unchanged.</summary>
+        public double FfeOwnerProcuredUGX => AllItems.Where(i => i.FfeOwnerProcured).Sum(i => i.TotalUGX);
+
+        /// <summary>Σ of line totals whose unit rate already carries overhead and profit
+        /// (a stamped loaded rate). Removed from the OH&amp;P base only — see
+        /// <see cref="BoqTotals.Compute"/>. Excludes Owner-procured FF&amp;E, which is
+        /// already out of that base through <see cref="FfeOwnerProcuredUGX"/>; counting a
+        /// line in both would subtract it twice. Zero for every project with no stamped
+        /// loaded rates, so the totals are unchanged.</summary>
+        public double OhpLoadedWorksUGX =>
+            AllItems.Where(i => i.RateIncludesOhp && !i.FfeOwnerProcured).Sum(i => i.TotalUGX);
+
         /// <summary>
         /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
         /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
         /// All component properties below and every external surface read from this.
         /// </summary>
         public BoqMarkupBreakdown Markup =>
-            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct);
+            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct,
+                              FfeOwnerProcuredUGX, OhpLoadedWorksUGX);
 
         public double OverheadProfitUGX => Markup.Overhead;
         public double ContingencyUGX    => Markup.Contingency;

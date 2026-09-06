@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import { ApiError } from '@/api/client';
 import { createIssue, updateIssue, transitionCDE, uploadIssueAttachment, captureSitePhoto } from '@/api/endpoints';
 import type { DeliverableUpsertArgs, CreateSiteDiaryRequest } from '@/api/endpoints';
 import type { OfflineAction, SitePhotoCaptureMeta } from '@/types/api';
@@ -479,6 +480,46 @@ const MAX_RETRIES_PER_ACTION = 3;
 const MAX_QUEUE_SIZE = 200;
 
 /**
+ * #646 — 4xx statuses that are NOT the client's fault and so stay retryable.
+ * Everything else in 4xx means replaying the same payload can never succeed.
+ * 5xx and transport failures are always retryable.
+ */
+const RETRYABLE_4XX = new Set([408, 429]);
+
+/**
+ * Read the HTTP status off a replay failure.
+ *
+ * `ApiError` (src/api/client.ts — the only place the app constructs one)
+ * carries `status` as a public field. Returns null when the error has no
+ * numeric status, which is the transport-failure case: a network drop, a DNS
+ * failure, an aborted request. Those must stay retryable, so null is treated
+ * as "not permanent" by every caller below.
+ */
+function statusOf(err: unknown): number | null {
+  if (err instanceof ApiError) return err.status;
+  // Endpoints that call `fetch` directly rather than through `apiFetch` can
+  // reject with their own status-bearing error; accept those too.
+  const s = (err as { status?: unknown } | null | undefined)?.status;
+  return typeof s === 'number' && Number.isFinite(s) ? s : null;
+}
+
+/**
+ * Is this failure permanent — i.e. will replaying the identical payload
+ * always be refused?
+ *
+ * Read the status the error already carries. Do NOT test the message: an
+ * `ApiError`'s message is the response *body*, and only falls back to
+ * `HTTP <status>` when that body is empty. Matching /HTTP 4xx/ against it
+ * therefore recognises empty-body refusals only, and silently misclassifies
+ * every refusal that explains itself — which is most of them (#646).
+ */
+function isPermanentFailure(err: unknown): boolean {
+  const status = statusOf(err);
+  if (status === null) return false;
+  return status >= 400 && status < 500 && !RETRYABLE_4XX.has(status);
+}
+
+/**
  * N-G17 — compute exponential-backoff delay in milliseconds.
  * Sequence: 2s → 4s → 8s → 16s (capped), with ±20% jitter so reconnect
  * storms across many devices don't hammer the server simultaneously.
@@ -527,9 +568,8 @@ export async function syncQueue(): Promise<SyncResult> {
       // Permanent errors — move to failed side-queue immediately rather than
       // retry. 4xx (except 408/429) indicate the client payload is the problem
       // so retrying will never succeed.
-      const isPermanent = /HTTP 4(0[0-79]|1[013-9]|2[013-9])/.test(msg)
-        || /HTTP 40[0137]/.test(msg); // 400, 401, 403, 407
-      const isConflict = /HTTP 409/.test(msg);
+      const isPermanent = isPermanentFailure(err);
+      const isConflict = statusOf(err) === 409;
       if (isConflict) result.conflicts++;
 
       if (isPermanent || (action.retryCount >= MAX_RETRIES_PER_ACTION)) {

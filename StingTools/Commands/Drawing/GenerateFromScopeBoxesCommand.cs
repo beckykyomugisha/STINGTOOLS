@@ -31,7 +31,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
                 // PERF-01: warm view-template + pack caches once before the
@@ -227,11 +227,16 @@ namespace StingTools.Commands.Drawing
             if (levels.Count == 0) return null;
             if (string.IsNullOrWhiteSpace(levelCode)) return levels.OrderBy(l => l.Elevation).FirstOrDefault();
 
-            // Exact name match first, then case-insensitive contains,
-            // then lowest-elevation fallback.
+            // P-13b: exact name match, then case-insensitive contains, then
+            // FAIL. The old third fallback returned the lowest-elevation level,
+            // so a typo in a scope box's level code silently produced the view
+            // on the wrong level — and the caller's `level == null` warn-and-skip
+            // could never fire, because a project with any levels always matched
+            // something. An unmatched code now yields null so that guard works.
+            // A level code that was never specified still defaults to the lowest
+            // level (handled above) — that default is deliberate.
             return levels.FirstOrDefault(l => string.Equals(l.Name, levelCode, StringComparison.OrdinalIgnoreCase))
-                ?? levels.FirstOrDefault(l => l.Name?.IndexOf(levelCode, StringComparison.OrdinalIgnoreCase) >= 0)
-                ?? levels.OrderBy(l => l.Elevation).FirstOrDefault();
+                ?? levels.FirstOrDefault(l => l.Name?.IndexOf(levelCode, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         private static string UniqueViewName(Document doc, string baseName)

@@ -718,11 +718,12 @@ namespace StingTools.Docs
         {
             try
             {
-                string projPath = _doc?.PathName;
-                if (string.IsNullOrEmpty(projPath)) return null;
-                string dir = Path.GetDirectoryName(projPath);
+                if (_doc == null || string.IsNullOrEmpty(_doc.PathName)) return null;
+                // Canonical bucket — this WROTE the edited CSV to the pre-consolidation
+                // sibling, where the reader no longer looks.
+                string dir = Core.ProjectFolderEngine.GetMetaPath(_doc, "STING_BIM_MANAGER");
                 if (string.IsNullOrEmpty(dir)) return null;
-                return Path.Combine(dir, "STING_BIM_MANAGER", "TITLE_BLOCK.csv");
+                return Path.Combine(dir, "TITLE_BLOCK.csv");
             }
             catch (Exception ex)
             {

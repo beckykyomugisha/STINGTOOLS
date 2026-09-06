@@ -259,8 +259,14 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         // Get open actions
         var openResp = await client.GetAsync($"{_projBase}/meetings/actions/open");
         Assert.Equal(HttpStatusCode.OK, openResp.StatusCode);
+        // GetOpenActions returns the paged envelope { items, total, page, pageSize }.
+        // This used to call GetArrayLength() on the root, which was right when the
+        // endpoint returned a bare array and has thrown
+        // "requires an element of type 'Array', but the target element has type
+        // 'Object'" since pagination was added.
         var openActions = await openResp.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(openActions.GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("items").GetArrayLength() >= 1);
+        Assert.True(openActions.GetProperty("total").GetInt32() >= 1);
     }
 
     [Fact]
@@ -286,9 +292,25 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Transmittals
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_CreateAndList()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
@@ -304,9 +326,25 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
     }
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: TransmittalsController numbers transmittals via
+    /// SequenceCounterService.AllocateAsync, which issues
+    /// `INSERT … ON CONFLICT … RETURNING` with gen_random_uuid() — Postgres-only,
+    /// non-composable SQL. On the EF InMemory provider the call throws
+    /// "Relational-specific methods can only be used when the context is using a
+    /// relational database provider" and the request 500s, which is a property of
+    /// the test provider, not of the code.
+    ///
+    /// Skipped rather than reworked: a test that silently no-ops when its
+    /// dependency is missing reports safety it did not check. Set
+    /// PLANSCAPE_TEST_PG to run it — see PostgresSequenceCounterTests.
+    /// </summary>
+    [SkippableFact]
     public async Task Transmittals_MarkSent()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         var createResp = await client.PostAsJsonAsync($"{_projBase}/transmittals", new
@@ -404,9 +442,19 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     //  Search
     // ═══════════════════════════════════════════════════════════════════════
 
-    [Fact]
+    /// <summary>
+    /// Requires real PostgreSQL: SearchController uses EF.Functions.ILike, an
+    /// Npgsql-specific translation. On EF InMemory it throws "The 'ILike' method
+    /// is not supported because the query has switched to client-evaluation" and
+    /// the request 500s — a property of the test provider, not the code.
+    /// Set PLANSCAPE_TEST_PG to run it.
+    /// </summary>
+    [SkippableFact]
     public async Task Search_ValidQuery_ReturnsResults()
     {
+        Skip.IfNot(PlanscapeWebApplicationFactory.UsingPostgres,
+            "PLANSCAPE_TEST_PG is not set — needs the real-PostgreSQL harness.");
+
         var client = await _factory.CreateAuthenticatedClientAsync();
 
         // Create an issue to search for
@@ -531,11 +579,18 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
 
+        // projectRole/iso19650Role are the values a first-party client can actually
+        // produce. This used to read projectRole = "Engineer", iso19650Role = "E" —
+        // NEITHER is in its column's vocabulary ("Engineer" is not a ProjectRole,
+        // and "E" belongs to AppUser's separate ISO list, not the one
+        // GET .../members/roles serves). The test passed because both columns
+        // accepted any string, so it asserted the drift rather than the contract.
         var addResp = await client.PostAsJsonAsync($"{_projBase}/members", new
         {
             userId = TestData.MemberUserId,
-            projectRole = "Engineer",
-            iso19650Role = "E"
+            projectRole = "Contributor",
+            iso19650Role = "ME"          // MEP Engineer — the canonical code for what
+                                         // "E" was reaching for
         });
         Assert.Equal(HttpStatusCode.Created, addResp.StatusCode);
 
@@ -559,12 +614,15 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
     public async Task Members_InviteByEmail()
     {
         var client = await _factory.CreateAuthenticatedClientAsync();
+        // iso19650Role was "C" — a code from AppUser's vocabulary, and one of the two
+        // letters ProjectSettingsController gated on while matching (essentially)
+        // nobody (#737). "CL" (Client Representative) is the canonical code.
         var response = await client.PostAsJsonAsync($"{_projBase}/members/invite", new
         {
             email = "invited@test.org",
             displayName = "Invited User",
             projectRole = "Viewer",
-            iso19650Role = "C"
+            iso19650Role = "CL"
         });
         // Should succeed — creates pending user and adds as member
         Assert.True(
@@ -582,7 +640,25 @@ public class CoreApiTests : IClassFixture<PlanscapeWebApplicationFactory>
             userId = TestData.AdminUserId,
             projectRole = "Viewer"
         });
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        // member@test.org normally has no ProjectMember row on TestData.ProjectId
+        // (see PlanscapeWebApplicationFactory seed comment), in which case
+        // ProjectAccessAttribute's visibility gate rejects the request before
+        // the role check ever runs, returning 404 rather than 403 (403 would
+        // leak the project's existence to a caller who can't see it — same
+        // assertion as ProjectVisibilityTests.DeepLink_NonMember_GetsNotFound_NotForbidden).
+        // But this class shares one PlanscapeWebApplicationFactory/DB across
+        // all [Fact]s with no guaranteed run order, and another test in this
+        // file grants member@test.org membership on the SAME shared project —
+        // when that runs first, this caller legitimately passes the visibility
+        // gate and hits the real role check instead, which correctly returns
+        // 403. Both are the right answer for "member@test.org cannot add a
+        // member here" depending on incidental ordering; assert on that
+        // invariant (rejected) rather than pinning to whichever status code
+        // this run's fixture-state ordering happens to produce.
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.Forbidden,
+            $"Expected NotFound or Forbidden, got {response.StatusCode}");
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -314,11 +314,7 @@ namespace StingTools.Commands.Electrical.Export
         {
             try
             {
-                string projectFile = doc?.PathName ?? "";
-                string projectDir  = string.IsNullOrEmpty(projectFile)
-                    ? OutputLocationHelper.GetOutputDirectory(doc)
-                    : Path.GetDirectoryName(projectFile);
-                return Path.Combine(projectDir ?? "", "_BIM_COORD", "dialux_roundtrips.json");
+                return Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "dialux_roundtrips.json");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
