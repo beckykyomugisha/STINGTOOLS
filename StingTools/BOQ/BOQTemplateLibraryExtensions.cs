@@ -220,34 +220,13 @@ namespace StingTools.BOQ
             return "";
         }
 
-        private static string GetMaterialName(Element el)
-        {
-            try
-            {
-                // Revit has no single "ALL_MODEL_MATERIAL_ASSET_NAME" built-in —
-                // material is attached via GetMaterialIds/GetMaterial() or via a
-                // type parameter like STRUCTURAL_MATERIAL_PARAM.
-                var ids = el.GetMaterialIds(false);
-                if (ids != null && ids.Count > 0)
-                {
-                    Material m = el.Document.GetElement(ids.First()) as Material;
-                    if (m != null) return m.Name ?? "";
-                }
-                // Fallback: structural material reference (common for framing/walls)
-                var p = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
-                if (p != null && p.StorageType == StorageType.ElementId)
-                {
-                    var mid = p.AsElementId();
-                    if (mid != null && mid.Value > 0)
-                    {
-                        var m = el.Document.GetElement(mid) as Material;
-                        if (m != null) return m.Name ?? "";
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"GetMaterialName: {ex.Message}"); }
-            return "";
-        }
+        // E-5 — the third implementation, and the second non-deterministic one:
+        // GetMaterialIds(false).First(), else STRUCTURAL_MATERIAL_PARAM. This
+        // resolves the [material] token in NRM2 paragraph text, so on a compound
+        // element the bill could DESCRIBE one material while pricing a second and
+        // carbon-counting a third. Now the shared dominant-by-volume resolver,
+        // which carries the STRUCTURAL_MATERIAL_PARAM fallback this had.
+        private static string GetMaterialName(Element el) => StingTools.BOQ.PrimaryMaterial.Resolve(el);
 
         private static string GetLocationValue(Element el, Document doc)
         {

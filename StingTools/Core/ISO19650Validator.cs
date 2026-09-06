@@ -160,6 +160,21 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.LOC)
             {
+                // F-2 — XX is the legal "location not established" placeholder, the same
+                // role it already plays for LVL at the level branch below. It is NOT a
+                // building, so it does not belong in LocCodes (BLD1/BLD2/BLD3/EXT) — that
+                // list is the set of real buildings and adding XX to it would make a
+                // placeholder selectable as a location.
+                //
+                // Without this escape, F-2's change would trade a silent defect for a
+                // loud one: elements that used to be mis-filed under the first building
+                // now carry XX, which strict mode would report as
+                // "LOC 'XX' not in valid set". Lenient mode (the default) already
+                // accepts it as 1-8 alphanumerics, so this only affects strict projects —
+                // which are exactly the ones that would notice.
+                if (string.Equals(value, "XX", StringComparison.OrdinalIgnoreCase))
+                    return null; // valid, but a placeholder — see F-2
+
                 // Accept custom LOC codes from config before strict/lenient check
                 if (CustomLocCodes.Count > 0 && CustomLocCodes.Contains(value))
                     return null; // Custom code accepted
@@ -223,8 +238,22 @@ namespace StingTools.Core
                         lvlUpper.Substring(1).All(char.IsDigit)) ||
                     (lvlUpper.StartsWith("SB") && (lvlUpper.Length == 2 ||
                         lvlUpper.Substring(2).All(char.IsDigit)));
-                if (!isKnownLvl && !lvlUpper.All(c => char.IsLetterOrDigit(c)))
+                // F-9 / 3.6 — MEMBERSHIP NOW GATES.
+                //
+                // This was `if (!isKnownLvl && !All(char.IsLetterOrDigit))`, so an
+                // unknown but ALPHANUMERIC code passed: PR, ZZ, 00, MZ2 and UR all
+                // validated. isKnownLvl was computed and then only consulted
+                // alongside a non-alphanumeric character, so the list of valid
+                // codes above it never actually rejected anything. The only check
+                // with teeth was the 4-char length test at the top — which is why
+                // the 12-char passthrough was caught and a wrong 2-char code was not.
+                if (!lvlUpper.All(c => char.IsLetterOrDigit(c)))
                     return $"LVL '{value}' contains invalid characters";
+                if (!isKnownLvl)
+                    return $"LVL '{value}' is not a known level code. Valid: L00-L999, B1-B99, "
+                         + "SB/SB1-SB9, GF, LG, UG, MZ, PL, PH, AT, TR, POD, RF, XX. "
+                         + "Add it to STING_SPATIAL_CODES.json (or the project's "
+                         + "_BIM_COORD/spatial_codes.json) if it is a code this project uses.";
             }
             else if (tokenName == ParamRegistry.PROD)
             {
