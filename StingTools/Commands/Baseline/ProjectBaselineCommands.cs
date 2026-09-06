@@ -563,6 +563,7 @@ namespace StingTools.Commands.Baseline
 
             var baseline = BaselineRegistry.Load(doc);
             var audit = BaselineAuditor.Audit(baseline, BaselineModelReader.Read(doc, baseline));
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
             TaskDialog.Show("STING Project Baseline — audit", BaselineAuditor.Report(audit));
             return Result.Succeeded;
         }
@@ -587,6 +588,12 @@ namespace StingTools.Commands.Baseline
             // against facts the user never saw in the report.
             var inventory = BaselineModelReader.Read(doc, baseline);
             var audit = BaselineAuditor.Audit(baseline, inventory);
+
+            // A shared-parameter name that the FILE does not define cannot be
+            // added to anything. Resolving it here means Apply refuses before a
+            // single family is opened, rather than half-augmenting a model and
+            // reporting the rest as failures.
+            audit.BaselineProblems.AddRange(BaselineAugmenter.UnresolvableParameters(doc, baseline));
 
             if (audit.BaselineProblems.Count > 0)
             {
@@ -620,8 +627,20 @@ namespace StingTools.Commands.Baseline
                 tx.Commit();
             }
 
-            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}");
-            TaskDialog.Show("STING Project Baseline", mint.Summary()
+            // AFTER the commit, and deliberately not inside it: Document.EditFamily
+            // cannot run within an open transaction, so layer 3 sequences itself
+            // the way VisibilityEngine.Reset sequences its two mechanisms.
+            var augment = BaselineAugmenter.Apply(doc, baseline, audit);
+
+            StingLog.Info($"BaselineApply: created {mint.Created}, failed {mint.Failed.Count}, "
+                        + $"families augmented {augment.FamiliesAugmented}, "
+                        + $"augment failures {augment.Failed.Count}");
+
+            string report = mint.Summary();
+            string aug = augment.Summary();
+            if (!string.IsNullOrEmpty(aug)) report += "\n\n" + aug;
+
+            TaskDialog.Show("STING Project Baseline", report
                 + "\n\nRe-run the audit to confirm, then export a material schedule: "
                 + "types carrying tiled finish layers are what make tiling measurable.");
             return Result.Succeeded;
