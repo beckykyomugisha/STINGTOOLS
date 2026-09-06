@@ -85,7 +85,10 @@
         "infill_block",
         "mesh",
         "rebar",
-        "formwork"
+        "formwork",
+        "hoop_iron",
+        "binding_wire",
+        "formwork_nails"
       ],
       "categories": [
         "Walls",
@@ -101,7 +104,9 @@
       "preamble": "Roof structure and covering.",
       "order": 40,
       "constituentKinds": [
-        "roof_underlay"
+        "roof_underlay",
+        "roof_fastener",
+        "fascia_board"
       ],
       "categories": [
         "Roofs"

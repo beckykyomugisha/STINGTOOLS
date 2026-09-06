@@ -330,6 +330,86 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "hoop-iron",
+      "description": "Hoop iron (DERIVED from walled area by a practice ratio - not measured)",
+      "spec": "30 m roll",
+      "supplierUnit": "Rolls",
+      "sourceUnit": "m",
+      "sourceUnitsPerSupplierUnit": 30.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "hoop_iron"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "binding-wire",
+      "description": "Binding wire (DERIVED from rebar mass by a practice ratio - not measured)",
+      "spec": "20 kg roll",
+      "supplierUnit": "Rolls",
+      "sourceUnit": "kg",
+      "sourceUnitsPerSupplierUnit": 20.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "binding_wire"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "formwork-nails",
+      "description": "Nails for formwork (DERIVED from contact area by a practice ratio - not measured)",
+      "spec": "sold by the kilogram",
+      "supplierUnit": "Kg",
+      "sourceUnit": "kg",
+      "sourceUnitsPerSupplierUnit": 1.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "formwork_nails"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "roof-fastener",
+      "description": "Roofing screws / nails (DERIVED from covering area by a practice ratio - not measured)",
+      "spec": "pack of 100",
+      "supplierUnit": "Packs",
+      "sourceUnit": "nr",
+      "sourceUnitsPerSupplierUnit": 100.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 5.0,
+      "matchKinds": [
+        "roof_fastener"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "fascia-board",
+      "description": "Fascia board (measured along the eaves)",
+      "spec": "4.2 m length, sold whole",
+      "supplierUnit": "Lengths",
+      "sourceUnit": "m",
+      "sourceUnitsPerSupplierUnit": 4.2,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 10.0,
+      "matchKinds": [
+        "fascia_board"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

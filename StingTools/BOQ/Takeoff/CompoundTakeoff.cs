@@ -28,7 +28,7 @@ namespace StingTools.BOQ.Takeoff
                                     // "wall_tile" | "tile_adhesive" | "tile_grout" |
                                     // "screed" | "screed_cement" | "screed_sand" |
                                     // "ceiling_board" | "ceiling_furring" |
-                                    // "dpm" | "roof_underlay"
+                                    // "dpm" | "roof_underlay" | "fascia_board"
         public string Description;
         public string Unit;         // "m2" | "m3" | "nr" | "kg" | "bag"
         public double Quantity;
@@ -173,6 +173,29 @@ namespace StingTools.BOQ.Takeoff
         /// <summary>Number of layers classified as roof underlay / sarking.</summary>
         public int UnderlayLayers;
         public string UnderlayLabel;
+    }
+
+    /// <summary>
+    /// MATSCHED-T5 — roof edge accessories, measured from the roof's own
+    /// footprint boundary.
+    ///
+    /// Only ONE of the three accessories a roof edge carries has a length the
+    /// footprint states outright. A FASCIA runs along the eaves, an eave is
+    /// horizontal, so the boundary's plan length IS its length. A BARGE BOARD
+    /// runs up the rake of a gable, which is longer than the gable's plan
+    /// length by 1/cos(pitch). A RIDGE is an internal line the footprint does
+    /// not carry at all.
+    ///
+    /// The other two are therefore NOT emitted, and the scan says so by name.
+    /// Deriving a length from the roof AREA would be exactly the guess this
+    /// feature exists to refuse.
+    /// </summary>
+    public struct RoofEdgeInput
+    {
+        /// <summary>Total length of the SLOPE-DEFINING footprint edges — the
+        /// eaves. 0 emits nothing.</summary>
+        public double EavesLengthM;
+        public string RoofLabel;
     }
 
     public struct RcElementInput
@@ -617,6 +640,30 @@ namespace StingTools.BOQ.Takeoff
                     "m2", area * under, SecMasonry));
             }
 
+            return lines;
+        }
+
+        /// <summary>
+        /// MATSCHED-T5 — roof edge accessories. One row: the fascia along the
+        /// eaves.
+        ///
+        /// Quantities are NET; the supplier-unit rule owns the cutting and
+        /// jointing allowance, as it does for every other constituent.
+        /// </summary>
+        public static List<CompoundLine> RoofAccessories(RoofEdgeInput r)
+        {
+            var lines = new List<CompoundLine>();
+            // The clamp is deliberately redundant with the guard below - either
+            // alone rejects a negative length. Kept for the idiom the sibling
+            // engines use, and so a future edit that loosens one still has the
+            // other. Removing ONLY the clamp changes no behaviour, which is why
+            // that mutation does not move any test.
+            double eaves = Math.Max(0, r.EavesLengthM);
+            if (eaves <= 0) return lines;
+
+            string label = string.IsNullOrWhiteSpace(r.RoofLabel) ? "roof" : r.RoofLabel.Trim();
+            lines.Add(new CompoundLine("fascia_board", $"Fascia board along eaves — {label}",
+                "m", eaves, SecMasonry));
             return lines;
         }
 

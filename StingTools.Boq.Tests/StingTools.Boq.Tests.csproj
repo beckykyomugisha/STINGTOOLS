@@ -55,6 +55,9 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\ScreedScanTally.cs" Link="MaterialSchedule\ScreedScanTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CeilingScanTally.cs" Link="MaterialSchedule\CeilingScanTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\MembraneScanTally.cs" Link="MaterialSchedule\MembraneScanTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesCalculator.cs" Link="MaterialSchedule\ConsumablesCalculator.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesTally.cs" Link="MaterialSchedule\ConsumablesTally.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
@@ -85,6 +88,12 @@
     </None>
     <!-- MAT-SCHED — the shipped stage library; unique orders and single-routing
          kinds are what keep body and summary in step. -->
+    <!-- MATSCHED-T4 - the shipped ratio table, parsed by the real POCO, so a
+         missing source note or an unknown driver fails here rather than
+         going runtime-dead in Revit. -->
+    <None Include="..\StingTools\Data\STING_CONSUMABLES.json" Link="Data\STING_CONSUMABLES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\StingTools\Data\STING_SITE_TOOLS.json" Link="Data\STING_SITE_TOOLS.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
