@@ -107,6 +107,9 @@ namespace StingTools.UI
         private readonly DataGrid _grid;
         private readonly TextBlock _status;
         private readonly string _targetPath;
+        private readonly System.Collections.Generic.List<RateEditorRowVm> _all;
+        private readonly TextBox _filter;
+        private readonly CheckBox _unpricedOnly;
 
         public bool Saved { get; private set; }
 
@@ -117,7 +120,8 @@ namespace StingTools.UI
             _existingProject = existingProject ?? new List<CommodityRate>();
             _targetPath = targetPath;
 
-            foreach (var r in seed.Rows) _rows.Add(new RateEditorRowVm(r));
+            _all = seed.Rows.Select(r => new RateEditorRowVm(r)).ToList();
+            foreach (var r in _all) _rows.Add(r);
 
             Title = "STING — Price commodities";
             Width = 1080; Height = 660;
@@ -178,6 +182,55 @@ namespace StingTools.UI
             DockPanel.SetDock(footer, Dock.Bottom);
             root.Children.Add(footer);
 
+            // ── inline actions ──
+            //
+            // Every action that operates on the grid lives ON the grid, with
+            // the keyboard shortcut printed on it. The alternative - a dialog
+            // per action - is what made the editor's own button hard to find
+            // in the first place.
+            var bar = new WrapPanel { Margin = new Thickness(12, 10, 12, 0) };
+
+            bar.Children.Add(ToolButton("Paste column  (Ctrl+V)",
+                "Paste a column of rates copied from Excel, starting at the selected row. "
+              + "Blank lines keep their place so the rates below them stay on the right "
+              + "commodities; a line with no number is reported, never treated as zero.",
+                (a, b) => PasteColumn()));
+
+            bar.Children.Add(ToolButton("Fill down  (Ctrl+D)",
+                "Copy the rate in the row above into every selected row.",
+                (a, b) => FillDown()));
+
+            bar.Children.Add(ToolButton("Clear  (Del)",
+                "Clear the typed rate in the selected rows. The row keeps whatever rate it "
+              + "already had - clearing is not the same as pricing at zero.",
+                (a, b) => ClearSelected()));
+
+            bar.Children.Add(ToolButton("Copy keys",
+                "Copy Description and Unit for the visible rows to the clipboard, so a rate "
+              + "column can be built beside them in Excel and pasted straight back.",
+                (a, b) => CopyKeys()));
+
+            bar.Children.Add(new TextBlock
+            {
+                Text = "Find:", VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(14, 0, 4, 0), FontSize = 11.5
+            });
+            _filter = new TextBox { Width = 170, Height = 24, VerticalContentAlignment = VerticalAlignment.Center };
+            _filter.TextChanged += (a, b) => ApplyFilter();
+            bar.Children.Add(_filter);
+
+            _unpricedOnly = new CheckBox
+            {
+                Content = "Unpriced only", VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0), FontSize = 11.5
+            };
+            _unpricedOnly.Checked   += (a, b) => ApplyFilter();
+            _unpricedOnly.Unchecked += (a, b) => ApplyFilter();
+            bar.Children.Add(_unpricedOnly);
+
+            DockPanel.SetDock(bar, Dock.Top);
+            root.Children.Add(bar);
+
             // ── grid ──
             _grid = new DataGrid
             {
@@ -186,9 +239,33 @@ namespace StingTools.UI
                 CanUserAddRows = false, CanUserDeleteRows = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-                Margin = new Thickness(12, 10, 12, 0),
-                RowBackground = Brushes.Transparent
+                Margin = new Thickness(12, 6, 12, 0),
+                RowBackground = Brushes.Transparent,
+
+                // Excel behaviour, deliberately:
+                //  * cell selection, not whole rows, so the rate column can be
+                //    navigated and pasted into like a spreadsheet column;
+                //  * Tab and Enter both commit and move on, Enter downwards,
+                //    which is what a hand pricing a column expects;
+                //  * one click into the cell rather than click-then-click.
+                SelectionUnit = DataGridSelectionUnit.Cell,
+                SelectionMode = DataGridSelectionMode.Extended,
+                CanUserSortColumns = true,
+                ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader
             };
+            // Single click begins the edit. Without this the first click only
+            // selects, which reads as the cell being read-only.
+            _grid.PreparingCellForEdit += (s2, e2) =>
+            {
+                if (e2.EditingElement is TextBox tb)
+                { tb.SelectAll(); tb.Focus(); }
+            };
+            _grid.CurrentCellChanged += (s2, e2) =>
+            {
+                if (_grid.CurrentCell.Column != null && !_grid.CurrentCell.Column.IsReadOnly)
+                    _grid.BeginEdit();
+            };
+            _grid.PreviewKeyDown += Grid_PreviewKeyDown;
             var rowStyle = new Style(typeof(DataGridRow));
             rowStyle.Setters.Add(new Setter(DataGridRow.BackgroundProperty,
                 new System.Windows.Data.Binding(nameof(RateEditorRowVm.RowBrush))));
@@ -216,6 +293,206 @@ namespace StingTools.UI
             Content = root;
         }
 
+        private static Button ToolButton(string label, string tip, RoutedEventHandler onClick)
+        {
+            var b = new Button
+            {
+                Content = label, Height = 26, Padding = new Thickness(10, 0, 10, 0),
+                Margin = new Thickness(0, 0, 6, 0), ToolTip = tip, FontSize = 11.5
+            };
+            b.Click += onClick;
+            return b;
+        }
+
+        // ══ Excel keys ════════════════════════════════════════
+        private void Grid_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            bool ctrl = (System.Windows.Input.Keyboard.Modifiers
+                         & System.Windows.Input.ModifierKeys.Control) != 0;
+
+            if (ctrl && e.Key == System.Windows.Input.Key.V) { PasteColumn(); e.Handled = true; }
+            else if (ctrl && e.Key == System.Windows.Input.Key.D) { FillDown(); e.Handled = true; }
+            else if (e.Key == System.Windows.Input.Key.Delete && !IsEditing()) { ClearSelected(); e.Handled = true; }
+        }
+
+        private bool IsEditing() =>
+            _grid.CurrentCell.Column != null
+            && _grid.CurrentColumn != null
+            && System.Windows.Input.Keyboard.FocusedElement is TextBox;
+
+        private int SelectedIndex()
+        {
+            var vm = _grid.CurrentCell.Item as RateEditorRowVm;
+            int i = vm != null ? _rows.IndexOf(vm) : -1;
+            return i < 0 ? 0 : i;
+        }
+
+        /// <summary>
+        /// Paste a column from Excel over consecutive rows from the selection.
+        ///
+        /// The parsing, and every decision about blanks and unparseable lines,
+        /// lives in the Revit-free RatePasteParser where it is tested. This is
+        /// the part that moves values into rows and says what happened.
+        /// </summary>
+        private void PasteColumn()
+        {
+            string text;
+            try { text = Clipboard.GetText(); }
+            catch (Exception ex)
+            {
+                StingLog.Warn("RateEditor paste: " + ex.Message);
+                MessageBox.Show(this, "The clipboard could not be read.", Caption,
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var parsed = RatePasteParser.Parse(text);
+            if (parsed.Cells.Count == 0)
+            {
+                MessageBox.Show(this,
+                    "There is nothing on the clipboard to paste.\n\nCopy a column of rates in "
+                  + "Excel first — one per line, in the same order as the rows here. "
+                  + "Copy keys puts the descriptions on the clipboard so the column can be built "
+                  + "beside them.",
+                    Caption, MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            int start = SelectedIndex();
+            int applied = 0, ranOut = 0;
+
+            for (int i = 0; i < parsed.Cells.Count; i++)
+            {
+                int target = start + i;
+                if (target >= _rows.Count)
+                {
+                    if (parsed.Cells[i].Value.HasValue) ranOut++;
+                    continue;
+                }
+                var cell = parsed.Cells[i];
+                if (!cell.Value.HasValue) continue;      // blank or rejected: row untouched
+                _rows[target].NewRate = cell.Value.Value.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture);
+                applied++;
+            }
+
+            CommitAndRefresh();
+            string summary = parsed.Summary(applied, ranOut);
+            _status.Text = summary ?? _status.Text;
+            if (parsed.Rejected.Count > 0 || ranOut > 0)
+                MessageBox.Show(this, summary, Caption, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        /// <summary>Copy the rate above into every selected row.</summary>
+        private void FillDown()
+        {
+            var targets = _grid.SelectedCells
+                .Select(c => c.Item as RateEditorRowVm)
+                .Where(v => v != null).Distinct().ToList();
+            if (targets.Count == 0) { var v = _grid.CurrentCell.Item as RateEditorRowVm; if (v != null) targets.Add(v); }
+            if (targets.Count == 0) return;
+
+            int first = _rows.IndexOf(targets[0]);
+            if (first <= 0)
+            {
+                _status.Text = "Fill down needs a row above the selection to copy from.";
+                return;
+            }
+
+            string source = _rows[first - 1].NewRate;
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                _status.Text = "The row above has no typed rate to fill down.";
+                return;
+            }
+
+            foreach (var t in targets) t.NewRate = source;
+            CommitAndRefresh();
+            _status.Text = $"Filled {targets.Count} row(s) with {source}.";
+        }
+
+        /// <summary>
+        /// Clear the TYPED rate, not the rate in force.
+        ///
+        /// Clearing is "leave this one alone", which is exactly what an empty
+        /// cell means to the merge. It is not pricing at zero, and the tooltip
+        /// says so, because those two would look identical in the grid.
+        /// </summary>
+        private void ClearSelected()
+        {
+            var targets = _grid.SelectedCells
+                .Select(c => c.Item as RateEditorRowVm)
+                .Where(v => v != null).Distinct().ToList();
+            if (targets.Count == 0) return;
+
+            foreach (var t in targets) t.NewRate = "";
+            CommitAndRefresh();
+            _status.Text = $"Cleared the typed rate on {targets.Count} row(s) — each keeps the rate it already had.";
+        }
+
+        /// <summary>Description + unit for the VISIBLE rows, tab-separated.</summary>
+        private void CopyKeys()
+        {
+            var sb = new StringBuilder();
+            foreach (var r in _rows) sb.AppendLine(r.Description + "\t" + r.SupplierUnit);
+            try
+            {
+                Clipboard.SetText(sb.ToString());
+                _status.Text = $"Copied {_rows.Count} description(s) — paste into Excel, put rates "
+                             + "beside them, then copy that column back and press Ctrl+V here.";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("RateEditor copy: " + ex.Message);
+                _status.Text = "The clipboard could not be written.";
+            }
+        }
+
+        /// <summary>
+        /// Filter the visible rows. Edits live on the underlying model, so a
+        /// row filtered out of sight keeps whatever was typed into it — hiding
+        /// a row must never discard the work done on it.
+        /// </summary>
+        private void ApplyFilter()
+        {
+            string q = (_filter?.Text ?? "").Trim();
+            bool unpricedOnly = _unpricedOnly?.IsChecked == true;
+
+            _rows.Clear();
+            foreach (var r in _all)
+            {
+                if (unpricedOnly && !r.Model.IsUnpriced) continue;
+                if (q.Length > 0 &&
+                    (r.Description ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    (r.SupplierUnit ?? "").IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                _rows.Add(r);
+            }
+            _status.Text = _rows.Count == _all.Count
+                ? "Writes " + (_targetPath ?? "(project not saved)")
+                : $"Showing {_rows.Count} of {_all.Count} row(s). Rates typed into hidden rows are kept.";
+        }
+
+        /// <summary>
+        /// Commit any open cell edit before refreshing.
+        ///
+        /// Items.Refresh() throws if the grid is mid-edit, and every one of
+        /// these actions can be triggered by a keyboard shortcut while a cell
+        /// is open — which is the normal way to use them.
+        /// </summary>
+        private void CommitAndRefresh()
+        {
+            try
+            {
+                _grid.CommitEdit(DataGridEditingUnit.Cell, true);
+                _grid.CommitEdit(DataGridEditingUnit.Row, true);
+            }
+            catch (Exception ex) { StingLog.Warn("RateEditor commit: " + ex.Message); }
+            _grid.Items.Refresh();
+        }
+
+        private const string Caption = "STING — Price commodities";
+
         private void AddReadOnly(string header, string path, double width) =>
             _grid.Columns.Add(new DataGridTextColumn
             {
@@ -240,7 +517,10 @@ namespace StingTools.UI
                 return false;
             }
 
-            var edited = _rows.Select(r => r.Model).ToList();
+            // _all, not _rows: a filtered-out row that was priced before the
+            // filter was applied must still be saved. Saving only what is on
+            // screen would silently discard work the user can no longer see.
+            var edited = _all.Select(r => r.Model).ToList();
 
             var problems = RateEditorSeed.Validate(edited);
             if (problems.Count > 0)
