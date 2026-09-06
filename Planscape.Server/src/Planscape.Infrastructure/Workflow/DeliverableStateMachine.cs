@@ -66,6 +66,13 @@ public sealed class DeliverableStateMachine
         new Dictionary<string, IReadOnlyCollection<string>>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// True when the source JSON supplied an explicit <c>"roles"</c> block.
+    /// <see cref="RoleOf"/> then returns "none" for any state that block did
+    /// not name, instead of inferring one. See the comment in RoleOf.
+    /// </summary>
+    public bool RoleInferenceDisabled { get; init; }
+
+    /// <summary>
     /// Resolve the semantic role for a state name. O(1) for any state
     /// declared in the machine (loader pre-populates roles for every
     /// state in <c>states[]</c> plus every endpoint of
@@ -76,6 +83,15 @@ public sealed class DeliverableStateMachine
     {
         var key = state?.ToUpperInvariant() ?? "";
         if (SemanticRoles.TryGetValue(key, out var role)) return role;
+
+        // An explicit "roles" block is a closed statement of intent: the author
+        // enumerated the states that carry a semantic role, so anything absent
+        // is deliberately role-less. Falling through to inference here would
+        // silently re-add roles they left out — e.g. "REJECTED_BY_QA" inferring
+        // "rejecting" and firing the rejection-reason side-effect on a flow that
+        // never asked for it. The loader disables inference in that case; only
+        // machines built WITHOUT a roles block infer.
+        if (RoleInferenceDisabled) return "none";
         // Phase 149 — memoised on-demand inference for state names the
         // caller didn't pre-declare. Keeps RoleOf O(1) amortised even
         // when the controller queries an unknown state. Each machine
@@ -301,30 +317,41 @@ public sealed class DeliverableStateMachine
             // the built-in inference vocabulary. Shape:
             //   { "keywords": { "working": ["WAITING_ON_X", "PARKED"], … } }
             // Only the six canonical role buckets are recognised; anything
-            // else is silently ignored (so a typo doesn't 500). We don't
-            // re-run inference here — the loop above only had access to
-            // the built-in vocab, so tenants who relied on a custom
-            // keyword for a *declared* state must also include it in the
-            // explicit `roles` block. Custom keywords still fire via
-            // <see cref="RoleOf"/> for any state queried at runtime that
-            // isn't in the precomputed table.
+            // else is silently ignored (so a typo doesn't 500). Declared
+            // states ARE re-resolved against these keywords below — see the
+            // hasRolesBlock guard there. This comment previously said they were
+            // not, and told tenants to duplicate the mapping into an explicit
+            // `roles` block; that workaround is no longer needed.
             // Phase 150 — merge platform-wide keywords below the
             // project's own. Project entries win on key collisions so
             // a tenant can still override a platform default.
             var customKeywords = MergeKeywordLayers(
                 ParseCustomKeywords(root),  // project — highest priority
                 platformKeywords);          // platform — fallback
-            // If the loader didn't pre-resolve a role for a declared
-            // state but the tenant-supplied keywords would, do that
-            // resolution now so RoleOf for those states is the cheap
-            // dict lookup path.
+            // Resolve declared states against the tenant keywords now, so RoleOf
+            // stays a cheap dict lookup for them.
+            //
+            // The guard is `hasRolesBlock`, NOT `roles.ContainsKey`. Both the
+            // explicit "roles" block and the built-in inference above write into
+            // the same dictionary, so ContainsKey could not tell them apart —
+            // and because the inference pass had already claimed every declared
+            // state, a tenant keyword could never take effect on one. That made
+            // the documented promise on CustomKeywords ("working": ["LOCKED"]
+            // overrides the canonical LOCKED → terminal) false for exactly the
+            // states a project declares, which is all of them in practice.
+            //
+            // Priority is explicit roles > tenant keywords > built-in inference.
+            // hasRolesBlock distinguishes the top tier: when it is set, the
+            // inference branch never ran, so every entry present is explicit and
+            // must be left alone. When it is not set, every entry came from
+            // inference and a tenant keyword outranks it.
             if (customKeywords.Count > 0)
             {
                 var allDeclared = new HashSet<string>(states, StringComparer.OrdinalIgnoreCase);
                 foreach (var (from, to) in transitions) { allDeclared.Add(from); allDeclared.Add(to); }
                 foreach (var declared in allDeclared)
                 {
-                    if (roles.ContainsKey(declared)) continue;
+                    if (hasRolesBlock && roles.ContainsKey(declared)) continue;
                     var inferred = InferFromCustomKeywords(declared, customKeywords);
                     if (inferred != null) roles[declared] = inferred;
                 }
@@ -340,6 +367,7 @@ public sealed class DeliverableStateMachine
                 SemanticRoles = roles,
                 CustomKeywords = customKeywords,
                 IsCustom = true,
+                RoleInferenceDisabled = hasRolesBlock,
             };
         }
         catch
@@ -408,21 +436,44 @@ public sealed class DeliverableStateMachine
         // 1. Rejecting — strongest "negative outcome" signal first.
         foreach (var kw in RejectKeywords) if (s.Contains(kw)) return "rejecting";
 
-        // 2. Accepting — strongest "positive outcome" signal.
+        // 2. "Awaiting an outcome" phrases, BEFORE the outcome buckets.
+        //
+        // "ISSUED_FOR_APPROVAL" describes something sent out and waiting, not
+        // something approved. But AcceptKeywords contains "APPROV", which is a
+        // substring of it, so the accept scan below claimed the state first and
+        // returned "accepting" — asserting the deliverable had been signed off
+        // when it was still in someone's review queue. Same for
+        // "ISSUED_FOR_CONSTRUCTION" and friends.
+        //
+        // SubmitKeywords already lists these phrases; they were simply
+        // unreachable behind step 3. Hoisting the "FOR_"-style phrases (and
+        // only those — bare "SUBMIT"/"REVIEW" stay at step 3) fixes the
+        // precedence without weakening "APPROVED" → accepting.
+        foreach (var kw in AwaitingPhrases) if (s.Contains(kw)) return "submitting";
+
+        // 3. Accepting — strongest "positive outcome" signal.
         foreach (var kw in AcceptKeywords) if (s.Contains(kw)) return "accepting";
 
         // 3. Submitting — "in review" / "for review" precedes acceptance.
         foreach (var kw in SubmitKeywords) if (s.Contains(kw)) return "submitting";
 
-        // 4. Terminal — archival / closure verbs.
+        // 4. Blocked-but-live, BEFORE terminal.
+        //
+        // "BLOCKED" contains "LOCKED", which is a terminal keyword, so
+        // "BLOCKED_BY_RFI" — a deliverable someone is actively chasing — was
+        // classified "terminal" and dropped out of live reporting. Substring
+        // scanning has no word boundaries, so the only fix is precedence.
+        foreach (var kw in BlockedPhrases) if (s.Contains(kw)) return "working";
+
+        // 5. Terminal — archival / closure verbs.
         foreach (var kw in TerminalKeywords) if (s.Contains(kw)) return "terminal";
 
-        // 5. Working — broad "in progress" signal. Last among the
+        // 6. Working — broad "in progress" signal. Last among the
         // "actively-doing-something" buckets so it doesn't shadow more
         // specific outcomes.
         foreach (var kw in WorkingKeywords) if (s.Contains(kw)) return "working";
 
-        // 6. Initial — broadest "queued / not started" signal. Last
+        // 7. Initial — broadest "queued / not started" signal. Last
         // overall because words like "OPEN" can appear in compound names
         // (e.g. RE-OPENED) where another bucket is more accurate.
         foreach (var kw in InitialKeywords) if (s.Contains(kw)) return "initial";
@@ -446,8 +497,25 @@ public sealed class DeliverableStateMachine
         { "REJECT", "DECLIN", "RETURN", "REWORK", "FAIL", "VOID" };
     private static readonly string[] AcceptKeywords =
         { "ACCEPT", "APPROV", "PUBLISH", "SIGNED_OFF", "SIGNOFF", "PASSED" };
+    /// <summary>
+    /// "Sent out and waiting" phrases. Scanned before the accept/reject buckets
+    /// because each one contains an outcome word as a substring
+    /// ("...FOR_APPROVAL" contains "APPROV") and would otherwise be mistaken for
+    /// the outcome itself. Keep this list to phrases only — a bare verb here
+    /// would shadow the genuine outcome states.
+    /// </summary>
+    private static readonly string[] AwaitingPhrases =
+        { "ISSUED_FOR", "FOR_APPROVAL", "FOR_INFORMATION", "FOR_COMMENT", "FOR_REVIEW",
+          "AWAITING", "PENDING_APPROVAL", "PENDING_REVIEW" };
     private static readonly string[] SubmitKeywords =
         { "SUBMIT", "REVIEW", "ISSUED_FOR", "FOR_INFORMATION", "FOR_APPROVAL", "FOR_COMMENT", "ESCALAT" };
+    /// <summary>
+    /// Still-live states whose text collides with a terminal keyword.
+    /// "BLOCKED" contains "LOCKED"; scanned first so a blocked-but-active
+    /// deliverable is not reported as closed.
+    /// </summary>
+    private static readonly string[] BlockedPhrases =
+        { "BLOCKED", "UNBLOCKED" };
     private static readonly string[] TerminalKeywords =
         { "ARCHIV", "CLOSED", "CANCELL", "WAIVE", "SUPERSED", "COMPLETE", "FINAL", "DONE",
           "LOCKED", "FROZEN", "ABANDON", "WITHDRAW", "HANDED_OVER", "HANDOVER" };
@@ -495,6 +563,25 @@ public sealed class DeliverableStateMachine
         foreach (var layer in nonEmpty)
             foreach (var role in layer.Keys) allRoles.Add(role);
 
+        // A keyword may appear in DIFFERENT buckets in different layers — a
+        // project saying working:["LOCKED"] over a platform saying
+        // terminal:["LOCKED"]. Concatenating per-bucket keeps both, and the
+        // conflict is then settled by RolePriority at inference time, where
+        // terminal outranks working — so the platform silently won and layer
+        // precedence meant nothing for exactly the case it exists to handle.
+        //
+        // Claim each keyword for the highest-priority layer that mentions it,
+        // and let no later layer re-add it under a different role.
+        var claimedBy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var layer in nonEmpty)                 // already priority-ordered
+            foreach (var (role, entries) in layer)
+                foreach (var kw in entries)
+                {
+                    if (string.IsNullOrWhiteSpace(kw)) continue;
+                    var norm = kw.Trim().ToUpperInvariant();
+                    if (!claimedBy.ContainsKey(norm)) claimedBy[norm] = role;
+                }
+
         foreach (var role in allRoles)
         {
             var combined = new List<string>();
@@ -504,7 +591,16 @@ public sealed class DeliverableStateMachine
             // collapses equal strings).
             foreach (var layer in nonEmpty)
             {
-                if (layer.TryGetValue(role, out var entries)) combined.AddRange(entries);
+                if (!layer.TryGetValue(role, out var entries)) continue;
+                foreach (var kw in entries)
+                {
+                    if (string.IsNullOrWhiteSpace(kw)) continue;
+                    // Skip keywords a higher-priority layer claimed for another role.
+                    if (claimedBy.TryGetValue(kw.Trim().ToUpperInvariant(), out var owner)
+                        && !string.Equals(owner, role, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    combined.Add(kw);
+                }
             }
             var deduped = combined
                 .Where(s => !string.IsNullOrWhiteSpace(s))

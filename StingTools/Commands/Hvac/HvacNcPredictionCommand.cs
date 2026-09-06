@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Mechanical;
 using Autodesk.Revit.UI;
 using StingTools.Core;
 using StingTools.Core.Acoustic;
@@ -92,25 +93,28 @@ namespace StingTools.Commands.Hvac
                     SourceLw = fanSpectrum
                 });
 
-                var room = new RoomReceiver
-                {
-                    Name = "Receiver",
-                    VolumeM3 = 100,
-                    SurfaceAreaM2 = 6 * Math.Pow(100, 2.0 / 3.0),
-                    AvgAbsorption = 0.2,
-                    Directivity = 2,
-                    ListenerDistanceM = 1.5
-                };
+                // Resolve the receiver room from the actual Revit Space (or
+                // Room) that contains the terminal/receiver in the selection.
+                // Falls back to the legacy hardcoded 100 m³ / α=0.2 cube when
+                // no space is resolvable. The path used is surfaced below.
+                var room = ResolveRoomReceiver(doc, ids, out string roomSource);
 
                 var result = NcPredictionEngine.Compute(path, room);
 
                 var panel = StingResultPanel.Create("HVAC — NC Prediction");
-                panel.SetSubtitle($"path {path.Count - 1} segments · flow {pathFlowLs:F0} L/s · ΔP {pathDpPa:F0} Pa · room V={room.VolumeM3:F0} m³");
+                panel.SetSubtitle($"path {path.Count - 1} segments · flow {pathFlowLs:F0} L/s · ΔP {pathDpPa:F0} Pa · room V={room.VolumeM3:F0} m³ ({roomSource})");
                 panel.AddSection("RESULT")
                      .Metric("Predicted NC", $"NC {result.NcRating}")
                      .Metric("Fan Lw (1 kHz)", $"{fanSpectrum.Hz1000:F0} dB")
                      .Metric("Room Lw (1 kHz)", $"{result.RoomLw.Hz1000:F0} dB")
                      .Metric("Room Lp (1 kHz)", $"{result.RoomLp.Hz1000:F0} dB");
+
+                panel.AddSection("ROOM MODEL")
+                     .Metric("Source",        roomSource)
+                     .Metric("Name",          string.IsNullOrEmpty(room.Name) ? "(unnamed)" : room.Name)
+                     .Metric("Volume",        $"{room.VolumeM3:F1} m³")
+                     .Metric("Surface area",  $"{room.SurfaceAreaM2:F1} m²")
+                     .Metric("Avg absorption α", $"{room.AvgAbsorption:F2}");
 
                 panel.AddSection("OCTAVE-BAND Lp dB(A)");
                 var bands = OctaveBand.CentreFrequencies;
@@ -126,9 +130,12 @@ namespace StingTools.Commands.Hvac
                     panel.Text($"{pe.Element}: atten {atten} · regen {regen}");
                 }
 
-                panel.Text("Method: VDI 2081 / ASHRAE A48 attenuation + Bullock regen + " +
-                           "direct + reverberant room model. Synthetic fan Lw " +
-                           "derived from path Q+ΔP — replace with manufacturer spectrum for definitive NC.");
+                panel.Text($"Method: VDI 2081 / ASHRAE A48 attenuation + Bullock regen + " +
+                           $"direct + reverberant room model. Room from {roomSource} — " +
+                           "volume + surface area + finish-derived absorption when a Revit " +
+                           "Space/Room is resolvable, else the legacy 100 m³ / α=0.20 cube. " +
+                           "Synthetic fan Lw derived from path Q+ΔP — replace with manufacturer " +
+                           "spectrum for definitive NC.");
                 panel.Show();
 
                 try
@@ -288,6 +295,215 @@ namespace StingTools.Commands.Hvac
         private static double TryReadDouble(Element el, string p)
         {
             try { return el.LookupParameter(p)?.AsDouble() ?? 0; } catch { return 0; }
+        }
+
+        /// <summary>
+        /// Build the receiver <see cref="RoomReceiver"/> from the actual Revit
+        /// <see cref="Space"/> (or Room) that contains the terminal/receiver in
+        /// the selection. Volume comes from <c>Space.Volume</c>; surface area is
+        /// the enclosing-boundary walls (perimeter × height) plus floor + ceiling;
+        /// average absorption is estimated from boundary-finish material names
+        /// when discoverable, else a sensible 0.15 default. Falls back to the
+        /// legacy hardcoded 100 m³ / α=0.2 cube when no space resolves. The
+        /// <paramref name="source"/> string describes which path was taken.
+        /// </summary>
+        private static RoomReceiver ResolveRoomReceiver(Document doc, List<ElementId> ids, out string source)
+        {
+            source = "fallback cube (100 m³, α=0.20)";
+            try
+            {
+                var spatial = FindReceiverSpatial(doc, ids);
+                if (spatial != null)
+                {
+                    double volFt3 = (spatial as Space)?.Volume
+                        ?? (spatial as Autodesk.Revit.DB.Architecture.Room)?.Volume ?? 0;
+                    double volM3 = volFt3 > 0
+                        ? UnitUtils.ConvertFromInternalUnits(volFt3, UnitTypeId.CubicMeters)
+                        : 0;
+
+                    // Floor / ceiling area from the space's plan area.
+                    double areaFt2 = 0;
+                    try { areaFt2 = spatial.Area; } catch { }
+                    double floorM2 = areaFt2 > 0
+                        ? UnitUtils.ConvertFromInternalUnits(areaFt2, UnitTypeId.SquareMeters)
+                        : 0;
+
+                    // Wall area = boundary perimeter × height. Height from the
+                    // space's unbounded height, else volume/area, else 3 m.
+                    double heightM = 3.0;
+                    try
+                    {
+                        double hp = spatial.get_Parameter(BuiltInParameter.ROOM_HEIGHT)?.AsDouble() ?? 0;
+                        if (hp <= 0) hp = spatial.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET)?.AsDouble() ?? 0;
+                        if (hp > 0) heightM = UnitUtils.ConvertFromInternalUnits(hp, UnitTypeId.Meters);
+                        else if (volM3 > 0 && floorM2 > 0) heightM = volM3 / floorM2;
+                    }
+                    catch { if (volM3 > 0 && floorM2 > 0) heightM = volM3 / floorM2; }
+
+                    double perimeterM = 0;
+                    double absWeightedSum = 0, absAreaSum = 0;
+                    try
+                    {
+                        var opts = new SpatialElementBoundaryOptions
+                        {
+                            SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish
+                        };
+                        var segs = spatial.GetBoundarySegments(opts);
+                        if (segs != null)
+                        {
+                            foreach (var loop in segs)
+                            foreach (var seg in loop)
+                            {
+                                double lenM = UnitUtils.ConvertFromInternalUnits(
+                                    seg.GetCurve()?.Length ?? 0, UnitTypeId.Meters);
+                                perimeterM += lenM;
+                                double wallArea = lenM * heightM;
+                                double a = EstimateBoundaryAbsorption(doc, seg.ElementId);
+                                if (a > 0) { absWeightedSum += a * wallArea; absAreaSum += wallArea; }
+                            }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"NC room boundary: {ex.Message}"); }
+
+                    double wallM2 = perimeterM * heightM;
+                    double surfaceM2 = wallM2 + 2 * floorM2;   // walls + floor + ceiling
+                    if (surfaceM2 <= 0 && volM3 > 0)
+                        surfaceM2 = 6 * Math.Pow(volM3, 2.0 / 3.0);   // cube approximation
+
+                    // Absorption: area-weighted from boundary finishes, blended
+                    // with a floor/ceiling default. When no finish resolvable,
+                    // use a plastered-room default of 0.15.
+                    double wallAlpha = absAreaSum > 0 ? absWeightedSum / absAreaSum : 0.10;
+                    // Blend: ceiling often absorptive (acoustic tile ~0.6), floor
+                    // hard (~0.05); use a conservative composite when area known.
+                    double alpha;
+                    if (surfaceM2 > 0)
+                    {
+                        double floorAlpha = 0.05, ceilAlpha = 0.30;
+                        alpha = (wallAlpha * wallM2 + floorAlpha * floorM2 + ceilAlpha * floorM2)
+                                / Math.Max(surfaceM2, 1e-6);
+                    }
+                    else alpha = 0.15;
+                    alpha = Math.Max(0.05, Math.Min(0.60, alpha));
+
+                    if (volM3 > 0)
+                    {
+                        source = absAreaSum > 0
+                            ? $"Revit {(spatial is Space ? "Space" : "Room")} (finishes → α)"
+                            : $"Revit {(spatial is Space ? "Space" : "Room")} (default α)";
+                        return new RoomReceiver
+                        {
+                            Name = string.IsNullOrEmpty(spatial.Name) ? spatial.Id.ToString() : spatial.Name,
+                            VolumeM3 = volM3,
+                            SurfaceAreaM2 = surfaceM2,
+                            AvgAbsorption = alpha,
+                            Directivity = 2,
+                            ListenerDistanceM = 1.5
+                        };
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveRoomReceiver: {ex.Message}"); }
+
+            // Legacy hardcoded cube fallback.
+            return new RoomReceiver
+            {
+                Name = "Receiver",
+                VolumeM3 = 100,
+                SurfaceAreaM2 = 6 * Math.Pow(100, 2.0 / 3.0),
+                AvgAbsorption = 0.2,
+                Directivity = 2,
+                ListenerDistanceM = 1.5
+            };
+        }
+
+        /// <summary>
+        /// Find the Space (or Room) containing the receiver. Prefers the
+        /// terminal/diffuser in the selection; uses its location point to
+        /// query <c>Document.GetSpaceAtPoint</c> (falling back to
+        /// <c>GetRoomAtPoint</c>). Returns null when nothing resolves.
+        /// </summary>
+        private static SpatialElement FindReceiverSpatial(Document doc, List<ElementId> ids)
+        {
+            try
+            {
+                // Prefer the air-terminal element; else the last-picked element
+                // that carries a location point.
+                Element terminal = null;
+                foreach (var id in ids)
+                {
+                    var el = doc.GetElement(id);
+                    if (el?.Category == null) continue;
+                    var bic = (BuiltInCategory)el.Category.Id.Value;
+                    if (bic == BuiltInCategory.OST_DuctTerminal) { terminal = el; break; }
+                    if (terminal == null && el.Location is LocationPoint) terminal = el;
+                }
+                if (terminal == null) return null;
+
+                XYZ pt = null;
+                if (terminal.Location is LocationPoint lp) pt = lp.Point;
+                else if (terminal.Location is LocationCurve lc && lc.Curve != null)
+                    pt = lc.Curve.Evaluate(0.5, true);
+                if (pt == null) return null;
+
+                // GetSpaceAtPoint / GetRoomAtPoint need a valid phase.
+                Phase phase = null;
+                try
+                {
+                    var pid = terminal.get_Parameter(BuiltInParameter.PHASE_CREATED)?.AsElementId();
+                    if (pid != null && pid != ElementId.InvalidElementId)
+                        phase = doc.GetElement(pid) as Phase;
+                }
+                catch { }
+
+                Space sp = null;
+                try { sp = phase != null ? doc.GetSpaceAtPoint(pt, phase) : doc.GetSpaceAtPoint(pt); }
+                catch { }
+                if (sp != null && sp.Volume > 0) return sp;
+
+                Autodesk.Revit.DB.Architecture.Room rm = null;
+                try { rm = phase != null ? doc.GetRoomAtPoint(pt, phase) : doc.GetRoomAtPoint(pt); }
+                catch { }
+                if (rm != null) return rm;
+            }
+            catch (Exception ex) { StingLog.Warn($"FindReceiverSpatial: {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// Estimate a Sabine absorption coefficient (500 Hz-ish average) for a
+        /// boundary element from its material / type name keywords. Returns 0
+        /// when the element is not a wall or no keyword matches so the caller
+        /// can exclude it from the area-weighted average.
+        /// </summary>
+        private static double EstimateBoundaryAbsorption(Document doc, ElementId boundaryId)
+        {
+            try
+            {
+                var el = doc.GetElement(boundaryId);
+                if (el == null) return 0;
+                string name = ($"{el.Name} {el.Category?.Name}").ToLowerInvariant();
+                // Pull the wall type name / finish material name too when a Wall.
+                if (el is Wall w)
+                {
+                    name += " " + (w.WallType?.Name ?? "").ToLowerInvariant();
+                }
+                if (name.Contains("glaz") || name.Contains("glass") || name.Contains("window"))
+                    return 0.05;
+                if (name.Contains("acoustic") || name.Contains("absorb") || name.Contains("perforat"))
+                    return 0.60;
+                if (name.Contains("carpet") || name.Contains("fabric") || name.Contains("curtain"))
+                    return 0.35;
+                if (name.Contains("plaster") || name.Contains("gypsum") || name.Contains("drywall")
+                    || name.Contains("partition"))
+                    return 0.10;
+                if (name.Contains("concrete") || name.Contains("block") || name.Contains("masonry")
+                    || name.Contains("brick") || name.Contains("tile"))
+                    return 0.03;
+                if (name.Contains("wall")) return 0.08;   // generic painted wall
+            }
+            catch { }
+            return 0;
         }
 
         /// <summary>

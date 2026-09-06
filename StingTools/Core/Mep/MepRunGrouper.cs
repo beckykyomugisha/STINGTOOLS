@@ -65,6 +65,23 @@ namespace StingTools.Core.Mep
             BuiltInCategory.OST_FlexDuctCurves,
         };
 
+        // Stable, locale-independent config keys for the linear-MEP categories the
+        // visual-tag policy targets. The policy UI (SetMepTagPolicyCommand) writes these
+        // English friendly names as keys; resolving them back from the element's
+        // BuiltInCategory lets an override take effect regardless of Revit's UI language.
+        // Matching only on the localized Category.Name silently ignores a "Pipes":"All"
+        // override in a non-English office because the category reads "Rohre" /
+        // "Canalisations" there, not "Pipes".
+        private static readonly Dictionary<BuiltInCategory, string> LinearCatFriendlyKey = new Dictionary<BuiltInCategory, string>
+        {
+            { BuiltInCategory.OST_PipeCurves,     "Pipes" },
+            { BuiltInCategory.OST_DuctCurves,     "Ducts" },
+            { BuiltInCategory.OST_Conduit,        "Conduits" },
+            { BuiltInCategory.OST_CableTray,      "Cable Trays" },
+            { BuiltInCategory.OST_FlexPipeCurves, "Flex Pipes" },
+            { BuiltInCategory.OST_FlexDuctCurves, "Flex Ducts" },
+        };
+
         // A run may pass through fittings and inline accessories (couplings, elbows,
         // valves, dampers) but NOT through equipment or fixtures — a pump / tank /
         // AHU is a genuine break where a new run (and tag) begins, even if it has
@@ -135,12 +152,36 @@ namespace StingTools.Core.Mep
         /// <summary>Resolve the visual-tag policy for an element: explicit config override, else linear-MEP default.</summary>
         public static TagVisualPolicy ResolvePolicy(Element el)
         {
-            string cat = el?.Category?.Name;
-            if (!string.IsNullOrEmpty(cat)
-                && TagConfig.CategoryVisualPolicy != null
-                && TagConfig.CategoryVisualPolicy.TryGetValue(cat, out string s)
-                && Enum.TryParse(s, ignoreCase: true, out TagVisualPolicy p))
-                return p;
+            var overrides = TagConfig.CategoryVisualPolicy;
+            if (el?.Category != null && overrides != null && overrides.Count > 0)
+            {
+                // Locale-independent match first: resolve the element's BuiltInCategory
+                // and look the override up by a stable key — the English friendly name
+                // the policy UI writes (e.g. "Pipes") or the BuiltInCategory enum name
+                // (e.g. "OST_PipeCurves"). This is what makes a non-English office's
+                // "Pipes":"All" actually take effect; keying on the localized
+                // Category.Name alone drops it silently.
+                try
+                {
+                    var bic = (BuiltInCategory)el.Category.Id.Value;
+                    if (LinearCatFriendlyKey.TryGetValue(bic, out string friendly)
+                        && overrides.TryGetValue(friendly, out string sf)
+                        && Enum.TryParse(sf, ignoreCase: true, out TagVisualPolicy pf))
+                        return pf;
+                    if (overrides.TryGetValue(bic.ToString(), out string se)
+                        && Enum.TryParse(se, ignoreCase: true, out TagVisualPolicy pe))
+                        return pe;
+                }
+                catch { /* fall through to localized-name match */ }
+
+                // Back-compat + non-linear categories: match on the running session's
+                // localized Category.Name (works when the key was written in this locale).
+                string cat = el.Category.Name;
+                if (!string.IsNullOrEmpty(cat)
+                    && overrides.TryGetValue(cat, out string s)
+                    && Enum.TryParse(s, ignoreCase: true, out TagVisualPolicy p))
+                    return p;
+            }
             return IsLinearMepCategory(el) ? TagVisualPolicy.PerRun : TagVisualPolicy.All;
         }
 

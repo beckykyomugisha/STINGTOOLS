@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -66,6 +66,27 @@ public sealed partial class PlanscapeServerClient : IDisposable
     public bool   MimEnabled    { get; private set; }
     public string? LastError    { get; private set; }
 
+    /// <summary>
+    /// HTTP status of the most recent request, or <c>null</c> when the request
+    /// never produced one (transport failure, timeout, client not initialised).
+    ///
+    /// WHY THIS EXISTS. The UI needs to tell a REFUSAL (403) apart from a
+    /// FAILURE (unreachable server, 500), because those warrant different
+    /// actions — "ask your PM" vs "call IT". Before this, the only signal was
+    /// <see cref="LastError"/>, a human string. Substring-matching a status out
+    /// of a message is how mobile ended up reporting "HTTP 403" for an empty
+    /// body (#624); the status is carried as a number so nobody has to.
+    ///
+    /// Set in the three HTTP helpers, so every call site gets it without
+    /// touching ninety failure branches. Same lifetime and same caveat as
+    /// <see cref="LastError"/>: it describes the LAST request on this shared
+    /// singleton, so read it immediately after the await that set it.
+    ///
+    /// <c>null</c> is deliberately NOT "denied". It is "we do not know" — the
+    /// three-state rule this surface is built on.
+    /// </summary>
+    public int? LastStatus { get; private set; }
+
     /// <summary>C2 — tenant + user IDs parsed from the login response's JWT payload
     /// so the real-time client can join the right SignalR groups.</summary>
     public Guid TenantId { get; private set; }
@@ -111,6 +132,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
         }
         if (string.IsNullOrWhiteSpace(baseUrl)) baseUrl = DefaultAppFallbackUrl;
 
+        // An explicit override always wins — needed when the API and web app
+        // are independently-named hosts that fit neither of FormatWebAppUrl's
+        // two conventions (e.g. split Render free-tier services). See
+        // ResolveWebAppUrlOverride in the Settings partial.
+        var overrideUrl = ResolveWebAppUrlOverride();
+        if (!string.IsNullOrWhiteSpace(overrideUrl))
+        {
+            string url = overrideUrl!.TrimEnd('/') + "/";
+            if (!string.IsNullOrWhiteSpace(hash))
+                url += hash!.StartsWith("#") ? hash : "#" + hash;
+            return url;
+        }
+
         // FormatWebAppUrl maps a cloud api.<domain> host to the sibling
         // app.<domain> SPA root, and keeps the same-origin <base>/app/
         // convention for localhost / self-hosted stacks. See Settings partial.
@@ -153,6 +187,17 @@ public sealed partial class PlanscapeServerClient : IDisposable
             _serverUrl = NormalizeServerUrl(serverUrl);
             EnsureHttpClient(_serverUrl);
 
+            // Absorb a cold start HERE, on a cheap anonymous request, rather than
+            // letting the credentialed login pay it and fail.
+            //
+            // Free-tier hosts idle out and take a long time on the first request
+            // back. Measured on the live host 2026-08-20: the first hit did not
+            // answer within 180s at all; the next took 66.6s. Login carried a 60s
+            // ceiling, so it reported "timed out before the server responded" — true,
+            // and useless: it reads as "the server is broken" when the server is
+            // merely asleep, and re-entering the password does not help.
+            await WakeServerAsync(_serverUrl).ConfigureAwait(false);
+
             // ConfigureAwait(false) prevents the continuation from being
             // posted back to a captured SynchronizationContext (e.g. the
             // WPF dispatcher when this is called via .GetResult() from
@@ -182,16 +227,38 @@ public sealed partial class PlanscapeServerClient : IDisposable
             // P1 — store the session so a Revit restart doesn't require
             // re-entering credentials. Encrypted with DPAPI (current-user).
             PersistSession();
-            // Remember the server URL machine-wide so every other document
-            // (and the "Open Planscape" buttons) default to the same cloud
-            // server without the user re-typing it. Idempotent on the same URL.
-            SaveDefaultServerUrl(_serverUrl);
+            // #563 — DELIBERATELY DOES NOT PERSIST THE SERVER URL.
+            //
+            // This used to call SaveDefaultServerUrl(_serverUrl) on every
+            // successful login, so merely connecting to a local docker stack
+            // once rewrote the machine-wide pointer in
+            // %APPDATA%\StingTools\planscape_server.json. That file holds the
+            // production pointer and is the fallback that makes the launcher
+            // script safe: a user who connected to localhost for an afternoon
+            // stayed pointed at it afterwards, against a dev database full of
+            // real-looking data, without ever having CHOSEN to be.
+            //
+            // The target is now written only by PlanscapeServerTargets
+            // .SetActiveTarget, from a confirmed choice in the server picker.
+            // Connecting is not a choice about where to point in future.
+            //
+            // Note this is not a loss of convenience: _serverUrl for THIS
+            // session is already whatever the user typed or the picker
+            // resolved, and the per-document link in planscape_connection.json
+            // still records the project. Only the machine-wide default is no
+            // longer written behind the user's back.
             StingLog.Info($"Planscape: Authenticated as {ConnectedUser} @ {_serverUrl} (tier: {TierName})");
 
             // C2 — fire-and-forget SignalR start so real-time updates flow without
             // blocking the login UX. Failures are logged but not fatal.
             if (TenantId != Guid.Empty && UserId != Guid.Empty)
             {
+                // IM Phase 3 — attach the warnings subscriber BEFORE the connection
+                // starts, so a broadcast arriving during startup is not missed.
+                // Wire() is idempotent, so reconnects cannot double-subscribe.
+                try { Core.WarningsRealtimeBridge.Wire(); }
+                catch (Exception ex) { StingLog.Warn($"Planscape: warnings bridge wire failed — {ex.Message}"); }
+
                 _ = Task.Run(async () =>
                 {
                     try { await PlanscapeRealtimeClient.Instance.StartAsync(_serverUrl, _accessToken, TenantId, UserId); }
@@ -290,6 +357,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
 
         // C2 — stop the real-time listener (fire-and-forget; we don't await in a sync method).
         _ = Task.Run(async () => { try { await PlanscapeRealtimeClient.Instance.StopAsync(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); } });
+
+        // Detach the live element-sync triggers. Leaving them attached would make
+        // every disconnected user keep paying the per-change trigger evaluation
+        // for a sync that can no longer be delivered.
+        try { StingTools.Core.Sync.LiveSyncUpdater.StopLive(); }
+        catch (Exception ex) { StingLog.Warn($"LiveSyncUpdater.StopLive: {ex.Message}"); }
 
         StingLog.Info("Planscape: Disconnected.");
     }
@@ -513,92 +586,35 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// _bim_manager/issues.json so the BCC can see mobile-created issues.
     /// Existing local-only issues (no server id) are preserved. Server
     /// issues are upserted by their GUID. Returns the number merged.</summary>
+    /// <summary>
+    /// Pull all issues from the server and merge them into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): the mapping used to live here and emitted BOTH "id" and "issue_id"
+    /// for the same record — one more variant of the schema fork — and passed the server's
+    /// own status vocabulary ("Open", "New") straight through, so server-pulled issues were
+    /// invisible to the has_open_issues gate. The mapping now lives in one place,
+    /// IssueStore.MergeFromServer.
+    ///
+    /// <paramref name="issuesJsonPath"/> is accepted for signature compatibility and is no
+    /// longer used to choose a destination — the register resolves through CoordStores.
+    /// </summary>
     public async Task<int> SyncIssuesFromServerAsync(Guid projectId, string issuesJsonPath)
+        => await SyncIssuesFromServerAsync(projectId, (Autodesk.Revit.DB.Document)null);
+
+    /// <summary>Document-based overload — the one new callers should use.</summary>
+    public async Task<int> SyncIssuesFromServerAsync(Guid projectId, Autodesk.Revit.DB.Document doc)
     {
         var arr = await GetIssuesAsync(projectId, "ALL");
         if (arr == null || arr.Count == 0) return 0;
+        if (doc == null)
+        {
+            StingLog.Warn("SyncIssuesFromServer: no Document — cannot resolve the issue register; skipped.");
+            return 0;
+        }
         try
         {
-            // Load existing local array so we can upsert.
-            JArray local;
-            try { local = File.Exists(issuesJsonPath) ? JArray.Parse(File.ReadAllText(issuesJsonPath)) : new JArray(); }
-            catch { local = new JArray(); }
-
-            // Index local items by their server id (if present) for O(1) lookup.
-            var localById = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (JObject loc in local)
-            {
-                string lid = loc.Value<string>("server_id") ?? loc.Value<string>("id") ?? "";
-                if (!string.IsNullOrEmpty(lid)) localById[lid] = loc;
-            }
-
-            int merged = 0;
-            foreach (JObject srv in arr)
-            {
-                string sid = srv.Value<string>("id") ?? "";
-                if (string.IsNullOrEmpty(sid)) continue;
-
-                // Map server camelCase → local snake_case schema expected by BuildCoordData.
-                string assignee = srv.Value<string>("assignee") ?? "";
-                string createdDate = srv.Value<string>("createdAt") ?? srv.Value<string>("created_date") ?? "";
-
-                // Build element_ids JArray from server's linkedElementIds string.
-                var elemArr = new JArray();
-                string linkedRaw = srv.Value<string>("linkedElementIds") ?? "";
-                if (!string.IsNullOrWhiteSpace(linkedRaw) && linkedRaw.StartsWith("["))
-                {
-                    try { elemArr = JArray.Parse(linkedRaw); } catch { /* ignore */ }
-                }
-
-                var mapped = new JObject
-                {
-                    ["id"]               = sid,
-                    ["server_id"]        = sid,
-                    ["issue_id"]         = srv.Value<string>("issueCode") ?? sid,
-                    ["type"]             = srv.Value<string>("type") ?? "",
-                    ["type_description"] = srv.Value<string>("type") ?? "",
-                    ["priority"]         = srv.Value<string>("priority") ?? "MEDIUM",
-                    ["title"]            = srv.Value<string>("title") ?? "",
-                    ["description"]      = srv.Value<string>("description") ?? "",
-                    ["status"]           = srv.Value<string>("status") ?? "OPEN",
-                    ["assignee"]         = assignee,
-                    ["assigned_to"]      = assignee,
-                    ["discipline"]       = srv.Value<string>("discipline") ?? "",
-                    ["revision"]         = srv.Value<string>("revision") ?? "",
-                    ["raised_by"]        = srv.Value<string>("createdBy") ?? "",
-                    ["created_by"]       = srv.Value<string>("createdBy") ?? "",
-                    ["created_date"]     = createdDate,
-                    ["modified_date"]    = srv.Value<string>("updatedAt") ?? createdDate,
-                    ["date_due"]         = srv.Value<string>("dueDate") ?? "",
-                    ["date_closed"]      = srv.Value<string>("resolvedAt") ?? "",
-                    ["source"]           = srv.Value<string>("source") ?? "server",
-                    ["element_ids"]      = elemArr,
-                    ["model_id"]         = srv.Value<string>("modelId") ?? "",
-                    ["model_element_guid"] = srv.Value<string>("modelElementGuid") ?? "",
-                    ["latitude"]         = srv.Value<double?>("latitude"),
-                    ["longitude"]        = srv.Value<double?>("longitude"),
-                    ["linked_transmittals"] = new JArray(),
-                    ["comments"]         = new JArray()
-                };
-
-                if (localById.TryGetValue(sid, out var existing))
-                {
-                    // Replace in-place so local additions (comments, linked_transmittals) survive.
-                    if (existing["comments"] is JArray c && c.Count > 0) mapped["comments"] = c;
-                    if (existing["linked_transmittals"] is JArray lt && lt.Count > 0) mapped["linked_transmittals"] = lt;
-                    int idx = local.IndexOf(existing);
-                    local[idx] = mapped;
-                }
-                else
-                {
-                    local.Add(mapped);
-                    localById[sid] = mapped;
-                }
-                merged++;
-            }
-
-            File.WriteAllText(issuesJsonPath, local.ToString(Newtonsoft.Json.Formatting.Indented));
-            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into {issuesJsonPath}");
+            int merged = Core.IssueStore.MergeFromServer(doc, arr);
+            StingLog.Info($"SyncIssuesFromServer: merged {merged} issues into the issue register.");
             return merged;
         }
         catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"SyncIssuesFromServer: {ex.Message}"); return 0; }
@@ -740,15 +756,43 @@ public sealed partial class PlanscapeServerClient : IDisposable
     {
         try
         {
-            var settings = new JObject
+            // MERGE, never replace. This used to build a fresh JObject and write it
+            // over whatever was there, and the post-login call site passes no
+            // projectId - so saving connection settings silently DELETED the project
+            // link of an already-linked model (issue #571). That defect was dormant
+            // only because the block that calls this never ran: it dereferenced a
+            // null ExternalCommandData and died on an NRE that was logged as
+            // "non-fatal". Fixing the NRE without fixing this would have turned a
+            // harmless log line into link loss on every login.
+            JObject settings;
+            if (File.Exists(configPath))
             {
-                ["serverUrl"]       = _serverUrl,
-                ["email"]           = email,
-                ["lastConnected"]   = DateTime.UtcNow.ToString("o")
-            };
+                try { settings = JObject.Parse(File.ReadAllText(configPath)); }
+                catch (Exception parseEx)
+                {
+                    // Do not silently discard a file we cannot read - it may hold the
+                    // only copy of the project link.
+                    StingLog.Warn($"Planscape: {Path.GetFileName(configPath)} is unreadable " +
+                                  $"({parseEx.Message}); keeping a .corrupt backup before rewriting.");
+                    try { File.Copy(configPath, configPath + ".corrupt", true); } catch { }
+                    settings = new JObject();
+                }
+            }
+            else
+            {
+                settings = new JObject();
+            }
+
+            settings["serverUrl"]     = _serverUrl;
+            settings["email"]         = email;
+            settings["lastConnected"] = DateTime.UtcNow.ToString("o");
+            // Only ever ADD a project id. An absent argument means "not specified",
+            // never "clear the link".
             if (projectId != Guid.Empty)
                 settings["projectId"] = projectId.ToString();
 
+            var dir = Path.GetDirectoryName(configPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             File.WriteAllText(configPath, settings.ToString(Formatting.Indented));
         }
         catch (Exception ex) { StingLog.Warn($"Planscape: Could not save connection settings: {ex.Message}"); }
@@ -1156,6 +1200,25 @@ public sealed partial class PlanscapeServerClient : IDisposable
         catch (Exception ex) { LastError = ex.Message; return false; }
     }
 
+    /// <summary>
+    /// Save a warning baseline. Server action is <c>[HttpPost("baseline")]</c>
+    /// (WarningsController.SaveBaseline), so the <paramref name="payload"/> must match
+    /// <c>SaveWarningBaselineRequest</c>:
+    /// <c>{ warningCount, healthScore, totalElements, compliancePercent }</c>.
+    /// The server persists it as a ComplianceSnapshot — there is no dedicated
+    /// warning entity — which is what GET /warnings/trend reads back.
+    /// </summary>
+    public async Task<bool> PushWarningBaselineAsync(Guid projectId, object payload)
+    {
+        if (!await EnsureAuthenticatedAsync()) return false;
+        try
+        {
+            var resp = await PostJsonAsync($"/api/projects/{projectId}/warnings/baseline", payload);
+            return resp.ok;
+        }
+        catch (Exception ex) { LastError = ex.Message; return false; }
+    }
+
     // ── LPS record (Wave 4 — full server entity) ──────────────────────────────
 
     /// <summary>
@@ -1458,7 +1521,17 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// deletedElementIds are tombstoned on the server.
     /// Uses <see cref="CurrentProjectId"/> — silently no-ops if not set.
     /// </summary>
-    public async Task<bool> PostGeometryDeltaAsync(byte[] glbBytes, IList<int> deletedElementIds)
+    /// <param name="sourceDocGuid">
+    /// The authoring document these elements came from
+    /// (<see cref="StingTools.Core.SourceDocumentId.For"/>). The server records
+    /// it on every FederatedElement, and it is the only key a later model
+    /// delete has for identifying which federated geometry to retire — without
+    /// it the elements land in a shared placeholder bucket the cascade refuses
+    /// to act on. Optional so an older server that ignores the field still
+    /// accepts the delta.
+    /// </param>
+    public async Task<bool> PostGeometryDeltaAsync(
+        byte[] glbBytes, IList<long> deletedElementIds, string? sourceDocGuid = null)
     {
         if (CurrentProjectId == Guid.Empty) return false;
         if (!await EnsureAuthenticatedAsync()) return false;
@@ -1483,6 +1556,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
                     Newtonsoft.Json.JsonConvert.SerializeObject(deletedElementIds),
                     System.Text.Encoding.UTF8, "application/json");
                 content.Add(jsonContent, "deletedIds");
+            }
+
+            if (!string.IsNullOrWhiteSpace(sourceDocGuid))
+            {
+                content.Add(new System.Net.Http.StringContent(
+                    sourceDocGuid, System.Text.Encoding.UTF8), "sourceDocGuid");
             }
 
             var resp = await http.PostAsync(
@@ -1598,7 +1677,21 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// paginated envelope: { items, total, page, pageSize }. We surface the
     /// items list directly; callers can re-paginate by passing page/pageSize.
     /// </summary>
-    public async Task<List<SitePhotoDto>> ListSitePhotosAsync(
+    /// <returns>
+    /// The photos, an EMPTY list when the project genuinely has none, or
+    /// <c>null</c> when the request FAILED.
+    ///
+    /// This method used to return an empty list on every failure path — HTTP
+    /// error, exception, missing envelope. Both callers then rendered "✓ No
+    /// photos awaiting review." over an unreachable server or a refusal: a
+    /// confident, wrong, empty answer. That is the same fabrication #550
+    /// removed from the album and distribution-group panes, still live in the
+    /// review queue and the grid, and it is why neither surface could show a
+    /// forbidden state — nothing reached them saying anything had gone wrong.
+    /// Null is the failure channel; <see cref="LastError"/> and
+    /// <see cref="LastStatus"/> carry the reason.
+    /// </returns>
+    public async Task<List<SitePhotoDto>?> ListSitePhotosAsync(
         Guid projectId,
         string? reason     = null,
         string? audience   = null,
@@ -1609,8 +1702,11 @@ public sealed partial class PlanscapeServerClient : IDisposable
         int page           = 1,
         int pageSize       = 50)
     {
-        var empty = new List<SitePhotoDto>();
-        if (!await EnsureAuthenticatedAsync()) return empty;
+        if (!await EnsureAuthenticatedAsync())
+        {
+            LastError = "Not connected to Planscape.";
+            return null;
+        }
         try
         {
             var qs = new List<string>();
@@ -1625,12 +1721,19 @@ public sealed partial class PlanscapeServerClient : IDisposable
             var path = $"/api/projects/{projectId}/photos?{string.Join("&", qs)}";
 
             var resp = await GetAsync(path);
-            if (!resp.ok) { LastError = $"ListSitePhotos: HTTP {resp.status}"; return empty; }
+            if (!resp.ok) { LastError = $"ListSitePhotos: HTTP {resp.status}"; return null; }
 
             // Envelope: { items: [...], total, page, pageSize }
             var json = JObject.Parse(resp.body);
             var items = json["items"] as JArray;
-            if (items == null) return empty;
+            // A 200 with no `items` array is a contract mismatch, not an empty
+            // project. Returning [] here would have re-introduced the same
+            // fabrication one layer down.
+            if (items == null)
+            {
+                LastError = "ListSitePhotos: response had no 'items' array.";
+                return null;
+            }
             var list = items.ToObject<List<SitePhotoDto>>();
             // Phase 180 — surface ndaRequiredIds so callers can render
             // a 🔒 lock badge on photos awaiting NDA acceptance.
@@ -1646,9 +1749,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
             else
             {
             }
-            return list ?? empty;
+            return list ?? new List<SitePhotoDto>();
         }
-        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return empty; }
+        catch (Exception ex) { LastError = ex.Message; StingLog.Warn($"ListSitePhotosAsync: {ex.Message}"); return null; }
     }
 
 
@@ -1749,6 +1852,49 @@ public sealed partial class PlanscapeServerClient : IDisposable
     //  Private helpers
     // ────────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Give a sleeping server time to wake, on an anonymous request, before anything
+    /// that matters is attempted.
+    ///
+    /// <para><b>The long ceiling costs nothing when the server is awake.</b> A timeout
+    /// bounds how long we are willing to wait, not how long we do wait — a warm
+    /// <c>/health/live</c> answers in well under a second. So this is not "make login
+    /// slow for everyone"; it is "stop failing the one user whose call arrives first
+    /// after an idle period".</para>
+    ///
+    /// <para><c>/health/live</c> and not <c>/health</c>: the latter is the
+    /// authenticated full diagnostic and answers 403 to an anonymous caller, which
+    /// would read as a dead server. Same reasoning as
+    /// <c>PlanscapeServerTargets.ProbeAsync</c>.</para>
+    ///
+    /// <para>Never fails the caller. A 404 means an older server without the endpoint,
+    /// and a timeout here means login is likely to fail too — but login gives the far
+    /// better error, so let it be the one to speak.</para>
+    /// </summary>
+    private static async Task WakeServerAsync(string baseUrl)
+    {
+        try
+        {
+            using var probe = new HttpClient { Timeout = TimeSpan.FromSeconds(240) };
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var resp = await probe.GetAsync(baseUrl.TrimEnd('/') + "/health/live")
+                                  .ConfigureAwait(false);
+            sw.Stop();
+
+            // Worth a line at 5s+ — that is the signature of a cold start, and it is
+            // the explanation for a slow "Connect" that would otherwise look like a
+            // hang. Below that it is noise.
+            if (sw.Elapsed.TotalSeconds >= 5)
+                StingLog.Info($"Planscape: server took {sw.Elapsed.TotalSeconds:F1}s to respond " +
+                              $"(HTTP {(int)resp.StatusCode}) — it had most likely idled out and was waking up.");
+        }
+        catch (Exception ex)
+        {
+            StingLog.Warn($"Planscape: pre-login wake probe of {baseUrl} did not succeed ({ex.Message}). " +
+                          "Continuing to login, which reports the real error.");
+        }
+    }
+
     private HttpClient EnsureHttpClient(string baseUrl)
     {
         lock (_httpSem)
@@ -1758,7 +1904,16 @@ public sealed partial class PlanscapeServerClient : IDisposable
             _http = new HttpClient
             {
                 BaseAddress = new Uri(baseUrl),
-                Timeout     = TimeSpan.FromSeconds(60)
+                // 120s, not 60. Measured against the live free-tier host on
+                // 2026-08-20: a request arriving after the instance had idled took
+                // 66.6s to answer — over the old ceiling, so it failed as a timeout
+                // while the server was working normally. A ceiling is not a wait: a
+                // warm call still returns in well under a second.
+                //
+                // The COLD case is handled separately, by WakeServerAsync before
+                // login, because it can exceed three minutes and no sane per-request
+                // ceiling should cover that.
+                Timeout     = TimeSpan.FromSeconds(120)
             };
             _http.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
@@ -1792,10 +1947,14 @@ public sealed partial class PlanscapeServerClient : IDisposable
             Encoding.UTF8, "application/json");
 
         var http = SnapshotHttpClient();
+        // Cleared FIRST so a throw below leaves LastStatus null — "no status",
+        // which the capability layer reads as unknown rather than as denied.
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PostAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
@@ -1813,10 +1972,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
             Encoding.UTF8, "application/json");
 
         var http = SnapshotHttpClient();
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.PutAsync(path, content).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
@@ -1824,10 +1985,12 @@ public sealed partial class PlanscapeServerClient : IDisposable
     private async Task<(bool ok, int status, string body)> GetAsync(string path)
     {
         var http = SnapshotHttpClient();
+        LastStatus = null;
         if (http == null) throw new InvalidOperationException("HttpClient not initialised — call LoginAsync first.");
         var resp = await http.GetAsync(path).ConfigureAwait(false);
         var body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
         var ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
+        LastStatus = (int)resp.StatusCode;
         if (ok) TouchActivity(); // SEC-EA-08
         return (ok, (int)resp.StatusCode, body);
     }
@@ -2062,7 +2225,26 @@ public sealed partial class PlanscapeServerClient : IDisposable
         string units = "mm",
         int? elementCount = null,
         double[]? bounds = null,
-        bool force = false)
+        bool force = false,
+        // The authoring document this GLB was exported from
+        // (StingTools.Core.SourceDocumentId.For). The server stores it on the
+        // ProjectModel and matches it against the FederatedElement rows the
+        // geometry-delta pipeline wrote, so deleting the model actually retires
+        // its federated geometry. Omit it and the server skips that cascade.
+        string? sourceDocGuid = null,
+        // B2 — optional georeferencing. Sent as METADATA beside the geometry,
+        // never baked into the mesh: a site at easting 432,000 m would put every
+        // vertex ~432 km from the origin, where 32-bit float loses millimetre
+        // precision and surfaces z-fight. The server turns this into a
+        // ProjectModelTransform, the same way it does for IFC IfcMapConversion.
+        // Omit it and the model publishes as before, un-placed at the origin.
+        double? georefEastingM = null,
+        double? georefNorthingM = null,
+        double? georefElevationM = null,
+        double? georefTrueNorthDeg = null,
+        string? georefCrsEpsg = null,
+        string? georefLengthUnit = null,
+        string? georefExportMode = null)
     {
         if (!await EnsureAuthenticatedAsync()) return (false, Guid.Empty, LastError, false);
         if (!File.Exists(modelFilePath))       return (false, Guid.Empty, $"Model file not found: {modelFilePath}", false);
@@ -2098,8 +2280,21 @@ public sealed partial class PlanscapeServerClient : IDisposable
             AddField("Discipline", discipline);
             AddField("Revision", revision);
             AddField("Units", units);
+            AddField("SourceDocGuid", sourceDocGuid);
             if (force) AddField("Force", "true");
             if (elementCount.HasValue) AddField("ElementCount", elementCount.Value.ToString());
+            // B2 — georef block. Field names match UploadModelRequest exactly.
+            string Inv(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (georefEastingM.HasValue && georefNorthingM.HasValue)
+            {
+                AddField("GeorefEastingM",  Inv(georefEastingM.Value));
+                AddField("GeorefNorthingM", Inv(georefNorthingM.Value));
+                if (georefElevationM.HasValue)   AddField("GeorefElevationM",   Inv(georefElevationM.Value));
+                if (georefTrueNorthDeg.HasValue) AddField("GeorefTrueNorthDeg", Inv(georefTrueNorthDeg.Value));
+                AddField("GeorefCrsEpsg",     georefCrsEpsg);
+                AddField("GeorefLengthUnit",  georefLengthUnit);
+                AddField("GeorefExportMode",  georefExportMode);
+            }
             if (bounds != null && bounds.Length == 6)
             {
                 AddField("BoundsMinX", bounds[0].ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -2184,6 +2379,20 @@ public sealed partial class PlanscapeServerClient : IDisposable
     /// Server wins on conflict (last-write-wins by updatedAt).
     /// Uses <paramref name="since"/> for incremental pull; pass null for a full refresh.
     /// </summary>
+    /// <summary>
+    /// Pull issues from the server into the project's issue register.
+    ///
+    /// Phase 2 (IM-4): this used to write to
+    /// <c>OutputLocationHelper.GetOutputDirectory(doc)/issues.json</c> — the MISC *export*
+    /// folder, not the register. Nothing in the plugin ever read that file, so every issue
+    /// pulled here (including everything captured on mobile) was written to an orphan store
+    /// and silently discarded. It is called fire-and-forget on startup, so it had been
+    /// quietly doing this on every session.
+    ///
+    /// Now delegates to IssueStore.MergeFromServer: canonical path, canonical schema,
+    /// normalised status, and a three-way dedup (server_id → server_code → issue_id) so an
+    /// issue this plugin created and pushed is matched rather than duplicated.
+    /// </summary>
     public async Task<int> PullServerIssuesAsync(Autodesk.Revit.DB.Document doc, DateTime? since = null)
     {
         if (!IsConnected) return 0;
@@ -2205,48 +2414,9 @@ public sealed partial class PlanscapeServerClient : IDisposable
             var json = JObject.Parse(resp.body);
             var serverArr = (json["issues"] as JArray) ?? JArray.Parse(resp.body);
 
-            // Load local sidecar
-            var localPath = Path.Combine(Core.OutputLocationHelper.GetOutputDirectory(doc), "issues.json");
-            JArray local = new JArray();
-            if (File.Exists(localPath))
-            {
-                try { local = JArray.Parse(File.ReadAllText(localPath)); }
-                catch (Exception ex) { StingLog.Warn($"PullServerIssues: local parse failed — {ex.Message}"); }
-            }
-
-            // Merge by id — server entry wins when updatedAt is newer
-            var merged = new Dictionary<string, JObject>(StringComparer.OrdinalIgnoreCase);
-            foreach (var tok in local)
-            {
-                if (tok is JObject obj && obj["id"]?.ToString() is string id && !string.IsNullOrEmpty(id))
-                    merged[id] = obj;
-            }
-
-            int updated = 0;
-            foreach (var tok in serverArr)
-            {
-                if (tok is not JObject sv) continue;
-                var id = sv["id"]?.ToString();
-                if (string.IsNullOrEmpty(id)) continue;
-
-                if (merged.TryGetValue(id, out var lv))
-                {
-                    var svTime = sv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    var lvTime = lv["updatedAt"]?.Value<DateTime?>() ?? DateTime.MinValue;
-                    if (svTime >= lvTime) { merged[id] = sv; updated++; }
-                }
-                else
-                {
-                    merged[id] = sv;
-                    updated++;
-                }
-            }
-
-            var result = new JArray(merged.Values.Cast<object>().ToArray());
-            Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
-            File.WriteAllText(localPath, result.ToString(Formatting.Indented));
-            StingLog.Info($"PullServerIssues: merged {updated} issue(s) from server into {localPath}");
-            return updated;
+            int merged = Core.IssueStore.MergeFromServer(doc, serverArr);
+            StingLog.Info($"PullServerIssues: merged {merged} issue(s) into the issue register.");
+            return merged;
         }
         catch (Exception ex)
         {

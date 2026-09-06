@@ -59,6 +59,7 @@ import { theme, getPriorityColor } from '@/utils/theme';
 import { imageService } from '@/services/imageService';
 import { locationService } from '@/services/locationService';
 import { enqueue, onSyncComplete } from '@/utils/offlineQueue';
+import { alertFailure } from '@/utils/forbidden';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -332,8 +333,17 @@ export default function IssueDetailScreen() {
 
   /**
    * Phase 96 — look up the current user's project role so action gating can
-   * hide edit affordances from read-only members. Falls back silently if the
-   * endpoint 403s — treating "unknown role" as "member" (least privilege).
+   * hide edit affordances from read-only members.
+   *
+   * #558: when this lookup FAILS the role stays null, and null used to mean
+   * "not a coordinator" — so canTransition() refused, locally, without ever
+   * asking the server. A dropped request on a phone therefore looked exactly
+   * like a permissions problem, and the user was told their role could not do
+   * something it very possibly could.
+   *
+   * null now means UNKNOWN and lets the attempt through. The server owns this
+   * gate; "least privilege" belongs on the server, not in a client that
+   * guessed because a request timed out.
    */
   useEffect(() => {
     (async () => {
@@ -427,7 +437,11 @@ export default function IssueDetailScreen() {
    * Returns `true` if the role can perform the transition.
    */
   function canTransition(from: string, to: string): boolean {
-    const role = (currentUserRole ?? '').toLowerCase();
+    // Role never resolved — we do not know, so we do not refuse. Attempt, and
+    // let the server answer. Deliberately NOT `?? ''`, which made unknown
+    // indistinguishable from a known non-coordinator role.
+    if (currentUserRole == null) return true;
+    const role = currentUserRole.toLowerCase();
     const isCoordinator = role === 'admin' || role === 'owner'
       || role === 'coordinator' || role === 'manager' || role === 'bim_manager'
       || role === 'bim manager';
@@ -468,7 +482,15 @@ export default function IssueDetailScreen() {
         Alert.alert('Queued', 'Status change saved offline — will sync next time you are online.');
       }
     } catch (err) {
-      Alert.alert('Update failed', err instanceof Error ? err.message : String(err));
+      // Now that an unknown role lets the attempt through, the server's 403 is
+      // the answer the user sees — so it has to read as a permission answer
+      // and not as "Update failed".
+      alertFailure(err, {
+        title: 'Update failed',
+        forbidden:
+          'Your project role cannot make this transition. Ask a BIM Coordinator to close or reassign this issue.',
+        fallback: 'Update failed',
+      });
     } finally {
       setTransitioning(false);
     }

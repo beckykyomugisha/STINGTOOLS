@@ -93,6 +93,43 @@ namespace StingTools.Core.Symbols
         private static double Scale(double normCoord, double symbolSizeMm)
             => normCoord * MmToFt(symbolSizeMm);
 
+        /// <summary>
+        /// Millimetre size the symbol's normalised geometry is expanded to.
+        ///
+        /// <para>Annotation and detail templates plot in PAPER space — Revit holds
+        /// them at a constant plotted size at any view scale — so
+        /// <c>symbolSize</c> is exactly right there, and the "Symbol Scale"
+        /// parameter carried by 520 annotation symbols is inert by design. It is
+        /// left in place deliberately: it is harmless, and stripping it would make
+        /// existing project families diverge from newly built ones.</para>
+        ///
+        /// <para>Model templates live in MODEL space, where a paper-space size
+        /// yields a device a few millimetres across. Those use
+        /// <c>realSizeMm</c>. Falling back to <c>symbolSize</c> for a model family
+        /// is a defect, so it warns rather than failing silently.</para>
+        /// </summary>
+        private static double ResolveGeometrySizeMm(SymbolDefinition def, TemplateKind kind,
+            SymbolCreationResult result)
+        {
+            double paper = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            if (!IsModelSpaceTemplate(kind)) return paper;
+
+            if (def.RealSizeMm > 0) return def.RealSizeMm;
+
+            result?.Warnings.Add(
+                $"{def.Id}: model-category symbol has no realSizeMm — falling back to the " +
+                $"paper-space symbolSize ({paper:F1}mm). The family will be built a few " +
+                "millimetres across and will be effectively invisible in model views.");
+            return paper;
+        }
+
+        /// <summary>
+        /// True when the template places geometry in model space, where sizes are
+        /// real-world rather than plotted.
+        /// </summary>
+        private static bool IsModelSpaceTemplate(TemplateKind kind)
+            => kind == TemplateKind.Model;
+
         // ─────────────────────────────────────────────────────────────────
         // Fix 5 — Geometry coordinate range validation
         // ─────────────────────────────────────────────────────────────────
@@ -169,6 +206,26 @@ namespace StingTools.Core.Symbols
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
 
+            // ── Cache invalidation (W-1) ──────────────────────────────────
+            // Existence alone is not freshness. A .rfa on disk may have been
+            // built from an older catalogue, or by an older generator whose
+            // output differed even though every catalogue byte is identical.
+            // rebuildMode forces a rebuild regardless (Symbols_Rebuild -> Force all).
+            var cache = SymbolCacheManifest.Load(outputFolder);
+            bool hashStale = cache.IsCatalogueStale(jsonPath, out string staleReason);
+            bool catalogueStale = rebuildMode || hashStale;
+            if (catalogueStale)
+            {
+                string cause = rebuildMode ? "forced rebuild" : staleReason;
+                StingLog.Info($"SymbolLibraryCreator: rebuilding '{Path.GetFileName(jsonPath)}' — {cause}.");
+                result.Warnings.Add($"{Path.GetFileName(jsonPath)}: rebuilding cached families — {cause}.");
+            }
+
+            // Every id this run considered, and the subset that failed. Used to carry a
+            // per-symbol retry list in the sidecar (see RecordFailures).
+            var attemptedIds = new List<string>();
+            var failedIds = new List<string>();
+
             foreach (var def in lib.Symbols)
             {
                 if (string.IsNullOrWhiteSpace(def?.Id))
@@ -177,6 +234,8 @@ namespace StingTools.Core.Symbols
                     result.Errors.Add("Symbol with empty id skipped.");
                     continue;
                 }
+
+                attemptedIds.Add(def.Id);
 
                 // Apply project-level size config (global multiplier / category / per-symbol override).
                 if (sizeConfig != null)
@@ -190,7 +249,13 @@ namespace StingTools.Core.Symbols
                 }
 
                 var rfaPath = Path.Combine(outputFolder, def.Id + ".rfa");
-                if (File.Exists(rfaPath))
+                // W-1 — a stale catalogue (or generator) means the .rfa on disk was
+                // built from something that no longer describes this symbol, so
+                // existence no longer licenses a skip. Fall through to BuildOne,
+                // which overwrites via SaveAsOptions.OverwriteExistingFile.
+                // IsSymbolStale additionally retries anything that failed last run,
+                // whose on-disk file may be a survivor of a failed regeneration.
+                if (File.Exists(rfaPath) && !catalogueStale && !cache.IsSymbolStale(def.Id))
                 {
                     // If the .rfa loads cleanly, count it as Existed and
                     // move on. If LoadFamily returns false (Revit's
@@ -217,6 +282,7 @@ namespace StingTools.Core.Symbols
                     {
                         result.Warnings.Add($"{def.Id}: stale .rfa delete failed — {ex.Message}; skipping rebuild.");
                         result.Failed++;
+                        failedIds.Add(def.Id);
                         continue;
                     }
                 }
@@ -239,15 +305,33 @@ namespace StingTools.Core.Symbols
                     else
                     {
                         result.Failed++;
+                        failedIds.Add(def.Id);
                     }
                 }
                 catch (Exception ex2)
                 {
                     result.Failed++;
+                    failedIds.Add(def.Id);
                     result.Errors.Add($"{def.Id}: {ex2.Message}");
                     StingLog.Error($"SymbolLibraryCreator: {def.Id} failed", ex2);
                 }
             }
+
+            // ── Record the build (W-1) ────────────────────────────────────
+            // Stamp the catalogue hash and carry the failure set forward. Failures are
+            // tracked per symbol rather than blocking the whole catalogue: a symbol
+            // that fails leaves whatever was on disk before (BuildOne's SaveAs is its
+            // last step), so a stale family that failed to regenerate would otherwise
+            // be served silently. Recording the id forces a retry next run while every
+            // symbol that did build stays cached.
+            cache.RecordCatalogue(jsonPath);
+            cache.RecordFailures(attemptedIds, failedIds);
+            cache.Save(outputFolder);
+
+            if (failedIds.Count > 0)
+                result.Warnings.Add(
+                    $"{Path.GetFileName(jsonPath)}: {failedIds.Count} symbol(s) failed and are " +
+                    "flagged for retry on the next build.");
 
             return result;
         }
@@ -261,10 +345,13 @@ namespace StingTools.Core.Symbols
         private static void BuildVariant(Document hostDoc, Application app, SymbolDefinition baseDef,
             string emitId, StandardGeometryOverride overrideDef,
             string outputFolder, string templateFolder, bool loadIntoProject,
-            SymbolCreationResult result)
+            SymbolCreationResult result, bool catalogueStale = false)
         {
             var rfaPath = Path.Combine(outputFolder, emitId + ".rfa");
-            if (File.Exists(rfaPath))
+            // W-1 — same existence-is-not-freshness rule as the main build loop.
+            // This method currently has no call site; the guard is here so wiring
+            // it later cannot silently reintroduce an uninvalidatable cache.
+            if (File.Exists(rfaPath) && !catalogueStale)
             {
                 result.Existed++;
                 result.CreatedRfaPaths.Add(rfaPath);
@@ -405,6 +492,10 @@ namespace StingTools.Core.Symbols
                 result.Errors.Add($"{def.Id}: NewFamilyDocument returned null.");
                 return null;
             }
+
+            // A Generic Model stand-in carries the wrong category; correct it before any
+            // geometry, parameters or connectors are added.
+            ApplySubstituteCategory(fdoc, def, templateFile, result);
 
             // Warn when generating from draft geometry — a hand-drafted seed .rfa is preferred.
             if (string.Equals(def.Status, "draft", StringComparison.OrdinalIgnoreCase))
@@ -577,7 +668,7 @@ namespace StingTools.Core.Symbols
             // ref-level plane already created by the .rft.
             SketchPlane sketch = ResolveSketchPlane(fdoc, kind, def.Id, result);
 
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+            double s = ResolveGeometrySizeMm(def, kind, result);
 
             // Fix 4 — resolve the effective textHeightMm from the standard.
             double stdTextHeightMm = std?.AnnotationRules?.TextHeightMm ?? 2.5;
@@ -713,6 +804,40 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        /// <summary>
+        /// Creates one curve in a family document, picking the API the template actually
+        /// supports.
+        ///
+        /// <para>Annotation templates have NO sketch plane — ResolveSketchPlane returns
+        /// null for them deliberately, because SketchPlane.Create is forbidden there. The
+        /// draw path nevertheless passed that null straight into NewSymbolicCurve, whose
+        /// sketchPlane argument is mandatory, so every curve in every GenericAnnotation
+        /// family threw "Value cannot be null. Parameter name: sketchPlane", was caught,
+        /// warned and skipped. The families still saved — empty. Annotation curves belong
+        /// on the family's own view via NewDetailCurve, which needs no plane.</para>
+        /// </summary>
+        private static void CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
+            Curve curve, bool isAnnotation, string id, SymbolCreationResult result)
+        {
+            if (isAnnotation)
+            {
+                if (view == null)
+                {
+                    result.Warnings.Add($"{id}: no view available for annotation curve — skipped.");
+                    return;
+                }
+                fdoc.FamilyCreate.NewDetailCurve(view, curve);
+                return;
+            }
+
+            if (sketch == null)
+            {
+                result.Warnings.Add($"{id}: no sketch plane available for model curve — skipped.");
+                return;
+            }
+            fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+        }
+
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
             LineDefinition l, double symMm, SymbolCreationResult result, string id)
         {
@@ -733,12 +858,8 @@ namespace StingTools.Core.Symbols
                 Line line = Line.CreateBound(p1, p2);
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
@@ -781,10 +902,7 @@ namespace StingTools.Core.Symbols
                 // warnings were swallowed by SymbolFailureSwallow.)
                 if (fdoc.IsFamilyDocument)
                 {
-                    if (isAnnotation)
-                        fdoc.FamilyCreate.NewSymbolicCurve(line, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(line, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result);
                 }
                 else
                 {
@@ -830,12 +948,8 @@ namespace StingTools.Core.Symbols
 
                 if (fdoc.IsFamilyDocument)
                 {
-                    // Fix 1a — GenericAnnotation families use NewSymbolicCurve;
-                    // model families use NewModelCurve.
-                    if (IsAnnotationFamily(fdoc, null))
-                        fdoc.FamilyCreate.NewSymbolicCurve(curve, sketch);
-                    else
-                        fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+                    CreateFamilyCurve(fdoc, view, sketch, curve,
+                        IsAnnotationFamily(fdoc, null), id, result);
                 }
                 else
                 {
@@ -1512,7 +1626,13 @@ namespace StingTools.Core.Symbols
         {
             if (!fdoc.IsFamilyDocument) return;
             if (connectors == null) return;
-            double s = def.SymbolSize > 0 ? def.SymbolSize : 3.0;
+
+            // Must match DrawGeometry's size exactly. Connector offsets are
+            // normalised against the same box as the linework, so resolving them
+            // differently would leave connectors floating off the geometry.
+            // Connectors only exist on model templates, so this always takes the
+            // realSizeMm path in practice.
+            double s = ResolveGeometrySizeMm(def, ResolveTemplateKind(def), result);
 
             foreach (var c in connectors)
             {
@@ -2314,6 +2434,70 @@ namespace StingTools.Core.Symbols
         /// returning the first match. Returns null (never throws) when no template
         /// is found so the caller can skip that symbol gracefully.
         /// </summary>
+        /// <summary>
+        /// When a family was built from a Generic Model stand-in because its proper
+        /// template is absent, sets the category the symbol actually needs.
+        ///
+        /// <para>The accessory .rft files ship in Autodesk's MEP content pack, which is
+        /// an optional install — this machine has 1328 templates and not one
+        /// *Accessory*.rft. Autodesk's own guidance for that case is to start from the
+        /// generic-model template and change the category, and OwnerFamily.FamilyCategory
+        /// is settable inside a family document.</para>
+        ///
+        /// <para>Graceful degradation, not parity: a re-categorised Generic Model may
+        /// differ from a true accessory in work-plane basedness and in how it breaks into
+        /// a run. Connectors are unaffected — those are added explicitly either way. The
+        /// substitution is therefore warned about, not performed silently.</para>
+        /// </summary>
+        private static void ApplySubstituteCategory(Document fdoc, SymbolDefinition def,
+            string templateFile, SymbolCreationResult result)
+        {
+            try
+            {
+                if (fdoc == null || !fdoc.IsFamilyDocument || def == null) return;
+                if (!string.Equals(def.FamilyType, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                // Only when the resolver actually fell through to a generic stand-in.
+                string tpl = Path.GetFileName(templateFile) ?? "";
+                if (tpl.IndexOf("Generic Model", StringComparison.OrdinalIgnoreCase) < 0) return;
+
+                bool isDuct = string.Equals(def.Discipline, "Mechanical", StringComparison.OrdinalIgnoreCase)
+                              && def.Connectors != null
+                              && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase));
+                var target = isDuct ? BuiltInCategory.OST_DuctAccessory : BuiltInCategory.OST_PipeAccessory;
+
+                var cat = Category.GetCategory(fdoc, target);
+                if (cat == null)
+                {
+                    result.Warnings.Add($"{def.Id}: built from '{tpl}' but category {target} is " +
+                                        "unavailable in this document — left as Generic Model.");
+                    return;
+                }
+
+                using (var tx = new Transaction(fdoc, "STING Set substitute family category"))
+                {
+                    tx.Start();
+                    fdoc.OwnerFamily.FamilyCategory = cat;
+                    tx.Commit();
+                }
+
+                result.Warnings.Add($"{def.Id}: '{TrueAccessoryTemplate(isDuct)}' is not installed; " +
+                    $"built from '{tpl}' and re-categorised to {target}. Install the Autodesk MEP " +
+                    "content pack for a true accessory family.");
+            }
+            catch (Exception ex)
+            {
+                // Never fail the build over this — the family is still usable, just
+                // categorised as a Generic Model.
+                result.Warnings.Add($"{def.Id}: substitute category not applied — {ex.Message}");
+                StingLog.Warn($"ApplySubstituteCategory {def?.Id}: {ex.Message}");
+            }
+        }
+
+        private static string TrueAccessoryTemplate(bool isDuct)
+            => isDuct ? "Metric Duct Accessory.rft" : "Metric Pipe Accessory.rft";
+
         private static string ResolveTemplateFile(SymbolDefinition def, string folder, SymbolCreationResult result)
         {
             if (string.IsNullOrEmpty(folder))
@@ -2487,10 +2671,18 @@ namespace StingTools.Core.Symbols
             }
             if (string.Equals(ft, "MEPAccessory", StringComparison.OrdinalIgnoreCase))
             {
+                // The Generic Model tail matters: the accessory .rft files ship in the
+                // Autodesk MEP content pack, which is an optional install. Without it
+                // this branch resolved nothing and every MEPAccessory symbol failed —
+                // 42 of them — while the 838 others built, because every OTHER MEP
+                // branch already carried this same fallback. BuildOne restores the real
+                // category afterwards (see ApplySubstituteCategory).
                 if (string.Equals(disc, "Mechanical", StringComparison.OrdinalIgnoreCase)
                     && def.Connectors != null && def.Connectors.Any(c => string.Equals(c?.Domain, "HVAC", StringComparison.OrdinalIgnoreCase)))
-                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft" };
-                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft" };
+                    return new[] { "Metric Duct Accessory.rft", "Duct Accessory.rft",
+                                   "Metric Generic Model.rft", "Generic Model.rft" };
+                return new[] { "Metric Pipe Accessory.rft", "Pipe Accessory.rft",
+                               "Metric Generic Model.rft", "Generic Model.rft" };
             }
             if (string.Equals(ft, "MEPEquipment", StringComparison.OrdinalIgnoreCase))
             {

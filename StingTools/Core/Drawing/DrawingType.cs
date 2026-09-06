@@ -92,6 +92,12 @@ namespace StingTools.Core.Drawing
         public const string Coordination = "Coordination";
         public const string Legend       = "Legend";
         public const string ThreeD       = "3D";
+        /// <summary>Riser / single-line / distribution schematic. Not to scale —
+        /// the shipped types carry <c>"scale": "NA"</c>, which the tolerant
+        /// converter reads as 0 and the validator exempts from DT-095.</summary>
+        public const string Schematic    = "Schematic";
+        /// <summary>Client clarification / RFI sketch.</summary>
+        public const string Clarification = "Clarification";
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -427,6 +433,15 @@ namespace StingTools.Core.Drawing
     public sealed class IsoNaming
     {
         [JsonProperty("volume",      NullValueHandling = NullValueHandling.Ignore)] public string Volume { get; set; }       // e.g. "01", "ZZ"
+        /// <summary>
+        /// K-7 — ISO 19650 level/location field. Volume, Type and Role all had
+        /// a profile-level default that DrawingTokenContext falls back to when
+        /// the producing command supplies nothing; Level did not, so {lvl}
+        /// rendered as an empty segment ("…-COT01--DR-A-1001") with no warning.
+        /// Set this to the profile's default level code — "ZZ" for a
+        /// non-level-specific drawing, per ISO 19650-2.
+        /// </summary>
+        [JsonProperty("level",       NullValueHandling = NullValueHandling.Ignore)] public string Level { get; set; }        // e.g. "00", "01", "ZZ"
         [JsonProperty("type",        NullValueHandling = NullValueHandling.Ignore)] public string Type { get; set; }         // DR / SH / M3 / VS / CA / SP
         [JsonProperty("role",        NullValueHandling = NullValueHandling.Ignore)] public string Role { get; set; }         // A / S / M / E / P / FP
         [JsonProperty("suitability", NullValueHandling = NullValueHandling.Ignore)] public string Suitability { get; set; }  // S0..S7 / A1..A5 / B1..B5 / C1..C3
@@ -519,6 +534,16 @@ namespace StingTools.Core.Drawing
         [JsonProperty("kind")]        public string Kind { get; set; } = "ScopeBoxOrBbox";
         [JsonProperty("scopeBoxName")] public string ScopeBoxName { get; set; }
         [JsonProperty("marginMm")]    public double MarginMm { get; set; } = 150.0;
+
+        /// <summary>
+        /// Whether the crop BOUNDARY is drawn on the sheet. Every crop path
+        /// used to force this on, so production drawings shipped with a visible
+        /// crop rectangle around each viewport. Defaults to false — a produced
+        /// drawing should show its content, not its cropping frame. Set true
+        /// per drawing type when the boundary is wanted (coordination or
+        /// check prints, where the extent of the crop is the point).
+        /// </summary>
+        [JsonProperty("cropBoxVisible")] public bool CropBoxVisible { get; set; } = false;
     }
 
     // ─────────────────────────────────────────────────────────────────────

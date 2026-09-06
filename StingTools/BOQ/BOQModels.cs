@@ -95,6 +95,14 @@ namespace StingTools.BOQ
     {
         public int ZeroRateCount;        // measured/count model rows with no rate found
         public int CouldNotMeasureCount; // measured-unit model rows whose quantity came back 0
+        /// <summary>
+        /// A-1 — measured rows the take-off explicitly could NOT resolve a quantity
+        /// for. A strict subset of <see cref="CouldNotMeasureCount"/>, which infers
+        /// the same condition from a zero quantity and so also catches rows that
+        /// measured legitimately to zero. This one carries no false positives, which
+        /// is what lets it drive a hard export gate.
+        /// </summary>
+        public int QuantityUnresolvedCount;
         public int LowConfidenceCount;   // priced rows below the export confidence floor
         public double QtyAtRisk;         // Σ quantity of the zero-rate rows
         public double ValueAtRiskUGX;    // Σ qty × proxy median rate for the unit (indicative)
@@ -128,6 +136,16 @@ namespace StingTools.BOQ
         public double Quantity;             // NET measured quantity — the value used for cost
         public string Unit;                 // "m²" / "m³" / "m" / "each" / "item" / "kg" / "tonne"
 
+        /// <summary>
+        /// MAT-SCHED — the CompoundTakeoff constituent kind that produced this row
+        /// ("mortar_cement" / "plaster_sand" / "rebar" / …), or null for rows from
+        /// the non-compound path. Additive: defaults null so existing JSON
+        /// snapshots deserialise unchanged. The material schedule routes rows to
+        /// construction stages by this value; the "[Compound: …]" Note prefix
+        /// stays for human readers.
+        /// </summary>
+        public string ConstituentKind;
+
         // ── Phase 2A — NRM2 rules-based measurement audit trail ─────────────
         // The gross→net derivation so a QS can see exactly how a modelled
         // geometry became a measured quantity. GrossQuantity is the raw Revit
@@ -144,6 +162,18 @@ namespace StingTools.BOQ
         public double DeductionQuantity;
         public double WastageQuantity;
         public string MeasurementNote;
+
+        /// <summary>
+        /// A-1 — false when this is a MEASURED line (m/m²/m³/kg) whose take-off
+        /// quantity source did not resolve. Quantity will read 0, but that 0 is a
+        /// failure, not a measurement: the row still carries a description, a
+        /// classification, a rate and an NRM2 section, so on paper it is
+        /// indistinguishable from a genuine cheap item. Defaults TRUE so every
+        /// existing construction site, snapshot and deserialised row keeps its
+        /// current meaning — only the take-off path can clear it.
+        /// </summary>
+        public bool QuantityResolved = true;
+
         public double RateUGX;
         public double RateUSD;
         public double EmbodiedCarbonKg;     // kgCO2e — A1-A3 FOSSIL headline (WP-C, RICS WLCA)
@@ -263,10 +293,12 @@ namespace StingTools.BOQ
                 TypeName = this.TypeName,
                 Quantity = this.Quantity,
                 Unit = this.Unit,
+                ConstituentKind = this.ConstituentKind,
                 GrossQuantity = this.GrossQuantity,
                 DeductionQuantity = this.DeductionQuantity,
                 WastageQuantity = this.WastageQuantity,
                 MeasurementNote = this.MeasurementNote,
+                QuantityResolved = this.QuantityResolved,   // A-1 — must survive the clone
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,

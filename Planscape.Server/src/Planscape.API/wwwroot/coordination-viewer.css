@@ -1774,3 +1774,48 @@ tr.row-selected td { color: var(--text-primary); }
 }
 .viewport-wrap.bp-collapsed .walk-joystick { bottom: calc(32px + 66px); }
 .viewport-wrap.bp-expanded  .walk-joystick { bottom: calc(60vh + 66px); }
+
+/* ── Phones ──────────────────────────────────────────────────────────────
+   .app-shell is a three-column grid: left | canvas | right. The panels are
+   240px + 260px = 500px of fixed columns, which is WIDER THAN A PHONE, so
+   at 375px the 1fr canvas column computed to ZERO width — the model was
+   simply invisible on a phone, and the toolbar started off-screen at x=378
+   so Meet / Issues could not be reached either.
+
+   Below 700px the canvas always owns the full width, and the panels become
+   overlays that sit on top of it. Overlaying (rather than keeping them in
+   the grid) is the point: if they still took a column, opening one would
+   squeeze the 3D view back to nothing on exactly the screens that can least
+   afford it. The header toggles still open and close them as before. */
+@media (max-width: 700px) {
+  .app-shell,
+  .app-shell.left-collapsed,
+  .app-shell.right-collapsed,
+  .app-shell.left-collapsed.right-collapsed {
+    grid-template-columns: 0 1fr 0;
+  }
+
+  /* Grid items default to min-width:auto, which lets wide content push the
+     item past the viewport — that is why the header measured 500px. */
+  .header { min-width: 0; overflow-x: auto; }
+  .toolbar { flex-wrap: nowrap; }
+
+  .left-panel,
+  .right-panel {
+    position: fixed;
+    top: var(--toolbar-height);
+    bottom: 0;
+    width: min(86vw, 320px);
+    z-index: 60;
+    box-shadow: 0 0 28px rgba(0, 0, 0, 0.55);
+  }
+  .left-panel  { left: 0; }
+  .right-panel { right: 0; }
+
+  /* On a phone "collapsed" means gone, not a zero-width column. */
+  .app-shell.left-collapsed  .left-panel  { display: none; }
+  .app-shell.right-collapsed .right-panel { display: none; }
+
+  /* Drag-to-resize rails are a mouse affordance and only steal touches. */
+  .rail-handle { display: none; }
+}

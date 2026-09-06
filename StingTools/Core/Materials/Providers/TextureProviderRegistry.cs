@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -159,7 +159,7 @@ namespace StingTools.Core.Materials.Providers
                 if (string.IsNullOrEmpty(p)) return null;
                 string dir = Path.GetDirectoryName(p);
                 if (string.IsNullOrEmpty(dir)) return null;
-                string bim = Path.Combine(dir, "_BIM_COORD");
+                string bim = StingPaths.Meta(doc, "_BIM_COORD");
                 if (!Directory.Exists(bim))
                 {
                     try { Directory.CreateDirectory(bim); } catch { return null; }

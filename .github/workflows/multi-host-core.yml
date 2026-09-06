@@ -46,6 +46,19 @@ jobs:
         working-directory: stingtools-core/python
         run: python -m pytest -q
 
+      # SB-5a wiring + the §1.4.5 GlobalId-stability fixture live under
+      # StingBridge/tests. They drive the real IFCDropHandler over real IFC
+      # files, so they need a parser (ifcopenshell) and the client's transport
+      # (requests). Without this step the GlobalId guard would silently skip
+      # (importorskip) and the write-back could churn identity unnoticed.
+      # (The e2e_*.py scripts are not test_*-named, so pytest never collects
+      # them here — they need a live server and run in the N1 live E2E.)
+      - name: Install StingBridge test deps
+        run: python -m pip install requests "ifcopenshell>=0.8,<0.9"
+
+      - name: StingBridge unit tests (SB-5a wiring + GlobalId fixture)
+        run: python -m pytest StingBridge/tests/ -q
+
       - name: Adapter-boundary lint (A6)
         run: python tools/ci/check_adapter_boundary.py
 

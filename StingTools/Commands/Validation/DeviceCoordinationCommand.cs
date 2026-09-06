@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -57,7 +57,7 @@ namespace StingTools.Commands.Validation
                 string dir = DocKey(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
-                    string p = Path.Combine(dir, "_BIM_COORD", "device_coord_rules.json");
+                    string p = StingPaths.MetaFile(doc, "_BIM_COORD", "device_coord_rules.json");
                     if (File.Exists(p))
                     {
                         var overlay = JsonConvert.DeserializeObject<DeviceCoordRulePack>(File.ReadAllText(p));

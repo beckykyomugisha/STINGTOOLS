@@ -26,7 +26,26 @@ namespace StingTools.Commands.Hvac
         {
             try
             {
-                var dlg = new RefrigerantSizingDialog();
+                // Gap 2.2 — pre-fill the dialog from the current selection when a
+                // VRF outdoor unit or a refrigerant pipe run is selected. Fully
+                // fail-soft: any extraction failure leaves the dialog at its manual
+                // defaults exactly as before.
+                RefrigerantSelectionResult prefill = null;
+                Autodesk.Revit.DB.Document ctxDoc = null;
+                try
+                {
+                    var ctx = ParameterHelpers.GetContext(commandData);
+                    if (ctx != null)
+                    {
+                        ctxDoc = ctx.Doc;
+                        var sel = ctx.UIDoc?.Selection?.GetElementIds();
+                        if (sel != null && sel.Count > 0)
+                            prefill = RefrigerantSelectionExtractor.Extract(ctx.Doc, sel);
+                    }
+                }
+                catch (Exception exPre) { StingLog.Warn($"Refrig prefill: {exPre.Message}"); }
+
+                var dlg = new RefrigerantSizingDialog("R410A", prefill);
                 bool? ok = dlg.ShowDialog();
                 if (ok != true || dlg.Result == null) return Result.Cancelled;
 
@@ -37,12 +56,7 @@ namespace StingTools.Commands.Hvac
 
                 // Phase 187f — pass the active document so RefrigerantPipeSolver
                 // can resolve vendor-series length tables from the registry.
-                try
-                {
-                    var ctx = ParameterHelpers.GetContext(commandData);
-                    if (ctx != null) input.Document = ctx.Doc;
-                }
-                catch { }
+                if (ctxDoc != null) input.Document = ctxDoc;
 
                 var result = RefrigerantPipeSolver.Size(input);
 
@@ -113,8 +127,7 @@ namespace StingTools.Commands.Hvac
                 // IDU, surface it so the user knows to size both.
                 try
                 {
-                    var ctx = ParameterHelpers.GetContext(commandData);
-                    var ducted = FindDuctedIndoorUnits(ctx?.Doc, input.CapacityKw);
+                    var ducted = FindDuctedIndoorUnits(ctxDoc, input.CapacityKw);
                     if (ducted.Count > 0)
                     {
                         panel.AddSection("LINKED DUCTED IDUs");

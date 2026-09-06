@@ -1,0 +1,5 @@
+# Path-discipline baseline -- hand-rolled Path.Combine(..., "_BIM_COORD", ...) sites.
+# Format: <relative path under StingTools/><TAB><count>.
+# The count may FALL (lower the line in the same PR) but never rise.
+# Legacy bucket names (STING_BIM_MANAGER / _bim_manager) are NOT baselined --
+# they are a hard zero outside the resolvers. See check_path_discipline.ps1.

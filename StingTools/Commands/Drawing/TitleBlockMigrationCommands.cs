@@ -19,7 +19,7 @@
 //     title-block family to the BIM variant of the same paper size
 //     and version. Auto-loads the target .rfa from
 //     Families/TitleBlocks/ when not in the project. Updates
-//     STING_SHEET_BIM_MODE_TXT to "BIM" on every migrated sheet.
+//     PRJ_SHEET_BIM_MODE_TXT to "BIM" on every migrated sheet.
 //     Defaults to BIM (the safer choice — preserves visible
 //     identity-data cells); operator can run TitleBlock_ToggleBIMMode
 //     afterwards on individual sheets that should be NONBIM.
@@ -137,7 +137,7 @@ namespace StingTools.Commands.Drawing
                 MainInstruction = $"Found {hits.Hits.Count} sheet(s) using legacy single-family title blocks.",
                 MainContent = "Each legacy instance will be swapped to its BIM variant of the same paper size + version. "
                     + "Run TitleBlock_ToggleBIMMode on individual sheets afterwards if any should be NONBIM. "
-                    + "STING_SHEET_BIM_MODE_TXT will be set to \"BIM\" on every migrated sheet.",
+                    + "PRJ_SHEET_BIM_MODE_TXT will be set to \"BIM\" on every migrated sheet.",
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                 AllowCancellation = true,
                 DefaultButton = TaskDialogResult.Cancel,
@@ -194,7 +194,7 @@ namespace StingTools.Commands.Drawing
                                 var tb = TitleBlockSlotUtils.FindTitleBlockOnSheet(doc, sheet) as FamilyInstance;
                                 if (tb == null) { skipped++; continue; }
                                 tb.Symbol = targetSym;
-                                var modeParam = tb.LookupParameter("STING_SHEET_BIM_MODE_TXT");
+                                var modeParam = tb.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                                 if (modeParam != null && !modeParam.IsReadOnly)
                                     try { modeParam.Set("BIM"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                                 migrated++;

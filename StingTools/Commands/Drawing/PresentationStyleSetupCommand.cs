@@ -43,7 +43,7 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null)
                 {
                     TaskDialog.Show("STING — Presentation Setup", "No active document.");

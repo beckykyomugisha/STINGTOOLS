@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { ErrorNote, ForbiddenNote, LoadingBlock } from '@/components/ui';
+import { describeFailure } from '@/lib/api';
+import { CAPABILITY_COPY, useProjectCapabilities } from '@/lib/capabilities';
 import { listSitePhotos, photoFileUrl, approvePhoto, rejectPhoto } from '@/lib/data';
 import type { SitePhoto } from '@/lib/types';
 
@@ -18,6 +21,13 @@ export default function PhotosPage() {
   const [reason, setReason] = useState<(typeof REASONS)[number]>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+
+  // Approve / reject are gated on canApproveSitePhotos. This starts 'unknown',
+  // which leaves both buttons live — correct, because the server is still the
+  // gate and an unanswered question must not render as a "no".
+  const caps = useProjectCapabilities(projectId);
+  const cannotApprove = caps.approveSitePhotos === 'denied';
 
   const load = useCallback(() => {
     setPhotos(null);
@@ -32,13 +42,19 @@ export default function PhotosPage() {
     const caption = prompt('Caption (required, min 3 chars):', p.caption ?? '');
     if (caption == null) return;
     setError(null);
+    setForbidden(false);
     setNotice(null);
     try {
       await approvePhoto(projectId, p.id, caption);
       setNotice('Photo approved.');
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Approve failed');
+      const d = describeFailure(e, {
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Approve failed',
+      });
+      setError(d.message);
+      setForbidden(d.tone === 'forbidden');
     }
   }
 
@@ -46,20 +62,26 @@ export default function PhotosPage() {
     const reasonText = prompt('Rejection reason:');
     if (!reasonText) return;
     setError(null);
+    setForbidden(false);
     setNotice(null);
     try {
       await rejectPhoto(projectId, p.id, reasonText);
       setNotice('Photo rejected.');
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Reject failed');
+      const d = describeFailure(e, {
+        forbidden: CAPABILITY_COPY.approveSitePhotos,
+        fallback: 'Reject failed',
+      });
+      setError(d.message);
+      setForbidden(d.tone === 'forbidden');
     }
   }
 
   return (
     <AppShell>
       <div className="mb-4">
-        <Link href={`/projects/${projectId}`} className="text-sm text-slate-400 hover:underline">
+        <Link href={`/projects/${projectId}`} className="text-sm text-fg-subtle hover:underline">
           ← Project
         </Link>
         <h1 className="text-xl font-semibold">Site photos</h1>
@@ -71,7 +93,7 @@ export default function PhotosPage() {
             key={r}
             onClick={() => setReason(r)}
             className={`rounded-full px-3 py-1 text-xs ${
-              reason === r ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200'
+              reason === r ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-muted ring-1 ring-border'
             }`}
           >
             {r}
@@ -79,31 +101,38 @@ export default function PhotosPage() {
         ))}
       </div>
 
-      {error && <p className="mb-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-      {notice && <p className="mb-3 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
-      {!photos && !error && <p className="text-slate-400">Loading…</p>}
+      {error && (
+        <div className="mb-3">{forbidden ? <ForbiddenNote>{error}</ForbiddenNote> : <ErrorNote>{error}</ErrorNote>}</div>
+      )}
+      {cannotApprove && (
+        <div className="mb-3">
+          <ForbiddenNote>{CAPABILITY_COPY.approveSitePhotos}</ForbiddenNote>
+        </div>
+      )}
+      {notice && <p className="mb-3 rounded bg-success-subtle px-3 py-2 text-sm text-success">{notice}</p>}
+      {!photos && !error && <LoadingBlock />}
       {photos && photos.length === 0 && (
-        <p className="text-slate-500">No photos. Capture happens on the mobile app; review them here.</p>
+        <p className="text-fg-muted">No photos. Capture happens on the mobile app; review them here.</p>
       )}
 
       {photos && photos.length > 0 && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {photos.map((p) => (
-            <li key={p.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <li key={p.id} className="overflow-hidden rounded-lg border border-border bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={photoFileUrl(projectId, p.id)}
                 alt={p.caption ?? p.reason ?? 'Site photo'}
-                className="h-32 w-full bg-slate-100 object-cover"
+                className="h-32 w-full bg-surface-3 object-cover"
                 loading="lazy"
               />
               <div className="p-2">
-                <div className="flex items-center justify-between gap-1 text-[10px] text-slate-400">
+                <div className="flex items-center justify-between gap-1 text-[10px] text-fg-subtle">
                   <span>{p.reason}</span>
                   <span>{p.audience}</span>
                 </div>
-                {p.caption && <p className="mt-0.5 truncate text-xs text-slate-600">{p.caption}</p>}
-                <div className="mt-1 text-[10px] text-slate-400">
+                {p.caption && <p className="mt-0.5 truncate text-xs text-fg-muted">{p.caption}</p>}
+                <div className="mt-1 text-[10px] text-fg-subtle">
                   {p.capturedByName ?? ''}
                   {p.capturedAt ? ` · ${new Date(p.capturedAt).toLocaleDateString()}` : ''}
                 </div>
@@ -111,13 +140,17 @@ export default function PhotosPage() {
                   <div className="mt-2 flex gap-1">
                     <button
                       onClick={() => onApprove(p)}
-                      className="flex-1 rounded bg-green-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-green-700"
+                      disabled={cannotApprove}
+                      title={cannotApprove ? CAPABILITY_COPY.approveSitePhotos : undefined}
+                      className="flex-1 rounded bg-success px-2 py-1 text-[11px] font-medium text-fg-on-accent hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Approve
                     </button>
                     <button
                       onClick={() => onReject(p)}
-                      className="flex-1 rounded border border-slate-300 px-2 py-1 text-[11px] text-red-600 hover:bg-red-50"
+                      disabled={cannotApprove}
+                      title={cannotApprove ? CAPABILITY_COPY.approveSitePhotos : undefined}
+                      className="flex-1 rounded border border-border-strong px-2 py-1 text-[11px] text-danger hover:bg-danger-subtle disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Reject
                     </button>

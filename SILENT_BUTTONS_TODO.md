@@ -101,3 +101,45 @@ handler / the main handler / modules — flag for a follow-up (NOT touched here)
 - **TODO (parked):** 5 Healthcare actions (+ dynamic specialist tags) + 3 cross-panel
   candidates.
 - **Untouched:** TAGS → Scale sub-tab and all scale sliders.
+
+---
+
+## Re-audit 2026-08-06 — zero dead buttons, and a CI gate so it stays that way
+
+Re-derived independently while closing the KUT workflow-coverage gaps, using the same
+method this document already recommends: restrict to controls that actually dispatch
+(`Click="Cmd_Click"`), and check **all** dispatch surfaces rather than the switch alone.
+
+| Measure | Count |
+|---|---|
+| `<Button>` elements carrying `Click="Cmd_Click"` | 1,399 (**1,323** distinct tags) |
+| Naive `Tag="..."` scan over the whole XAML | 1,500 distinct — **over-reports by 177** |
+| L1 `CommandRegistry` names (`UI/Modules/*CommandModule.cs`) | 661 |
+| L2 code-behind suite-runner tags (`Cmd_Click` interceptions) | 38 |
+| L3 `case "..."` labels across the six command handlers | 2,276 |
+| Buttons with **no L3 case** | **26** |
+| Buttons unreachable by **any** layer | **0** |
+
+**All 26 "no case" buttons are reachable** — 23 through L2 suite runners
+(`Bim_DeliverableRun`, `Setup_ValidatorSuite`, `Standards_RunSuite`, `Mep_AutoSizeRun`,
+`Tagging_*Apply`, `CreateTags_*Apply`, `ExcelLink_SyncSuite`, `Platform_PublishTarget`,
+`ExLinkDynamic_Run`, `ISB_CreateSelected`, `Rev_DeleteClouds`, `Export_PrintScope`,
+`Heatmap_PaintSelected`, `CycleTheme`, `Bim_MepScheduleCreate`, `Setup_MepScheduleCreate`,
+`Setup_QuickWorkflowRun`, `Tagging_AnalyseSuite`), and 3 through the L1 registry:
+
+| Tag | Registered in | Command |
+|---|---|---|
+| `Folder_CloudSync` | `BimCommandModule.cs:189` | `BIMManager.FolderCloudSyncSettingsCommand` |
+| `HC_HbnAutoPopulate` | `HealthcareCommandModule.cs:26` | `Commands.Healthcare.HbnRoomAutoPopulatorCommand` |
+| `Tags_MigrateStyleCode` | `TagsCommandModule.cs:166` | `Tags.MigrateTagStyleCodeCommand` |
+
+The registry is consulted **before** the switch — `StingCommandHandler.cs:173`,
+`CommandRegistry.Instance.TryHandle(tag, app)` — so registration is live dispatch, not
+documentation. A switch-only audit reports these 26 as silent; that is the same
+false-positive shape as the original "141" figure, one dispatch layer later.
+
+**Now enforced.** `tools/check_workflow_wiring.ps1` gained a **Tier 4** that fails CI when a
+`Cmd_Click` button's `Tag` reaches none of the three layers.
+`tools/button_wiring_baseline.txt` is deliberately **empty** and should stay that way —
+the honest fix for a dead button is to wire it or delete it. Proved to fail on a
+deliberately broken tag and to pass on the restored tree.

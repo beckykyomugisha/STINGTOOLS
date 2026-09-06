@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Planscape.API.Authorization;
 using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -19,8 +21,26 @@ namespace Planscape.API.Controllers;
 ///          chunk after it splits + uploads. Auth via shared bearer
 ///          token; converter is internal-only.
 /// </summary>
+/// <remarks>
+/// Authorization is per-endpoint because the three routes carry different
+/// identifiers:
+/// <list type="bullet">
+/// <item><c>projects/{projectId}/scene</c> — <c>[ProjectAccess]</c> resolves
+/// <c>{projectId}</c> from route data and 404s a caller who cannot see the
+/// project.</item>
+/// <item><c>scene-nodes/{nodeId}/file</c> — no <c>{projectId}</c> in the route,
+/// so the attribute falls through by design. The project is resolved from the
+/// node itself and checked explicitly in
+/// <see cref="GetChunkFile"/>; without that, any authenticated user in the
+/// tenant could download any other project's geometry given a node id.</item>
+/// <item><c>scene-nodes/ingest</c> — <c>[AllowAnonymous]</c>, authenticated by
+/// the converter's shared bearer. It has no <c>{projectId}</c> route value
+/// either, so the attribute is a no-op there and the bearer check stands.</item>
+/// </list>
+/// </remarks>
 [ApiController]
 [Route("api")]
+[ProjectAccess]
 public class SceneNodesController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
@@ -46,8 +66,19 @@ public class SceneNodesController : ControllerBase
             .Select(d => d.ToUpperInvariant())
             .ToHashSet();
 
+        // C4 — a chunk is only live if its MODEL is live. Filtering on
+        // SceneNode.DeletedAt alone was not enough: nothing set that column
+        // before the delete cascade landed, so a deleted model's geometry kept
+        // being served to the viewer. Deleting a model and still seeing it is
+        // the kind of bug that makes people stop trusting the tool.
+        var liveModelIds = await _db.ProjectModels.AsNoTracking()
+            .Where(m => m.ProjectId == projectId && m.DeletedAt == null)
+            .Select(m => m.Id)
+            .ToListAsync(ct);
+
         var rows = await _db.SceneNodes.AsNoTracking()
             .Where(n => n.ProjectId == projectId && n.DeletedAt == null
+                     && liveModelIds.Contains(n.SourceModelId)
                      && (disciplineFilter.Count == 0 || disciplineFilter.Contains(n.Discipline)))
             .ToListAsync(ct);
 
@@ -86,6 +117,14 @@ public class SceneNodesController : ControllerBase
     {
         var node = await _db.SceneNodes.AsNoTracking().FirstOrDefaultAsync(n => n.Id == nodeId && n.DeletedAt == null, ct);
         if (node == null) return NotFound();
+
+        // The route addresses the chunk, not the project, so [ProjectAccess]
+        // cannot gate this one — resolve the owning project off the node and
+        // apply the same decision by hand. 404 (not 403) to match the
+        // attribute: telling a non-member the node exists leaks the project.
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, node.ProjectId, User, ct))
+            return NotFound();
+
         var stream = await _storage.GetAsync(node.StoragePath, ct);
         if (stream == null) return NotFound();
         Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";
@@ -140,8 +179,14 @@ public class SceneNodesController : ControllerBase
             FileSizeBytes = file.Length,
             VertexCount = req.VertexCount,
             Compression = req.Compression,
+            // P5 — the converter reports the chunk's LOCAL box. Store it in
+            // both places: Min/Max is the world box (identical until a transform
+            // exists) and Base* preserves the local one so the world box can be
+            // recomputed idempotently every time the model moves.
             MinX = box.minX, MinY = box.minY, MinZ = box.minZ,
             MaxX = box.maxX, MaxY = box.maxY, MaxZ = box.maxZ,
+            BaseMinX = box.minX, BaseMinY = box.minY, BaseMinZ = box.minZ,
+            BaseMaxX = box.maxX, BaseMaxY = box.maxY, BaseMaxZ = box.maxZ,
         };
         _db.SceneNodes.Add(node);
         await _db.SaveChangesAsync(ct);

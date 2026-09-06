@@ -1,0 +1,23 @@
+{
+  "name": "KUT Deliverable B",
+  "description": "Kampala Uganda Temple — Deliverable B (50% documentation) verification gate, A1 Phase 2. This is the first real gate the team meets, roughly 4-5 months in, and it is the fullest of the three: everything the Owner checks at C is checked here while there is still time to act on it. Verified at LOD 300 — real types, no placeholder families, no generic types. Runs the A1 program audit (Owner's shared Excel + pdf + deficiency log), the Owner-standards rule pack, CSI MasterFormat assignment, the A1 DEVICE COORDINATION clause, the Fohlio room-finishes round-trip, clash, and the composite dashboard. CSI ORDERING: CSI_Assign runs BEFORE anything that reads CSI sections — SpecLink reconciliation compares the model's CSI sections against the spec TOC, so with nothing assigning them first every spec section reports as a gap or over-spec. Deliverable B does not reconcile SpecLink (the spec book is not issued until C) but assigns the sections here so C has something true to reconcile. FOHLIO: A1 requires room finishes to be maintained in Fohlio at Deliverables B and C; finishes are matched by ROOM NUMBER, not by tag. Authoring stays with the design consultants; this workflow verifies, it does not author.",
+  "rollback_on_failure": false,
+  "rollback_on_optional_failure": false,
+  "steps": [
+    { "commandTag": "RetagStale", "label": "1. Re-tag stale elements changed since the last gate", "optional": true },
+    { "commandTag": "ValidateTags", "label": "2. Tag validation — all 8 segments present + code-valid" },
+    { "commandTag": "TokenConfidenceAudit", "label": "3. Token-fill confidence — surfaces silent defaults" },
+    { "commandTag": "OwnerStandards_Audit", "label": "4. Owner-standards rule pack (corporate baseline + KUT project overrides, merged by id)" },
+    { "commandTag": "Program_Audit", "label": "5. A1 program audit — feeds the Owner's shared Excel template + pdf + deficiency log" },
+    { "commandTag": "CSI_Assign", "label": "6. Assign CSI MasterFormat sections — MUST run before anything that reads CSI (SpecLink at Deliverable C)" },
+    { "commandTag": "DeviceCoord_Audit", "label": "7. Device coordination audit — A1 Deliverable B DEVICE COORDINATION clause" },
+    { "commandTag": "Fohlio_ExportFinishes", "label": "8. Export room finishes in Fohlio shape (matched by ROOM NUMBER, not by tag)" },
+    { "commandTag": "Fohlio_ImportFinishes", "label": "9. Import the Fohlio finishes register back onto the rooms", "optional": true },
+    { "commandTag": "Fohlio_Audit", "label": "10. FF&E currency audit — missing FOHLIO_REF_TXT + stale rows", "optional": true },
+    { "commandTag": "LOD_Verify", "label": "11. LOD 300 verification (pick 'deliverable-b' at the milestone prompt)" },
+    { "commandTag": "ClashRun", "label": "12. Rule-based clash — hard clashes + discipline tolerance matrix" },
+    { "commandTag": "ClashBcfExport", "label": "13. Export grouped clashes to BCF 2.1 (import as ACC Issues)", "optional": true },
+    { "commandTag": "ExportModelHealth", "label": "14. Model-health snapshot", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "15. Composite compliance dashboard — Deliverable B sign-off" }
+  ]
+}

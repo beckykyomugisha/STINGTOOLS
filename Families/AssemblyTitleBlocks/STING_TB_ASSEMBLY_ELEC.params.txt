@@ -10,7 +10,11 @@
 # Author the actual .rfa in Revit Family Editor. Required parameters
 # below must exist as Title Block instance parameters bound to the
 # shared parameters in StingTools.Core.Fabrication.AssyParams + the
-# ELC_* shared params from MR_PARAMETERS.txt.
+# ELC_* shared params from MR_PARAMETERS.txt. Two of the panel cells
+# below (ELC_PNL_VOLTAGE, ELC_GLAND_COUNT_NR) are NOT yet in
+# MR_PARAMETERS.txt — provision them (4-file: .txt + .csv mirror +
+# PARAMETER_REGISTRY.json + CATEGORY_BINDINGS.csv) before authoring, or
+# drop those two cells. Every other ELC_* below already exists.
 
 REQUIRED PARAMETERS (inherited from STING_TB_ASSEMBLY_COND)
 ASS_SPOOL_NR_TXT          (Text, Instance) — Auto-populated by ShopDrawingComposer
@@ -33,10 +37,10 @@ ELC_CDT_RUN_LENGTH_M      (Text, Instance) — total conduit run length (m)
 ELC_CDT_CABLE_COUNT_NR    (Text, Instance) — total cable count (BS EN 61386 fill table key)
 ELC_CDT_CBL_FILL_PCT      (Text, Instance) — worst-case fill percentage
 ELC_CDT_INSTALL_METHOD_TXT(Text, Instance) — CLIPPED / TRAY / EMBEDDED / CHASED
-ELC_PNL_NAME              (Text, Instance) — feeding panel reference
-ELC_PNL_VOLTAGE           (Text, Instance) — panel voltage class
+ELC_PNL_NAME_TXT          (Text, Instance) — feeding panel reference
+ELC_PNL_VOLTAGE           (Text, Instance) — panel voltage class          [NEW — not yet in MR_PARAMETERS.txt]
 ELC_PNL_FED_FROM          (Text, Instance) — upstream supply
-ELC_GLAND_COUNT_NR        (Text, Instance) — count of cable glands (IP-rated assemblies)
+ELC_GLAND_COUNT_NR        (Text, Instance) — count of cable glands (IP-rated assemblies) [NEW — not yet in MR_PARAMETERS.txt]
 ELC_IP_RATING_TXT         (Text, Instance) — assembly enclosure IP rating
 
 LAYOUT NOTES

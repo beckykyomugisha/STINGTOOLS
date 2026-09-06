@@ -11,8 +11,7 @@
 //   2. Expiry has to be chosen up front. A trial licence dies with the trial; a
 //      paid one runs a year, matching the existing hand-issued licences.
 //
-// Wire format, byte-for-byte compatible with LicenseCrypto.VerifyAndExtract:
-//   base64(utf8(payloadJson)) + "." + base64(RSASSA-PKCS1-v1_5(SHA-256, jsonBytes))
+// Wire format lives in _lib/crypto.ts, shared with present.ts.
 
 import { withHandler, readJson } from "../auth/_lib/handler";
 import { handlePreflight } from "../auth/_lib/cors";
@@ -20,8 +19,10 @@ import { requireAuth } from "../auth/_lib/auth";
 import { bad, forbidden, serverError, unauthorized } from "../auth/_lib/errors";
 import { getTenantById, audit } from "../auth/_lib/db";
 import { uuid } from "../auth/_lib/tokens";
-import { resolveCap } from "../auth/_lib/limits";
+import { resolveMachineCap } from "../auth/_lib/limits";
 import { DOWNLOAD_CATALOG, entitlementFor } from "../_lib/downloads/catalog";
+import { signLicense } from "./_lib/crypto";
+import { countLicensedSeats } from "./_lib/seats";
 import type { Env } from "../auth/_lib/types";
 
 interface LicenseEnv extends Env {
@@ -40,38 +41,6 @@ const PAID_LICENCE_DAYS = 365;
 // A little past the trial so a licence issued on the last day still works while
 // the customer is deciding.
 const TRIAL_GRACE_DAYS = 2;
-
-function pemToBinary(pem: string): ArrayBuffer {
-  const body = pem
-    .replace(/-----BEGIN [A-Z ]+-----/g, "")
-    .replace(/-----END [A-Z ]+-----/g, "")
-    .replace(/\s+/g, "");
-  const raw = atob(body);
-  const buf = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-  return buf.buffer;
-}
-
-function b64(bytes: Uint8Array): string {
-  let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s);
-}
-
-async function signLicense(pem: string, payloadJson: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToBinary(pem),
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const data = new TextEncoder().encode(payloadJson);
-  const sig = new Uint8Array(
-    await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data)
-  );
-  return `${b64(data)}.${b64(sig)}`;
-}
 
 export const onRequestOptions: PagesFunction = async ({ request }) =>
   handlePreflight(request);
@@ -99,7 +68,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
 
   // Same entitlement gate the downloads use — a locked tenant gets no licence.
   const tool = DOWNLOAD_CATALOG.find((t) => t.id === "sting-tools")!;
-  const { entitlement, reason } = entitlementFor(tool, tenant.subscription_status);
+  const { entitlement, reason } = entitlementFor(tool, tenant);
   if (entitlement !== "allowed") throw forbidden(reason);
 
   const now = new Date();
@@ -116,16 +85,11 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     .first<{ id: string }>();
 
   if (!existing) {
-    const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+    const cap = resolveMachineCap(tenant.plan_product, tenant.plan_tier);
     if (cap !== Infinity) {
-      const row = await db
-        .prepare(
-          `SELECT COUNT(*) AS n FROM licenses
-            WHERE tenant_id = ? AND revoked_at IS NULL AND expires_at > ?`
-        )
-        .bind(tenant.id, now.toISOString())
-        .first<{ n: number }>();
-      const used = row?.n ?? 0;
+      // Same helper present.ts reports from — see _lib/seats.ts for why this is
+      // one function and not one query per caller.
+      const used = await countLicensedSeats(db, tenant.id, now.toISOString());
       if (used >= cap) {
         throw forbidden(
           `Your plan covers ${cap} machine${cap === 1 ? "" : "s"} and ${used} ${
@@ -146,6 +110,27 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     );
   } else {
     expires = new Date(now.getTime() + PAID_LICENCE_DAYS * 86400_000);
+  }
+
+  // Defence in depth: never mint a licence that is already dead.
+  //
+  // The entitlement gate above now resolves the trial's real state, so a lapsed
+  // trial is refused before reaching here. This guard is deliberately kept
+  // anyway, because it is cheap and because the failure it prevents is
+  // invisible: the plugin verifies offline, so an expired licence is rejected at
+  // the customer's machine with nothing recorded server-side. Any future change
+  // to how expiry is computed — a different grace period, a clock problem, a new
+  // plan shape — cannot silently produce one.
+  if (expires.getTime() <= now.getTime()) {
+    console.error(
+      `Refusing to issue an already-expired licence for tenant ${tenant.id}: ` +
+      `computed expiry ${expires.toISOString()} is not in the future ` +
+      `(status=${tenant.subscription_status}, trial_ends_at=${tenant.trial_ends_at})`
+    );
+    throw forbidden(
+      "Your trial has ended, so a licence issued now would already be expired. " +
+      "Choose a plan and try again."
+    );
   }
 
   const licenseId = existing?.id ?? uuid();

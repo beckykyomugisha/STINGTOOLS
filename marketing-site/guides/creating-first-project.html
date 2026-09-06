@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creating your first project — Planscape</title>
+<meta name="description" content="Set up a Planscape project with metadata, GPS coordinates, ISO 19650 codes, and RIBA stages.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/guides/creating-first-project.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/" style="color:var(--accent)">Guides</a>
+    <a href="/tutorials/">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/guides/">Guides</a> &rsaquo; Creating your first project</div>
+  <h1>Creating your first project</h1>
+  <div class="meta">📖 8-minute read · Beginner · Last updated 2026-05-23</div>
+
+  <p>Creating a project is a 3-minute job if you have the basics to hand. This guide covers the fields, the decisions, and the small gotchas that save you grief later. By the end you'll have a configured project ready for the team to join.</p>
+
+  <h2>Before you start</h2>
+  <p>Have these to hand:</p>
+  <ul>
+    <li><strong>Project name</strong> — the human-readable name. Doesn't need to be unique across your tenant.</li>
+    <li><strong>Project code</strong> — 3–6 character identifier. Will appear in every document number for this project (e.g. <code>KIH</code> for "Kampala International Hospital"). Hard to change later — pick well.</li>
+    <li><strong>Client name</strong> — the appointing party.</li>
+    <li><strong>Site address</strong> — for GPS lookup. Approximate is fine; you can refine later.</li>
+    <li><strong>RIBA stage</strong> — current stage (1 to 7). If unsure: pre-design = Stage 1, planning = Stage 3, construction = Stage 5.</li>
+  </ul>
+
+  <h2>Step 1 — Click + New Project</h2>
+  <p>From the tenant dashboard or any other project, click <strong>+ New Project</strong> in the top-right.</p>
+
+  <h2>Step 2 — Project basics</h2>
+  <p>Fill these fields:</p>
+  <ul>
+    <li><strong>Project name</strong> — e.g. "Kampala International Hospital — Wing B".</li>
+    <li><strong>Project code</strong> — e.g. <code>KIH-WB</code>. Used in every document number.</li>
+    <li><strong>Description</strong> — optional 1–2 sentences for the team.</li>
+    <li><strong>Sector</strong> — Healthcare / Education / Commercial / Residential / Transport / Industrial / Other. Drives the default BEP template and COBie preset later.</li>
+    <li><strong>Client</strong> — the appointing party.</li>
+    <li><strong>Project value</strong> — optional. Used in dashboards.</li>
+    <li><strong>Start date / target completion</strong> — feeds the 4D scheduling tools.</li>
+  </ul>
+
+  <h2>Step 3 — GPS coordinates</h2>
+  <p>This is what powers the mobile GPS site map. Three input methods:</p>
+
+  <h3>Search by address</h3>
+  <p>Type the site address. We geocode it with Mapbox. Result usually within 50 m of correct.</p>
+
+  <h3>Drop a pin</h3>
+  <p>Click "Pick on map", pan to the site, click the exact location. Most accurate.</p>
+
+  <h3>Enter coordinates directly</h3>
+  <p>If your surveyor gave you exact lat/lng, paste them. Format: decimal degrees, comma-separated (e.g. <code>0.3136, 32.5811</code>).</p>
+
+  <div class="callout">
+    <strong>Why this matters:</strong> the mobile app centres on these coordinates and only caches a 5km radius of map tiles. Inaccurate coordinates = blank map on site.
+  </div>
+
+  <h2>Step 4 — ISO 19650 setup</h2>
+  <p>Quick choices that drive the whole project's file naming + workflow:</p>
+
+  <h3>Originator code</h3>
+  <p>Defaults to your tenant's originator code (set in tenant Settings). Override per-project if you're delivering for a JV or another firm.</p>
+
+  <h3>Volume code</h3>
+  <p>For most projects: <code>ZZ</code> (whole project). For multi-building or multi-zone work: <code>01</code>, <code>02</code>, etc.</p>
+
+  <h3>BEP template</h3>
+  <p>Pick from:</p>
+  <ul>
+    <li><strong>Standard</strong> — generic ISO 19650 BEP.</li>
+    <li><strong>UK Public Sector</strong> — adds IR cross-references.</li>
+    <li><strong>NHS / Healthcare</strong> — adds HBN / HTM document requirements.</li>
+    <li><strong>Donor-funded</strong> — adds DFI / IFC reporting fields.</li>
+    <li><strong>Blank</strong> — generate later from scratch.</li>
+  </ul>
+
+  <h3>Suitability schema</h3>
+  <p>Defaults to standard S0–S7. Override if your client uses a custom schema.</p>
+
+  <h3>Revision schema</h3>
+  <p>Defaults to P/C/A (pre-construction / construction / as-built). Custom options available for clients with bespoke schemes.</p>
+
+  <h2>Step 5 — RIBA stage &amp; phases</h2>
+  <p>Pick the current stage (1–7). Planscape pre-loads the Revit phase list to match (Existing, Demolition, New Construction, etc.) when the plugin first syncs.</p>
+  <p>You can add custom phases later for staged handovers (e.g. Phase 1 / Phase 2 of a multi-building site).</p>
+
+  <h2>Step 6 — Initial team members</h2>
+  <p>Optional at create-time. Pick from your tenant's existing users to add as project members. You'll be added as Project Lead automatically. See <a href="/guides/inviting-team.html">Inviting your team</a> for the full role model.</p>
+
+  <h2>Step 7 — Click Create</h2>
+  <p>You land on the project dashboard. Behind the scenes Planscape has:</p>
+  <ol>
+    <li>Created the project record in your tenant's database.</li>
+    <li>Created CDE containers (WIP / Shared / Published / Archived).</li>
+    <li>Generated an initial BEP (.docx) under Deliverables → BEP.</li>
+    <li>Created the project's Mapbox map config and pre-warmed tiles for the 5km radius.</li>
+    <li>Set up the audit log with a Genesis record.</li>
+    <li>Issued you a project-scoped email-to-issue address.</li>
+  </ol>
+
+  <h2>What to do next</h2>
+  <ul>
+    <li><strong>Invite your team</strong> — see <a href="/guides/inviting-team.html">Inviting your team</a></li>
+    <li><strong>Set up the ISO 19650 workflow</strong> — see <a href="/guides/iso-19650-workflow.html">ISO 19650 workflow setup</a></li>
+    <li><strong>Install the Revit plugin and sync the first model</strong> — see <a href="/guides/revit-plugin-setup.html">Installing the Revit plugin</a></li>
+    <li><strong>Build your MIDP</strong> — Project &rsaquo; Deliverables &rsaquo; MIDP view</li>
+  </ul>
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><strong>Vague project code.</strong> "PROJ1" makes the next 10,000 document numbers harder to read. Use the project's actual initialism.</li>
+    <li><strong>Default GPS pin.</strong> The default GPS is Kampala. If you don't change it, every coordinator on site sees a blank map.</li>
+    <li><strong>Wrong sector pick.</strong> Drives BEP + COBie defaults. Healthcare project mis-set as "Commercial" misses the HTM/HBN preset.</li>
+    <li><strong>Skipping the BEP.</strong> Even a draft BEP is better than no BEP. The auto-generated one captures most of what auditors look for.</li>
+  </ul>
+
+  <h2>Cloning a project from a template</h2>
+  <p>Once you have a few projects on a similar pattern (e.g. you do 5 similar district hospitals a year), save one as a template: Project Settings → Save as template. Future projects can be cloned from it, inheriting CDE setup, BEP draft, team defaults, and MIDP skeleton.</p>
+
+  <div class="next-prev">
+    <a href="/guides/inviting-team.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Inviting your team
+    </a>
+    <a href="/guides/iso-19650-workflow.html" class="next">
+      <span class="lbl">Next →</span>
+      ISO 19650 workflow setup
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>
