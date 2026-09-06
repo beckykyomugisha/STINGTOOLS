@@ -69,6 +69,12 @@
     <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
     <Compile Include="..\StingTools\BOQ\MaterialSchedule\MaterialScheduleXlsxWriter.cs" Link="MaterialSchedule\MaterialScheduleXlsxWriter.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
+    <!-- OmniClass / classification - the three Revit-free halves of the classification
+         layer: the CSI-grammar rule parser + resolver, the OmniClass table registry, and
+         the per-project policy POCO. The commands that walk the model stay out. -->
+    <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
+    <Compile Include="..\StingTools\Core\Classification\OmniClassTables.cs" Link="Classification\OmniClassTables.cs" />
+    <Compile Include="..\StingTools\Core\Classification\ClassificationPolicy.cs" Link="Classification\ClassificationPolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -108,6 +114,26 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_TYPE_CATALOGUES.json" Link="Data\STING_TYPE_CATALOGUES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- OmniClass - the SHIPPED maps, so the tests assert against the codes that
+         actually reach a project rather than against a fixture that restates them. -->
+    <None Include="..\StingTools\Data\STING_OMNICLASS_13_MAP.csv" Link="Data\STING_OMNICLASS_13_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_21_MAP.csv" Link="Data\STING_OMNICLASS_21_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_23_MAP.csv" Link="Data\STING_OMNICLASS_23_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_OMNICLASS_41_MAP.csv" Link="Data\STING_OMNICLASS_41_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:
+         a mistyped field leaves the POCO at its default and goes runtime-dead. Parsing
+         the real file with the real parser is what catches that. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\classification_policy.json" Link="Data\kut_classification_policy.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

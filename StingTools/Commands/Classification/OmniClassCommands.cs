@@ -1,0 +1,600 @@
+// ══════════════════════════════════════════════════════════════════════════
+//  OmniClassCommands.cs — Phase 198/199 (KUT dual classification).
+//
+//  OmniClass is the element/product/material/space axis that rides alongside
+//  MasterFormat (work results) on the BOQ. CSI_Assign stamps the MasterFormat
+//  section; this is its OmniClass twin — a rule-driven assigner + audit that
+//  resolves each element to an OmniClass code + title and writes ASS_OMNICLASS_TXT
+//  (+ the ArchiCAD-compatible CLS_OMNICLASS_TITLE_TXT when bound).
+//
+//  Phase 199d (robustness/accuracy sweep):
+//   • 3-TIER resolution — (1) an authored native OmniClass Number on the type
+//     (Revit's built-in, Table 23) wins; (2) the map heuristic; the audit then
+//     measures the residual so a project closes it deliberately.
+//   • Per-map "# matchOn: element|room|material" directive (defaults: 13/14→room,
+//     41→material, else element) decides what each element is matched on:
+//     the element's own category/family/type/sys, its host ROOM name, or its
+//     MATERIAL name (with type-name fallback).
+//   • Switch-table hygiene — a stamped code from a DIFFERENT table is treated as
+//     empty in "fill empty" mode, so switching tables re-classifies cleanly.
+//   • Code validation — rows whose Section doesn't start with the active table
+//     number are warned (typo / wrong-table overlay row) and skipped.
+//   • OmniClass_Audit — read-only dry-run: % classified, unmapped keys, and
+//     AMBIGUOUS elements (≥2 rules tie at the top score) → CSV + summary.
+//
+//  Corporate maps STING_OMNICLASS_<table>_MAP.csv; project overlay
+//  <project>/_BIM_COORD/omniclass_map.csv (loaded first so it wins ties).
+// ══════════════════════════════════════════════════════════════════════════
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using StingTools.Core;
+using StingTools.Core.Classification;
+
+namespace StingTools.Commands.Classification
+{
+    /// <summary>Reads / writes &lt;project&gt;/_BIM_COORD/classification_policy.json.
+    /// The path is resolved by <see cref="StingPaths"/> so the setting lands in whichever
+    /// coordination folder the project actually uses, and writes MERGE into the existing
+    /// JObject so setting one key never drops another - order / tagClassifications /
+    /// omniClassTable are independent switches that share one file.</summary>
+    internal static class PolicyFile
+    {
+        /// <summary>The policy file path, or null when the project is unsaved.</summary>
+        public static string Resolve(Document doc)
+            => StingPaths.MetaFile(doc, "_BIM_COORD", "classification_policy.json");
+
+        /// <summary>Apply <paramref name="mutate"/> to the existing (or a new) policy JObject
+        /// and write it back. An unparseable file is rewritten rather than silently extended -
+        /// merging into a half-read object would lose the keys we could not read anyway, and
+        /// the log line says so.</summary>
+        public static void Merge(string path, Action<Newtonsoft.Json.Linq.JObject> mutate)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            Newtonsoft.Json.Linq.JObject root;
+            if (File.Exists(path))
+            {
+                try { root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path)); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"classification_policy.json unparseable ({ex.Message}) - rewriting.");
+                    root = new Newtonsoft.Json.Linq.JObject();
+                }
+            }
+            else root = new Newtonsoft.Json.Linq.JObject();
+            mutate(root);
+            File.WriteAllText(path, root.ToString(Newtonsoft.Json.Formatting.Indented));
+        }
+    }
+
+    internal static class OmniClassMap
+    {
+        private static readonly Regex MatchOnRx =
+            new Regex(@"^\s*#\s*matchOn\s*:\s*(element|room|material)\b", RegexOptions.IgnoreCase);
+
+        /// <summary>Load the rules for the active OmniClass table: corporate
+        /// STING_OMNICLASS_&lt;table&gt;_MAP.csv + the table-agnostic project overlay
+        /// _BIM_COORD/omniclass_map.csv (loaded first so it wins ties). Also extracts
+        /// the optional "# matchOn:" directive (overlay wins, else corporate, else null).</summary>
+        public static List<CsiRule> Load(Document doc, OmniClassTableInfo table, out int corp, out int overlay, out string matchOn)
+        {
+            corp = 0; overlay = 0; matchOn = null;
+            var rules = new List<CsiRule>();
+            // Project overlay first so it wins ties (Resolve takes the earliest on a tie).
+            try
+            {
+                string p = StingPaths.MetaFile(doc, "_BIM_COORD", "omniclass_map.csv");
+                if (!string.IsNullOrEmpty(p) && File.Exists(p))
+                {
+                    var lines = File.ReadAllLines(p);
+                    var r = CsiMasterFormat.ParseCsvLines(lines);
+                    overlay = r.Count; rules.AddRange(r);
+                    matchOn = ReadMatchOn(lines) ?? matchOn;   // overlay directive wins
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"OmniClass overlay load: {ex.Message}"); }
+
+            try
+            {
+                string c = StingToolsApp.FindDataFile(table.MapFile);
+                if (!string.IsNullOrEmpty(c) && File.Exists(c))
+                {
+                    var lines = File.ReadAllLines(c);
+                    var r = CsiMasterFormat.ParseCsvLines(lines);
+                    corp = r.Count; rules.AddRange(r);
+                    if (matchOn == null) matchOn = ReadMatchOn(lines);   // corporate directive as fallback
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"OmniClass corporate load ({table.MapFile}): {ex.Message}"); }
+
+            return rules;
+        }
+
+        private static string ReadMatchOn(IEnumerable<string> lines)
+        {
+            foreach (var l in lines ?? Enumerable.Empty<string>())
+            {
+                var m = MatchOnRx.Match(l ?? "");
+                if (m.Success) return m.Groups[1].Value.ToLowerInvariant();
+            }
+            return null;
+        }
+
+        /// <summary>The match mode in effect: map directive &gt; table default &gt; "element".</summary>
+        public static string EffectiveMatchMode(OmniClassTableInfo table, string directive)
+            => !string.IsNullOrEmpty(directive) ? directive
+             : !string.IsNullOrEmpty(table.MatchMode) ? table.MatchMode : "element";
+
+        /// <summary>Warn (log) on shipped/overlay rows whose Section doesn't belong to the
+        /// active table (typo or wrong-table overlay row). Returns the count of bad rows.</summary>
+        public static int CountMisfiledRows(IReadOnlyList<CsiRule> rules, string tableNumber)
+        {
+            int bad = 0;
+            string prefix = tableNumber + "-";
+            foreach (var r in rules)
+            {
+                string s = (r.Section ?? "").Trim();
+                if (s.Length == 0) continue;
+                if (!s.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    bad++;
+                    StingLog.Warn($"OmniClass map: code '{s}' ({r.Category}) is not a Table {tableNumber} code — check the active table / overlay.");
+                }
+            }
+            return bad;
+        }
+
+        /// <summary>Normalise an OmniClass code to canonical single-spaced form so a
+        /// hand-typed "23-17  11 00" can't create a phantom distinct BOQ group.</summary>
+        public static string Normalize(string code) =>
+            string.IsNullOrWhiteSpace(code) ? "" : Regex.Replace(code.Trim(), "\\s+", " ");
+
+        /// <summary>Tier-1 — the element type's authored native OmniClass Number (Revit's
+        /// built-in param IS Table 23). Returned only when it matches the active table.</summary>
+        public static string AuthoredNative(Document doc, Element el, string tableNumber)
+        {
+            if (tableNumber != "23") return null;   // the built-in param is Table 23 only
+            try
+            {
+                Element type = doc.GetElement(el.GetTypeId());
+                Parameter p = type?.get_Parameter(BuiltInParameter.OMNICLASS_CODE)
+                              ?? el.get_Parameter(BuiltInParameter.OMNICLASS_CODE);
+                string v = p?.AsString();
+                if (!string.IsNullOrWhiteSpace(v) && v.Trim().StartsWith("23-")) return Normalize(v);
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>The element's primary material name (structural material first, then the
+        /// first compound-structure material), for material-axis classification. Empty when
+        /// the element carries no material — the caller falls back to the type name.</summary>
+        public static string PrimaryMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                ElementId mid = ElementId.InvalidElementId;
+                var sp = el.get_Parameter(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                if (sp != null && sp.StorageType == StorageType.ElementId) mid = sp.AsElementId();
+                if (mid == null || mid == ElementId.InvalidElementId)
+                {
+                    var ids = el.GetMaterialIds(false);
+                    if (ids != null && ids.Count > 0) mid = ids.First();
+                }
+                if (mid != null && mid != ElementId.InvalidElementId)
+                    return (doc.GetElement(mid) as Material)?.Name ?? "";
+            }
+            catch { }
+            return "";
+        }
+    }
+
+    // ── result of resolving one element (shared by Assign + Audit) ──────────
+    internal sealed class OmniResolveResult
+    {
+        public string Code;        // null ⇒ unresolved
+        public string Title;
+        public string Source;      // "native" | "map"
+        public string UnmappedKey; // category / room / material — for the unmapped report
+        public int TieCount;       // >1 ⇒ ambiguous (map only)
+    }
+
+    internal static class OmniResolver
+    {
+        /// <summary>Resolve one element for the active table + match mode. Tier-1 native first
+        /// (table 23), then the map heuristic on element / room / material input.</summary>
+        public static OmniResolveResult Resolve(Document doc, Element el, OmniClassTableInfo table,
+            string matchMode, IReadOnlyList<CsiRule> rules)
+        {
+            var res = new OmniResolveResult();
+
+            // Tier-1 — authored native code wins (author-on-type → 100%).
+            string native = OmniClassMap.AuthoredNative(doc, el, table.Number);
+            if (native != null) { res.Code = native; res.Title = ""; res.Source = "native"; res.UnmappedKey = ""; return res; }
+
+            string cat = ParameterHelpers.GetCategoryName(el);
+            CsiRule rule = null; int tie = 0;
+            if (string.Equals(matchMode, "room", StringComparison.OrdinalIgnoreCase))
+            {
+                // Classify the host ROOM by name (fed into family+type; the real category
+                // is passed too so a future category-specific spatial row could match).
+                var room = ParameterHelpers.GetRoomAtElement(doc, el);
+                string roomName = room?.Name ?? "";
+                res.UnmappedKey = string.IsNullOrEmpty(roomName) ? "(no room)" : roomName;
+                if (!string.IsNullOrEmpty(roomName))
+                    rule = CsiMasterFormat.Resolve(rules, cat, roomName, roomName, "", out _, out tie);
+            }
+            else if (string.Equals(matchMode, "material", StringComparison.OrdinalIgnoreCase))
+            {
+                // Prefer the element's actual MATERIAL name; fall back to the type name
+                // (legacy keyword path). The real category is passed so the map's
+                // near-certain category fallbacks (rebar→steel, curtain panel→glass) fire.
+                string mat = OmniClassMap.PrimaryMaterialName(doc, el);
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                string input = !string.IsNullOrEmpty(mat) ? mat : typeName;
+                res.UnmappedKey = !string.IsNullOrEmpty(mat) ? mat
+                    : (string.IsNullOrEmpty(typeName) ? "(no material)" : "type:" + typeName);
+                if (!string.IsNullOrEmpty(input))
+                    rule = CsiMasterFormat.Resolve(rules, cat, input, input, "", out _, out tie);
+                else  // no name at all → category fallback still has a chance
+                    rule = CsiMasterFormat.Resolve(rules, cat, "", "", "", out _, out tie);
+            }
+            else // element
+            {
+                string fam = ParameterHelpers.GetFamilyName(el);
+                string type = ParameterHelpers.GetFamilySymbolName(el);
+                string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                res.UnmappedKey = cat;
+                rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys, out _, out tie);
+            }
+
+            if (rule != null) { res.Code = OmniClassMap.Normalize(rule.Section); res.Title = rule.Title; res.Source = "map"; res.TieCount = tie; }
+            return res;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class OmniClassAssignCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var table = OmniClassTables.Resolve(ClassificationReader.OmniClassTable(doc));
+            var rules = OmniClassMap.Load(doc, table, out int corp, out int overlay, out string directive);
+            if (rules.Count == 0)
+            {
+                TaskDialog.Show("OmniClass Assign", $"No OmniClass map found for {table.Label}. Ship " +
+                    $"{table.MapFile} in data/ or add _BIM_COORD/omniclass_map.csv.");
+                return Result.Succeeded;
+            }
+            string mode = OmniClassMap.EffectiveMatchMode(table, directive);
+            int misfiled = OmniClassMap.CountMisfiledRows(rules, table.Number);
+
+            var picker = new TaskDialog("OmniClass Assign")
+            {
+                MainInstruction = $"Write OmniClass {table.Label} code to elements",
+                MainContent = $"{rules.Count} rules ({corp} corporate + {overlay} project). Match on: {mode}. " +
+                    (misfiled > 0 ? $"⚠ {misfiled} map row(s) are not Table {table.Number} codes (see log). " : "") +
+                    "Choose write mode:",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Fill empty only",
+                "Write where ASS_OMNICLASS_TXT is blank OR holds a code from a different table");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Overwrite all", "Re-resolve and overwrite existing values");
+            var choice = picker.Show();
+            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
+            bool overwrite = choice == TaskDialogResult.CommandLink2;
+
+            var scope = CsiMap.Scope(ctx.UIDoc, doc, out string scopeLabel);
+            int assigned = 0, skippedSet = 0, unresolved = 0, native = 0, restamped = 0;
+            var unmapped = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            using (var t = new Transaction(doc, "STING OmniClass Assign"))
+            {
+                t.Start();
+                foreach (var el in scope)
+                {
+                    var r = OmniResolver.Resolve(doc, el, table, mode, rules);
+                    if (r.Code == null)
+                    {
+                        unresolved++;
+                        unmapped.TryGetValue(r.UnmappedKey, out int c); unmapped[r.UnmappedKey] = c + 1;
+                        continue;
+                    }
+                    // Switch-table hygiene: a stamped code from a DIFFERENT table counts as
+                    // empty in fill-mode, so switching tables re-classifies it instead of leaving
+                    // a mixed-table column.
+                    string existing = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
+                    bool hasSet = !string.IsNullOrEmpty(existing);
+                    bool otherTable = hasSet && !string.Equals(OmniClassTables.TableOf(existing), table.Number, StringComparison.OrdinalIgnoreCase);
+                    if (!overwrite && hasSet && !otherTable) { skippedSet++; continue; }
+                    if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
+                    if (otherTable) restamped++;
+
+                    bool w1 = ParameterHelpers.SetString(el, ParamRegistry.OMNICLASS, r.Code, overwrite: true);
+                    if (!string.IsNullOrEmpty(r.Title))
+                        ParameterHelpers.SetString(el, "CLS_OMNICLASS_TITLE_TXT", r.Title, overwrite: true);
+                    if (w1) { assigned++; if (r.Source == "native") native++; }
+                }
+                t.Commit();
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"OmniClass {table.Label}   (match on: {mode})");
+            sb.AppendLine($"Scope: {scopeLabel}   Mode: {(overwrite ? "overwrite" : "fill empty")}");
+            sb.AppendLine($"Assigned:        {assigned}   (of which native-authored: {native})");
+            sb.AppendLine($"Re-stamped from another table: {restamped}");
+            sb.AppendLine($"Skipped (set):   {skippedSet}");
+            sb.AppendLine($"Unresolved:      {unresolved}");
+            if (unmapped.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(mode == "room" ? "Unmapped rooms (add rows to _BIM_COORD/omniclass_map.csv):"
+                    : mode == "material" ? "Unmapped materials (add rows to _BIM_COORD/omniclass_map.csv):"
+                    : "Unmapped categories (add rows to _BIM_COORD/omniclass_map.csv):");
+                foreach (var kv in unmapped.OrderByDescending(k => k.Value).Take(15))
+                    sb.AppendLine($"   {kv.Value,5}  {kv.Key}");
+            }
+            new TaskDialog("OmniClass Assign")
+            {
+                MainInstruction = $"{assigned} element(s) assigned an OmniClass {table.Label} code",
+                MainContent = sb.ToString()
+            }.Show();
+            StingLog.Info($"OmniClass_Assign ({table.Label}, {mode}): {assigned} assigned ({native} native), {unresolved} unresolved ({scopeLabel})");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class OmniClassAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            var table = OmniClassTables.Resolve(ClassificationReader.OmniClassTable(doc));
+            var rules = OmniClassMap.Load(doc, table, out int corp, out int overlay, out string directive);
+            if (rules.Count == 0)
+            {
+                TaskDialog.Show("OmniClass Audit", $"No OmniClass map found for {table.Label}.");
+                return Result.Succeeded;
+            }
+            string mode = OmniClassMap.EffectiveMatchMode(table, directive);
+            int misfiled = OmniClassMap.CountMisfiledRows(rules, table.Number);
+
+            var scope = CsiMap.Scope(ctx.UIDoc, doc, out string scopeLabel);
+            int total = 0, classified = 0, nativeCount = 0, ambiguous = 0;
+            var unmapped = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var ambig = new List<string>();
+
+            foreach (var el in scope)
+            {
+                total++;
+                var r = OmniResolver.Resolve(doc, el, table, mode, rules);
+                if (r.Code == null) { unmapped.TryGetValue(r.UnmappedKey, out int c); unmapped[r.UnmappedKey] = c + 1; continue; }
+                classified++;
+                if (r.Source == "native") nativeCount++;
+                else if (r.TieCount > 1) { ambiguous++; if (ambig.Count < 200) ambig.Add($"{el.Id.Value}\t{ParameterHelpers.GetCategoryName(el)}\t{r.UnmappedKey}\t{r.Code}\ttied={r.TieCount}"); }
+            }
+
+            double pct = total == 0 ? 0 : 100.0 * classified / total;
+            string csv = null;
+            try
+            {
+                string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                csv = Path.Combine(dir, $"omniclass_audit_T{table.Number}.csv");
+                var lines = new List<string> { "Section,Kind,Count" };
+                lines.Add($",Total,{total}");
+                lines.Add($",Classified,{classified}");
+                lines.Add($",Native,{nativeCount}");
+                lines.Add($",Ambiguous,{ambiguous}");
+                lines.Add($",Misfiled rows,{misfiled}");
+                lines.Add("");
+                lines.Add("UNMAPPED,Key,Count");
+                foreach (var kv in unmapped.OrderByDescending(k => k.Value)) lines.Add($"unmapped,\"{kv.Key}\",{kv.Value}");
+                lines.Add("");
+                lines.Add("AMBIGUOUS,ElementId\tCategory\tKey\tCode\tTie");
+                lines.AddRange(ambig.Select(a => "ambiguous," + a.Replace(",", " ")));
+                File.WriteAllLines(csv, lines);
+            }
+            catch (Exception ex) { StingLog.Warn($"OmniClass audit CSV: {ex.Message}"); csv = null; }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"OmniClass {table.Label}   (match on: {mode})");
+            sb.AppendLine($"Scope: {scopeLabel}");
+            sb.AppendLine($"Classified:  {classified} / {total}   ({pct:F1} %)");
+            sb.AppendLine($"  native-authored: {nativeCount}   map: {classified - nativeCount}");
+            sb.AppendLine($"Unmapped:    {total - classified}");
+            sb.AppendLine($"Ambiguous (≥2 rules tie — needs a more-specific rule): {ambiguous}");
+            if (misfiled > 0) sb.AppendLine($"⚠ Map rows not in Table {table.Number}: {misfiled} (see log)");
+            if (unmapped.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Top unmapped keys:");
+                foreach (var kv in unmapped.OrderByDescending(k => k.Value).Take(12))
+                    sb.AppendLine($"   {kv.Value,5}  {kv.Key}");
+            }
+            if (csv != null) sb.AppendLine($"\nFull report: {csv}");
+
+            new TaskDialog("OmniClass Audit")
+            {
+                MainInstruction = $"{pct:F0}% of {total} element(s) classified for {table.Label}",
+                MainContent = sb.ToString()
+            }.Show();
+            StingLog.Info($"OmniClass_Audit ({table.Label}): {classified}/{total} classified, {ambiguous} ambiguous ({scopeLabel})");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class OmniClassSetTableCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string policyPath = PolicyFile.Resolve(doc);
+            if (string.IsNullOrEmpty(policyPath))
+            {
+                TaskDialog.Show("OmniClass Table", "Save the project first — the active table is stored in " +
+                    "<project>/_BIM_COORD/classification_policy.json.");
+                return Result.Cancelled;
+            }
+
+            string current = ClassificationReader.OmniClassTable(doc);
+
+            // The four tables that ship a corporate map are the meaningful out-of-the-box
+            // choices (CommandLinks 1-4). The other 11 OmniClass tables resolve too but need
+            // a project map — set those by editing classification_policy.json directly.
+            string[] choices = { "21", "23", "41", "13" };   // Elements / Products / Materials / Spaces
+            var picker = new TaskDialog("OmniClass Table")
+            {
+                MainInstruction = "Choose the active OmniClass table",
+                MainContent = $"Drives OmniClass Assign / Audit + the BOQ OmniClass column. " +
+                    $"Current: {OmniClassTables.Resolve(current).Label}.\n\n" +
+                    "These four ship corporate maps. The other 11 tables resolve via a project " +
+                    "map (_BIM_COORD/omniclass_map.csv) — set those in classification_policy.json.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Table 21 — Elements" + (current == "21" ? "   (current)" : ""), "Classify each element by its own category / family / type / system");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Table 23 — Products" + (current == "23" ? "   (current)" : ""), "Classify by product type; honours a native OmniClass code authored on the type");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Table 41 — Materials" + (current == "41" ? "   (current)" : ""), "Classify by the element's actual material name");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Table 13 — Spaces by Function" + (current == "13" ? "   (current)" : ""), "Classify the element's HOST ROOM by function (spatial axis)");
+            var res = picker.Show();
+            int idx = res - TaskDialogResult.CommandLink1;
+            if (idx < 0 || idx >= choices.Length) return Result.Cancelled;
+            string number = choices[idx];
+            if (number == current)
+            {
+                TaskDialog.Show("OmniClass Table", $"Already set to {OmniClassTables.Resolve(number).Label}.");
+                return Result.Succeeded;
+            }
+
+            // Write omniClassTable into the project policy, PRESERVING any existing
+            // classification order. JObject merge keeps unknown keys intact.
+            try
+            {
+                PolicyFile.Merge(policyPath, root => root["omniClassTable"] = number);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("OmniClass_SetTable write", ex);
+                TaskDialog.Show("OmniClass Table", "Could not write classification_policy.json: " + ex.Message);
+                return Result.Failed;
+            }
+
+            ClassificationReader.InvalidatePolicy();   // next Assign/Audit/BOQ re-reads the file
+
+            var info = OmniClassTables.Resolve(number);
+            new TaskDialog("OmniClass Table")
+            {
+                MainInstruction = $"Active OmniClass table → {info.Label}",
+                MainContent = (OmniClassTables.ShipsMap(number)
+                        ? "This table ships a corporate map — run OmniClass Audit to see coverage, then OmniClass Assign."
+                        : $"⚠ Table {number} has no corporate map. Add rows to _BIM_COORD/omniclass_map.csv " +
+                          "(matchOn directive optional) or nothing will classify.") +
+                    "\n\nStored in _BIM_COORD/classification_policy.json. The BOQ OmniClass column + " +
+                    "OmniClass Assign/Audit now use this table."
+            }.Show();
+            StingLog.Info($"OmniClass_SetTable: {current} → {number} ({info.Label})");
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class ClassificationTagsSetCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(cmd);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            Document doc = ctx.Doc;
+
+            string policyPath = PolicyFile.Resolve(doc);
+            if (string.IsNullOrEmpty(policyPath))
+            {
+                TaskDialog.Show("Classification on Tags", "Save the project first — the setting lives in " +
+                    "<project>/_BIM_COORD/classification_policy.json.");
+                return Result.Cancelled;
+            }
+
+            var current = ClassificationReader.TagClassifications(doc);
+            string curLabel = current.Count == 0 ? "none"
+                : string.Join(" + ", current.Select(p => ClassificationReader.ClassificationLabel(p)));
+
+            var picker = new TaskDialog("Classification on Tags")
+            {
+                MainInstruction = "Stamp classification code(s) on the tag narrative",
+                MainContent = $"Adds the chosen classification code into each element's rich TAG7 " +
+                    $"narrative, so it shows on drawings. Currently: {curLabel}.\n\n" +
+                    "Pick the common presets below, or list any classification parameter(s) in " +
+                    "classification_policy.json \"tagClassifications\" for full flexibility " +
+                    "(e.g. Uniclass). Re-run Auto Tag / Build Tags afterwards to refresh the narrative.",
+                CommonButtons = TaskDialogCommonButtons.Cancel,
+                AllowCancellation = true
+            };
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "MasterFormat (CSI)", "Stamp CSI_SECTION_TXT");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "OmniClass", "Stamp ASS_OMNICLASS_TXT");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "MasterFormat + OmniClass", "Stamp both codes");
+            picker.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "None (off)", "Don't stamp any classification on tags");
+            var res = picker.Show();
+
+            List<string> chosen;
+            switch (res)
+            {
+                case TaskDialogResult.CommandLink1: chosen = new List<string> { "CSI_SECTION_TXT" }; break;
+                case TaskDialogResult.CommandLink2: chosen = new List<string> { "ASS_OMNICLASS_TXT" }; break;
+                case TaskDialogResult.CommandLink3: chosen = new List<string> { "CSI_SECTION_TXT", "ASS_OMNICLASS_TXT" }; break;
+                case TaskDialogResult.CommandLink4: chosen = new List<string>(); break;
+                default: return Result.Cancelled;
+            }
+
+            try
+            {
+                PolicyFile.Merge(policyPath, root => root["tagClassifications"] = new Newtonsoft.Json.Linq.JArray(chosen));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ClassificationTags_Set write", ex);
+                TaskDialog.Show("Classification on Tags", "Could not write classification_policy.json: " + ex.Message);
+                return Result.Failed;
+            }
+
+            ClassificationReader.InvalidatePolicy();
+
+            string newLabel = chosen.Count == 0 ? "none (off)"
+                : string.Join(" + ", chosen.Select(p => ClassificationReader.ClassificationLabel(p)));
+            new TaskDialog("Classification on Tags")
+            {
+                MainInstruction = $"Tag classification → {newLabel}",
+                MainContent = (chosen.Count == 0
+                        ? "No classification will be stamped on tags."
+                        : "The code(s) will appear in the element's rich TAG7 narrative (Section A) — " +
+                          "make sure you've run the matching assign (CSI Assign / OmniClass Assign) so the " +
+                          "values exist.") +
+                    "\n\nRe-run Auto Tag / Build Tags to refresh the narrative on existing elements."
+            }.Show();
+            StingLog.Info($"ClassificationTags_Set: [{string.Join(",", chosen)}]");
+            return Result.Succeeded;
+        }
+    }
+}

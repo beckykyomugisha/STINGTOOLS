@@ -22,6 +22,13 @@ namespace StingTools.Core.Classification
         public string Sys { get; set; } = "";
         public string Section { get; set; } = "";
         public string Title { get; set; } = "";
+        /// <summary>Optional NRM2 work-section code, so a single rule resolves both the
+        /// CSI MasterFormat section AND the NRM2 section a BOQ line is billed under.
+        /// Blank = let the BOQ engine derive the NRM2 section from the category.</summary>
+        public string Nrm2 { get; set; } = "";
+        /// <summary>Optional spec measurement basis (m2/m3/m/kg/each) for the section, so a
+        /// spec can drive the BOQ measurement-basis advisory. Blank = no opinion.</summary>
+        public string Unit { get; set; } = "";
 
         private Regex _famRx, _typeRx;
         private bool _compiled;
@@ -30,8 +37,12 @@ namespace StingTools.Core.Classification
         {
             if (_compiled) return;
             _compiled = true;
-            if (!string.IsNullOrEmpty(FamilyRegex)) { try { _famRx = new Regex(FamilyRegex); } catch { } }
-            if (!string.IsNullOrEmpty(TypeRegex)) { try { _typeRx = new Regex(TypeRegex); } catch { } }
+            // Always case-insensitive - authors (project-overlay rows especially) need not
+            // remember the inline "(?i)" prefix. The shipped maps already carry it, so this
+            // only rescues rows that would otherwise have silently matched nothing.
+            const RegexOptions opt = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+            if (!string.IsNullOrEmpty(FamilyRegex)) { try { _famRx = new Regex(FamilyRegex, opt); } catch { } }
+            if (!string.IsNullOrEmpty(TypeRegex)) { try { _typeRx = new Regex(TypeRegex, opt); } catch { } }
         }
 
         /// <summary>Match score, or -1 when the rule does not apply. Higher = more specific.</summary>
@@ -76,7 +87,10 @@ namespace StingTools.Core.Classification
                 if (string.IsNullOrWhiteSpace(raw)) continue;
                 string line = raw.TrimEnd('\r');
                 if (line.TrimStart().StartsWith("#")) continue;
-                var f = line.Split(new[] { ',' }, 6);
+                // Split into 8 so the optional 7th "Nrm2" + 8th "Unit" columns are read while
+                // 6-column legacy rows keep working. The shipped Titles carry no commas, so
+                // Title stays whole on the shorter rows.
+                var f = line.Split(new[] { ',' }, 8);
                 if (f.Length < 6) continue;
                 string cat = f[0].Trim();
                 if (cat.Length == 0) continue;
@@ -90,6 +104,8 @@ namespace StingTools.Core.Classification
                     Sys = f[3].Trim(),
                     Section = f[4].Trim(),
                     Title = f[5].Trim(),
+                    Nrm2 = f.Length >= 7 ? f[6].Trim() : "",
+                    Unit = f.Length >= 8 ? f[7].Trim() : "",
                 });
             }
             return rules;
@@ -98,16 +114,32 @@ namespace StingTools.Core.Classification
         /// <summary>Best-matching rule for the element context, or null when none apply.
         /// Highest score wins; ties resolve to the earliest rule in the list.</summary>
         public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys)
+            => Resolve(rules, category, family, type, sys, out _, out _);
+
+        /// <summary>Resolve + report the winning <paramref name="score"/> and how many rules
+        /// tied at that top score (<paramref name="tieCount"/>). tieCount &gt; 1 means the match
+        /// is AMBIGUOUS - row order silently decided it - so an audit can surface it and a
+        /// more-specific rule be authored. Ties are counted by DISTINCT Section, so two rules
+        /// that tie but agree on the code are not flagged.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
+            out int score, out int tieCount)
         {
             CsiRule best = null;
             int bestScore = -1;
+            score = -1; tieCount = 0;
             if (rules == null) return null;
             for (int i = 0; i < rules.Count; i++)
             {
                 int s = rules[i].Score(category, family, type, sys);
                 if (s > bestScore) { bestScore = s; best = rules[i]; }
             }
-            return bestScore >= 0 ? best : null;
+            if (bestScore < 0) return null;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < rules.Count; i++)
+                if (rules[i].Score(category, family, type, sys) == bestScore)
+                    seen.Add(NormalizeSection(rules[i].Section));
+            score = bestScore; tieCount = seen.Count;
+            return best;
         }
 
         /// <summary>Canonical key for a CSI section number. Removes ALL whitespace (and
