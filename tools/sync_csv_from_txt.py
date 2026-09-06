@@ -120,8 +120,16 @@ def main():
     # describes itself as idempotent was not. The date comes from the clock
     # rather than a literal -- the one it carried was three months stale by the
     # time this was next run.
+    # It states what the FILE holds, not what this run did. A header carrying
+    # the run's delta reads "+5 mirror params" on the first run and "+0" on the
+    # second, so the file changes on every regeneration and the script still is
+    # not idempotent -- replacing the header instead of stacking it fixed only
+    # half of that. What the run did is printed to the console, where a figure
+    # that varies per run belongs.
     stamp = _dt.date.today().strftime('%Y%m%d')
-    new_header = (f'# v6.8 | {stamp} | +{added} mirror params, {type_fixes} type fixes'
+    total = len([l for l in out_lines
+                 if not l.startswith('#') and l.strip() and not l.startswith('Revit')])
+    new_header = (f'# v6.8 | {stamp} | {total} parameter rows'
                   f' — Phase 188 native-type + _TXT mirror sync\n')
     out_lines = [l for l in out_lines if not l.startswith('# v6.8 |')]
     out_lines.insert(0, new_header)

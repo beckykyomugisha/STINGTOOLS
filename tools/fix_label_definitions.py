@@ -29,6 +29,7 @@ SUFFIX_REPLACEMENTS = [
     ('_LM_W', '_TXT'), ('_SQ_M', '_TXT'), ('_CU_M', '_TXT'),
     ('_MM2', '_TXT'), ('_M2K_W', '_TXT'), ('_W_M2K', '_TXT'),
     ('_KN_M2', '_TXT'), ('_INT', '_TXT'), ('_NR', '_TXT'),
+    ('_DBL', '_TXT'),
     ('_MM', '_TXT'), ('_M2', '_TXT'), ('_KW', '_TXT'),
     ('_KPA', '_TXT'), ('_KNM', '_TXT'), ('_KA', '_TXT'),
     ('_KN', '_TXT'), ('_LPS', '_TXT'), ('_LPM', '_TXT'),

@@ -78799,7 +78799,7 @@
           "prefix_override": "ΔP:"
         },
         {
-          "param": "CLN_DESIGN_ACH_INT",
+          "param": "CLN_DESIGN_ACH_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -78809,7 +78809,7 @@
           "suffix_override": " ach"
         },
         {
-          "param": "CLN_DESIGN_PRESSURE_DELTA_PA_INT",
+          "param": "CLN_DESIGN_PRESSURE_DELTA_PA_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -78819,7 +78819,7 @@
           "suffix_override": " Pa"
         },
         {
-          "param": "CLN_DESIGN_TEMP_C_DBL",
+          "param": "CLN_DESIGN_TEMP_C_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -78829,7 +78829,7 @@
           "suffix_override": "°C"
         },
         {
-          "param": "CLN_DESIGN_RH_PCT_INT",
+          "param": "CLN_DESIGN_RH_PCT_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",
@@ -78839,7 +78839,7 @@
           "suffix_override": "%"
         },
         {
-          "param": "CLN_NOISE_NR_NR",
+          "param": "CLN_NOISE_NR_TXT",
           "spaces": 0,
           "break": true,
           "style": "NOM",

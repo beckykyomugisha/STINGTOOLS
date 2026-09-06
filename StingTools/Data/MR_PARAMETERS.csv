@@ -1,4 +1,4 @@
-# v6.8 | 20260906 | +174 mirror params, 183 type fixes — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 20260906 | 3571 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3575,3 +3575,8 @@ Generic Models,ASS_PMT_PCT_COMPLETE_TXT,bafc9ea1-655f-5d65-b6c4-dcd22f2f9afe,TEX
 Generic Models,ASS_PMT_CERT_NO_TXT,1dfb1b22-3cc6-5dfe-9c75-ddfa6afa26c1,TEXT,CST_PROC,Instance,ASS_PMT_CERT_NO_NR display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,ASS_VAR_VALUATION_TXT,6a1a42f5-5097-52fb-b552-f14af0d6ee46,TEXT,CST_PROC,Instance,ASS_VAR_VALUATION_NR display mirror [auto-generated],False,,,MULTI,1,0
 Generic Models,HVC_FLOW_TXT,ac5d54cb-e16f-518b-baac-09c03a0b7f08,TEXT,HVC_SYSTEMS,Instance,HVC_FLOW_LS display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_NOISE_NR_TXT,597519bb-42fc-51aa-afc1-4b2c0df849a6,TEXT,CLN_CLINICAL,Instance,CLN_NOISE_NR_NR display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_DESIGN_ACH_TXT,54585940-def4-5b44-8cb7-5be896bfaf2b,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_ACH_INT display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_DESIGN_PRESSURE_DELTA_PA_TXT,5d74a16b-b783-59e7-bce9-602f2b43b76b,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_PRESSURE_DELTA_PA_INT display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_DESIGN_RH_PCT_TXT,1af62727-9c3a-5bae-ae04-fd8b3922d570,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_RH_PCT_INT display mirror [auto-generated],False,,,MULTI,1,0
+Generic Models,CLN_DESIGN_TEMP_C_TXT,f10b18c6-2247-5dab-a9cf-05b88bf10067,TEXT,CLN_CLINICAL,Instance,CLN_DESIGN_TEMP_C_DBL display mirror [auto-generated],False,,,MULTI,1,0
