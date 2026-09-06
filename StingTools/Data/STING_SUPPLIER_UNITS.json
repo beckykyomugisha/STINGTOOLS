@@ -298,6 +298,38 @@
       "matchCategories": [],
       "matchTypePatterns": [],
       "stageId": ""
+    },
+    {
+      "commodityKey": "dpm",
+      "description": "Damp-proof membrane (polythene sheet)",
+      "spec": "1000 gauge, 4 m x 25 m roll = 100 m2",
+      "supplierUnit": "Rolls",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 100.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 15.0,
+      "matchKinds": [
+        "dpm"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
+    },
+    {
+      "commodityKey": "roof-underlay",
+      "description": "Roof underlay / sarking membrane",
+      "spec": "1 m x 45 m roll = 45 m2",
+      "supplierUnit": "Rolls",
+      "sourceUnit": "m2",
+      "sourceUnitsPerSupplierUnit": 45.0,
+      "roundUpToWhole": true,
+      "defaultWastagePct": 15.0,
+      "matchKinds": [
+        "roof_underlay"
+      ],
+      "matchCategories": [],
+      "matchTypePatterns": [],
+      "stageId": ""
     }
   ]
 }

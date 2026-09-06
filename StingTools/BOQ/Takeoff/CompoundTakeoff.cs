@@ -27,7 +27,8 @@ namespace StingTools.BOQ.Takeoff
                                     // "rebar" | "formwork" | "floor_tile" |
                                     // "wall_tile" | "tile_adhesive" | "tile_grout" |
                                     // "screed" | "screed_cement" | "screed_sand" |
-                                    // "ceiling_board" | "ceiling_furring"
+                                    // "ceiling_board" | "ceiling_furring" |
+                                    // "dpm" | "roof_underlay"
         public string Description;
         public string Unit;         // "m2" | "m3" | "nr" | "kg" | "bag"
         public double Quantity;
@@ -147,6 +148,31 @@ namespace StingTools.BOQ.Takeoff
         public double PlasterThicknessM;
         public double PlasterCementBagsPerM3;
         public double PlasterSandRatio;
+    }
+
+    /// <summary>
+    /// MATSCHED-T3 — sheet membranes, read from the host's own Membrane layers.
+    ///
+    /// `MaterialFunctionAssignment.Membrane` was ignored entirely, so a
+    /// ground-bearing slab's DPM and a roof's underlay — both real purchased
+    /// materials whose area the model already STATES — produced nothing.
+    ///
+    /// Layers are COUNTED, not merged: two membrane layers on one build-up are
+    /// two purchases of that area, exactly as two tiled faces are two areas of
+    /// tiling. Insulation never reaches here; it is bought by thickness and is
+    /// reported by the scan instead of being absorbed.
+    /// </summary>
+    public struct MembraneInput
+    {
+        public double AreaM2;
+
+        /// <summary>Number of layers classified as damp-proof membrane.</summary>
+        public int DpmLayers;
+        public string DpmLabel;
+
+        /// <summary>Number of layers classified as roof underlay / sarking.</summary>
+        public int UnderlayLayers;
+        public string UnderlayLabel;
     }
 
     public struct RcElementInput
@@ -552,6 +578,43 @@ namespace StingTools.BOQ.Takeoff
                 if (vol > 0 && c.PlasterSandRatio > 0)
                     lines.Add(new CompoundLine("plaster_sand", "Ceiling plaster — sand", "m3",
                         vol * c.PlasterSandRatio, SecPlaster));
+            }
+
+            return lines;
+        }
+
+        /// <summary>
+        /// MATSCHED-T3 — membrane constituents. One row per membrane kind, its
+        /// area multiplied by how many layers of that kind the build-up declares.
+        ///
+        /// Quantities are NET. Laps are a real and substantial allowance on a
+        /// DPM — 150-300 mm at every joint, plus the turn-up at the perimeter —
+        /// and they belong to the supplier-unit rule's wastage where they are
+        /// visible and arguable, not baked in here where they would be applied
+        /// twice as they were for blocks.
+        /// </summary>
+        public static List<CompoundLine> Membranes(MembraneInput m)
+        {
+            var lines = new List<CompoundLine>();
+            double area = Math.Max(0, m.AreaM2);
+            if (area <= 0) return lines;
+
+            int dpm = Math.Max(0, m.DpmLayers);
+            if (dpm > 0)
+            {
+                string label = string.IsNullOrWhiteSpace(m.DpmLabel)
+                    ? "damp-proof membrane" : m.DpmLabel.Trim();
+                lines.Add(new CompoundLine("dpm", $"Damp-proof membrane — {label}",
+                    "m2", area * dpm, SecMasonry));
+            }
+
+            int under = Math.Max(0, m.UnderlayLayers);
+            if (under > 0)
+            {
+                string label = string.IsNullOrWhiteSpace(m.UnderlayLabel)
+                    ? "roof underlay" : m.UnderlayLabel.Trim();
+                lines.Add(new CompoundLine("roof_underlay", $"Roof underlay — {label}",
+                    "m2", area * under, SecMasonry));
             }
 
             return lines;

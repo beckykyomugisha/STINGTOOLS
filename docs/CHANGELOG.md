@@ -2,6 +2,78 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 249 — the membranes nobody was buying)
+
+`MaterialFunctionAssignment.Membrane` layers were ignored entirely. A ground-bearing slab's DPM and
+a roof's underlay are both real purchased materials whose area the model already **states**, and
+both produced nothing — silently. Third and last of the layer-reading tasks, on the same
+`HostLayerCache` primitive as the screed and the ceilings.
+
+**Emitted.** `dpm` (m² → **Rolls** of 4 m × 25 m = 100 m²) and `roof_underlay` (m² → **Rolls** of
+1 m × 45 m = 45 m²), both rounded up, both carrying a **15% lap allowance in the supplier-unit rule**
+— a DPM laps 150–300 mm at every joint and turns up at the perimeter, so if that allowance is not
+there it exists nowhere and every order under-buys. Layers are **counted, not collapsed**: a build-up
+declaring two membrane layers really does need twice the roll.
+
+**Which commodity a layer is:** the NAME decides when it is unambiguous (`underlay` / `sarking` /
+`breather` / `felt` → underlay; `dpm` / `damp-proof` / `polythene` / `visqueen` → DPM), otherwise
+the **HOST** decides — a membrane in a roof is an underlay, one in a floor is a DPM. That is a fact
+the model states, not an inference from a type name.
+
+**Routing.** `dpm` → **substructure**, whose preamble is already "all works up to and including the
+ground floor slab", which is exactly where a DPM sits — next to the blinding and hardcore, where a
+QS looks for it. `roof_underlay` → **roof**. Kind routing is global, so a membrane on a suspended
+upper floor is also filed under substructure; that is a real limitation of one route per kind, it is
+recorded in ROADMAP, and a project override moves it.
+
+**Two things are deliberately NOT priced, and the export says both.**
+
+* **Insulation.** The runner's explicit caution, and it is handled by *reporting*, not by silence.
+  Insulation is bought by **thickness**, not by the square metre of roll; absorbing it into a
+  membrane commodity would mis-price both. Every insulation layer seen — whether by function or by
+  material name — is counted and **named** in the scan, with a line saying why it was not converted.
+  A shipped-data test asserts no commodity rule exists that could absorb it, so this fails the day
+  one appears.
+* **Wall membranes.** Counted once per wall TYPE and never measured. A layer's area on a wall is the
+  wall **face** area, and a horizontal damp-proof course occupies one course of it — measuring the
+  face would over-order by an order of magnitude, and nothing in the layer distinguishes a
+  one-course DPC from a full-height cavity membrane. Emitting nothing is correct; emitting nothing
+  **silently** is the failure this task removes, so the scope boundary is reported.
+
+**A gate was blind, and it was hiding a corrupted regex in shipped code.** Deleting the entire
+insulation exclusion list left `Insulation_Is_Never_A_Membrane` green — its inputs never matched the
+membrane pattern at all, so the exclusion never ran. Chasing that down found something worse: the
+`\b` word boundaries in `NotMembranePattern` and `InsulationPattern` had been **eaten on the way
+into the file** and shipped as literal backspace bytes, leaving bare `eps|xps|pir|pur` substrings.
+Bare `pur` matches **"Purlin"** — so *"Purlin Underlay"*, a real membrane, would have been discarded
+with no row and no warning, which is the exact defect class this task exists to remove.
+
+The intended form was wrong too: `eps\b` bounds only the right side and still matches "Steps". Both
+sides are required. Repaired to `\b(eps|xps|pir|pur)\b`, pinned by tests in both directions
+("Steps" / "Purlin" / "Respiratory" must not match; "PIR Board" / "XPS Board" / "EPS 70" must), and
+the whole tree was swept for stray backspace bytes — none remain. The tests that could not fail now
+name what they do and do not prove.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 581 → **644 green**. All
+four gates pass. **Twenty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — DPM and underlay merged into one commodity, layers collapsed, a lap
+allowance applied twice, a negative layer count, membranes emitted in m³, the exclusion list deleted
+(two ways), the host overriding an explicit name, a non-membrane given a default kind, the roll size
+wrong, the lap allowance zeroed, the source unit changed, an insulation commodity introduced, the
+baseline rate removed (which also fires the pre-existing `Every_Commodity_Rule_Has_A_Baseline_Rate`),
+both stage routes dropped, `dpm` declared an intermediate, four ways of making the tally lie, and
+three forms of the word-boundary defect including the one that actually shipped.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadMembranes`,
+`NoteWallMembranes` and `MembraneConstituents` have **never executed against a real model**, and
+neither has the layer reader they sit on. The runner's opening gate — a real export showing tiling
+under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified and
+membranes inherit that status in full, exactly as the screed and the ceilings do. Proven here is the
+arithmetic, the classifier, the host/name precedence, the diagnostic message and the shipped-data
+seams.
+
+**T4, T5 and T6 were not attempted** and remain open in ROADMAP.
+
 #### Completed (Phase 248 — ceilings decomposed into nothing at all)
 
 `CeilingType` appeared in **no branch** of `CompoundTakeoffBuilder.TryBuild`. Not mishandled —

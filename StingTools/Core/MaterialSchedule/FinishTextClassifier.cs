@@ -162,6 +162,78 @@ namespace StingTools.Core.MaterialSchedule
             return CeilingPlasterPattern.IsMatch(name);
         }
 
+        // ── membranes (MATSCHED-T3) ───────────────────────────────────────
+
+        /// <summary>
+        /// Sheet membranes: bought by the ROLL, laid and lapped. A damp-proof
+        /// membrane under a ground slab and a sarking underlay under a roof
+        /// covering are both real purchases whose area the model already states
+        /// in a `Membrane` layer, and both reached no export.
+        /// </summary>
+        private static readonly Regex MembranePattern = new Regex(
+            @"membrane|dpm|damp[\s-]*proof|dpc|polythene|polyethylene|visqueen|underlay|sarking|breather|felt|vapou?r barrier|vapou?r control",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Things that sit in or beside a membrane layer and are NOT sheet
+        /// membrane. Insulation is the dangerous one: it is bought by THICKNESS,
+        /// not by the square metre of roll, so absorbing it into a membrane
+        /// commodity would mis-price both. It is rejected here and reported by
+        /// name — never absorbed, never silently dropped.
+        ///
+        /// The three-letter product codes carry word boundaries on BOTH sides.
+        /// A bare `eps` matches "Steps"; a right-bounded `eps\b` still matches
+        /// "Steps"; only `\beps\b` means the product. Same for `pir` inside
+        /// "Respiratory" and `pur` inside "Purlin" — and a purlin underlay is a
+        /// membrane this take-off must not throw away.
+        /// </summary>
+        private static readonly Regex NotMembranePattern = new Regex(
+            @"insulat|polystyrene|\b(eps|xps|pir|pur)\b|rockwool|mineral wool|glass wool|screed|concrete|blinding|hardcore",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static bool IsMembrane(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            if (NotMembranePattern.IsMatch(name)) return false;
+            return MembranePattern.IsMatch(name);
+        }
+
+        /// <summary>
+        /// True when a name is INSULATION. Its own predicate rather than a
+        /// silent exclusion, because the caution here is not "do not match it"
+        /// but "say that you saw it": an insulation layer that produced nothing
+        /// and said nothing is the same silent omission as the membranes this
+        /// task exists to add.
+        /// </summary>
+        private static readonly Regex InsulationPattern = new Regex(
+            @"insulat|polystyrene|\b(eps|xps|pir|pur)\b|rockwool|mineral wool|glass wool|thermal board",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static bool IsInsulation(string name)
+            => !string.IsNullOrWhiteSpace(name) && InsulationPattern.IsMatch(name);
+
+        /// <summary>
+        /// Which membrane commodity a layer is. The NAME wins when it is
+        /// unambiguous; otherwise the HOST decides, which is a fact the model
+        /// states rather than a guess — a membrane in a roof is an underlay, a
+        /// membrane in a floor is a damp-proof membrane.
+        ///
+        /// Returns "" for a name that is not a membrane at all, so a caller
+        /// cannot accidentally file one under the other.
+        /// </summary>
+        public static string MembraneKind(string name, bool hostIsRoof)
+        {
+            if (!IsMembrane(name)) return "";
+            string n = name.ToLowerInvariant();
+
+            if (n.Contains("underlay") || n.Contains("sarking") || n.Contains("breather")
+             || n.Contains("felt")) return "roof_underlay";
+            if (n.Contains("dpm") || n.Contains("damp") || n.Contains("polythene")
+             || n.Contains("polyethylene") || n.Contains("visqueen")) return "dpm";
+
+            return hostIsRoof ? "roof_underlay" : "dpm";
+        }
+
         /// <summary>
         /// True when a Base Finish names something real to buy. Rooms carry the
         /// literal strings "None", "N/A" and "-" far more often than they carry

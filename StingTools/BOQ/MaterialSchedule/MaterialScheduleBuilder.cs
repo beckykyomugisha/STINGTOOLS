@@ -148,6 +148,13 @@ namespace StingTools.BOQ.MaterialSchedule
             string furringBanner = Takeoff.CompoundTakeoffBuilder.CeilingScan.Tally.FurringBanner();
             if (!string.IsNullOrEmpty(furringBanner)) result.Warnings.Add(furringBanner);
 
+            // MATSCHED-T3 — membranes were ignored entirely. The scan also
+            // reports the two things this take-off deliberately does NOT price
+            // (insulation, and wall membranes), so each is a stated decision
+            // rather than an unexplained absence.
+            string membraneScan = Takeoff.CompoundTakeoffBuilder.MembraneScan.Summary();
+            if (!string.IsNullOrEmpty(membraneScan)) result.Warnings.Add(membraneScan);
+
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
 

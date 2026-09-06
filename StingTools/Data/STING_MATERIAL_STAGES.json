@@ -59,7 +59,9 @@
       "title": "ELEMENT 01: SUB-STRUCTURE",
       "preamble": "The works in this element include all works up to and including the ground floor slab.",
       "order": 20,
-      "constituentKinds": [],
+      "constituentKinds": [
+        "dpm"
+      ],
       "categories": [
         "Structural Foundations",
         "Structural Foundation"
@@ -98,7 +100,9 @@
       "title": "ELEMENT 03: ROOF",
       "preamble": "Roof structure and covering.",
       "order": 40,
-      "constituentKinds": [],
+      "constituentKinds": [
+        "roof_underlay"
+      ],
       "categories": [
         "Roofs"
       ],
