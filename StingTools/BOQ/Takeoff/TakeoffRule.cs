@@ -268,17 +268,11 @@ namespace StingTools.BOQ.Takeoff
             return v;
         }
 
+        // The table lives in TakeoffUnitConversion (Revit-free) so it is reachable from
+        // StingTools.Boq.Tests. This file imports Autodesk.Revit.DB, which those test
+        // projects cannot link.
         private static double ApplyConversion(double value, string conversion)
-        {
-            switch ((conversion ?? "none").ToLowerInvariant())
-            {
-                case "ft2_to_m2": return value * 0.092903;
-                case "ft3_to_m3": return value * 0.0283168;
-                case "ft_to_m":   return value * 0.3048;
-                case "none":
-                default:          return value;
-            }
-        }
+            => TakeoffUnitConversion.Apply(value, conversion);
 
         private static TakeoffRuleRegistry Load(Document doc)
         {
