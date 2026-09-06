@@ -44,4 +44,9 @@ hoop-iron,Rolls,35000,Hoop iron 30 m roll
 binding-wire,Rolls,90000,Binding wire 20 kg roll
 formwork-nails,Kg,7000,Wire nails for formwork per kg
 roof-fastener,Packs,25000,Roofing screws / nails pack of 100
+roof-shingle,Bundles,110000,Asphalt shingle bundle (~3.1 m2 cover) INDICATIVE - re-price
+roof-tile-stonecoated,No.,26000,Stone-coated steel tile sheet (Harvey / Decra type) INDICATIVE - re-price
+roof-tile-clay,No.,3000,Clay roof tile Marseille profile INDICATIVE - re-price
+roof-tile-concrete,No.,2500,Concrete roof tile INDICATIVE - re-price
+roof-sheet-boxprofile,m,21000,Box-profile steel sheet per running metre gauge 28 INDICATIVE - re-price
 fascia-board,Lengths,45000,Fascia board 4.2 m length (timber / fibre-cement as specified)

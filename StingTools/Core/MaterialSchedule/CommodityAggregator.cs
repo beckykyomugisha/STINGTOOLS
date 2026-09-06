@@ -17,6 +17,9 @@ namespace StingTools.Core.MaterialSchedule
         public string ConstituentKind = "";
         public string Category = "";
         public string TypeName = "";    // narrows a category match (MAT-SCHED trade units)
+        /// <summary>The element's material name. Matched BEFORE the type name —
+        /// see SupplierUnitRule.MatchMaterialPatterns for why.</summary>
+        public string MaterialName = "";
         public string Description = "";
         public string Unit = "";        // source unit as measured
         public double Quantity;
@@ -102,7 +105,7 @@ namespace StingTools.Core.MaterialSchedule
 
                 // Constituent kind first, then category (+ optional type pattern).
                 var res = input.Units != null
-                    ? input.Units.Resolve(row.ConstituentKind, row.Category, row.TypeName)
+                    ? input.Units.Resolve(row.ConstituentKind, row.Category, row.TypeName, row.MaterialName)
                     : new SupplierUnitResolution { Match = SupplierUnitMatch.None };
                 var rule = res.Rule;
 

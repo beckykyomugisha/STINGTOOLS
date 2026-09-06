@@ -263,6 +263,15 @@ namespace StingTools.BOQ
         public string CarbonQuality;
         public string CarbonMaterial;
 
+        /// <summary>
+        /// The element's primary material name, for supplier-unit matching.
+        ///
+        /// A material is chosen deliberately; a type name is free text. One
+        /// delivered roof was typed "Generic - 225mm", measured 25 mm, and was
+        /// correctly materialled "Asphalt Shingle".
+        /// </summary>
+        public string MaterialName;
+
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
         // row, SimilarCount holds the element count and ConstituentElementIds
@@ -385,6 +394,7 @@ namespace StingTools.BOQ
                 CarbonSource = this.CarbonSource,
                 CarbonQuality = this.CarbonQuality,
                 CarbonMaterial = this.CarbonMaterial,
+                MaterialName = this.MaterialName,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),
