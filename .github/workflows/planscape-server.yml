@@ -10,6 +10,10 @@ on:
     branches: [main]
     paths:
       - 'Planscape.Server/**'
+      # Match the push trigger: a change to this workflow (service
+      # containers, gate wiring) must be exercised on the PR that makes
+      # it, not first observed after it lands on main.
+      - '.github/workflows/planscape-server.yml'
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -40,6 +44,23 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Redis mirrors production topology (refresh-token activity, JTI
+      # blacklist, login-lockout counters, project-visibility cache).
+      # Without it every Redis call in a test burned its full 5 s timeout
+      # — ~900 of them, which is most of why the suite took 30 minutes.
+      # The code fails soft when Redis is absent, so this is about speed
+      # and about actually exercising the cache-hit paths, not about
+      # making the suite pass.
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -183,6 +204,23 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── Deploy to Render.com ──────────────────────────────────────────────────────
+  #
+  # DO NOT DELETE THIS JOB TO STOP DUPLICATE DEPLOYS. It is the *filtered* one.
+  #
+  # Two triggers exist for the same service (#717): this job, which honours the
+  # `paths:` filter above and so only fires for Planscape.Server changes, and the
+  # Render dashboard's own Auto-Deploy, which fires on EVERY push to main —
+  # including docs- and marketing-site-only commits. That second trigger is what
+  # rebuilds the API when a Revit plugin file changes, and where the
+  # "deploy failed" emails come from.
+  #
+  # Removing this job would leave the UNFILTERED trigger as the only one: still
+  # rebuilding on everything, and now with no gated path at all. The correct
+  # order is to turn Auto-Deploy OFF in the Render dashboard first, after which
+  # this becomes the single, path-filtered trigger.
+  #
+  # Note render.yaml's `autoDeploy: true` is NOT that setting — the blueprint does
+  # not govern the live services (see the header of render.yaml).
   deploy:
     name: Deploy to Render.com
     runs-on: ubuntu-latest
@@ -193,11 +231,40 @@ jobs:
       url: https://api.planscape.build
 
     steps:
-      - name: Trigger Render.com deploy
+      # This job reported SUCCESS for months while deploying nothing.
+      #
+      # RENDER_API_KEY and RENDER_SERVICE_ID were never set on the repository, so the
+      # request went to `/v1/services//deploys` with an empty bearer token — and `curl -s`
+      # with no `-f` exits 0 on any HTTP status, so the step went green. Measured
+      # 2026-08-22: #764 merged, this job reported "Deploy to Render.com - success", and
+      # production still served the previous build an hour later.
+      #
+      # A deploy step that cannot work and cannot fail is worse than none: it turns
+      # "did my change ship?" into a question the green tick answers wrongly.
+      - name: Check the deploy credentials exist
+        env:
+          KEY: ${{ secrets.RENDER_API_KEY }}
+          SVC: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          curl -s -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache": false}'
-        # Secrets required: RENDER_API_KEY, RENDER_SERVICE_ID
-        # Add these in GitHub → Settings → Secrets and variables → Actions
+          missing=""
+          [ -z "$KEY" ] && missing="$missing RENDER_API_KEY"
+          [ -z "$SVC" ] && missing="$missing RENDER_SERVICE_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Cannot deploy - missing secret(s):$missing. Add them in GitHub > Settings > Secrets and variables > Actions. RENDER_SERVICE_ID must be the service that actually SERVES (planscape-api-free); render.yaml names planscape-api, which 404s."
+            exit 1
+          fi
+
+      - name: Trigger Render.com deploy
+        env:
+          KEY: ${{ secrets.RENDER_API_KEY }}
+          SVC: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          # Capture the status and fail on non-2xx. Without this, an auth error or a
+          # wrong service id is indistinguishable from a deploy.
+          code=$(curl -s -o render.json -w '%{http_code}'             -X POST "https://api.render.com/v1/services/$SVC/deploys"             -H "Authorization: Bearer $KEY"             -H "Content-Type: application/json"             -d '{"clearCache": false}')
+          echo "Render responded HTTP $code"
+          cat render.json || true
+          case "$code" in
+            2*) echo "Deploy queued." ;;
+            *)  echo "::error::Render refused the deploy request (HTTP $code). Failing rather than reporting a deploy that did not happen."; exit 1 ;;
+          esac

@@ -517,7 +517,7 @@ Here is the complete process from start to finish.
 **Step 1: Open the Document Management Center**
 
 In the STING dock panel, click the **BIM** tab. Then click the **Document Management Center**
-button (it shows a filing-cabinet icon). A large dialog with 8 tabs along the top will appear.
+button (it shows a filing-cabinet icon). A large dialog with 9 tabs along the bottom action bar will appear.
 
 Alternatively, in the STING dock panel's BIM tab, look for the **Deliverables** section and
 click **Issue Deliverable** directly if you just want to issue a single document quickly.
@@ -750,169 +750,279 @@ Review the rendered document, save as PDF, attach to a B06 transmittal, and dist
 The Document Management Center (DMC) is the main window for all document management in STING.
 Open it from the BIM tab of the dock panel by clicking **Document Management Center**.
 
-It opens as a large dialog with **8 tabs** along the top. Here is every button on every tab.
+It opens as a large dialog with **9 tabs** along the bottom action bar. Below is every button on
+every tab, grouped exactly as the dialog groups them.
+
+Two things worth knowing before the tables:
+
+- **Buttons behave in two different ways.** Some act immediately on the row you have selected and
+  leave the dialog open. Others *close* the dialog, run a full command, and re-open it afterwards
+  — so the list refreshes when you come back. Both are noted where it matters.
+- **A row is not always a file.** The list mixes real files on disk with entries read from the
+  register, issue, transmittal and export stores. File actions (Open, Rename, Delete, Move) only
+  work on rows backed by a file; on a register-only row the dialog now says so rather than
+  appearing to succeed.
 
 ---
 
-### Tab 1 — FILE/BULK
+### Tab 1 — FILE / BULK
 
-This tab handles batch operations — doing the same thing to many documents at once.
+Acts on whatever is selected in the document list. Use Ctrl+click or Shift+click to select several
+rows before using the BULK group.
 
-| Button | What it does | When to use it |
+**FILE**
+
+| Button | What it does |
+|---|---|
+| **Open** | Opens the selected file in its default Windows application. Double-clicking the row does the same. |
+| **Open Folder** | Opens the containing folder in Windows Explorer. Falls back to the project root if the row has no file. |
+| **Rename** | Renames the selected file, then checks the new name against ISO 19650 and warns if it does not comply. Refuses (and tells you) if the new name is already taken. Shortcut: **F2**. |
+| **Delete** | Moves the selected file to the project recycle bin at `<root>/_data/recycle`. Recoverable via **Restore**. Shortcut: **Delete**. |
+| **Move To** | Moves the selected file to another project folder, chosen from a list. |
+
+**BULK**
+
+| Button | What it does |
+|---|---|
+| **Bulk Move** | Moves every selected file to one chosen folder. Reports how many moved, how many were skipped because they have no file on disk, and names any that failed. |
+| **Bulk Delete** | Recycles every selected file. Same three-way report as Bulk Move. |
+| **Close Issues** | Sets status CLOSED on every selected open issue, in one atomic write, with a status-history entry per issue. |
+| **Delete Notes** | Removes every selected sticky note from the project store. |
+| **Update CDE** | Promotes the selected documents through the ISO 19650 CDE states (WIP → SHARED → PUBLISHED → ARCHIVE). Enforces valid transitions, warns on a mixed-state selection, moves the files, updates the register's suitability and status codes, and raises **one** transmittal covering the batch. |
+| **Update Trans** | Transitions the selected transmittals' status (DRAFT → SENT → RECEIVED → ACKNOWLEDGED → SIGNED). |
+
+**RECOVER**
+
+| Button | What it does |
+|---|---|
+| **Restore** | Recovers a file from the recycle bin. Scans the canonical bin at `<root>/_data/recycle`, the legacy `<root>/_RECYCLE`, and any orphan `_RECYCLE` folders left inside the project tree by older versions. You choose the file, then whether to restore it to its original location or to a folder you pick. If nothing is found, the message lists which bins were scanned. |
+
+**EXPORT**
+
+| Button | What it does |
+|---|---|
+| **Export Visible CSV** | Exports the rows currently visible under the active filter and search — not the whole list. Shortcut: **Ctrl+E**. |
+| **Code Legend** | Opens the ISO 19650 quick-reference table of status, suitability and CDE codes. Shortcut: **Ctrl+L**. |
+
+---
+
+### Tab 2 — FOLDERS
+
+Mirrors the dock panel's folder row so you do not have to close the dialog to run folder setup.
+All five close the dialog and re-open it when the command finishes.
+
+| Button | What it does |
+|---|---|
+| **⚙ Folder Setup** | Creates the project folder tree (CdeFirst, BIM or Mini layout). |
+| **📁 Open Root** | Opens the project root folder in Windows Explorer. |
+| **📊 Folder Health** | Reports on the folder tree: what exists, what is missing, where files have accumulated. |
+| **🔄 Migrate Legacy** | Consolidates legacy folders into the current tree. Opt-in, never deletes — drained folders are renamed `*.migrated_yyyyMMdd`. |
+| **Data Exchange** | Opens the data-exchange configuration dialog. |
+
+---
+
+### Tab 3 — DOCS / CDE
+
+**REGISTER**
+
+| Button | What it does |
+|---|---|
+| **Doc Register** | Opens the full document register. |
+| **Add Doc** | Registers a document in the register. |
+| **Tag Register** | Exports the tag register. |
+| **Naming Check** | Validates document names against the ISO 19650 convention and reports which segments are wrong. |
+
+**CDE**
+
+| Button | What it does |
+|---|---|
+| **Publish CDE** | Packages documents for a CDE publish. |
+| **CDE Status** | CDE health check — how many documents sit in each state and for how long. |
+| **MIDP Tracker** | Master Information Delivery Plan tracker. |
+| **Review Tracker** | Tracks documents out for review and their responses. |
+
+**TRANSMITTAL**
+
+| Button | What it does |
+|---|---|
+| **Create** | Opens the full transmittal command. |
+| **Quick Transmittal** | Raises a transmittal for the selected documents without leaving the dialog — recipients, suitability, delivery tracking and covering notes. Also renders the document and starts the workflow via the transmittal orchestrator. |
+| **Distribution** | Manages revision distribution lists. |
+
+---
+
+### Tab 4 — ISSUES
+
+Issues are formal tracked problems — RFIs from site, coordination clashes, design queries, NCRs.
+
+**CREATE**
+
+| Button | What it does |
+|---|---|
+| **Raise Issue** | Opens the full issue-raising command. |
+| **Quick RFI** | Raises a Request For Information inline, with priority, assignee (from the team registry) and an SLA deadline. |
+| **Quick NCR** | Same, as a Non-Conformance Report. |
+| **Quick SI** | Same, as a Site Instruction. |
+
+**MANAGE**
+
+| Button | What it does |
+|---|---|
+| **Dashboard** | Issue dashboard — counts by status, priority and discipline. |
+| **Update** | Updates an existing issue. |
+| **Filter** | Filters the issue list. |
+| **Batch Update** | Updates several issues at once. |
+| **Select Elements** | Selects the Revit elements linked to the chosen issue. |
+
+**REPORT**
+
+| Button | What it does |
+|---|---|
+| **Timeline** | Issue timeline view. |
+| **Statistics** | Issue statistics. |
+| **Export CSV** | Exports issues to CSV. |
+| **Overdue Report** | Filters the list in place to issues past their due date — does not close the dialog. |
+
+---
+
+### Tab 5 — REVISIONS
+
+| Group | Button | What it does |
 |---|---|---|
-| **Issue Deliverable** | Creates and issues a single deliverable. Opens a form to fill in document details. | Every time you formally issue one document. |
-| **Re-Issue Deliverable** | Re-issues an existing deliverable with a new revision. Pre-fills details from the existing record. | When a document needs a revision issued. |
-| **Publish Deliverable** | Moves a Shared document to Published. Requires Manager role and an existing approval record. | When a document is ready for construction issue. |
-| **Cancel Deliverable** | Formally cancels a document. Generates an A02 cancellation notice. The document moves to Archive. | When a document is no longer needed — for example, a room was removed from the project. |
-| **Supersede Deliverable** | Formally supersedes a document. Generates an A03 notice. Use when issuing a replacement. | When you are replacing a document with a new version and want a formal record of the supersession. |
-| **Replace Deliverable** | Marks the new document as replacing the old one. Generates an A04 notice cross-referencing the superseded document. | Use alongside Supersede — this goes on the new document. |
-| **Bulk Issue Deliverables** | Issues all selected deliverables simultaneously. All succeed or all fail together (atomic). | At a stage gate when you are issuing a large package of drawings at once. |
-| **Import Documents** | Manually registers documents that exist outside STING (e.g. external consultant PDFs) in the document register. | When you receive drawings from another party and want to track them in the same register. |
-| **Export Register** | Exports the complete document register to a CSV spreadsheet. | For reporting, for sharing with parties who do not have access to STING. |
+| — | **★ Revision Dashboard** | The main revision management dashboard. |
+| CREATE | **Create Rev** | Creates a revision. |
+| CREATE | **Auto Cloud** | Automatically places revision clouds around changed elements. |
+| CREATE | **Bulk Stamp** | Applies a revision stamp to many sheets at once. |
+| TRACK | **Dashboard** | Revision tracking dashboard. |
+| TRACK | **Compare** | Compares two revisions. |
+| TRACK | **Track Elements** | Tracks which elements changed in a revision. |
+| TRACK | **Schedule** | Revision schedule with sequence numbers and dates. |
+| TRACK | **Naming Enforce** | Enforces ISO 19650 revision naming (P01 preliminary, C01 construction). |
+| DISTRIBUTE | **Issue Sheets** | Issues the sheets belonging to a revision. |
+| DISTRIBUTE | **Export** | Exports revision data. |
+| DISTRIBUTE | **Tag Integration** | Links revisions to the tag system. |
+| DISTRIBUTE | **Auto on Tag Change** | Automatically raises a revision when tags change. |
 
 ---
 
-### Tab 2 — DOCS/CDE
+### Tab 6 — COORDINATION
 
-This is the main browser for all documents. Think of it as the view into all four drawers.
-
-| Control / Button | What it does |
-|---|---|
-| **Drawer chips (WIP / SHARED / PUBLISHED / ARCHIVE)** | Click a chip to filter the document list to that drawer only. A chip appears greyed out if you do not have access to that drawer. |
-| **Discipline filter** | Dropdown to filter by discipline (A, S, M, E, P, etc.). |
-| **Suitability filter** | Dropdown to filter by suitability code (S0 through S7). |
-| **Search bar** | Free-text search across document names, titles, and authors. |
-| **Document list** | Shows all documents matching the current filters. Click a row to see its detail in the right panel. |
-| **Detail panel (right)** | Shows all fields for the selected document: number, title, discipline, revision, suitability, CDE state, who last changed it, and when. |
-| **Version history** | In the detail panel, shows every past revision of the selected document. Click a row to download that specific version. |
-| **Transition buttons** | In the detail panel: WIP→Shared, Shared→WIP (rework), Shared→Published, Published→Archive. Only the valid next transitions for the selected document and your role are enabled. |
-| **Request Approval** | Creates a formal approval request directed at a Manager. Appears when you try to move to Published without an existing approval. |
-| **Download** | Downloads the current version of the selected document. |
-| **Add Version** | Uploads a new version of an existing document. |
-| **CDE Status** | Opens the CDE health-check screen: how many documents are in each drawer, how long they have been there, and any stale warnings. |
-| **Validate Naming** | Checks whether a filename matches the ISO 19650 naming convention before you upload it. Shows which segments are wrong and what they should be. |
-
----
-
-### Tab 3 — ISSUES
-
-Issues are formal tracked problems — RFIs from site, coordination clashes, design queries.
-
-| Button | What it does |
-|---|---|
-| **Raise Issue** | Opens the issue creation form. Fill in type (RFI, NCR, SI, Coordination), subject, body, discipline, priority, and assignee. |
-| **Issue Dashboard** | A summary view: total issues, open by priority, overdue by assignee. Shows which disciplines are generating the most issues. |
-| **Update Issue** | Edits the status, comment, or assignee on an existing issue. |
-| **Select Issue Elements** | Selects the Revit elements linked to the selected issue directly in the model. |
-| **BCF Export** | Exports all issues as a BCF 2.1 zip file — the standard format for sharing issues with consultants using other software (Navisworks, Solibri). |
-| **BCF Import** | Imports issues from a BCF zip received from another party. |
-| **Close Issue** | Formally closes an issue. Records the resolution. |
-| **Issue filter chips** | Filter by status (Open, In Progress, Resolved, Closed), by discipline, by priority, by assignee. |
-| **Link to Document** | Links the selected issue to a document in the document register — for example, an RFI that led to a drawing change. |
-| **Issue list** | All issues matching the current filter. Click to see detail. |
+| Group | Button | What it does |
+|---|---|---|
+| CLASHES | **Run Clashes** | Runs clash detection between discipline models. |
+| CLASHES | **BCF Export** | Exports issues and clashes as BCF 2.1 with camera viewpoints, for Navisworks / Solibri / BIMcollab. |
+| CLASHES | **BCF Import** | Imports a BCF file and creates issues from it. |
+| REVIEW | **Review Tracker** | Documents out for review. |
+| REVIEW | **Model Health** | Model health dashboard with RAG status. |
+| REVIEW | **Full Compliance** | Compliance dashboard — tags, naming, COBie readiness, BEP. |
+| REVIEW | **Stage Gate** | RIBA stage gate: pass/fail on data-drop readiness. |
+| EXCHANGE | **Excel Export** | Exports element data to Excel. |
+| EXCHANGE | **Excel Import** | Imports from Excel with validation and change preview. |
+| EXCHANGE | **Round-Trip** | Export → edit → import cycle with change tracking. |
+| EXCHANGE | **Platform Sync** | Bidirectional sync with the CDE platform. |
+| BIM | **Project Dash** | Project dashboard. |
+| BIM | **Bulk Export** | Bulk BIM export. |
+| BIM | **Quantities** | Measured quantities. |
+| BIM | **Element Summary** | Element count summary. |
+| LIVE COORDINATION | **★ Coord Center** | Opens the 13-tab BIM Coordination Center. |
+| LIVE COORDINATION | **Dashboard** | Generates the coordination dashboard. |
+| LIVE COORDINATION | **File Monitor** | Toggles the shared-folder file monitor. |
+| LIVE COORDINATION | **Broadcast** | Broadcasts a notification to the team. |
+| LIVE COORDINATION | **Access** | Access control settings. |
 
 ---
 
-### Tab 4 — REVISIONS
+### Tab 7 — HANDOVER
 
-This tab manages drawing revisions across the project.
-
-| Button | What it does |
-|---|---|
-| **Create Revision** | Creates a new revision entry in Revit (the Revit Revisions table). |
-| **Revision Dashboard** | Summary of all revisions: which drawings are at which revision, how many revisions have been issued. |
-| **Auto Revision Cloud** | Automatically creates revision clouds on drawing sheets based on elements that have changed since the last issue. |
-| **Revision Schedule** | Creates a Revit schedule showing all elements and their current revision. |
-| **Track Element Revisions** | Stamps a parameter on each element recording which revision it was current at. |
-| **Revision Compare** | Shows a side-by-side comparison of two revisions of the same document — what changed. |
-| **Issue Sheets for Revision** | Issues all sheets associated with the selected revision as a batch. |
-| **Revision Naming Enforce** | Checks that revision naming conventions (P01, P02, C01, etc.) are being followed consistently. |
-| **Revision Tag Integration** | Links revision triangles on drawings to STING's revision tracking parameters. |
-| **Export Revisions** | Exports the full revision history to a spreadsheet. |
-| **Bulk Revision Stamp** | Stamps a revision code on multiple selected elements at once. |
-| **Auto Revision on Tag Change** | Marks elements for revision automatically when their STING tag parameters change. |
-
----
-
-### Tab 5 — COORDINATION
-
-Coordination is the process of checking that all disciplines' designs work together without
-clashing.
-
-| Button | What it does |
-|---|---|
-| **Review Tracker** | Opens the coordinated-review register. Shows which documents are under review, by whom, and whether they are overdue. |
-| **MIDP Tracker** | Opens the Master Information Delivery Plan view — the list of every planned deliverable for the project with its current status and target date. |
-| **Clash Detection** | Runs a basic in-Revit clash check between disciplines and reports clashes as issues. |
-| **Platform Sync** | Synchronises with an external BIM platform (Autodesk Construction Cloud, Procore, etc.) — pushes issues and document records outward. |
-| **BCF Export / Import** | As in the Issues tab — issue interchange in BCF format. |
-| **BIM Coordination Center** | Opens the full BIM Coordination Center dialog (the 13-tab version) for deeper coordination work. |
-| **LAN Collaboration** | Enables local-network collaboration for teams working without internet access. |
-| **Workset Audit** | Checks worksets are set up correctly for collaborative working in a workshared model. |
-| **Link Manager** | Manages Revit link files (linked models from other disciplines). |
-| **Create Meeting** | Creates a meeting record and ultimately generates D14 minutes. |
-| **Meeting list** | Lists all meetings recorded for the project. Click to open a meeting record. |
+| Group | Button | What it does |
+|---|---|---|
+| COBie | **COBie Export** | Full COBie V2.4 export (19 worksheets). |
+| COBie | **Streaming** | Memory-efficient streaming COBie export for large models. |
+| FM / O&M | **FM Handover** | Generates the FM handover manual. |
+| FM / O&M | **Maintenance** | PPM and reactive maintenance schedule (ASTM E2018 / SFG20). |
+| FM / O&M | **Asset Health** | Asset condition scoring with ISO 15686 lifecycle assessment. |
+| FM / O&M | **Space Handover** | Room-by-room handover report. |
+| PUBLISH | **ACC Publish** | Packages deliverables for Autodesk Construction Cloud. |
+| PUBLISH | **SharePoint** | Exports to a SharePoint / Teams document library. |
+| PUBLISH | **Export Health** | Exports model health data for trend tracking. |
+| REGISTERS & BOQ | **BOQ Export** | Bill of Quantities export. |
+| REGISTERS & BOQ | **Tag Register** | Tag register export. |
+| REGISTERS & BOQ | **Sheet Register** | Sheet register export. |
+| REGISTERS & BOQ | **Drawing Register** | Drawing register schedule. |
+| REGISTERS & BOQ | **Data Drop Check** | Data-drop readiness check. |
+| 4D / 5D | **4D Timeline** | Exports the 4D construction timeline. |
+| 4D / 5D | **5D Cost Data** | Exports 5D cost data. |
 
 ---
 
-### Tab 6 — HANDOVER
+### Tab 8 — NOTES / BEP
 
-Handover is what happens at project completion when you hand over all the information to
-the client and FM team.
+Sticky notes are element-level coordination markup. The Briefcase is the in-Revit reference-document
+viewer. BEP is the BIM Execution Plan.
 
-| Button | What it does |
-|---|---|
-| **Document Briefcase** | Generates the 8-file portable handover package (project info, tag register, compliance report, parameter audit, model statistics, sheet index, discipline breakdown, MIDP register). Saves to a timestamped folder. |
-| **COBie Export** | Exports a full COBie V2.4 workbook (19 worksheets) for the FM team. This is the structured data handover that feeds asset management systems. |
-| **COBie Import** | Imports back a COBie workbook to update model parameters from FM team corrections. |
-| **FM Handover Manual** | Generates a readable operations and maintenance manual referencing all the project's documents. |
-| **O&M Manual** | Similar to FM Handover Manual — a more technically detailed operations manual. |
-| **Asset Health Report** | A snapshot of all assets' current condition and maintenance status. |
-| **Space Handover Report** | A room-by-room report of what is being handed over, suitable for signing by all parties. |
-| **Export Maintenance Schedule** | Exports the SFG20 / BS 8210 maintenance schedule for the FM team. |
-| **COBie Type Map** | Opens the browser for the 70+ equipment category mappings — use this to fix any unmapped equipment before running COBie Export. |
-| **COBie Picklists** | Shows and lets you edit the controlled vocabularies used in the COBie workbook. |
-
----
-
-### Tab 7 — NOTES/BEP
-
-Notes covers sticky notes (element-level coordination markup) and the Briefcase viewer.
-BEP covers the BIM Execution Plan.
-
-| Button | What it does |
-|---|---|
-| **Add Note** | Adds a timestamped sticky note to the selected Revit element(s). |
-| **View Notes** | Shows all sticky notes on the selected element(s) in a list. |
-| **Clear Notes** | Removes sticky notes from the selected element(s). |
-| **Bulk Delete Notes** | Removes all sticky notes from the entire project. Use with care — this is not undoable. |
-| **Export Notes** | Exports all sticky notes to a CSV, with element ID, category, tag, author, date, and note text. |
-| **Select Noted Elements** | Selects all elements in the project that have a sticky note. |
-| **Note Dashboard** | Shows aggregate sticky-note counts by author, discipline, and category. |
-| **Note Search** | Free-text search across all sticky notes. |
-| **Note Categories** | Per-category note counts. |
-| **Briefcase Viewer** | Opens the in-Revit document browser — read BEP, transmittals, and reference documents without leaving Revit. |
-| **Add to Briefcase** | Adds a PDF, DOCX, or XLSX to the project's reference set (the `_BIM_COORD/reference/` folder). |
-| **Read Briefcase Item** | Opens a specific item in the briefcase viewer. |
-| **Create BEP** | Launches the BEP (BIM Execution Plan) wizard — generates a project BEP from a template. |
-| **Update BEP** | Opens the BEP for editing and update. |
-| **Export BEP** | Exports the BEP as a document. |
-| **Generate BEP** | Generates a full BEP document from the BEP data. |
+| Group | Button | What it does |
+|---|---|---|
+| NOTES | **Quick Note** | Creates a project-level text note inline — no element selection needed. |
+| NOTES | **Add Note** | Creates a sticky note linked to the selected Revit elements. Requires a selection in the model. |
+| NOTES | **Dashboard** | Sticky-note counts by author, discipline and category. |
+| NOTES | **Search** | Free-text search across all sticky notes. |
+| NOTES | **Export** | Exports all sticky notes to CSV or JSON. |
+| BRIEFCASE | **Briefcase** | Full briefcase manager. |
+| BRIEFCASE | **View** | Browses reference documents (BEP, standards, specifications) without leaving Revit. |
+| BEP | **Create BEP** | Creates a BEP from one of 22 project-type presets, with 23 ISO 19650-2 §5.3 sections. |
+| BEP | **Generate BEP** | Generates the full BEP document from the BEP data. |
+| BEP | **Update BEP** | Opens the BEP for editing. |
+| BEP | **Export BEP** | Exports the BEP with compliance-scan enrichment and a deliverable manifest. |
+| BEP | **ISO 19650 Ref** | Quick reference for ISO 19650 codes and terminology. |
 
 ---
 
-### Tab 8 — BIM Execution Plan (BEP)
+### Tab 9 — MEETINGS
 
-The BIM tab also includes BIM management commands covered in depth in `BIM_MANAGEMENT_GUIDE.md`.
-The key document-management buttons on this tab:
+Coordination meetings, their actions, and the team/SLA tooling that hangs off them. Almost every
+button here acts inline and leaves the dialog open.
 
-| Button | What it does |
+| Group | Button | What it does |
+|---|---|---|
+| PREPARE | **New Meeting** | Creates a meeting record — 39 AEC/FM meeting types, attendees resolved from the team registry, recurring defaults, and carry-forward of open actions from the previous meeting of the same type. |
+| PREPARE | **Auto Agenda** | Builds an agenda from open issues, clashes, overdue actions and compliance status. |
+| PREPARE | **Meeting Templates** | Inserts a standard agenda from the template library. |
+| DURING | **Log Minutes** | Records minutes against the selected meeting. |
+| DURING | **Add Action** | Adds an action item with owner and due date. |
+| DURING | **Quick Issue** | Raises an ACTION-type issue from the meeting context. |
+| REVIEW | **Meeting History** | Browses past meetings with their minutes and actions. |
+| REVIEW | **Open Actions** | Every action item not yet closed, grouped by owner. |
+| REVIEW | **Export Minutes** | Exports the selected meeting's minutes and actions. |
+| TEAM & SLA | **Team Registry** | Manages the project team: roles, disciplines, companies, contact details. |
+| TEAM & SLA | **Add Member** | Adds a person to the team registry. |
+| TEAM & SLA | **SLA Check** | Checks open issues against their response/closure SLA and flags breaches. |
+| TEAM & SLA | **Workload** | Open issues and actions per team member. |
+| TEAM & SLA | **Notifications** | Reviews the pending notification queue. |
+| COORDINATION | **Send Reminder** | Queues a reminder to the attendees of a meeting. |
+| COORDINATION | **Smart Agenda** | Builds a prioritised agenda weighted by issue age, severity and discipline. |
+| COORDINATION | **Coord Center** | Opens the BIM Coordination Center. |
+
+---
+
+### Keyboard shortcuts
+
+| Key | Action |
 |---|---|
-| **Full Compliance Dashboard** | A complete project-wide health summary: tag compliance, document completeness, issue counts, workflow status. |
-| **Model Health Dashboard** | Focused on model quality: warning counts, unused views, parameter completeness. |
-| **ISO 19650 Reference** | Opens the in-Revit quick reference for ISO 19650 codes and conventions. |
-| **Bulk BIM Export** | Exports multiple formats at once: IFC, COBie, BCF, and PDF drawings as a single batch. |
-| **Stage Compliance Gate** | Checks whether all required deliverables for the current RIBA stage are in the correct CDE state. Use at every stage gate. |
+| **F5** | Refresh — re-reads every store from disk |
+| **F2** | Rename the selected file |
+| **Delete** | Recycle the selected file |
+| **Ctrl+F** | Jump to the search box |
+| **Ctrl+E** | Export the visible rows to CSV |
+| **Ctrl+L** | Open the code legend |
+| **Esc** | Close the dialog |
+
+### Right-click menu
+
+Right-clicking a row offers the file actions above plus: **Copy File to…**, **Auto-correct Name**
+(rename to an ISO 19650-compliant filename), **Set CDE Status**, **Set Document Status**, **Set
+Suitability Code**, and for issue rows **Link to Revision…**, **Change Priority…**, **Assign To…**
+and **Close Issue**. Every one of these reports whether the change actually reached disk — if the
+store has no matching entry, the dialog says so and leaves the row unchanged.
 
 ---
 
@@ -923,17 +1033,16 @@ opening the Document Management Center:
 
 | Button | What it does |
 |---|---|
-| **Issue Deliverable** | Quick issue — same as the FILE/BULK tab button but one click faster. |
-| **Re-Issue Deliverable** | Quick re-issue. |
-| **Publish Deliverable** | Move to Published. Requires approval in place. |
-| **Cancel Deliverable** | Formally cancel. Generates A02 notice. |
-| **Supersede Deliverable** | Formally supersede. Generates A03 notice. |
-| **Replace Deliverable** | Mark as replacing another document. Generates A04 notice. |
-| **Create Transmittal (Orchestrated)** | Full pipeline — number, render, workflow, audit. |
-| **Bulk Issue Deliverables** | Issue all selected deliverables together. |
+| **Issue Deliverable** | Renders the A01 notice, writes revision history, starts the issue workflow and audits it. |
+| **Re-Issue Deliverable** | Bumps the revision and re-issues. |
+| **Publish Deliverable** | Promotes to S4 / the PUBLISHED CDE container. |
+| **Cancel Deliverable** | Formally cancels. Generates an A02 notice and archives the document. |
+| **Supersede Deliverable** | Mints a new number and generates an A03 notice. |
+| **Replace Deliverable** | Generates an A04 replacing notice and cross-links the two documents. |
+| **Create Transmittal (Orchestrated)** | Full pipeline — mint id, render B06, start the workflow, audit. |
+| **Bulk Issue Deliverables** | Issues all selected deliverables in one transaction group. |
 
 ---
-
 ## Part 5 — The Audit Trail
 
 ### Why every action is logged

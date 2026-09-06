@@ -31,8 +31,8 @@ namespace StingTools.Core.Clash
         public string Assignee { get; set; }
         public int RecurrenceCount { get; set; }
         public double TriageScore { get; set; }
-        public int ElementAId { get; set; }
-        public int ElementBId { get; set; }
+        public long ElementAId { get; set; }
+        public long ElementBId { get; set; }
         public string ProjectGuid { get; set; }
     }
 

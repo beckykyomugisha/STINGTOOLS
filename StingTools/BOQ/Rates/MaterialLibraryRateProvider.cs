@@ -51,13 +51,35 @@ namespace StingTools.BOQ.Rates
                             if (v > 0)
                                 return new RateLookup
                                 {
-                                    // CA-1 — ALL_MODEL_COST is entered in the PROJECT BASE
-                                    // currency (UGX), the same basis the bill is in. It was
-                                    // mislabelled "USD", so the registry's FX layer multiplied
-                                    // it by ~3,700 — a silent order-of-magnitude inflation at
-                                    // priority 95. Label it UGX so no FX conversion fires.
+                                    // CA-1 — ALL_MODEL_COST holds USD, so the registry's FX
+                                    // layer must rebase it (× UGX_PER_USD, RateCurrency.ToUgx).
+                                    //
+                                    // The earlier "UGX" label was reasoned from the human case:
+                                    // someone typing into Revit's material browser does enter
+                                    // project-base currency. But almost nothing is hand-typed.
+                                    // MaterialCommands writes ALL_MODEL_COST from the library's
+                                    // MAT_COST_UNIT_USD column, and that is where all 1,279 rows
+                                    // come from — so labelling it UGX suppressed a conversion the
+                                    // value needed, and every material rate priced ~3,700× low.
+                                    // At priority 95 it also OUTRANKS the correct category rate
+                                    // from CsvRateProvider (90), so the wrong figure won.
+                                    //
+                                    // Measured across the shipped library: MAT_COST_UNIT_UGX is
+                                    // not independent data — it is MAT_COST_UNIT_USD × 3700 on
+                                    // every one of the 815 BLE rows and 441 of 464 MEP rows (the
+                                    // rest are 3750/3722 rounding). So the UGX column cannot be
+                                    // the fix: reading it would freeze a 2026 rate into every
+                                    // material permanently and drift as the shilling moves.
+                                    // The library's real price is USD. Label it honestly and let
+                                    // the one FX layer convert, so rates follow UGX_PER_USD.
+                                    //
+                                    // Residual ambiguity, unresolved here: a hand-typed UGX cost
+                                    // is now read as USD and inflated. The provider cannot tell
+                                    // the two apart while both share ALL_MODEL_COST — the real
+                                    // fix is a dedicated STING_MAT_RATE_* pair stamped at
+                                    // material creation (gap E-12), which is not this pass.
                                     UnitRate = v,
-                                    CurrencyCode = "UGX",
+                                    CurrencyCode = "USD",
                                     Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
                                     SourceId = Id,
                                     Confidence = 95,
@@ -74,8 +96,13 @@ namespace StingTools.BOQ.Rates
                 if (libVal > 0)
                     return new RateLookup
                     {
-                        // CA-1 — MATERIAL_LOOKUP.csv costs are in the project base
-                        // currency (UGX), not USD. See ALL_MODEL_COST note above.
+                        // CA-1 — MATERIAL_LOOKUP.csv is a DIFFERENT source from the
+                        // USD material library above, so it keeps the base-currency
+                        // (UGX) label; do not read the ALL_MODEL_COST note as applying
+                        // here. Unverified either way in practice: the file carries no
+                        // cost property in any group, so GetCost returns 0 and this
+                        // tier is unreachable (gap E-8). Settle the currency when a
+                        // cost column is actually added.
                         UnitRate = libVal,
                         CurrencyCode = "UGX",
                         Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,

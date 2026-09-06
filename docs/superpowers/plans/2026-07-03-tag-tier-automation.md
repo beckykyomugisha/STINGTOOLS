@@ -1,5 +1,13 @@
 # Tag Tier Automation Implementation Plan
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../../../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Automatically populate tier rows 2–10 (containers `ASS_TAG_2_TXT … ASS_TAG_10_TXT`) as visible, depth-gated label rows across all 206 tag families, with **zero per-family manual Family-Editor work**, reusing the existing `FamilyLabelAuthor` tier pipeline.

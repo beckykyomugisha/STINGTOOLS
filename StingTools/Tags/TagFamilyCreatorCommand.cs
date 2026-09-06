@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1006,10 +1006,20 @@ namespace StingTools.Tags
         /// Seed families are the gold standard — they have Label → ASS_TAG_1_TXT
         /// already configured, so they work immediately without manual Family Editor steps.
         ///
-        /// Search order:
-        ///   1. Data/TagFamilies/Seeds/  (distributed seed files)
-        ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
-        /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
+        /// Searched in Data/TagFamilies/ — the one tag family set, and the same
+        /// folder Configure Labels writes to, so a family configured once is found
+        /// on the next run.
+        ///
+        /// Data/TagFamilies/Seeds/ IS NO LONGER SEARCHED and no longer exists. It
+        /// held 137 pre-Phase-188 files whose labels reference parameters Phase 188
+        /// retyped, which is what produced the recurring "Inconsistent Units" error.
+        /// It was searched FIRST, so a stale seed shadowed the current family for
+        /// every category it covered. Do not reinstate it.
+        ///
+        /// This method previously documented a second search of Data/TagFamilies/
+        /// and never performed it: it checked Seeds/ alone and returned null
+        /// otherwise, so a user-configured family was never found. That second
+        /// search is what this now does.
         /// </summary>
         public static string FindSeedFamily(BuiltInCategory bic)
         {
@@ -1018,17 +1028,15 @@ namespace StingTools.Tags
             string dataPath = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(dataPath)) return null;
 
-            // Check Seeds/ subdirectory first (distributed with the plugin)
-            string seedDir = Path.Combine(dataPath, "TagFamilies", "Seeds");
-            if (Directory.Exists(seedDir))
-            {
-                string seedPath = Path.Combine(seedDir, baseName);
-                if (File.Exists(seedPath)) return seedPath;
+            string dir = Path.Combine(dataPath, "TagFamilies");
+            if (!Directory.Exists(dir)) return null;
 
-                // Also check for _seed suffix variant
-                string seedSuffix = Path.Combine(seedDir, nameNoExt + "_seed.rfa");
-                if (File.Exists(seedSuffix)) return seedSuffix;
-            }
+            string path = Path.Combine(dir, baseName);
+            if (File.Exists(path)) return path;
+
+            // "_seed" suffix variant, kept for families named that way by hand.
+            string suffixed = Path.Combine(dir, nameNoExt + "_seed.rfa");
+            if (File.Exists(suffixed)) return suffixed;
 
             return null;
         }
@@ -1099,14 +1107,13 @@ namespace StingTools.Tags
             // dead-end. TagConfigPlanResolver / FamilyLabelAuthor / HandoverModeHelper mode
             // loading are gone from here.
 
-            // ── Pre-check: Auto-fix any numeric label params to TEXT ──
+            // ── Pre-check: Validate label param types (informational only — do NOT auto-fix MR_PARAMETERS.txt) ──
+            // AutoFixSourceFile() removed: it re-manufactured type conflicts by rewriting MR_PARAMETERS.txt
+            // to TEXT on every CreateTagFamilies run. Correct architecture uses _TXT mirror params.
             var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
             if (typeMismatches.Count > 0)
-            {
-                int autoFixed = LabelParamTypeValidator.AutoFixSourceFile();
-                if (autoFixed > 0)
-                    StingLog.Info($"Auto-fixed {autoFixed} label params to TEXT before family creation");
-            }
+                StingLog.Warn($"Label param type check: {typeMismatches.Count} non-TXT params referenced in label " +
+                    "tiers. These should reference _TXT mirror params instead. No auto-fix applied.");
 
             // ── Step 1: Locate annotation templates ──
             string templateDir = TagFamilyConfig.FindTemplateDirectory(app);
@@ -2001,7 +2008,7 @@ namespace StingTools.Tags
                 report.AppendLine("author label rows; they come from the universal master.");
                 report.AppendLine();
                 report.AppendLine("TIP: after propagating, copy finished .rfa files to");
-                report.AppendLine("Data/TagFamilies/Seeds/ to skip creation next time.");
+                report.AppendLine("Data/TagFamilies/ to skip creation next time.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
@@ -2165,7 +2172,7 @@ namespace StingTools.Tags
                             // Attempt to set the FamilyLabel to our tag parameter.
                             // This works for dimension labels in families but may not
                             // work for annotation text labels (which is the Revit limitation).
-                            if (dim.FamilyLabel != null || dim.FamilyLabel == null)
+                            if (dim.FamilyLabel == null)
                             {
                                 dim.FamilyLabel = tagParam;
                                 StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
@@ -2281,6 +2288,89 @@ namespace StingTools.Tags
         /// </summary>
         private bool LoadFamilyIntoProject(Document doc, string familyPath, string expectedName)
         {
+            // ── GUID/type pre-screen ──
+            // doc.LoadFamily() raises an unrecoverable Error-severity modal when the family
+            // carries a shared param whose GUID already exists in the project with a different
+            // data type (e.g. family has BLE_WALL_THICKNESS_MM as Text, project has it as Length).
+            // Build a project-side GUID→typeId index and warn before calling LoadFamily.
+            var projectSpecByGuid = new Dictionary<Guid, (string name, string typeId)>();
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
+                {
+                    try
+                    {
+                        Guid g = spe.GuidValue;
+                        var intDef = spe.GetDefinition();
+                        string name = intDef?.Name ?? "";
+                        string typeId = null;
+                        try { typeId = intDef?.GetDataType()?.TypeId; } catch { }
+                        projectSpecByGuid[g] = (name, typeId);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadFamilyIntoProject: could not pre-scan project SharedParameterElements: {ex.Message}");
+            }
+
+            // Open the family's shared-param definitions and check for type conflicts.
+            // We cannot open the .rfa here without a Transaction, so we read the family's
+            // ExternalDefinitionCreationOptions from the shared param file it was built with.
+            // The conservative approach: if we cannot verify, proceed and catch the exception.
+            int conflictCount = 0;
+            if (projectSpecByGuid.Count > 0)
+            {
+                try
+                {
+                    string spFilePath = doc.Application.SharedParametersFilename;
+                    if (!string.IsNullOrEmpty(spFilePath) && System.IO.File.Exists(spFilePath))
+                    {
+                        var app = doc.Application;
+                        string prevPath = app.SharedParametersFilename;
+                        DefinitionFile defFile = app.OpenSharedParameterFile();
+                        app.SharedParametersFilename = prevPath;
+                        if (defFile != null)
+                        {
+                            foreach (DefinitionGroup grp in defFile.Groups)
+                            {
+                                foreach (Definition d in grp.Definitions)
+                                {
+                                    if (d is ExternalDefinition ed)
+                                    {
+                                        if (projectSpecByGuid.TryGetValue(ed.GUID, out var proj))
+                                        {
+                                            string newTypeId = null;
+                                            try { newTypeId = ed.GetDataType()?.TypeId; } catch { }
+                                            if (newTypeId != null && proj.typeId != null &&
+                                                newTypeId != proj.typeId)
+                                            {
+                                                StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': " +
+                                                    $"GUID {ed.GUID} param '{ed.Name}' type mismatch — " +
+                                                    $"family={newTypeId} project={proj.typeId}. " +
+                                                    "Family may cause Error modal. Proceeding with load.");
+                                                conflictCount++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': pre-screen error (non-fatal): {ex.Message}");
+                }
+                if (conflictCount > 0)
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': {conflictCount} GUID/type conflict(s) detected. " +
+                        "Fix _TXT mirror params in MR_PARAMETERS.txt before loading families.");
+            }
+
             try
             {
                 using (Transaction tx = new Transaction(doc, $"STING Load Tag Family"))
@@ -2724,7 +2814,7 @@ namespace StingTools.Tags
                     ? "Run this command again to configure remaining families."
                     : "All tag families have been opened for configuration.\n\n" +
                       "TIP: Copy finished .rfa files from Data/TagFamilies/ to\n" +
-                      "Data/TagFamilies/Seeds/ so they auto-load next time.");
+                      "Data/TagFamilies/ so they auto-load next time.");
             summary.Show();
 
             StingLog.Info($"ConfigureTagLabels: configured={configured}, skipped={skipped}");

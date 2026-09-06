@@ -28,6 +28,14 @@ blender_version_min = "4.2.0"
 license = ["SPDX:MIT"]
 copyright = ["2026 Planscape Limited"]
 
+# Bundled Python dependency — the shared STING core. Declaring it here is the
+# Blender-sanctioned way to ship a dependency: Blender installs the wheel into
+# the extension's own isolated environment, so `import stingtools_core` works
+# with NO sys.path manipulation and NO top-level-module policy violation (the
+# old _vendor/sys.path approach tripped both). Build the wheel into ./wheels/
+# before packaging — see BUILD.md. Not on PyPI, so it must be bundled.
+wheels = ["./wheels/stingtools_core-0.1.0-py3-none-any.whl"]
+
 # Relationship with Bonsai
 # ───────────────────────
 # Bonsai (formerly BlenderBIM) is the IFC layer for Blender.

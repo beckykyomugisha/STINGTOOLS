@@ -75,6 +75,9 @@ namespace StingTools.Core.Mep
         public string SizeLabel { get; set; }
         public string PrevSize { get; set; }
         public bool IsRound { get; set; }
+        /// <summary>True when the velocity-based size was upsized to satisfy the
+        /// role's Pa/m friction budget (friction, not velocity, governed).</summary>
+        public bool FrictionGoverned { get; set; }
     }
 
     public sealed class DuctSizingApplyResult
@@ -202,7 +205,8 @@ namespace StingTools.Core.Mep
                         if (wrote)
                         {
                             result.Written++;
-                            StampSizingAudit(d, change.PrevSize, change.SizeLabel, change.RoleId, change.RoleSource);
+                            StampSizingAudit(d, change.PrevSize, change.SizeLabel, change.RoleId,
+                                change.RoleSource, change.FrictionGoverned);
                             try { ParameterHelpers.SetString(d, P_PCLS, pressureClassId, overwrite: true); }
                             catch (Exception exPc) { StingLog.Warn($"PressureClass stamp {d.Id}: {exPc.Message}"); }
                         }
@@ -257,6 +261,7 @@ namespace StingTools.Core.Mep
                         : HvacSegmentRoleDetector.DetectRole(doc, d);
                     double maxVelMs = DuctMaxVelMsFallback;
                     double maxAspect = MaxAspectFallback;
+                    double maxFrictionPaPerM = 0;   // 0 ⇒ no friction budget → velocity-only (legacy path)
                     string roleSrc = "fallback";
                     if (rules != null)
                     {
@@ -265,9 +270,17 @@ namespace StingTools.Core.Mep
                         {
                             maxVelMs = role.MaxVelocityMs;
                             maxAspect = role.AspectMax > 0 ? role.AspectMax : MaxAspectFallback;
+                            maxFrictionPaPerM = role.MaxFrictionPaPerM;   // e.g. main 1.2 / branch 1.0 / runout 0.8
                             roleSrc = string.IsNullOrEmpty(role.Source) ? "registry" : role.Source;
                         }
                     }
+                    // Air density: the duct default region's value (the header /
+                    // climate registry feed the region), falling back to the friction
+                    // solver's sea-level constant. Same physical quantity the
+                    // pressure-class audit reads for its dynamic-pressure term.
+                    double airDensity = rules != null
+                        ? rules.DefaultAirDensityKgM3()
+                        : Calc.DuctFrictionSolver.AirDensityKgM3;
 
                     double flowLs = MepUnits.ReadAirFlowLs(d, "HVC_FLOW_LS");
                     if (flowLs <= 0)
@@ -294,6 +307,48 @@ namespace StingTools.Core.Mep
                     bool isRound = !HasWritableGeometry(d, "Width") && !HasWritableGeometry(d, "Height")
                                    && HasWritableGeometry(d, "Diameter");
 
+                    // ── Friction (Pa/m) budget enforcement ─────────────────────────
+                    // The velocity size above only caps air speed. A long main at high
+                    // flow can satisfy velocity yet exceed the role's Pa/m target. Here
+                    // we compute straight-run friction at the chosen size + design flow
+                    // and, while it exceeds maxFrictionPaPerM, step up ONE standard size
+                    // and re-check — bounded by the size-table length so we can never
+                    // run off the end or loop forever. When friction wins, the size grows
+                    // and frictionGoverned flags the audit stamp.
+                    bool frictionGoverned = false;
+                    if (maxFrictionPaPerM > 0 && flowM3s > 0)
+                    {
+                        // Iteration cap = table length (each step advances one table slot).
+                        int maxSteps = Math.Max(1, sizeTable.Length);
+                        for (int step = 0; step < maxSteps; step++)
+                        {
+                            double paPerM = StraightFrictionPaPerM(
+                                isRound, isRound ? stdDiaMm : widthMm, isRound ? 0 : heightMm,
+                                flowM3s, airDensity);
+                            if (paPerM <= 0 || paPerM <= maxFrictionPaPerM) break;   // within budget (or unmeasurable)
+
+                            // Step up to the next standard size. If we're already at the
+                            // largest table entry, stop — nothing larger to try.
+                            if (isRound)
+                            {
+                                double next = NextSizeUp(stdDiaMm, sizeTable);
+                                if (next <= stdDiaMm) break;
+                                stdDiaMm = next;
+                            }
+                            else
+                            {
+                                // Grow the governing (larger) side first, then rebalance the
+                                // other side to keep the aspect within the role clamp.
+                                double nextW = NextSizeUp(widthMm, sizeTable);
+                                if (nextW <= widthMm) break;
+                                widthMm = nextW;
+                                if (widthMm / heightMm > maxAspect)
+                                    heightMm = MepSizeTables.RoundUpTo(widthMm / maxAspect, sizeTable);
+                            }
+                            frictionGoverned = true;
+                        }
+                    }
+
                     proposals.Add(new DuctSizingChange
                     {
                         ElementId = d.Id.Value,
@@ -304,6 +359,7 @@ namespace StingTools.Core.Mep
                         HeightMm = heightMm,
                         DiameterMm = stdDiaMm,
                         IsRound = isRound,
+                        FrictionGoverned = frictionGoverned,
                         SizeLabel = isRound ? $"Ø{stdDiaMm:F0}" : $"{widthMm:F0}x{heightMm:F0}",
                         PrevSize = SnapshotDuctSize(d),
                     });
@@ -323,6 +379,39 @@ namespace StingTools.Core.Mep
             catch { return false; }
         }
 
+        /// <summary>
+        /// Straight-run friction gradient (Pa per metre) for a duct of the given
+        /// size + design flow, via <see cref="Calc.DuctFrictionSolver"/> at the
+        /// supplied air density. Solved over a 1 m reference length so the returned
+        /// StraightDropPa IS Pa/m (the straight drop is linear in length). Returns 0
+        /// when the solver can't produce a result (degenerate size / flow).
+        /// </summary>
+        private static double StraightFrictionPaPerM(bool isRound, double sideAMm, double sideBMm,
+            double flowM3s, double airDensityKgM3)
+        {
+            try
+            {
+                var shape = isRound ? Calc.DuctShape.Round : Calc.DuctShape.Rectangular;
+                var fr = Calc.DuctFrictionSolver.Solve(
+                    shape, sideAMm, isRound ? 0 : sideBMm, 1.0, flowM3s, null,
+                    Calc.DuctFrictionSolver.GalvRoughnessM, airDensityKgM3);
+                return fr?.StraightDropPa ?? 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"StraightFrictionPaPerM: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// Return the next standard size strictly larger than <paramref name="currentMm"/>
+        /// from <paramref name="table"/>. If none is larger (already at the top), returns
+        /// the current value so the caller's loop terminates.
+        /// </summary>
+        private static double NextSizeUp(double currentMm, double[] table)
+        {
+            if (table == null || table.Length == 0) return currentMm;
+            foreach (var t in table) if (t > currentMm + 1e-6) return t;
+            return currentMm;   // already at the largest available size
+        }
+
         // ── audit-trail helpers (verbatim from MepAutoSizeDuctCommand) ─────────────
 
         private static string SnapshotDuctSize(Element d)
@@ -339,15 +428,19 @@ namespace StingTools.Core.Mep
             return "";
         }
 
-        private static void StampSizingAudit(Element el, string previous, string current, string roleId, string ruleSrc)
+        private static void StampSizingAudit(Element el, string previous, string current, string roleId,
+            string ruleSrc, bool frictionGoverned)
         {
             try
             {
                 if (!string.IsNullOrEmpty(previous))
                     ParameterHelpers.SetString(el, P_PREV, previous, overwrite: true);
                 ParameterHelpers.SetString(el, P_MOD, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), overwrite: true);
-                ParameterHelpers.SetString(el, P_RULE,
-                    string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}", overwrite: true);
+                // Rule id records role|source, plus a "|friction" suffix when the
+                // Pa/m budget (not velocity) governed the final size.
+                string ruleId = string.IsNullOrEmpty(roleId) ? ruleSrc : $"{roleId}|{ruleSrc}";
+                if (frictionGoverned) ruleId += "|friction";
+                ParameterHelpers.SetString(el, P_RULE, ruleId, overwrite: true);
             }
             catch (Exception ex) { StingLog.Warn($"StampSizingAudit {el.Id}: {ex.Message}"); }
         }

@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqSignOff.cs (QS gap G9) — QS sign-off record + "uncertified" draft stamp.
 //
 //  Until a QS records a sign-off against the current snapshot, every exported
@@ -35,7 +35,7 @@ namespace StingTools.BOQ
             {
                 string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_signoff.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_signoff.json");
             }
             catch { return null; }
         }

@@ -1,4 +1,4 @@
-// StingTools — Sustainability registry facade (Phase 195, Revit-facing).
+﻿// StingTools — Sustainability registry facade (Phase 195, Revit-facing).
 //
 // Resolves the corporate-baseline data-file paths + the per-project _BIM_COORD
 // overrides and hands them to the pure-POCO registry loaders. Caches per
@@ -115,7 +115,7 @@ namespace StingTools.Core.Sustainability
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 string dir = Path.GetDirectoryName(doc.PathName) ?? "";
-                return Path.Combine(dir, "_BIM_COORD", "sustainability", fileName);
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "sustainability", fileName);
             }
             catch { return null; }
         }

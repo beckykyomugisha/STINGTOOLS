@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Caching.Distributed;
 using Planscape.Infrastructure.Data;
 using Planscape.Core.Entities;
 using System.Net.Http.Headers;
@@ -117,6 +118,26 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         if (disposing && UsingPostgres) DropPgDatabase();
     }
 
+    /// <summary>
+    /// True for a service descriptor registered through an implementation FACTORY
+    /// that lives in a Hangfire assembly — the case a name check on
+    /// <c>ServiceType</c> / <c>ImplementationType</c> cannot see, because a
+    /// factory registration leaves <c>ImplementationType</c> null.
+    ///
+    /// The one that matters is <c>AddHangfireServer</c>'s
+    /// <c>Hangfire.BackgroundJobServerHostedService</c> (assembly
+    /// <c>Hangfire.NetCore</c>), registered as <c>IHostedService</c>. See #494.
+    ///
+    /// Matches on the assembly rather than the type name so a rename inside
+    /// Hangfire does not silently re-open the hole this closes.
+    /// </summary>
+    private static bool IsHangfireFactoryRegistration(ServiceDescriptor d)
+    {
+        var declaringAssembly = d.ImplementationFactory?.Method.DeclaringType?.Assembly;
+        var name = declaringAssembly?.GetName().Name;
+        return name != null && name.StartsWith("Hangfire", StringComparison.Ordinal);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
@@ -180,11 +201,37 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
             // executed — exactly what a controller test wants.
             var hangfireDescriptors = services
                 .Where(d => d.ServiceType.FullName?.Contains("Hangfire") == true
-                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true)
+                         || d.ImplementationType?.FullName?.Contains("Hangfire") == true
+                         // DEP-7 residue (#494). AddHangfireServer registers its
+                         // background server as IHostedService through an
+                         // implementation FACTORY, so ServiceType is
+                         // Microsoft.Extensions.Hosting.IHostedService and
+                         // ImplementationType is NULL — neither of the two clauses
+                         // above can see it. The server therefore survived this
+                         // removal and really did start, despite the comment below
+                         // saying none does.
+                         //
+                         // Consequence: every host ran a BackgroundServerProcess,
+                         // and each one raced the others' in-memory storage on
+                         // teardown, logging 13 warnings per suite run:
+                         //
+                         //   [WRN] Server ... there was an exception, server may not be removed
+                         //   System.ObjectDisposedException: ... Hangfire.InMemory.State.Dispatcher`1
+                         //     at InMemoryConnection`1.RemoveServer(String serverId)
+                         //     at BackgroundServerProcess.ServerDelete(...)
+                         //
+                         // Benign today — Hangfire catches it and no test fails —
+                         // but it is the same shared-state-at-teardown class of bug
+                         // DEP-7 was, still live, and still able to grow teeth.
+                         || IsHangfireFactoryRegistration(d))
                 .ToList();
             foreach (var d in hangfireDescriptors) services.Remove(d);
 
             services.AddHangfire(cfg => cfg.UseInMemoryStorage());
+            // Note: AddHangfire alone registers no server, so nothing re-adds the
+            // hosted service removed above. Jobs are registered but never executed
+            // — exactly what a controller test wants.
+            //
             // Deliberately does NOT assign Hangfire.JobStorage.Current.
             //
             // Program.cs now registers its recurring jobs through the
@@ -222,6 +269,22 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
                                 .TransactionIgnoredWarning)));
             }
 
+            // Redis-backed IDistributedCache → in-process memory. With real Redis
+            // in CI, the fixed test GUIDs plus the shared "Planscape:" InstanceName
+            // mean a project-visibility verdict cached by one test class
+            // ("pv:{tenant}:{user}:{project}") is a live cross-test hit for a
+            // parallel class that has different DB state — a flaky, order-dependent
+            // false pass/fail. Give every factory instance its own
+            // MemoryDistributedCache so there is nothing to bleed between hosts.
+            // (The cache-outage regression test builds its own host without this
+            // factory, so its coverage is unaffected.) AddDistributedMemoryCache
+            // uses TryAdd, so the Redis registration must be removed first.
+            var cacheDescriptors = services
+                .Where(d => d.ServiceType == typeof(IDistributedCache))
+                .ToList();
+            foreach (var d in cacheDescriptors) services.Remove(d);
+            services.AddDistributedMemoryCache();
+
             // Build the service provider and seed test data
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
@@ -233,6 +296,26 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 
     private static void SeedTestData(PlanscapeDbContext db)
     {
+        // This runs from the ConfigureWebHost services callback, which is NOT
+        // guaranteed to fire once per host: HostApplicationBuilder replays the
+        // accumulated ConfigureServices delegates through
+        // HostBuilderAdapter.ApplyChanges(). A second pass rebuilds the service
+        // provider but keeps this factory instance's _dbName, so it re-seeds the
+        // SAME in-memory store and EF InMemory throws
+        // "An item with the same key has already been added. Key: 11111111-..."
+        // out of host construction — which surfaces as every test in the class
+        // failing, not as a seeding error. Observed only in CI (12-16 tests
+        // across HandoffProvisioningTests / AuditCategoriesConfiguredTests /
+        // ProjectsControllerTests); it does not reproduce locally.
+        //
+        // The seed is fixed-GUID and deterministic, so a presence check is a
+        // complete guard: the first pass leaves exactly the state a second pass
+        // would have produced. IgnoreQueryFilters because the tenant query
+        // filter falls back to Guid.Empty when no tenant context is resolvable
+        // here, which would match no rows and defeat the check.
+        if (db.Tenants.IgnoreQueryFilters().Any(t => t.Id == TestData.TenantId))
+            return;
+
         // Create test tenant
         var tenant = new Tenant
         {

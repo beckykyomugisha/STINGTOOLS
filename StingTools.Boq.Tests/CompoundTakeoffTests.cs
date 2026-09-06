@@ -37,7 +37,7 @@ namespace StingTools.Boq.Tests
             Assert.Contains("blockwork", kinds);
             Assert.Contains("plaster", kinds);
             Assert.Contains("mortar", kinds);
-            Assert.Contains("units", kinds);
+            Assert.Contains("block_units", kinds);   // brick and block are distinct kinds now
             // No formwork for non-RC masonry.
             Assert.DoesNotContain("formwork", kinds);
         }
@@ -75,7 +75,10 @@ namespace StingTools.Boq.Tests
         public void Plaster_Cement_And_Sand_Derive_From_Plaster_Volume()
         {
             var lines = CompoundTakeoff.MasonryWall(BlockWall(2));
-            double vol = 40.0 * 0.013 * 1.20;                 // area×faces × thk × (1+waste)
+            // NET of waste: the supplier-unit rule owns the allowance, so the
+            // engine no longer multiplies by PlasterWastePct. Applying it here
+            // AND in the rule wasted the derived cement and sand twice.
+            double vol = 40.0 * 0.013;                        // area×faces × thickness
             double sand = lines.Single(l => l.Kind == "plaster_sand").Quantity;
             Assert.Equal(vol * 1.25, sand, 4);
         }

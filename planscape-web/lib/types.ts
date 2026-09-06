@@ -47,6 +47,13 @@ export interface BimIssue {
   status: IssueStatus;
   assignee: string;
   assigneeEmail?: string;
+  /**
+   * FK to the assigned AppUser — what the server actually enforces against
+   * project membership. `assignee` is the legacy display-name twin and is kept
+   * because plugin/mobile callers still send it; prefer this when writing, and
+   * use it to preselect a member picker on read.
+   */
+  assigneeUserId?: string | null;
   discipline: string;
   createdAt: string;
   dueDate?: string;
@@ -112,6 +119,10 @@ export interface ProjectModel {
   format?: string;
   revision?: string;
   uploadedAt?: string;
+  /** Set only on rows from listModels(projectId, { deleted: true }). The server
+   *  soft-deletes and purges the bytes 30 days later, so this is what the UI counts
+   *  down from — otherwise the restore window is invisible and the user has to guess. */
+  deletedAt?: string;
 }
 
 // Federation — one Draco/GLB chunk per discipline (+level/system), produced by
@@ -292,8 +303,9 @@ export interface TenantDashboard {
     createdAt?: string;
   };
   usage: {
-    authors: TenantQuotaAxis;
-    coordinators: TenantQuotaAxis;
+    // No authors / coordinators: the .NET per-user quota axes are retired
+    // (#619) and seat entitlement is the StingTools licence counted in D1
+    // (#621). The dashboard no longer sends them.
     projects: TenantQuotaAxis;
     storage: { currentMb: number; maxMb: number };
     memberSeats?: number;

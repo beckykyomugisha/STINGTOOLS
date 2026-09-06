@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — Drawing Template Manager
 //
 // DrawingTypeRegistry is the single access point for resolved Drawing
@@ -387,7 +387,7 @@ namespace StingTools.Core.Drawing
                 if (string.IsNullOrEmpty(projPath)) return null;
                 var dir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var path = Path.Combine(dir, "_BIM_COORD", "drawing_types.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
                 if (!File.Exists(path)) return null;
                 var jsonOnDisk = File.ReadAllText(path);
                 var libOnDisk = JsonConvert.DeserializeObject<DrawingTypeLibrary>(jsonOnDisk);

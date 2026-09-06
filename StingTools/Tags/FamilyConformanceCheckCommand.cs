@@ -375,7 +375,7 @@ namespace StingTools.Tags
             // Prefer the project's _BIM_COORD folder; fall back to %TEMP%.
             try
             {
-                var doc = cd?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(cd);
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
                     string projDir = Path.GetDirectoryName(doc.PathName);
