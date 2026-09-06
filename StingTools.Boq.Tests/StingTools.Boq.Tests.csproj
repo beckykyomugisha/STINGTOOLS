@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.6.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
@@ -51,6 +52,10 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\TileScanTally.cs" Link="MaterialSchedule\TileScanTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\FinishTextClassifier.cs" Link="MaterialSchedule\FinishTextClassifier.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoomFinishTally.cs" Link="MaterialSchedule\RoomFinishTally.cs" />
+    <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
+         is testable, not just the model behind it. -->
+    <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
+    <Compile Include="..\StingTools\BOQ\MaterialSchedule\MaterialScheduleXlsxWriter.cs" Link="MaterialSchedule\MaterialScheduleXlsxWriter.cs" />
     <Compile Include="..\StingTools\Core\ExportRouteMerge.cs" Link="ExportRouteMerge.cs" />
   </ItemGroup>
 

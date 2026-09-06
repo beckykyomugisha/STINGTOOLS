@@ -195,9 +195,30 @@ namespace StingTools.BOQ.MaterialSchedule
         private static void WriteValidationSheet(IXLWorksheet ws, MaterialScheduleDocument doc)
         {
             BoqXlsxStyle.BannerRow(ws, "VALIDATION");
-            BoqXlsxStyle.WriteHeader(ws, 3, new[] { "Code", "Stage", "Commodity", "Issue" });
 
-            int row = 4;
+            int row = 3;
+
+            // Export notes FIRST. They explain why the schedule looks the way it
+            // does — which sections are empty and why — so they belong above the
+            // per-row issues, not after them.
+            if (doc.Warnings != null && doc.Warnings.Count > 0)
+            {
+                BoqXlsxStyle.WriteHeader(ws, row, new[] { "", "", "", "EXPORT NOTES — what this run did and did not measure" });
+                row++;
+                foreach (string w in doc.Warnings)
+                {
+                    if (string.IsNullOrWhiteSpace(w)) continue;
+                    ws.Cell(row, 1).Value = "NOTE";
+                    ws.Cell(row, 4).Value = w;
+                    ws.Cell(row, 4).Style.Alignment.WrapText = true;
+                    row++;
+                }
+                row++;   // one blank line between the notes and the issues
+            }
+
+            BoqXlsxStyle.WriteHeader(ws, row, new[] { "Code", "Stage", "Commodity", "Issue" });
+            row++;
+            int firstIssueRow = row;
             foreach (var i in doc.Reconciliation.Issues)
             {
                 ws.Cell(row, 1).Value = i.Code;
@@ -208,8 +229,8 @@ namespace StingTools.BOQ.MaterialSchedule
                 row++;
             }
             if (doc.Reconciliation.IsClean)
-                ws.Cell(4, 1).Value = "No reconciliation issues. Rates are consistent, "
-                                    + "sections are correctly lettered, and every commodity is priced.";
+                ws.Cell(firstIssueRow, 1).Value = "No reconciliation issues. Rates are consistent, "
+                                                + "sections are correctly lettered, and every commodity is priced.";
 
             ws.Column(4).Width = 90;
             foreach (var c in ws.Columns(1, 3)) c.AdjustToContents();
