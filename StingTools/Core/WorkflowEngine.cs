@@ -348,6 +348,7 @@ namespace StingTools.Core
             "Fohlio_ExportFinishes", "Fohlio_ImportFinishes", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
+            "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -1602,6 +1603,9 @@ namespace StingTools.Core
                 case "Fohlio_ImportFinishes": return new ExLink.FohlioImportFinishesCommand();
                 case "Niagara_ExportPoints": return new Commands.Twin.NiagaraPointListExportCommand();
                 case "Niagara_Reconcile":    return new Commands.Twin.NiagaraReconcileCommand();
+                case "KUT_ValuationFromBms":       return new Commands.Twin.KutValuationFromBmsCommand();
+                case "KUT_LifecycleReconcile":     return new Commands.Twin.KutLifecycleReconcileCommand();
+                case "KUT_PushLifecycleGapsToAcc": return new Commands.Twin.KutPushLifecycleGapsToAccCommand();
                 case "DeviceCoord_Audit": return new Commands.Validation.DeviceCoordinationCommand();
                 // "Lite_ComCheck" is the Electrical panel's button tag for this same
                 // command. A user writing a project-local preset reasonably copies the

@@ -137,3 +137,8 @@ marketing-site/tests/.bundle.test.mjs
 
 # Bonsai extension: core wheel is built at package time (see BUILD.md)
 stingtools-bonsai/wheels/*.whl
+
+# Niagara BMS station connection (base URL + API key or username/password) is
+# user-created at runtime under <project>/_BIM_COORD/ and must never be committed.
+niagara_connection.json
+**/niagara_connection.json

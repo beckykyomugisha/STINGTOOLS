@@ -62,6 +62,63 @@ namespace StingTools.BOQ.Rates
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    //  1b. Fohlio FF&E procurement rate (priority 96)
+    //  Owner-procured FF&E carries the supplier's purchase-order price, and that
+    //  price is the truth - not a rate-book average. STING COEXISTS with Fohlio
+    //  (link, never duplicate): the rate is read from FOHLIO_UNIT_COST_NR, written
+    //  by the official Fohlio Revit add-in or by STING's Fohlio_Import, falling back
+    //  to the ES import snapshot. Sits above the material-library / CSV rates so the
+    //  Owner's PO price wins, and below an explicit inline override (100).
+    // ──────────────────────────────────────────────────────────────────────
+    internal sealed class FohlioRateProvider : IRateProvider
+    {
+        public string Id => "fohlio";
+        public int Priority => 96;
+        public bool RequiresNetwork => false;
+
+        public RateLookup Resolve(RateRequest req)
+        {
+            if (req?.Element == null) return null;
+            try
+            {
+                double cost = ParameterHelpers.GetDouble(req.Element, ParamRegistry.FOHLIO_UNIT_COST, 0);
+                string currency = ParameterHelpers.GetString(req.Element, ParamRegistry.FOHLIO_CURRENCY);
+
+                if (cost <= 0)
+                {
+                    // Fall back to the snapshot captured at the last Fohlio import, so a
+                    // model whose parameter was cleared still prices off the last known PO.
+                    var snap = StingFohlioSnapshotSchema.Read(req.Element);
+                    if (snap != null && snap.UnitCost > 0)
+                    {
+                        cost = snap.UnitCost;
+                        if (string.IsNullOrEmpty(currency)) currency = snap.Currency;
+                    }
+                }
+                if (cost <= 0) return null;
+
+                return new RateLookup
+                {
+                    UnitRate = cost,
+                    // Fohlio quotes USD unless the export says otherwise; the registry's
+                    // FX adapter converts to the document currency.
+                    CurrencyCode = string.IsNullOrEmpty(currency) ? "USD" : currency.Trim().ToUpperInvariant(),
+                    Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                    SourceId = Id,
+                    Confidence = 95,
+                    Provenance = "Fohlio FF&E procurement",
+                    MatchedKey = ParameterHelpers.GetString(req.Element, ParamRegistry.FOHLIO_REF)
+                };
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FohlioRateProvider: {ex.Message}");
+                return null;
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     //  2. Extensible Storage override (priority 95)
     //  Reads StingCostRateOverrideSchema. CA-1 — a stored override is in the
     //  project BASE currency (UGX) unless it carries an explicit ovr.Currency;

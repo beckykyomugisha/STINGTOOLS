@@ -82,6 +82,10 @@
     <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
     <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
+    <!-- BMS commissioning-valuation arithmetic + the point-status decision. Revit-free
+         and network-free on purpose: the command walks the model and queries the
+         station, this only does the maths. -->
+    <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -144,6 +148,11 @@
     </None>
     <!-- The SHIPPED KUT rate-policy overlay - JSON field types are not compile-checked. -->
     <None Include="..\project-templates\KUT\_BIM_COORD\boq_rate_policy.json" Link="Data\kut_boq_rate_policy.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT Fohlio overlay - it decides how FF&amp;E is carried in a
+         priced bill, and a mistyped key there is a silent default, not an error. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\fohlio_map.json" Link="Data\kut_fohlio_map.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:

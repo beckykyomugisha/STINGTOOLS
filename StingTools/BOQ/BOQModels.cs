@@ -452,13 +452,21 @@ namespace StingTools.BOQ
         public double PrelimContributionUGX =>
             PrelimsItemised ? PrelimsItemisedUGX : SubtotalUGX * PrelimPct / 100.0;
 
+        /// <summary>Σ of Owner-procured FF&amp;E line totals — a transparent at-cost
+        /// category bought direct from the Fohlio register, not contractor-supplied work.
+        /// Shown as its own subtotal and removed from the OH&amp;P + contingency base: a
+        /// main contractor does not earn profit on goods the Owner buys. Zero for every
+        /// project that has not set an FF&amp;E treatment, so the totals are unchanged.</summary>
+        public double FfeOwnerProcuredUGX => AllItems.Where(i => i.FfeOwnerProcured).Sum(i => i.TotalUGX);
+
         /// <summary>
         /// WP1 — the single canonical markup waterfall (see <see cref="BoqTotals"/>).
         /// Replaces the old parallel "% × subtotal for everything, no VAT" formula.
         /// All component properties below and every external surface read from this.
         /// </summary>
         public BoqMarkupBreakdown Markup =>
-            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct);
+            BoqTotals.Compute(SubtotalUGX, PrelimContributionUGX, OverheadPct, ContingencyPct, VatPct,
+                              FfeOwnerProcuredUGX);
 
         public double OverheadProfitUGX => Markup.Overhead;
         public double ContingencyUGX    => Markup.Contingency;
