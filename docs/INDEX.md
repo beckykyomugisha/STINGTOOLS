@@ -61,6 +61,13 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `BOQ_5D_*.md` / `BOQ_COST_MANAGER_5D_WORKSPACE_PROMPT.md` / `BOQ_INLINE_ACTIONS_SLICE3_PROMPT.md` /
 `BOQ_REVIEW_AND_HARDENING_PROMPT.md` (work prompts — intent, check against `CHANGELOG.md`)
 
+Also `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` · `BOQ_QS_IMPLEMENTATION_PROMPT_P1-P4.md` ·
+`PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md` (work prompts) and
+[`guides/SUSTAINABILITY_CARBON_COSTING_LAYMANS_GUIDE.md`](guides/SUSTAINABILITY_CARBON_COSTING_LAYMANS_GUIDE.md),
+a plain-English guide to the carbon and costing workflow. **Note:** `BOQ_5D_PHASE2_PROMPT.md` and
+`BOQ_5D_P2_PROMPT.md` are different documents with confusingly similar names — the first covers the
+five enhanced-rebuild items, the second the 4D tab, inline forms and link multiplier.
+
 ## Placement, symbols & families
 
 `PLACEMENT_CENTRE_REVIEW.md` · `PLACEMENT_FAMILY_AUTHORING.md` · `PLACEMENT_SEED_VARIANT_COVERAGE.md` ·
@@ -73,7 +80,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `MULTI_HOST_INTEGRATION_PLAN.md` · `CROSS_HOST_ROUND_TRIP_RUNBOOK.md` ·
 `CROSS_HOST_VALIDATION_CHECKLIST.md` · `PHASE_186_BONSAI_INTEGRATION.md` ·
 `PHASE_186_VERIFICATION_CHECKLIST.md` · `MVP_SCOPE_BONSAI.md` · `EXPORTER_TEXTURES.md` ·
-`MCP_V2_CAPABILITY_EXPOSURE.md`
+`MCP_V2_CAPABILITY_EXPOSURE.md` · `MCP_V2_AGENT_BRIEF.md` (work prompt)
 
 ## Parameters & tagging internals
 
@@ -146,4 +153,4 @@ CI rather than reaching an issue.
 
 ## Domain packs
 
-`HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
+`HEALTHCARE_PACK_DESIGN.md` · `HEALTHCARE_*_PROMPT.md` (seven work prompts: accuracy, changelog/roadmap, completeness, deferred implementation, gap fixes, Phase 199 fixes and profile coverage — intent, check against `CHANGELOG.md`) · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
