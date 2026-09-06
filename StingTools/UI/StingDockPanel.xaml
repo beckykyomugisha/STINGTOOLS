@@ -3260,6 +3260,8 @@
                                                 ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
                                         <Button Style="{StaticResource BlueBtn}" Content="Material Schedule" Tag="MaterialSchedule_Export" Click="Cmd_Click"
                                                 ToolTip="Export a stage-sectioned material schedule in supplier units (Bags / Trips / No.) as XLSX, with an include/exclude prices toggle"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Price Commodities" Tag="MaterialSchedule_PriceCommodities" Click="Cmd_Click"
+                                                ToolTip="Price the material schedule in a grid. Rows are seeded from the schedule so no commodity key is ever retyped; saves to the project commodity_rates.csv and never touches the corporate baseline."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Import" Tag="BOQImport" Click="Cmd_Click"
                                                 ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Snap Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"
