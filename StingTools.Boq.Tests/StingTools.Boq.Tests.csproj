@@ -60,6 +60,9 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
     <Compile Include="..\StingTools\Core\Baseline\BaselineAudit.cs" Link="Baseline\BaselineAudit.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\BaselineAugmentReport.cs" Link="Baseline\BaselineAugmentReport.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\TypeCataloguePack.cs" Link="Baseline\TypeCataloguePack.cs" />
+    <Compile Include="..\StingTools\Core\Baseline\TypeHarvest.cs" Link="Baseline\TypeHarvest.cs" />
     <!-- The XLSX writer is Revit-free (ClosedXML only), so the DELIVERABLE itself
          is testable, not just the model behind it. -->
     <Compile Include="..\StingTools\BOQ\BoqXlsxStyle.cs" Link="MaterialSchedule\BoqXlsxStyle.cs" />
@@ -101,6 +104,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_PROJECT_BASELINE.json" Link="Data\STING_PROJECT_BASELINE.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_TYPE_CATALOGUES.json" Link="Data\STING_TYPE_CATALOGUES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
