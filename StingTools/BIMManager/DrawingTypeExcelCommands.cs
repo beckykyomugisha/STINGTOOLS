@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · Excel Round-Trip
+﻿// StingTools — Drawing Template Manager · Excel Round-Trip
 //
 // Bidirectional Excel ↔ JSON exchange for the corporate Drawing Type
 // catalogue and the View Style Pack library. Power users and BIM
@@ -1419,7 +1419,7 @@ namespace StingTools.BIMManager
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                var path = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD", "view_style_packs.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "view_style_packs.json");
                 if (!File.Exists(path)) return null;
                 return JsonConvert.DeserializeObject<StylePackDoc>(File.ReadAllText(path));
             }
@@ -1642,7 +1642,7 @@ namespace StingTools.BIMManager
         {
             if (doc != null && !string.IsNullOrEmpty(doc.PathName))
             {
-                var d = Path.Combine(Path.GetDirectoryName(doc.PathName), "_BIM_COORD");
+                var d = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(d);
                 return d;
             }

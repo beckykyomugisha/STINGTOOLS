@@ -1,3 +1,10 @@
+> ⛔ **SUPERSEDED (2026-08-05).** Historical. About half of the findings below are fixed —
+> the migration is consent-gated, the cross-document root cache bug is closed, the divergent
+> second tree builder is merged, `_CDE` writers are gone, and a path-discipline CI gate exists.
+> For the current state read [`FOLDER_STRUCTURE_REVIEW_2026-08.md`](FOLDER_STRUCTURE_REVIEW_2026-08.md);
+> for the rules to follow, `CLAUDE.md` → *Project Output Folder Layout*.
+> Part 2 (Document Manager vs ISO 19650) has **not** been re-measured and may still hold.
+
 # Document Manager & Folder Structure Review — ISO 19650 Alignment
 
 **Date**: 2026-07-19 · **Branch**: `claude/document-manager-iso-review-dbb595` · **Type**: review & recommendation (no code changes)

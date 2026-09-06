@@ -25,6 +25,17 @@ namespace Planscape.Docs.Templates
         public static TransmittalResult Create(Document doc, TransmittalRequest req)
             => TransmittalOrchestrator.Create(doc, req);
 
+        /// <summary>
+        /// Auto-populate recipients from a suggested distribution group, then create.
+        ///
+        /// NOTE: currently unreferenced — no caller in the tree invokes this. It
+        /// still reads the local _BIM_COORD/distribution_groups.json store rather
+        /// than the server-backed groups that the transmittal dialog's "+ Group"
+        /// button now uses, because DistributionGroups.SuggestFor does
+        /// type/role/suitability scoring that has no server equivalent yet. Port
+        /// that scoring to DistributionGroupsController before wiring this up, or
+        /// it will reintroduce the second source of truth this pass removed.
+        /// </summary>
         public static TransmittalResult CreateWithDistribution(Document doc, TransmittalRequest req, dynamic deliverable)
         {
             var group = Planscape.Docs.Workflow.DistributionGroups.SuggestFor(doc, deliverable);

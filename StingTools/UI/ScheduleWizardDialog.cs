@@ -95,9 +95,9 @@ namespace StingTools.UI
 
             var win = new Window
             {
-                Title = "STING Scheduling Dashboard",
-                Width = 850,
-                Height = 620,
+                Title = "STING Scheduler",
+                Width = 880,
+                Height = 660,
                 MinWidth = 750,
                 MinHeight = 520,
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
@@ -126,7 +126,7 @@ namespace StingTools.UI
             var headerStack = new StackPanel();
             headerStack.Children.Add(new TextBlock
             {
-                Text = "Scheduling Dashboard",
+                Text = "Scheduler",
                 FontSize = 17,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = BrWhite
@@ -203,7 +203,8 @@ namespace StingTools.UI
                 ("manage",    "MANAGE",            "Duplicate, delete, refresh, field manager"),
                 ("export",    "EXPORT",            "CSV/XLSX export, schedule-to-Excel"),
                 ("format",    "FORMAT",            "Column widths, alignment, visibility"),
-                ("corporate", "CORPORATE / MEP",   "Title block, register, MEP schedules")
+                ("corporate", "CORPORATE / MEP",   "Title block, register, MEP schedules"),
+                ("tag",       "TAG SCHEDULES",     "Per-category tag-expander schedules, placed on sheets")
             };
 
             // Content area
@@ -221,6 +222,7 @@ namespace StingTools.UI
             contentPanels["export"] = BuildExportTab(scheduleItems, statusText);
             contentPanels["format"] = BuildFormatTab(statusText);
             contentPanels["corporate"] = BuildCorporateMepTab(statusText);
+            contentPanels["tag"] = BuildTagSchedulesTab(statusText);
 
             foreach (var kvp in contentPanels)
             {
@@ -389,6 +391,27 @@ namespace StingTools.UI
             opGroup.Children.Add(rbReport);
             stack.Children.Add(opGroup);
 
+            // ── Consistency checks (were only reachable from DOCS / BIM) ──
+            stack.Children.Add(MakeSectionHeader("CONSISTENCY CHECKS"));
+            var checkGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            var checkOps = new[]
+            {
+                ("ScheduleFieldRemapAudit",      "Deprecated Fields",   "Flag schedules still using renamed parameters (SCHEDULE_FIELD_REMAP.csv)"),
+                ("CheckScheduleFieldConsistency","Field Consistency",   "Check that shared fields agree across schedules"),
+                ("CrossScheduleValidate",        "Cross-Schedule Validate", "Validate values that must reconcile between schedules"),
+            };
+            foreach (var (tag, label, tip) in checkOps)
+            {
+                checkGroup.Children.Add(new RadioButton
+                {
+                    Content = $"{label} — {tip}",
+                    FontSize = 12, Foreground = BrFg,
+                    Margin = new Thickness(0, 3, 0, 3),
+                    GroupName = "AuditOp", Tag = tag
+                });
+            }
+            stack.Children.Add(checkGroup);
+
             // ── Schedule selection for audit/compare ─────────────────────
             stack.Children.Add(MakeSectionHeader("SELECT SCHEDULES"));
             var listPanel = BuildScheduleListPanel(items);
@@ -459,6 +482,23 @@ namespace StingTools.UI
             opGroup.Children.Add(rbExportCsv);
             opGroup.Children.Add(rbExportExcel);
             stack.Children.Add(opGroup);
+
+            // ── Excel round-trip (was only reachable from the INTEROP tab) ──
+            stack.Children.Add(MakeSectionHeader("EXCEL ROUND-TRIP"));
+            var rtGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            rtGroup.Children.Add(new RadioButton
+            {
+                Content = "All Schedules → Excel — one worksheet per schedule, ready to edit",
+                FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 3, 0, 3),
+                GroupName = "ExportOp", Tag = "ExportSchedulesToExcel"
+            });
+            rtGroup.Children.Add(new RadioButton
+            {
+                Content = "Excel → Revit — write edited schedule values back into the model",
+                FontSize = 12, Foreground = BrFg, Margin = new Thickness(0, 3, 0, 3),
+                GroupName = "ExportOp", Tag = "ImportSchedulesFromExcel"
+            });
+            stack.Children.Add(rtGroup);
 
             // ── Output path ─────────────────────────────────────────────
             stack.Children.Add(MakeSectionHeader("OUTPUT"));
@@ -604,6 +644,10 @@ namespace StingTools.UI
                 ("CorporateTitleBlock",     "Corporate Title Block Schedule",  "Create title block schedule with project metadata"),
                 ("DrawingRegisterSchedule", "Drawing Register Schedule",       "Create ISO 19650 drawing register"),
                 ("MaterialSchedules",       "Material Schedules",              "Create BLE/MEP material quantity schedules"),
+                ("CreateTemplateSchedules", "Template Schedules",              "Create the standard schedule templates"),
+                ("RoomSchedule",            "Room Schedule",                   "Rooms with area, finishes and tags"),
+                ("RevisionSchedule",        "Revision Schedule",               "Revision history table for issue sheets"),
+                ("MaintenanceSchedule",     "Maintenance Schedule",            "Planned preventive maintenance with frequencies and priorities"),
             };
 
             RadioButton firstCorpRb = null;
@@ -658,6 +702,7 @@ namespace StingTools.UI
                 ("MEPScheduleElec",  "All Electrical Schedules", "Create all electrical schedules"),
                 ("MEPSchedulePlumb", "All Plumbing Schedules",   "Create all plumbing schedules"),
                 ("MEPScheduleFire",  "All Fire Schedules",       "Create all fire protection schedules"),
+                ("BatchMEPSchedules","Every MEP Schedule",       "Create the whole MEP set in one pass"),
             };
 
             foreach (var (tag, label, tip) in bulkOps)
@@ -676,6 +721,106 @@ namespace StingTools.UI
             stack.Tag = "corpmep_tab";
             scroll.Content = stack;
             return scroll;
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // TAB 7: TAG SCHEDULES
+        //
+        // The universal tag is discipline-agnostic, so the engineering data it
+        // no longer carries lives in a per-category schedule placed next to the
+        // drawing. This tab drives that builder: which column set, which
+        // discipline bundles, and whether the result reaches a sheet.
+        // ════════════════════════════════════════════════════════════════
+        private static UIElement BuildTagSchedulesTab(TextBlock status)
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var stack = new StackPanel();
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Builds one schedule per model category: column 1 is the tag (ASS_TAG_1_TXT), " +
+                       "then the discipline parameters dropped from the universal tag, then Comments. " +
+                       "A reader sees the short tag on the drawing and the full properties in the schedule beside it.",
+                FontSize = 11, Foreground = BrFgDim, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 12)
+            });
+
+            // ── Column set ──────────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("COLUMN SET"));
+            var modeGroup = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+
+            // All three carry the same command tag — the column set travels as
+            // an option, so CollectOperation stays a simple "first checked wins".
+            const string TagCmd = "Schedule_DisciplineTagExpander";
+            var rbSheet = new RadioButton
+            {
+                Content = "Sheet columns — the curated set meant for drawings (recommended)",
+                FontSize = 12, Foreground = BrFg, IsChecked = true,
+                Margin = new Thickness(0, 3, 0, 3), GroupName = "TagSchedOp", Tag = TagCmd
+            };
+            var rbFull = new RadioButton
+            {
+                Content = "Full as-built columns — every discipline and fabrication parameter",
+                FontSize = 12, Foreground = BrFg,
+                Margin = new Thickness(0, 3, 0, 3), GroupName = "TagSchedOp", Tag = TagCmd
+            };
+            var rbBoth = new RadioButton
+            {
+                Content = "Both — a compact sheet schedule and a wide as-built schedule per category",
+                FontSize = 12, Foreground = BrFg,
+                Margin = new Thickness(0, 3, 0, 3), GroupName = "TagSchedOp", Tag = TagCmd
+            };
+            modeGroup.Children.Add(rbSheet);
+            modeGroup.Children.Add(rbFull);
+            modeGroup.Children.Add(rbBoth);
+            stack.Children.Add(modeGroup);
+
+            // ── Bundle filter ───────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("DISCIPLINE BUNDLES"));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Leave all ticked to build the whole spec (~200 schedules). Untick to work one discipline at a time.",
+                FontSize = 10.5, Foreground = BrFgDim, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+            var bundleWrap = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+            var chkArch   = MakeCheckBox("ARCH — Architectural", true);
+            var chkGen    = MakeCheckBox("GEN — General", true);
+            var chkMep    = MakeCheckBox("MEP — Mechanical / Electrical / Plumbing", true);
+            var chkStr    = MakeCheckBox("STR — Structural", true);
+            var chkHealth = MakeCheckBox("HEALTH — Healthcare", true);
+            bundleWrap.Children.Add(chkArch); bundleWrap.Children.Add(chkGen); bundleWrap.Children.Add(chkMep);
+            bundleWrap.Children.Add(chkStr); bundleWrap.Children.Add(chkHealth);
+            stack.Children.Add(bundleWrap);
+
+            // ── Sheet placement ─────────────────────────────────────────
+            stack.Children.Add(MakeSectionHeader("SHEET PLACEMENT"));
+            var chkPlace = MakeCheckBox("Place the schedules on sheets after building", true);
+            stack.Children.Add(chkPlace);
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Schedules are packed in columns onto as many new sheets as needed. " +
+                       "If nothing new gets built, any tag-expander schedules not yet on a sheet are placed instead.",
+                FontSize = 10.5, Foreground = BrFgDim, TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(20, 2, 0, 12)
+            });
+
+            stack.Tag = new TagSchedTabState
+            {
+                RbSheet = rbSheet, RbFull = rbFull, RbBoth = rbBoth,
+                ChkArch = chkArch, ChkGen = chkGen, ChkMep = chkMep, ChkStr = chkStr, ChkHealth = chkHealth,
+                ChkPlace = chkPlace
+            };
+
+            scroll.Content = stack;
+            return scroll;
+        }
+
+        private class TagSchedTabState
+        {
+            public RadioButton RbSheet, RbFull, RbBoth;
+            public CheckBox ChkArch, ChkGen, ChkMep, ChkStr, ChkHealth;
+            public CheckBox ChkPlace;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -954,6 +1099,33 @@ namespace StingTools.UI
                     {
                         opts["OutputPath"] = es.TxtPath?.Text ?? "";
                         opts["Format"]     = es.CmbFormat?.SelectedItem?.ToString() ?? "CSV";
+                    }
+                    break;
+
+                case "tag":
+                    if (stack.Tag is TagSchedTabState ts)
+                    {
+                        opts["TagSched_Mode"] =
+                            (ts.RbBoth?.IsChecked == true) ? "Both" :
+                            (ts.RbFull?.IsChecked == true) ? "Full" : "Sheet";
+
+                        var bundles = new List<string>();
+                        if (ts.ChkArch?.IsChecked   == true) bundles.Add("ARCH");
+                        if (ts.ChkGen?.IsChecked    == true) bundles.Add("GEN");
+                        if (ts.ChkMep?.IsChecked    == true) bundles.Add("MEP");
+                        if (ts.ChkStr?.IsChecked    == true) bundles.Add("STR");
+                        if (ts.ChkHealth?.IsChecked == true) bundles.Add("HEALTH");
+
+                        // All five ticked means "no filter" — send an empty value
+                        // so the command does not have to know the full bundle list.
+                        // Nothing ticked stays a real filter that matches nothing,
+                        // so an empty selection builds nothing rather than everything.
+                        opts["TagSched_Bundles"] =
+                            bundles.Count == 5 ? "" :
+                            bundles.Count == 0
+                                ? Commands.TagStudio.ScheduleDisciplineTagExpanderCommand.NoBundlesSentinel
+                                : string.Join(",", bundles);
+                        opts["TagSched_Place"]   = (ts.ChkPlace?.IsChecked == true) ? "1" : "0";
                     }
                     break;
 

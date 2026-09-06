@@ -136,7 +136,7 @@ rect(M, hb_y, W - 2 * M, hb_h, fill=BAR, stroke=LINE, sw=0.5)
 seg = [M, 250, 470, 560, 678, W - M]
 seg_defs = [
     ("CONSULTING ENGINEERS  ·  LEAD APPOINTED PARTY", "PRJ_TB_COMPANY_NAME_TXT"),
-    ("DOCUMENT No.", "STING_SHEET_FULL_REF_TXT"),
+    ("DOCUMENT No.", "PRJ_SHEET_FULL_REF_TXT"),
     ("ISSUE DATE", "PRJ_TB_REVISION_DATE_TXT"),
     ("SUIT · REV", "PRJ_DWG_SUITABILITY_COD_TXT"),
     ("DISCIPLINE", "PRJ_TB_DISCIPLINE_TXT"),
@@ -194,7 +194,7 @@ gx_l, gx_r = dc_x + 4, dc_x + dc_w * 0.55
 gy, row_dy = box_y + box_h + 9, 15
 left_col = [("PURPOSE", "PRJ_DWG_ISSUE_PURPOSE_TXT"), ("SECURITY", "PRJ_ORG_SECURITY_CLASS_TXT"),
             ("DRAWN", "PRJ_TB_DRAWN_BY_TXT"), ("DATE", "PRJ_TB_DATE_DRAWN_TXT")]
-right_col = [("LOD", "STING_LOIN_LOD_TXT"), ("AUTHORISED", "STING_AUTHORISED_BY_TXT"),
+right_col = [("LOD", "PRJ_DWG_LOIN_LOD_TXT"), ("AUTHORISED", "PRJ_TB_AUTHORISED_BY_TXT"),
              ("CHECKED", "PRJ_TB_CHECKED_BY_TXT"), ("APPROVED", "PRJ_TB_APVD_BY_TXT")]
 for i, (lab, param) in enumerate(left_col):
     kv(gx_l, gy + i * row_dy, lab, param, rule_w=dc_w * 0.40)
@@ -213,10 +213,10 @@ rect(qx, qy, qr, qr, fill="#FFFFFF", stroke=LINE, sw=0.4)
 bm_x, bm_y = dc_x + dc_w + 6, 138
 bm_w, bm_h = 448 - bm_x, 118
 panel(bm_x, bm_y, bm_w, bm_h, "BIM & COORDINATION")
-grid = [("CDE STATE", "PRJ_TB_DELIVERABLE_CDE_TXT", "FEDERATION", "STING_FEDERATION_STATUS_TXT"),
-        ("COORD SYS", "(coord system — manual)", "GROUND LVL", "STING_SHEET_LEVEL_TXT"),
+grid = [("CDE STATE", "PRJ_TB_DELIVERABLE_CDE_TXT", "FEDERATION", "PRJ_TB_FEDERATION_STATUS_TXT"),
+        ("COORD SYS", "(coord system — manual)", "GROUND LVL", "PRJ_SHEET_LEVEL_TXT"),
         ("PROJECT N", "(project north — manual)", "CLASS", "(Uniclass — manual)"),
-        ("REGION", "(region — manual)", "VOLUME", "STING_SHEET_VOLUME_TXT")]
+        ("REGION", "(region — manual)", "VOLUME", "PRJ_SHEET_VOLUME_TXT")]
 gxl, gxr = bm_x + 4, bm_x + bm_w * 0.52
 gyy, dy = bm_y + 12, 9.5
 for i, (l, lp, r, rp) in enumerate(grid):
@@ -321,10 +321,10 @@ rb_y, rb_h = 546, 28
 rect(M, rb_y, W - 2 * M, rb_h, fill="#FFFFFF", stroke=LINE, sw=0.5)
 rect(M, rb_y, W - 2 * M, 6.5, fill=BAR, stroke=LINE, sw=0.5)
 text(M + 2.5, rb_y + 4.9, "DELIVERABLE / ISSUE RIBBON", size=2.8, weight="bold", spacing="0.3")
-ribbon = [("FULL REF", "STING_SHEET_FULL_REF_TXT"), ("DELIVERABLE STATUS", "PRJ_TB_DELIVERABLE_STATUS_TXT"),
+ribbon = [("FULL REF", "PRJ_SHEET_FULL_REF_TXT"), ("DELIVERABLE STATUS", "PRJ_TB_DELIVERABLE_STATUS_TXT"),
           ("CDE STATE", "PRJ_TB_DELIVERABLE_CDE_TXT"), ("DATA DROP", "PRJ_TB_DELIVERABLE_DATADROP_TXT"),
-          ("LAST TRANSMITTAL", "PRJ_TB_LAST_TRANSMITTAL_TXT"), ("AUTHORISED BY", "STING_AUTHORISED_BY_TXT"),
-          ("AUTH DATE", "STING_AUTHORISED_DATE_TXT"), ("SHEET x OF y", "STING_SHEET_OF_TOTAL_TXT"),
+          ("LAST TRANSMITTAL", "PRJ_TB_LAST_TRANSMITTAL_TXT"), ("AUTHORISED BY", "PRJ_TB_AUTHORISED_BY_TXT"),
+          ("AUTH DATE", "PRJ_TB_AUTHORISED_DATE_TXT"), ("SHEET x OF y", "PRJ_SHEET_OF_TOTAL_TXT"),
           ("PAPER · SCALE", "PRJ_TB_PAPER_SZ_TXT"), ("NOTES / LEGEND", "PRJ_TB_NOTES_LEGEND_REF_TXT")]
 seg_w = (W - 2 * M) / len(ribbon)
 for i, (cap, param) in enumerate(ribbon):

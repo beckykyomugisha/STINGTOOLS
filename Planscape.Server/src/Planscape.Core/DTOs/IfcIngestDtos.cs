@@ -26,6 +26,24 @@ public record IfcIngestRequest
     public string UserName { get; init; } = "";
 
     public List<IfcElementDto> Elements { get; init; } = new();
+
+    /// <summary>
+    /// C3 — IFC GlobalIds this host had previously pushed and no longer has.
+    ///
+    /// <para><b>Why deletions need their own channel.</b> An ingest is an UPSERT
+    /// over the elements it carries, so an element that disappears from the
+    /// source is simply not mentioned — and "not mentioned" is
+    /// indistinguishable from "unchanged, and this is a partial push". Without
+    /// an explicit list, a wall deleted in ArchiCAD stayed on the server
+    /// forever: visible in the viewer, answering clash and compliance queries,
+    /// and counted in every metric. Absence cannot mean deletion.</para>
+    ///
+    /// <para>Scoped by <see cref="HostDocumentGuid"/>: only elements this
+    /// document contributed may be removed. Two hosts contributing to one
+    /// project must not be able to tombstone each other's geometry — a
+    /// full-export diff from one would otherwise wipe the other.</para>
+    /// </summary>
+    public List<string> RemovedGlobalIds { get; init; } = new();
 }
 
 public record IfcElementDto
@@ -77,7 +95,12 @@ public record IfcIngestResponse
     public int NewElements { get; init; }
     public int UpdatedElements { get; init; }
     public int Skipped { get; init; }
+
+    /// <summary>C3 - elements tombstoned because this host no longer has them.</summary>
+    public int Removed { get; init; }
+
     public List<string> Warnings { get; init; } = new();
     public string Summary => $"{NewMappings + UpdatedMappings} mappings, " +
-                             $"{NewElements + UpdatedElements} elements; {Skipped} skipped";
+                             $"{NewElements + UpdatedElements} elements; {Skipped} skipped; " +
+                             $"{Removed} removed";
 }

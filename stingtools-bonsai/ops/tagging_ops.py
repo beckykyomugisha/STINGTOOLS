@@ -101,7 +101,11 @@ class StingAutoTagOperator(bpy.types.Operator):
         path = _ifc_path(model)
 
         try:
-            elements = list(model.by_type("IfcElement"))
+            # IfcFeatureElement (openings, recesses, projections) are voids cut
+            # into other elements, not taggable assets — exclude them so they
+            # never acquire a Pset_StingTags and never drag compliance down.
+            elements = [e for e in model.by_type("IfcElement")
+                        if not e.is_a("IfcFeatureElement")]
         except Exception as e:
             self.report({"ERROR"}, f"Cannot query IFC: {e}")
             return {"CANCELLED"}
@@ -370,7 +374,11 @@ class StingAssignSequenceOperator(bpy.types.Operator):
         # Find max existing per group
         group_max: dict[tuple, int] = {}
         try:
-            elements = list(model.by_type("IfcElement"))
+            # IfcFeatureElement (openings, recesses, projections) are voids cut
+            # into other elements, not taggable assets — exclude them so they
+            # never acquire a Pset_StingTags and never drag compliance down.
+            elements = [e for e in model.by_type("IfcElement")
+                        if not e.is_a("IfcFeatureElement")]
         except Exception as e:
             self.report({"ERROR"}, f"Cannot query IFC: {e}")
             return {"CANCELLED"}

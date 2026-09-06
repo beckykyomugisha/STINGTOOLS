@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  BoqPrelims.cs (QS gap G3) — built-up preliminaries schedule.
 //
 //  Prelims/contingency/overhead were single flat percentages — fine for a quick
@@ -63,7 +63,7 @@ namespace StingTools.BOQ
             {
                 string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return System.IO.Path.Combine(parent, "_BIM_COORD", "boq_prelims.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_prelims.json");
             }
             catch { return null; }
         }

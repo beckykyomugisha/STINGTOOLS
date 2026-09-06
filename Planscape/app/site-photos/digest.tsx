@@ -30,6 +30,8 @@ import {
 } from '@/api/endpoints';
 import type { SitePhotoDigestPreview, SitePhotoReason } from '@/types/api';
 import { realtime } from '@/services/realtimeClient';
+import { crashReporter } from '@/services/crashReporter';
+import { describeFailure, isForbidden } from '@/utils/forbidden';
 
 interface ResolvedThumb { url: string; headers: Record<string, string>; }
 type ThumbRecord = Record<string, ResolvedThumb>;
@@ -44,6 +46,7 @@ export default function DigestScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -59,12 +62,30 @@ export default function DigestScreen() {
         preview.items.map(async (p) => {
           try {
             next[p.id] = await getSitePhotoFile(projectId, p.id);
-          } catch { /* skip individual failures so one 403 doesn't poison the page */ }
+          } catch (e) {
+            // Skipping is right — one photo the caller may not fetch (NDA
+            // gate, redaction still running) must not blank the page. But the
+            // catch was EMPTY, so the skip was invisible: the tile renders
+            // with no image and nothing anywhere records why. Log it (#558).
+            crashReporter.warn('site-photos/digest: thumbnail skipped', {
+              photoId: p.id,
+              forbidden: String(isForbidden(e)),
+              e: String(e),
+            });
+          }
         }),
       );
       setThumbs(next);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load digest');
+      // digest-preview is gated on project MEMBERSHIP, so a 403 here means
+      // "you are not on this project" — not a missing capability. Say that,
+      // rather than showing it as a load failure.
+      const d = describeFailure(err, {
+        forbidden: 'You are not a member of this project, so its photo digest is not available to you.',
+        fallback: 'Failed to load digest',
+      });
+      setError(d.message);
+      setForbidden(d.forbidden);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -119,7 +140,11 @@ export default function DigestScreen() {
         />
       }
     >
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.error, forbidden && styles.forbidden]}>
+          {forbidden ? '🔒 ' + error : error}
+        </Text>
+      ) : null}
 
       <View style={styles.header}>
         <Text style={styles.title}>{project?.name ?? 'Project'} — Today's Digest</Text>
@@ -201,6 +226,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.sm,
     marginBottom: theme.spacing.md,
   },
+  // Amber, deliberately not the red error colour: a refusal is a correct
+  // answer to a legitimate request, not a fault (#558).
+  forbidden: { color: theme.colors.warning },
 
   header: { marginBottom: theme.spacing.md },
   title: { fontSize: theme.fontSize.lg, fontWeight: '700', color: theme.colors.text },

@@ -121,24 +121,105 @@ class IfcFileHostAdapter(HostAdapter):
         return Tag.from_pset(pset)
 
     def georef_descriptor(self) -> GeorefDescriptor:
-        """Best-effort coordinate evidence. Full tiered extraction is Part 2/Phase C;
-        this returns what is cheaply available so headless callers have a value."""
+        """The coordinate evidence this file carries.
+
+        P4 — this used to return only ``IfcMapConversion``'s eastings /
+        northings / height / scale, leaving ``crs_epsg`` and
+        ``true_north_deg`` unset and ``length_unit`` at its ``"mm"`` default.
+        Those three omissions matter more than they look:
+
+        * **No CRS** means the server cannot anchor the coordinates. Its
+          confidence policy grades an unanchored survey origin LOW, so the
+          transform is stored as a suggestion and the model is left at the
+          project origin until a coordinator confirms it by hand — the exact
+          manual step this whole track exists to remove.
+        * **No true north** silently drops a model's rotation. A building
+          placed at the right easting and northing but rotated 20 degrees off
+          is arguably worse than one left at the origin, because it looks
+          placed.
+        * **``length_unit="mm"`` was simply wrong.** Eastings and northings
+          from ``IfcMapConversion`` are metres by IFC definition, and the
+          field defaulted to millimetres, so any consumer that trusted it was
+          off by 1000.
+
+        The rotation formula ``atan2(XAxisOrdinate, XAxisAbscissa)`` matches
+        ``IfcAlignmentValidator.MapConversionRotationDeg`` on the server
+        exactly. It has to: the same file ingested through the server and
+        described by this adapter must not disagree about which way the
+        building faces.
+        """
+        import math
+
         try:
-            import ifcopenshell.util.geolocation as geo  # type: ignore
             mc = self.model.by_type("IfcMapConversion")
-            if mc:
-                m = mc[0]
-                return GeorefDescriptor(
-                    logeoref_tier=50,
-                    easting=getattr(m, "Eastings", None),
-                    northing=getattr(m, "Northings", None),
-                    elevation=getattr(m, "OrthogonalHeight", None),
-                    scale=getattr(m, "Scale", None) or 1.0,
-                )
-            _ = geo  # available for the Phase C tiered resolver
         except Exception:
-            pass
-        return GeorefDescriptor(logeoref_tier=0)
+            return GeorefDescriptor(logeoref_tier=0)
+
+        if not mc:
+            return GeorefDescriptor(logeoref_tier=0, length_unit=self._length_unit())
+
+        m = mc[0]
+
+        # XAxisAbscissa / XAxisOrdinate are the direction cosines of the
+        # model's +X axis in the map CRS. Both default to (1, 0) — i.e. no
+        # rotation — when the file omits them.
+        true_north_deg = None
+        xa = getattr(m, "XAxisAbscissa", None)
+        xo = getattr(m, "XAxisOrdinate", None)
+        if xa is not None and xo is not None:
+            try:
+                true_north_deg = math.degrees(math.atan2(float(xo), float(xa)))
+            except (TypeError, ValueError):
+                true_north_deg = None
+
+        # IfcProjectedCRS.Name is the CRS identifier ("EPSG:27700"). It is what
+        # promotes this georeference from "some coordinates" to "coordinates in
+        # a named system", which is what lets the server apply it unattended.
+        crs_epsg = None
+        try:
+            crs = self.model.by_type("IfcProjectedCRS")
+            if crs:
+                crs_epsg = getattr(crs[0], "Name", None) or None
+        except Exception:
+            crs_epsg = None
+
+        scale = getattr(m, "Scale", None)
+
+        return GeorefDescriptor(
+            # 50 with a named CRS, 30 without: coordinates whose system is
+            # unstated are a weaker claim, and the tier is what a consumer
+            # reads to decide whether to trust them.
+            logeoref_tier=50 if crs_epsg else 30,
+            crs_epsg=crs_epsg,
+            easting=getattr(m, "Eastings", None),
+            northing=getattr(m, "Northings", None),
+            elevation=getattr(m, "OrthogonalHeight", None),
+            true_north_deg=true_north_deg,
+            scale=scale if scale else 1.0,
+            length_unit=self._length_unit(),
+        )
+
+    def _length_unit(self) -> str:
+        """This file's own length unit, as a short code ("m" / "mm" / "ft").
+
+        Read from the model rather than assumed. ``calculate_unit_scale``
+        returns metres per file unit, which is the only thing that
+        distinguishes a 10-unit wall that is 10 m long from one that is 10 mm
+        long. Falls back to metres when ifcopenshell is unavailable or the file
+        declares nothing — the same fail-safe the server uses, because
+        "leave it alone" is the only safe response to an unknown unit.
+        """
+        try:
+            import ifcopenshell.util.unit as unit_util  # type: ignore
+            metres_per_unit = float(unit_util.calculate_unit_scale(self.model))
+        except Exception:
+            return "m"
+
+        for code, factor in (("m", 1.0), ("mm", 0.001), ("cm", 0.01),
+                             ("ft", 0.3048), ("in", 0.0254)):
+            if abs(metres_per_unit - factor) < factor * 1e-6:
+                return code
+        return "m"
 
     # -- write -----------------------------------------------------------------
     def write_tag(self, element: Any, tag: Tag) -> bool:

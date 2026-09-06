@@ -57,28 +57,6 @@
       "canonical_json_length": 553
     },
     {
-      "name": "StingCDEStates",
-      "file": "StingCDEStates.xml",
-      "kind": "enum",
-      "version": "1.0.0",
-      "schema_version": 1,
-      "scope": "corporate",
-      "origin": "baseline",
-      "since_version": "5.0.0",
-      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-00000000000a",
-      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/cdestate",
-      "primary_ifc_type": "IfcLabel",
-      "applicable_ifc_versions": [
-        "IFC4",
-        "IFC4X3",
-        "IFC2X3"
-      ],
-      "standards_basis": "ISO 19650-1:2018 §10.2 CDE workflow; STING DocumentRecord state machine",
-      "value_count": 4,
-      "sha256": "ff60facac4e83973b2b7bc1466a7c0bba660fde04e765660ddc88f5053526de1",
-      "canonical_json_length": 336
-    },
-    {
       "name": "StingCableCategories",
       "file": "StingCableCategories.xml",
       "kind": "enum",
@@ -99,6 +77,28 @@
       "value_count": 14,
       "sha256": "1f48450e5fc8fd353ef3e1721ec38ef45717119b05b2150bce791284c7d007d0",
       "canonical_json_length": 1008
+    },
+    {
+      "name": "StingCDEStates",
+      "file": "StingCDEStates.xml",
+      "kind": "enum",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4001-9000-00000000000a",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/buildingsmart/iso-19650/1.0/class/cdestate",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "ISO 19650-1:2018 §10.2 CDE workflow; STING DocumentRecord state machine",
+      "value_count": 4,
+      "sha256": "ff60facac4e83973b2b7bc1466a7c0bba660fde04e765660ddc88f5053526de1",
+      "canonical_json_length": 336
     },
     {
       "name": "StingColorSchemes",
@@ -343,6 +343,28 @@
       "canonical_json_length": 2798
     },
     {
+      "name": "StingHangerTypes",
+      "file": "StingHangerTypes.xml",
+      "kind": "enum",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000025",
+      "bsdd_iri": null,
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "MSS SP-58 / SP-69 (US); BS 3974 (UK pipe supports); BS EN ISO 13920 fabrication tolerances",
+      "value_count": 12,
+      "sha256": "11deb72db2e0fb6300dec3f088e72de19dff6b548dc8887086c3602834f434fe",
+      "canonical_json_length": 957
+    },
+    {
       "name": "StingHBNDepartments",
       "file": "StingHBNDepartments.xml",
       "kind": "enum",
@@ -363,6 +385,28 @@
       "value_count": 22,
       "sha256": "6117b4031c9309dc19bf7a69936f63fe80ef726a828ab1d97e825dab174e58b8",
       "canonical_json_length": 1659
+    },
+    {
+      "name": "StingHealthcareFacilityProfiles",
+      "file": "StingHealthcareFacilityProfiles.xml",
+      "kind": "enum",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000029",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/healthcare/1.0/class/facility-profile",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "STING Healthcare Pack (Phases H-1..H-30); NHS England Healthcare Building Notes (HBN) facility-type catalogue",
+      "value_count": 9,
+      "sha256": "c56cdd82fe39a2645ea6769f01b4771dd4f67d575ff4654c599f74486e2584e2",
+      "canonical_json_length": 720
     },
     {
       "name": "StingHTMWaterRiskZones",
@@ -451,50 +495,6 @@
       "value_count": 4,
       "sha256": "05faf59b7b642542dbc94db03297bf6d1f9b60b88533db06460504e155986787",
       "canonical_json_length": 373
-    },
-    {
-      "name": "StingHangerTypes",
-      "file": "StingHangerTypes.xml",
-      "kind": "enum",
-      "version": "1.0.0",
-      "schema_version": 1,
-      "scope": "corporate",
-      "origin": "baseline",
-      "since_version": "5.0.0",
-      "ifd_guid": "uuid:a1d15c11-0001-4004-9000-000000000025",
-      "bsdd_iri": null,
-      "primary_ifc_type": "IfcLabel",
-      "applicable_ifc_versions": [
-        "IFC4",
-        "IFC4X3",
-        "IFC2X3"
-      ],
-      "standards_basis": "MSS SP-58 / SP-69 (US); BS 3974 (UK pipe supports); BS EN ISO 13920 fabrication tolerances",
-      "value_count": 12,
-      "sha256": "11deb72db2e0fb6300dec3f088e72de19dff6b548dc8887086c3602834f434fe",
-      "canonical_json_length": 957
-    },
-    {
-      "name": "StingHealthcareFacilityProfiles",
-      "file": "StingHealthcareFacilityProfiles.xml",
-      "kind": "enum",
-      "version": "1.0.0",
-      "schema_version": 1,
-      "scope": "corporate",
-      "origin": "baseline",
-      "since_version": "5.0.0",
-      "ifd_guid": "uuid:a1d15c11-0001-4005-9000-000000000029",
-      "bsdd_iri": "https://identifier.buildingsmart.org/uri/stingtools/healthcare/1.0/class/facility-profile",
-      "primary_ifc_type": "IfcLabel",
-      "applicable_ifc_versions": [
-        "IFC4",
-        "IFC4X3",
-        "IFC2X3"
-      ],
-      "standards_basis": "STING Healthcare Pack (Phases H-1..H-30); NHS England Healthcare Building Notes (HBN) facility-type catalogue",
-      "value_count": 9,
-      "sha256": "c56cdd82fe39a2645ea6769f01b4771dd4f67d575ff4654c599f74486e2584e2",
-      "canonical_json_length": 720
     },
     {
       "name": "StingInsulationTypes",
@@ -651,6 +651,28 @@
       "canonical_json_length": 526
     },
     {
+      "name": "StingMaintenanceFrequencies",
+      "file": "StingMaintenanceFrequencies.xml",
+      "kind": "enum",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.0.0",
+      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000019",
+      "bsdd_iri": "https://identifier.buildingsmart.org/uri/sfg20/maintenance/1.0/class/frequency",
+      "primary_ifc_type": "IfcLabel",
+      "applicable_ifc_versions": [
+        "IFC4",
+        "IFC4X3",
+        "IFC2X3"
+      ],
+      "standards_basis": "SFG20 maintenance frequency conventions; BS 8210:2020 facilities management; STING COBIE_JOB_TEMPLATES.csv",
+      "value_count": 11,
+      "sha256": "27ebc96a5f91763c3aa9199577aa2f326d35be0365db5c9e44664ea541bd4972",
+      "canonical_json_length": 861
+    },
+    {
       "name": "StingMGSGasTypes",
       "file": "StingMGSGasTypes.xml",
       "kind": "enum",
@@ -693,28 +715,6 @@
       "value_count": 4,
       "sha256": "bd109d0380ff272ed471a43b559159df3892bc817a32340c764503b43112e6fe",
       "canonical_json_length": 337
-    },
-    {
-      "name": "StingMaintenanceFrequencies",
-      "file": "StingMaintenanceFrequencies.xml",
-      "kind": "enum",
-      "version": "1.0.0",
-      "schema_version": 1,
-      "scope": "corporate",
-      "origin": "baseline",
-      "since_version": "5.0.0",
-      "ifd_guid": "uuid:a1d15c11-0001-4003-9000-000000000019",
-      "bsdd_iri": "https://identifier.buildingsmart.org/uri/sfg20/maintenance/1.0/class/frequency",
-      "primary_ifc_type": "IfcLabel",
-      "applicable_ifc_versions": [
-        "IFC4",
-        "IFC4X3",
-        "IFC2X3"
-      ],
-      "standards_basis": "SFG20 maintenance frequency conventions; BS 8210:2020 facilities management; STING COBIE_JOB_TEMPLATES.csv",
-      "value_count": 11,
-      "sha256": "27ebc96a5f91763c3aa9199577aa2f326d35be0365db5c9e44664ea541bd4972",
-      "canonical_json_length": 861
     },
     {
       "name": "StingObservationLOS",

@@ -178,7 +178,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(data);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var rows = DocumentRegister.BuildUnified(doc);
@@ -215,7 +215,7 @@ namespace StingTools.Core
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(data);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 var rows = DocumentRegister.BuildUnified(doc);

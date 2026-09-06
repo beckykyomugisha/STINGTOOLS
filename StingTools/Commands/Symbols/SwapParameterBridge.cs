@@ -1,4 +1,4 @@
-// StingTools — SwapParameterBridge (Item 2).
+﻿// StingTools — SwapParameterBridge (Item 2).
 //
 // Makes Element.ChangeTypeId swaps non-destructive even when the
 // destination (manufacturer / legacy) family was authored WITHOUT STING
@@ -74,7 +74,7 @@ namespace StingTools.Commands.Symbols
                 try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); } catch { }
                 if (!string.IsNullOrEmpty(baseDir))
                 {
-                    string ovr = Path.Combine(baseDir, "_BIM_COORD", "param_alias_map.json");
+                    string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "param_alias_map.json");
                     if (File.Exists(ovr)) ParseAliases(File.ReadAllText(ovr), raw);
                 }
             }

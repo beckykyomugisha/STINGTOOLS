@@ -54,7 +54,12 @@ namespace StingTools.Core.Drawing
                 // builder fill the {sys} token / SYSTEM title-block cell with no
                 // per-call-site change.
                 { "sys",        sysCode    ?? dt?.System ?? string.Empty },
-                { "lvl",        levelCode  ?? string.Empty },
+                // K-7: {lvl} was the one ISO segment with no profile fallback —
+                // vol/type/role/suit/rev all read IsoNaming, {lvl} read the
+                // caller or nothing. A producer with no Level in context
+                // therefore emitted an empty segment into the sheet number and
+                // said nothing. Fall back to IsoNaming.Level like its siblings.
+                { "lvl",        levelCode  ?? dt?.IsoNaming?.Level ?? string.Empty },
                 { "mark",       mark       ?? string.Empty },
                 { "purpose",    dt?.Purpose ?? string.Empty },
                 { "phase",      dt?.Phase   ?? string.Empty },
@@ -75,6 +80,75 @@ namespace StingTools.Core.Drawing
             if (seq.HasValue)
                 d["seq"] = seq.Value.ToString("D" + Math.Max(1, seqWidth));
             return d;
+        }
+
+        // K-7: a pattern token can fail in two silent ways, both of which
+        // reach an issued sheet without a word being logged:
+        //
+        //   1. The key resolves to an EMPTY string. The applier substitutes it
+        //      happily and the segment vanishes, so
+        //      "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}"
+        //      renders "KBL26-PLN-COT01--DR-A-1001" — a double separator where
+        //      the level should be. Nothing distinguishes that from a sheet
+        //      number the author meant to write.
+        //
+        //   2. The key is ABSENT from the dict. TitleBlockParamApplier's
+        //      TryGetValue miss path deliberately leaves the literal "{seq:D4}"
+        //      in place so a later stage can fill it (GAP-D). That is the right
+        //      behaviour and is not changed here — but if no later stage runs,
+        //      braces end up on the sheet, and Revit rejects braces in a sheet
+        //      number outright, so the assignment throws and the sheet silently
+        //      keeps its default number.
+        //
+        // Neither case is repaired here — repairing them would override a
+        // caller's deliberate blank. They are only made *audible*, so the
+        // producer's existing Warnings list carries them to the operator.
+        private static readonly System.Text.RegularExpressions.Regex _tokenRx =
+            new System.Text.RegularExpressions.Regex(@"\{([A-Za-z0-9_]+)(?::D(\d+))?\}",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>
+        /// Report every token in <paramref name="pattern"/> that will render
+        /// empty or survive as a literal brace against <paramref name="tokens"/>.
+        /// Returns an empty list when the pattern is fully satisfied.
+        /// <paramref name="label"/> names the pattern in the message
+        /// ("Sheet number", "Sheet name").
+        /// </summary>
+        public static List<string> AuditPattern(
+            string pattern, IDictionary<string, string> tokens, string label)
+        {
+            var warnings = new List<string>();
+            if (string.IsNullOrEmpty(pattern) || tokens == null) return warnings;
+
+            var blank   = new List<string>();
+            var missing = new List<string>();
+            foreach (System.Text.RegularExpressions.Match m in _tokenRx.Matches(pattern))
+            {
+                var key = m.Groups[1].Value;
+                // ${PRJ_…} project-info lookups and literal passthroughs are the
+                // applier's business, not this dict's — only audit keys the
+                // canonical builder is responsible for.
+                if (!tokens.TryGetValue(key, out var val))
+                {
+                    if (!missing.Contains(m.Value)) missing.Add(m.Value);
+                }
+                else if (string.IsNullOrEmpty(val))
+                {
+                    if (!blank.Contains(key)) blank.Add(key);
+                }
+            }
+
+            if (blank.Count > 0)
+                warnings.Add(
+                    $"{label} pattern '{pattern}': token(s) {{{string.Join("}, {", blank)}}} resolved empty — "
+                  + "the segment is dropped, leaving a doubled separator. Supply the value at the call "
+                  + "site, or set the profile default (IsoNaming.Level / .Volume / .Type / .Role).");
+            if (missing.Count > 0)
+                warnings.Add(
+                    $"{label} pattern '{pattern}': token(s) {string.Join(", ", missing)} were not supplied and "
+                  + "remain literal. Revit rejects braces in a sheet number, so the value will not be written "
+                  + "unless a later stage fills them.");
+            return warnings;
         }
 
         /// <summary>

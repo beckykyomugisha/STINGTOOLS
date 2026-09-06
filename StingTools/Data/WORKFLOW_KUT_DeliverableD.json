@@ -1,17 +1,21 @@
 {
   "name": "KUT Deliverable D",
-  "description": "Kampala Uganda Temple — record-model verification close-out from proposal Section 4.4 (within 60 days of furniture installation). Validates tags, audits token-fill confidence (surfaces silent defaults), verifies LOD 400 maturity against the unified matrix (pick 'deliverable-d' at the milestone prompt), optionally stamps passing elements, reconciles the issued SpecLink TOC, exports the asset/tag audit CSV, snapshots model health, and produces the composite compliance dashboard. The LOD gate report under _BIM_COORD/lod_reports/ plus the audit CSV are the artefacts that accompany the record model to the Owner's catalog. Authoring stays with the design consultants; this workflow verifies, it does not author.",
+  "description": "Kampala Uganda Temple — record-model verification close-out from proposal Section 4.4 (within 60 days of furniture installation). Refreshes the Fohlio FF&E link, validates tags, audits token-fill confidence (surfaces silent defaults), verifies LOD 500 maturity against the unified matrix (pick 'deliverable-d' at the milestone prompt), optionally stamps passing elements, assigns CSI sections and reconciles the issued SpecLink TOC, exports the asset/tag audit CSV, snapshots model health, and produces the composite compliance dashboard. LOD LADDER: Deliverable D is verified at LOD 500 (field-verified as-built), not the LOD 400 stated in the client's A1 document — 400 is fabrication/installation maturity and is covered by the separate 'construction' milestone. ORDERING DEPENDENCY — DO NOT REORDER: the Fohlio steps run BEFORE LOD_Verify because rung 500 for Furniture and Furniture Systems requires FOHLIO_REF_TXT, and Fohlio_Import is the only thing that writes it. Run the gate without them and every piece of furniture fails LOD 500 for a data-linkage reason that has nothing to do with the model's as-built accuracy. CSI_Assign likewise runs BEFORE SpecLink_Reconcile: reconciliation compares the model's CSI sections against the spec TOC, so without assignment first every section reports as a gap or over-spec. The LOD gate report under _BIM_COORD/lod_reports/ plus the audit CSV are the artefacts that accompany the record model to the Owner's catalog. Authoring stays with the design consultants; this workflow verifies, it does not author.",
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
     { "commandTag": "ValidateTags", "label": "1. ISO 19650 tag validation — all 8 segments present + code-valid" },
     { "commandTag": "TokenConfidenceAudit", "label": "2. Token-fill confidence — flags silent defaults before handover" },
-    { "commandTag": "LOD_Verify", "label": "3. LOD 400 maturity verification (pick 'deliverable-d' at the prompt)" },
-    { "commandTag": "LOD_Stamp", "label": "4. Stamp passing elements with the verified milestone", "optional": true },
-    { "commandTag": "SpecLink_Reconcile", "label": "5. Reconcile issued SpecLink spec TOC against the model", "optional": true },
-    { "commandTag": "AuditTagsCSV", "label": "6. Asset / tag audit CSV" },
-    { "commandTag": "ExportModelHealth", "label": "7. Final model-health report", "optional": true },
-    { "commandTag": "ExportSheetRegister", "label": "8. Sheet register CSV", "optional": true },
-    { "commandTag": "FullComplianceDashboard", "label": "9. Composite compliance dashboard — record sign-off" }
+    { "commandTag": "Fohlio_ExportFinishes", "label": "3. Export room finishes in Fohlio shape (matched by ROOM NUMBER, not by tag)", "optional": true },
+    { "commandTag": "Fohlio_Import", "label": "4. Import the Fohlio FF&E register — MUST run before step 6: it is the only writer of FOHLIO_REF_TXT, which LOD 500 requires on Furniture and Furniture Systems" },
+    { "commandTag": "Fohlio_Audit", "label": "5. FF&E currency audit — confirms the link is fresh before the LOD gate reads it", "optional": true },
+    { "commandTag": "LOD_Verify", "label": "6. LOD 500 as-built verification (pick 'deliverable-d' at the prompt) — runs AFTER the Fohlio steps, never before" },
+    { "commandTag": "LOD_Stamp", "label": "7. Stamp passing elements with the verified milestone", "optional": true },
+    { "commandTag": "CSI_Assign", "label": "8. Assign CSI MasterFormat sections — MUST run before step 9; reconciling without it reports every section as a gap", "optional": true },
+    { "commandTag": "SpecLink_Reconcile", "label": "9. Reconcile issued SpecLink spec TOC against the model (runs AFTER step 8, never before)", "optional": true },
+    { "commandTag": "AuditTagsCSV", "label": "10. Asset / tag audit CSV" },
+    { "commandTag": "ExportModelHealth", "label": "11. Final model-health report", "optional": true },
+    { "commandTag": "ExportSheetRegister", "label": "12. Sheet register CSV", "optional": true },
+    { "commandTag": "FullComplianceDashboard", "label": "13. Composite compliance dashboard — record sign-off" }
   ]
 }

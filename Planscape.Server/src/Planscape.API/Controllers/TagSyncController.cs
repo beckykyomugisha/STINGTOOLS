@@ -86,7 +86,7 @@ public class TagSyncController : ControllerBase
         if (request.Elements.Count == 0)
             return Ok(new TagSyncResponse { Received = 0 });
 
-        int created = 0, updated = 0;
+        int created = 0, updated = 0, deleted = 0;
         var conflicts = new List<SyncConflictDto>();
         ComplianceSummaryDto metrics;
 
@@ -103,16 +103,58 @@ public class TagSyncController : ControllerBase
             // Runs inside the transaction so the snapshot is consistent for the
             // duration of the entire sync.
             var incomingIds = request.Elements.Select(e => e.RevitElementId).ToHashSet();
-            var existingElements = await _db.TaggedElements
-                .Where(e => e.ProjectId == project.Id && incomingIds.Contains(e.RevitElementId))
-                .ToDictionaryAsync(e => e.RevitElementId);
+            // R1 (2b) — the canonical cross-host keys carried in this push, used to
+            // find an existing ArchiCAD/IFC-origin row for the SAME element and
+            // converge onto it instead of inserting a Revit-keyed duplicate.
+            var incomingGids = request.Elements
+                .Where(e => !string.IsNullOrWhiteSpace(e.IfcGlobalId))
+                .Select(e => e.IfcGlobalId!).ToHashSet();
+            // IgnoreQueryFilters is REQUIRED here, not an optimisation.
+            // Tombstoned rows are hidden from every normal read by the global
+            // soft-delete filter, but the UPSERT must still see them: an
+            // undelete (Revit undo restoring a deleted element) has to find the
+            // existing row and clear its tombstone. Without this the row would
+            // look absent, we would INSERT, and the unique
+            // (ProjectId, RevitElementId) index would throw.
+            //
+            // In EF Core 8 IgnoreQueryFilters drops the TENANT predicate too, so
+            // ownership is carried explicitly instead: `project` was resolved by
+            // (Id + TenantId) above, and (ProjectId, RevitElementId) is this
+            // table's unique key space — a row under this ProjectId is by
+            // definition this project's data. Row-set is therefore exactly what
+            // it was before, plus the previously-hidden tombstones.
+            // Load rows matching EITHER the Revit ElementId OR the canonical
+            // IfcGlobalId, then index by both so a dto can be resolved GlobalId-first
+            // (converge onto the ArchiCAD/IFC twin) with a RevitElementId fallback.
+            var existingRows = await _db.TaggedElements
+                .IgnoreQueryFilters()
+                .Where(e => e.ProjectId == project.Id
+                            && (incomingIds.Contains(e.RevitElementId)
+                                || (e.IfcGlobalId != null && incomingGids.Contains(e.IfcGlobalId))))
+                .ToListAsync();
+            var existingElements = new Dictionary<long, TaggedElement>();
+            var existingByGid = new Dictionary<string, TaggedElement>();
+            foreach (var e in existingRows)
+            {
+                if (e.RevitElementId > 0) existingElements[e.RevitElementId] = e;
+                if (!string.IsNullOrEmpty(e.IfcGlobalId)) existingByGid[e.IfcGlobalId!] = e;
+            }
 
             // Process in batches to limit EF change tracker pressure.
             foreach (var batch in request.Elements.Chunk(SyncBatchSize))
             {
                 foreach (var dto in batch)
                 {
-                    if (existingElements.TryGetValue(dto.RevitElementId, out var existing))
+                    // R1 (2b) — resolve GlobalId-first so a Revit push lands on the
+                    // existing ArchiCAD/IFC-origin row for the same element (merging
+                    // the two doors into one row); fall back to the Revit ElementId.
+                    TaggedElement? existing = null;
+                    if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId))
+                        existingByGid.TryGetValue(dto.IfcGlobalId!, out existing);
+                    if (existing is null)
+                        existingElements.TryGetValue(dto.RevitElementId, out existing);
+
+                    if (existing is not null)
                     {
                         // Conflict detection: last-write-wins via LastModifiedUtc.
                         // - If the client did not supply a timestamp, accept the update (legacy client).
@@ -124,6 +166,17 @@ public class TagSyncController : ControllerBase
 
                         if (clientTs.HasValue && serverTs.HasValue && clientTs.Value <= serverTs.Value)
                         {
+                            // A stale DELETE is rejected by exactly this same
+                            // last-write-wins gate — it must not bypass the
+                            // conflict path just because it is a tombstone.
+                            // A newer server-side edit therefore beats an
+                            // out-of-date client's delete, and the client is
+                            // told via a SERVER_WINS conflict. Only the
+                            // ConflictType distinguishes the two, so an
+                            // operator can tell "your delete was refused" from
+                            // "your edit was refused"; Resolution is
+                            // SERVER_WINS either way.
+                            var conflictType = dto.IsDeleted ? "STALE_DELETE" : "STALE_UPDATE";
                             // Deduplicate: only add a conflict row when none already exists for this
                             // element + client pair so concurrent pushes don't double-count.
                             bool alreadyLogged = await _db.SyncConflicts.AnyAsync(c =>
@@ -137,7 +190,7 @@ public class TagSyncController : ControllerBase
                                     ProjectId       = project.Id,
                                     TaggedElementId = existing.Id,
                                     ElementId       = dto.RevitElementId.ToString(),
-                                    ConflictType    = "STALE_UPDATE",
+                                    ConflictType    = conflictType,
                                     Resolution      = "SERVER_WINS",
                                     ServerTimestamp = serverTs,
                                     ClientTimestamp = clientTs,
@@ -153,13 +206,47 @@ public class TagSyncController : ControllerBase
                             }
                             // Do NOT overwrite — server wins.
                         }
+                        else if (dto.IsDeleted)
+                        {
+                            // TOMBSTONE. Deliberately does NOT call
+                            // MapDtoToEntity: a delete payload must not
+                            // overwrite the last known good tag data, which is
+                            // the whole point of keeping the row (audit +
+                            // valid SyncConflict.TaggedElementId FKs). We only
+                            // stamp the tombstone and the audit fields.
+                            //
+                            // Idempotent: re-deleting an already-tombstoned row
+                            // just refreshes the timestamp and counts again,
+                            // matching how a no-change update still counts as
+                            // Updated.
+                            var deletedAt = clientTs ?? DateTime.UtcNow;
+                            existing.DeletedAtUtc    = deletedAt;
+                            existing.Version        += 1;
+                            existing.LastModifiedUtc = deletedAt;
+                            existing.SyncedAt        = DateTime.UtcNow;
+                            existing.SyncedBy        = request.UserName;
+                            deleted++;
+                        }
                         else
                         {
+                            // Ordinary update — and also the UNDELETE path.
+                            // MapDtoToEntity clears DeletedAtUtc, so a live
+                            // element arriving for a previously-tombstoned row
+                            // simply restores it. No special case needed.
                             MapDtoToEntity(dto, existing, request.UserName);
                             existing.Version        += 1;
                             existing.LastModifiedUtc = ToUtc(clientTs) ?? DateTime.UtcNow;
                             updated++;
                         }
+                    }
+                    else if (dto.IsDeleted)
+                    {
+                        // Delete for an element the server has never seen (e.g.
+                        // created and removed between two syncs, or already
+                        // purged). Nothing to tombstone — a no-op by design:
+                        // NOT an error, and explicitly NOT an insert, which
+                        // would resurrect the element as a dead row.
+                        continue;
                     }
                     else
                     {
@@ -169,6 +256,8 @@ public class TagSyncController : ControllerBase
                         entity.LastModifiedUtc = ToUtc(dto.LastModifiedUtc) ?? DateTime.UtcNow;
                         _db.TaggedElements.Add(entity);
                         existingElements[dto.RevitElementId] = entity; // prevent duplicate adds
+                        if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId))
+                            existingByGid[dto.IfcGlobalId!] = entity;  // …by GlobalId too
                         created++;
                     }
                 }
@@ -202,7 +291,7 @@ public class TagSyncController : ControllerBase
             {
                 var group = project.Id.ToString();
                 await _tagHub.Clients.Group(group)
-                    .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
+                    .SendAsync("TagsUpdated", new { created, updated, deleted, total = request.Elements.Count });
                 await _complianceHub.Clients.Group(group)
                     .SendAsync("ComplianceUpdated", metrics);
 
@@ -212,7 +301,7 @@ public class TagSyncController : ControllerBase
                 // plugin). The legacy emits above are kept for backward compat.
                 var notifyGroup = $"project-{project.Id}";
                 await _notificationHub.Clients.Group(notifyGroup)
-                    .SendAsync("TagsUpdated", new { created, updated, total = request.Elements.Count });
+                    .SendAsync("TagsUpdated", new { created, updated, deleted, total = request.Elements.Count });
                 await _notificationHub.Clients.Group(notifyGroup)
                     .SendAsync("ComplianceUpdated", metrics);
             }
@@ -246,6 +335,12 @@ public class TagSyncController : ControllerBase
         var mappingDocGuid = request.HostDocumentGuid;
         var mappings = request.Elements
             .Where(e => !string.IsNullOrWhiteSpace(e.IfcGlobalId))   // true IFC GlobalId only
+            // Don't mint or refresh cross-host identity rows for elements the
+            // client just reported as DELETED — that would keep asserting an
+            // identity for something no longer in the model. Existing mapping
+            // rows are left untouched; their lifecycle is owned by the
+            // reconciliation job, not by this best-effort upsert.
+            .Where(e => !e.IsDeleted)
             .Select(e => new ElementMappingDto(
                 e.IfcGlobalId!,                       // cross-host key — NOT UniqueId
                 e.RevitElementId.ToString(),          // host_element_id = Revit ElementId
@@ -285,6 +380,7 @@ public class TagSyncController : ControllerBase
             Received = request.Elements.Count,
             Created = created,
             Updated = updated,
+            Deleted = deleted,
             CompliancePercent = metrics.CompliancePercent,
             RagStatus = metrics.RagStatus,
             Conflicts = conflicts
@@ -506,6 +602,12 @@ public class TagSyncController : ControllerBase
     {
         entity.RevitElementId = dto.RevitElementId;
         entity.UniqueId = dto.UniqueId;
+        // R1 — persist the canonical cross-host key the DTO already carries (was
+        // previously dropped), and stamp origin so a Revit-authored row is
+        // distinguishable from its ArchiCAD/IFC twin. Only overwrite with a
+        // non-empty value so a push that omits it can't blank an existing key.
+        if (!string.IsNullOrWhiteSpace(dto.IfcGlobalId)) entity.IfcGlobalId = dto.IfcGlobalId;
+        entity.Source = "revit";
         entity.Disc = dto.Disc; entity.Loc = dto.Loc; entity.Zone = dto.Zone;
         entity.Lvl = dto.Lvl; entity.Sys = dto.Sys; entity.Func = dto.Func;
         entity.Prod = dto.Prod; entity.Seq = dto.Seq;
@@ -514,6 +616,12 @@ public class TagSyncController : ControllerBase
         entity.Status = dto.Status; entity.Rev = dto.Rev;
         entity.IsComplete = dto.IsComplete; entity.IsFullyResolved = dto.IsFullyResolved;
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
+        // UNDELETE, centralised: this method is only reached for an element the
+        // client reports as LIVE (the tombstone branch never calls it), so
+        // mapping a live element always clears any existing tombstone. Keeping
+        // it here rather than at the call site means no future caller can map a
+        // live element and forget to resurrect it.
+        entity.DeletedAtUtc = null;
     }
 
     /// <summary>Normalise a DateTime to UTC Kind — rejects Local, passes UTC and Unspecified through as UTC.</summary>

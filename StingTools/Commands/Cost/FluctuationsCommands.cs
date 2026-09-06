@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  FluctuationsCommands.cs — PM-3. Compute index-linked fluctuations and feed the
 //  AFC + Final Account waterfalls (both read COST_FLUCTUATIONS_UGX).
 //
@@ -28,7 +28,7 @@ namespace StingTools.Commands.Cost
             {
                 string parent = Path.GetDirectoryName(doc?.PathName ?? "");
                 if (string.IsNullOrEmpty(parent)) return null;
-                return Path.Combine(parent, "_BIM_COORD", "fluctuations.json");
+                return StingPaths.MetaFile(doc, "_BIM_COORD", "fluctuations.json");
             }
             catch { return null; }
         }

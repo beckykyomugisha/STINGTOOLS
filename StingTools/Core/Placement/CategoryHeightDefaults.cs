@@ -1,4 +1,4 @@
-// StingTools — CategoryHeightDefaults.
+﻿// StingTools — CategoryHeightDefaults.
 //
 // Resolves a STING fixture category (e.g. "Electrical Fixtures") to a default
 // standards-based mounting height, for the DWG->seed->swap bridge
@@ -120,7 +120,7 @@ namespace StingTools.Core.Placement
                 try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
-                string ovr = Path.Combine(baseDir, "_BIM_COORD", "category_height_defaults.json");
+                string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "category_height_defaults.json");
                 if (!File.Exists(ovr)) return;
                 ParseInto(File.ReadAllText(ovr), data); // project entries replace by category name
             }
