@@ -99,6 +99,30 @@ namespace StingTools.BOQ.MaterialSchedule
                 StingLog.Warn($"MaterialScheduleBuilder room finishes: {ex.Message}");
             }
 
+            // MATSCHED-T4 — ratio-derived consumables, appended as ordinary
+            // constituent rows BEFORE aggregation so they are staged,
+            // unit-checked, converted and priced by exactly the same machinery
+            // as a measured commodity. The site-tools section bypasses all of
+            // that; a second untested path to the page is not worth repeating.
+            //
+            // Drivers are read from the rows that already exist, and the derived
+            // rows are added AFTER that read, so a consumable can never become
+            // the driver of another consumable.
+            var consumablesTally = new ConsumablesTally();
+            try
+            {
+                var conLib = LoadConsumables(doc);
+                var drivers = ConsumableDrivers.From(inputs.Constituents, inputs.Units);
+                foreach (string m in drivers.UnitMismatches) consumablesTally.UnitMismatches.Add(m);
+                inputs.Constituents.AddRange(
+                    ConsumablesCalculator.Quantify(drivers, conLib.Rules, consumablesTally));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Ratio-derived consumables could not be estimated: {ex.Message}");
+                StingLog.Warn($"MaterialScheduleBuilder consumables: {ex.Message}");
+            }
+
             var msDoc = CommodityAggregator.Build(inputs);
             msDoc.ProjectName = doc.ProjectInformation?.Name ?? "";
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
@@ -154,6 +178,22 @@ namespace StingTools.BOQ.MaterialSchedule
             // rather than an unexplained absence.
             string membraneScan = Takeoff.CompoundTakeoffBuilder.MembraneScan.Summary();
             if (!string.IsNullOrEmpty(membraneScan)) result.Warnings.Add(membraneScan);
+
+            // MATSCHED-T4 — the denominator, then the honesty banner. Separate
+            // lines because they answer different questions: the first says what
+            // was looked at, the second says what the numbers ARE. The banner is
+            // conditional on something having been derived.
+            string consumablesScan = consumablesTally.Summary();
+            if (!string.IsNullOrEmpty(consumablesScan)) result.Warnings.Add(consumablesScan);
+
+            string consumablesBanner = consumablesTally.Banner();
+            if (!string.IsNullOrEmpty(consumablesBanner)) result.Warnings.Add(consumablesBanner);
+
+            // MATSCHED-T5 — this one reports more about what was NOT measured
+            // than about what was, on purpose: of fascia, barge board and ridge
+            // cap, only the fascia has a length the footprint states outright.
+            string roofScan = Takeoff.CompoundTakeoffBuilder.RoofAccessoryScan.Summary();
+            if (!string.IsNullOrEmpty(roofScan)) result.Warnings.Add(roofScan);
 
             string roomScan = roomTally.Summary();
             if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
@@ -239,6 +279,29 @@ namespace StingTools.BOQ.MaterialSchedule
                 StingLog.Warn($"MaterialScheduleBuilder.AppendSiteTools: {ex.Message}");
                 result.Warnings.Add($"Site tools could not be estimated: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Corporate consumable ratios plus the project override, merged by
+        /// constituentKind so a project can re-rate one figure without restating
+        /// the table. Same shape as LoadTools.
+        /// </summary>
+        private static ConsumablesLibrary LoadConsumables(Document doc)
+        {
+            var libr = ReadJson<ConsumablesLibrary>(StingToolsApp.FindDataFile("STING_CONSUMABLES.json"))
+                       ?? new ConsumablesLibrary();
+            var over = ReadJson<ConsumablesLibrary>(StingPaths.MetaFile(doc, "_BIM_COORD", "consumables.json"));
+            if (over != null)
+            {
+                foreach (var r in over.Rules ?? new List<ConsumableRule>())
+                {
+                    if (r == null || string.IsNullOrWhiteSpace(r.ConstituentKind)) continue;
+                    libr.Rules.RemoveAll(x => string.Equals(x.ConstituentKind, r.ConstituentKind,
+                                                            StringComparison.OrdinalIgnoreCase));
+                    libr.Rules.Add(r);
+                }
+            }
+            return libr;
         }
 
         private static SiteToolsLibrary LoadTools(Document doc)
