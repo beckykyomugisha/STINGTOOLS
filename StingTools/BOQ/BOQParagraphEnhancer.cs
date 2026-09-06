@@ -88,6 +88,13 @@ namespace StingTools.BOQ
                 {
                     if (item == null) continue;
 
+                    // When a line's description IS the issued SpecLink clause, leave it
+                    // exactly as the specification wrote it. Every appender below -
+                    // performance, compliance, "or approved equivalent", client-vocabulary
+                    // substitution - would otherwise edit contractual spec text inside a
+                    // tender bill. The spec is the authority; this generator is not.
+                    if (item.SpecSourced) { report.SpecPreservedCount++; continue; }
+
                     Element el = null;
                     if (item.RevitElementId > 0 && doc != null)
                     {
@@ -111,12 +118,15 @@ namespace StingTools.BOQ
             StingLog.Info($"BOQ paragraph enhancer: performance={report.PerformanceCount} compliance={report.ComplianceCount} "
                 + $"groups={report.GroupedCount} inclusion={report.InclusionCount} equivalent={report.OrEquivalentCount} "
                 + $"conditional={report.ConditionalCount} vocab={report.VocabCount} smartName={report.SmartNameCount} "
-                + $"specRef={report.SpecRefCount}");
+                + $"specRef={report.SpecRefCount} specPreserved={report.SpecPreservedCount}");
             return report;
         }
 
         public class EnhancementReport
         {
+            /// <summary>Lines left verbatim because their description came from the
+            /// issued specification rather than from an NRM2 template.</summary>
+            public int SpecPreservedCount;
             public int PerformanceCount;
             public int ComplianceCount;
             public int GroupedCount;

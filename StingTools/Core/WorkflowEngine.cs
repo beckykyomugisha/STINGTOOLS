@@ -343,7 +343,7 @@ namespace StingTools.Core
             "CombineParams", "BuildTags", "ValidateTags", "PreTagAudit", "TokenConfidenceAudit",
             "TagScheme_Render", "TagScheme_Inspect", "TagScheme_Audit",
             "LOD_Verify", "LOD_Stamp", "Program_Audit", "OwnerStandards_Audit",
-            "CSI_Assign", "SpecLink_Reconcile",
+            "CSI_Assign", "SpecLink_Reconcile", "SpecLink_ImportFolder",
             "Fohlio_Export", "Fohlio_Import", "Fohlio_Audit",
             "Fohlio_ExportFinishes", "Fohlio_ImportFinishes", "DeviceCoord_Audit", "ComCheck_Export",
             "Hvac_LifeCycleCompare", "PrototypeDrift_Report",
@@ -1592,6 +1592,7 @@ namespace StingTools.Core
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
                 case "CSI_Assign": return new Commands.Classification.CsiAssignCommand();
                 case "SpecLink_Reconcile": return new Commands.Classification.SpecLinkReconcileCommand();
+                case "SpecLink_ImportFolder": return new Commands.Classification.SpecLinkImportCommand();
                 case "Classification_SetStandard": return new Commands.Classification.ClassificationSetStandardCommand();
                 case "Keynote_Assign": return new Commands.Classification.KeynoteAssignCommand();
                 case "Fohlio_Export": return new ExLink.FohlioExportCommand();

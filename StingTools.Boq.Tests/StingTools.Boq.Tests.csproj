@@ -76,6 +76,12 @@
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Classification\CsiMasterFormat.cs" />
     <Compile Include="..\StingTools\Core\Classification\OmniClassTables.cs" Link="Classification\OmniClassTables.cs" />
     <Compile Include="..\StingTools\Core\Classification\ClassificationPolicy.cs" Link="Classification\ClassificationPolicy.cs" />
+    <!-- Spec store + tender gate + rate policy + FF&amp;E vocabulary - the Revit-free
+         halves of the KUT lifecycle BOQ work. SpecCompletenessGate needs the BOQ model
+         (BOQLineItem / BOQDocument), which is itself Document-free. -->
+    <Compile Include="..\StingTools\BOQ\SpecStore.cs" Link="SpecStore.cs" />
+    <Compile Include="..\StingTools\BOQ\FfeTreatment.cs" Link="FfeTreatment.cs" />
+    <Compile Include="..\StingTools\BOQ\Rates\RatePolicy.cs" Link="Rates\RatePolicy.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -129,6 +135,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\StingTools\Data\STING_OMNICLASS_41_MAP.csv" Link="Data\STING_OMNICLASS_41_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED CSI MasterFormat map, so the CSI-&gt;NRM2 bridge test asserts the
+         codes that actually reach a bill rather than a fixture restating them. -->
+    <None Include="..\StingTools\Data\STING_CSI_MASTERFORMAT_MAP.csv" Link="Data\STING_CSI_MASTERFORMAT_MAP.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- The SHIPPED KUT rate-policy overlay - JSON field types are not compile-checked. -->
+    <None Include="..\project-templates\KUT\_BIM_COORD\boq_rate_policy.json" Link="Data\kut_boq_rate_policy.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:

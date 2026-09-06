@@ -274,6 +274,34 @@ namespace StingTools.BOQ
         public List<long> ConstituentElementIds = new List<long>();
         public string AggregationKey;       // grouping key used to collapse the row (debug/export)
 
+        // -- spec reference (KUT lifecycle Phase A / H1) -----------------------
+        /// <summary>The element's CSI MasterFormat section (CSI_SECTION_TXT, or resolved
+        /// from the shipped map when the element was never CSI_Assign-stamped) and its
+        /// title. Carried on the line so the bill shows a spec reference per row, the
+        /// CSI-&gt;NRM2 bridge can bill it under its specification's work section, and the
+        /// spec-completeness gate can tell a priced line from an unspecified one.</summary>
+        public string CsiSection;
+        public string CsiTitle;
+
+        /// <summary>True when <see cref="ResolvedNRM2Paragraph"/> was taken VERBATIM from
+        /// the issued SpecLink section text rather than generated from an NRM2 template.
+        /// The paragraph enhancer must leave such a line alone - its appenders would
+        /// otherwise mutate contractual spec wording in a tender bill.</summary>
+        public bool SpecSourced;
+
+        /// <summary>The spec's preferred measurement basis for this line's CSI section.
+        /// ADVISORY: when it disagrees with <see cref="Unit"/> the line carries a
+        /// measurement-vs-spec note. It never re-measures the quantity - the rate's unit
+        /// and the quantity's unit have to stay the same dimension.</summary>
+        public string CsiUnit;
+
+        /// <summary>True when this line is Owner-procured FF&amp;E carried as a transparent
+        /// at-cost category rather than contractor-supplied work. Reserved by the spec
+        /// gate, which does not chase a spec for something the contractor never prices.
+        /// Nothing sets it yet - the Fohlio FF&amp;E treatment that does lands with the
+        /// Fohlio v2 work.</summary>
+        public bool FfeOwnerProcured;
+
         public double TotalUGX => Math.Round(Quantity * RateUGX, 0);
         public double TotalUSD => Math.Round(Quantity * RateUSD, 2);
 
@@ -299,6 +327,11 @@ namespace StingTools.BOQ
                 WastageQuantity = this.WastageQuantity,
                 MeasurementNote = this.MeasurementNote,
                 QuantityResolved = this.QuantityResolved,   // A-1 — must survive the clone
+                CsiSection = this.CsiSection,
+                CsiTitle = this.CsiTitle,
+                CsiUnit = this.CsiUnit,
+                SpecSourced = this.SpecSourced,             // a clone must not become re-enhanceable
+                FfeOwnerProcured = this.FfeOwnerProcured,
                 RateUGX = this.RateUGX,
                 RateUSD = this.RateUSD,
                 EmbodiedCarbonKg = this.EmbodiedCarbonKg,

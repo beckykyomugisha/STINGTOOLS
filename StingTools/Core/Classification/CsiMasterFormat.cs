@@ -142,6 +142,63 @@ namespace StingTools.Core.Classification
             return best;
         }
 
+        /// <summary>CSI section -&gt; NRM2 work-section bridge. Builds a normalised-section
+        /// -&gt; NRM2-code lookup from every rule that carries an Nrm2. Pure (host-free).
+        /// The EARLIEST rule wins on a section collision, because project-overlay rows are
+        /// loaded before corporate ones and are meant to override them.
+        ///
+        /// <para>Prefer <see cref="Nrm2For"/> over indexing this directly. One CSI section
+        /// can legitimately bill under two NRM2 sections depending on what the element is -
+        /// 03 30 00 Cast-in-Place Concrete is NRM2 5 for a slab and 14 for a wall - and a
+        /// section-keyed lookup has to pick one. This map is the fallback for an element
+        /// that carries a stamped CSI section no rule matched; the matched rule's own Nrm2
+        /// is the answer whenever there is one.</para></summary>
+        public static Dictionary<string, string> BuildSectionToNrm2(IEnumerable<CsiRule> rules)
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in rules ?? Enumerable.Empty<CsiRule>())
+            {
+                if (r == null || string.IsNullOrWhiteSpace(r.Nrm2) || string.IsNullOrWhiteSpace(r.Section)) continue;
+                string key = NormalizeSection(r.Section);
+                if (key.Length == 0 || d.ContainsKey(key)) continue;
+                d[key] = r.Nrm2.Trim();
+            }
+            return d;
+        }
+
+        /// <summary>CSI section -&gt; preferred measurement unit. Same shape and same
+        /// first-wins rule as <see cref="BuildSectionToNrm2"/>; lets a spec drive the BOQ
+        /// measurement-basis advisory.</summary>
+        public static Dictionary<string, string> BuildSectionToUnit(IEnumerable<CsiRule> rules)
+        {
+            var d = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in rules ?? Enumerable.Empty<CsiRule>())
+            {
+                if (r == null || string.IsNullOrWhiteSpace(r.Unit) || string.IsNullOrWhiteSpace(r.Section)) continue;
+                string key = NormalizeSection(r.Section);
+                if (key.Length == 0 || d.ContainsKey(key)) continue;
+                d[key] = r.Unit.Trim();
+            }
+            return d;
+        }
+
+        /// <summary>The NRM2 work section for a priced line: the MATCHED rule's own Nrm2
+        /// first, then the section-keyed bridge, then null meaning "no opinion - let the
+        /// category derivation decide".
+        ///
+        /// <para>Rule-first is the whole point. Six of the shipped rows share section
+        /// 03 30 00 with two different NRM2 answers, so reading the section map alone would
+        /// bill every concrete slab, column, foundation, stair and ramp under NRM2 14
+        /// (masonry) purely because the concrete-wall row is listed first.</para></summary>
+        public static string Nrm2For(CsiRule matched, IReadOnlyDictionary<string, string> sectionToNrm2, string csiSection)
+        {
+            if (matched != null && !string.IsNullOrWhiteSpace(matched.Nrm2)) return matched.Nrm2.Trim();
+            if (sectionToNrm2 != null && !string.IsNullOrWhiteSpace(csiSection) &&
+                sectionToNrm2.TryGetValue(NormalizeSection(csiSection), out string n) && !string.IsNullOrWhiteSpace(n))
+                return n;
+            return null;
+        }
+
         /// <summary>Canonical key for a CSI section number. Removes ALL whitespace (and
         /// upper-cases) so spaced "23 05 00" and unspaced "230500" reconcile to the same
         /// key — SpecLink exports spaced, models often store unspaced. Dots are preserved,

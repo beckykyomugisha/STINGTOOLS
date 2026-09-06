@@ -258,6 +258,7 @@ namespace StingTools.UI
                     case "OmniClass_SetTable":       RunCommand<Commands.Classification.OmniClassSetTableCommand>(app); break;
                     case "ClassificationTags_Set":   RunCommand<Commands.Classification.ClassificationTagsSetCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+                    case "SpecLink_ImportFolder":    RunCommand<Commands.Classification.SpecLinkImportCommand>(app); break;
                     case "Prod_GenerateRules":       RunCommand<Commands.Classification.GenerateProdCodeRulesCommand>(app); break;
                     case "Prod_CoverageAudit":       RunCommand<Commands.Classification.ProdCoverageAuditCommand>(app); break;
 
