@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0",
+  "note": "Catalogue packs are OPT-IN. NO pack applies unless a project adopts it by id, via adoptCatalogues in <project>/_BIM_COORD/project_baseline.json. Packs are additive: a project can adopt one and still declare its own familyTypes, which win by (category, typeName). The version is part of the id so a later revision cannot silently redefine what a project already adopted - publish EA-RESIDENTIAL-V2 rather than editing V1. To create a pack from work that was actually built, run Baseline_HarvestTypes on a delivered model and promote the result.",
+
+  "packs": [
+    {
+      "id": "EA-RESIDENTIAL-V1",
+      "title": "East African residential - provisional starter",
+      "status": "provisional",
+      "sourceNote": "Common Ugandan residential door and window sizes, written from general practice to demonstrate the pack SHAPE. These are NOT measured from a delivered project and are NOT a STING standard. Replace this pack by harvesting a completed model rather than editing these numbers - a catalogue that grows from work that was built and paid for beats one that grows from recollection.",
+      "familyTypes": [
+        {
+          "category": "Doors",
+          "familyNamePatterns": [ "Single-Flush", "Single Flush", "Door" ],
+          "typeName": "STING Flush Door 900x2100",
+          "purpose": "Main internal door - bedrooms, living",
+          "parameters": [
+            { "name": "Width", "valueMm": 900 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Doors",
+          "familyNamePatterns": [ "Single-Flush", "Single Flush", "Door" ],
+          "typeName": "STING Flush Door 800x2100",
+          "purpose": "Secondary internal door - store, utility",
+          "parameters": [
+            { "name": "Width", "valueMm": 800 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Doors",
+          "familyNamePatterns": [ "Single-Flush", "Single Flush", "Door" ],
+          "typeName": "STING Flush Door 750x2100",
+          "purpose": "Bathroom / WC door",
+          "parameters": [
+            { "name": "Width", "valueMm": 750 },
+            { "name": "Height", "valueMm": 2100 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": [ "Casement", "Fixed", "Window" ],
+          "typeName": "STING Casement Window 1200x1200",
+          "purpose": "Standard habitable room window",
+          "parameters": [
+            { "name": "Width", "valueMm": 1200 },
+            { "name": "Height", "valueMm": 1200 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": [ "Casement", "Fixed", "Window" ],
+          "typeName": "STING Casement Window 1500x1200",
+          "purpose": "Living / dining window",
+          "parameters": [
+            { "name": "Width", "valueMm": 1500 },
+            { "name": "Height", "valueMm": 1200 }
+          ]
+        },
+        {
+          "category": "Windows",
+          "familyNamePatterns": [ "Casement", "Fixed", "Window" ],
+          "typeName": "STING Casement Window 600x600",
+          "purpose": "Bathroom / WC high-level window",
+          "parameters": [
+            { "name": "Width", "valueMm": 600 },
+            { "name": "Height", "valueMm": 600 }
+          ]
+        }
+      ]
+    }
+  ]
+}
