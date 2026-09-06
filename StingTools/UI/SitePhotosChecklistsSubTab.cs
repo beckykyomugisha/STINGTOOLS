@@ -84,10 +84,12 @@ namespace StingTools.UI
                 }
                 if (rows == null)
                 {
-                    status.Text = "load failed";
-                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                    var refused = PlanscapeServerClient.Instance.LastStatus == 403;
+                    status.Text = refused ? "not permitted" : "load failed";
+                    listPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
                         "Could not load checklists.",
-                        PlanscapeServerClient.Instance.LastError));
+                        "Checklists are not available to you on this project.",
+                        PlanscapeCapability.CurateProject));
                     return;
                 }
                 status.Text = $"{rows.Count} checklist{(rows.Count == 1 ? "" : "s")}";
@@ -105,6 +107,24 @@ namespace StingTools.UI
             }
             refreshBtn.Click += (_, _) => _ = LoadAsync();
             statusCb.SelectionChanged += (_, _) => _ = LoadAsync();
+
+            // Checklist WRITES are curator-gated on the server; the list itself
+            // is not. There is no create button on this pane yet, so the only
+            // honest affordance is to say plainly that curation is unavailable
+            // — and only once the server has actually said so.
+            bool bannerShown = false;
+            void ApplyCaps()
+            {
+                if (bannerShown) return;
+                var banner = PlanscapeForbidden.BuildBannerIfDenied(
+                    state.Caps.CurateProject, PlanscapeCapability.CurateProject);
+                if (banner == null) return;
+                bannerShown = true;
+                DockPanel.SetDock(banner, Dock.Top);
+                dock.Children.Insert(0, banner);
+            }
+            state.CapabilitiesResolved += ApplyCaps;
+            ApplyCaps();
 
             _ = LoadAsync();
             return dock;

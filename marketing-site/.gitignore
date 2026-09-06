@@ -4,3 +4,8 @@ node_modules/
 .dev.vars
 .tscheck/
 *.log
+
+# Generated at deploy time by tools/stamp-marketing-build.mjs. It SHIPS (it is
+# the deployed-commit marker for #651) but is never committed — committing it
+# would churn on every deploy and the value would be wrong for the next one.
+build-info.json

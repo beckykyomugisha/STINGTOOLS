@@ -99,6 +99,31 @@ RUN if [ "$PLANSCAPE_FACE_MODEL" = "true" ]; then \
     fi
 
 ENV ASPNETCORE_URLS=http://+:8080
+
+# ── Do not use inotify for file watching ──
+# WebApplication.CreateBuilder registers appsettings*.json with
+# reloadOnChange:true, which opens an inotify instance the moment the host
+# config is built. `fs.inotify.max_user_instances` is a HOST-WIDE limit (128 by
+# default) shared by every container of the same user, so on a busy shared host
+# the very first line of Main throws:
+#
+#   System.IO.IOException: The configured user limit (128) on the number of
+#   inotify instances has been reached …
+#     at System.IO.FileSystemWatcher.StartRaisingEvents()
+#     … at Program.<Main>$ in Program.cs:line 25
+#
+# That killed a Render deploy (exit 139, "no open ports detected") — the process
+# died before it could bind. We cannot raise the host limit, so don't consume it:
+#
+#   reloadConfigOnChange=false → no watcher registered for config at all. Config
+#     is supplied by env vars on this platform and a running container's
+#     appsettings.json never changes, so live reload buys nothing here.
+#   USE_POLLING_FILE_WATCHER → belt-and-braces: should anything else ask a
+#     PhysicalFileProvider to Watch(), it polls instead of taking an inotify
+#     instance. Inert while nothing watches.
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false \
+    DOTNET_USE_POLLING_FILE_WATCHER=1
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \

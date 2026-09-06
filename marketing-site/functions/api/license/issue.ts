@@ -19,7 +19,7 @@ import { requireAuth } from "../auth/_lib/auth";
 import { bad, forbidden, serverError, unauthorized } from "../auth/_lib/errors";
 import { getTenantById, audit } from "../auth/_lib/db";
 import { uuid } from "../auth/_lib/tokens";
-import { resolveCap } from "../auth/_lib/limits";
+import { resolveMachineCap } from "../auth/_lib/limits";
 import { DOWNLOAD_CATALOG, entitlementFor } from "../_lib/downloads/catalog";
 import { signLicense } from "./_lib/crypto";
 import { countLicensedSeats } from "./_lib/seats";
@@ -68,7 +68,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
 
   // Same entitlement gate the downloads use — a locked tenant gets no licence.
   const tool = DOWNLOAD_CATALOG.find((t) => t.id === "sting-tools")!;
-  const { entitlement, reason } = entitlementFor(tool, tenant.subscription_status);
+  const { entitlement, reason } = entitlementFor(tool, tenant);
   if (entitlement !== "allowed") throw forbidden(reason);
 
   const now = new Date();
@@ -85,7 +85,7 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     .first<{ id: string }>();
 
   if (!existing) {
-    const cap = resolveCap(tenant.plan_product, tenant.plan_tier);
+    const cap = resolveMachineCap(tenant.plan_product, tenant.plan_tier);
     if (cap !== Infinity) {
       // Same helper present.ts reports from — see _lib/seats.ts for why this is
       // one function and not one query per caller.
@@ -110,6 +110,27 @@ export const onRequestPost = withHandler(async ({ request, env }) => {
     );
   } else {
     expires = new Date(now.getTime() + PAID_LICENCE_DAYS * 86400_000);
+  }
+
+  // Defence in depth: never mint a licence that is already dead.
+  //
+  // The entitlement gate above now resolves the trial's real state, so a lapsed
+  // trial is refused before reaching here. This guard is deliberately kept
+  // anyway, because it is cheap and because the failure it prevents is
+  // invisible: the plugin verifies offline, so an expired licence is rejected at
+  // the customer's machine with nothing recorded server-side. Any future change
+  // to how expiry is computed — a different grace period, a clock problem, a new
+  // plan shape — cannot silently produce one.
+  if (expires.getTime() <= now.getTime()) {
+    console.error(
+      `Refusing to issue an already-expired licence for tenant ${tenant.id}: ` +
+      `computed expiry ${expires.toISOString()} is not in the future ` +
+      `(status=${tenant.subscription_status}, trial_ends_at=${tenant.trial_ends_at})`
+    );
+    throw forbidden(
+      "Your trial has ended, so a licence issued now would already be expired. " +
+      "Choose a plan and try again."
+    );
   }
 
   const licenseId = existing?.id ?? uuid();

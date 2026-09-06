@@ -62,6 +62,10 @@ jobs:
         shell: pwsh
         run: ./tools/check_workflow_wiring.ps1
 
+      - name: Command doc-acquisition discipline
+        shell: pwsh
+        run: ./tools/check_command_doc_acquisition.ps1
+
       - name: Check for duplicate parameter GUIDs
         run: |
           python3 - <<'EOF'

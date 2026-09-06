@@ -267,14 +267,22 @@ export default function ViewerPage() {
         )}
         style={isFullscreen ? undefined : { height: '70vh' }}
       >
+        {/* Icon-only, and deliberately so. This button floats over the top-right
+            of the embedded viewer — exactly where that viewer's own toolbar ends.
+            A labelled "⤢ Full screen" / "⤡ Exit full screen" pill was wide enough
+            to cover the last toolbar entries, which is the same class of problem
+            fullscreen was added to solve. A single glyph masks ~5x less, and the
+            title/aria-label still carry the wording. Sized to match the viewer's
+            own .tbtn icon buttons (6px/8px padding, small radius). */}
         <button
           type="button"
           onClick={toggleFullscreen}
           title={isFullscreen ? 'Exit full screen (Esc)' : 'Full screen'}
           aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'}
-          className="absolute right-2 top-2 z-10 rounded border border-border-strong bg-surface/90 px-2 py-1 text-xs text-fg shadow-sm backdrop-blur transition hover:bg-surface-3"
+          aria-pressed={isFullscreen}
+          className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded border border-border-strong bg-surface/90 text-sm leading-none text-fg shadow-sm backdrop-blur transition hover:bg-surface-3"
         >
-          {isFullscreen ? '⤡ Exit full screen' : '⤢ Full screen'}
+          <span aria-hidden="true">{isFullscreen ? '⤡' : '⛶'}</span>
         </button>
         {viewerSrc && (
           <iframe

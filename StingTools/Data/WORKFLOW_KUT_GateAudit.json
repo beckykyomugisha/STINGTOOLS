@@ -1,6 +1,8 @@
 {
   "name": "KUT Gate Audit",
   "description": "Kampala Uganda Temple — read-only PRE-GATE check. Run this BEFORE declaring any deliverable ready, at any gate: it tells you what the gate would say without changing anything, so a failing answer costs nothing but the time to read it. Milestone-agnostic — pick whichever milestone you are approaching at the LOD_Verify prompt (deliverable-a / deliverable-b / deliverable-c / conformed-set / construction / deliverable-d). READ-ONLY BY CONSTRUCTION: every step below is declared [Transaction(TransactionMode.ReadOnly)]. Nothing is tagged, stamped, assigned or exported into the model. That is why tag validation here is PreTagAudit + TokenConfidenceAudit rather than ValidateTags — ValidateTags is a writer (it builds a 'STING Validation Legend' inside a transaction), as are CompletenessDashboard and DiscComplianceReport ('STING Compliance Legend'), so none of the three belongs in a pre-gate check. Use the matching WORKFLOW_KUT_Deliverable{A,B,C,D} preset to actually run the gate and write its artefacts. Authoring stays with the design consultants; this workflow only looks.",
+  "readOnly": true,
+  "_readOnlyNote": "Declared, and PROVEN by tools/check_smoke_test.py: every commandTag below resolves to a class carrying [Transaction(TransactionMode.ReadOnly)]. Adding a writer to this preset fails CI. The claim is a field rather than a sentence because CI cannot reliably tell a claim from a mention in prose.",
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
