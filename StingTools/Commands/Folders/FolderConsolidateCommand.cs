@@ -38,7 +38,7 @@ namespace StingTools.Commands.Folders
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(data);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
                 return RunWithConsent(doc) ? Result.Succeeded : Result.Cancelled;
             }

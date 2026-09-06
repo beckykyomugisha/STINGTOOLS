@@ -115,7 +115,7 @@ namespace StingTools.Docs
         {
             try
             {
-                var doc = data?.Application?.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetDoc(data);
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 int ran = ScheduledExportRunner.RunDue(doc, fromSave: false);

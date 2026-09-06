@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Capture &amp; tag site photos — Planscape tutorial</title>
+<meta name="description" content="Use the camera, attach photos to issues / elements / site progress, add captions. 5-minute walkthrough.">
+<meta name="theme-color" content="#E8912D">
+<link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+<link rel="canonical" href="https://planscape.co/tutorials/capture-site-photos.html">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+
+<nav class="site">
+  <a href="/" class="brand">Plan<span class="dot">·</span>scape</a>
+  <button class="menu-toggle" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
+  <div class="links" id="nav-links">
+    <a href="/features.html">Features</a>
+    <a href="/pricing.html">Pricing</a>
+    <a href="/guides/">Guides</a>
+    <a href="/tutorials/" style="color:var(--accent)">Tutorials</a>
+    <a href="/about.html">About</a>
+    <a href="/contact.html">Contact</a>
+  </div>
+  <a href="/signup" class="cta">Start free trial</a>
+</nav>
+
+<article class="doc">
+  <div class="breadcrumb"><a href="/tutorials/">Tutorials</a> &rsaquo; Capture &amp; tag site photos</div>
+  <h1>Capture &amp; tag site photos</h1>
+  <div class="meta">⏱️ 5 minutes · Beginner · Works offline · Last updated 2026-05-23</div>
+
+  <p>Site photos are the most-used artefact on construction projects. This tutorial covers the three ways to capture them in Planscape, how to attach them to the right thing, and how the auto-geotag / auto-thumbnail / auto-compress pipeline works behind the scenes.</p>
+
+  <h2>Three capture flows</h2>
+
+  <h3>Flow 1 — Standalone site photo</h3>
+  <p>For documenting progress without tying to a specific issue or element.</p>
+  <ol>
+    <li>Bottom tab bar → <strong>Photos</strong>.</li>
+    <li>Tap the floating camera button (bottom right).</li>
+    <li>Take the photo. The viewfinder shows your current GPS coordinates at the top so you can confirm.</li>
+    <li>Tap the checkmark to use it.</li>
+    <li>Add an optional caption ("Pour 4 of Level 2 slab, southeast corner").</li>
+    <li>Tap Save.</li>
+  </ol>
+  <p>The photo lands in the project's photo stream, geotagged, timestamped, and visible to all project members.</p>
+
+  <h3>Flow 2 — Attached to an issue</h3>
+  <p>For evidence supporting a defect, RFI, or NCR. See <a href="/tutorials/raise-issue-from-mobile.html">Raise an issue from your phone</a> for the full flow — the photo capture step is the same as above but the photo gets attached to the issue you're creating.</p>
+
+  <h3>Flow 3 — Attached to a specific element</h3>
+  <p>For commissioning records, asset photos, before/after pairs on a specific piece of equipment.</p>
+  <ol>
+    <li>Bottom tab bar → <strong>Map</strong> (or open an element via QR scan).</li>
+    <li>Tap the element in the 2D view, or scan its QR tag.</li>
+    <li>Element detail panel opens. Scroll to "Photos" section.</li>
+    <li>Tap <strong>+ Add photo</strong>.</li>
+    <li>Camera opens with the element name pre-filled in the caption prompt.</li>
+    <li>Take, confirm, save.</li>
+  </ol>
+  <p>The photo is now part of that element's permanent record. Anyone viewing that element later sees the photo.</p>
+
+  <h2>Picking from your gallery</h2>
+  <p>Every photo flow has a "From gallery" option alongside "Take photo". Useful for:</p>
+  <ul>
+    <li>Photos you took with the phone's stock camera before opening Planscape.</li>
+    <li>Photos from a DSLR you've airdropped to your phone.</li>
+    <li>Screenshots, diagrams, sketches.</li>
+  </ul>
+  <p>Gallery photos still get geotagged if the original photo had GPS metadata. If they don't, the location is recorded as "Unknown".</p>
+
+  <h2>What happens to each photo</h2>
+  <p>When you tap Save, Planscape does this in roughly 1 second on a typical photo:</p>
+  <ol>
+    <li>Saves the original (usually 4 MB JPEG, 12 MP) to local storage.</li>
+    <li>Generates a 400px-wide thumbnail for fast list-view loading.</li>
+    <li>Stamps the file with GPS coordinates, capture time, and your user ID.</li>
+    <li>If online: uploads original + thumbnail to the server in the background. You see "Synced" on the photo card within ~10 seconds.</li>
+    <li>If offline: queues for upload. You see "Queued (N)" in the status indicator.</li>
+  </ol>
+
+  <h2>Configuring quality / size</h2>
+  <p>Profile → Settings → Photos:</p>
+  <ul>
+    <li><strong>Quality: High</strong> (default, 12 MP, ~4 MB)</li>
+    <li><strong>Quality: Standard</strong> (1080p, ~1 MB) — recommended on slow networks or limited data plans</li>
+    <li><strong>Quality: Low</strong> (720p, ~400 KB) — fine for snag-list photos where size matters more than detail</li>
+  </ul>
+  <p>The thumbnail is always 400px regardless of quality setting — affects only the original.</p>
+
+  <h2>Viewing photos</h2>
+  <p>The Photos tab lists every project photo in reverse chronological order. Each card shows:</p>
+  <ul>
+    <li>Thumbnail</li>
+    <li>Caption (first 2 lines)</li>
+    <li>Capture time + author</li>
+    <li>Linked entity (issue / element / standalone)</li>
+    <li>Sync status chip if not yet uploaded</li>
+  </ul>
+  <p>Tap a thumbnail to open the full-screen viewer with pinch-zoom, swipe-between-photos, share, and "Show on map" actions.</p>
+
+  <h2>The map view of photos</h2>
+  <p>Map → Layers → enable <strong>Photo locations</strong>. Every photo appears as a small camera icon at the GPS coordinates of capture. Tap an icon to preview, tap again to open full screen.</p>
+  <p>Useful for spatial debugging: "where was that crack we photographed last week?" — open the map, find the camera icon, tap to confirm.</p>
+
+  <h2>Captions worth writing</h2>
+  <p>A caption you'll thank yourself for in three months:</p>
+  <ul>
+    <li>What's in the frame ("Pour 4, southeast corner of Level 2 slab")</li>
+    <li>Which way the camera is pointing if not obvious ("looking south")</li>
+    <li>Reference dimension or measurement if relevant ("strip width 60 mm")</li>
+    <li>Crew or witness name for sign-off photos ("witnessed by J. Otieno")</li>
+  </ul>
+  <p>Voice-to-text is faster than typing on site — tap the microphone icon in the caption field.</p>
+
+  <h2>Privacy &amp; storage</h2>
+  <p>Photos taken in the app are NOT saved to your phone's camera roll by default. This avoids leaking client work into your personal photo backup.</p>
+  <p>To save a copy to your camera roll: open the photo in the full-screen viewer → share → "Save to camera roll". You can also enable auto-save under Profile → Settings → Photos → "Save copies to camera roll: On".</p>
+  <p>Storage usage on your phone: Profile → Settings → Storage. Tap "Free up space" to delete locally-cached originals (thumbnails stay). The originals are safe on the server and re-download on demand.</p>
+
+  <hr class="divider">
+
+  <h2>Common mistakes</h2>
+  <ul>
+    <li><strong>Blurry photos.</strong> The viewfinder shows a green outline when focus is locked. Wait for it before tapping shutter.</li>
+    <li><strong>No caption.</strong> "Photo 4719" tells you nothing in 6 months. Write a sentence.</li>
+    <li><strong>Forgetting to attach.</strong> Standalone photos are fine for progress monitoring but for defects/elements, always use the right capture flow so the photo joins the right record.</li>
+    <li><strong>High-quality on slow network.</strong> Drop to Standard quality before a site visit if your data plan is limited.</li>
+  </ul>
+
+  <h2>What's next</h2>
+  <ul>
+    <li><a href="/tutorials/raise-issue-from-mobile.html">Raise an issue from your phone</a></li>
+    <li><a href="/tutorials/qr-scan.html">QR-scan an asset on site</a></li>
+    <li><a href="/guides/photo-capture.html">Photo capture guide</a> for deeper detail</li>
+  </ul>
+
+  <div class="next-prev">
+    <a href="/tutorials/raise-issue-from-mobile.html" class="prev">
+      <span class="lbl">← Previous</span>
+      Raise an issue from your phone
+    </a>
+    <a href="/tutorials/gps-site-map.html" class="next">
+      <span class="lbl">Next →</span>
+      Use the GPS site map
+    </a>
+  </div>
+</article>
+
+<footer class="site">
+  <div class="footer-grid">
+    <div class="col"><div class="brand-row">Plan<span class="dot">·</span>scape</div><p>ISO 19650 BIM coordination built for East &amp; West African AEC firms.</p><p>📍 Kampala, Uganda</p><p><a href="mailto:hello@planscape.co">hello@planscape.co</a></p></div>
+    <div class="col"><h4>Product</h4><a href="/features.html">Features</a><a href="/pricing.html">Pricing</a><a href="/signup">Start trial</a><a href="/contact.html#demo">Book a demo</a></div>
+    <div class="col"><h4>Learn</h4><a href="/guides/">Guides</a><a href="/tutorials/">Tutorials</a><a href="/blog/">Blog</a><a href="/contact.html">Contact support</a></div>
+    <div class="col"><h4>Company</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="https://wa.me/256700000000" target="_blank" rel="noopener">WhatsApp</a></div>
+  </div>
+  <div class="legal">© 2026 Planscape Ltd · Kampala, Uganda · All rights reserved</div>
+</footer>
+
+</body>
+</html>

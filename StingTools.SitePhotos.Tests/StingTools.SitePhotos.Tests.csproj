@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Headless transport tests for the BCC site-photo client.
+
+    WHY <Reference> AND NOT <Compile Include>:
+    Every other plugin-facing test project in this repo pulls source files in with
+    <Compile Include="..\StingTools\..."> to dodge a Revit reference. That trick is
+    what broke StingTools.Clash.Tests and StingTools.Routing.Tests — see issue #553
+    — because the included sources later grew Revit dependencies and the projects
+    stopped compiling, silently taking 97 tests offline.
+
+    It cannot work here regardless: the six Site-Photos DTOs are declared in
+    StingTools/Core/MergeRecoveryStubs.cs, which imports Autodesk.Revit.DB and
+    declares Document / ElementId / IExternalEventHandler members. Including it
+    would require the Revit API on the test host.
+
+    Referencing the BUILT assembly avoids all of it. PlanscapeServerClient and all
+    ten of its partials import zero Revit or WPF namespaces, so the CLR never loads
+    a Revit assembly — verified by instantiating the client and driving it outside
+    Revit before this project was written.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>StingTools.SitePhotos.Tests</AssemblyName>
+    <RootNamespace>StingTools.SitePhotos.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    HintPath is pinned to $(MSBuildThisFileDirectory) so it resolves the same from
+    any working directory (CI checks out and runs from the repo root; a developer
+    runs from the project folder). Release is preferred, Debug is the fallback, so
+    the harness works against whichever configuration was last built.
+  -->
+  <PropertyGroup>
+    <StingToolsDllRelease>$(MSBuildThisFileDirectory)..\StingTools\bin\Release\StingTools.dll</StingToolsDllRelease>
+    <StingToolsDllDebug>$(MSBuildThisFileDirectory)..\StingTools\bin\Debug\StingTools.dll</StingToolsDllDebug>
+    <!-- Explicit override, e.g. to run the harness against a different build:
+         dotnet test -p:StingToolsDllOverride=C:\path\to\StingTools.dll
+         Used to demonstrate the harness going RED against a build that still has
+         the empty-list stubs, and GREEN against one that does not. -->
+    <StingToolsDll Condition="'$(StingToolsDllOverride)' != ''">$(StingToolsDllOverride)</StingToolsDll>
+    <StingToolsDll Condition="'$(StingToolsDll)' == '' And Exists('$(StingToolsDllRelease)')">$(StingToolsDllRelease)</StingToolsDll>
+    <StingToolsDll Condition="'$(StingToolsDll)' == '' And Exists('$(StingToolsDllDebug)')">$(StingToolsDllDebug)</StingToolsDll>
+  </PropertyGroup>
+
+  <!--
+    If the plugin has not been built, FAIL THE BUILD with a message that names both
+    paths and the command that fixes it.
+
+    This is deliberately a build error and not a runtime skip. A <Reference> to a
+    missing assembly cannot be skipped at runtime — the project simply would not
+    compile — and a project that does not compile reports nothing at all, which is
+    precisely the #553 failure mode. A named error is the loudest available signal.
+  -->
+  <Target Name="AssertStingToolsBuilt" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(StingToolsDll)' == ''"
+           Text="StingTools.dll not found. Looked at:%0A  $(StingToolsDllRelease)%0A  $(StingToolsDllDebug)%0ABuild the plugin first:%0A  dotnet build StingTools/StingTools.csproj -c Release%0A(The plugin build needs the Revit API assemblies; these tests do not.)" />
+    <Message Importance="high" Text="[sitephotos-tests] referencing $(StingToolsDll)" />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="StingTools">
+      <HintPath>$(StingToolsDll)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Runtime-conditional skips that appear as REAL skips with a reason,
+         rather than a conditionally-excluded class that vanishes silently. -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

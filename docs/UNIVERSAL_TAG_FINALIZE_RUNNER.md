@@ -8,6 +8,14 @@
 
 # Universal Tag — Finalize Runner
 
+> **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
+>
+> ```bash
+> grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin | sort -u
+> ```
+>
+> See the Deployment section of [`CLAUDE.md`](../CLAUDE.md). The GOLD references below are left as written so the runner still reads as it was executed.
+
 **Repo:** `C:\Dev\STINGTOOLS` · **Work branch:** create `claude/universal-tag-finalize` off the current `claude/tag-tier-review-94c78a` (do NOT work on `main`; isolate in a git worktree per the repo's worktree convention).
 **Build:** `dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"` — this machine CAN build (net8 = Revit 2025/26). Baseline = **0 errors, 4 pre-existing CS0618 warnings** in `Clash/ClashIssueSyncCommand.cs`. Any NEW warning/error is yours.
 **Tests:** `StingTools.Tags.Tests` — baseline 134 pass / 2 pre-existing `CsiMasterFormat` fails (unrelated). Keep that ratio.

@@ -66,11 +66,90 @@ namespace StingTools.Tags.Tests
             Assert.Null(CsiMasterFormat.Resolve(rules, "Pipes", "Pipe", "", "REFRIG"));
         }
 
+        // ── #554: matching and display are two jobs, so assert both ─────
+        //
+        // This test used to demand that NormalizeSection RETURN the spaced form,
+        // which conflated them. NormalizeSection removes all whitespace on
+        // purpose — that is what lets SpecLink's "23 05 00" and a model's
+        // "230500" reconcile to one key. Asserting spaced output here would have
+        // meant reverting the reconciliation fix.
+        //
+        // So the test now pins the seam rather than picking a side: normalisation
+        // is whitespace-INSENSITIVE, and FormatSection renders the canonical CSI
+        // spacing for anything a human reads.
+
         [Fact]
-        public void NormalizeSection_collapses_whitespace_and_uppercases()
+        public void NormalizeSection_strips_all_whitespace_so_spaced_and_unspaced_match()
         {
-            Assert.Equal("23 31 00", CsiMasterFormat.NormalizeSection("  23   31  00 "));
+            // The point of normalisation: every spelling collapses to ONE key.
+            Assert.Equal("233100", CsiMasterFormat.NormalizeSection("  23   31  00 "));
+            Assert.Equal("233100", CsiMasterFormat.NormalizeSection("23 31 00"));
+            Assert.Equal("233100", CsiMasterFormat.NormalizeSection("233100"));
+
+            // Stated as an equality between spellings, not just as literals — this
+            // is the property SpecLink reconciliation actually depends on.
+            Assert.Equal(CsiMasterFormat.NormalizeSection("23 31 00"),
+                         CsiMasterFormat.NormalizeSection("233100"));
+
             Assert.Equal("", CsiMasterFormat.NormalizeSection(null));
+            Assert.Equal("", CsiMasterFormat.NormalizeSection("   "));
+
+            // Dots survive, so a child section stays distinct from its parent.
+            Assert.Equal("230500.13", CsiMasterFormat.NormalizeSection("23 05 00.13"));
+            Assert.NotEqual(CsiMasterFormat.NormalizeSection("23 05 00"),
+                            CsiMasterFormat.NormalizeSection("23 05 00.13"));
+        }
+
+        [Fact]
+        public void FormatSection_renders_the_canonical_CSI_spacing()
+        {
+            // Whatever spelling goes in, CSI's own form comes out.
+            Assert.Equal("23 31 00", CsiMasterFormat.FormatSection("233100"));
+            Assert.Equal("23 31 00", CsiMasterFormat.FormatSection("  23   31  00 "));
+            Assert.Equal("22 40 00", CsiMasterFormat.FormatSection("224000"));
+
+            // Level-4 child sections keep their suffix.
+            Assert.Equal("23 05 00.13", CsiMasterFormat.FormatSection("230500.13"));
+
+            // Shorter valid levels are still pairs.
+            Assert.Equal("23", CsiMasterFormat.FormatSection("23"));
+            Assert.Equal("23 05", CsiMasterFormat.FormatSection("2305"));
+
+            Assert.Equal("", CsiMasterFormat.FormatSection(null));
+
+            // Anything not a recognisable CSI number is returned UNCHANGED rather
+            // than forced into pairs. Inventing a shape for input we do not
+            // understand would print a confident wrong section number.
+            Assert.Equal("23050", CsiMasterFormat.FormatSection("23050"));     // odd length
+            Assert.Equal("DIV23", CsiMasterFormat.FormatSection("div23"));     // not digits
+        }
+
+        [Fact]
+        public void Matching_is_whitespace_insensitive_while_output_stays_canonically_spaced()
+        {
+            // The two halves of #554 in one statement, end to end: a model that
+            // stores sections UNSPACED still reconciles against a SPACED spec, and
+            // what gets reported back is spaced regardless of which side it came
+            // from.
+            var model = new Dictionary<string, string>
+            {
+                { "233100", "HVAC Ducts and Casings" },  // unspaced, as models store it
+                { "224000", "Plumbing Fixtures" },       // unspaced, model only → gap
+            };
+            var spec = new Dictionary<string, string>
+            {
+                { "23 31 00", "HVAC Ducts and Casings" }, // spaced, as SpecLink exports it
+                { "21 13 00", "Sprinkler Systems" },      // spaced, spec only → over-spec
+            };
+
+            var r = CsiMasterFormat.Reconcile(model, spec);
+
+            // Matching worked across the spelling difference: 23 31 00 is NOT a gap.
+            Assert.Single(r.SpecGaps);
+            Assert.Equal("22 40 00", r.SpecGaps[0].Section);   // reported spaced, given unspaced
+            Assert.Single(r.OverSpec);
+            Assert.Equal("21 13 00", r.OverSpec[0].Section);   // reported spaced, given spaced
+            Assert.Empty(r.TitleMismatches);
         }
 
         // ── Reconcile ───────────────────────────────────────────────────
@@ -91,6 +170,8 @@ namespace StingTools.Tags.Tests
             };
 
             var r = CsiMasterFormat.Reconcile(model, spec);
+            // #554 — reported identity is canonically spaced, NOT the normalised
+            // matching key. These read "22 40 00", not "224000".
             Assert.Single(r.SpecGaps);
             Assert.Equal("22 40 00", r.SpecGaps[0].Section);
             Assert.Single(r.OverSpec);

@@ -139,9 +139,12 @@ public class ProjectsController : ControllerBase
             dup = await _db.Projects.AnyAsync(p => p.TenantId == tenantId && p.Code == code);
         }
 
-        var projectCount = await _db.Projects.CountAsync(p => p.TenantId == tenantId);
-        if (projectCount >= tenant.MaxProjects)
-            return BadRequest($"Project limit ({tenant.MaxProjects}) reached for {tenant.Tier} tier");
+        // The project cap is enforced ONCE, by [Quota(QuotaAxis.Projects)] above, which
+        // resolves plan entitlement against the tenant's tightening override in
+        // ProjectCeilingPolicy. An inline `projectCount >= tenant.MaxProjects` used to
+        // sit here as a second gate reading only the column; the two disagreed for
+        // every self-signup (plan said 1, column said int.MaxValue) and the stricter
+        // one won purely because a filter runs before the action body. Do not re-add it.
 
         var creatorId = ProjectVisibility.GetUserId(User);
         var project = new Project

@@ -1,4 +1,4 @@
-// TemplateEngine.cs — template engine v1.1 (S08).
+﻿// TemplateEngine.cs — template engine v1.1 (S08).
 //
 // Façade callers interact with. Given a Revit Document it discovers the
 // project's _BIM_COORD/templates/ folder, loads the manifest, and dispatches
@@ -22,12 +22,19 @@ namespace Planscape.Docs.Templates
         public string TemplatesDir { get; }
         public string GeneratedDir { get; }
 
+        /// <summary>
+        /// Problems found in the most recent render, or null when it was clean. Callers that
+        /// present the rendered file to a user should surface this rather than reporting plain
+        /// success — a document carrying unresolved tokens is not a deliverable.
+        /// </summary>
+        public TemplateHealth LastRenderHealth { get; private set; }
+
         public TemplateEngine(Document doc)
         {
             Document = doc;
             ProjectRoot = ResolveProjectRoot(doc);
-            TemplatesDir = Path.Combine(ProjectRoot, "_BIM_COORD", "templates");
-            GeneratedDir = Path.Combine(ProjectRoot, "_BIM_COORD", "generated");
+            TemplatesDir = StingPaths.MetaFile(doc, "_BIM_COORD", "templates");
+            GeneratedDir = StingPaths.MetaFile(doc, "_BIM_COORD", "generated");
             Directory.CreateDirectory(TemplatesDir);
             Directory.CreateDirectory(GeneratedDir);
 
@@ -150,6 +157,26 @@ namespace Planscape.Docs.Templates
                 default:
                     throw new NotSupportedException($"Unsupported template extension '{ext}' for '{entry.Id}'.");
             }
+
+            // Render gate. "<TOKEN_NOT_FOUND:…>" and leftover "{{…}}" were designed as QA
+            // markers but nothing inspected them, so a document with an empty table and
+            // placeholder text in its header was returned as a finished deliverable and
+            // offered to the user to open. Inspect every render and make the defect loud.
+            try
+            {
+                var health = TemplateDoctor.Inspect(outPath);
+                string summary = health.Summary();
+                if (summary != null)
+                {
+                    LastRenderHealth = health;
+                    StingLog.Warn($"TemplateEngine: '{entry.Id}' rendered with problems → {summary}  [{outPath}]");
+                }
+                else
+                {
+                    LastRenderHealth = null;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TemplateEngine render gate: {ex.Message}"); }
 
             StingLog.Info($"TemplateEngine: rendered {entry.Id} → {outPath}");
             return outPath;

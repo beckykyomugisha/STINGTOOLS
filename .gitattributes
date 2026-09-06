@@ -13,3 +13,15 @@
 
 shared/ifc/**        text eol=lf
 **/_manifest.json    text eol=lf
+
+# Same reasoning for the smoke-test source and its generated markdown.
+# tools/check_smoke_test.py asserts the committed REVIT_SMOKE_TEST.md is a
+# byte-identical regeneration of smoke_test.json, and the CI gate re-runs the
+# generator and calls `git diff --exit-code`. tools/build_smoke_test.py writes
+# LF; without this pin a Windows checkout with core.autocrlf=true materialises
+# CRLF and the diff is non-empty on a tree nobody edited. (The checker itself
+# LF-normalises before comparing, as defence in depth — this stops the *git*
+# half of the check crying wolf.)
+docs/examples/*/smoke_test.json       text eol=lf
+docs/examples/*/REVIT_SMOKE_TEST.md   text eol=lf
+docs/examples/*/*.docx                binary

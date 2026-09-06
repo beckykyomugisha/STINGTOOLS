@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools — AEC/FM Filter Registry
 //
 // Loads STING_AEC_FILTERS.json once per document, layers an optional
@@ -131,7 +131,7 @@ namespace StingTools.Core.Drawing
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 var dir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var path = Path.Combine(dir, "_BIM_COORD", "aec_filters.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "aec_filters.json");
                 if (!File.Exists(path)) return null;
 
                 var lib = JsonConvert.DeserializeObject<AecFilterLibrary>(File.ReadAllText(path));

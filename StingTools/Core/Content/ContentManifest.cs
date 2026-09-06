@@ -1,4 +1,4 @@
-// StingTools — Content Library (Phase: Content Library foundation)
+﻿// StingTools — Content Library (Phase: Content Library foundation)
 //
 // ContentManifest is the single source of truth for STING-authored reusable
 // content: model-family seeds, 2D symbol catalogues, annotation tag families,
@@ -7,7 +7,8 @@
 // engines (SymbolLibraryCreator, TagFamilyCreator seed-load, MEP-from-DWG
 // placement) resolve against, so one version + checksum envelope covers content
 // that is otherwise scattered across Data/Seeds, Data/Symbols and
-// Data/TagFamilies/Seeds.
+// Data/TagFamilies.  (Data/TagFamilies/Seeds was retired: its 137 files were
+// superseded duplicates that shadowed the flat set, and nothing searches it.)
 //
 // ContentManifestRegistry mirrors DrawingTypeRegistry exactly:
 //   1. Loads Data/STING_CONTENT_MANIFEST.json (shipped corporate baseline)
@@ -275,7 +276,7 @@ namespace StingTools.Core.Content
                 if (string.IsNullOrEmpty(projPath)) return null;
                 var dir = Path.GetDirectoryName(projPath);
                 if (string.IsNullOrEmpty(dir)) return null;
-                var path = Path.Combine(dir, "_BIM_COORD", "content_manifest.json");
+                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "content_manifest.json");
                 if (!File.Exists(path)) return null;
                 var m = JsonConvert.DeserializeObject<ContentManifest>(File.ReadAllText(path));
                 if (m != null)

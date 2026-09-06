@@ -1,4 +1,4 @@
-// StingTools — SeedEnsurer (Item 1, seed-family-per-rule).
+﻿// StingTools — SeedEnsurer (Item 1, seed-family-per-rule).
 //
 // The EnsureSeeds pre-pass. For each placement category that has NO
 // manufacturer family loaded, resolve the mapped STING seed family
@@ -216,7 +216,7 @@ namespace StingTools.Core.Placement
             catch (Exception ex) { StingLog.Warn($"SeedEnsurer.ResolveSeedOutputFolder: {ex.Message}"); }
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.Combine(Path.GetTempPath(), "STING_Seeds");
-            return Path.Combine(baseDir, "_BIM_COORD", "Families", "Seeds");
+            return StingPaths.MetaFile(doc, "_BIM_COORD", "Families", "Seeds");
         }
     }
 }

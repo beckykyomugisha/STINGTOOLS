@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.DB;
@@ -73,7 +73,7 @@ namespace StingTools.ExLink
         {
             string dir = Path.GetDirectoryName(doc?.PathName ?? "");
             if (string.IsNullOrEmpty(dir)) return null;
-            return Path.Combine(dir, "_BIM_COORD", name);
+            return StingPaths.MetaFile(doc, "_BIM_COORD", name);
         }
 
         /// <summary>Resolve a mapped value for an element, honouring "$"-pseudo params.</summary>

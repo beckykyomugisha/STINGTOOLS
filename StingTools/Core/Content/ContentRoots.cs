@@ -63,8 +63,15 @@ namespace StingTools.Core.Content
                 if (!string.IsNullOrEmpty(data))
                 {
                     baseline.Add(Path.Combine(data, "Families"));
-                    baseline.Add(Path.Combine(data, "TagFamilies"));            // deployed flat set
-                    baseline.Add(Path.Combine(data, "TagFamilies", "Seeds"));   // source subset
+                    baseline.Add(Path.Combine(data, "TagFamilies"));            // the tag family set
+                    // Data/TagFamilies/Seeds is GONE and is not searched. It held 137
+                    // pre-Phase-188 .rfa files: 88 duplicated the flat set above and were
+                    // already shadowed by it (this list is searched in order), 39 more were
+                    // superseded by a differently-named file covering the same category, and
+                    // the tag families they carried reference parameters that Phase 188
+                    // retyped -- which is what produced the recurring "Inconsistent Units"
+                    // error. Do not re-add this root: a folder that is searched but should
+                    // not exist is how the stale copies kept coming back.
                 }
             }
             catch { }

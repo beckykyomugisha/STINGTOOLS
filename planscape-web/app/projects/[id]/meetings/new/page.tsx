@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { MemberPicker } from '@/components/MemberPicker';
 import { createMeeting } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export default function NewMeetingPage() {
   const [durationMinutes, setDurationMinutes] = useState('60');
   const [location, setLocation] = useState('');
   const [meetingUrl, setMeetingUrl] = useState('');
+  const [attendeeIds, setAttendeeIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +40,10 @@ export default function NewMeetingPage() {
         durationMinutes: durationMinutes ? Number(durationMinutes) : undefined,
         location: location.trim() || undefined,
         meetingUrl: meetingUrl.trim() || undefined,
+        // Send ids only and let the server fill name/email from the account —
+        // it already does that in CreateMeeting, and echoing a display name we
+        // happen to be holding is how the two drift apart.
+        attendees: attendeeIds.length ? attendeeIds.map((userId) => ({ userId })) : undefined,
       });
       router.push(`/projects/${projectId}/meetings/${m.id}`);
     } catch (err) {
@@ -118,6 +124,19 @@ export default function NewMeetingPage() {
             className="mt-1 w-full rounded border border-border-strong px-2 py-1.5 text-sm"
           />
         </label>
+        <div className="block">
+          <span className="text-sm text-fg-muted">
+            Attendees{attendeeIds.length > 0 ? ` (${attendeeIds.length})` : ''}
+          </span>
+          <div className="mt-1">
+            <MemberPicker
+              projectId={projectId}
+              multiple
+              value={attendeeIds}
+              onChange={(v) => setAttendeeIds(v as string[])}
+            />
+          </div>
+        </div>
         <button
           type="submit"
           disabled={busy || !title.trim() || !scheduledAt}
