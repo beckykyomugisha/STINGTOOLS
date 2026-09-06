@@ -94,6 +94,9 @@
          and network-free on purpose: the command walks the model and queries the
          station, this only does the maths. -->
     <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
+    <!-- The oBIX/JSON shape handling under the certification decision. Extracted from
+         NiagaraJsonClient.cs, which logs through StingLog and so cannot be linked here. -->
+    <Compile Include="..\StingTools\Core\Twin\NiagaraPointParser.cs" Link="Twin\NiagaraPointParser.cs" />
   </ItemGroup>
 
   <ItemGroup>
