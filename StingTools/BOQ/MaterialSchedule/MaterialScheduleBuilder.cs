@@ -55,6 +55,8 @@ namespace StingTools.BOQ.MaterialSchedule
             inputs.DefaultStageId = lib.DefaultStageId;
             inputs.ExcludedCategories = lib.ExcludedCategories;
             inputs.ExcludedDescriptionPatterns = lib.ExcludedDescriptionPatterns;
+            inputs.ExclusionProtectedCategories = lib.ExclusionProtectedCategories;
+            inputs.IntermediateMeasures = lib.IntermediateMeasures;
             inputs.Rates = LoadRates(doc);
 
             foreach (var item in boq.AllItems.Where(i => i.Source == BOQRowSource.Model))

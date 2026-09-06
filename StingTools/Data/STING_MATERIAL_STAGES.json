@@ -48,7 +48,7 @@
     {
       "stageId": "tools",
       "title": "TOOLS AND EQUIPMENT",
-      "preamble": "Site establishment tools and small plant. Manual rows only — no modelled source.",
+      "preamble": "Site establishment tools and small plant. Manual rows only â€” no modelled source.",
       "order": 10,
       "constituentKinds": [],
       "categories": [],
@@ -102,7 +102,16 @@
       "categories": [
         "Roofs"
       ],
-      "levelCodes": []
+      "levelCodes": [],
+      "typePatterns": [
+        "roofcap",
+        "roof cap",
+        "roof-cap",
+        "roofing",
+        "ridge",
+        "barge board",
+        "fascia"
+      ]
     },
     {
       "stageId": "doors-windows",
@@ -167,11 +176,53 @@
       "order": 90,
       "constituentKinds": [],
       "categories": [
-        "Site",
-        "Hardscape",
-        "Parking"
+        "Hardscape"
       ],
-      "levelCodes": []
+      "levelCodes": [],
+      "typePatterns": [
+        "gate",
+        "fence",
+        "bollard",
+        "kerb",
+        "paving",
+        "manhole"
+      ]
+    }
+  ],
+  "exclusionProtectedCategories": [
+    "Doors",
+    "Windows"
+  ],
+  "intermediateMeasures": [
+    {
+      "kind": "blockwork",
+      "children": [
+        "block_units"
+      ],
+      "note": "blockwork area; bought as blocks and mortar below"
+    },
+    {
+      "kind": "brickwork",
+      "children": [
+        "brick_units"
+      ],
+      "note": "brickwork area; bought as bricks and mortar below"
+    },
+    {
+      "kind": "mortar",
+      "children": [
+        "mortar_cement",
+        "mortar_sand"
+      ],
+      "note": "mortar volume; bought as cement and sand below"
+    },
+    {
+      "kind": "plaster",
+      "children": [
+        "plaster_cement",
+        "plaster_sand"
+      ],
+      "note": "plastered area; bought as cement and sand below"
     }
   ]
 }

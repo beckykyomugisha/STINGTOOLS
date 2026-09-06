@@ -156,11 +156,21 @@ namespace StingTools.Core.MaterialSchedule
     public static class SupplierUnitConverter
     {
         /// <summary>
-        /// 2 dp, away from zero — so a divisible order never rounds DOWN below
-        /// what was measured and quietly under-orders.
+        /// 2 dp, rounded UP.
+        ///
+        /// This used to be Math.Round(v, 2, MidpointRounding.AwayFromZero) with a
+        /// comment claiming a divisible order could never fall below what was
+        /// measured. That was wrong, and the first real export proved it:
+        /// AwayFromZero only decides TIES, so 174.6044 became 174.60 and rule R4
+        /// fired with "order quantity 174.60 is below the net measured 174.60" —
+        /// true, unreadable at 2 dp, and a genuine under-order.
+        ///
+        /// Ceiling makes the documented contract hold for every value, not only
+        /// for ties: order >= net, always. The 1e-9 nudge keeps a value already
+        /// at 2 dp from being pushed a cent higher by binary representation.
         /// </summary>
         private static double RoundDivisible(double v)
-            => Math.Round(v, 2, MidpointRounding.AwayFromZero);
+            => Math.Ceiling(v * 100.0 - 1e-9) / 100.0;
 
         public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity)
         {
@@ -180,10 +190,11 @@ namespace StingTools.Core.MaterialSchedule
             double waste = Math.Max(0, rule.DefaultWastagePct);
             double order = net * (1.0 + waste / 100.0);
             // Countable units round UP — you cannot buy 2.08 truck trips.
-            // Divisible units round to 2 dp: order quantity is what someone
+            // Divisible units round UP to 2 dp: order quantity is what someone
             // purchases and what the amount is computed from, so raw binary
             // floats would otherwise print as "164.48145 m³" and drag fractions
-            // of a shilling into the money column.
+            // of a shilling into the money column. Both directions round UP, so
+            // an order can never sit below the measured net.
             order = rule.RoundUpToWhole ? Math.Ceiling(order - 1e-9) : RoundDivisible(order);
 
             return new SupplierUnitResult

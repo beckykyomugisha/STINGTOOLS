@@ -37,8 +37,31 @@ namespace StingTools.Core.MaterialSchedule
         public bool ConversionBlocked;
         public string ConversionNote = "";
 
+        /// <summary>The constituent kind this row came from, or "" for a row that
+        /// carried none. Used to decide whether the row is an intermediate.</summary>
+        public string SourceKind = "";
+
+        /// <summary>
+        /// True when this row is an INTERMEDIATE MEASURE whose purchasable
+        /// constituents are separately listed in the same document — blockwork
+        /// area against the block count derived from it, mortar volume against
+        /// its cement and sand.
+        ///
+        /// The first real export listed all four alongside their own children
+        /// and flagged each with R3 ("has no rate. It will total zero"), which
+        /// reads as an instruction to price them. Rating 175 m2 of blockwork
+        /// next to 2,292 blocks pays for the same wall twice.
+        ///
+        /// A memorandum row keeps its quantity — it is the audit trail that
+        /// makes the derived counts checkable — but it can never carry money:
+        /// AmountUGX is hard-zero, so the double-count is unrepresentable
+        /// rather than merely discouraged.
+        /// </summary>
+        public bool IsMemorandum;
+        public string MemorandumNote = "";
+
         /// <summary>Derived — see the file header. Rounded to whole UGX.</summary>
-        public double AmountUGX => Math.Round(OrderQuantity * RateUGX, 0);
+        public double AmountUGX => IsMemorandum ? 0 : Math.Round(OrderQuantity * RateUGX, 0);
 
         /// <summary>True when no rate could be resolved for this commodity.</summary>
         public bool IsUnpriced => RateUGX <= 0;
