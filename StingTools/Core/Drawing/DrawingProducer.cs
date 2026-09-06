@@ -819,6 +819,12 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
+            // K-12: stamp the seven ISO segments and their join onto the sheet.
+            // Nothing new is derived — DrawingTokenContext already resolved every one
+            // of these to build the number, and they were discarded after
+            // substitution. All twelve PRJ_SHEET_* are bound; eleven had zero writers.
+            StampSheetSegments(sheet, tokens, result);
+
             // FIX-6: lock check + stale-key clear + stamp + sequence + title-block
             // params all go through the canonical ApplyToSheet plus the
             // producer-specific sequence stamp. Avoids re-implementing the
@@ -1090,6 +1096,63 @@ namespace StingTools.Core.Drawing
             var bad = new[] { '{', '}', '[', ']', '|', ':', ';', '<', '>', '?', '\\', '/' };
             foreach (var c in bad) raw = raw.Replace(c, '-');
             return raw.Trim();
+        }
+
+        /// <summary>
+        /// K-12 — the seven ISO name segments, in pattern order, and the sheet
+        /// parameter each is stamped into. The eighth, PRJ_SHEET_FULL_REF_TXT, is
+        /// their join and is written from these.
+        /// </summary>
+        private static readonly (string Token, string Param)[] SheetSegmentMap =
+        {
+            ("project",    "PRJ_SHEET_PROJECT_TXT"),
+            ("originator", "PRJ_SHEET_ORIG_TXT"),
+            ("vol",        "PRJ_SHEET_VOLUME_TXT"),
+            ("lvl",        "PRJ_SHEET_LEVEL_TXT"),
+            ("type",       "PRJ_SHEET_TYPE_TXT"),
+            ("role",       "PRJ_SHEET_ROLE_TXT"),
+            ("seq",        "PRJ_SHEET_SEQ_TXT"),
+        };
+
+        /// <summary>
+        /// Stamp the ISO segments onto the sheet so a title block can display any
+        /// subset of them, and so MatchLineEngine's three PRJ_SHEET_FULL_REF_TXT
+        /// readers receive the full reference rather than falling back to the native
+        /// sheet number.
+        /// <para>
+        /// K-13 interaction: a token may now be ABSENT rather than blank. An absent
+        /// token is written as its LITERAL ("{project}"), not as an empty string.
+        /// The tempting argument for empty — "the sheet number was rejected, so no
+        /// sheet exists to mislead anyone" — DOES NOT HOLD here: the sheet is created
+        /// before the number is assigned, and the assignment sits in a try/catch that
+        /// only logs. So a sheet DOES exist carrying Revit's default number, and an
+        /// empty segment on it would read as "this project has no volume code"
+        /// rather than "this was never resolved". The literal is visibly wrong, which
+        /// is the whole point of K-13.
+        /// </para>
+        /// </summary>
+        private static void StampSheetSegments(
+            ViewSheet sheet, IDictionary<string, string> tokens, ProduceResult result)
+        {
+            if (sheet == null || tokens == null) return;
+
+            var parts = new List<string>();
+            foreach (var (token, param) in SheetSegmentMap)
+            {
+                string value = tokens.TryGetValue(token, out var v) && !string.IsNullOrWhiteSpace(v)
+                    ? v
+                    : "{" + token + "}";   // unresolved: keep it visibly unresolved
+                parts.Add(value);
+
+                SafeWrite.Set(sheet, param,
+                    () => ParameterHelpers.SetString(sheet, param, value, overwrite: true),
+                    "DrawingProducer.SheetSegments", result?.Warnings);
+            }
+
+            string fullRef = string.Join("-", parts);
+            SafeWrite.Set(sheet, "PRJ_SHEET_FULL_REF_TXT",
+                () => ParameterHelpers.SetString(sheet, "PRJ_SHEET_FULL_REF_TXT", fullRef, overwrite: true),
+                "DrawingProducer.SheetSegments", result?.Warnings);
         }
 
         private static string MakeUniqueViewName(Document doc, string baseName)

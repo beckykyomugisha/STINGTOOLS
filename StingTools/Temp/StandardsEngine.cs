@@ -12,6 +12,7 @@ using Autodesk.Revit.DB.Plumbing;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Classification;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB.Architecture;
 
@@ -328,38 +329,29 @@ namespace StingTools.Temp
             return issues;
         }
 
-        /// <summary>Classify elements using Uniclass 2015 codes.</summary>
+        /// <summary>
+        /// Classify elements using Uniclass 2015 codes.
+        ///
+        /// The category map is no longer a C# literal — it comes from
+        /// <see cref="StingTools.Core.Classification.UniclassMapRegistry"/>
+        /// (Data/STING_UNICLASS_MAP.csv + project override), so it extends
+        /// without a rebuild.
+        /// </summary>
         internal static List<(ElementId Id, string Category, string UniclassCode, string Description)>
             ClassifyUniclass(Document doc)
         {
             var results = new List<(ElementId, string, string, string)>();
+            if (doc == null) return results;
 
-            // Category to Uniclass mapping
-            var catMapping = new Dictionary<BuiltInCategory, (string Code, string Desc)>
+            var catMapping = StingTools.Core.Classification.UniclassMapRegistry.Get(doc);
+            if (catMapping == null || catMapping.Count == 0)
             {
-                [BuiltInCategory.OST_Walls] = ("Ss_25_10", "Wall systems"),
-                [BuiltInCategory.OST_Floors] = ("Ss_30_10", "Floor systems"),
-                [BuiltInCategory.OST_Roofs] = ("Ss_32_10", "Roof systems"),
-                [BuiltInCategory.OST_Ceilings] = ("Ss_37_10", "Ceiling systems"),
-                [BuiltInCategory.OST_Stairs] = ("Ss_35_10", "Stair systems"),
-                [BuiltInCategory.OST_Doors] = ("Pr_30_59_24", "Doors"),
-                [BuiltInCategory.OST_Windows] = ("Pr_30_59_96", "Windows"),
-                [BuiltInCategory.OST_DuctCurves] = ("Ss_55_30", "Ductwork distribution"),
-                [BuiltInCategory.OST_PipeCurves] = ("Ss_45_30", "Pipework distribution"),
-                [BuiltInCategory.OST_MechanicalEquipment] = ("Ss_55_40", "Mechanical plant"),
-                [BuiltInCategory.OST_ElectricalEquipment] = ("Ss_60_40", "Electrical plant"),
-                [BuiltInCategory.OST_ElectricalFixtures] = ("Ss_60_30", "Electrical outlets"),
-                [BuiltInCategory.OST_LightingFixtures] = ("Ss_65_40", "Luminaires"),
-                [BuiltInCategory.OST_PlumbingFixtures] = ("Ss_45_40", "Sanitary appliances"),
-                [BuiltInCategory.OST_Sprinklers] = ("Ss_80_50", "Fire suppression"),
-                [BuiltInCategory.OST_Furniture] = ("Pr_40_30", "Furniture"),
-                [BuiltInCategory.OST_CableTray] = ("Ss_60_20", "Cable containment"),
-                [BuiltInCategory.OST_Conduit] = ("Ss_60_20", "Cable containment"),
-                [BuiltInCategory.OST_StructuralColumns] = ("Ss_20_05", "Structural columns"),
-                [BuiltInCategory.OST_StructuralFraming] = ("Ss_20_10", "Structural framing"),
-            };
+                StingLog.Warn("ClassifyUniclass: the Uniclass map is empty — nothing to classify. " +
+                              "Check Data/STING_UNICLASS_MAP.csv shipped alongside the DLL.");
+                return results;
+            }
 
-            // HIGH-SE-03: Single multi-category collector instead of 18 separate per-category scans
+            // HIGH-SE-03: Single multi-category collector instead of one scan per category
             var uniclassCatFilter = new ElementMulticategoryFilter(new List<BuiltInCategory>(catMapping.Keys));
             var allElements = new FilteredElementCollector(doc)
                 .WherePasses(uniclassCatFilter)
@@ -372,7 +364,7 @@ namespace StingTools.Temp
                 if (catMapping.TryGetValue(bic, out var mapping))
                 {
                     string catName = el.Category.Name ?? "Unknown";
-                    results.Add((el.Id, catName, mapping.Code, mapping.Desc));
+                    results.Add((el.Id, catName, mapping.Code, mapping.Description));
                 }
             }
 
@@ -735,6 +727,55 @@ namespace StingTools.Temp
     }
 
     // ════════════════════════════════════════════════════════════════
+    //  COMMAND 4a: Reload the Uniclass category map from disk
+    // ════════════════════════════════════════════════════════════════
+    /// <summary>
+    /// Drops the cached Uniclass map so an edit to
+    /// Data/STING_UNICLASS_MAP.csv or the project override is picked up
+    /// without restarting Revit. Mirrors Hvac_ReloadRules.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    public class UniclassReloadMapCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var doc = commandData?.Application?.ActiveUIDocument?.Document;
+                UniclassMapRegistry.Reload();
+                var map = UniclassMapRegistry.Get(doc);
+
+                var report = new StringBuilder();
+                report.AppendLine("═══ UNICLASS MAP RELOADED ═══\n");
+                report.AppendLine($"Baseline : Data/{UniclassMapRegistry.DataFileName}");
+                report.AppendLine($"Override : <project>/{UniclassMapRegistry.ProjectOverrideRelPath}\n");
+                report.AppendLine($"Entries  : {map.Count}");
+
+                foreach (var g in map.Values.GroupBy(e => e.Table).OrderBy(g => g.Key.ToString()))
+                    report.AppendLine($"  {g.Key,-8} → {UniclassMapRegistry.ParameterFor(g.Key) ?? "(written nowhere)"}: {g.Count()}");
+
+                var bad = map.Values.Where(e => e.Table == UniclassTable.Unknown).ToList();
+                if (bad.Count > 0)
+                {
+                    report.AppendLine("\n⚠  Rows with an unrecognised table prefix:");
+                    foreach (var e in bad)
+                        report.AppendLine($"  {e.Category} = {e.Code}");
+                }
+
+                TaskDialog.Show("Uniclass Map", report.ToString());
+                StingLog.Info($"Uniclass map reloaded: {map.Count} entries");
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("Uniclass map reload failed", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
     //  COMMAND 4: Uniclass 2015 Classification
     // ════════════════════════════════════════════════════════════════
     [Transaction(TransactionMode.Manual)]
@@ -761,30 +802,101 @@ namespace StingTools.Temp
                 foreach (var group in groups)
                 {
                     string desc = group.First().Description;
-                    report.AppendLine($"  {group.Key} — {desc}: {group.Count()} elements");
+                    var table = UniclassMapRegistry.TableOf(group.Key);
+                    string target = UniclassMapRegistry.ParameterFor(table) ?? "UNROUTED";
+                    report.AppendLine($"  {group.Key} — {desc}: {group.Count()} elements → {target}");
                 }
 
-                // Write Uniclass codes to elements
+                // Write Uniclass codes.
+                //
+                // The UNICLASS_* parameters bind on TYPE, and ParameterHelpers'
+                // lookup has no type fallback — so these must be written to the
+                // ElementType. Writing them to the instance (what this command
+                // used to do with ASS_CLASS_COD_TXT) silently returns false on
+                // every element.
+                //
+                // Routing is by table prefix: Pr_ → UNICLASS_PR_TXT,
+                // Ss_ → UNICLASS_SS_TXT, EF_ → UNICLASS_EF_TXT. Without it the
+                // three Pr_ rows in the map (Doors, Windows, Furniture) would
+                // land in the systems parameter.
+                var perParamWrites = new Dictionary<string, int>();
+                var unrouted = new Dictionary<string, int>();
+                int legacyWrites = 0, typesTouched = 0, missingParam = 0;
+
                 using (var t = new Transaction(doc, "STING Uniclass Classify"))
                 {
                     t.Start();
-                    int written = 0;
+
+                    // One write per type, not per instance — the classification
+                    // is a type property and thousands of instances share a type.
+                    var byType = new HashSet<ElementId>();
+
                     foreach (var (id, cat, code, desc) in classifications)
                     {
                         var el = doc.GetElement(id);
-                        if (el != null)
+                        if (el == null) continue;
+
+                        var table = UniclassMapRegistry.TableOf(code);
+                        string target = UniclassMapRegistry.ParameterFor(table);
+                        if (target == null)
                         {
-                            if (ParameterHelpers.SetString(el, "ASS_CLASS_COD_TXT", code, false))
-                                written++;
-                            ParameterHelpers.SetString(el, "ASS_CLASS_DESC_TXT", desc, false);
+                            unrouted.TryGetValue(code, out int u);
+                            unrouted[code] = u + 1;
+                            continue;
                         }
+
+                        Element typeEl = null;
+                        try { typeEl = doc.GetElement(el.GetTypeId()); } catch { }
+                        Element host = typeEl ?? el;   // system families with no type fall back to the instance
+
+                        if (!byType.Add(host.Id)) continue;
+                        typesTouched++;
+
+                        if (ParameterHelpers.SetString(host, target, code, false))
+                        {
+                            perParamWrites.TryGetValue(target, out int w);
+                            perParamWrites[target] = w + 1;
+                        }
+                        else if (host.LookupParameter(target) == null)
+                        {
+                            missingParam++;
+                        }
+
+                        // Legacy pair, kept for one release. Nothing in the
+                        // codebase reads ASS_CLASS_COD_TXT — the only other
+                        // reference is this command — but it is a bound shared
+                        // parameter that live models may schedule, so it keeps
+                        // being written until that is confirmed retired.
+                        if (ParameterHelpers.SetString(host, "ASS_CLASS_COD_TXT", code, false))
+                            legacyWrites++;
+                        ParameterHelpers.SetString(host, "ASS_CLASS_DESC_TXT", desc, false);
                     }
+
                     t.Commit();
-                    report.AppendLine($"\nUniclass codes written to {written} elements.");
+                }
+
+                report.AppendLine($"\nTypes written: {typesTouched}");
+                foreach (var kv in perParamWrites.OrderBy(k => k.Key))
+                    report.AppendLine($"  {kv.Key}: {kv.Value}");
+                report.AppendLine($"  ASS_CLASS_COD_TXT (legacy): {legacyWrites}");
+
+                if (unrouted.Count > 0)
+                {
+                    report.AppendLine("\n⚠  Unrouted codes — no Pr_/Ss_/EF_ prefix, written nowhere:");
+                    foreach (var kv in unrouted.OrderBy(k => k.Key))
+                        report.AppendLine($"  {kv.Key}: {kv.Value} elements");
+                }
+
+                if (missingParam > 0)
+                {
+                    report.AppendLine($"\n⚠  {missingParam} type(s) do not carry the UNICLASS_* parameters at all.");
+                    report.AppendLine("   These are new parameters — run Load Shared Parameters on this model");
+                    report.AppendLine("   first, or classification writes will keep no-opping.");
                 }
 
                 TaskDialog.Show("Uniclass Classification", report.ToString());
-                StingLog.Info($"Uniclass: classified {classifications.Count} elements");
+                StingLog.Info($"Uniclass: classified {classifications.Count} elements across {typesTouched} types; " +
+                              $"unrouted codes {unrouted.Count}; types missing the parameter {missingParam}");
                 return Result.Succeeded;
             }
             catch (Exception ex)

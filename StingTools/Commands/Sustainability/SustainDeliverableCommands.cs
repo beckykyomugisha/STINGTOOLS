@@ -119,7 +119,11 @@ namespace StingTools.Commands.Sustainability
                 var tb = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_TitleBlocks)
                     .WhereElementIsElementType().FirstElementId();
                 var sheet = ViewSheet.Create(doc, tb ?? ElementId.InvalidElementId);
-                try { sheet.Name = name; } catch { }
+                // H-4 sibling — same "ships named Unnamed and reports success"
+                // defect as ShopDrawingComposer / MepLevelViewProducer. Found by
+                // sweeping for the pattern rather than only fixing the named site.
+                StingTools.Core.SafeWrite.Try(() => sheet.Name = name,
+                    "SustainDeliverable", $"sheet name '{name}'");
                 return sheet;
             }
             catch (Exception ex) { StingLog.Warn($"Sustain CreateSheet: {ex.Message}"); return null; }

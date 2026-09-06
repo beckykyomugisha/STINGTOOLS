@@ -85,8 +85,13 @@ namespace StingTools.Core.Mep
                         // Also stamp HVC_FLOW_LS (l/s) since downstream sizers
                         // read this. Use a project param if bound, soft-fail
                         // otherwise — saves the next sizing run a re-conversion.
-                        try { ParameterHelpers.SetString(d, "HVC_FLOW_LS",
-                            $"{m3s * 1000.0:F2}", overwrite: true); } catch { }
+                        // H-4 — was a silent catch. AutoSizeDuct reads HVC_FLOW_LS; if it is
+                        // unbound the sizer silently re-derives from scratch or sizes
+                        // on nothing. SetString RETURNS false when unbound and throws
+                        // nothing, so the catch was never the mechanism that mattered.
+                        SafeWrite.Set(d, "HVC_FLOW_LS",
+                            () => ParameterHelpers.SetString(d, "HVC_FLOW_LS", $"{m3s * 1000.0:F2}", overwrite: true),
+                            "MepCrossStamp.Duct", r?.Warnings);
                         r.DuctsStamped++;
                     }
                     // MEP system name → ASS_MEP_SYS_NAME_TXT
@@ -129,8 +134,10 @@ namespace StingTools.Core.Mep
                             $"{lps:F2}", overwrite: true);
                         // PLM_FLOW_LS is read by AutoSizePipe; stamp it too so
                         // the sizer doesn't have to recompute.
-                        try { ParameterHelpers.SetString(p, "PLM_FLOW_LS",
-                            $"{lps:F2}", overwrite: true); } catch { }
+                        // H-4 — same shape as the duct stamp above; AutoSizePipe reads this.
+                        SafeWrite.Set(p, "PLM_FLOW_LS",
+                            () => ParameterHelpers.SetString(p, "PLM_FLOW_LS", $"{lps:F2}", overwrite: true),
+                            "MepCrossStamp.Pipe", r?.Warnings);
                         r.PipesStamped++;
                     }
                     string sysName = p.MEPSystem?.Name ?? "";

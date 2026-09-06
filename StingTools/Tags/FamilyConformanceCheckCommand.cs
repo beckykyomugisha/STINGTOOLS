@@ -75,21 +75,65 @@ namespace StingTools.Tags
             "ASS_TAG_7_TXT",
         };
 
+        // Sourced from ParamRegistry rather than hardcoded: the third entry was
+        // "WARN_VISIBLE_BOOL", which does not exist. MR_PARAMETERS.txt declares
+        // TAG_WARN_VISIBLE_BOOL and nothing unprefixed, so this check could never
+        // pass on any family and every tag silently lost points to a typo.
+        // ParamRegistry.WARN_VISIBLE is the single source of truth and is reloaded
+        // from the registry at runtime, so a future rename cannot re-open this gap.
         private static readonly string[] TagVisibilityFingerprint = new[]
         {
-            "TAG_PARA_STATE_1_BOOL",
-            "TAG_PARA_STATE_2_BOOL",
-            "WARN_VISIBLE_BOOL",
+            ParamRegistry.PARA_STATE_1,
+            ParamRegistry.PARA_STATE_2,
+            ParamRegistry.WARN_VISIBLE,
         };
 
         // Sample of the 128 TAG_{size}{style}_{colour}_BOOL style matrix. If
         // these aren't present, the family was not stamped with the
         // automation/presentation pack.
+        //
+        // NOT applicable to the single universal tag — see IsUniversalTag. The
+        // 128-param matrix is the PER-CATEGORY design, where each family carries
+        // every size/style/colour combination as label rows and one BOOL selects
+        // the visible one. The universal tag instead expresses style through TYPE
+        // VARIANTS (TagStyleCatalogue.TypeVariantSpec.CanonicalTypeName, e.g.
+        // "2.5_BOLD_RED_Filled30_T3"), so the matrix is CORRECTLY absent and
+        // scoring it as missing penalised the family for being right.
+        // K-11f: the second entry read "TAG_3_BOLD_BLUE_BOOL" — an underscore after
+        // the 3 that the declaration does not have. MR_PARAMETERS.txt declares
+        // TAG_3BOLD_BLUE_BOOL, and the families were built from the declaration, so
+        // this half of the sample could not match on ANY family, universal or
+        // per-category. The declaration wins: it is what the binder ships.
+        //
+        // This cannot regress. The check passes for no family today, so if the
+        // declared spelling were somehow also wrong, the result is unchanged.
         private static readonly string[] TagStyleFingerprint = new[]
         {
-            "TAG_2_5_NOM_BLACK_BOOL",
-            "TAG_3_BOLD_BLUE_BOOL",
+            // BOTH entries were wrong, in two different ways:
+            //   TAG_2_5_NOM_BLACK_BOOL  -> TAG_2.5NOM_BLACK_BOOL   (literal dot, no underscores)
+            //   TAG_3_BOLD_BLUE_BOOL    -> TAG_3BOLD_BLUE_BOOL     (no underscore after the digit)
+            // The shipped matrix spells size and style as one token: TAG_{size}{STYLE}_{COLOUR}_BOOL.
+            "TAG_2.5NOM_BLACK_BOOL",
+            "TAG_3BOLD_BLUE_BOOL",
         };
+
+        /// <summary>
+        /// True when this family is the single universal tag master rather than one
+        /// of the per-category tag families.
+        /// <para>
+        /// The universal tag (<c>STING_Tag_Universal.rfa</c>) is propagated to every
+        /// category by <c>PropagateUniversalTagCommand</c> and deliberately ships with
+        /// an EMPTY manifest category so <c>ForCategory()</c> never returns it. It
+        /// carries style as type variants, not as the 128-BOOL matrix, so check (4)
+        /// does not apply to it.
+        /// </para>
+        /// </summary>
+        private static bool IsUniversalTag(string familyName)
+        {
+            if (string.IsNullOrEmpty(familyName)) return false;
+            return familyName.IndexOf("Tag_Universal", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal Tag", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
 
         /// <summary>
         /// Inspect one family file. Returns a populated row.
@@ -138,6 +182,28 @@ namespace StingTools.Tags
             string catName = "";
             try { catName = famDoc.OwnerFamily?.FamilyCategory?.Name ?? ""; } catch { }
             row.Category = catName;
+
+            // The check had NO category test at all, which is how 206 families could
+            // carry wrong categories undetected — "STING - Air Terminal Tag" is a
+            // Generic Model Tag, so Revit never offers it for Air Terminals, and
+            // nothing said so. 147 families declare a category in
+            // STING_TAG_CONFIG_v5_0_*.csv; compare against it where one exists.
+            //
+            // Reported, never corrected here: a mismatch means the family was authored
+            // against the wrong template, which is a finding for a human, not something
+            // an audit should silently rewrite.
+            try
+            {
+                var catRes = TagCategoryResolver.Resolve(famDoc, famDoc.OwnerFamily);
+                if (catRes != null && catRes.IsMismatch)
+                {
+                    row.Missing.Add($"CATEGORY MISMATCH: {catRes.Note}");
+                    row.Warnings.Add(
+                        "Family category disagrees with the declared one. Revit offers a tag only "
+                      + "for its own category, so this family cannot tag what it was written for.");
+                }
+            }
+            catch (Exception ex) { row.Warnings.Add($"Category check: {ex.Message}"); }
             // Heuristic: families with placement type "Invalid" or category
             // null / "Generic Annotations" are 2D. Anything else is treated
             // as 3D.
@@ -198,13 +264,26 @@ namespace StingTools.Tags
                 score += Math.Min(tagPts, 10);
 
                 // ── (4) Tag style matrix sample (10 pts) ─────────────
-                int stylePts = 0;
-                foreach (var name in TagStyleFingerprint)
+                // Scored 'pass by N/A' for the universal tag, matching how non-tag
+                // families are handled below: the matrix is the per-category design
+                // and its absence here is correct, not a defect.
+                if (IsUniversalTag(row.FamilyName))
                 {
-                    if (paramsByName.ContainsKey(name)) stylePts += 5;
-                    else row.Missing.Add($"Tag style param missing: {name} (run FamilyParamCreator with InjectAutomationPack=true)");
+                    score += 10;
+                    row.Warnings.Add(
+                        "Style matrix (128 TAG_{size}{style}_{colour}_BOOL) not checked — universal tag "
+                      + "carries style as type variants (TagStyleCatalogue), not as the BOOL matrix.");
                 }
-                score += Math.Min(stylePts, 10);
+                else
+                {
+                    int stylePts = 0;
+                    foreach (var name in TagStyleFingerprint)
+                    {
+                        if (paramsByName.ContainsKey(name)) stylePts += 5;
+                        else row.Missing.Add($"Tag style param missing: {name} (run FamilyParamCreator with InjectAutomationPack=true)");
+                    }
+                    score += Math.Min(stylePts, 10);
+                }
 
                 // ── (5) Tag visibility tiers (10 pts) ────────────────
                 int visPts = 0;

@@ -265,6 +265,11 @@ namespace StingTools.Commands.TagStudio
             public int TypesCreated;
             public bool Success;
             public string ErrorMessage;
+            // The family's own category disagreed with the declared one. A silent
+            // correction would hide that the family was authored against the wrong
+            // template, so it is carried to the results table as a FINDING.
+            public bool CategoryMismatch;
+            public string CategoryNote;
         }
 
         private PropResult PropagateOne(Document doc,
@@ -275,7 +280,20 @@ namespace StingTools.Commands.TagStudio
         {
             var result = new PropResult();
             string targetName = target.Name;
-            ElementId targetCatId = target.FamilyCategory?.Id;
+
+            // Reading the category off the TARGET propagates whatever the target
+            // already is, so a mis-categorised family stays mis-categorised through
+            // every propagation forever. Confirmed live: "STING - Air Terminal Tag"
+            // is a Generic Model Tag, so Revit never offers it for Air Terminals.
+            //
+            // Resolve against the DECLARED category in STING_TAG_CONFIG_v5_0_*.csv
+            // instead, and fall back to the family's own only when nothing is declared.
+            var catRes = TagCategoryResolver.Resolve(doc, target);
+            ElementId targetCatId = catRes.DeclaredTagCategory?.Id ?? target.FamilyCategory?.Id;
+            result.CategoryMismatch = catRes.IsMismatch;
+            result.CategoryNote = catRes.Note;
+            if (catRes.IsMismatch)
+                StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}");
             Document famDoc = null;
             string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
 

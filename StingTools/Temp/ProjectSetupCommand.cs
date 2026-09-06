@@ -783,6 +783,60 @@ namespace StingTools.Temp
         }
 
         /// <summary>Set Revit Project Information from wizard data.</summary>
+        /// <summary>
+        /// K-11c — the three shared parameters that duplicate the project code, written
+        /// as derived stamps from <c>ProjectInformation.Number</c>.
+        /// <para>
+        /// Kept as three separate parameters on purpose. Merging or retiring any of them
+        /// would break a title-block label or schedule that reads it by name, and under
+        /// K-11e we cannot establish which families do — a <c>.rfa</c> label is invisible
+        /// to static analysis. Deriving them removes the drift without touching families.
+        /// </para>
+        /// </summary>
+        private static readonly string[] DerivedProjectCodeParams =
+        {
+            "PRJ_PROJECT_COD_TXT",        // feeds {project} in sheet numbers
+            "PRJ_ORG_PROJECT_CODE_TXT",   // feeds the template engine / ISO document numbers
+            "PRJ_NR_TXT",                 // title-block label + schedule column
+        };
+
+        private static void StampDerivedProjectCode(ProjectInfo pi, string number)
+        {
+            if (pi == null || string.IsNullOrWhiteSpace(number)) return;
+            foreach (var name in DerivedProjectCodeParams)
+            {
+                try
+                {
+                    var p = pi.LookupParameter(name);
+                    if (p == null)
+                    {
+                        StingLog.Warn(
+                            $"K-11c: '{name}' is not bound, so the project code cannot be stamped into it. "
+                          + "Run Load Shared Parameters and re-run Project Setup.");
+                        continue;
+                    }
+                    if (p.IsReadOnly || p.StorageType != StorageType.String) continue;
+
+                    string current = p.AsString() ?? "";
+                    if (string.Equals(current, number, StringComparison.Ordinal)) continue;
+
+                    // Divergence is worth saying out loud even though we are about to fix
+                    // it: a value that was hand-edited away from Number is a decision
+                    // someone made, and overwriting it silently hides that.
+                    if (!string.IsNullOrWhiteSpace(current))
+                        StingLog.Warn(
+                            $"K-11c: '{name}' held '{current}' but ProjectInformation.Number is "
+                          + $"'{number}'. Number is the single source, so the stamp is being "
+                          + "overwritten. If '{current}' was deliberate, the two have been out of "
+                          + "step and every document number issued from it disagrees with the "
+                          + "folder tree.");
+
+                    p.Set(number);
+                }
+                catch (Exception ex) { StingLog.Warn($"K-11c stamp '{name}': {ex.Message}"); }
+            }
+        }
+
         private static Result SetProjectInformation(Document doc, ProjectSetupData data)
         {
             try
@@ -795,7 +849,15 @@ namespace StingTools.Temp
                     if (!string.IsNullOrEmpty(data.ProjectName))
                         pi.Name = data.ProjectName;
                     if (!string.IsNullOrEmpty(data.ProjectNumber))
+                    {
                         pi.Number = data.ProjectNumber;
+                        // K-11c: ProjectInformation.Number is the SINGLE SOURCE for the
+                        // project code. The three shared parameters that also carry it are
+                        // written here as DERIVED STAMPS so they cannot drift apart at
+                        // setup. None of the three is merged or retired — families and
+                        // title-block labels read them by name and must stay untouched.
+                        StampDerivedProjectCode(pi, data.ProjectNumber);
+                    }
                     if (!string.IsNullOrEmpty(data.ClientName))
                         pi.ClientName = data.ClientName;
                     if (!string.IsNullOrEmpty(data.Organisation))

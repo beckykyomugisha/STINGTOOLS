@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "1.0",
+  "name": "STING Tag Token Policy — corporate baseline",
+  "description": "Per-token completeness policy for the ISO 19650 tag. Corporate baseline; override per project at <project>/_BIM_COORD/tag_token_policy.json. This is DATA, not code, because sectors disagree — a hospital treats ZONE as mandatory (fire compartment), a single-building lodge does not.",
+  "lastUpdated": "2026-08-10",
+
+  "_model": "K-13 classified the sixteen ISO sheet tokens into fallback-to-profile / omit-and-fail-loud / blank-is-safe. This applies the same grouping to the ten tag tokens, and reuses G-27's Empty vs Unmatched distinction rather than inventing a second vocabulary.",
+
+  "levels": {
+    "MANDATORY": "Never blank. A blank is an error: it is counted, surfaced in the tagging result, and the element is reported as incomplete.",
+    "DERIVED": "May fall back, but the fallback is RECORDED — the tag is complete-but-assumed, which is not the same as complete (G-27's Empty).",
+    "OPTIONAL": "Blank is legitimate and silent."
+  },
+
+  "tokens": [
+    {
+      "index": 0,
+      "token": "DISC",
+      "param": "ASS_DISCIPLINE_COD_TXT",
+      "level": "MANDATORY",
+      "fallback": "A",
+      "why": "An asset with no discipline cannot be routed, scheduled or filed. Every downstream ISO surface keys on it."
+    },
+    {
+      "index": 1,
+      "token": "LOC",
+      "param": "ASS_LOC_TXT",
+      "level": "DERIVED",
+      "fallback": "BLD1",
+      "why": "G-41: on a project with no declared LOC codes this silently became EXT on elements INSIDE a building. Falling back is acceptable; doing it silently is not. Warn once per document naming the parameter and where to declare it."
+    },
+    {
+      "index": 2,
+      "token": "ZONE",
+      "param": "ASS_ZONE_TXT",
+      "level": "DERIVED",
+      "fallback": "Z01",
+      "why": "The token most likely to be overridden per sector. Healthcare and fire-strategy work should raise this to MANDATORY in the project override; a single-building lodge should not."
+    },
+    {
+      "index": 3,
+      "token": "LVL",
+      "param": "ASS_LVL_COD_TXT",
+      "level": "MANDATORY",
+      "fallback": null,
+      "why": "Every model element sits on a level. A blank means the level lookup failed, which is a defect, not a project choice."
+    },
+    {
+      "index": 4,
+      "token": "SYS",
+      "param": "ASS_SYSTEM_TYPE_TXT",
+      "level": "DERIVED",
+      "fallback": "GEN",
+      "why": "Architectural elements legitimately have no MEP system. GEN is a real answer for them, not a guess."
+    },
+    {
+      "index": 5,
+      "token": "FUNC",
+      "param": "ASS_FUNC_TXT",
+      "level": "DERIVED",
+      "fallback": "GEN",
+      "why": "G-39: the air terminal's System Type read 'Undefined', so the system-aware lookup had no key. FUNC is derived FROM SYS, so when SYS itself is a fallback, FUNC cannot be better than one — failing loud here would fail every architectural element. Recorded as assumed instead."
+    },
+    {
+      "index": 6,
+      "token": "PROD",
+      "param": "ASS_PRODCT_COD_TXT",
+      "level": "DERIVED",
+      "fallback": "GEN",
+      "why": "Resolved through ProdMap and family-aware rules. A GEN fallback is visible and correctable; blocking would stop tagging on any un-catalogued family."
+    },
+    {
+      "index": 7,
+      "token": "SEQ",
+      "param": "ASS_SEQ_NUM_TXT",
+      "level": "MANDATORY",
+      "fallback": null,
+      "why": "G-40: a tag ending in a bare separator is ALWAYS wrong. SEQ is what makes the tag unique — without it the tag is not an identifier. There is no defensible fallback."
+    },
+    {
+      "index": 8,
+      "token": "STATUS",
+      "param": "ASS_STATUS_TXT",
+      "level": "OPTIONAL",
+      "fallback": null,
+      "why": "Not part of the 8-segment tag; carried for lifecycle reporting."
+    },
+    {
+      "index": 9,
+      "token": "REV",
+      "param": "ASS_REV_TXT",
+      "level": "OPTIONAL",
+      "fallback": null,
+      "why": "Not part of the 8-segment tag; blank before first issue is correct."
+    }
+  ]
+}

@@ -1330,7 +1330,8 @@ namespace StingTools.Core
             }
             else if (result == TaskDialogResult.CommandLink2)
             {
-                StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled);
+                StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled,
+                    commandData?.Application?.ActiveUIDocument?.Document);
                 TagConfig.AutoTaggerStaleMarker = StingStaleMarker.IsEnabled;
                 AutoTaggerToggleCommand.PersistAutoTaggerConfig(commandData);
             }
@@ -1380,8 +1381,57 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// G-47 — the eight ISO source tokens. A change to any of them invalidates the
+        /// assembled container, and until now NONE was watched.
+        /// </summary>
+        private static readonly string[] TokenParamsToWatch =
+        {
+            "ASS_DISCIPLINE_COD_TXT", "ASS_LOC_TXT", "ASS_ZONE_TXT", "ASS_LVL_COD_TXT",
+            "ASS_SYSTEM_TYPE_TXT", "ASS_FUNC_TXT", "ASS_PRODCT_COD_TXT", "ASS_SEQ_NUM_TXT",
+        };
+
+        /// <summary>
+        /// G-47 — register a stale trigger for each ISO token parameter.
+        /// <para>
+        /// The marker watched only geometry and MATERIAL_ID_PARAM, so a container
+        /// assembled BEFORE PopulateAll filled FUNC was never rebuilt: the blank
+        /// segment was a STALE STRING, not a mis-computed one. That is consistent with
+        /// FuncMap and ProdMap both being correct.
+        /// </para>
+        /// <para>
+        /// These are SHARED parameters, so unlike MATERIAL_ID_PARAM there is no fixed
+        /// BuiltInParameter id — the ElementId is per-document, which is why this needs
+        /// a Document and the document-scoped AddTrigger overload.
+        /// </para>
+        /// <para>
+        /// Scope is the eight tag tokens only. STATUS and REV are OPTIONAL in
+        /// STING_TAG_TOKEN_POLICY.json and are not part of the 8-segment string, so
+        /// watching them would add trigger cost for no staleness it could detect.
+        /// </para>
+        /// </summary>
+        private static int AddTokenTriggers(Document doc, ElementFilter filter)
+        {
+            if (doc == null || _updaterId == null) return 0;
+            int added = 0;
+            foreach (string name in TokenParamsToWatch)
+            {
+                try
+                {
+                    var spe = SharedParameterElement.Lookup(doc, ParamRegistry.GetGuid(name));
+                    if (spe == null) continue;   // not bound in this document — nothing to watch
+                    UpdaterRegistry.AddTrigger(_updaterId, doc, filter,
+                        Element.GetChangeTypeParameter(spe.Id));
+                    added++;
+                }
+                catch (Exception ex)
+                { StingLog.Warn($"StingStaleMarker token trigger '{name}': {ex.Message}"); }
+            }
+            return added;
+        }
+
         /// <summary>Enable or disable the stale marker.</summary>
-        public static void SetEnabled(bool enabled)
+        public static void SetEnabled(bool enabled, Document doc = null)
         {
             if (_instance == null || _updaterId == null) return;
             try
@@ -1403,8 +1453,14 @@ namespace StingTools.Core
                     }
                     catch (Exception matEx)
                     { StingLog.Warn($"StingStaleMarker MATERIAL_ID_PARAM trigger: {matEx.Message}"); }
+                    // G-47 — token triggers. Document-scoped, because a shared
+                    // parameter's ElementId differs per document.
+                    int tokenTriggers = AddTokenTriggers(doc, filter);
                     _enabled = true;
-                    StingLog.Info("StingStaleMarker enabled (geometry + material change).");
+                    StingLog.Info($"StingStaleMarker enabled (geometry + material + {tokenTriggers} token trigger(s)).");
+                    if (doc != null && tokenTriggers == 0)
+                        StingLog.Warn("StingStaleMarker: no ISO token parameters resolved in this document, so a "
+                                    + "token change will NOT mark the tag stale (G-47). Run Load Shared Parameters.");
                 }
                 else if (!enabled && _enabled)
                 {

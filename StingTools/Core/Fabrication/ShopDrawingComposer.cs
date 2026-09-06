@@ -501,7 +501,14 @@ namespace StingTools.Core.Fabrication
                     : (!string.IsNullOrEmpty(spool)
                         ? $"Spool {spool}"
                         : $"{discipline} spool {unique}");
-            try { sheet.Name = sheetName; } catch { }
+            // H-4 — was a silent catch, four lines below a SheetNumber failure that
+            // IS reported. Identical defect to MepLevelViewProducer: the spool
+            // sheet shipped to the CDE named "Unnamed" and the fabrication run
+            // reported success. A name is what a fabricator identifies the spool
+            // drawing by, so this is a deliverable defect on the fabrication path.
+            SafeWrite.Try(() => sheet.Name = sheetName,
+                "ShopDrawingComposer", $"sheet name '{sheetName}' on sheet {unique}",
+                result?.Warnings);
 
             // Title-block instance parameters live on the title block
             // FamilyInstance, accessible via collector. We set the

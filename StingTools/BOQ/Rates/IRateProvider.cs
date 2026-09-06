@@ -61,8 +61,38 @@ namespace StingTools.BOQ.Rates
     /// Output of a rate lookup. Null indicates no match and the registry
     /// continues to the next provider.
     /// </summary>
+    /// <summary>
+    /// How specifically a rate resolved. K-16b.
+    /// <para>
+    /// Deliberately mirrors <c>StingTools.BOQ.Takeoff.LookupState</c> (G-27) rather
+    /// than inventing a third vocabulary — a parallel scheme is how the two binders
+    /// and the two take-off paths diverged. Same shape: the most specific answer is
+    /// the good one, and everything below it is an ASSUMPTION that must be visible.
+    /// </para>
+    /// </summary>
+    public enum RateResolutionLevel
+    {
+        /// <summary>No rate at all. The item is not priced.</summary>
+        None = 0,
+        /// <summary>Category average — every product in the category shares one rate.</summary>
+        Category = 1,
+        /// <summary>Material-level.</summary>
+        Material = 2,
+        /// <summary>Category refined by MEP system.</summary>
+        System = 3,
+        /// <summary>The actual product. The only level that prices a fire door
+        /// differently from a cupboard door.</summary>
+        Product = 4,
+    }
+
     public class RateLookup
     {
+        /// <summary>
+        /// How specifically this rate resolved. Anything below <see cref="RateResolutionLevel.Product"/>
+        /// is an average over something, and the audit (2.4) counts them.
+        /// </summary>
+        public RateResolutionLevel ResolutionLevel { get; set; } = RateResolutionLevel.None;
+
         /// <summary>Unit rate in <see cref="CurrencyCode"/>.</summary>
         public double UnitRate { get; set; }
 

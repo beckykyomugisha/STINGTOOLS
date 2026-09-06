@@ -25,16 +25,54 @@ namespace StingTools.BOQ.Rates
         public int Priority => 95;
         public bool RequiresNetwork => false;
 
+        /// <summary>
+        /// D9 — a rate with no unit is not a rate.
+        /// <para>
+        /// Both tiers below used to fall back to "each" when the unit was unknown, so a
+        /// per-m² material silently billed per item. That is exactly what produced two
+        /// block families at UGX 2,220 and UGX 96,200 with nothing to say which was
+        /// which: 213 of the 1,279 library rows carry a RATE and a NULL
+        /// MAT_COST_UNIT_OF_MEASURE.
+        /// </para>
+        /// <para>
+        /// Returns null rather than guessing — A-1/H-1: never emit a number you could
+        /// not measure. The caller drops to the next provider, and the miss is counted
+        /// so the gap is visible instead of priced.
+        /// </para>
+        /// </summary>
+        private static bool UnitIsKnown(RateRequest req, string matName, out string unit)
+        {
+            unit = req?.Unit;
+            if (!string.IsNullOrWhiteSpace(unit)) return true;
+            StingLog.WarnRateLimited("MatLibRate.NoUnit",
+                $"Material '{matName}' has a rate but NO unit of measure. Refusing to price it "
+              + "rather than defaulting to 'each' — a per-m2 rate billed per item is the "
+              + "UGX 2,220 vs 96,200 defect. Populate MAT_COST_UNIT_OF_MEASURE.");
+            return false;
+        }
+
         public RateLookup Resolve(RateRequest req)
         {
             if (req?.Element == null) return null;
+            // E-6 — every exit below is now recorded. A miss here silently drops
+            // the row to CsvRateProvider's CATEGORY-keyed rate, so "Walls" prices
+            // the same whether it is 200 mm hollow block or a glazed screen.
+            MaterialRateMissLog.RecordAttempt();
+            string cat = null;
+            try { cat = req.Element.Category?.Name; } catch { }
             try
             {
                 var doc = req.Element.Document;
                 if (doc == null) return null;
 
                 string matName = ResolvePrimaryMaterialName(req.Element);
-                if (string.IsNullOrWhiteSpace(matName)) return null;
+                if (string.IsNullOrWhiteSpace(matName))
+                {
+                    // Not a rate-library gap — a modelling gap. Counted separately
+                    // so the report does not blame the library for it.
+                    MaterialRateMissLog.RecordNoMaterial(cat);
+                    return null;
+                }
 
                 // Tier 1 — Live Material element's ALL_MODEL_COST.
                 // P-1 — Routed through MaterialNameCache (O(1) lookup) to
@@ -49,6 +87,9 @@ namespace StingTools.BOQ.Rates
                         {
                             double v = cp.AsDouble();
                             if (v > 0)
+                            {
+                                if (!UnitIsKnown(req, matName, out string t1Unit)) return null;   // D9
+                                MaterialRateMissLog.RecordHit();
                                 return new RateLookup
                                 {
                                     // CA-1 — ALL_MODEL_COST holds USD, so the registry's FX
@@ -80,12 +121,13 @@ namespace StingTools.BOQ.Rates
                                     // material creation (gap E-12), which is not this pass.
                                     UnitRate = v,
                                     CurrencyCode = "USD",
-                                    Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                                    Unit = t1Unit,
                                     SourceId = Id,
                                     Confidence = 95,
                                     Provenance = $"Material '{mat.Name}' ALL_MODEL_COST (live, MAT panel)",
                                     MatchedKey = mat.Name,
                                 };
+                            }
                         }
                     }
                     catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate.MatParam", $"MatLibRate mat param: {ex.Message}"); }
@@ -94,6 +136,9 @@ namespace StingTools.BOQ.Rates
                 // Tier 2 — Corporate MATERIAL_LOOKUP.csv.
                 double libVal = StingTools.UI.MaterialLookupCsv.GetCost(matName);
                 if (libVal > 0)
+                {
+                    if (!UnitIsKnown(req, matName, out string t2Unit)) return null;   // D9
+                    MaterialRateMissLog.RecordHit();
                     return new RateLookup
                     {
                         // CA-1 — MATERIAL_LOOKUP.csv is a DIFFERENT source from the
@@ -105,36 +150,33 @@ namespace StingTools.BOQ.Rates
                         // cost column is actually added.
                         UnitRate = libVal,
                         CurrencyCode = "UGX",
-                        Unit = string.IsNullOrEmpty(req.Unit) ? "each" : req.Unit,
+                        Unit = t2Unit,
                         SourceId = Id,
                         Confidence = 90,
                         Provenance = $"Material '{matName}' MATERIAL_LOOKUP.csv (corporate)",
                         MatchedKey = matName,
                     };
+                }
+
+                // Named material, no price in any tier — the real library gap.
+                MaterialRateMissLog.RecordMiss(matName, cat);
+                return null;
             }
             catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate", $"MaterialLibraryRateProvider.Resolve: {ex.Message}"); }
             return null;
         }
 
+        // E-5 — was the non-deterministic one: Material param, else the FIRST id
+        // out of GetMaterialIds(false). `.First()` is not a documented ordering,
+        // so a compound wall could be PRICED off its plaster skin while being
+        // carbon-counted off its blockwork core — and the same bill re-run could
+        // disagree with itself. Now the shared dominant-by-volume resolver, the
+        // same one density, carbon, waste and the description already used.
+        // Returns null rather than "" so the existing miss path is unchanged.
         private static string ResolvePrimaryMaterialName(Element el)
         {
-            try
-            {
-                Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
-                if (p != null && p.StorageType == StorageType.ElementId)
-                {
-                    var mid = p.AsElementId();
-                    if (mid != null && mid.Value > 0)
-                        return el.Document?.GetElement(mid)?.Name;
-                }
-                var mats = el.GetMaterialIds(false);
-                if (mats != null)
-                    foreach (var mid in mats)
-                        if (mid != null && mid.Value > 0)
-                            return el.Document?.GetElement(mid)?.Name;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("MatLibRate.PrimMat", $"ResolvePrimaryMaterialName: {ex.Message}"); }
-            return null;
+            string n = StingTools.BOQ.PrimaryMaterial.Resolve(el);
+            return string.IsNullOrEmpty(n) ? null : n;
         }
     }
 }

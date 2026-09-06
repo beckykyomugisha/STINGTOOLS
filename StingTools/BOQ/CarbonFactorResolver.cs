@@ -132,10 +132,13 @@ namespace StingTools.BOQ
         // <= 0 for timber (sequestration) — so biogenic must NOT be gated on > 0
         // the way the net path is, or every sequestration credit would be dropped.
         //
-        // NOTE: until MaterialCommands writes the two new params at material
-        // creation (follow-up) AND/OR Z-24b adds timber rows to MATERIAL_LOOKUP,
-        // these resolve to 0 at runtime — the authoritative split currently lives
-        // in the BLE_/MEP_MATERIALS.csv PROP_CARBON_FOSSIL/BIOGENIC_KG_M3 columns.
+        // E-2 — the follow-up this note waited on has landed. MaterialCommands'
+        // SharedParamMappings now writes STING_EMB_CARBON_FOSSIL_NR /
+        // _BIOGENIC_NR from BLE_/MEP_MATERIALS.csv columns 70 and 71 at material
+        // creation, so these no longer resolve to 0 on a freshly-populated
+        // library. They still return 0 on a model whose materials predate that
+        // write — re-run material population, then the MATERIAL_LOOKUP fallback
+        // below is only reached for materials outside the shipped library.
         public static double GetCarbonFossilPerM3(Document doc, string materialName)
         {
             double v = ReadMatParam(doc, materialName, "STING_EMB_CARBON_FOSSIL_NR");
