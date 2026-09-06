@@ -75,6 +75,7 @@ namespace StingTools.UI
             grid.Children.Add(rightSv);
 
             PhotoAlbumDto? selected = null;
+            bool bannerShown = false;
 
             async Task LoadListAsync()
             {
@@ -100,9 +101,12 @@ namespace StingTools.UI
                 }
                 if (albums == null)
                 {
-                    listPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                    // A refusal and a failure are different answers and need
+                    // different actions — "ask your PM" vs "call IT".
+                    listPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
                         "Could not load albums.",
-                        PlanscapeServerClient.Instance.LastError));
+                        "Albums are not available to you on this project.",
+                        PlanscapeCapability.CurateProject));
                     return;
                 }
                 if (albums.Count == 0)
@@ -165,8 +169,8 @@ namespace StingTools.UI
                         .AddPhotosToAlbumAsync(state.ProjectId, selected!.Id, ids);
                     if (!ok)
                     {
-                        Autodesk.Revit.UI.TaskDialog.Show("Add to album",
-                            $"Failed.\n\n{PlanscapeServerClient.Instance.LastError}");
+                        PlanscapeForbidden.ShowFailureOrForbidden(
+                            "Add to album", PlanscapeCapability.CurateProject);
                     }
                     else
                     {
@@ -189,7 +193,7 @@ namespace StingTools.UI
                 {
                     var ok = await PlanscapeServerClient.Instance
                         .LockPhotoAlbumAsync(state.ProjectId, selected!.Id, !selected.IsLocked);
-                    if (!ok) Autodesk.Revit.UI.TaskDialog.Show("Lock", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    if (!ok) PlanscapeForbidden.ShowFailureOrForbidden("Lock", PlanscapeCapability.CurateProject);
                     else { await LoadListAsync(); selected.IsLocked = !selected.IsLocked; await RenderRightAsync(); }
                 };
                 actions.Children.Add(lockBtn);
@@ -208,7 +212,13 @@ namespace StingTools.UI
                         state.ProjectId, albumId: selected!.Id, label: selected.Name + " (BCC)");
                     if (link == null)
                     {
-                        Autodesk.Revit.UI.TaskDialog.Show("Share link", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                        // Share links are gated on ApproveSitePhotos, NOT on
+                        // CurateProject — a coordinator who can curate albums
+                        // deliberately cannot release imagery outside the
+                        // project. Naming the wrong capability here would send
+                        // them to argue about the wrong permission.
+                        PlanscapeForbidden.ShowFailureOrForbidden(
+                            "Share link", PlanscapeCapability.ApproveSitePhotos);
                         return;
                     }
                     var full = $"/api/share/{link.Token}";
@@ -242,6 +252,18 @@ namespace StingTools.UI
                 };
                 actions.Children.Add(exportBtn);
 
+                // Disable only what the server has said no to. Unknown leaves
+                // the button live so the attempt reports.
+                PlanscapeForbidden.ApplyIfDenied(addSelected, state.Caps.CurateProject,
+                    PlanscapeCapability.CurateProject);
+                PlanscapeForbidden.ApplyIfDenied(lockBtn, state.Caps.CurateProject,
+                    PlanscapeCapability.CurateProject);
+                PlanscapeForbidden.ApplyIfDenied(shareBtn, state.Caps.ApproveSitePhotos,
+                    PlanscapeCapability.ApproveSitePhotos);
+                // exportBtn is deliberately NOT gated: POST photo-export carries
+                // [Authorize] and no capability check on the server, so disabling
+                // it here would invent a restriction that does not exist.
+
                 rightPanel.Children.Add(actions);
 
                 // Photo strip — load detail + render thumbnails.
@@ -250,9 +272,12 @@ namespace StingTools.UI
                 {
                     // Failed to load — NOT an empty album. Saying "Album is empty"
                     // here would invite someone to re-add photos that are already in it.
-                    rightPanel.Children.Add(SitePhotosTabHelpers.BuildLoadFailure(
+                    // A 403 is a third answer again: the album exists and is not
+                    // visible to this audience.
+                    rightPanel.Children.Add(PlanscapeForbidden.BuildFailureOrForbidden(
                         "Could not load this album's photos.",
-                        PlanscapeServerClient.Instance.LastError));
+                        "This album is not visible to you.",
+                        PlanscapeCapability.CurateProject));
                     return;
                 }
                 if (detail.Photos == null || detail.Photos.Count == 0)
@@ -310,7 +335,8 @@ namespace StingTools.UI
                     state.ProjectId, name.Trim(), visibility: "Members");
                 if (album == null)
                 {
-                    Autodesk.Revit.UI.TaskDialog.Show("New album", PlanscapeServerClient.Instance.LastError ?? "(no detail)");
+                    PlanscapeForbidden.ShowFailureOrForbidden(
+                        "New album", PlanscapeCapability.CurateProject);
                     return;
                 }
                 await LoadListAsync();
@@ -318,6 +344,33 @@ namespace StingTools.UI
                 await RenderRightAsync();
             };
             refreshBtn.Click += (_, _) => _ = LoadListAsync();
+
+            // ── Affordance from capabilities (#547 / #558) ──────────────
+            // Runs when (and only when) the server answers. Until then every
+            // control stays enabled, which is correct: capabilities drive
+            // affordance, the server remains the gate, and an unanswered
+            // question must not be rendered as a "no". Nothing here re-derives
+            // permission from a role — it renders the server's own answer.
+            void ApplyCaps()
+            {
+                PlanscapeForbidden.ApplyIfDenied(newBtn, state.Caps.CurateProject,
+                    PlanscapeCapability.CurateProject);
+
+                var banner = PlanscapeForbidden.BuildBannerIfDenied(
+                    state.Caps.CurateProject, PlanscapeCapability.CurateProject);
+                if (banner != null && !bannerShown)
+                {
+                    bannerShown = true;
+                    leftDock.Children.Insert(0, banner);
+                    DockPanel.SetDock(banner, Dock.Top);
+                }
+
+                // The detail pane is rebuilt on every selection, so its buttons
+                // are re-gated there rather than captured here.
+                _ = RenderRightAsync();
+            }
+            state.CapabilitiesResolved += ApplyCaps;
+            if (state.Caps.CurateProject != CapabilityState.Unknown) ApplyCaps();
 
             _ = LoadListAsync();
             return grid;

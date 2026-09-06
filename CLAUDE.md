@@ -82,7 +82,7 @@ prototype.
 | Tests | **856 declared test methods across 10 projects, all now runnable** (was 759 runnable / 97 counted-but-dead until 2026-08-06 — see §3); 1 project exercises `StingTools.dll` |
 | Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
 | Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
-| EF migrations | 83 (present & applied — see §9) |
+| EF migrations | 80 migration classes on disk, **2 discoverable, 78 inert** — see §9 |
 
 ### 1. Build & compile health
 
@@ -99,8 +99,9 @@ prototype.
 - **CI exists** (11 GitHub Actions workflows: `stingtools-plugin.yml`, `planscape-server.yml`,
   `contract-drift.yml`, `multi-host-core.yml`, …) — worth referencing from the build docs.
 - **Stale caveats.** Many sections below carry *"committed without `dotnet build` verification (Linux
-  sandbox)"*, and the Healthcare section says *"EF migration not run yet."* **Both are historical**:
-  this machine builds 0/0 and 83 EF migrations exist. Trust the build, not the per-section caveat.
+  sandbox)"*. **That one is historical** — this machine builds 0/0. Trust the build, not the
+  per-section caveat. The Healthcare section's *"EF migration not run yet"* is a **different claim
+  and it still stands**: migration files exist, but almost none of them are applicable (§9).
 
 ### 2. Documentation accuracy — the headline facts have drifted
 
@@ -113,7 +114,7 @@ starts here. Measured drift (fixed in this pass where cheap; see Quick Stats + D
 | Quick Stats: "1,204 C# files, ~572,000 lines" | **1,443 files / 655,982 lines** (plugin alone) |
 | `StingCommandHandler.cs` "4,817 lines" (later section) | **9,519 lines** |
 | Assembly "v1.0.0.0" | `.csproj` `<Version>` = **2.2.0** |
-| Healthcare: "EF migration not run yet" | **83 migrations** present |
+| ~~Healthcare: "EF migration not run yet"~~ — **this row was itself wrong**; retracted 2026-08-02 | 83 was a count of `*.cs` files in `Migrations/` (80 migrations + 2 Designer + 1 snapshot). Only **2 are applicable**; 78 are inert. See §9. |
 | "committed without `dotnet build` verification" (many sections) | Builds **0/0** on Windows+Revit |
 
 **Sustainable fix applied:** the Quick Stats and Documentation Map now round + point *here* (one
@@ -219,8 +220,9 @@ deliverable." Make that distinction explicit wherever it matters to a user.
 
 ### 8. Server & platform (`Planscape.Server`)
 
-ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **83 migrations present**
-and the stack is verified running locally in [`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
+ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **Schema is not managed by
+EF migrations** — see §9 — and the stack is verified running locally in
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
 committed secrets** — `appsettings.Production.template.json` uses `__REPLACE_WITH_…__` placeholders
 and `render.yaml` marks JWT key / owner password `sync: false`. Good hygiene. Open items are honestly
 tracked as **🟡 PARTIAL** (live 2-participant meetings, GLB viewer render, a site-photos route 404, a
@@ -234,12 +236,34 @@ geofence cached-boundary inconsistency) — they need a browser/2-client harness
 - **Branch sprawl.** This assessment was itself first drafted on a task branch **247 commits behind
   `main`** and re-synced to `main` before final measurement — a reminder that per-session `claude/*`
   branches drift fast; always re-base and re-measure before trusting a branch's numbers.
+- **EF migrations are decorative — do not read them as evidence of schema.** *(measured 2026-08-02)*
+  `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/` holds 83 `.cs` files: **80
+  migration classes, 2 `.Designer.cs`, 1 model snapshot**. EF builds its applicable-migration list by
+  reflecting over the `[Migration]` attribute, which normally lives in the Designer file — so only
+  **2 migrations are discoverable** (`MeetingMedia`, `SustainabilitySnapshots`) and **78 are inert
+  classes EF never sees**. `Database.Migrate()` applies those two and nothing else.
+
+  Real schema comes from `OnModelCreating` (via `EnsureCreated`/`CreateTables`) plus
+  `PlatformSchemaPatcher`, which runs on **both** boot branches. This is deliberate and documented in
+  [`docs/adr/0001-schema-management.md`](docs/adr/0001-schema-management.md) (Accepted).
+
+  Two consequences that keep catching people:
+  1. **A migration's contents prove nothing about the database, in either direction.** "No migration
+     creates table X" is not evidence X is missing; "a migration does Y" is not evidence Y happened.
+  2. **Security SQL that exists only in an inert migration was never applied** — Postgres RLS
+     (45 tables) and the audit-log hash-chain/partitioning are both in this category. See issue #545.
+
+  ⚠️ **Do not run `dotnet ef migrations add` here** without reading #545 first. It emits a Designer
+  file, which silently arms that one migration against a snapshot that does not describe live schema.
+  Two migrations have already become discoverable this way.
 
 ### Prioritised recommendations
 
 **P0 — cheap, high-value**
-1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, "EF not run",
-   the blanket "committed without build verification" caveat) and pointed them at this dated source.
+1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, the blanket
+   "committed without build verification" caveat) and pointed them at this dated source.
+   ⚠️ *Partly retracted 2026-08-02:* the "EF migration not run yet → 83 migrations present" correction
+   was **itself wrong** — 83 counted files, not applicable migrations. Fixed in §9.
 2. Populate or delete `StingTools.Connectivity.Tests` (an empty project is a false coverage signal).
 3. Add a `docs/INDEX.md` (or prune) so the 140-doc sprawl has one authoritative table of contents.
 
@@ -593,6 +617,64 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `HistoryBridge.cs` | Persists placement history to `_BIM_COORD/placement_history.json` |
 | `PlacementCentreCommands.cs` (32) | `Placement_OpenCenter` — opens the modeless window |
 | `PlacementExcelCommands.cs` | `Placement_ExportRules`, `Placement_ImportRules` — Excel round-trip for placement rules |
+
+---
+
+## Visibility Center (Phases 232 + 233)
+
+**Status**: `StingTools/Core/Visibility/` (11 files) + `Commands/Visibility/` (2 files) + `UI/Visibility/` (7 files) + `Data/STING_VISIBILITY_PRESETS.json`. Specs: [`docs/VISIBILITY_CENTER_RUNNER.md`](docs/VISIBILITY_CENTER_RUNNER.md) and [`docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`](docs/VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md).
+
+A dropdown on the **SELECT** tab that shows/hides elements by **category** and by **ISO 19650 tag token** (DISC / LOC / ZONE / LVL / SYS / FUNC / PROD), in **Temporary** mode (`View.HideElementsTemporary` — session-only, does not print) or **Saved** mode (`ParameterFilterElement` + `SetFilterVisibility` — persists, prints, pushable to a view template). Default is Temporary.
+
+| File | Revit-free | Purpose |
+|---|:--:|---|
+| `Core/Visibility/VisibilityRule.cs` | ✅ | Enums + `VisibilityRule` / `VisibilitySet` / `VisibilityPresetLibrary` + `VisibilityTokens` |
+| `Core/Visibility/VisibilityPlan.cs` | ✅ | Plan / result / element-snapshot records |
+| `Core/Visibility/VisibilityRuleMatcher.cs` | ✅ | Validation, matching, `PlanCore`, filter naming |
+| `Core/Visibility/VisibilityPresetStore.cs` | ✅ | Preset JSON load/save/merge + `excludedCategories` (path-agnostic) |
+| `Core/Visibility/VisibilityHarvestModel.cs` | ✅ | `TokenValueTally` / `CategoryTally` / `TokenHarvest` + `TokenHarvest.Rebuild` |
+| `Core/Visibility/VisibilityCategoryTree.cs` | ✅ | Exclusion + `Category.Parent` nesting + Model/Annotation/Imports split |
+| `Core/Visibility/VisibilityState.cs` | ✅ | Read-back records + `VisibilityStateReconciler` + footer / badge text |
+| `Core/Visibility/TokenValueHarvester.cs` | — | One collector pass → 7 token buckets + category metadata; 30 s per-scope cache |
+| `Core/Visibility/VisibilityStateReader.cs` | — | Reads what the view is ALREADY hiding (see below) |
+| `Core/Visibility/VisibilityEngine.cs` | — | `Plan` / `Apply` / `ApplyToViews` / `Reset` |
+| `Core/Visibility/VisibilityFilterBuilder.cs` | — | Filter creation + binding-blocker detection |
+| `Core/Visibility/VisibilitySession.cs` | — | WPF↔API-thread handoff; only `StingPaths` caller |
+
+**Commands**: `Vis_OpenDropdown` (ReadOnly) · `Vis_Apply` · `Vis_Isolate` · `Vis_ResetAll` · `Vis_PurgeFilters` · `Vis_ApplyToTemplate` · `Vis_SavePreset` · `Vis_LoadPreset` — dispatched from `StingCommandHandler` beside the untouched `ViewIsolate` / `ViewHide` / `ViewReveal` / `ViewReset` cases (those hide the *selection*; these hide by *rule*).
+
+**Contracts worth knowing**
+- **The dropdown reads the view's state; it never remembers it.** Rows open in whatever
+  `VisibilityStateReader` found — hidden categories (`GetCategoryHidden`), hiding `STING VIS -`
+  filters (`GetFilters` + `GetFilterVisibility`), and the temporary mode. **Revit has no API to
+  enumerate temporarily hidden elements**: `IsTemporaryHideIsolateActive()` says the mode is on,
+  not what it hid. The candidate set comes from a document-vs-view collector diff and is then
+  confirmed per element with `View.IsElementVisibleInTemporaryViewMode`; anything still
+  unexplained is counted as `OutOfScopeCount`, never as hidden. **Do not add a side-record of
+  "what we hid"** — it desynchronises the instant the user reaches for Revit's own HH/HI.
+- **The document-scoped pass runs only when the cheap sweep proves something is hidden.** A
+  hidden element is absent from a view-scoped collector, so recovering its row needs the wider
+  scan — but nothing hidden means no scan at all.
+- **`Apply` is additive — it hides, it never un-hides.** A re-ticked row is not restored; the
+  supported route is `Vis_ResetAll` then re-apply. Logged as ROADMAP VIS-2.
+- **`excludedCategories` in `STING_VISIBILITY_PRESETS.json`: `null` ≠ `[]`.** Absent means "use
+  the baseline"; an explicit empty list means "exclude nothing". The POCO default must stay
+  `null` or the key becomes impossible to override. `Save` carries it over — presets and
+  exclusions share one file.
+- **`Plan()` writes nothing; `Apply()` writes.** The dropdown footer ("will hide 1,204 of 8,331") calls the Revit-free `VisibilityRuleMatcher.PlanCore`, so it recomputes per tick without the Revit API. This is the compute/present split CLAUDE.md P1 #4 asks for, proven on one feature.
+- **Matching**: values within a rule OR; rules grouped by (kind, token) OR within a group, AND across groups. Mixed `Hide` + `ShowOnly` is rejected with a message, never silently resolved.
+- **`"STING VIS - "` prefix is the cleanup contract** — `Vis_PurgeFilters` and `Vis_ResetAll` find and delete by it, and touch nothing else.
+- **Reset clears both mechanisms** (temporary mode *and* the filters). The two halves have opposite transaction requirements, so `VisibilityEngine.Reset` sequences them itself — call it with no open transaction.
+- Token parameters resolve through `ParamRegistry.DISC/.LOC/.ZONE/…`, never literals.
+- **An unresolvable category rule raises a blocker, not silence.** A preset naming a category the model lacks keeps its `OST_` string with `CategoryId == 0`; `PlanCore` detects that and names it, instead of the rule quietly matching nothing.
+- Presets: corporate `Data/STING_VISIBILITY_PRESETS.json` (4 baseline) + project override at `<project>/_BIM_COORD/visibility_presets.json`, project winning by name.
+
+**Caveats**
+1. Show-only **by category** in Saved mode is reported as a blocker, not implemented — a view filter can only act on the categories it binds to. Temporary mode does it.
+2. The isolate filter is one combined `STING VIS - NOT (isolate)` element; it does not round-trip through `TryParseFilterName` (still purged by prefix).
+3. The UI namespace is `StingTools.UI.VisibilityCenter`, **not** `.Visibility` — the latter shadows `System.Windows.Visibility` inside existing `StingTools.UI` files (`RevitVgEditor`, `BOQCostManagerPanel`).
+4. Tests cover the Revit-free half (`StingTools.Visibility.Tests`, **102 passing**). The Revit-bound half — `VisibilityStateReader` above all — is **not exercised in Revit**; every bug found on this feature so far has lived there. See ROADMAP VIS-1 for the manual check to run before merge.
+5. Under temporary **isolate**, `IsElementVisibleInTemporaryViewMode` answers false for everything outside the isolated set, including elements the view never drew, so the hidden count is an upper bound. Hide mode is exact (ROADMAP VIS-6).
 
 ---
 
@@ -1614,7 +1696,7 @@ STINGTOOLS/
 - Contains `ToggleDockPanelCommand`
 
 ### `StingLog` (static) — `Core/StingLog.cs` (127 lines)
-- Thread-safe file logger (`StingTools.log` alongside the DLL)
+- Thread-safe file logger, alongside the DLL. **The filename is date-stamped — `StingTools_yyyyMMdd.log`, not `StingTools.log`.** Searching for the undated name finds nothing and reads as "the plugin never logged", which is a different and much more alarming conclusion; it cost a wrong call on 2026-08-17. The DLL's location is whatever the installed `.addin` points at, and that moves — see [[project-stingtools-deploy-target]] / grep `<Assembly>` first.
 - Uses buffered `StreamWriter` with `FileShare.Read` for performance
 - Methods: `Info(msg)`, `Warn(msg)`, `Error(msg, ex?)`, `Shutdown()`
 - `Shutdown()` flushes and closes the log file
@@ -2525,6 +2607,38 @@ the manifest had been on `CompiledPlugin` for some time and GOLD had sat unbuilt
 for 16 days. **Older runners that name GOLD as the deploy target are wrong** —
 use the manifest.
 
+### What the repo says is not what is serving — check the live thing
+
+> **Before concluding a change is broken, or that a fix worked, verify against the
+> thing actually running.** Five separate instances of this cost hours on
+> 2026-08-16/17 alone. In every one, a correct change had no effect, and the
+> absence of an error read as "the code is wrong".
+
+The pattern: a repo artefact *describes* a deployment, and something else *is* the
+deployment. The artefact is not lying so much as inert, and nothing warns you.
+
+| Surface | The trap | The check |
+|---|---|---|
+| **Revit plugin** | The `.addin` `<Assembly>` path moves between checkouts — it changed **five times** in two days, twice to another agent's worktree. Building the right code into the wrong folder succeeds silently. | `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin \| sort -u` |
+| **marketing-site** | No git-connected Pages build (#651). **Merging deploys nothing** — a human must run `npm run deploy`. Pages' static fallback then makes an undeployed Function return 405/200-HTML, indistinguishable from a route that never existed. | Probe a known-good Function, the new one, and a nonsense path; compare all three |
+| **Pages secrets** | Bindings are captured at **deployment** time (#674). `wrangler pages secret list` showing a name proves it is **stored**, not **bound**. Setting a secret and re-probing yields the *old* behaviour. | Set it, **redeploy**, then probe |
+| **Render** | `render.yaml` declares `planscape-api`; production is `planscape-api-free` (#717). The blueprint governs **nothing** — editing `autoDeploy` there changes no behaviour. Dashboard Auto-Deploy is the real trigger, and it is unfiltered, so a Revit-plugin commit rebuilds the .NET API. | `curl -o /dev/null -w "%{http_code}" https://planscape-api.onrender.com/` → 404 |
+| **D1 schema** | A new table in `schema.sql` does **not** exist in production until applied. Deploying first gives a runtime `no such table`. Never re-run the whole file — it holds bare `ALTER TABLE`s that fail on re-run. | Apply only the new DDL, **before** deploying |
+
+**Two corollaries worth internalising.**
+
+*An absent side effect never tells you why.* A silent no-op looks identical to a
+wrong fix, a bad credential, and a command that never ran. When something
+reportedly done has no observable effect, stop re-running it and get the error —
+a log, a tail, a screenshot. Prefer making the next attempt self-recording over
+asking for the same output twice.
+
+*Verify the instrument before trusting its silence.* A `wrangler pages deployment
+tail` binds to one deployment id, so **any deploy invalidates it** — watching a
+superseded deployment reports zero requests forever. Prove the tail is alive
+(generate a request, watch the line count move) before reading "no traffic" as
+evidence of anything.
+
 ### Branching
 
 - The default branch is `main`
@@ -2539,6 +2653,67 @@ use the manifest.
 - Clear, concise commit messages in imperative mood
 - One logical change per commit
 - No secrets, credentials, `.env` files, or API keys
+
+---
+
+## The failure mode this codebase produces
+
+**Nothing here fails loudly.** Every serious defect found in the 2026-08 audit
+looked like it was working:
+
+- The 3D viewer **fabricated clash data**, synthesising pairs from real element
+  GUIDs so the fakes carried genuine element names. It never queried the server
+  at all — a `USE_MOCK_CLASHES = true` flag commented *"server endpoint may not
+  exist yet"* long after it did.
+- **"Run clash detection" ran nothing** — it invented results client-side and
+  toasted "complete".
+- A **Create-issue** handler fabricated a stand-in issue on failure, inserted it,
+  and reported success; the row vanished on reload.
+- A **validation toast rendered underneath the modal backdrop**, so the only
+  feedback was invisible.
+- The BCC **"Save" wrote a local JSON file the server never saw**, so members
+  silently vanished on refresh. Three separate panels had this shape.
+- A documented cleanup command **could never run** — RESTRICT foreign keys made
+  it abort every time, leaving full residue.
+- Eleven permission gates compared `ProjectRole == "PM"`, a code that only
+  exists in the *other* column's vocabulary, so they **could never open for
+  anyone**.
+- A quota axis counted `ProjectRole == "Author"`, a literal **no writer
+  produces** — so one axis read 0 forever and the other counted everyone.
+- A data-rights export returned **200 with an unparseable archive**; its tests
+  asserted substrings and never parsed.
+- A Pages Function was **merged but never deployed** (`marketing-site` has no
+  git-connected build), and the static fallback made an undeployed route
+  indistinguishable from a nonexistent one.
+
+### What to do about it
+
+**Never invent fallback data.** Real data, an empty state, or a visible error.
+A fabricated value a user can act on is worse than a blank screen.
+
+**Prefer fixes that make the failure inexpressible, not merely absent.** The
+ones that held up:
+
+- one seat-count function that both the spending and reporting paths call, so
+  the two cannot drift
+- deleting an unused enum member so a stale reference is a *compile error*
+  rather than falling through to a permissive default
+- a test that enumerates `Enum.GetValues<T>()` instead of listing cases, so a
+  new member is covered without anyone remembering
+- a migration that refuses to run against a half-approved sheet
+- a probe that distinguishes *undeployed* from *nonexistent*
+
+**Prove the error path is reachable.** When you touch a failure branch, show a
+user can actually see it. Several of the above were error handling that could
+never execute.
+
+**"Merged" is not "deployed", and 200 is not "working".** Verify the artefact
+that actually serves the request. Compare a target route against both a
+known-good and a known-bad one.
+
+**Assert on non-empty data.** `PlanscapeDbContext`'s tenant filter falls back to
+`Guid.Empty` without an `ITenantContext`, so a test can pass against an empty
+result set. Prove RED before GREEN and report both numbers.
 
 ---
 

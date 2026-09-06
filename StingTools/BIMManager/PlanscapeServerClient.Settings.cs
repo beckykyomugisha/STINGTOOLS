@@ -35,9 +35,35 @@ public sealed partial class PlanscapeServerClient
     /// <summary>
     /// Corporate default API base. Used only when neither the
     /// <c>STING_PLANSCAPE_URL</c> env var nor the machine settings file
-    /// supplies a URL. Points at the production Planscape API.
+    /// supplies a URL.
+    ///
+    /// <para><b>This is the Render hostname, not <c>api.planscape.build</c>, because
+    /// api.planscape.build does not resolve.</b> Measured 2026-08-20: a request to it
+    /// fails at connect (curl exit 6, no HTTP status at all) while
+    /// <c>planscape-api-free.onrender.com/health/live</c> answers 200. The custom
+    /// domain has never been attached to a Render service — see #705 — so every
+    /// out-of-the-box install pointed at an address with no DNS record and every
+    /// "Connect" failed. A default that cannot work for anybody is worse than an
+    /// unlovely hostname.</para>
+    ///
+    /// <para><b>Swap this back the moment #705 is done</b> — attach
+    /// api.planscape.build to the live service, confirm
+    /// <c>curl https://api.planscape.build/health/live</c> answers 200, then change
+    /// this constant and leave the Render URL as a built-in target. The custom domain
+    /// is the right long-term identity; it is simply not a working one today.</para>
+    ///
+    /// <para>Note the SERVICE name is <c>planscape-api-free</c>. <c>planscape-api</c>
+    /// — the name in <c>render.yaml</c> — 404s; the blueprint does not govern what is
+    /// deployed. Do not "correct" this to match the yaml.</para>
     /// </summary>
-    public const string BakedDefaultServerUrl = "https://api.planscape.build";
+    public const string BakedDefaultServerUrl = "https://planscape-api-free.onrender.com";
+
+    /// <summary>
+    /// The intended long-term production identity, offered as a built-in target so it
+    /// can be selected the moment DNS exists (#705). Kept as a named constant rather
+    /// than a literal so there is exactly one place to change when it goes live.
+    /// </summary>
+    public const string IntendedProductionServerUrl = "https://api.planscape.build";
 
     /// <summary>Env var name a deployment can set to override the default
     /// server URL without editing any file.</summary>
@@ -219,7 +245,19 @@ public sealed partial class PlanscapeServerClient
             bool isLocal = host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
                            || host == "127.0.0.1"
                            || host.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
-            if (!isLocal && host.StartsWith("api.", StringComparison.OrdinalIgnoreCase))
+            // The corporate SPA, for API hosts that do not follow the api.<domain>
+            // convention. planscape-api-free.onrender.com is the baked default
+            // (api.planscape.build has no DNS — #705), and without this it would fall
+            // to the same-origin <base>/app/ branch below. That branch answers 200, so
+            // the mistake would not look like one: the button would open the API host's
+            // static copy rather than the coordinator app, and only differing content
+            // would give it away. app.planscape.build IS attached and serving —
+            // verified 2026-08-20 — so the web half needs no workaround, only the API.
+            if (!isLocal && host.Equals("planscape-api-free.onrender.com", StringComparison.OrdinalIgnoreCase))
+            {
+                url = "https://app.planscape.build/";
+            }
+            else if (!isLocal && host.StartsWith("api.", StringComparison.OrdinalIgnoreCase))
             {
                 var b = new UriBuilder(u) { Host = "app." + host.Substring(4), Path = "/" };
                 if ((u.Scheme == Uri.UriSchemeHttps && u.Port == 443) ||

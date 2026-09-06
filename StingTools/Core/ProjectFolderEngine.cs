@@ -106,6 +106,7 @@ namespace StingTools.Core
             ["DocRegister"]    = "REGISTERS",
             ["AssetRegister"]  = "REGISTERS",
             ["BOQ"]            = "SCHEDULES",
+            ["MaterialSchedule"] = "SCHEDULES",
             ["Schedule"]       = "SCHEDULES",
             ["Excel"]          = "SCHEDULES",
             ["Compliance"]     = "COMPLIANCE",

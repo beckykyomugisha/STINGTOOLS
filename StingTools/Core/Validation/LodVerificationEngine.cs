@@ -241,8 +241,19 @@ namespace StingTools.Core.Validation
 
             foreach (var p in check.RequiredParams ?? new List<string>())
             {
-                if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, p)))
-                { er.Pass = false; er.Reasons.Add($"missing/empty {p}"); }
+                string v = ParameterHelpers.GetString(el, p);
+                if (string.IsNullOrEmpty(v))
+                { er.Pass = false; er.Reasons.Add($"missing/empty {p}"); continue; }
+
+                // Every date parameter is TEXT, and the BEP mandates YYYY-MM-DD.
+                // Nothing enforced it, so a value present but in a local
+                // convention passed the completeness check and then could not be
+                // sorted or compared once the handover dataset was assembled --
+                // by which point the installer has left site. Only parameters the
+                // registry documents as ISO are checked; the DD-Mon-YYYY
+                // title-block dates are correct as they are. See DateFormatRule.
+                if (DateFormatRule.IsDateParam(p) && !DateFormatRule.IsConforming(v))
+                { er.Pass = false; er.Reasons.Add($"{p} is '{v}', not {DateFormatRule.Format}"); }
             }
 
             foreach (var d in check.RequiredDims ?? new List<string>())

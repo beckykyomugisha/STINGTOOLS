@@ -1315,7 +1315,8 @@ namespace StingTools.UI
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ExportDialog GetParameters: {ex.Message}"); }
-            return paramNames.ToList();
+            // Superseded parameters sort last -- see ParamRegistry.PickerOrder.
+            return ParamRegistry.PickerOrder(paramNames);
         }
 
         private static Dictionary<string, List<string>> GetFamilies(Document doc, IEnumerable<string> categories)

@@ -425,6 +425,18 @@ internal static class PlatformSchemaPatcher
         // for rounds whose real revision is unknown, which is exactly the confident-
         // wrong-answer this field exists to prevent.
         @"ALTER TABLE ""ApprovalChains"" ADD COLUMN IF NOT EXISTS ""RevisionSnapshot"" text",
+
+        // ── ProjectModel.SourceDocGuid — the ProjectModel ↔ FederatedElement link ──
+        // Additive and nullable. Existing rows land on NULL, and NULL is exactly
+        // the case ModelsController.Delete refuses to cascade on — so shipping
+        // this cannot retire anything on the strength of a value nobody set. New
+        // publishes carry the authoring document's GUID and get a real cascade.
+        //
+        // Per ADR 0001 this patcher, not an EF migration, is how the column
+        // reaches an existing production database.
+        @"ALTER TABLE ""ProjectModels"" ADD COLUMN IF NOT EXISTS ""SourceDocGuid"" character varying(100)",
+        @"CREATE INDEX IF NOT EXISTS ""IX_ProjectModels_ProjectId_SourceDocGuid""
+            ON ""ProjectModels"" (""ProjectId"", ""SourceDocGuid"")",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

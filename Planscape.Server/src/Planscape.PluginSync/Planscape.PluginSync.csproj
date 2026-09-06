@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net8.0, not net8.0-windows. Nothing in this project touches a
+         Windows-only API, and the -windows suffix meant no net8.0 test project
+         could reference it — which is why the offline queue, the drop counter,
+         the discipline filter and the scheduler's re-entrancy guard shipped
+         with zero coverage. A net8.0-windows consumer (the Revit plugin) can
+         still reference a net8.0 library. -->
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Planscape.PluginSync</RootNamespace>

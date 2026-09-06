@@ -86,8 +86,12 @@ public class AdminController : ControllerBase
         if (tenant == null) return NotFound("Tenant not found");
 
         var userCount = await _db.Users.CountAsync(u => u.TenantId == tenantId && u.IsActive);
-        if (userCount >= tenant.MaxUsers)
-            return BadRequest($"User limit ({tenant.MaxUsers}) reached for {tenant.Tier} tier");
+        // Via AccountCeilingPolicy, not a raw >=: a non-positive cap must read as
+        // unlimited rather than denying the tenant its first user (#616, #653).
+        if (!Planscape.Core.AccountCeilingPolicy.Allows(userCount, tenant))
+            return BadRequest(
+                $"Account limit ({Planscape.Core.AccountCeilingPolicy.Label(tenant.MaxUsers)}) " +
+                "reached for this organisation.");
 
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return Conflict($"Email {req.Email} already exists");

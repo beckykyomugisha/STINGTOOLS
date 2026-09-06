@@ -284,6 +284,21 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="6">
                     <StackPanel>
 
+                        <!-- VISIBILITY -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="👁 VISIBILITY"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#4CAF50">
+                            <WrapPanel>
+                                <Button x:Name="btnVisDropdown" Style="{StaticResource GreenBtn}" Content="👁 Show / Hide ▾" Tag="Vis_OpenDropdown" Click="Cmd_Click"
+                                        ToolTip="Show/hide by category or ISO tag token (zone, location, level, discipline…)"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Reset" Tag="Vis_ResetAll" Click="Cmd_Click"
+                                        ToolTip="Clears BOTH the temporary hide/isolate and every STING VIS filter on this view"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Presets ▾" Tag="Vis_LoadPreset" Click="Cmd_Click"
+                                        ToolTip="Load a saved visibility preset"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Purge filters" Tag="Vis_PurgeFilters" Click="Cmd_Click"
+                                        ToolTip="Delete every 'STING VIS - ' view filter from the project"/>
+                            </WrapPanel>
+                        </Border>
+
                         <!-- AI SMART SELECT -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="⚡ AI SMART SELECT"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#FF9800">
@@ -1434,6 +1449,7 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Style Refs" Tag="DrawingTypes_AuditStyleRefs" Click="Cmd_Click" ToolTip="Read-only — reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project. Does not modify views."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="WRITES — re-apply every stamped view's profile (scale / detail / template / style pack / annotation) so views snap back into line after editing a Drawing Type or View Style Pack. Views flagged STING_STYLE_LOCKED_BOOL are skipped."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Suggest From Scope Boxes" Tag="DrawingTypes_SuggestFromScopeBoxes" Click="Cmd_Click" ToolTip="Read-only — scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name). Creates nothing."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Box Manager" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Rename scope boxes to the STING:: grammar with a drawing-type dropdown — no typos, live four-state validation, click a row to select the box in the model. Two-pass rename survives A→B/B→A swaps. Also carries the old Scope Box Manager's audit / auto-assign / clear actions."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Generate From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="WRITES — create a view per scope box named STING::&lt;drawing-type&gt;::&lt;level&gt;, cropped to that box, with the profile's scale / template / style pack applied. Idempotent per (drawing type, scope box)."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
@@ -1927,6 +1943,19 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Check" Tag="CheckData" Click="Cmd_Click" ToolTip="Check Data — verify referenced CSV / JSON / TXT data files are present"/>
                                     </WrapPanel>
                                 </Expander>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MODEL-AUTHORING BASELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="&#x1F3D7; MODEL BASELINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit model baseline" Tag="Baseline_Audit" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. Compares this project to the STING model-authoring baseline: which materials and wall/floor/roof/ceiling types are missing, which exist but differ, and which need families loaded by hand. Writes nothing."
+                                        HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Apply baseline (asks first)" Tag="Baseline_Apply" Click="Cmd_Click"
+                                        ToolTip="Shows the full list of what it would create, then writes only after you confirm. Creates ONLY what is missing — an existing type is never edited, even when its build-up differs from the baseline. A material schedule can only measure finishes the model actually describes; this is what gives it something to read."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -2573,6 +2602,7 @@
                                             ToolTip="Unified DWG Wizard — auto-detect whether the imported DWG is structural / architectural / MEP and dispatch to the right wizard."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Building Shell" Tag="ModelBuildingShell" Click="Cmd_Click" ToolTip="Create complete building: 4 walls + floor + roof"/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Room" Tag="ModelCreateRoom" Click="Cmd_Click" ToolTip="Create rectangular room enclosure (4 walls + room)"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Auto Rooms" Tag="AutoCreateRooms" Click="Cmd_Click" ToolTip="Auto-place Rooms into every enclosed boundary on the active plan view's level. Skips circuits that already have a room; numbers new ones sequentially after the existing count."/>
                                 </WrapPanel>
                                 <Expander Header="Multi-building site (§B1-B6)" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
@@ -3213,7 +3243,11 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="✓ Prep Export" Tag="BOQPrepForExport" Click="Cmd_Click"
                                             ToolTip="Run the pre-export quality gate chain (compliance, containers, stale, BOQ data quality, warnings, placeholders). Only go to export when all gates are green."/>
                                 </WrapPanel>
-                                <Expander Header="BOQ + 5D ops" FontSize="10" Margin="0,2,0,0">
+                                <!-- Expanded by default: this group holds the BOQ and material-schedule
+                                     exports, which are the most-reached-for actions on this tab. A new
+                                     feature landing inside a collapsed expander is invisible, not merely
+                                     one click away. -->
+                                <Expander Header="BOQ + 5D ops" FontSize="10" Margin="0,2,0,0" IsExpanded="True">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource BlueBtn}" Content="BCC Refresh" Tag="BOQBccRefresh" Click="Cmd_Click"
                                                 ToolTip="Refresh BOQ × BIM Coordination Center integrations: compute cost impact per open issue, remediation cost per clash, BOQ data-quality band, and synthetic BOQ-gap warnings. Auto-hooks (revision snapshot, meeting agenda, deliverable row, CDE routing) fire from their host commands."/>
@@ -3221,6 +3255,8 @@
                                                 ToolTip="Visualise per-category rate provenance (Override / CSV / COBie / Default / None). HTML + CSV emitted so QS knows which categories need review."/>
                                         <Button Style="{StaticResource BlueBtn}" Content="Export" Tag="BOQExport" Click="Cmd_Click"
                                                 ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
+                                        <Button Style="{StaticResource BlueBtn}" Content="Material Schedule" Tag="MaterialSchedule_Export" Click="Cmd_Click"
+                                                ToolTip="Export a stage-sectioned material schedule in supplier units (Bags / Trips / No.) as XLSX, with an include/exclude prices toggle"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Import" Tag="BOQImport" Click="Cmd_Click"
                                                 ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Snap Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"

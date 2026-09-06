@@ -765,6 +765,15 @@ builder.Services.AddScoped<Planscape.Core.Interfaces.ICbmPlanner,
 // Gap F — Auto-compute coordinate transform from IfcMapConversion data.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IAutoAlignService,
     Planscape.Infrastructure.Services.AutoAlignService>();
+// B2 — the ONE writer that turns a host's georeferencing (IFC IfcMapConversion,
+// Revit ProjectPosition) into a stored ProjectModelTransform. Shared so the IFC
+// and Revit paths cannot drift apart on translation convention or confidence.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.IModelGeorefWriter,
+    Planscape.Infrastructure.Services.ModelGeorefWriter>();
+// P5 — scene-chunk AABBs are world-space, so every transform write invalidates
+// them. One idempotent refresher, called from every write path.
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ISceneNodeAabbRefresher,
+    Planscape.Infrastructure.Services.SceneNodeAabbRefresher>();
 // Gap G — Full project-wide federated coordinate coherence scan.
 builder.Services.AddScoped<Planscape.Infrastructure.Services.IFederatedCoherenceJob,
     Planscape.Infrastructure.Services.FederatedCoherenceJob>();
@@ -1618,6 +1627,169 @@ app.MapHub<Planscape.Infrastructure.SignalR.DocumentSyncHub>("/hubs/document-syn
         // the EF migration set is incomplete). Idempotent CREATE TABLE IF NOT EXISTS.
         await Planscape.API.PlatformSchemaPatcher.ApplyAsync(patchConn);
 
+        // #631 — report the per-folder ACL population at boot.
+        //
+        // ProjectMemberAcl.ResolveAsync narrows what a member sees inside a
+        // project using three allow-list columns on ProjectMembers. Between
+        // cb503b024 (2026-05-16) and the fix for #631 those columns were
+        // hard-coded to null, so the ACL restricted nothing. Turning it back on
+        // is inert for a member whose allow-lists are empty (null = "all") and
+        // NARROWS access for a member whose are not.
+        //
+        // Nobody could answer "how many rows are populated in production?"
+        // without database access, so the server answers it itself, once per
+        // boot, before it matters.
+        //
+        // Deliberately logged at Warning in BOTH cases. render.yaml sets
+        // Serilog__MinimumLevel__Default=Warning in production, so an
+        // Information line would be invisible there — and "no line appeared"
+        // would then be indistinguishable between "zero rows" and "the check
+        // never ran". One line per deploy is a fair price for an unambiguous
+        // answer.
+        try
+        {
+            var aclScoped = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .CountAsync(m => m.IsActive && (
+                       (m.AllowedCdeStates     != null && m.AllowedCdeStates     != "")
+                    || (m.AllowedDisciplines   != null && m.AllowedDisciplines   != "")
+                    || (m.AllowedSuitabilities != null && m.AllowedSuitabilities != "")));
+
+            if (aclScoped > 0)
+                app.Logger.LogWarning(
+                    "[ACL] {Count} active ProjectMember row(s) carry a per-folder allow-list. " +
+                    "ProjectMemberAcl WILL narrow document visibility for them. To restore full " +
+                    "access for a member, set their AllowedCdeStates/AllowedDisciplines/" +
+                    "AllowedSuitabilities back to NULL (null = all). See #631.",
+                    aclScoped);
+            else
+                app.Logger.LogWarning(
+                    "[ACL] No active ProjectMember row carries a per-folder allow-list. " +
+                    "ProjectMemberAcl is active but narrows nothing for anyone. See #631.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[ACL] Could not read the per-folder ACL population.");
+        }
+
+        // Report ProjectMember.Iso19650Role values outside the served vocabulary.
+        //
+        // Until this change the column accepted any string at five write sites, and
+        // it drifted: a local database holds 'S' — a code from the DIFFERENT
+        // vocabulary AppUser.Iso19650Role declares — and 'EL', which is in no
+        // declared vocabulary at all. Neither could have come from a first-party UI.
+        //
+        // The writes are validated now, so the set can only shrink. Tolerating the
+        // rows that already exist is deliberate (see Iso19650Roles): an edit that
+        // omits the field must still succeed, or someone fixing an unrelated field
+        // is blocked by a code they did not write. But tolerating is not the same as
+        // forgetting, and forgetting is how these got here. This says them out loud,
+        // once per boot, so the cleanup issue has a live number rather than a
+        // one-off local measurement.
+        //
+        // Warning in BOTH cases, for the same reason as the ACL block above:
+        // render.yaml pins Serilog to Warning in production, so an Information line
+        // is invisible there — and an absent line cannot be told apart from a check
+        // that never ran.
+        //
+        // Codes and counts only. No user id, no email, no display name: which humans
+        // hold a stray is exactly the question the cleanup issue asks a person to
+        // answer, and it is not one a log line should leak.
+        try
+        {
+            var canonical = Planscape.Core.Entities.Iso19650Roles.All.ToArray();
+
+            var strays = await db.ProjectMembers
+                .IgnoreQueryFilters()
+                .Where(m => m.Iso19650Role != null
+                         && m.Iso19650Role != ""
+                         && !canonical.Contains(m.Iso19650Role))
+                .GroupBy(m => m.Iso19650Role)
+                .Select(g => new { Code = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            if (strays.Count > 0)
+                app.Logger.LogWarning(
+                    "[ISO-ROLE] {Rows} ProjectMember row(s) carry an Iso19650Role outside the served " +
+                    "vocabulary, across {Distinct} distinct value(s): {Codes}. New writes are now " +
+                    "rejected, so this set can only shrink — but these rows are NOT auto-corrected, " +
+                    "because guessing what they were meant to be would be inventing data. A human who " +
+                    "knows those members decides; see the ISO role cleanup issue.",
+                    strays.Sum(x => x.Count),
+                    strays.Count,
+                    string.Join(", ", strays.OrderByDescending(x => x.Count)
+                                            .Select(x => $"'{x.Code}' x{x.Count}")));
+            else
+                app.Logger.LogWarning(
+                    "[ISO-ROLE] Every ProjectMember.Iso19650Role is inside the served vocabulary " +
+                    "({Count} canonical codes). Nothing to clean up.",
+                    canonical.Length);
+        }
+        catch (Exception ex)
+        {
+            // Same contract as the ACL report: a diagnostic must never stop the boot,
+            // and must never fail quietly either.
+            app.Logger.LogWarning(ex, "[ISO-ROLE] Could not read the Iso19650Role population.");
+        }
+
+        // #653 — report tenants still carrying a seat-derived account cap.
+        //
+        // Tenant.MaxUsers used to be written from BillingPlanLimits.TotalSeats
+        // (MaxAuthors + MaxCoordinators) at both creation paths. That summed two
+        // PAID ROLE caps to bound total ACCOUNTS, so a free viewer consumed a paid
+        // allowance — the opposite of what the pricing page FAQ promises. New
+        // tenants now get the flat BillingPlanLimits.AccountCeiling instead.
+        //
+        // Rows created BEFORE this change keep the old number, and nothing in the
+        // data distinguishes "derived from a plan" from "an admin deliberately
+        // capped this tenant" — 20 could be either. So this REPORTS rather than
+        // rewrites: a blind UPDATE would silently overwrite a deliberate cap, and
+        // the fix for a handful of rows is one reviewed statement, not a guess
+        // applied on every boot. Same reasoning and same shape as the ACL report
+        // above (#631).
+        //
+        // Warning level for the same reason: production runs at
+        // Serilog__MinimumLevel__Default=Warning, so an Information line would be
+        // invisible and its absence unreadable.
+        try
+        {
+            var seatTotals = Enum.GetValues<Planscape.Core.Entities.BillingPlan>()
+                .Select(pl => Planscape.Core.Entities.BillingPlanLimits.For(pl).TotalSeats)
+                .Where(t => t > 0 && t != int.MaxValue)
+                .Distinct()
+                .ToList();
+
+            var legacyCapped = await db.Tenants
+                .IgnoreQueryFilters()
+                .Where(t => t.IsActive && seatTotals.Contains(t.MaxUsers))
+                .Select(t => new { t.Slug, t.MaxUsers })
+                .ToListAsync();
+
+            if (legacyCapped.Count > 0)
+                app.Logger.LogWarning(
+                    "[SEATS] {Count} active tenant(s) carry a MaxUsers matching a plan seat " +
+                    "total ({Totals}) and so may still refuse free viewers: {Tenants}. New " +
+                    "tenants now get the flat ceiling of {Ceiling}. If these are legacy " +
+                    "derived caps rather than deliberate admin limits, raise each with " +
+                    "UPDATE \"Tenants\" SET \"MaxUsers\" = {Ceiling2} WHERE \"Slug\" = ... — " +
+                    "reviewed per tenant, not in bulk. See #653.",
+                    legacyCapped.Count,
+                    string.Join("/", seatTotals),
+                    string.Join(", ", legacyCapped.Select(t => $"{t.Slug}={t.MaxUsers}")),
+                    Planscape.Core.Entities.BillingPlanLimits.AccountCeiling,
+                    Planscape.Core.Entities.BillingPlanLimits.AccountCeiling);
+            else
+                app.Logger.LogWarning(
+                    "[SEATS] No active tenant carries a legacy seat-derived MaxUsers. " +
+                    "Account ceilings are decoupled from paid role caps. See #653.");
+        }
+        catch (Exception ex)
+        {
+            // Never let a diagnostic stop the boot — but never swallow it either.
+            app.Logger.LogWarning(ex, "[SEATS] Could not read the tenant account-cap population.");
+        }
+
         // Postgres RLS policies (#545). OFF unless Database:RlsEnabled is set —
         // the same key that gates RlsConnectionInterceptor above, so the
         // session variable and the policies that read it turn on together
@@ -1746,6 +1918,11 @@ recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.DatabaseBackupJob>(
     "database-backup", "heavy", j => j.ExecuteAsync(CancellationToken.None),
     "15 2 * * *");
 // FLEX-13 — nightly 03:15 UTC purge of custom fields past the 30-day grace period.
+// C4 - purge soft-deleted models after the 30-day grace the entity documents.
+// Nightly, on the heavy queue: it deletes object-storage bytes, so it must not
+// compete with the API's default-queue workers.
+recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.ModelPurgeJob>(
+    "model-purge", j => j.ExecuteAsync(CancellationToken.None), "30 3 * * *");
 recurringJobs.AddOrUpdate<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>(
     "custom-fields-purge", "default", j => j.ExecuteAsync(CancellationToken.None),
     "15 3 * * *");
@@ -2045,6 +2222,43 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         // index (lookups keep working) until an operator runs
         // POST /api/admin/identity/reconcile/apply and restarts. Atomic (single DO
         // block) so a failed convert can never leave the table with no index.
+        // B1 — auto-applied transforms. ProjectModelTransform gains three
+        // columns so a survey-derived alignment can render WITHOUT a coordinator
+        // confirming it, while a confirmed one still outranks it. Same
+        // idempotent-patch rationale as the columns above (ADR 0001): fresh DBs
+        // get them from the EF model via CreateTables, pre-existing DBs get them
+        // here. NOT NULL DEFAULT false on the flag so existing rows keep today's
+        // behaviour exactly — nothing starts rendering because of a deploy.
+        // P3 — correct the mesh unit on GLB derivatives produced by the IFC→GLB
+        // converter. Those rows copied the SOURCE IFC's unit (commonly "mm")
+        // onto the converted GLB, which glTF 2.0 defines as metres. That was
+        // harmless while nothing read ProjectModel.Units; now that it drives the
+        // viewer's mesh scaling, leaving it would shrink every previously
+        // converted model by 1000. Scoped to converter-produced rows by
+        // UploadedBy so no hand-uploaded model is touched, and a no-op once
+        // applied (and for rows the fixed job already writes as "m").
+        "UPDATE \"ProjectModels\" SET \"Units\" = 'm' " +
+            "WHERE \"UploadedBy\" = 'IFC→GLB converter' AND \"Format\" = 0 AND \"Units\" IS DISTINCT FROM 'm'",
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"AppliedAutomatically\" boolean NOT NULL DEFAULT false",
+        // P5 — the chunk's LOCAL (pre-transform) AABB. Nullable: rows written
+        // before this have none, and the refresher captures the current values
+        // as the local box the first time it sees such a row. Keeping the local
+        // box is what makes the world-box recompute idempotent — the previous
+        // in-place version transformed an already-transformed box, so repeated
+        // writes compounded.
+        // C7 - conversion status for IFC uploads awaiting a GLB derivative.
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"ConversionStatus\" text NULL",
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"ConversionError\" text NULL",
+        // C4 - supersede link for forced re-publishes.
+        "ALTER TABLE \"ProjectModels\" ADD COLUMN IF NOT EXISTS \"SupersededByModelId\" uuid NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinX\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinY\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMinZ\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxX\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxY\" double precision NULL",
+        "ALTER TABLE \"SceneNodes\" ADD COLUMN IF NOT EXISTS \"BaseMaxZ\" double precision NULL",
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Confidence\" text NULL",
+        "ALTER TABLE \"ProjectModelTransforms\" ADD COLUMN IF NOT EXISTS \"Source\" text NULL",
         "DO $$ BEGIN " +
         "IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' " +
             "AND indexname='IX_TaggedElements_ProjectId_IfcGlobalId' AND indexdef ILIKE '%UNIQUE%') " +
@@ -2054,6 +2268,19 @@ static async Task PatchDevSchemaAsync(System.Data.Common.DbConnection conn)
         "CREATE UNIQUE INDEX \"IX_TaggedElements_ProjectId_IfcGlobalId\" ON \"TaggedElements\" " +
             "(\"ProjectId\",\"IfcGlobalId\") WHERE \"IfcGlobalId\" IS NOT NULL; " +
         "END IF; END $$;",
+        // Tenants.PlanTier — the plan tier planscape.build's D1 names ("solo",
+        // "studio", "practice", "firm", "large", "enterprise"), carried in the cloud
+        // handoff ticket and previously discarded. Same idempotent-patch rationale as
+        // the columns above and per docs/adr/0001-schema-management.md: EnsureCreated
+        // short-circuits once Tenants exists and Migrate() is a no-op against the
+        // un-attributed migration set, so `dotnet ef migrations add` would reach
+        // nothing. Fresh DBs get it from the EF model via CreateTables.
+        //
+        // Nullable with NO default, so every pre-existing tenant reads as "D1 never
+        // told us" and keeps falling back to its local Plan — the tier grants only
+        // where it is actually known. A DEFAULT here would invent an entitlement for
+        // rows nobody has priced.
+        "ALTER TABLE \"Tenants\" ADD COLUMN IF NOT EXISTS \"PlanTier\" text NULL",
     };
     int applied = 0, failed = 0;
     foreach (var sql in patches)
