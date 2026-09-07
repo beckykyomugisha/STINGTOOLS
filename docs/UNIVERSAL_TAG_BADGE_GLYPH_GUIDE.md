@@ -1,5 +1,10 @@
 # Universal Tag — Status Badge Glyph Building Guide
 
+
+> ## ⛔ SUPERSEDED
+>
+> Superseded. Describes a badge/glyph scheme against the 206-family layout; the universal tag replaces that model and carries no style matrix (see UNIVERSAL_TAG_CONFORMANCE.md §2.2).
+
 A step-by-step, Revit-specific guide to **drawing the status-badge glyphs** for the universal
 tag: the traffic-light symbols (🟢 / 🟡 / 🔴) for the data gate and QA gate. This covers ONLY
 the glyph construction — how to draw them, colour them, set line weight, and the scale question.

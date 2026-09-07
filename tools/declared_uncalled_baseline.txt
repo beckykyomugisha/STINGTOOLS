@@ -1,0 +1,4 @@
+# D.1 declared-but-uncalled ceiling. RATCHET: may fall, never rise.
+# A public static map or predicate in Core that nothing calls is a
+# mechanism that cannot fire. Seven such defects this workstream.
+58

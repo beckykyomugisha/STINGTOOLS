@@ -1,0 +1,133 @@
+{
+  "version": "1.0",
+  "_note": "Kibale NP project takeoff rules. Schema verified against StingTools/BOQ/Takeoff/TakeoffRule.cs:46-63. PROJECT rules are PREPENDED over the corporate baseline and a corporate rule sharing an id is dropped (TakeoffRule.cs:311-329), so ordering here is priority. Reload with Cost_ReloadRules after editing. quantitySource accepts: literal:<n> | LocationCurve | SolidVolume | LookupParameter:<name> | any BuiltInParameter name. unitConversion accepts: ft2_to_m2 | ft3_to_m3 | ft_to_m | none.",
+
+  "rules": [
+
+    {
+      "id": "kbl-pool-shell",
+      "matchCategory": "Generic Models",
+      "matchProdCode": "POOL",
+      "unit": "m3",
+      "quantitySource": "SolidVolume",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 5,
+      "nrm2Section": "5",
+      "description": "Swimming pool shell — reinforced concrete, formed and finished as detailed",
+      "notes": "Without this the pool falls through DeriveNrm2Section to the architectural default, NRM2 s23 'building fabric sundries'. Requires ASS_PRODCT_COD_TXT = POOL on the element.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-topo-cutfill",
+      "matchCategory": "Toposolid",
+      "unit": "m3",
+      "quantitySource": "SolidVolume",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 0,
+      "nrm2Section": "3",
+      "description": "Site formation — bulk earthworks, cut and fill to formation level",
+      "notes": "STING_DEFAULT_COST_RATES.csv:115 prices Toposolid at 60 per m2 — AREA, not volume. This rule measures volume instead. It still does NOT read Revit's graded-region Cut/Fill properties (gap B-2), so treat the number as indicative and reconcile against the toposolid schedule before issue.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-floor-screed",
+      "matchCategory": "Floors",
+      "matchProdCode": "SCR",
+      "unit": "m2",
+      "quantitySource": "HOST_AREA_COMPUTED",
+      "unitConversion": "ft2_to_m2",
+      "wastePercent": 5,
+      "nrm2Section": "21",
+      "description": "Cement and sand screed, laid to falls where indicated, floated to receive floor finish",
+      "notes": "There is NO screed parameter and NO screed formula anywhere in STINGTOOLS (gap G-11). This rule is the only way screed reaches the bill. Requires the screed to be its own floor element with ASS_PRODCT_COD_TXT = SCR. Section 21 = Surface finishes.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-floor-finish",
+      "matchCategory": "Floors",
+      "matchProdCode": "FIN",
+      "unit": "m2",
+      "quantitySource": "HOST_AREA_COMPUTED",
+      "unitConversion": "ft2_to_m2",
+      "wastePercent": 10,
+      "nrm2Section": "21",
+      "description": "Floor finish, laid on prepared screed, including all trims and thresholds",
+      "notes": "Per-room finish floors (playbook Part 3A). 10 percent waste is the tile/parquet cutting allowance — set here because WasteTable's material key never reaches a priced quantity (gap E-4).",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-floor-structural",
+      "matchCategory": "Floors",
+      "matchProdCode": "SLB",
+      "unit": "m3",
+      "quantitySource": "HOST_VOLUME_COMPUTED",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 5,
+      "nrm2Section": "5",
+      "description": "Reinforced concrete slab, as designed, including formwork and finishing",
+      "notes": "Ordered before any generic Floors rule so the structural slab bills as concrete by volume, not as a surface finish by area.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-roof-thatch",
+      "matchCategory": "Roofs",
+      "matchProdCode": "THA",
+      "unit": "m2",
+      "quantitySource": "HOST_AREA_COMPUTED",
+      "unitConversion": "ft2_to_m2",
+      "wastePercent": 12,
+      "nrm2Section": "17",
+      "description": "Makuti thatch roof covering on timber purlins, laid to falls, including ridging and eaves detail",
+      "notes": "12 percent allowance reflects thatch lapping and dressing, which is materially higher than the sheet-roofing default.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-retaining-wall",
+      "matchCategory": "Walls",
+      "matchProdCode": "RET",
+      "unit": "m3",
+      "quantitySource": "HOST_VOLUME_COMPUTED",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 5,
+      "nrm2Section": "5",
+      "description": "Reinforced concrete retaining wall, including formwork, drainage layer and weepholes",
+      "notes": "On 27.75 m of fall these are a major item and must not bill as ordinary blockwork walling by area.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-hardcore-fill",
+      "matchCategory": "Floors",
+      "matchProdCode": "HDC",
+      "unit": "m3",
+      "quantitySource": "HOST_VOLUME_COMPUTED",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 8,
+      "nrm2Section": "3",
+      "description": "Hardcore filling, deposited, levelled and compacted in layers, blinded to receive slab",
+      "notes": "Hardcore exists as a waste keyword and two parameters but has no material row and no rate anywhere in the library (gap E-9). Add the material too — see the playbook, Part 4A.",
+      "origin": "project"
+    },
+
+    {
+      "id": "kbl-skirting",
+      "matchCategory": "Walls",
+      "matchProdCode": "SKT",
+      "unit": "m",
+      "quantitySource": "LocationCurve",
+      "unitConversion": "ft_to_m",
+      "wastePercent": 8,
+      "nrm2Section": "21",
+      "description": "Timber skirting, fixed to wall, mitred at angles, sanded and finished",
+      "notes": "ONLY use this if you model skirting as a wall element. If you use a wall sweep instead — which is the better model — skirting cannot be taken off at all and must be a measured addition: there is no skirting LENGTH parameter anywhere in MR_PARAMETERS.txt (gap G-11).",
+      "origin": "project"
+    }
+
+  ]
+}
