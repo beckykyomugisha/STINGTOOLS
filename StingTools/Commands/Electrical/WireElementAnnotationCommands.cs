@@ -168,7 +168,11 @@ namespace StingTools.Commands.Electrical
                     LengthM       = result.HasLength ? lengthM : 0.0,
                     Material      = "Cu",
                     Insulation    = "PVC70",
-                    Standard      = "BS7671",
+                    // KUT-7 — the active selection, not a hardcoded BS 7671. This
+                    // annotates a wire on a drawing, so the standard it was sized under
+                    // has to be the one the engineer chose.
+                    Standard      = StingTools.Standards.ElectricalStandardId.Normalise(
+                                        StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard),
                     Phases        = phases,
                     VDLimitPct    = 3.0,
                     AmbientTempC  = 30.0,
@@ -177,6 +181,14 @@ namespace StingTools.Commands.Electrical
                 try
                 {
                     var res = CableSizerEngine.Calculate(input);
+                    // KUT-7 — a refused size is 0, and 0 in a CSA annotation reads as
+                    // "not sized yet" rather than "we declined". Leave it blank and say
+                    // why in the log instead of annotating a zero.
+                    if (!res.Sized)
+                    {
+                        StingLog.Warn($"WireElement sizing skipped: {res.Warning}");
+                        return result;
+                    }
                     csa = res.RecommendedCsaMm2;
                     // Only claim a voltage drop when we actually had a circuit
                     // length to compute it from (otherwise CSA is ampacity-only).
