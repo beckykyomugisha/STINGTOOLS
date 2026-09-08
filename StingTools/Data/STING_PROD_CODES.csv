@@ -1,4 +1,33 @@
 PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,DISCIPLINE,SYSTEM,STANDARD_REF
+# ^^ THE HEADER ROW MUST STAY ON LINE 1. TagConfig.LoadProdCsv skips exactly one
+#    line before it starts skipping '#' comments, and so does ProdCodeDataTests.
+#    Move this block above it and the header is parsed as DATA, minting a rule
+#    whose FAMILY_PATTERN is the literal 'FAMILY_PATTERN'. No error; just a rule.
+#
+# STING_PROD_CODES.csv - PROD segment of the ISO 19650 tag.
+#
+# THE PLUGIN READS COLUMNS 0-2 AND NOTHING ELSE.
+#   0 PROD_CODE       written into the tag
+#   1 CATEGORY        which category's rule list the row joins
+#   2 FAMILY_PATTERN  matched against family + type (globs, alternation with |)
+#
+# DESCRIPTION, DISCIPLINE, SYSTEM and STANDARD_REF are REFERENCE ONLY: LoadProdCsv
+# stops at column 2, so nothing at runtime reads them and nothing at runtime can
+# notice a wrong value. Editing DISCIPLINE here does not change a tag.
+#
+# They are not unchecked, though. StingTools.Tags.Tests/ProdCodeDataTests asserts
+# that DISCIPLINE and SYSTEM are codes TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv declares,
+# that no PROD code declares two of either, and that DESCRIPTION and STANDARD_REF
+# are present - so a wrong value fails a build rather than being read as fact. One
+# PROD code once said P in one row and MG in another; nothing could see it.
+#
+# A row's DISCIPLINE MAY differ from the discipline its CATEGORY maps to, and 105
+# of them do. That is what DISC_OVERRIDE in the vocabulary file is for: a medical
+# gas outlet modelled as Specialty Equipment is MG, not H.
+#
+# No field is quoted, and a test enforces that: every reader here splits on a bare
+# comma, so one quoted DESCRIPTION would shift DISCIPLINE into SYSTEM.
+#
 AHU,Mechanical Equipment,*Air Handling*,Air Handling Unit,M,HVAC,BS EN ISO 16890
 FCU,Mechanical Equipment,*Fan Coil*,Fan Coil Unit,M,HVAC,CIBSE Guide B
 CHW,Mechanical Equipment,*Chiller*,Chiller,M,HVAC,BS EN 14511
