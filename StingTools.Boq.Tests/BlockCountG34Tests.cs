@@ -54,6 +54,32 @@ namespace StingTools.Boq.Tests
             Assert.DoesNotContain("* 1.03", row);
         }
 
+        [Fact]
+        public void Only_One_Block_Count_Formula_Survives()
+        {
+            // The gross-area twin is gone. It fed nothing and appeared on no schedule,
+            // so unlike the mortar duplicate it could be deleted rather than aliased —
+            // but while it sat in the file it was a plausible-looking rule that counted
+            // blocks through window and door openings, one wiring-up away from
+            // over-measuring every masonry wall on the project.
+            // The formula column is quoted and contains commas, so it is NOT
+            // Split(',')[3] — match the whole line and read only the parameter name,
+            // which is before the first quote and so is safe to index.
+            string[] defs = File.ReadAllLines(CsvPath)
+                .Where(l => l.Contains("BLOCKS_PER_M2"))
+                .ToArray();
+            Assert.Single(defs);
+            Assert.Equal("CST_CALC_BLOCKS_NR", defs[0].Split(',')[1]);
+        }
 
+        [Fact]
+        public void Nothing_Still_References_The_Deleted_Twin()
+        {
+            // Deleting a formula that something still reads leaves the consumer
+            // evaluating an undefined name — which fails silently, not loudly.
+            Assert.DoesNotContain(
+                File.ReadAllLines(CsvPath),
+                l => l.Contains("CST_S_MAS_BLOCKS_NR"));
+        }
     }
 }
