@@ -192,7 +192,7 @@ namespace StingTools.Commands.Plumbing
             double q = PlumbingSustainabilityCalc.RoofDrainageLps(area, cr, intensity);
             int outletSize = q < 1.5 ? 75 : q < 5 ? 100 : q < 10 ? 125 : 150;
             int outletCount = (int)Math.Ceiling(q / (q < 1.5 ? 0.8 : q < 5 ? 1.5 : 3.0));
-            string line = $"Q_r {q:F2} l/s · DN{outletSize} × {outletCount} outlets";
+            string line = $"Q_r {StingTools.Core.Units.MepDisplayUnits.WaterFlow(q)} · DN{outletSize} × {outletCount} outlets";
             string status = $"Roof · {area:F0} m² · {roofType} · Cr {cr:F2} · {line}";
             if (inst != null)
             {
@@ -203,7 +203,8 @@ namespace StingTools.Commands.Plumbing
             panel.SetSubtitle($"Defaults: {area} m² flat roof · Cr {cr} · r {intensity:F4} l/s/m² ({intensity * 3600:F0} mm/h, {source}) · f 1.5");
             panel.AddSection("RESULT")
                  .Metric("Rainfall (mm/h)",        $"{intensity * 3600:F0}")
-                 .Metric("Design flow Q_r (l/s)",  q.ToString("F2"))
+                 .Metric($"Design flow Q_r ({StingTools.Core.Units.MepDisplayUnits.WaterFlowSymbol})",
+                         StingTools.Core.Units.MepDisplayUnits.WaterFlow(q).Replace(" " + StingTools.Core.Units.MepDisplayUnits.WaterFlowSymbol, ""))
                  .Metric("Outlet DN (mm)",         outletSize.ToString())
                  .Metric("Outlets recommended",    outletCount.ToString());
             panel.Show();

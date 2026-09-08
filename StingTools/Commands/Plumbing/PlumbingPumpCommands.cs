@@ -162,14 +162,14 @@ namespace StingTools.Commands.Plumbing
             var panel = StingResultPanel.Create("Booster Set Sizing (BS EN 806-3)");
             panel.SetSubtitle($"Sigma LU = {totalLu:F1}  Qd = {qdLps:F2} l/s  {levels.Count} levels");
             panel.AddSection("BREAK TANK")
-                 .Metric("Peak demand",        $"{qdLps:F2} l/s")
+                 .Metric("Peak demand",        StingTools.Core.Units.MepDisplayUnits.WaterFlow(qdLps))
                  .Metric("Storage period",     "1.0 h (BS 6700)")
                  .Metric("Recommended volume", $"{breakTankL / 1000.0:F1} m³  ({breakTankL:F0} L)");
             panel.AddSection("BOOSTER PUMP DUTY")
                  .Metric("Static head",          $"{staticHead:F1} m")
                  .Metric("Friction allowance",   $"{frictionHead:F1} m (15%)")
                  .Metric("Design head (+20%)",   $"{duty.HeadM:F1} m")
-                 .Metric("Design flow",          $"{duty.FlowLps:F2} l/s")
+                 .Metric("Design flow",          StingTools.Core.Units.MepDisplayUnits.WaterFlow(duty.FlowLps))
                  .Metric("Configuration",        "1D+1S (duty/standby)");
             if (selection.BestMatch != null)
             {
@@ -177,7 +177,7 @@ namespace StingTools.Commands.Plumbing
                 panel.AddSection("RECOMMENDED PUMP")
                      .Metric("Manufacturer", m.Manufacturer)
                      .Metric("Model",        m.Model)
-                     .Metric("Rated flow",   $"{m.RatedFlowLps:F2} l/s")
+                     .Metric("Rated flow",   StingTools.Core.Units.MepDisplayUnits.WaterFlow(m.RatedFlowLps))
                      .Metric("Rated head",   $"{m.RatedHeadM:F1} m")
                      .Metric("Power",        $"{m.PowerKw:F2} kW")
                      .Metric("Efficiency",   $"{m.EfficiencyPct:F0}%");
