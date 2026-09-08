@@ -35,3 +35,13 @@ docs/examples/*/*.docx                binary
 StingTools/Data/RESOLVED_BINDINGS.csv text eol=lf
 docs/RESOLVED_BINDINGS.csv            text eol=lf
 docs/binding_gaps.csv                 text eol=lf
+
+# PARAM-1: the same reasoning again for the parameter files. param-csv-drift.yml
+# regenerates MR_PARAMETERS.csv on Linux and calls `git diff` -- so if a Windows
+# checkout materialised CRLF, every PR touching a parameter would fail the gate on
+# line endings alone with the real diff invisible underneath. The generator now pins
+# its writer to LF (see the io.open(newline) call at the end of sync_csv_from_txt.py);
+# this stops git undoing that on checkout. The .txt is pinned too: it is the
+# generator's INPUT, and a CRLF input would change what the generator reads.
+StingTools/Data/MR_PARAMETERS.csv     text eol=lf
+StingTools/Data/MR_PARAMETERS.txt     text eol=lf
