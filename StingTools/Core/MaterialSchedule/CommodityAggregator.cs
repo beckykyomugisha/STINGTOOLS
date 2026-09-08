@@ -166,7 +166,15 @@ namespace StingTools.Core.MaterialSchedule
                 // their own could ever be decided by material, so those are the
                 // denominator — counting the rest would report a coverage the
                 // feature was never asked for.
-                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null)
+                // Only categories some rule could ever claim. A second project
+                // reported "200 rows could be identified by material, 3
+                // matched" and listed 56 unplaced materials led by
+                // '911 CARRERA S - BODY COLOR' - a Porsche in the entourage.
+                // A car's paint is never a building commodity, and counting it
+                // made a working feature read as a 1.5% success rate while
+                // burying the materials that DO need a pattern.
+                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null
+                    && CategoryCouldConvert(input.Units, row.Category))
                 {
                     var scan = input.MaterialScan;
                     scan.RowsInspected++;
@@ -294,6 +302,34 @@ namespace StingTools.Core.MaterialSchedule
             return string.Equals(StingTools.BOQ.BoqUnits.Normalise(measured),
                                  StingTools.BOQ.BoqUnits.Normalise(ruleSource),
                                  StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// True when ANY rule in the table names this category. Furniture,
+        /// entourage and casework are named by none, so a material on them can
+        /// never become a commodity and counting it only dilutes the scan.
+        ///
+        /// A rule with no categories at all (matched by kind or material alone)
+        /// makes every category a candidate - which is correct, because such a
+        /// rule really could claim anything.
+        /// </summary>
+        private static bool CategoryCouldConvert(SupplierUnitTable units, string category)
+        {
+            if (units?.Rules == null) return true;
+            if (string.IsNullOrWhiteSpace(category)) return true;
+            string c = category.Trim();
+            foreach (var r in units.Rules)
+            {
+                if (r?.MatchCategories == null || r.MatchCategories.Count == 0)
+                {
+                    if (r?.MatchMaterialPatterns != null && r.MatchMaterialPatterns.Count > 0)
+                        return true;   // material-only rule: any category could carry it
+                    continue;
+                }
+                foreach (string mc in r.MatchCategories)
+                    if (string.Equals(mc, c, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
 
         private sealed class Accum
