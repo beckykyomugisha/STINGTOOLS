@@ -2,6 +2,237 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
+
+`prod_coverage_20260908_221546.csv` still carries
+
+    Site,A_Revit_Suv_3d_car,A_Revit_Suv_3d_car,STE-GLZ,category,N
+
+— a supplier's entourage car, counted in the PROD denominator and reported as a
+product with no specific code. **The corporate list is right not to name it.**
+`STING_PROD_EXCLUSIONS.json` says so in its own comment: a family that exists in
+one project belongs in that project's `_data/coord/prod_exclusions.json`. The
+override simply did not exist yet, and now does — **written outside this
+repository**, at
+`D:\Work 2026\Trokon\AMANDA S. HERRING\PROJECTN\_data\coord\prod_exclusions.json`,
+two lines declaring `notAProductFamilies` only.
+
+**The risk worth testing is not the car.** A two-line override that declares ONE
+list could quietly replace the other three, and the audit would then report a
+large, plausible, wrong coverage figure — with the 1,187 wall voids back in the
+denominator and Doors no longer protected — with nothing in the run to say so.
+`ProdExclusionPolicy.Build` already gets this right (null = inherit, `[]` =
+exclude nothing) and `A_Project_Override_Replaces_Only_The_List_It_Declares`
+already pinned the general rule, but **not the shape a real override has**:
+families-only, layered over the shipped corporate file.
+
+Two tests close that. One asserts the omission — the shipped corporate policy
+does NOT exclude the car, deliberately — so a later reader sees a decision
+rather than a gap somebody forgot. The other layers the exact override text over
+the real `STING_PROD_EXCLUSIONS.json` and asserts the car is excluded **and**
+that Rooms, Detail Items, the `opening` and `muntin` patterns and the Doors
+protection all survive. It also asserts the one thing the override COSTS:
+`notAProductFamilies` is replaced, not merged, so `Window-Square Opening` stops
+being excluded by family — the documented contract, now visible rather than
+assumed.
+
+**RED by sabotage, since the behaviour under test was already correct.** There is
+no honest before-state for a gate over code that works, so the gate was broken
+instead: dropping the `f(project) != null` guard in `ProdExclusionPolicy.Build`
+made a families-only override null the other three lists, and **2 of 21**
+exclusion tests failed — the new one and the general one it complements. Guard
+restored, 21 of 21 pass. A gate only ever seen passing is not evidence.
+
+**Not verified in Revit.** `Prod_CoverageAudit` was not re-run, so the SUV is
+still in the last audit on disk; the override takes effect the next time it runs
+against that project. The file is on the D: drive and is not, and should not be,
+in this repository.
+
+#### Completed (Phase 257 — a rename stops overwriting a product code that was already right)
+
+`ProdResolver` puts a code DECLARED in a type name **above** the corporate
+pattern rules, deliberately: a name that states its answer beats an inference.
+`TypeRenamePlanner` composes exactly such a name. So `Baseline_RenameTypes` was
+never only a rename — it overwrites the classification, permanently, and nothing
+downstream queries the rule again.
+
+**Two rows from a real run on 2026-09-08 prove it.** Both resolve correctly
+today, from a corporate rule, and the rename plan from the same session proposed
+to change them:
+
+    Floors,Floor,stepsr 7,FSP-CON,corporate,Y    ->  PLNS_SLB_RC450-Tiled   FSP -> SLB
+    Walls,Basic Wall,coping,WCP-CON,corporate,Y  ->  PLNS_WRC_RC250         WCP -> WRC
+
+**`CodeFor` cannot be widened to cover them, and that is the finding.** It is
+keyed on the SUBSTANCE read off the core material, and `*Steps*` and `*Coping*`
+describe what an element is FOR. A concrete step and a concrete slab have the
+same core material; so do a retaining wall and a shear wall, a ground-bearing
+slab and a suspended one. Reconciled against `STING_PROD_CODES.csv`, **eight
+codes the rules use on these four categories are unreachable from a substance
+word** — WCP, RWL, WBD, FGS, FSP, FRB, RFL, CSU — and the reconciliation is now
+in the file as a comment naming each one, per the brief's "either give it a word
+or record why it cannot".
+
+**So the fix is a refusal, not a bigger table.** `TypeRenameProposal` gains
+`DeclaredCode` and `Existing` (code + source + whether it is specific), the
+resolution is passed in as a delegate so the planner stays Revit-free, and a
+proposal is withheld when it would declare a different code from one the type
+already resolves to **specifically**.
+
+**The line that took the most care: a CATEGORY DEFAULT is not an answer.** WL /
+FL / RF / CLG mean nobody has classified the thing, and replacing one is the
+entire purpose of the command. A gate that refused *every* code change — which
+is how the defect was first written up — would refuse `Exterior_CreamWhite_230 2`
+(WL, category) and `IntFloor_tile_150` (FL, category), and with them nearly every
+rename worth making, leaving the tool able to rename only the types that least
+need it. Both sides are pinned: `CLAY BRICK VILLAGE LARGE` resolves WBK from a
+corporate rule and the proposal declares WBK, so it stands.
+
+**The gate found ten more, in the shipped house catalogue.** `No_Catalogue_Type_
+Would_Have_Its_Own_Code_Renamed_Away` walks `STING_PROJECT_BASELINE.json` and
+found **10 of 27** types whose own planner disagrees with their own name —
+`PLNS_FSP_RC150-Terrazzo` would have been renamed to `PLNS_SLB_RC150-Terrazzo`,
+`PLNS_RWL_Retaining250-Tanked` to `PLNS_WRC_RC250-Felt`, and eight more. All ten
+are now refused.
+
+**One data fix, separately evidenced.** Four wall types on the same model
+— `Generic - 150/200/300mm Masonry` and `M_Exterior - Brick on CMU` — carry the
+core material *Concrete Masonry Units* and were all proposed as `PLNS_WRC_*`,
+reinforced concrete, because the substance table saw the word "concrete" and had
+no longer needle above it. `concrete masonry unit`, `masonry unit` and `cmu` now
+sit above `concrete`, the same ordering rule the class table next door already
+used. Cast in-situ concrete still reads RC — pinned as the control row.
+
+**Two claims in the brief did not survive contact with the data, and are not
+implemented.** `Exterior_CreamWhite_230 2 -> PLNS_WBK_ClayBrick205-Plastered` was
+described as "clay brick proposed for a 230 render wall": the model's own core
+material for that type is **`Brick, Common(1)`**, so the proposal is the planner
+doing exactly what it promises. And `IntFloor_tile_150 -> PLNS_SLB_RC500` was
+described as "a 500 mm core on a type named 150": the size comes from the core
+LAYER, which is 500 — the planner's header already says it will not repeat
+whatever number the old name happened to carry, and the name is what is wrong.
+Both rows now pass the gate as legitimate upgrades from a category default.
+
+**RED then GREEN.** Against the planner with the new fields but no refusal:
+`No_Rename_Replaces_A_Code_That_Already_Resolves_Specifically` failed on **2 of
+6** fixture rows (`stepsr 7`, `coping` — exactly the two the brief named);
+`No_Catalogue_Type_Would_Have_Its_Own_Code_Renamed_Away` failed on **10 of 27**;
+`A_Concrete_Masonry_Unit_Is_Blockwork_Not_Reinforced_Concrete` failed **4 of 5**
+cases; whole file **7 failed / 5 passed of 12**. After: 0, 0, 0, and 14 of 14.
+Tags 732 passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+The fixture is the two real CSVs joined — the coverage audit (what each type
+resolves to, and how) and the rename plan (what was proposed, off which core
+material). Two tests run before any verdict: one asserts the test's own resolver
+reproduces what the Revit run recorded, the other that the reconstructed layers
+compose the same names the run proposed. Without those, every refusal below them
+would be proved against a different type.
+
+**Not verified in Revit.** `Baseline_RenameTypes` was not run in a Revit session
+and `deploy.bat` was not run. `HostObjAttributes.FamilyName` is read for the
+first time here and is unexercised; `TagConfig.ResolveProdForNames` is new and
+its project-overlay branch has never run against a real
+`_BIM_COORD/prod_codes.csv`. **`Baseline_RenameTypes` is still not safe to
+apply** on the strength of this alone — the gate stops the downgrade it was
+built for, and the remaining question, whether every proposed name is *right*,
+is a separate one.
+
+#### Completed (Phase 256 — a tile is a shape, and a plan that was applied can be taken back)
+
+`Materials_SetClass` ran on a 1,815-material delivered model on 2026-09-08 and
+wrote 120 classes. **Forty-one were wrong, and the user applied them.** The
+plan CSV it wrote is checked in as the regression corpus.
+
+**The two defects, and why neither was findable by inspection.**
+
+`Plan()` ended with a plain `IndexOf`. That is the #863 defect — the one
+`RenameSafetyTests.A_Corrugated_Roof_Is_Not_A_Gate` exists to pin — rebuilt
+inside code written after it was documented. It gave 32 materials the class
+Gypsum "because the name contains 'render'":
+
+    _ACCURENDER\Metals\Chrome\Polished,Plain        x6   library name
+    Render Material 128-128-128                      x26   DWG RGB placeholder
+
+**Whole-word matching fixes six of those and none of the other twenty-six**,
+because in "Render Material 128-128-128" the word *render* really is a whole
+word — it just means the renderer. Those need an explicit negative statement,
+so `NamesNoSubstance` now holds `render material`, checked before the needle
+loop, in the same spirit as `notAProductFamilies` in `STING_PROD_EXCLUSIONS.json`:
+somebody looked at it and said what it is.
+
+The other nine read `tile` before the substance word. CARPET TILE was Ceramic,
+CORK TILE was Ceramic, and so were rubber, vinyl, granite, limestone, marble,
+slate and travertine. **The model's own data proved it**: GRANITE SLAB was
+Stone and GRANITE TILE was Ceramic; SHEET VINYL was Plastic and VINYL TILE was
+Ceramic; SLATE SLAB was left blank while SLATE TILE was called Ceramic. A tile
+is a **shape**. `tile` and `tiles` now sit in a last-resort group evaluated
+after every substance word, so the one default the table makes is made in the
+open — VITRIFIED TILE is still Ceramic, pinned by its own test.
+
+**The corpus test is the deliverable.** `MaterialClassCorpusTests` drives all
+1,815 names from `Fixtures/material_names_20260908.csv`, of which 697 carry a
+pinned expectation: the 41 corrections, the 79 writes that were right, the 149
+refusals that must stay refused, 22 names that do say a substance the map had
+no word for, and **406 already-classified materials where the map's answer
+equals the class a human independently set**. That last group is free evidence
+and is the only thing that would have caught what came next.
+
+**Switching to whole-word matching regresses rows that are currently right, and
+the corpus is what found them.** Eight needles only ever worked as substrings:
+`cobblestone`, `bluestone`, `cpvc`, `polyvinyl`, `painted`, `zincalume`,
+`tiles` and `mdf`. None was on anybody's list beforehand — the handover
+predicted `blockwork` and `flagstone`, and **neither turned out to be in this
+corpus at all** (`Blockwork` is a TYPE name, not a material name; the flagstone
+rows resolve through `limestone` and `sandstone` and never needed the needle).
+Both are added anyway, because the prediction is right about the shape of the
+hazard even where it was wrong about the row.
+
+**Two ordering rules the same corpus forced.** Plastic is now evaluated before
+Wood — 31 materials are named `VINYL LVT WOOD OAK-DARK`, luxury vinyl printed
+with a wood grain, and the finish technology names the substance while the
+pattern it imitates does not. Insulation and Membrane are evaluated before
+Plastic, or `Insulation - PVC Jacketed Fiberglass` becomes a plastic and
+`EPDM RUBBER MEMBRANE 1.5MM` stops being a membrane the moment `rubber` is
+added below it. Both are pinned.
+
+Whole-word matching also removed three live wrong answers nobody had noticed:
+`DUCTILE IRON GATE VALVE` and `Iron, Ductile` were Ceramic (**duc-TILE**), and
+`Lining - Textile` was Ceramic (**tex-TILE**).
+
+**A known limit, stated rather than hidden.** A colour word that is also a
+substance still wins: `ROOF CLAY-TILE SLATE-GREY` reads as Stone and
+`Roca - TENET - 402 City Oak` reads as Wood. Rule 1 keeps both harmless in this
+model — every material of that shape already carries a human's class — but the
+honest fix is a better material name, not a longer list of exceptions.
+
+**RED then GREEN, both measured.** Against the unmodified planner:
+`The_Forty_One_Bad_Writes_Say_Something_Else_Now` failed **41 of 41**;
+`Every_Pinned_Row_In_The_Corpus_Holds` reported **122 of 697** pinned rows
+disagreeing (41 correction, 59 agrees-with-model, 22 named-substance, and **0**
+from the 79 writes and 149 refusals — no false pins). After: 0 and 0. Tags 780
+passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+**`Materials_RevertClassPlan` — because re-running cannot repair this.**
+`Materials_SetClass` never overwrites a class somebody already chose. That rule
+is right, and it is exactly what left the 41 stuck: once the tool had written
+them, the tool's own guard protected them. So the new command reads the plan
+CSV — the provenance of what was set and to what — and **reverts only where the
+material still carries what that plan proposed**. Anything changed since belongs
+to whoever changed it, and is reported rather than overwritten; which is also
+what makes the command idempotent, since after one revert the class no longer
+matches the proposal. `MaterialClassRevertPlanner` is Revit-free so the
+refusals are provable, and the reader is RFC 4180 because
+`_ACCURENDER\Solid Colors\Black,Matte` is a real material name. Pointed at the
+wrong file it says so, rather than reporting nothing to revert — which would
+read as "already clean". Button on the SETUP tab beside Set material Class.
+
+**Not verified in Revit.** Nothing here was run in a Revit session. Two points
+in particular are unverified: whether Revit 2025 accepts `""` or `"Unassigned"`
+for clearing `Material.MaterialClass` (the command tries the value the plan
+recorded, then the other spelling, then reports the failure per material rather
+than swallowing it), and the whole apply path of both commands. The planner
+halves are proven; the write halves are not.
+
 #### Completed (Phase 255 — the specific rule wins, and a stem matches a word)
 
 Asked to review product-code automation for consistency. The **logic** turned
@@ -353,6 +584,7 @@ bullet rather than silently closed.
 **Caveat:** built and unit-tested on Windows (0 errors / 0 warnings; Cost 105,
 Scheduling 38, BOQ 196 green) but **not exercised inside Revit** — the four command
 tags, the capture dialog and the panel buttons are unverified at runtime.
+
 #### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
 
 Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
@@ -604,6 +836,7 @@ field is on a consuming path.
 - **Untagged-count** in the standards-gate warning now counts non-null rules only.
 - **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
   coerces a rejected tick, so a TwoWay binding reverts its visual.
+
 #### Completed (Phase 252 — the baseline reaches family-backed elements, and a catalogue that renews itself)
 
 Phase 246 shipped a baseline that could create wall, floor, roof and ceiling types and could only
@@ -746,6 +979,7 @@ read it as. That, and the fact that an *unresolvable* step silently passes the c
 logged as ROADMAP SMK-3a / SMK-3b.
 
 Advisory list: **2 → 0**. Smoke-gate assertions: **170 → 173**.
+
 #### Completed (Phase 226 — DEP-6a: a real-Redis test for the handoff jti replay guard)
 
 The `/api/auth/handoff/exchange` single-use guard is a Redis
@@ -778,6 +1012,7 @@ test would pass or fail on whether a docker Redis happened to be running.
   choice stays a decision, not an accident.
 
 Closes ROADMAP **DEP-6a**.
+
 #### Completed (Phase 251 — one roof accessory measured, two refused out loud)
 
 Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
@@ -1718,6 +1953,7 @@ message specific enough to act on, pointing the wrong way.
 
 The durable fix is not in the plugin — it is an always-on instance. Logged in
 [`ROADMAP.md`](ROADMAP.md) against #705, which already wants the custom domain attached.
+
 #### Completed (Phase 238 — the invite note named the wrong cause)
 
 Follow-on to Phase 237, found by verifying that fix against the live server rather than
@@ -2361,6 +2597,7 @@ automatically by the `StingTools.*.Tests/*.csproj` glob in
 `.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
 **Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
 remains open.
+
 #### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
 
 Full accuracy/consistency review of the Document Management Center
@@ -3009,6 +3246,7 @@ restored tree. **Nothing was exercised in a live Revit session** — no workflow
 Files: `StingTools/Core/WorkflowEngine.cs` (+72 cases) · 14 `StingTools/Data/WORKFLOW_*.json` ·
 `tools/check_workflow_wiring.ps1` + `tools/workflow_wiring_baseline.txt` (new) ·
 `.github/workflows/stingtools-plugin.yml`.
+
 #### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
 
 Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information
@@ -3383,6 +3621,7 @@ and dispatch-parity gates green.
   guard. Product code — including `ProjectAccessAttribute` — is untouched. Does not
   reproduce locally: the local full suite is byte-identical at 73 failures / 442 tests
   before and after, so CI is the verification.
+
 #### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
 
 Phase 212 had to drop the end-to-end test for the handoff guarantee — *a
@@ -3913,6 +4152,7 @@ to `SUIT`) — and wires STING to populate it automatically.
   **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
   drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
   discipline swatches show their **hex codes** from the definitive registry.
+
 #### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
 
 A live verification of SB-5a surfaced a real defect in the shared reconcile
@@ -4084,6 +4324,7 @@ New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker
 `StingBridge/tests/e2e_ifc_pull_reconcile.py`
 
 ---
+
 #### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
 
 Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
@@ -4424,6 +4665,7 @@ branch could no longer merge. Data-file only; no code, no GUID edits.
   changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
   lines, and every file's row count preserved (numstat additions == deletions per
   file). Data-only change, no `dotnet build` run (Linux sandbox).
+
 #### Completed (Phase 224 — drawings-production P2, tracks A + D)
 
 Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
@@ -5606,6 +5848,7 @@ table was exercised against 20 cases in a standalone harness. **Revit runtime ve
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
 and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
 every path there is warning-wrapped rather than fatal.
+
 #### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
 
 ArchiCAD elements were leaving the bridge with 7-segment tags
@@ -6036,6 +6279,7 @@ cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finali
   (inverted vs the type binding used by propagation) — latent bug for families built via "Inject
   Params"; and SEQ zero-pad has a dual source of truth (`TagConfig.SeqPadWidth` + `ParamRegistry.NumPad`)
   kept in sync only by the panel writing both.
+
 #### Completed (Phase 198 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
 
 Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature
@@ -6699,6 +6943,7 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+
 #### Completed (Phase 197 — MEP visual-tag declutter: one tag per run, branch `claude/mep-tag-declutter-advice`)
 
 Smart Placement was drawing **one visual `IndependentTag` per modelled segment**, so a single pipe or
@@ -6812,6 +7057,7 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+
 #### Completed (HVAC gap remediation Tier 3 item 3.4 — branch `claude/hvac-impl`)
 
 Item 3.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the gbXML load import no longer overwrites Space
@@ -7353,6 +7599,7 @@ Verified safe against interference: the conduit drift detector
 **Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
 `StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
 `StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+
 #### Completed (STALE-P2 — Make the dashboard STALE count actionable: Select / Highlight / Clear, branch `claude/stale-select-filter`)
 
 Follow-up to STALE-1…STALE-4. The dashboards show a `ComplianceScan.StaleCount`
@@ -9697,6 +9944,7 @@ against engine/scorer consumption):
 | Conduits / Pipes / Cable Trays | ANNOTATED | routing outputs (obstruction-only as targets); tooltip added |
 | Specialty Equipment | ANNOTATED | no baseline rules — needs project/specialty pack |
 | Nurse Call Devices | ANNOTATED | needs healthcare rule pack |
+
 #### Completed (BOQ 5D — inline result action bar: Open-Export + Action buttons)
 
 Slice 3 review found the inline renderer dropped the dialog footer entirely, so
@@ -10998,6 +11246,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H
@@ -11720,6 +11969,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (Phase 196 — tag-creation inject path: pre-skip type conflicts + failure swallower, mirrors LoadSharedParams)
 
 `CreateTagFamilies` could throw the unrecoverable Revit modal **"… cannot be
@@ -12876,6 +13126,7 @@ the `SuggestionEngine` strip with inline "→ Open" jump buttons.
    `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
    need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
    + `CorporateLibrary` degrade gracefully when the params aren't bound.
+
 #### Completed (Phase 189a — review hardening + condition-based maintenance)
 
 Two review passes over the Phase 189 build.
@@ -15425,6 +15676,7 @@ drift detection + SyncStyles.
 #### Completed (Phase 41 — Build Error Fix: CS1597 Semicolon After Method)
 
 411. **CS1597 fix: ValidateCDETransition trailing semicolon** — Removed invalid trailing semicolon (`};` → `}`) from `BIMManagerEngine.ValidateCDETransition()` method closing brace in `BIMManagerCommands.cs:110`. The semicolon is valid after lambda/delegate declarations but not after regular methods. The remaining 12 build errors (CS8300 merge conflict markers) are from the user's local build environment where a prior merge was not fully resolved — no merge conflict markers exist in the branch source files.
+
 #### Completed (Phase 39 — Document Management Center Enhancement)
 
 391. **Action bar TabControl redesign** — Replaced single-row horizontal-scrolling `WrapPanel` (58+ hidden buttons requiring sideways scroll) with 7-tab `TabControl`: FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP. All buttons visible without scrolling. Each tab groups related operations with section labels.
@@ -19659,6 +19911,7 @@ Two non-blocking observations from running the build/verify pass:
   host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
   `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
   the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.
+
 #### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
 
 **Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`

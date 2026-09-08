@@ -55,9 +55,12 @@ jobs:
         run: ./tools/check_path_discipline.ps1
 
       # Workflow wiring: every WORKFLOW_*.json step must name a command the engine
-      # can resolve. Two silent no-ops used to get through here — steps keyed "tag"
-      # instead of "commandTag" (11 presets, every step, so each ran ZERO steps and
-      # still reported success), and commandTags with no ResolveCommand case.
+      # can resolve, and must not carry keys the engine never reads. Silent no-ops
+      # that used to get through here: steps keyed "tag" instead of "commandTag"
+      # (11 presets, every step, so each ran ZERO steps and still reported success),
+      # commandTags with no ResolveCommand case, "order" disagreeing with the array
+      # order the engine actually executes (Tier 3), and any other step key that
+      # WorkflowStep does not bind, which Newtonsoft drops without a word (Tier 5).
       - name: Check workflow wiring
         shell: pwsh
         run: ./tools/check_workflow_wiring.ps1

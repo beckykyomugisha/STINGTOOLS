@@ -2117,6 +2117,36 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// What a TYPE would resolve to, from names alone and with no element in hand.
+        ///
+        /// <para>The rename planner has to ask this before anything is placed, and it must
+        /// get the same answer the element path gives — same rule lists, same precedence,
+        /// same source tier. So it goes through the same <see cref="ProdResolver.Resolve"/>
+        /// call rather than a second copy of the chain: a rename that consults a private
+        /// re-implementation of the resolver would be protecting a code nothing else
+        /// computes.</para>
+        ///
+        /// <para>Returns the BASE code. The material suffix (<c>-CON</c>, <c>-MAS</c>) is
+        /// added by <see cref="GetFamilyAwareProdCode(Element, string)"/> from an element's
+        /// materials and has no meaning for a type.</para>
+        /// </summary>
+        public static string ResolveProdForNames(
+            Document doc, string familyName, string typeName, string categoryName, out string source)
+        {
+            EnsureProdRulesLoaded();
+            List<(string Pattern, string ProdCode)> projForCat = null;
+            List<(string Pattern, string ProdCode)> corpForCat = null;
+            if (!string.IsNullOrEmpty(familyName))
+            {
+                var projRules = GetProjectProdRules(doc);
+                projRules?.TryGetValue(categoryName ?? "", out projForCat);
+                _csvProdRules?.TryGetValue(categoryName ?? "", out corpForCat);
+            }
+            return ProdResolver.Resolve(familyName, typeName, categoryName,
+                                        projForCat, corpForCat, ProdMap, out source);
+        }
+
+        /// <summary>
         /// Check if a tag string has the expected number of non-empty tokens.
         /// A tag is only "complete" when it has exactly expectedTokens segments
         /// and none of them are empty strings.

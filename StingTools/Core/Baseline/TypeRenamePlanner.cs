@@ -32,6 +32,10 @@ namespace StingTools.Core.Baseline
     {
         /// <summary>Revit category display name — Walls / Floors / Roofs / Ceilings.</summary>
         public string Category = "";
+        /// <summary>Revit family name — "Basic Wall", "Floor", "Basic Roof". Half of what
+        /// the PROD rules match against, so the planner cannot ask what a type resolves to
+        /// today without it.</summary>
+        public string FamilyName = "";
         public string CurrentName = "";
         /// <summary>ISO 22014 Source field, from PRJ_ORG_ORIGINATOR_CODE_TXT. Defaults PLNS.</summary>
         public string Originator = "PLNS";
@@ -39,6 +43,22 @@ namespace StingTools.Core.Baseline
         public List<MaterialLayer> Layers = new List<MaterialLayer>();
         /// <summary>How many elements use this type. Renaming an unused type is noise.</summary>
         public int InstanceCount;
+    }
+
+    /// <summary>
+    /// What a type resolves to TODAY, handed in by the caller so the planner stays
+    /// Revit-free. <paramref name="IsSpecific"/> is the important half: a code that came
+    /// from a family-aware rule is an ANSWER, and a category default is the absence of
+    /// one. Replacing the first is a downgrade; replacing the second is the point.
+    /// </summary>
+    public sealed class ExistingProdCode
+    {
+        /// <summary>Base PROD code, without the material suffix — "FSP", not "FSP-CON".</summary>
+        public string Code = "";
+        /// <summary>project | declared | corporate | lps | sleeve | category | gen.</summary>
+        public string Source = "";
+        /// <summary>True for a family-aware rule; false for the category default.</summary>
+        public bool IsSpecific;
     }
 
     public sealed class TypeRenameProposal
@@ -51,9 +71,19 @@ namespace StingTools.Core.Baseline
         public string ProposedName;
         /// <summary>The PROD code the proposed name declares in its Type field.</summary>
         public string ProdCode;
+        /// <summary>The code the proposed name WOULD declare — set even when the proposal
+        /// is refused, so the CSV can show what was rejected and why.</summary>
+        public string DeclaredCode;
+        /// <summary>What the type resolves to today, or null when the caller did not say.</summary>
+        public ExistingProdCode Existing;
         /// <summary>Why — shown to the reader either way.</summary>
         public string Reason = "";
         public int InstanceCount;
+
+        /// <summary>True when a name COULD have been composed and was withheld because it
+        /// would have declared a different product code from the one the type already
+        /// resolves to. A different thing from "the model does not say enough".</summary>
+        public bool RefusedToProtectCode;
 
         public bool IsProposal => !string.IsNullOrEmpty(ProposedName);
         /// <summary>True when the current name already matches what would be proposed.</summary>
@@ -70,6 +100,33 @@ namespace StingTools.Core.Baseline
         /// name and the element's ISO 19650 tag cannot fork. Before this, a name carried
         /// the word "Blockwork" while the resolver derived "WBL" from it — two
         /// vocabularies for one fact, free to disagree the moment either was edited.</para>
+        ///
+        /// <para><b>This table is narrower than STING_PROD_CODES.csv, and cannot stop
+        /// being.</b> Reconciled 2026-09-08 against the rule file and the house
+        /// catalogue: eight codes the rules use on these four categories are unreachable
+        /// from here, and every one of them is keyed on what the element is FOR, not what
+        /// it is made of —</para>
+        ///
+        /// <code>
+        ///   WCP  *Coping*                             RWL  *Retaining*
+        ///   WBD  *Boundary Wall*|*Compound Wall*      FGS  *Ground Slab*|*Slab on Grade*
+        ///   FSP  *Steps*|*Stair Landing Slab*         FRB  *Hollow Pot*|*Waffle*|*Ribbed Slab*
+        ///   RFL  *Flat Roof*|*Built-Up Felt*          CSU  *Suspended Ceiling*|*Grid Ceiling*
+        /// </code>
+        ///
+        /// <para>A concrete step and a concrete slab have the SAME core material. So does
+        /// a retaining wall and a shear wall, a ground-bearing slab and a suspended one.
+        /// No substance word can separate them, because the distinction is not a
+        /// substance — which is why the fix for the FSP → SLB and WCP → WRC downgrades
+        /// found on a delivered model is the refusal in <see cref="Plan"/>, not more rows
+        /// here. Adding a row that guessed would put a confident wrong code in the one
+        /// field the resolver trusts above all others.</para>
+        ///
+        /// <para>Two of the eight are arguably reachable and are deliberately left out
+        /// for want of evidence: <b>FRB</b> could be read from a core material named
+        /// "Hollow Pot", and <b>RTL</b> from the TILE in a roof's finish layer rather than
+        /// the timber in its core. Both need a corpus of real material names to add
+        /// safely, and this had one only for materials, not for host build-ups.</para>
         /// </summary>
         private static readonly Dictionary<string, Dictionary<string, string>> CodeFor =
             new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
@@ -104,6 +161,14 @@ namespace StingTools.Core.Baseline
         {
             ("hollow concrete block", "Blockwork"), ("solid concrete block", "Blockwork"),
             ("concrete block", "Blockwork"), ("blockwork", "Blockwork"),
+            // "Concrete Masonry Units" is the Revit library's name for a block, and it
+            // contains the word "concrete". Without these three above the RC row, four
+            // block walls on a delivered model — Generic - 150/200/300mm Masonry and
+            // M_Exterior - Brick on CMU — were proposed as PLNS_WRC_*: reinforced
+            // concrete. The concrete in the name is what the BLOCK is made of, not what
+            // the WALL is; same ordering rule as the class table next door.
+            ("concrete masonry unit", "Blockwork"), ("masonry unit", "Blockwork"),
+            ("cmu", "Blockwork"),
             ("clay brick", "Clay Brick"), ("brick", "Clay Brick"),
             ("screen block", "Screen Block"),
             ("concrete", "RC"),
@@ -134,7 +199,14 @@ namespace StingTools.Core.Baseline
         /// <para>Shape: <c>STING {use} - {substance} {size} - {finish}</c>, which is the
         /// order the rules read and the order a browser sorts usefully.</para>
         /// </summary>
-        public static TypeRenameProposal Plan(TypeRenameInput input)
+        /// <param name="resolveExisting">
+        /// What this type resolves to TODAY. Optional so every existing caller and test
+        /// still compiles, but the command passes it, and without it the code-downgrade
+        /// refusal below cannot fire — a planner that is not told what the answer is
+        /// cannot notice it is about to replace one.
+        /// </param>
+        public static TypeRenameProposal Plan(
+            TypeRenameInput input, Func<TypeRenameInput, ExistingProdCode> resolveExisting = null)
         {
             var p = new TypeRenameProposal
             {
@@ -180,15 +252,60 @@ namespace StingTools.Core.Baseline
             // BS EN ISO 22014: Source_Type_Subtype. Underscore between fields, hyphen
             // between components inside a field, no spaces anywhere.
             p.ProdCode = prod;
-            p.ProposedName = ProdNameCode.Compose(p.Originator, prod, substance + size, finish);
+            p.DeclaredCode = prod;
+            try { p.Existing = resolveExisting?.Invoke(input); }
+            catch (Exception) { p.Existing = null; }   // an unavailable resolver is not a proposal
+
+            string composed = ProdNameCode.Compose(p.Originator, prod, substance + size, finish);
+
+            // ── The code gate. ───────────────────────────────────────────────────
+            // ProdResolver puts a code DECLARED in a type name above the corporate
+            // pattern rules, so composing a name does not merely rename the type — it
+            // OVERWRITES its classification, and nothing downstream will ever query the
+            // rule again. Where the type already resolves to a code from a real rule,
+            // and this proposal would declare a different one, the rename is refused.
+            //
+            // A CATEGORY DEFAULT is not such a code. WL / FL / RF / CLG mean nobody has
+            // classified the thing, and replacing one is the entire purpose of this
+            // command; gating on those would leave it able to rename only the types that
+            // least need it.
+            //
+            // Measured on a delivered model (2026-09-08): "stepsr 7" resolves FSP from
+            // *Steps*, and "coping" resolves WCP from *Coping*. Both would have become
+            // SLB and WRC. Ten of the twenty-seven types in the shipped house catalogue
+            // are in the same shape — see the CodeFor note above.
+            bool nameUnchanged = string.Equals(composed, p.CurrentName?.Trim(),
+                                               StringComparison.OrdinalIgnoreCase);
+            if (!nameUnchanged
+                && p.Existing != null && p.Existing.IsSpecific
+                && !string.IsNullOrWhiteSpace(p.Existing.Code)
+                && !string.Equals(p.Existing.Code, prod, StringComparison.OrdinalIgnoreCase))
+            {
+                p.RefusedToProtectCode = true;
+                p.Reason = $"would change the product code {p.Existing.Code} → {prod}. "
+                         + $"'{p.CurrentName}' already resolves to {p.Existing.Code} from the "
+                         + $"{p.Existing.Source} rules, and a code declared in a type NAME outranks "
+                         + $"every rule — so renaming it '{composed}' would replace a correct answer "
+                         + "with a worse one. The core material cannot say what an element is FOR, "
+                         + "which is what that code records.";
+                return p;
+            }
+
+            p.ProposedName = composed;
             p.Reason = finish != null
                 ? $"core '{core.MaterialName}' + finish layer → {prod}"
                 : $"core '{core.MaterialName}' → {prod}; no finish layer to read";
+            if (p.Existing != null && !p.Existing.IsSpecific
+                && !string.Equals(p.Existing.Code, prod, StringComparison.OrdinalIgnoreCase))
+                p.Reason += $"; upgrades the product code {p.Existing.Code} ({p.Existing.Source}) → {prod}";
             return p;
         }
 
-        public static List<TypeRenameProposal> PlanAll(IEnumerable<TypeRenameInput> inputs)
-            => (inputs ?? Enumerable.Empty<TypeRenameInput>()).Select(Plan).ToList();
+        public static List<TypeRenameProposal> PlanAll(
+            IEnumerable<TypeRenameInput> inputs,
+            Func<TypeRenameInput, ExistingProdCode> resolveExisting = null)
+            => (inputs ?? Enumerable.Empty<TypeRenameInput>())
+               .Select(i => Plan(i, resolveExisting)).ToList();
 
         /// <summary>
         /// One line per outcome, so a reader sees the shape of the run before opening
@@ -199,11 +316,18 @@ namespace StingTools.Core.Baseline
             if (ps == null || ps.Count == 0) return "No layered host types found.";
             int conform = ps.Count(x => x.AlreadyConforms);
             int propose = ps.Count(x => x.IsProposal && !x.AlreadyConforms);
-            int cannot = ps.Count(x => !x.IsProposal);
-            return $"{ps.Count} type(s): {conform} already conform, {propose} can be renamed, "
-                 + $"{cannot} cannot be named from the model. The {cannot} are not failures of this "
-                 + "tool — their materials do not say what they are, and a rename that guessed would "
-                 + "replace a name a reader can see is empty with one they cannot.";
+            int guarded = ps.Count(x => x.RefusedToProtectCode);
+            int cannot = ps.Count(x => !x.IsProposal) - guarded;
+            string s = $"{ps.Count} type(s): {conform} already conform, {propose} can be renamed, "
+                     + $"{cannot} cannot be named from the model. The {cannot} are not failures of this "
+                     + "tool — their materials do not say what they are, and a rename that guessed would "
+                     + "replace a name a reader can see is empty with one they cannot.";
+            if (guarded > 0)
+                s += $" A further {guarded} were held back because the new name would have declared a "
+                   + "DIFFERENT product code from the one the type already resolves to — those are "
+                   + "listed in the CSV with both codes, and the answer is usually to fix the name by "
+                   + "hand rather than to let a rename overwrite a correct classification.";
+            return s;
         }
 
         private static string Match(string text, (string Needle, string Word)[] table)

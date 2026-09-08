@@ -73,5 +73,61 @@ namespace StingTools.Tags.Tests
         {
             Assert.Equal(expected, ProdPatternMatcher.Matches(name, pattern));
         }
+
+        // ── PROD-4: the bare-substring path must be word-bounded ────────────
+        //
+        // An alternative with no *, ? or [ takes a fast path that used a plain
+        // String.Contains, so a short pattern matched INSIDE a longer word. Same
+        // defect class as #863 and Phase 255, and as the oil painting that filed
+        // itself under ELEMENT 03: ROOF because "bRIDGEe" contains "ridge".
+        //
+        // All 376 shipped FAMILY_PATTERN alternatives are globs, so nothing live
+        // went through it. A PROJECT overlay can, and Prod_GenerateRules seeds
+        // overlays from live family names, so a hand-curated short pattern is a
+        // plausible route in. Nothing errors: the element simply carries a
+        // confident wrong PROD code into the tag.
+
+        [Theory]
+        // ── must NOT match: the pattern is inside a longer word ──
+        [InlineData("PUMPHOUSE CONTROL PANEL", "PUMP", false)]
+        [InlineData("PORCELAIN SINK", "RC", false)]
+        [InlineData("CARTRIDGE FILTER", "RIDGE", false)]
+        [InlineData("SUBSTATION", "SUB", false)]
+        // a gauge is not a prefix of another gauge: digits are word characters
+        [InlineData("DN200 HEADER", "DN20", false)]
+        // ── must STILL match: bounded by a separator or the string end ──
+        [InlineData("FIRE PUMP 01", "PUMP", true)]
+        [InlineData("BOOSTER-PUMP", "PUMP", true)]
+        [InlineData("PUMP", "PUMP", true)]
+        [InlineData("CONDENSATE PUMP", "PUMP", true)]
+        [InlineData("DN20 HEADER", "DN20", true)]
+        // multi-word bare patterns are matched as a run, bounded at each end
+        [InlineData("TROX AIR HANDLING UNIT", "AIR HANDLING", true)]
+        [InlineData("PREAIR HANDLINGS", "AIR HANDLING", false)]
+        public void Bare_substring_alternatives_match_whole_words(
+            string name, string pattern, bool expected)
+        {
+            Assert.Equal(expected, ProdPatternMatcher.Matches(name, pattern));
+        }
+
+        /// <summary>
+        /// Matches() and Strength() evaluate the alternatives through two separate
+        /// code paths, so a fix applied to one and not the other would leave a rule
+        /// that does not match yet still outranks the rule that does. Nothing in the
+        /// resolver would report that; it would just pick the wrong PROD code.
+        /// </summary>
+        [Theory]
+        [InlineData("PUMPHOUSE CONTROL PANEL", "PUMP")]
+        [InlineData("PORCELAIN SINK", "RC")]
+        [InlineData("DN200 HEADER", "DN20")]
+        [InlineData("FIRE PUMP 01", "PUMP")]
+        [InlineData("CARTRIDGE FILTER", "RIDGE|CARTRIDGE")]
+        public void Strength_agrees_with_Matches_on_bare_substrings(
+            string name, string pattern)
+        {
+            bool matched = ProdPatternMatcher.Matches(name, pattern);
+            int strength = ProdPatternMatcher.Strength(name, pattern);
+            Assert.Equal(matched, strength >= 0);
+        }
     }
 }

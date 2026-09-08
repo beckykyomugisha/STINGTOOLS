@@ -3,9 +3,20 @@
 sync_csv_from_txt.py
 Sync MR_PARAMETERS.csv from the transformed MR_PARAMETERS.txt:
   1. Update Data_Type for all params whose type changed in TXT
-  2. Add rows for new _TXT mirror params
+  2. Update Group_Name for all params whose group changed in TXT
+  3. Add rows for new _TXT mirror params
+
+PARAM-1. Step 2 did not exist, and that is the whole defect: the script corrected
+Data_Type on an existing row but never Group_Name, so a parameter whose group moved
+in the .txt kept the old name in the .csv forever. Twenty-eight rows had drifted.
+
+The .txt is authoritative. On a PARAM line the GROUP field is a group ID, and the
+names live in a separate GROUP table (*GROUP ID NAME -> GROUP\t1\tASS_MNG), so the
+id must be resolved before anything is compared. Comparing the raw id to the CSV's
+Group_Name makes all 3,598 rows look wrong -- which is a broken instrument, not a
+finding, and is exactly the false positive this script is here to stop producing.
 """
-import datetime as _dt
+import io
 import shutil
 import pathlib
 from pathlib import Path
@@ -27,6 +38,28 @@ REVIT_TYPE_MAP = {
 }
 
 GROUP_NAMES = {}
+
+
+class UndeclaredGroup(Exception):
+    """A PARAM line references a GROUP id the GROUP table does not declare."""
+
+
+def group_name(group_id, param_name):
+    """Resolve a group ID to its name, or FAIL.
+
+    The old new-row path did ``GROUP_NAMES.get(id, id)`` -- on an undeclared id it
+    silently wrote the NUMBER into the Group_Name column, producing a row that looks
+    populated and names a group that does not exist. #758 shipped two parameters in an
+    undeclared GROUP 38 exactly that way. A missing group is a data error in the .txt
+    and has to be fixed there; guessing is how one wrong fact becomes two files' worth.
+    """
+    if group_id in GROUP_NAMES:
+        return GROUP_NAMES[group_id]
+    raise UndeclaredGroup(
+        "MR_PARAMETERS.txt: parameter %r references GROUP id %r, which the GROUP table "
+        "does not declare. Add a GROUP row for it in the .txt -- this script will not "
+        "invent a name, and writing the id into Group_Name would create a group that "
+        "does not exist." % (param_name, group_id))
 
 def load_txt():
     """Parse TXT → {name: (guid, type, group_id, description, user_mod)}"""
@@ -79,7 +112,7 @@ def main():
         existing_by_name[name] = len(rows)
         rows.append(('data', parts))
 
-    type_fixes = 0; added = 0
+    type_fixes = 0; group_fixes = 0; added = 0
     # Update existing rows
     for _, parts in rows:
         if _ != 'data':
@@ -92,13 +125,22 @@ def main():
                 parts[col['Data_Type']] = txt_type
                 type_fixes += 1
 
+            # PARAM-1. The .txt is authoritative for the group too. Group names are
+            # bare identifiers (BLE_ELES, RGL_CMPL) so this needs no CSV quoting --
+            # which matters, because existing rows are deliberately NOT re-encoded
+            # (see the note further down); rejoining them must reproduce the original
+            # bytes or the script stops being idempotent.
+            txt_group = group_name(txt_params[name]['group_id'], name)
+            if parts[col['Group_Name']] != txt_group:
+                parts[col['Group_Name']] = txt_group
+                group_fixes += 1
+
     # Add missing mirror params
     new_rows = []
     for name, info in txt_params.items():
         if name not in existing_by_name:
-            group_name = GROUP_NAMES.get(info['group_id'], info['group_id'])
             new_row = ['Generic Models', name, info['guid'], info['type'],
-                       group_name, 'Instance', info['description'],
+                       group_name(info['group_id'], name), 'Instance', info['description'],
                        'False', '', '', 'MULTI', info['user_mod'], '0']
             new_rows.append(new_row)
             added += 1
@@ -142,16 +184,29 @@ def main():
     # not idempotent -- replacing the header instead of stacking it fixed only
     # half of that. What the run did is printed to the console, where a figure
     # that varies per run belongs.
-    stamp = _dt.date.today().strftime('%Y%m%d')
+    # PARAM-1: NO CLOCK IN THE HEADER. The stamp was _dt.date.today(), so the file
+    # changed on any day the generator ran even when nothing about its input had
+    # moved. That makes 'regenerate and diff' fail spuriously the day after any
+    # commit, and a gate that cries wolf is a gate people learn to ignore. It is also
+    # the rule this block already states just above: the header says what the FILE
+    # HOLDS, not what this run did -- and a date is what the run did. Git records when
+    # the file changed, and does it better than a stamp the generator overwrites.
     total = len([l for l in out_lines
                  if not l.startswith('#') and l.strip() and not l.startswith('Revit')])
-    new_header = (f'# v6.8 | {stamp} | {total} parameter rows'
+    new_header = (f'# v6.8 | {total} parameter rows'
                   f' — Phase 188 native-type + _TXT mirror sync\n')
     out_lines = [l for l in out_lines if not l.startswith('# v6.8 |')]
     out_lines.insert(0, new_header)
 
-    CSV.write_text(''.join(out_lines), encoding='utf-8')
-    print(f"Type fixes: {type_fixes}, New mirror rows added: {added}")
+    # Pin to LF, the way param_binding_resolver.py does. Path.write_text goes
+    # through text mode, which translates \n to \r\n on Windows -- so the same
+    # script produced different BYTES on different machines, and the CI gate that
+    # regenerates on Linux and diffs would fail on line endings alone with the real
+    # change invisible underneath. .gitattributes pins the checkout; this pins the
+    # writer, which is the root-cause half.
+    with io.open(CSV, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write(''.join(out_lines))
+    print(f"Type fixes: {type_fixes}, Group fixes: {group_fixes}, New mirror rows added: {added}")
     print(f"Total CSV rows now: {len([l for l in out_lines if not l.startswith('#') and l.strip() and not l.startswith('Revit')])}")
 
 if __name__ == '__main__':
