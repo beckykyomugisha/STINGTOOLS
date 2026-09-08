@@ -82,19 +82,39 @@ written here moves money silently. NRM2 `36` Fencing, for instance, lands in thi
 
 **Review into the in-house vocabulary above, not into published NRM2.**
 
-### One structural gap remains
+### All 37 rows are now answered and applied
 
-**There is no external-works section at all.** Nothing in the vocabulary covers roads,
-paving, kerbs, fencing, soft landscaping or site furniture; NRM2's `35`–`38` are all
-occupied here by services. Those rows carry `4`, so **roads, lawns and fences print under a
-bill heading reading "Foundations"**. Fourteen rows are blocked on this, plus three whose
-rule mixes two kinds of work and one (`Entourage`) that is Revit presentation context and
-should arguably generate no priced line at all. All are marked `change` with `QS_NRM2`
-deliberately **empty** and the reasoning in `QS_NOTE`, rather than filled with a plausible
-wrong code.
+`--apply` reports **37 agreed, 0 to change, 0 refused, 0 still unreviewed**. What that
+means precisely: every row carries a verdict and written reasoning, and the map now holds
+the reviewed answer. **It does not mean a QS has signed it** — see the top of this file.
 
-Closing it means adding a section to `GuessSectionName` and deciding what it covers — a
-judgement about how this project bills external works, not a mapping exercise.
+Three sections were added to `GuessSectionName`, because the scheme had **no external-works
+section at all**:
+
+| | |
+|---|---|
+| `40` | External works — roads, paving and kerbs |
+| `41` | Fencing, gates and barriers |
+| `42` | Soft landscaping |
+
+NRM2's own external-works numbers were not available — `35` Site works and `36` Fencing are
+taken here by services — and reusing `37`/`38` at their NRM2 values would have deepened the
+trap described above: a vocabulary that agrees with NRM2 at `14`/`15`/`16` and diverges
+elsewhere invites a reader to conclude it *is* NRM2. A fresh block above the existing range
+cannot be misread as alignment.
+
+Two rows needed something the `Nrm2` column cannot express:
+
+- **The fence/balustrade rule was split.** One rule matched `fence|gate|balustrade` and gave
+  all three one code; a balustrade is a railing, and no single answer was right. Matching is
+  score-based rather than positional, so the new rule was **appended** — the sheet addresses
+  rows by number, and inserting mid-file would renumber every row after it.
+- **`Entourage` now never reaches takeoff.** It is Revit's presentation context — the cars,
+  people and trees that make a render read as a place — and nobody buys it. No `Nrm2` value
+  can say "not measured": every element that reaches takeoff gets a section, from its rule
+  or from `DeriveNrm2Section`'s keyword fallback. So it is enforced where it belongs, in the
+  takeoff exclusion set beside the 2D content. Unlike that content it is real 3D geometry,
+  so it never looked like noise — it priced as plausible "each" rows.
 
 ### What was closed on 2026-09-08
 

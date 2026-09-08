@@ -283,7 +283,7 @@ Stairs,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings,16,
 Stairs,,,,03 30 00,Cast-in-Place Concrete,5,
 Railings,,(?i)wood|timber,,06 43 00,Wood Stairs and Railings,16,
 Railings,,(?i)decorative|ornamental|bronze|brass,,05 73 00,Decorative Metal Railings,20,
-Railings,,(?i)fence|gate,,32 31 00,Fences and Gates,4,m
+Railings,,(?i)fence|gate,,32 31 00,Fences and Gates,41,m
 Railings,,,,05 52 00,Metal Railings,20,
 Ramps,,,,03 30 00,Cast-in-Place Concrete,5,
 #
@@ -302,23 +302,23 @@ Topography,,,,31 20 00,Earth Moving,3,m3
 Toposolid,,,,31 20 00,Earth Moving,3,m3
 Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,3,
 Pads,,,,31 23 00,Excavation and Fill,3,m3
-Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,4,
+Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,3,
 #
 # ── Division 32 — Exterior Improvements (A2 Civil + A1 Site/Landscape) ───────
-Roads,,(?i)concrete,,32 13 13,Concrete Paving,4,m2
-Roads,,,,32 12 16,Asphalt Paving,4,
-Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,4,
-Parking,,,,32 12 16,Asphalt Paving,4,
-Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,4,m2
-Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,4,m
+Roads,,(?i)concrete,,32 13 13,Concrete Paving,40,m2
+Roads,,,,32 12 16,Asphalt Paving,40,
+Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,40,
+Parking,,,,32 12 16,Asphalt Paving,40,
+Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,40,m2
+Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,40,m
 Walls,,(?i)retaining,,32 32 00,Retaining Walls,14,m2
-Generic Models,(?i)fence|gate|balustrade,,,32 31 00,Fences and Gates,4,m
+Generic Models,(?i)fence|gate,,,32 31 00,Fences and Gates,41,m
 Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,22,
-Site,,,,32 30 00,Site Improvements,4,
-Entourage,,,,32 30 00,Site Improvements,4,
-Planting,(?i)tree,,,32 93 43,Trees,4,
-Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,4,m2
-Planting,,,,32 93 00,Plants,4,
+Site,,,,32 30 00,Site Improvements,40,
+Entourage,,,,32 30 00,Site Improvements,40,
+Planting,(?i)tree,,,32 93 43,Trees,42,
+Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,42,m2
+Planting,,,,32 93 00,Plants,42,
 Pipes,,,IRR,32 84 00,Planting Irrigation,32,m
 Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,32,m
 #
@@ -363,3 +363,4 @@ Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanit
 # Review it with:  python tools/qs_nrm2_review.py --export --divisions 02
 *,,,,02 41 19,Selective Demolition,1,,,Demolished
 # ---------------------------------------------------------------------------
+Generic Models,(?i)balustrade|handrail,,,05 52 00,Metal Railings,20,m
