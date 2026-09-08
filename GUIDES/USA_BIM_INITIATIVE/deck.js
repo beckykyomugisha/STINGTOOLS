@@ -740,6 +740,59 @@ s.addNotes(
   'That last line usually gets a small laugh, and it makes the point that you are carrying the risk.'
 );
 
+/* ------------------------------------------------ 18 HORIZON */
+s = pres.addSlide();
+kicker(s, 'AND IF IT WORKS');
+title(s, 'Where this could go');
+
+s.addText('The Society would own the standard. Software is one way to comply with it, not the ' +
+  'only way.', { x: M, y: 2.05, w: 11.6, h: 0.5, fontSize: 17, bold: true, color: ACC2,
+    fontFace: H, italic: true, isTextBox: true, margin: 0 });
+
+[
+  ['A standard you publish', 'Naming, classification, level of detail by stage, handover. Written by the Society, complied with using any software. The draft already exists.', ACC],
+  ['A register you operate', 'Every member project carries an identifier. A client can check that a drawing came from a registered practice and met the standard.', SLATE],
+  ['Buildings that hand over with their data', 'Public buildings handed over with an asset register instead of a box of drawings, so they can actually be maintained.', SLATE],
+].forEach(function (r, i) {
+  const y = 2.72 + i * 1.2;
+  card(s, M, y, CW, 1.05, i === 0 ? TINT : TINT2);
+  sq(s, M + 0.4, y + 0.42, r[2], 0.2);
+  s.addText(r[0], { x: M + 0.85, y: y + 0.22, w: 4.3, h: 0.65, fontSize: 17, bold: true,
+    color: INK, fontFace: H, lineSpacing: 21, isTextBox: true, margin: 0 });
+  s.addText(r[1], { x: M + 5.4, y: y + 0.25, w: 6.6, h: 0.7, fontSize: 12.5, color: INK2,
+    fontFace: B, lineSpacing: 17, isTextBox: true, margin: 0 });
+});
+
+card(s, M, 6.35, CW, 0.75, INK);
+s.addText('None of this is what I am asking you to decide today.',
+  { x: M + 0.45, y: 6.35, w: CW - 0.9, h: 0.75, fontSize: 16, bold: true, color: SALMON,
+    fontFace: H, valign: 'middle', isTextBox: true, margin: 0 });
+
+s.addNotes(
+  'Forty-five seconds. This exists so the President and the ICT chair have something to be ambitious ' +
+  'about, and so nobody later says you were not straight about where this was heading. Then get ' +
+  'straight back to the small ask on the next slide.\n\n' +
+  'SAY: "One last thing, and then I will stop.\n\n' +
+  'If the training works, I think there is something larger here, and I would rather you heard it ' +
+  'from me now than found out later.\n\n' +
+  'Uganda has no national standard for how architectural information is delivered. The Society could ' +
+  'write one. Naming, classification, what level of detail is expected at each stage, what a handover ' +
+  'has to contain. Written by you, complied with using whatever software a practice already owns.\n\n' +
+  'Beyond that, a register: every member project carrying an identifier, so a client can check that a ' +
+  'drawing came from a registered practice and met the standard. And further out, public buildings ' +
+  'that hand over with an asset register instead of a box of drawings, so somebody can actually ' +
+  'maintain them.\n\n' +
+  'The important word in all of that is yours. The Society would own the standard. My software would ' +
+  'be one way to comply with it, and not the only way, because a standard tied to one company is not ' +
+  'a national standard.\n\n' +
+  'None of that is what I am asking you to decide today."\n\n' +
+  'IF THEY GET EXCITED, do not chase it. "I would love to talk about that properly once we have run a ' +
+  'cohort and you have seen whether the thing works." Trading the small yes for a large maybe is the ' +
+  'commonest way to lose a meeting like this.\n\n' +
+  'IF ASKED whether you are proposing they adopt your naming scheme: "No. I am offering it as a first ' +
+  'draft for you to argue with. It should carry your name, not mine."'
+);
+
 /* ------------------------------------------------ 17 THE ASK */
 s = pres.addSlide();
 darkBg(s);

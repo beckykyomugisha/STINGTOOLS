@@ -135,8 +135,8 @@ A(
   p('Read it through once. Then use it in three passes.'),
   tbl(['When', 'What to read'], [
     ['A week before', 'Part 1 and Part 3. Start the demonstration rehearsals, and ask for the Chair of the Board of Education to be added to the meeting.'],
-    ['The night before', 'Part 2 out loud, twice. Part 8 out loud once. Part 9 last thing before bed.'],
-    ['On the day', 'Part 10. Take Part 7 printed, one copy per person, and the training outline from Part 5.'],
+    ['The night before', 'Part 2 out loud, twice. Part 9 out loud once. Part 11 last thing before bed.'],
+    ['On the day', 'Part 12. Take Part 8 printed, one copy per person, and the training outline from Part 6.'],
   ], [1, 3]),
   gap(200),
   note('The one rule',
@@ -150,7 +150,7 @@ A(
   p('Three things, and none of them costs the Society money. Say all three in the first two minutes so nobody spends the next twenty wondering what the catch is. A room that is waiting for an ask does not listen properly.'),
   numbered('That the Society endorses a BIM training programme for its members, and looks at whether it can be accredited for CPD.'),
   numbered('That someone in the ICT Cluster is named as a technical counterpart, so the judgement about the platform is theirs rather than yours.'),
-  numbered('Their help identifying how the remaining development gets funded, choosing from the routes in Part 7.'),
+  numbered('Their help identifying how the remaining development gets funded, choosing from the routes in Part 8.'),
   gap(160),
   h3('What you are not asking for'),
   bullet('Any money from the Society.'),
@@ -383,9 +383,73 @@ A(
   p('Regional defaults by Ugandan region, covering wind speed, seismic zone, soil bearing capacity, design rainfall and live loads, alongside local code defaults, shilling budgets and offline working. This is the Society\'s own operating context encoded in software, and it is the clearest answer to "why not just use what everyone else uses".')
 );
 
+/* ================================================= PART 5 HORIZON */
+A(
+  h1('Part 5 · Where this could go'),
+  p('This is the long game, and it is worth being clear about it with yourself even though it is barely mentioned on the day. One slide near the end raises it as a horizon. Everything below is what sits behind that slide.'),
+
+  h2('The reframe: a standard, not a platform'),
+  p('A professional body\'s durable assets are standards, accreditation and registers. Software is not one of them. If the Society adopts a platform, every difficult question follows at once: lock-in, exclusivity, what happens if the developer is unavailable, and why this member\'s product rather than another. And if the platform ever falters, the Society\'s initiative falters with it.'),
+  p('Invert it, and almost all of that goes away.'),
+  say('THE PROPOSITION', [
+    'The Society authors a national standard for how architectural information is delivered: naming, classification, level of detail by stage, and what a handover has to contain.',
+    'It is published by the Society and can be complied with using any software. PlanScape happens to be a route that makes compliance automatic and checkable.',
+  ]),
+  gap(140),
+  p('That is a different proposition entirely. The standard is permanent and vendor-neutral, which makes it safe for a professional body to own. The software becomes the cheapest way to comply rather than the only way. And the Society\'s cost is consultation rather than authorship, because the schemes, drawing types, title blocks and the automatic check already exist as a working draft.'),
+  gap(140),
+  note('Why the multi-platform work is what makes this credible',
+    'A national standard cannot be tied to one supplier. Because one element keeps the same identity across Revit, ArchiCAD, Tekla and the free Blender route, the standard can honestly be described as open with the platform as one route through it. Without that, a national platform reads as standardising the profession on one company\'s product, and a professional body should refuse that. This is the single technical fact that turns a commercial proposal into a public one.'),
+
+  h2('Three layers, in the order they can actually happen'),
+  tbl(['Layer', 'What it is', 'Who it serves', 'Realistic'], [
+    ['1. The standard', 'The Society publishes a national information standard. Software makes compliance measurable.', 'Members, clients, and the Society\'s own authority', '6 to 12 months, at almost no cost, because the draft exists'],
+    ['2. The register', 'A Society-operated project and drawing register. Every member project carries an identifier, and a client can check that a drawing came from a registered practice and met the standard.', 'Clients, the registration board, and the Board of Practice as an evidence base', '12 to 30 months, and it needs the Society to take on something operational'],
+    ['3. The asset record', 'Public buildings hand over with a structured asset register in a common format.', 'Government, and anyone who has to maintain a building', '30 months and beyond, needs government, and this is where public funding lives'],
+  ], [0.8, 2.1, 1.3, 1.5]),
+  gap(160),
+  p('Aim at layer one. Layers two and three are why it matters and are what makes government and development partners interested, but naming them as ambitions is enough. Promising them is not.', { bold: true }),
+
+  h2('What to demonstrate, and the national argument each one makes'),
+  tbl(['Show', 'What it proves'], [
+    ['A model going from inconsistent to compliant automatically', 'This is the standard, made real in ninety seconds rather than described.'],
+    ['A compliance score, as a number', 'A standard nobody can measure is a wish. A number makes it enforceable, and it is the single most persuasive thing for a Board of Practice.'],
+    ['One element, the same identity, across three different tools', 'The proof that it is a standard and not a supplier lock-in. This is what makes the word national honest.'],
+    ['Drawings and title blocks to a fixed structure', 'What a national standard looks like in practice: every practice\'s output built the same way.'],
+    ['Quantities taken from the model', 'A quantity extracted from a model cannot be quietly inflated. This is the argument that gets government attention.'],
+    ['A handover asset register coming out', 'Public audit findings here name outdated asset registers and poor handover repeatedly. Government cannot maintain what it has no record of.'],
+    ['Wind, seismic, soil and rainfall defaults by Ugandan region', 'No imported tool encodes our conditions. The clearest answer to why it should be built here.'],
+    ['Working offline, and the free Blender route', 'Access. A national standard that only well-funded practices can comply with is not national.'],
+  ], [1.5, 2.5]),
+
+  h2('What is in it for Ugandans, not just for the Society'),
+  p('This is the part that unlocks government and development-partner interest, and it has the advantage of being true.'),
+  bullet('Public money is harder to inflate when quantities come out of a model rather than a spreadsheet.'),
+  bullet('Buildings can be maintained. Schools and clinics handed over with asset data instead of a box of drawings.'),
+  bullet('Young professionals are not locked out. The free route plus curriculum work means a graduate is employable without a licence budget.'),
+  bullet('Fewer disputes, because there is an evidenced record of what was issued and when.'),
+  bullet('A local software industry with an anchor client, and subscription money that stays in the country.'),
+  gap(160),
+  p('For the Society itself the return is a permanent institutional asset it owns outright, a standing source of CPD content, authority with government it did not have to manufacture, a benefit for members, and an evidence base for the Board of Practice.'),
+
+  h2('The warning'),
+  note('Do not make this the ask',
+    'The presentation asks for something small and gettable. Asking to become the national BIM platform wakes up governance, exclusivity, liability and procurement, and you will leave with a referral to a subcommittee rather than a decision. Raise it as a horizon, late, explicitly not a decision. That gives the President and the ICT chair something to be ambitious about while today\'s ask stays small.'),
+  gap(160),
+  p('If they get excited about it in the room, do not chase it.', { bold: true }),
+  say('SAY', [
+    '"I would love to talk about that properly once we have run a cohort and you have seen whether the thing actually works."',
+  ]),
+  p('Trading a small yes for a large maybe is the commonest way to lose a meeting like this one.', { italic: true, color: GREY }),
+  gap(140),
+  say('AND IF ASKED whether you want them to adopt your naming scheme', [
+    '"No. I am offering it as a first draft for you to argue with. It should carry your name, not mine."',
+  ])
+);
+
 /* ================================================= PART 5 TRAINING */
 A(
-  h1('Part 5 · The training programme'),
+  h1('Part 6 · The training programme'),
   p('The primary ask is that the Society endorses this, so it needs to be concrete. Nobody endorses a training programme they cannot picture.'),
   h2('A week, in outline'),
   tbl(['Day', 'Subject', 'What members do'], [
@@ -419,19 +483,19 @@ A(
 
 /* ================================================= PART 6 LIMITS */
 A(
-  h1('Part 6 · What to disclose yourself'),
+  h1('Part 7 · What to disclose yourself'),
   p('Say all of these before anyone asks. A room of architects will find them in about four minutes, and disclosed they read as honesty while discovered they read as a problem.'),
   tbl(['Limit', 'How to put it'], [
     ['The deepest automation is inside Revit', 'The other tools connect through IFC, which is the open standard and means nobody is locked in. But there is no native ArchiCAD plug-in and no native Tekla plug-in. Say that plainly. Being precise here is what makes the rest of the multi-platform claim believable.'],
     ['The calculation engines are unvalidated', 'Complete and tested, never taken through independent professional validation. Offered only as commissioned work with manual cross-checks alongside. Then invite the Society\'s engineers to validate them, which turns a weakness into a role for them.'],
-    ['It is not finished', 'Ready for one practice today, not yet ready to serve the whole profession at once. Use the wording in Part 9.'],
+    ['It is not finished', 'Ready for one practice today, not yet ready to serve the whole profession at once. Use the wording in Part 11.'],
     ['There is no Ugandan mandate', 'Say "the direction of travel". Never imply one exists, because someone will check.'],
   ], [1.3, 2.7])
 );
 
 /* ================================================= PART 7 FUNDING */
 A(
-  h1('Part 7 · Funding routes'),
+  h1('Part 8 · Funding routes'),
   p('Print this and hand it over. Asking for help finding funding invites a sympathetic nod and nothing else. Six named routes, four of which only the Society can open, invites a decision.'),
   h2('What is being funded'),
   tbl(['Item', 'Cost'], [
@@ -466,7 +530,7 @@ A(
 
 /* ================================================= PART 8 Q&A */
 A(
-  h1('Part 8 · The questions you will be asked'),
+  h1('Part 9 · The questions you will be asked'),
   p('Rehearse these out loud. A prepared answer delivered hesitantly reads worse than an honest "I do not know" delivered calmly.'),
 
   h3('Q1 · "Which software does it need?"'),
@@ -586,6 +650,7 @@ A(
 
 /* ================================================= PART 8b NEXT AND DEFER */
 A(
+  h1('Part 10 · After the meeting'),
   h2('If they say yes, what happens next'),
   p('Committees are wary of open-ended commitments, so show them the smallest possible first step and a clear exit after it. This is on a slide, and it is worth saying slowly.'),
   tbl(['When', 'What happens'], [
@@ -612,7 +677,7 @@ A(
 
 /* ================================================= PART 9 WORDING */
 A(
-  h1('Part 9 · Wording to keep consistent'),
+  h1('Part 11 · Wording to keep consistent'),
   p('Consistency across every document and conversation is worth more than any individual phrasing. These are the lines to keep the same wherever they come up.'),
 
   h2('Where the platform stands'),
@@ -651,7 +716,7 @@ A(
 
 /* ================================================= PART 10 CHECKLIST */
 A(
-  h1('Part 10 · Checklist'),
+  h1('Part 12 · Checklist'),
   h2('Now, before the date is agreed'),
   bullet('Propose two or three dates.'),
   bullet('Ask for Arch. Daniel Sekamwa, Chair of the Board of Education, to be added.'),
@@ -693,7 +758,7 @@ A(
 
 /* ================================================= PART 11 OPEN */
 A(
-  h1('Part 11 · Still open'),
+  h1('Part 13 · Still open'),
   p('Things that are not settled, and should not be improvised in the room. If one of these comes up and you do not have the answer, say so.'),
   tbl(['Question', 'Who answers it'], [
     ['Who chairs the ICT Cluster. This person delivers the technical verdict and half the presentation is aimed at them.', 'Ask when confirming the date'],
