@@ -121,6 +121,41 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void A_Category_NO_Commodity_Rule_Names_Is_Not_Inspected()
+        {
+            // A second project reported "200 rows could be identified by
+            // material, 3 matched" and listed 56 unplaced materials led by
+            // '911 CARRERA S - BODY COLOR' - a Porsche in the entourage.
+            //
+            // A car's paint is never a building commodity. Counting it made a
+            // working feature read as a 1.5% success rate and buried the
+            // materials that DO need a pattern.
+            var inputs = Inputs(new ConstituentInput
+            {
+                ConstituentKind = "", Category = "Furniture", TypeName = "Sofa",
+                Description = "Sofa", MaterialName = "911 CARRERA S - BODY COLOR",
+                Unit = "each", Quantity = 1
+            });
+
+            CommodityAggregator.Build(inputs);
+
+            Assert.Equal(0, inputs.MaterialScan.RowsInspected);
+            Assert.Empty(inputs.MaterialScan.UnplacedMaterials);
+        }
+
+        [Fact]
+        public void A_Category_A_Rule_DOES_Name_Is_Still_Inspected()
+        {
+            // The other half: scoping must not quietly stop looking at roofs.
+            var inputs = Inputs(Roof("Generic - 225mm", "Woven Papyrus Thatch"));
+
+            CommodityAggregator.Build(inputs);
+
+            Assert.Equal(1, inputs.MaterialScan.RowsInspected);
+            Assert.True(inputs.MaterialScan.UnplacedMaterials.Contains("Woven Papyrus Thatch"));
+        }
+
+        [Fact]
         public void A_Scan_That_Inspected_Nothing_Reports_Nothing()
         {
             Assert.Null(new MaterialMatchTally().Summary());

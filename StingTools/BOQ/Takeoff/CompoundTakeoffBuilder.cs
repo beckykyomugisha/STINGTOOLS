@@ -165,7 +165,7 @@ namespace StingTools.BOQ.Takeoff
 
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
             bool isBrick = IsBrickWall(doc, el, material);
-            bool isRc = material.Contains("concrete") || material.Contains("rc") || material.Contains("reinforced");
+            bool isRc = material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc") || material.Contains("reinforced");
             var res = new Resolution();
 
             // Units per m² + cutting waste + mortar-per-m² from bond/block tables.
@@ -247,7 +247,7 @@ namespace StingTools.BOQ.Takeoff
             bool requireExplicitConcrete = false, bool hostIsRoof = false)
         {
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-            bool isConcrete = material.Contains("concrete") || material.Contains("rc");
+            bool isConcrete = material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc");
             // Blank material reads as concrete for a FLOOR and as unknown for a
             // roof — see the Roofs branch in TryBuild.
             bool isRc = isConcrete || !(requireExplicitConcrete || material.Length != 0);
@@ -1005,7 +1005,7 @@ namespace StingTools.BOQ.Takeoff
                 // footprint, because a concrete roof usually HAS one and would
                 // otherwise produce a confident fascia run for a parapet.
                 string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-                if (material.Contains("concrete") || material.Contains("rc")
+                if (material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc")
                  || material.Contains("reinforced"))
                 {
                     RoofAccessoryScan.Tally.ConcreteRoofsSkipped++;

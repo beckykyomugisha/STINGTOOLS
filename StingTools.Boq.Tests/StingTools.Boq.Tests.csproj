@@ -71,6 +71,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\TypePatternPlanner.cs" Link="MaterialSchedule\TypePatternPlanner.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialMatchTally.cs" Link="MaterialSchedule\MaterialMatchTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityTypeBreakdown.cs" Link="MaterialSchedule\CommodityTypeBreakdown.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\PatternMatch.cs" Link="MaterialSchedule\PatternMatch.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesTally.cs" Link="MaterialSchedule\ConsumablesTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />
