@@ -148,7 +148,8 @@
     "it5"
    ],
    "sourceNote": "IT4/IT5 corrugated at 2.4 m2 effective cover per standard sheet after side and end laps. NOMINAL COVER - confirm against the product's own coverage table before ordering; cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 8.0
   },
   {
    "commodityKey": "roof-tile",
@@ -173,7 +174,8 @@
     "tile - roof"
    ],
    "sourceNote": "0.09 m2 per tile is roughly 11 tiles per m2, a mid-range figure across Max-pan and clay profiles which run 10 to 16. NOMINAL COVER - confirm against the product's own coverage table before ordering.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 0.0
   },
   {
    "commodityKey": "paint-interior",
@@ -436,7 +438,8 @@
    ],
    "stageId": "roof",
    "sourceNote": "3 bundles per roofing square (9.29 m2) is the near-universal packing, so ~3.1 m2 per bundle. 10% covers hip/ridge cutting and the starter course. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 0.0
   },
   {
    "commodityKey": "roof-tile-stonecoated",
@@ -469,7 +472,8 @@
    ],
    "stageId": "roof",
    "sourceNote": "Nominal sheet 1330 x 420 mm with side and head laps gives roughly 0.47 m2 of cover, about 2.1 sheets per m2 — suppliers commonly quote 2.2 to 2.3 per m2 depending on pitch. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 0.0
   },
   {
    "commodityKey": "roof-tile-clay",
@@ -496,7 +500,8 @@
    ],
    "stageId": "roof",
    "sourceNote": "13 tiles per m2 (0.077 m2 each) is the usual Marseille-profile gauge; Roman and pantile profiles run 10 to 16. Breakage is why the waste allowance is higher than for steel. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 0.0
   },
   {
    "commodityKey": "roof-tile-concrete",
@@ -520,7 +525,8 @@
    ],
    "stageId": "roof",
    "sourceNote": "10 tiles per m2 (0.10 m2 each) at the common 300 mm gauge. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 0.0
   },
   {
    "commodityKey": "roof-sheet-boxprofile",
@@ -550,7 +556,8 @@
    ],
    "stageId": "roof",
    "sourceNote": "Nominal 1 m sheet with one-rib side lap covers about 0.86 m. Sold by LENGTH, so the order quantity here is running metres of sheet, not a sheet count — lengths are cut to the rafter run. NOMINAL COVER — confirm against the product's own coverage table before ordering. Cover varies by profile, pitch and lap, and this number multiplies the whole roof area.",
-   "feedsDriver": "roof_covering_m2"
+   "feedsDriver": "roof_covering_m2",
+   "fastenersPerM2": 6.0
   },
   {
    "commodityKey": "fascia-board",
