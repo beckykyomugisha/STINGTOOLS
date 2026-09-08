@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc  # noqa: E402
 import kut_naming as N  # noqa: E402
 
-OUT = 'KUT_Document_Control_Standard.docx'
+OUT = 'KUT_DOCS_WORKING/issued/KUT_Document_Control_Standard.docx'
 ORIGINATOR = N.EXAMPLE_ORIGINATOR
 
 c = CorporateDoc()
