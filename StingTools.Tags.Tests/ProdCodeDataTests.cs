@@ -57,6 +57,9 @@ namespace StingTools.Tags.Tests
         {
             public int Line;
             public string Code = "", Category = "", Pattern = "", Discipline = "";
+            // PROD-3: the reference-only columns. The plugin reads 0-2 and nothing else,
+            // so nothing at runtime can notice a wrong value here. These tests can.
+            public string Description = "", System = "", StandardRef = "";
             public override string ToString() => $"line {Line} [{Category}] '{Pattern}' -> {Code}";
         }
 
@@ -78,7 +81,10 @@ namespace StingTools.Tags.Tests
                     Code = code,
                     Category = cat,
                     Pattern = pat,
-                    Discipline = c.Length > 4 ? c[4].Trim() : "",
+                    Discipline  = c.Length > 4 ? c[4].Trim() : "",
+                    Description = c.Length > 3 ? c[3].Trim() : "",
+                    System      = c.Length > 5 ? c[5].Trim() : "",
+                    StandardRef = c.Length > 6 ? c[6].Trim() : "",
                 });
             }
             Assert.True(rows.Count > 100, "STING_PROD_CODES.csv looks empty: " + rows.Count + " rows");
@@ -596,6 +602,255 @@ namespace StingTools.Tags.Tests
                 .Select(r => r.Code).Distinct().OrderBy(c => c).ToList();
 
             Assert.Equal(new[] { "BHD", "BHT" }, codes);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  4. The four reference-only columns (PROD-3)
+        // ══════════════════════════════════════════════════════════════════════
+        //
+        // TagConfig.LoadProdCsv reads columns 0-2 and stops. DESCRIPTION, DISCIPLINE,
+        // SYSTEM and STANDARD_REF are documentation, which is defensible - but it was
+        // SILENT. The VIE / ZVB / AAP discipline disagreement sat in the file because
+        // nothing could ever notice it, and the same is true of every other value in
+        // those columns.
+        //
+        // These tests do not wire the columns into the tag. Wiring DISCIPLINE into the
+        // tag's discipline segment would change the tags on every existing model and is
+        // a decision to take in Revit, not here. What they do is make the columns
+        // CHECKABLE, so a wrong value fails a build instead of sitting there being read
+        // by a human as fact.
+
+        /// <summary>
+        /// The vocabularies the tag engine actually knows, read from the shipped
+        /// TAG_CONFIG file rather than restated here - a second copy of a list is a
+        /// second thing to drift.
+        ///
+        /// <para>SYS rows quote a comma-separated category list, so this needs a real
+        /// CSV split rather than String.Split(',').</para>
+        /// </summary>
+        private static (HashSet<string> Disc, HashSet<string> Sys) TagVocabulary()
+        {
+            var disc = new HashSet<string>(StringComparer.Ordinal);
+            var sys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string raw in File.ReadAllLines(
+                         Path.Combine(DataDir(), "TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv")))
+            {
+                string line = (raw ?? "").Trim();
+                if (line.Length == 0 || line.StartsWith("#")) continue;
+                var c = SplitCsv(line);
+                if (c.Count > 2 && c[0] == "DISC") disc.Add(c[2]);
+                if (c.Count > 1 && c[0] == "SYS") sys.Add(c[1]);
+            }
+            // Instrument check: an empty vocabulary would pass every assertion below by
+            // finding nothing to compare against.
+            Assert.True(disc.Count > 5, "DISC vocabulary looks empty: " + disc.Count);
+            Assert.True(sys.Count > 20, "SYS vocabulary looks empty: " + sys.Count);
+            return (disc, sys);
+        }
+
+        private static List<string> SplitCsv(string line)
+        {
+            var outp = new List<string>();
+            var cur = new System.Text.StringBuilder();
+            bool q = false;
+            foreach (char ch in line)
+            {
+                if (ch == '"') { q = !q; continue; }
+                if (ch == ',' && !q) { outp.Add(cur.ToString().Trim()); cur.Clear(); continue; }
+                cur.Append(ch);
+            }
+            outp.Add(cur.ToString().Trim());
+            return outp;
+        }
+
+        /// <summary>
+        /// ProdRows() splits on a bare comma, which is correct only while no field is
+        /// quoted. Today none is. The day a DESCRIPTION acquires a comma, every column
+        /// after it shifts by one and DISCIPLINE silently becomes SYSTEM - so the
+        /// parser's precondition is asserted rather than assumed.
+        /// </summary>
+        [Fact]
+        public void The_Row_Parser_Precondition_Holds_For_This_File()
+        {
+            var quoted = File.ReadAllLines(Path.Combine(DataDir(), "STING_PROD_CODES.csv"))
+                .Select((l, i) => (Line: i + 1, Text: (l ?? "").Trim()))
+                .Where(x => x.Text.Length > 0 && !x.Text.StartsWith("#") && x.Text.Contains("\""))
+                .Select(x => $"line {x.Line}: {x.Text}")
+                .ToList();
+
+            Assert.True(quoted.Count == 0,
+                "A quoted field has appeared in STING_PROD_CODES.csv. Every test in this "
+                + "class splits on a bare comma, so a quoted field shifts the columns and "
+                + "DISCIPLINE is read as SYSTEM with no error anywhere. Move these tests "
+                + "onto SplitCsv before adding one:\n  " + string.Join("\n  ", quoted));
+        }
+
+        /// <summary>
+        /// The header row has to stay on line 1. Both readers - TagConfig.LoadProdCsv
+        /// and ProdRows() below - skip exactly ONE line before they start skipping "#"
+        /// comments. Put a comment block above the header and the header itself is
+        /// parsed as data, minting a rule whose FAMILY_PATTERN is the literal string
+        /// "FAMILY_PATTERN". Nothing errors; there is simply one more rule.
+        ///
+        /// <para>Written because adding the explanatory block now at the top of that
+        /// file did exactly this on the first attempt.</para>
+        /// </summary>
+        [Fact]
+        public void The_Header_Row_Is_Line_One_And_Is_Not_Read_As_Data()
+        {
+            var lines = File.ReadAllLines(Path.Combine(DataDir(), "STING_PROD_CODES.csv"));
+            Assert.StartsWith("PROD_CODE,CATEGORY,FAMILY_PATTERN", lines[0]);
+
+            var leaked = ProdRows()
+                .Where(r => r.Code == "PROD_CODE" || r.Pattern == "FAMILY_PATTERN")
+                .Select(r => $"line {r.Line}: {r}")
+                .ToList();
+            Assert.True(leaked.Count == 0,
+                "The CSV header is being read as a data row:\n  "
+                + string.Join("\n  ", leaked));
+        }
+
+        /// <summary>
+        /// DESCRIPTION is the only human-readable thing in a row, and STANDARD_REF is
+        /// what an engineer checks the code against. A blank one is a row nobody can
+        /// review. Both are populated on all 277 shipped rows today.
+        /// </summary>
+        [Fact]
+        public void Every_Row_Carries_A_Description_And_A_Standard()
+        {
+            var thin = ProdRows()
+                .Where(r => r.Description.Length == 0 || r.StandardRef.Length == 0)
+                .Select(r => $"line {r.Line} {r.Code} [{r.Category}]"
+                             + (r.Description.Length == 0 ? " no DESCRIPTION" : "")
+                             + (r.StandardRef.Length == 0 ? " no STANDARD_REF" : ""))
+                .ToList();
+
+            Assert.True(thin.Count == 0,
+                "Rows missing a reference column:\n  " + string.Join("\n  ", thin));
+        }
+
+        /// <summary>
+        /// A DISCIPLINE the tag vocabulary does not declare cannot ever be wired up,
+        /// and reads to a human as though it could. All 9 shipped values are known.
+        /// </summary>
+        [Fact]
+        public void Every_Discipline_Is_A_Code_The_Tag_Vocabulary_Declares()
+        {
+            var vocab = TagVocabulary();
+            var unknown = ProdRows()
+                .Where(r => r.Discipline.Length > 0 && !vocab.Disc.Contains(r.Discipline))
+                .Select(r => $"line {r.Line} {r.Code} [{r.Category}] -> {r.Discipline}")
+                .Distinct()
+                .ToList();
+
+            Assert.True(unknown.Count == 0,
+                "DISCIPLINE values TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv does not declare as a "
+                + "DISC code:\n  " + string.Join("\n  ", unknown));
+        }
+
+        /// <summary>
+        /// Six SYSTEM values the PROD table uses are not declared as SYS codes anywhere
+        /// in the tag vocabulary. None is a typo - they are fire alarm, lighting, medical
+        /// gas, radiation, high voltage and BMS, all real systems - so the repair is to
+        /// ADD them to TAG_CONFIG, not to change the PROD rows.
+        ///
+        /// <para>That is not done here, because a SYS row feeds TagConfig.SysMap, which
+        /// the tag pipeline reads at runtime: adding six changes what elements tag as,
+        /// and that needs checking in Revit rather than asserting from a terminal. They
+        /// are listed instead, so the disagreement is visible and a SEVENTH cannot be
+        /// added quietly.</para>
+        ///
+        /// <para>THIS LIST ONLY SHRINKS. The test also fails on an entry that no longer
+        /// appears, so closing one means deleting its line in the same commit.</para>
+        /// </summary>
+        [Fact]
+        public void Every_System_Is_A_Code_The_Tag_Vocabulary_Declares()
+        {
+            // system -> why it is here, as of 2026-09-08
+            var known = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["FA"]  = "fire alarm; 7 rows, Fire Alarm Devices",
+                ["LTG"] = "lighting; 8 rows, Lighting Fixtures/Devices",
+                ["MGS"] = "medical gas; 21 rows, Specialty Equipment (Healthcare pack)",
+                ["RAD"] = "radiation; 4 rows, Specialty Equipment (Healthcare pack)",
+                ["HV"]  = "high voltage; 2 rows, Electrical Equipment",
+                ["BMS"] = "building management; 1 row, Electrical Equipment",
+            };
+
+            var vocab = TagVocabulary();
+            var rows = ProdRows();
+
+            var unknown = rows
+                .Where(r => r.System.Length > 0
+                            && !vocab.Sys.Contains(r.System)
+                            && !known.ContainsKey(r.System))
+                .Select(r => $"line {r.Line} {r.Code} [{r.Category}] -> {r.System}")
+                .Distinct()
+                .ToList();
+
+            Assert.True(unknown.Count == 0,
+                "SYSTEM values that are neither a declared SYS code nor a recorded gap. "
+                + "Add the SYS row to TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv, or record it here "
+                + "with the reason:\n  " + string.Join("\n  ", unknown));
+
+            // The list only shrinks: an entry that is now declared, or that no row uses,
+            // is a claim about a file that has moved on.
+            var used = new HashSet<string>(rows.Select(r => r.System), StringComparer.Ordinal);
+            var stale = known.Keys
+                .Where(k => vocab.Sys.Contains(k) || !used.Contains(k))
+                .Select(k => k + (vocab.Sys.Contains(k)
+                                      ? " is now a declared SYS code"
+                                      : " is used by no PROD row"))
+                .ToList();
+
+            Assert.True(stale.Count == 0,
+                "Recorded SYSTEM gaps that no longer apply - delete these lines:\n  "
+                + string.Join("\n  ", stale));
+        }
+
+        /// <summary>
+        /// The SYSTEM mirror of No_Prod_Code_Declares_Two_Disciplines. One code may
+        /// appear in several categories, but if it names a different system in each,
+        /// then whoever wires the column gets a value that depends on how somebody
+        /// chose to model the thing. Zero today.
+        /// </summary>
+        [Fact]
+        public void No_Prod_Code_Declares_Two_Systems()
+        {
+            var split = ProdRows()
+                .Where(r => r.System.Length > 0)
+                .GroupBy(r => r.Code, StringComparer.Ordinal)
+                .Where(g => g.Select(r => r.System).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                .Select(g => $"{g.Key} -> " + string.Join(" / ", g.Select(r => $"{r.System} (line {r.Line}, {r.Category})")))
+                .ToList();
+
+            Assert.True(split.Count == 0,
+                "One PROD code, two systems:\n  " + string.Join("\n  ", split));
+        }
+
+        /// <summary>
+        /// NOT asserted, and worth saying why: a row's DISCIPLINE routinely differs from
+        /// the discipline TAG_CONFIG assigns to its CATEGORY - 105 of 277 rows do. That
+        /// is correct, not a defect. A medical gas outlet modelled as Specialty Equipment
+        /// is MG, not H, and DISC_OVERRIDE exists in the same vocabulary file precisely
+        /// because category does not determine discipline. An equality assertion here
+        /// would have failed 105 true rows and taught the next author to weaken it.
+        /// </summary>
+        [Fact]
+        public void Category_Does_Not_Determine_Discipline_And_The_File_Says_So()
+        {
+            var overrides = File.ReadAllLines(
+                    Path.Combine(DataDir(), "TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv"))
+                .Select(l => (l ?? "").Trim())
+                .Count(l => l.StartsWith("DISC_OVERRIDE,"));
+
+            Assert.True(overrides > 0,
+                "DISC_OVERRIDE rows have gone from TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv. They "
+                + "are the reason a PROD row's DISCIPLINE is allowed to differ from the "
+                + "discipline its CATEGORY maps to - 105 of 277 rows do differ. Without "
+                + "them the next reader has no evidence that the difference is intended, "
+                + "and the obvious next move is an equality assertion that fails 105 true "
+                + "rows.");
         }
     }
 }
