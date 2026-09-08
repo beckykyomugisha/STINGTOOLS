@@ -26,6 +26,9 @@
     <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- KUT-11: the two classification maps, asserted against the resolvers that read
+         them. Not copied to the output — SystemFamilyFallbackTests walks up to
+         StingTools/Data so a stale copy cannot pass while the shipped file is wrong. -->
   </ItemGroup>
 
   <ItemGroup>

@@ -203,6 +203,11 @@ namespace StingTools.BOQ
 
         // ── Revit helpers used by ResolveToken ────────────────────────────
 
+        /// <summary>Type-name-fallback family name, for NRM2 paragraph TOKENS. Not
+        /// <see cref="ParameterHelpers.GetFamilyName"/> on purpose: the [foundation_type] token
+        /// renders into issued paragraph text, where "Strip Footing 600x300" reads correctly and
+        /// the system family name "Wall Foundation" does not. Prose wants the type; rules want
+        /// the family (KUT-11).</summary>
         private static string GetFamilyName(Element el)
         {
             try

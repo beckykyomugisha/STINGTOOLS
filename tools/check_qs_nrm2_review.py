@@ -64,7 +64,13 @@ try:
     # 1. An untouched sheet applies nothing.
     rc, out = run('--apply')
     check('untouched sheet applies nothing', rc == 0 and 'Nothing to apply' in out)
-    check('  ... and reports them unreviewed', '36 still unreviewed' in out)
+    # KUT-10 - DERIVED, not hardcoded. This read '36 still unreviewed' and broke the
+    # moment the map gained a division-31 row, which says nothing about whether the
+    # round trip works. What matters is that the tool reports EVERY row on the sheet as
+    # unreviewed, so the count comes from the sheet the tool just wrote.
+    check('  ... and reports them unreviewed',
+          ('%d still unreviewed' % len(rows)) in out,
+          '(%d rows on the sheet)' % len(rows))
 
     # 2. "ok" changes nothing.
     rows = sheet_rows(); rows[0]['QS_VERDICT'] = 'ok'; write_sheet(rows)

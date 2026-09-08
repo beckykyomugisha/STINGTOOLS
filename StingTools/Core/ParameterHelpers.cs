@@ -734,10 +734,58 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Get the family name of an element (from its FamilySymbol).
-        /// Returns empty string if not a FamilyInstance or if family name unavailable.
+        /// The family name of an element — the LOADABLE family name for a
+        /// <see cref="FamilyInstance"/>, and the SYSTEM family name for everything else
+        /// ("Basic Wall", "Rectangular Duct", "Pipe Types", "Wall Foundation").
+        ///
+        /// <para>KUT-11. Before the fallback this answered <c>""</c> for every system
+        /// element, and every consumer keyed on a family name silently skipped them.
+        /// That was not a cosmetic gap: <see cref="ProdResolver.Resolve"/> gates its
+        /// whole project/corporate rule lookup on a non-empty family name, so the
+        /// eleven corporate PROD rules shipped on Ducts, Floors and Structural
+        /// Foundations could never fire and those categories always fell through to
+        /// the generic category default. Same shape as the seam
+        /// <c>CsiMap.TypeName</c> closed on the type side.</para>
+        ///
+        /// <para><see cref="ElementType.FamilyName"/> is the right API for this: for a
+        /// <c>FamilySymbol</c> it returns the loadable family's own name, so the two
+        /// branches agree and nothing changes for loadable families.</para>
+        ///
+        /// <para>Callers that need "" to keep meaning "not a loadable family" must say
+        /// so by calling <see cref="GetLoadableFamilyName"/> instead.</para>
         /// </summary>
         public static string GetFamilyName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi && fi.Symbol?.Family != null)
+                    return fi.Symbol.Family.Name;
+
+                // System element: ask its type for the system-family name.
+                var typeId = el?.GetTypeId();
+                if (typeId != null && typeId.Value > 0 &&
+                    el.Document?.GetElement(typeId) is ElementType et)
+                    return et.FamilyName ?? string.Empty;
+
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetFamilyName failed for {el?.Id}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The LOADABLE family name only — <c>""</c> for anything that is not a
+        /// <see cref="FamilyInstance"/>.
+        ///
+        /// <para>This is what <see cref="GetFamilyName"/> used to do, kept under a name
+        /// that says what it means. Use it where the empty string is load-bearing —
+        /// where "" is read as "this element has no loadable family, skip it" rather
+        /// than as "we could not determine a name".</para>
+        /// </summary>
+        public static string GetLoadableFamilyName(Element el)
         {
             try
             {
@@ -747,7 +795,7 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"GetFamilyName failed for {el?.Id}: {ex.Message}");
+                StingLog.Warn($"GetLoadableFamilyName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -767,6 +815,35 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"GetFamilySymbolName failed for {el?.Id}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The type name of ANY element: the symbol name for a
+        /// <see cref="FamilyInstance"/>, the element type's own name for a system
+        /// element ("Generic - 200mm", "Concrete Slab 200").
+        ///
+        /// <para>The always-answers counterpart to <see cref="GetFamilySymbolName"/>,
+        /// promoted here from <c>CsiMap.TypeName</c> — which was carrying the only copy
+        /// of this fallback, and only the CSI resolver benefited. It is additive:
+        /// <see cref="GetFamilySymbolName"/> is unchanged, so its ~55 callers are
+        /// untouched and each can opt in on its own evidence.</para>
+        /// </summary>
+        public static string GetElementTypeName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi && fi.Symbol != null)
+                    return fi.Symbol.Name ?? string.Empty;
+                var typeId = el?.GetTypeId();
+                if (typeId != null && typeId.Value > 0)
+                    return el.Document?.GetElement(typeId)?.Name ?? string.Empty;
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetElementTypeName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }

@@ -208,7 +208,13 @@ namespace StingTools.Boq.Tests
             };
             var best = CsiMasterFormat.Resolve(rules, "Specialty Equipment", "", "", "", out int score, out int tie);
             Assert.Equal("23-19 00 00", best.Section);  // first wins
-            Assert.Equal(1, score);
+            // KUT-10 - assert the CONSTANT, not a raw 1. Adding the material key scaled every
+            // qualifier from 1 to CsiRule.QualifierWeight so a matched material could sit
+            // between "bare category" and "category + a named qualifier". Relative order is
+            // unchanged and every production caller discards the score (out _), so the scaling
+            // is inert - but a test pinning the absolute value broke, which is the test
+            // pinning the wrong thing.
+            Assert.Equal(CsiRule.QualifierWeight, score);
             Assert.Equal(2, tie);                        // ambiguous — two distinct codes tie
             // Two rules that tie but AGREE on the code are not flagged.
             var agree = new System.Collections.Generic.List<CsiRule>

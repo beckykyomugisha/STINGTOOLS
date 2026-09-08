@@ -35,7 +35,10 @@ namespace StingTools.Tags.Tests
 
         private static string Section(string cat, string family, string type, string sys, string phase)
         {
-            var r = CsiMasterFormat.Resolve(Shipped(), cat, family, type, sys, phase);
+            // KUT-10 landed a MATERIAL key as the sixth argument before this branch merged,
+            // so the six-argument overload now means material. Passing phase there would
+            // bind silently to the wrong key and every assertion below would test nothing.
+            var r = CsiMasterFormat.Resolve(Shipped(), cat, family, type, sys, null, phase);
             Assert.True(r != null, $"no rule resolved for {cat} / '{family}' / phase='{phase}'");
             return CsiMasterFormat.NormalizeSection(r.Section);
         }
@@ -80,8 +83,8 @@ namespace StingTools.Tags.Tests
         {
             Assert.Equal("", ElementPhaseState.Unknown);
             var rule = new CsiRule { Category = "*", Phase = ElementPhaseState.Demolished, Section = "02 41 19" };
-            Assert.Equal(-1, rule.Score("Walls", "", "", "", ElementPhaseState.Unknown));
-            Assert.Equal(-1, rule.Score("Walls", "", "", "", null));
+            Assert.Equal(-1, rule.Score("Walls", "", "", "", null, ElementPhaseState.Unknown));
+            Assert.Equal(-1, rule.Score("Walls", "", "", "", null, null));
         }
 
         // ── The rule fires, and outranks the product rules ───────────────────────
@@ -128,8 +131,8 @@ namespace StingTools.Tags.Tests
                 Sys = "STR",
                 Section = "03 41 00",
             };
-            int d = demo.Score("Structural Framing", "Precast Beam", "Precast Beam", "STR", ElementPhaseState.Demolished);
-            int pmax = mostSpecificProduct.Score("Structural Framing", "Precast Beam", "Precast Beam", "STR", ElementPhaseState.Demolished);
+            int d = demo.Score("Structural Framing", "Precast Beam", "Precast Beam", "STR", null, ElementPhaseState.Demolished);
+            int pmax = mostSpecificProduct.Score("Structural Framing", "Precast Beam", "Precast Beam", "STR", null, ElementPhaseState.Demolished);
             Assert.True(d > pmax,
                 $"a phase rule scored {d} and the most specific product rule {pmax}; Division 02 would lose");
         }
@@ -141,7 +144,7 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void TheDivision02RowBillsUnderTheInHouseDemolitionsSection()
         {
-            var rule = CsiMasterFormat.Resolve(Shipped(), "Walls", "", "Blockwork", "", ElementPhaseState.Demolished);
+            var rule = CsiMasterFormat.Resolve(Shipped(), "Walls", "", "Blockwork", "", null, ElementPhaseState.Demolished);
             Assert.Equal("024119", CsiMasterFormat.NormalizeSection(rule.Section));
             Assert.Equal("1", rule.Nrm2);
         }
@@ -264,7 +267,7 @@ namespace StingTools.Tags.Tests
                     probes++;
                     // No family/type/sys: the bare category probe, which is the weakest case
                     // and therefore the one that exposes a missing fallback.
-                    var r = CsiMasterFormat.Resolve(rules, cat, "", "", "", state);
+                    var r = CsiMasterFormat.Resolve(rules, cat, "", "", "", null, state);
                     if (r == null)
                     {
                         unresolved.Add($"{cat} / phase='{(state.Length == 0 ? "(unknown)" : state)}'");
