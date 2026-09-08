@@ -136,7 +136,7 @@ A(
   tbl(['When', 'What to read'], [
     ['A week before', 'Part 1 and Part 3. Start the demonstration rehearsals, and ask for the Chair of the Board of Education to be added to the meeting.'],
     ['The night before', 'Part 2 out loud, twice. Part 8 out loud once. Part 9 last thing before bed.'],
-    ['On the day', 'Part 10. Take Part 7 printed, one copy per person.'],
+    ['On the day', 'Part 10. Take Part 7 printed, one copy per person, and the training outline from Part 5.'],
   ], [1, 3]),
   gap(200),
   note('The one rule',
@@ -205,7 +205,7 @@ A(
   say('SAY', [
     '"The way a set of building information is expected to be put together has changed, and it changed outside Uganda first.',
     'ISO 19650 is now the accepted international standard for managing project information: how it is named, how it is versioned, who approved what and when, and what condition it is handed over in. It is not a modelling standard. It is an information standard, which is why it matters to architects and not only to software people.',
-    'And governments have started to require it. The United Kingdom, the Emirates, Singapore, Germany. BIM is mandated on public work in all of them. I want to be careful here: I am not telling you Uganda has mandated anything. It has not. I am telling you the direction of travel, and it has only ever gone one way.',
+    'And governments have been requiring it, one after another. Dubai in 2013. Singapore in 2015, for every new project over five thousand square metres. The United Kingdom in 2016, on all centrally funded public work. Germany in 2020, for federal transport infrastructure. I want to be careful here: I am not telling you Uganda has mandated anything. It has not. I am telling you the direction of travel, and over thirteen years it has only ever gone one way.',
     'The region has not kept pace. Kenya is the obvious comparison, with a bigger construction sector and the same regional market. Published research on Kenyan adoption finds it still lagging, and names the consequence as poor coordination of information between the parties on a project. That is a polite way of describing what we all recognise. Drawings that disagree. Schedules that do not match the model. Handover information assembled at the last minute.',
     'Uganda is in the same position with two extra problems. We have no national standard for how architectural information is delivered. And there is nothing on the market built here.',
     'That is a gap. It is also an opening, because the body that moves first writes the standard instead of inheriting one.',
@@ -491,6 +491,14 @@ A(
     'What I do not have is twenty Ugandan practices using it. That is precisely what the Society\'s endorsement and a first training cohort would build."',
   ]),
 
+  h3('Q3a · "Who are you, and why should we think you can do this?"'),
+  p('Rarely asked directly, often thought. Your background is genuinely strong and it is currently going unused, so work it into the opening rather than waiting.'),
+  say('ANSWER', [
+    '"I started in Revit and have modelled across architectural, structural and building services work. I specialised in services coordination because it carries the hardest coordination problems in a building.',
+    'Before I specialised I was clerk of works on several multi-storey buildings, so the distance between a drawing and a finished structure is familiar ground rather than a theory.',
+    'I am currently information manager on a six-building institutional campus in central Kampala, coordinating more than eight design disciplines to ISO 19650 under an international client\'s standards. Everything I have built came out of that work rather than out of an office somewhere."',
+  ]),
+
   h3('Q4 · "What happens if you are unavailable?"'),
   say('ANSWER', [
     '"Five things, and they would be written into any agreement. Everything you hold opens without my platform, because it is all in open formats. Source code and configuration can go into escrow with your solicitors, released on defined events. The platform can be self-hosted on your own infrastructure. Standards files and configuration are handed over as deliverables. And the route to moving onto a mainstream commercial product is priced, so leaving is a budget decision rather than a rescue."',
@@ -502,11 +510,45 @@ A(
     'What I am asking for is an endorsement of a training programme, a technical counterpart, and your help thinking about funding. If the Society later wanted a formal arrangement, that should go through your own governance in the normal way, and I would expect it to."',
   ]),
 
+  h3('Q5a · "What does it cost a practice?"'),
+  p('Certain to be asked, so answer it on the slide rather than waiting. Check the figures are still current before the day.'),
+  say('ANSWER', [
+    '"Twenty-five dollars a month for the Revit tools on their own, one seat. Sixty dollars a month for the full platform for up to three people. A hundred and thirty for a practice of four to ten. That is per practice, not per person, and it is less again on annual billing.',
+    'And everyone outside your office joins free, so the client, the contractor and the quantity surveyor cost nothing to bring onto a project."',
+  ]),
+  gap(140),
+  note('On comparing yourself to the big products',
+    'Do not put a price comparison on a slide and do not volunteer one. Two reasons. It makes you the cheap option, which invites the question of what is being given up. And it moves the conversation onto a feature comparison against a product with twenty years and thousands of engineers behind it, which is not a comparison you win. There is also a practical risk in this particular room: professional bodies often have supplier sponsors and reseller members, and you cannot know in advance who is sitting there.'),
+  gap(140),
+  p('The structural point already carries the price argument without picking a fight. Priced per practice rather than per person, with everyone outside joining free, is a statement about how the economics work rather than a claim to be cheaper. It also survives a competitor discount, which a price slide does not.'),
+  gap(140),
+  p('But if someone asks directly, have the numbers and be exact. Answering precisely is professional; volunteering it is not.', { bold: true }),
+  tbl(['At published list prices', 'Per user, per year', 'A ten-person practice'], [
+    ['The main authoring collection', 'USD 3,675 per seat', 'Not replaced by anything here. Members still need it.'],
+    ['Cloud design collaboration', 'USD 1,284 per collaborator', 'About USD 12,840 a year for ten people'],
+    ['Cloud document access', 'USD 500 per user, no free tier', 'Every contractor and consultant added costs USD 500 more'],
+    ['PlanScape, same ten people', 'Not charged per user', 'USD 1,560 a year, with unlimited free external members'],
+  ], [1.4, 1.3, 1.9]),
+  gap(140),
+  p('Say it once, plainly, and stop: "the difference is not really the price, it is that they charge for every person on the project and we do not."', { italic: true, color: GREY }),
+  gap(140),
+  note('Two honesty rules if you use these numbers',
+    'These are published list prices, not what a reseller would quote, and the products are not feature-identical. Say both. And note that nothing here replaces the authoring software, which members still buy. Overstating the comparison is the fastest way to have the whole thing checked and found wanting.'),
+
   h3('Q6 · "Why would a member not just buy the international product?"'),
   say('ANSWER', [
     '"For authoring, they should. Those tools are unmatched and nothing I do replaces them. The difference is everything around authoring: coordination, document control, field work, quantities, handover data.',
     'The international products charge per user. This charges per practice, with everyone outside the office joining free, so consultants, contractors and clients cost nothing to include. For a ten-person practice here that is the difference between viable and not. And it is priced in shillings, hostable in Uganda, and supported from Kampala."',
   ]),
+
+  h3('Q6a · "Where does our data live, and who can see it?"'),
+  p('The ICT Cluster chair will ask some version of this. It is a fair question and the answer is good.'),
+  say('ANSWER', [
+    '"Each practice has its own space, and nobody sees another practice\'s work. Within a project, you control who is invited and what they can do.',
+    'It can be hosted in Uganda, so the data need not leave the country, and for a client who insists on it the whole platform can run on their own infrastructure.',
+    'Everything is in open, exportable formats, so if you ever stop using it you leave with your information rather than losing it. That is deliberate. A platform that holds your data hostage is not one a professional body should be endorsing."',
+  ]),
+  p('If pressed on the independent security review: it is one of the things still to be done and it is in the completion budget. Say so rather than implying it has already happened.', { italic: true, color: GREY }),
 
   h3('Q7 · "What would the Society get out of it commercially?"'),
   say('ANSWER', [
@@ -540,6 +582,32 @@ A(
   numbered('Would the Society share its registration details, founding year and membership numbers?'),
   numbered('Has the Society tried anything on BIM adoption before, and what stalled it?'),
   numbered('What would make this an easy yes for you, and what would make it an easy no?')
+);
+
+/* ================================================= PART 8b NEXT AND DEFER */
+A(
+  h2('If they say yes, what happens next'),
+  p('Committees are wary of open-ended commitments, so show them the smallest possible first step and a clear exit after it. This is on a slide, and it is worth saying slowly.'),
+  tbl(['When', 'What happens'], [
+    ['Within two weeks', 'You bring back a cohort outline shaped by whoever they nominate from the Board of Education, rather than written by you alone.'],
+    ['Then', 'They confirm dates and help fill the first cohort. You handle delivery, materials and the exercise.'],
+    ['The cohort runs', 'Twenty-five members, one week, hands-on. It either works or it does not, and everyone can see which.'],
+    ['After that', 'Review it together, then decide whether there is a second and a third, and whether the funding conversation is worth having.'],
+  ], [1, 3]),
+  gap(160),
+  p('Nothing in that commits the Society beyond the first cohort, and saying so out loud is what makes the first yes easy.', { bold: true }),
+
+  h2('If they defer, or say no'),
+  p('A committee saying it will consider something is the normal outcome of a first meeting. Treat it as a step rather than a rejection, and convert it into something checkable before the room disperses.'),
+  bullet('Who takes it forward, by name.'),
+  bullet('When they next meet, and whether this will be on that agenda.'),
+  bullet('What they need from you before then, and by when.'),
+  bullet('Whether you may approach a funder using the Society name, and who signs that off.'),
+  gap(140),
+  p('If the answer is a clear no, ask one question and then leave gracefully: what would have had to be different? The answer is worth more than the meeting was, and a professional body that respects how you took a no is a body you can go back to in a year.'),
+  gap(140),
+  note('The thing not to do',
+    'Do not follow a deferral with a longer written case. A committee that has just declined to decide will not be moved by more pages, and it reads as pressure. Send the short thank-you, do exactly what you promised, and let the first cohort or the funding conversation create the next reason to meet.')
 );
 
 /* ================================================= PART 9 WORDING */

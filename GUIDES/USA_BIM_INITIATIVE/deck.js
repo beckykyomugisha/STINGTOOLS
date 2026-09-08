@@ -135,17 +135,23 @@ s.addText('is now the accepted international standard for managing information o
   { x: M, y: 3.05, w: 5.6, h: 1.6, fontSize: 15, color: INK2, fontFace: B, lineSpacing: 22,
     isTextBox: true, margin: 0 });
 
-s.addText('And governments have started requiring it', { x: M + 6.4, y: 2.15, w: 5.95, h: 0.4,
-  fontSize: 17, bold: true, color: INK, fontFace: H, isTextBox: true, margin: 0 });
-['United Kingdom', 'United Arab Emirates', 'Singapore', 'Germany'].forEach(function (c, i) {
-  const x = M + 6.4 + (i % 2) * 3.05;
-  const y = 2.75 + Math.floor(i / 2) * 1.15;
-  card(s, x, y, 2.85, 0.92, TINT);
-  s.addText(c, { x: x + 0.25, y: y + 0.16, w: 2.4, h: 0.6, fontSize: 14.5, bold: true, color: INK,
-    fontFace: B, valign: 'middle', isTextBox: true, margin: 0 });
+s.addText('And governments have been requiring it', { x: M + 6.4, y: 2.1,
+  w: 5.95, h: 0.4, fontSize: 16, bold: true, color: INK, fontFace: H, isTextBox: true, margin: 0 });
+[
+  ['2013', 'Dubai', 'Municipality Circular 196, widened 2015'],
+  ['2015', 'Singapore', 'All new projects over 5,000 sq m'],
+  ['2016', 'United Kingdom', 'All centrally funded public projects'],
+  ['2020', 'Germany', 'New federal transport infrastructure'],
+].forEach(function (c, i) {
+  const y = 2.55 + i * 0.72;
+  card(s, M + 6.4, y, 5.95, 0.62, TINT);
+  s.addText(c[0], { x: M + 6.7, y: y + 0.13, w: 0.8, h: 0.36, fontSize: 15, bold: true,
+    color: ACC, fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(c[1], { x: M + 7.55, y: y + 0.13, w: 2.0, h: 0.36, fontSize: 14, bold: true,
+    color: INK, fontFace: B, isTextBox: true, margin: 0 });
+  s.addText(c[2], { x: M + 9.5, y: y + 0.15, w: 2.7, h: 0.34, fontSize: 11, color: INK2,
+    fontFace: B, isTextBox: true, margin: 0 });
 });
-s.addText('BIM is mandated on public projects in each of these.', { x: M + 6.4, y: 5.1, w: 5.95,
-  h: 0.4, fontSize: 13, color: MUTED, fontFace: B, italic: true, isTextBox: true, margin: 0 });
 
 card(s, M, 5.55, CW, 1.05, INK);
 s.addText('This has only ever moved in one direction. No country that adopted it has gone back.',
@@ -516,9 +522,18 @@ title(s, 'And it has to work for a four-person practice');
   s.addText(e[1], { x: x + 0.85, y: y + 0.68, w: 4.85, h: 0.7, fontSize: 13, color: INK2,
     fontFace: B, lineSpacing: 18, isTextBox: true, margin: 0 });
 });
-s.addText('I would like to offer Society members a discounted rate. I would rather put that on the ' +
-  'table now than be asked for it later.', { x: M, y: 6.05, w: CW, h: 0.6, fontSize: 16, bold: true,
-    color: ACC2, fontFace: H, italic: true, isTextBox: true, margin: 0 });
+card(s, M, 5.85, CW, 1.08, INK);
+[['USD 25', 'Revit tools alone, one seat'], ['USD 60', 'Full platform, up to 3 people'],
+ ['USD 130', 'Full platform, 4 to 10 people']].forEach(function (q, i) {
+  const x = M + 0.45 + i * 3.35;
+  s.addText(q[0], { x: x, y: 6.02, w: 3.2, h: 0.35, fontSize: 17, bold: true, color: SALMON,
+    fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(q[1], { x: x, y: 6.38, w: 3.2, h: 0.3, fontSize: 11.5, color: LIGHTTXT, fontFace: B,
+    isTextBox: true, margin: 0 });
+});
+s.addText('a month,\nper practice,\nnot per person', { x: M + 10.3, y: 5.96, w: 1.7, h: 0.9,
+  fontSize: 11, italic: true, color: MUTED, fontFace: B, lineSpacing: 13, isTextBox: true,
+  margin: 0 });
 s.addNotes(
   'SAY: "The third thing is that none of this matters unless it works for the practices you actually ' +
   'represent, which are mostly small.\n\n' +
@@ -529,11 +544,11 @@ s.addNotes(
   'parties to be on it.\n\n' +
   'It is billed in shillings. And there is a free route through Blender and Bonsai, so a member with ' +
   'no software budget, or a student, can still take part.\n\n' +
-  'And I would like to offer Society members a discounted rate. I would rather put that on the table ' +
+  'And to be concrete, because somebody is about to ask. Twenty-five dollars a month for the Revit tools on their own. Sixty for the full platform for up to three people. A hundred and thirty for a practice of four to ten. Per practice, not per person, and less again on annual billing.\n\nAnd I would like to offer Society members a discounted rate on top of that. I would rather put that on the table ' +
   'now than have you ask me for it later."\n\n' +
-  'That last line is a deliberate move: offering a discount unprompted reads as goodwill, whereas ' +
-  'conceding one under pressure reads as a margin you were hiding. Do not name a percentage in the ' +
-  'room — say you would like to agree one.'
+  'CHECK THE PRICES ARE STILL CURRENT before you say them out loud.\n\n' +
+  'Offering a discount unprompted reads as goodwill; conceding one under pressure reads as a margin ' +
+  'you were hiding. Do not name a discount percentage in the room, only the willingness to agree one.'
 );
 
 /* ------------------------------------------------ 13 COHORT */
@@ -689,6 +704,40 @@ s.addNotes(
   'your view on which are worth pursuing, and who I should be talking to."\n\n' +
   'THEN STOP TALKING. Let the silence do the work. What you want from this meeting is a name and an ' +
   'introduction, not a resolution to consider it.'
+);
+
+/* ------------------------------------------------ 17 WHAT HAPPENS NEXT */
+s = pres.addSlide();
+kicker(s, 'IF YOU SAY YES');
+title(s, 'What would happen next');
+[
+  ['Within two weeks', 'I bring back a cohort outline shaped by whoever you nominate from the Board of Education, not by me alone.'],
+  ['Then', 'You confirm dates and help fill the first cohort. I handle delivery, materials and the exercise.'],
+  ['The cohort runs', 'Twenty-five members, one week, hands-on. It either works or it does not, and everyone can see which.'],
+  ['After that', 'We review it together, then decide whether there is a second and a third, and whether the funding conversation is worth having.'],
+].forEach(function (n, i) {
+  const y = 2.25 + i * 1.05;
+  numTile(s, M, y, String(i + 1), i === 3 ? ACC : INK);
+  s.addText(n[0], { x: M + 0.85, y: y - 0.02, w: 2.9, h: 0.45, fontSize: 17, bold: true,
+    color: INK, fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(n[1], { x: M + 4.0, y: y - 0.04, w: 8.0, h: 0.85, fontSize: 13.5, color: INK2,
+    fontFace: B, lineSpacing: 19, isTextBox: true, margin: 0 });
+});
+card(s, M, 6.3, CW, 0.8, TINT2);
+s.addText('Nothing here commits the Society beyond the first cohort.',
+  { x: M + 0.45, y: 6.3, w: CW - 0.9, h: 0.8, fontSize: 16, bold: true, color: ACC2, fontFace: H,
+    valign: 'middle', isTextBox: true, margin: 0 });
+s.addNotes(
+  'Committees are wary of open-ended commitments. This slide exists to show them the smallest ' +
+  'possible first step and a clear exit after it.\n\n' +
+  'SAY: "If you did say yes, this is what would happen, so you know what you are agreeing to.\n\n' +
+  'Within a couple of weeks I would come back with a cohort outline shaped by whoever you nominate ' +
+  'from the Board of Education, rather than written by me alone. You would confirm dates and help ' +
+  'fill the first cohort; I would handle delivery, the materials and the exercise. The cohort runs ' +
+  'for a week. And then we look at it together and decide whether there is a second and a third.\n\n' +
+  'Nothing there commits the Society beyond that first cohort. If it is no good, you have lost a ' +
+  'week of a venue and I have lost rather more, which seems like the right way round."\n\n' +
+  'That last line usually gets a small laugh, and it makes the point that you are carrying the risk.'
 );
 
 /* ------------------------------------------------ 17 THE ASK */
