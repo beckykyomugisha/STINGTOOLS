@@ -2,6 +2,98 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 254 — the data files stop disagreeing with each other, and a covering says what it is)
+
+Phase 253 made pricing possible. This phase came from one question — "how
+come it reads the materials but not the layers?" — and the answer turned a
+roof problem into a data-integrity problem.
+
+**Why the layer was invisible.** Every layer reader filters on Finish1,
+Finish2, Substrate, Membrane or Insulation. **None accepts STRUCTURE.** A
+delivered roof typed `Generic - 225mm`, 25 mm thick, carried its asphalt
+shingle on a *structure* layer — so no reader saw it, the element fell to the
+composite fallback, and the fallback names its row after the TYPE. That is the
+whole path from "the model is correct" to "610 m² of unpriceable
+`Generic - 225mm`".
+
+**So rules match on MATERIAL (#840).** Order is kind → material → type:
+decreasing reliability. A kind is emitted by our own take-off, a material is
+chosen deliberately by whoever built the model, a type name is free text at
+5 pm. That roof's type name was wrong by a factor of ten and its material was
+exactly right. Nobody renames a material to make a schedule work.
+
+A hazard was found *while testing, not after*: "no type patterns ⇒ the whole
+category converts" is existing correct behaviour, but combined with a material
+rule it meant adding one shingle rule would silently re-route **every roof in
+the model**. A rule declaring material patterns no longer falls through to
+whole-category matching.
+
+**Five East African roofing commodities**, each stating the arithmetic and each
+told to confirm it. Verified in Revit the same night: 224.44 m² of shingle
+converted to **80 bundles** — 224.44 ÷ 3.1 × 1.10, rounded up — and ROOF went
+2,790,000 → 11,590,000.
+
+**A scan that says which of three things happened (#841).** Material matching
+shipped with a failure indistinguishable from success-minus-one-pattern: the
+row reads `Generic - 225mm, 610 m², unpriced` either way. The scan publishes
+its denominator like the four before it, and *names* the materials it could not
+place. On the first real run it named `Default Roof` and
+`Eagle_Roofing-Tile-as-Specified` — which is how we learned two of three roofs
+have no material decided at all.
+
+**Then the review that reframed everything.** Asked to check the material data
+for standardisation, the sweep found `MATERIAL_LOOKUP.csv` had declared roofing
+coverage and fastener density **per profile** since long before the material
+schedule existed — read by the formula engine, never compared with
+`STING_SUPPLIER_UNITS.json`, and disagreeing on **every shared pair**. Four of
+the five were values added in #840 without checking the file that already held
+them.
+
+**#846 does not resolve them, deliberately.** 2.4 vs 2.7 m²/sheet is 11% of a
+roof order and needs a supplier's coverage table, not a judgement from whoever
+is editing. The gate makes the five impossible to forget and any *new*
+duplication impossible to add — and a recorded pair that stops disagreeing
+**also fails**, so the list shrinks only by reconciling, never by rotting.
+
+**Three things needed no supplier and were fixed:**
+
+- **Fasteners are counted per covering (#848).** A flat 11/m² was applied to
+  every roof. Tiles are nailed every other course, not screwed, and the lookup
+  has said `CLAY_TILE 0` all along. The mixed case is the one no flat ratio can
+  express: 100 m² of sheet at 8 plus 100 m² of tile at 0 is 800 fasteners; a
+  flat 11 over 200 m² gives 2,200.
+- **The plaster coat's allowance governs its cement and sand (#853).**
+- **Tile size, the fourth member of a set that already had three (#857).** Brick
+  bond, block size and plaster type each resolve a `BLE_*` parameter through a
+  canonicaliser with an inference fallback. `BLE_TILE_SIZE_TXT` had been
+  declared in `MR_PARAMETERS.txt` **with a GUID all along, read by nothing** —
+  so a mosaic splashback and a 600 mm porcelain floor both got 10% while the
+  lookup banded them 20 and 8. Adding a fifth mechanism would have been the
+  mistake; this finishes an existing one.
+
+**A By Type sheet (#855)** answers "the number of sheets/tiles for *each* type
+of roof". The order line is what you buy and is untouched; the parts are
+**apportioned, never re-converted** — rounding each type up separately would
+order more than the schedule says, and two documents in one workbook
+disagreeing about a total is worse than no breakdown.
+
+**Tests 1,065 → 1,205.** Build 0/0 throughout, all four gates on every PR, and a
+mutation pass on every change carrying logic — **27 run across eight PRs**, counted
+from the runs recorded in each PR body rather than estimated.
+
+**Four mutations proved nothing, in four different ways, and each is recorded
+rather than counted.** One did not apply (a shell-escaped `&&` broke its
+anchor). One did not compile (removing an `if` left a dangling `else`). One
+tested a **comment** — the claim that adhesive must not take a tile's cutting
+waste lived in prose and in no assertion. One was behaviour-equivalent. Every
+one was caught by checking the run rather than reading its result, and mutations
+are now written to a file with the anchor asserted.
+
+**Not verified.** The tile-size band has no route to proof on the test project —
+it has no tiling at all, its only finish material being Gypsum Wall Board. The
+By Type sheet correctly does not appear there yet either, because only one of
+three roofs converts.
+
 #### Completed (Phase 253 — pricing becomes possible, and the instruction that was impossible is retired)
 
 Ten PRs in one session, all of them started by reading a real export rather than
