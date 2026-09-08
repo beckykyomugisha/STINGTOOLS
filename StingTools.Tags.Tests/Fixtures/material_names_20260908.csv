@@ -1,0 +1,1816 @@
+Material,Expect,Source
+"_ACCURENDER\Metals\Chrome\Polished,Plain",Metal,correction
+"_ACCURENDER\Plastics\Reds and Oranges\Orange, Red,Light,Transparent",NONE,correction
+"_ACCURENDER\Plastics\Reds and Oranges\Orange,Light,Transparent",NONE,correction
+"_ACCURENDER\Plastics\White,Transparent",NONE,correction
+"_ACCURENDER\Solid Colors\Black,Matte",NONE,correction
+"_ACCURENDER\Solid Colors\Whites\Pure,Glossy",NONE,correction
+00-win beading,ANY,unpinned
+3-WAY BALL VALVE 25MM (1 INCH),ANY,unpinned
+3D 039 01,NONE,plan-refusal
+3D 039 02,NONE,plan-refusal
+3D 039 03,NONE,plan-refusal
+3D 039 04,NONE,plan-refusal
+3D CONCRETE PANELS 40MM,Concrete,agrees-with-model
+3D DECORATIVE MDF 18MM,Wood,agrees-with-model
+3D DECORATIVE WOOD PANELS 18MM,Wood,agrees-with-model
+3D PVC WALL PANELS 12MM,Plastic,agrees-with-model
+3D SCULPTURED GYPSUM 20MM,ANY,unpinned
+911 CARRERA S - ALUMINUM,Metal,plan-write
+911 CARRERA S - BODY COLOR,NONE,plan-refusal
+911 CARRERA S - CALIPER TEXT,NONE,plan-refusal
+911 CARRERA S - CALIPERS,NONE,plan-refusal
+911 CARRERA S - CHROME,Metal,named-substance
+911 CARRERA S - GLASS - CLEAR,Glass,plan-write
+911 CARRERA S - GLASS - COVER LENSE,Glass,plan-write
+911 CARRERA S - GLASS - DOORS,Glass,plan-write
+911 CARRERA S - GLASS - ORANGE,Glass,plan-write
+911 CARRERA S - GLASS - REAR,Glass,plan-write
+911 CARRERA S - GLASS - RED,Glass,plan-write
+911 CARRERA S - GLASS - WINDSHIELD,Glass,plan-write
+911 CARRERA S - INTERIOR - COLOR,NONE,plan-refusal
+911 CARRERA S - LIGHTS - OFF,NONE,plan-refusal
+911 CARRERA S - LIGHTS - ON,NONE,plan-refusal
+911 CARRERA S - LOGO - BLACK,NONE,plan-refusal
+911 CARRERA S - LOGO - GOLD,NONE,plan-refusal
+911 CARRERA S - LOGO - RED,NONE,plan-refusal
+911 CARRERA S - MIRRORS,NONE,plan-refusal
+911 CARRERA S - ROTORS,NONE,plan-refusal
+911 CARRERA S - TIRES,NONE,plan-refusal
+911 CARRERA S - TRIM BLACK,NONE,plan-refusal
+911 CARRERA S - UNDERBODY,NONE,plan-refusal
+911 CARRERA S - WHEELS,NONE,plan-refusal
+AAC BLOCK 10IN (600×200×250MM),Masonry,agrees-with-model
+AAC BLOCK 4IN (600×200×100MM),Masonry,agrees-with-model
+AAC BLOCK 6IN (600×200×150MM),Masonry,agrees-with-model
+AAC BLOCK 8IN (600×200×200MM),Masonry,agrees-with-model
+ACCUSTUDIO\Glass\Sheet\Colorless\Cold 2 Frontlight off,Glass,plan-write
+ACCUSTUDIO\Glass\Sheet\Colorless\Cold 2 Frontlight off (1),Glass,plan-write
+"ACCUSTUDIO\Glass\Sheet\Tinted\glass, light blue",Glass,plan-write
+"ACCUSTUDIO\Glass\Sheet\Tinted\glass, light blue (1)",Glass,plan-write
+"ACCUSTUDIO\Metals\Sheet\Plain Surface\Stainless Steel\Stainless Steel, Polbished",Metal,plan-write
+"ACCUSTUDIO\Metals\Sheet\Plain Surface\Stainless Steel\Stainless Steel, PolRished",Metal,plan-write
+ACCUSTUDIO\Solid Colors\Grays and Blacks\Black Rubber 2,Plastic,named-substance
+ACCUSTUDIO\Solid Colors\Grays and Blacks\Black Rubber 2 (1),Plastic,named-substance
+ACOUSTIC BAFFLES 50MM,ANY,unpinned
+ACOUSTIC CEILING TILE 15MM,ANY,unpinned
+Acoustic Ceiling Tile 600 x 1200,ANY,unpinned
+Acoustic Ceiling Tile 600 x 600,ANY,unpinned
+ACOUSTIC CLOUDS 50MM,ANY,unpinned
+ACOUSTIC GYPSUM BOARD 12.5MM,ANY,unpinned
+ACOUSTIC GYPSUM BOARD 15MM,ANY,unpinned
+ACOUSTIC MINERAL WOOL 50MM,ANY,unpinned
+ACOUSTIC PLASTER 15MM,ANY,unpinned
+ACOUSTIC PLASTER WHITE 25MM,ANY,unpinned
+ACOUSTIC PVC DRAINAGE 110MM,Plastic,agrees-with-model
+ACOUSTIC TIMBER PANEL 25MM,Wood,agrees-with-model
+ACOUSTIC WALL PANELS 25MM,ANY,unpinned
+ACOUSTIC WHITE,ANY,unpinned
+ACRYLIC EXTERNAL PAINT 2MM,Paint,agrees-with-model
+ACRYLIC PAINT PREMIUM,Paint,agrees-with-model
+ACRYLIC RENDER CREAM 15MM,ANY,unpinned
+ACRYLIC RENDER LIGHT-GREY 15MM,ANY,unpinned
+ACRYLIC RENDER MID-GREY 15MM,ANY,unpinned
+ACRYLIC RENDER SANDSTONE 15MM,ANY,unpinned
+ACRYLIC RENDER WHITE 15MM,ANY,unpinned
+ACTUATED BUTTERFLY VALVE 200MM (8 INCH),ANY,unpinned
+ADDRESSABLE FIRE ALARM PANEL,ANY,unpinned
+ADHESIVE,NONE,plan-refusal
+AHU 10000 CFM WITH HEATING-COOLING,ANY,unpinned
+AHU 15000 CFM DOUBLE DECK,ANY,unpinned
+AHU 20000 CFM BUILT-UP,ANY,unpinned
+AHU 2500 CFM COMPACT,ANY,unpinned
+AHU 5000 CFM WITH COOLING COIL,ANY,unpinned
+AHU 7500 CFM WITH HEAT RECOVERY,ANY,unpinned
+Air,ANY,unpinned
+AIR BARRIER MEMBRANE 1MM,ANY,unpinned
+AIR COOLED CHILLER 100 TR,ANY,unpinned
+AIR COOLED CHILLER 150 TR,ANY,unpinned
+AIR COOLED CHILLER 50 TR,ANY,unpinned
+Air Openings,NONE,plan-refusal
+Air Surfaces,NONE,plan-refusal
+Aluminum,Metal,agrees-with-model
+ALUMINUM LADDER TRAY 400MM X 2.0MM,Metal,agrees-with-model
+ALUMINUM PAN CEILING 0.5MM,Metal,agrees-with-model
+ALUMINUM PLANK CEILING 0.7MM,Metal,agrees-with-model
+ALUMINUM RECTANGULAR DUCT 1.0MM,Metal,agrees-with-model
+ALUMINUM SHEET 0.7MM,Metal,agrees-with-model
+ALUMINUM SKIRTING 100MM,Metal,agrees-with-model
+ALUMINUM SPIRAL DUCT 300MM,Metal,agrees-with-model
+ALUMINUM STRIP CEILING 0.7MM,Metal,agrees-with-model
+Analytical Floor Surface,NONE,plan-refusal
+Analytical Panels,NONE,plan-refusal
+Analytical Slab Surface,NONE,plan-refusal
+Analytical Spaces,NONE,plan-refusal
+Analytical Surface - Air Openings,NONE,plan-refusal
+Analytical Surface - Air Surfaces,NONE,plan-refusal
+Analytical Surface - Ceilings,NONE,plan-refusal
+Analytical Surface - Exterior Walls,NONE,plan-refusal
+Analytical Surface - Interior Floors,NONE,plan-refusal
+Analytical Surface - Interior Walls,NONE,plan-refusal
+Analytical Surface - Operable Skylights,NONE,plan-refusal
+Analytical Surface - Operable Windows,NONE,plan-refusal
+Analytical Surface - Roofs,NONE,plan-refusal
+Analytical Surface - Shades,NONE,plan-refusal
+Analytical Surface - Slabs on Grade,NONE,plan-refusal
+Analytical Surface - Sliding Doors,NONE,plan-refusal
+Analytical Surface - Underground Walls,NONE,plan-refusal
+Analytical Wall Surface,NONE,plan-refusal
+ANTI-FUNGAL PAINT SYSTEM 15MM,Paint,agrees-with-model
+ANTI-GRAFFITI COATING 1MM,Paint,agrees-with-model
+ANTI-MOULD WHITE,ANY,unpinned
+ANTI-SLIP EPOXY 5MM,ANY,unpinned
+ANTI-SLIP TOPCOAT,NONE,plan-refusal
+ANTI-STATIC FLOOR 5MM,ANY,unpinned
+APP MODIFIED BITUMEN 4MM,ANY,unpinned
+Appliance - Gasket,ANY,unpinned
+Appliance - Stainless Steel,Metal,agrees-with-model
+Appliance - Steel - Black,Metal,plan-write
+Area Loads,NONE,plan-refusal
+Ash,ANY,unpinned
+Asphalt Shingle,ANY,unpinned
+"Asphalt, Pavement, Light Grey",ANY,unpinned
+AUTOMATIC BALANCING VALVE 25MM,ANY,unpinned
+AXIAL EXHAUST FAN 5000 CFM,ANY,unpinned
+BACKDRAFT DAMPER 250MM,ANY,unpinned
+BACKING,NONE,plan-refusal
+BACKLIT ONYX TILES 20MM,ANY,unpinned
+BACKLIT RESIN PANELS 10MM,ANY,unpinned
+BAMBOO PLANK,Wood,named-substance
+BARNWOOD SIDING 22MM,ANY,unpinned
+BASE COAT,NONE,plan-refusal
+BASEMENT WALL,ANY,unpinned
+BASIN MONO BLOC MIXER TAP,ANY,unpinned
+BASIN-TAP BRUSHED-NICKEL,ANY,unpinned
+BASIN-TAP CHROME,ANY,unpinned
+BASIN-TAP GOLD,ANY,unpinned
+BASIN-TAP MATT-BLACK,ANY,unpinned
+BATH-TAP BRUSHED-NICKEL,ANY,unpinned
+BATH-TAP CHROME,ANY,unpinned
+BATH-TAP GOLD,ANY,unpinned
+BATH-TAP MATT-BLACK,ANY,unpinned
+BATHROOM WALL COMPLETE 27MM,ANY,unpinned
+BITUMEN MEMBRANE 4MM,ANY,unpinned
+BITUMEN MEMBRANE 5MM,ANY,unpinned
+BITUMINOUS WATERPROOF 14MM,ANY,unpinned
+Black Plastic,Plastic,agrees-with-model
+BLACK STEEL PIPE SCH40 100MM (4 INCH),Metal,agrees-with-model
+BLACK STEEL PIPE SCH40 25MM (1 INCH),Metal,agrees-with-model
+BLACK STEEL PIPE SCH40 50MM (2 INCH),Metal,agrees-with-model
+Blks - Fabric - Cotton - Wire - 0.2x0x2 0º - White - 250-250-250,Textile,agrees-with-model
+Blks - Fabric - Linen - 100x100 0º - Gray - 182-182-176,ANY,unpinned
+Blks - Fabric - Macrame - 10x10 0º - Brown - 149-126-104,ANY,unpinned
+Blks - Wood - Freijo - 80x80 0º,Wood,agrees-with-model
+Blks - Wood - Freijo - 80x80 90º,Wood,agrees-with-model
+Blks - Wood - Freijó - Dark - 20x40 0º,Wood,agrees-with-model
+Blks - Wood - Freijó - Dark - 20x40 90º,Wood,agrees-with-model
+Blks - Wood - Maple - 100x100 90º,ANY,unpinned
+BLOCK AIRCRETE 100MM,Masonry,agrees-with-model
+BLOCK AIRCRETE 150MM,Masonry,agrees-with-model
+BLOCK AIRCRETE 200MM,Masonry,agrees-with-model
+BLOCK DENSE 100MM,Masonry,agrees-with-model
+BLOCK DENSE 150MM,Masonry,agrees-with-model
+BLOCK DENSE 200MM,Masonry,agrees-with-model
+BLOCK HOLLOW 100MM,Masonry,agrees-with-model
+BLOCK HOLLOW 150MM,Masonry,agrees-with-model
+BLOCK HOLLOW 200MM,Masonry,agrees-with-model
+BLOCK LIGHTWEIGHT 100MM,Masonry,agrees-with-model
+BLOCK LIGHTWEIGHT 150MM,Masonry,agrees-with-model
+BLOCK LIGHTWEIGHT 200MM,Masonry,agrees-with-model
+BLOCK SOLID 100MM,Masonry,agrees-with-model
+BLOCK SOLID 150MM,Masonry,agrees-with-model
+BLOCK SOLID 200MM,Masonry,agrees-with-model
+blue,NONE,plan-refusal
+BLUE BOARD GYPSUM 12.5MM,ANY,unpinned
+BLUESTONE PAVING 40MM,ANY,unpinned
+BLUESTONE SLAB,Stone,plan-write
+BMCD2AR3\Solid Materials \Matte\Textured\Black,NONE,plan-refusal
+"BMCD2AR3\Solid Materials \Matte\Textured\Brown, dark",NONE,plan-refusal
+BMCD2AR3\Solid Materials \Matte\Textured\Cerulean,NONE,plan-refusal
+"BMCD2AR3\Solid Materials \Matte\Textured\Gray, dark",NONE,plan-refusal
+"BMCD2AR3\Solid Materials \Matte\Textured\Gray, light",NONE,plan-refusal
+"BMCD2AR3\Solid Materials \Matte\Textured\Tan, medium",NONE,plan-refusal
+"BMCD2AR3\Solid Materials \Metals\Colors\Normal\Gray, medium",NONE,plan-refusal
+BMW 750Li - ALUMINUM,Metal,plan-write
+BMW 750Li - BODY COLOR,NONE,plan-refusal
+BMW 750Li - CALIPERS,NONE,plan-refusal
+BMW 750Li - CHROME,Metal,named-substance
+BMW 750Li - GLASS - BLACK TRIM,Glass,plan-write
+BMW 750Li - GLASS - CLEAR,Glass,plan-write
+BMW 750Li - GLASS - FRONT DOORS,Glass,plan-write
+BMW 750Li - GLASS - ORANGE,Glass,plan-write
+BMW 750Li - GLASS - REAR,Glass,plan-write
+BMW 750Li - GLASS - RED,Glass,plan-write
+BMW 750Li - GLASS - WINDSHIELD,Glass,plan-write
+BMW 750Li - INTERIOR - COLOR,NONE,plan-refusal
+BMW 750Li - LIGHTS - HEADLIGHTS,NONE,plan-refusal
+BMW 750Li - LIGHTS - REAR ON,NONE,plan-refusal
+BMW 750Li - LIGHTS - RUNNING,NONE,plan-refusal
+BMW 750Li - LOGO BLUE,NONE,plan-refusal
+BMW 750Li - LOGO WHITE,NONE,plan-refusal
+BMW 750Li - MIRRORS,NONE,plan-refusal
+BMW 750Li - ROTORS,NONE,plan-refusal
+BMW 750Li - TIRES,NONE,plan-refusal
+BMW 750Li - TRIM BLACK,NONE,plan-refusal
+BMW 750Li - UNDERBODY,NONE,plan-refusal
+BMW 750Li - WHEELS,NONE,plan-refusal
+Boundary Condition – Fixed,ANY,unpinned
+Boundary Condition – Pinned,ANY,unpinned
+Boundary Condition – Roller,ANY,unpinned
+Boundary Condition – X-Axis,ANY,unpinned
+Boundary Condition – Y-Axis,ANY,unpinned
+Boundary Condition – Z-Axis,ANY,unpinned
+Boundary Roller,ANY,unpinned
+BOX PROFILE 0.7MM,ANY,unpinned
+BRASS BALL VALVE 20MM (3-4 INCH),Metal,agrees-with-model
+BRASS BALL VALVE 25MM (1 INCH),Metal,agrees-with-model
+BREAK GLASS MANUAL CALL POINT,Glass,agrees-with-model
+BREATHABLE HOUSE WRAP 0.5MM,ANY,unpinned
+BREATHABLE MEMBRANE 0.4MM,ANY,unpinned
+BRICK CORE AAC Block Backup 250mm,Masonry,agrees-with-model
+BRICK CORE Cavity Wall 225mm 50mm Cavity,Masonry,agrees-with-model
+BRICK CORE Cavity Wall 275mm 75mm Cavity,Masonry,agrees-with-model
+BRICK CORE Cavity Wall 300mm 100mm Cavity,Masonry,agrees-with-model
+BRICK CORE Cavity Wall 340mm 150mm Cavity,Masonry,agrees-with-model
+BRICK CORE Common Brick Single Skin,Masonry,agrees-with-model
+BRICK CORE Engineering Brick Single Skin,Masonry,agrees-with-model
+BRICK CORE Facing Brick Single Skin,Masonry,agrees-with-model
+BRICK CORE Insulated Backup 300mm,Masonry,agrees-with-model
+BRICK CORE Reclaimed Brick Single Skin,Masonry,agrees-with-model
+BRICK CORE Structural Backup 250mm,Masonry,agrees-with-model
+BRICK CORE Thermalite Backup 250mm,Masonry,agrees-with-model
+BRICK PILLAR UNIT (225×225×75MM),Masonry,agrees-with-model
+"Brick, Common",Masonry,agrees-with-model
+"Brick, Common(1)",Masonry,agrees-with-model
+"Brick, Common(2)",Masonry,agrees-with-model
+"Brick, Soldier Course",Masonry,agrees-with-model
+BROADLOOM CARPET 8MM,ANY,unpinned
+BRONZE GATE VALVE 20MM (3-4 INCH),ANY,unpinned
+BRONZE GATE VALVE 25MM (1 INCH),ANY,unpinned
+BRONZE GLOBE VALVE 20MM (3-4 INCH),ANY,unpinned
+Cabinet,NONE,plan-refusal
+Cabinets,ANY,unpinned
+Cabinets - Handles,ANY,unpinned
+CABLE TRAY POWDER COATED WHITE,ANY,unpinned
+CABLE TRAY STAINLESS STEEL 304,ANY,unpinned
+CALCIUM SILICATE BOARD 10MM,ANY,unpinned
+CARBON BLOCK FILTER 20 INCH,Masonry,agrees-with-model
+CARPET,Textile,plan-write
+Carpet (1),ANY,unpinned
+CARPET TILE,Textile,correction
+CARPET TILE 6MM 500X500MM,ANY,unpinned
+CARPET TILE BEIGE-HEATHER-DARK,ANY,unpinned
+CARPET TILE BEIGE-HEATHER-LIGHT,ANY,unpinned
+CARPET TILE BERBER-NATURAL,ANY,unpinned
+CARPET TILE BLUE-HEATHER-DARK,ANY,unpinned
+CARPET TILE BLUE-HEATHER-LIGHT,ANY,unpinned
+CARPET TILE CUT-BEIGE,ANY,unpinned
+CARPET TILE GREEN-HEATHER,ANY,unpinned
+CARPET TILE GREY-HEATHER-DARK,ANY,unpinned
+CARPET TILE GREY-HEATHER-LIGHT,ANY,unpinned
+CARPET TILE LOOP-BLUE,ANY,unpinned
+CARPET TILE LOOP-GREY,ANY,unpinned
+CARPET TILE MULTI-HEATHER,ANY,unpinned
+CARPET TILE SAXONY-GREY,ANY,unpinned
+CARPET TILE SOLID BROWN,ANY,unpinned
+CARPET TILE SOLID CHARCOAL,ANY,unpinned
+CARPET TILE SOLID DARK-GREY,ANY,unpinned
+CARPET TILE SOLID LIGHT-BEIGE,ANY,unpinned
+CARPET TILE SOLID LIGHT-BLUE,ANY,unpinned
+CARPET TILE SOLID LIGHT-GREY,ANY,unpinned
+CARPET TILE SOLID MID-BEIGE,ANY,unpinned
+CARPET TILE SOLID MID-BLUE,ANY,unpinned
+CARPET TILE SOLID MID-GREY,ANY,unpinned
+CARPET TILE SOLID NAVY-BLUE,ANY,unpinned
+CARPET TILE SOLID SAGE-GREEN,ANY,unpinned
+CARPET TILE SOLID WARM-BEIGE,ANY,unpinned
+CAST IN-SITU TERRAZZO 30MM,ANY,unpinned
+CAST IRON GATE VALVE 100MM (4 INCH),Metal,agrees-with-model
+CAST IRON GATE VALVE 50MM (2 INCH),Metal,agrees-with-model
+CAST IRON GLOBE VALVE 50MM (2 INCH),Metal,agrees-with-model
+CAST IRON PIPE 100MM (4 INCH),Metal,agrees-with-model
+CAST IRON PIPE 150MM (6 INCH),Metal,agrees-with-model
+CAST IRON PIPE 200MM (8 INCH),Metal,agrees-with-model
+CAST IRON PIPE 50MM (2 INCH),Metal,agrees-with-model
+CAST IRON PIPE 75MM (3 INCH),Metal,agrees-with-model
+CAT6 UTP 4-PAIR DATA CABLE,ANY,unpinned
+CAT6A UTP 4-PAIR DATA CABLE,ANY,unpinned
+CAVITY WALL 100MM STANDARD,ANY,unpinned
+CAVITY WALL 125MM WIDE INSULATED,ANY,unpinned
+CAVITY WALL 150MM WIDE INSULATED,ANY,unpinned
+CAVITY WALL 175MM WIDE INSULATED,ANY,unpinned
+CAVITY WALL 50MM STANDARD,ANY,unpinned
+CAVITY WALL 75MM STANDARD,ANY,unpinned
+CEILING ACOUSTIC FABRIC BEIGE,ANY,unpinned
+CEILING ACOUSTIC FABRIC CHARCOAL,ANY,unpinned
+CEILING ACOUSTIC FABRIC CREAM,ANY,unpinned
+CEILING ACOUSTIC FABRIC DARK-GREY,ANY,unpinned
+CEILING ACOUSTIC FABRIC LIGHT-BLUE,ANY,unpinned
+CEILING ACOUSTIC FABRIC LIGHT-GREY,ANY,unpinned
+CEILING ACOUSTIC FABRIC MID-GREY,ANY,unpinned
+CEILING ACOUSTIC FABRIC NAVY,ANY,unpinned
+CEILING ACOUSTIC FABRIC SAGE-GREEN,ANY,unpinned
+CEILING ACOUSTIC FABRIC TERRACOTTA,ANY,unpinned
+CEILING ACOUSTIC FABRIC WARM-GREY,ANY,unpinned
+CEILING ACOUSTIC FABRIC WHITE,ANY,unpinned
+CEILING GYPSUM COFFERED,ANY,unpinned
+CEILING GYPSUM CURVED,ANY,unpinned
+CEILING GYPSUM PAINTED-BLACK,ANY,unpinned
+CEILING GYPSUM PAINTED-GREY,ANY,unpinned
+CEILING GYPSUM PAINTED-OFF-WHITE,ANY,unpinned
+CEILING GYPSUM PAINTED-WHITE,ANY,unpinned
+CEILING GYPSUM PERFORATED,ANY,unpinned
+CEILING GYPSUM SMOOTH-CREAM,ANY,unpinned
+CEILING GYPSUM SMOOTH-WHITE,ANY,unpinned
+CEILING GYPSUM TEXTURED-WHITE,ANY,unpinned
+CEILING HANGER ROD 6MM,ANY,unpinned
+CEILING HANGER WIRE 4MM,ANY,unpinned
+CEILING METAL PANEL ALUMINUM,ANY,unpinned
+CEILING METAL PANEL ANODIZED,ANY,unpinned
+CEILING METAL PANEL BLACK-RAL9005,ANY,unpinned
+CEILING METAL PANEL BRONZE,ANY,unpinned
+CEILING METAL PANEL BRUSHED-STEEL,ANY,unpinned
+CEILING METAL PANEL COPPER,ANY,unpinned
+CEILING METAL PANEL DARK-GREY-RAL7016,ANY,unpinned
+CEILING METAL PANEL GOLD,ANY,unpinned
+CEILING METAL PANEL LIGHT-GREY-RAL7035,ANY,unpinned
+CEILING METAL PANEL MID-GREY-RAL7001,ANY,unpinned
+CEILING METAL PANEL OFF-WHITE-RAL9001,ANY,unpinned
+CEILING METAL PANEL PERFORATED-SILVER,ANY,unpinned
+CEILING METAL PANEL PERFORATED-WHITE,ANY,unpinned
+CEILING METAL PANEL SILVER,ANY,unpinned
+CEILING METAL PANEL WHITE-RAL9010,ANY,unpinned
+CEILING MF-TILE FISSURED,ANY,unpinned
+CEILING MF-TILE OFF-WHITE,ANY,unpinned
+CEILING MF-TILE RANDOM,ANY,unpinned
+CEILING MF-TILE TEGULAR-GREY,ANY,unpinned
+CEILING MF-TILE TEGULAR-WHITE,ANY,unpinned
+CEILING MF-TILE TEXTURED,ANY,unpinned
+CEILING MF-TILE WARM-WHITE,ANY,unpinned
+CEILING MF-TILE WHITE-HIGH-NRC,ANY,unpinned
+CEILING MF-TILE WHITE-MOISTURE,ANY,unpinned
+CEILING MF-TILE WHITE-STD,ANY,unpinned
+CEILING MOUNT RAIN SHOWER 300MM,ANY,unpinned
+CEILING SPECIALTY BAFFLE,ANY,unpinned
+CEILING SPECIALTY BASKET-WEAVE,ANY,unpinned
+CEILING SPECIALTY CLOUD,ANY,unpinned
+CEILING SPECIALTY CUSTOM,ANY,unpinned
+CEILING SPECIALTY GRID-CLOSED,ANY,unpinned
+CEILING SPECIALTY GRID-OPEN,ANY,unpinned
+CEILING SPECIALTY MODULAR-METAL,ANY,unpinned
+CEILING SPECIALTY MODULAR-WOOD,ANY,unpinned
+CEILING SPECIALTY STRETCH-BLACK,ANY,unpinned
+CEILING SPECIALTY STRETCH-WHITE,ANY,unpinned
+CEILING WOOD ACOUSTIC-PANEL,ANY,unpinned
+CEILING WOOD ACOUSTIC-SLAT,ANY,unpinned
+CEILING WOOD ASH-PANEL,ANY,unpinned
+CEILING WOOD ASH-SLAT,ANY,unpinned
+CEILING WOOD MIXED-WOOD,ANY,unpinned
+CEILING WOOD OAK-BLACK,ANY,unpinned
+CEILING WOOD OAK-GREY,ANY,unpinned
+CEILING WOOD OAK-PANEL,ANY,unpinned
+CEILING WOOD OAK-SLAT-NATURAL,ANY,unpinned
+CEILING WOOD OAK-WHITE,ANY,unpinned
+CEILING WOOD WALNUT-PANEL,ANY,unpinned
+CEILING WOOD WALNUT-SLAT,ANY,unpinned
+Ceilings,NONE,plan-refusal
+CEMENT + PAINT SKIRTING 100MM,ANY,unpinned
+CEMENT BOARD DECK 12MM,ANY,unpinned
+CEMENT BOARD SHEATHING 12MM,ANY,unpinned
+CEMENT COVE SKIRTING 100MM,ANY,unpinned
+CEMENT PLASTER FINISH 12MM,ANY,unpinned
+CEMENT PLASTER HEAVY 15MM,ANY,unpinned
+CEMENT RENDER ANTHRACITE 15MM,ANY,unpinned
+CEMENT RENDER CREAM 15MM,ANY,unpinned
+CEMENT RENDER LIGHT-GREY 15MM,ANY,unpinned
+CEMENT RENDER MID-GREY 15MM,ANY,unpinned
+CEMENT RENDER NATURAL 15MM,ANY,unpinned
+CEMENT RENDER OCHRE 15MM,ANY,unpinned
+CEMENT RENDER OFF-WHITE 15MM,ANY,unpinned
+CEMENT RENDER SANDSTONE 15MM,ANY,unpinned
+CEMENT RENDER TERRACOTTA 15MM,ANY,unpinned
+CEMENT RENDER WHITE 15MM,ANY,unpinned
+CEMENT SAND PLASTER 1-2 (HIGH STRENGTH),ANY,unpinned
+CEMENT SAND PLASTER 1-3 (STRONG),ANY,unpinned
+CEMENT SAND PLASTER 1-4 (STANDARD),ANY,unpinned
+CEMENT SAND PLASTER 1-5 (ECONOMIC),ANY,unpinned
+CEMENT SAND PLASTER 1-6 (LIGHT),ANY,unpinned
+CEMENT SAND RENDER 1-2 (HEAVY DUTY),ANY,unpinned
+CEMENT SAND RENDER 1-3 (EXTERNAL BASE),ANY,unpinned
+CEMENT SAND RENDER 1-4 (EXTERNAL STANDARD),ANY,unpinned
+CEMENT SAND RENDER 1-5 (PROTECTED EXTERNAL),ANY,unpinned
+CEMENT SAND RENDER 1-6 (INTERNAL BACKING),ANY,unpinned
+CEMENT SCREED,Concrete,plan-write
+CEMENT SKIRTING ECONOMY 75MM,ANY,unpinned
+CEMENT SKIRTING PREMIUM 150MM,ANY,unpinned
+CEMENT SKIRTING STANDARD 100MM,ANY,unpinned
+Cementitious Backer Board,ANY,unpinned
+CENTRIFUGAL FAN 10000 CFM,ANY,unpinned
+CERAMIC MOSAIC,Ceramic,plan-write
+CERAMIC MOSAIC 6MM,ANY,unpinned
+CERAMIC TILE,Ceramic,plan-write
+Ceramic Tile grey(1),Ceramic,agrees-with-model
+CERAMIC TILE SKIRTING 100MM,ANY,unpinned
+CERAMIC TILE STANDARD 25MM,ANY,unpinned
+Ceramic Tile(2),Ceramic,agrees-with-model
+CERAMIC TILES 200X200MM 8MM,ANY,unpinned
+CERAMIC TILES 300X300MM 10MM,ANY,unpinned
+CERAMIC TILES ON PLASTER 13MM,ANY,unpinned
+CERAMIC TILES SKIRTING 100MM,ANY,unpinned
+CHALKBOARD PAINT 1MM,Paint,agrees-with-model
+Cherry,ANY,unpinned
+CHEVRON PARQUET 15MM,Wood,agrees-with-model
+CHILLED WATER PUMP 20 HP,ANY,unpinned
+CHILLED WATER PUMP 50 HP,ANY,unpinned
+CHILLED WATER PUMP 75 HP,ANY,unpinned
+CHIMNEY FLASHING 0.7MM,ANY,unpinned
+Chrome,Metal,named-substance
+Chrome 82CBA5A1,ANY,unpinned
+Chrome- Victoria- Roca,Metal,agrees-with-model
+Chromed Steel,Metal,agrees-with-model
+Clad - White,ANY,unpinned
+CLASSIC SUBWAY TILES 75X150MM,ANY,unpinned
+CLAY BLOCK,Masonry,plan-write
+CLAY BLOCK PAVING 60MM,Masonry,agrees-with-model
+CLAY BRICK ENGINEERING (225×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK FACING (225×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK FIRE-REFRACTORY (225×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK HALF (112.5×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK PAVER,Masonry,plan-write
+CLAY BRICK PAVER 50MM,Masonry,agrees-with-model
+CLAY BRICK PAVER 65MM,Masonry,agrees-with-model
+CLAY BRICK PERFORATED (225×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK STANDARD (225×112.5×75MM),Masonry,agrees-with-model
+CLAY BRICK VILLAGE LARGE (295×150×130MM),Masonry,agrees-with-model
+CLAY BRICK VILLAGE-ARTISAN (220×110×65MM),Masonry,agrees-with-model
+CLAY ROOF TILES 12MM,ANY,unpinned
+CLAY TILES PREMIUM 15MM,ANY,unpinned
+CLEVIS HANGER 25MM (1 INCH),ANY,unpinned
+CLEVIS HANGER 80MM (3 INCH),ANY,unpinned
+CLIP-IN METAL PANEL 0.6MM,ANY,unpinned
+CLOSED CELL SPRAY FOAM 75MM,ANY,unpinned
+CLOSED CIRCUIT COOLING TOWER 100 TR,ANY,unpinned
+CLOUD CEILING PANEL 50MM,ANY,unpinned
+"CMU, Split Face",ANY,unpinned
+COLUMN,ANY,unpinned
+column cap,ANY,unpinned
+COMBINATION FIRE-SMOKE DAMPER 600X300MM,ANY,unpinned
+COMBINED SOUNDER & VISUAL BEACON,ANY,unpinned
+COMFORT HEIGHT FLOOR WC,ANY,unpinned
+COMPLETE PRIMER + PAINT SYSTEM 2MM,Paint,agrees-with-model
+COMPOSITE DECKING 25MM,ANY,unpinned
+COMPOSITE TILES 8MM,ANY,unpinned
+COMPOUND WALL,ANY,unpinned
+COMPRESSED EARTH BLOCK LARGE (300×150×100MM),Masonry,agrees-with-model
+COMPRESSED EARTH BLOCK SMALL (220×105×75MM),Masonry,agrees-with-model
+COMPRESSED EARTH BLOCK STANDARD (295×140×100MM),Masonry,agrees-with-model
+CON_Generic_Fabric_Blue,ANY,unpinned
+CON_Generic_Fabric_Green,ANY,unpinned
+CON_Generic_Fabric_Grey,ANY,unpinned
+CON_Generic_Fabric_Red,ANY,unpinned
+CON_Generic_Metal,ANY,unpinned
+CON_Generic_Wood_Oak,Wood,named-substance
+CON_Generic_Wood_Oak_Black,Wood,named-substance
+CONCEALED EDGE GRID 20MM,ANY,unpinned
+CONCEALED FCU 200 CFM,ANY,unpinned
+CONCEALED FCU 400 CFM,ANY,unpinned
+CONCEALED FCU 600 CFM,ANY,unpinned
+CONCEALED FCU 800 CFM,ANY,unpinned
+CONCEALED SPLINE GRID 15MM,ANY,unpinned
+Concept,NONE,plan-refusal
+Concrete - Cast in Situ Lightweight(1),Concrete,agrees-with-model
+Concrete - Cast-in-Place Concrete,Concrete,agrees-with-model
+CONCRETE CAST IN SITU 150MM,Concrete,agrees-with-model
+CONCRETE CAST IN SITU 200MM,Concrete,agrees-with-model
+CONCRETE CAST IN SITU 250MM,Concrete,agrees-with-model
+CONCRETE CAST IN SITU 300MM,Concrete,agrees-with-model
+CONCRETE CAST IN SITU 50MM,Concrete,agrees-with-model
+CONCRETE COLUMN BLOCK 12IN (300×300×200MM),ANY,unpinned
+CONCRETE COLUMN BLOCK 9IN (225×225×200MM),ANY,unpinned
+Concrete Masonry Units,Masonry,agrees-with-model
+CONCRETE PAVER,Concrete,plan-write
+CONCRETE PAVER 100MM,Concrete,agrees-with-model
+CONCRETE PAVER 50MM,Concrete,agrees-with-model
+CONCRETE PAVER 60MM,Concrete,agrees-with-model
+CONCRETE PAVER 80MM,Concrete,agrees-with-model
+CONCRETE PRECAST 150MM,Concrete,agrees-with-model
+CONCRETE PRECAST 200MM,Concrete,agrees-with-model
+CONCRETE PRECAST 250MM,Concrete,agrees-with-model
+CONCRETE PRECAST SANDWICH 300MM,Concrete,agrees-with-model
+CONCRETE ROOF TILES 10MM,Concrete,agrees-with-model
+CONCRETE SLAB,Concrete,plan-write
+CONCRETE TILES PREMIUM 12MM,Concrete,agrees-with-model
+CONCRETE WITH AGGREGATE,Concrete,plan-write
+"Concrete, Cast In Situ",Concrete,agrees-with-model
+"Concrete, Cast In Situ(1)",Concrete,agrees-with-model
+"Concrete, Cast-in-Place - C25",Concrete,agrees-with-model
+"Concrete, Cast-in-Place gray",Concrete,agrees-with-model
+"Concrete, Cast-in-Place, Gray",Concrete,agrees-with-model
+"Concrete, Lightweight",Concrete,agrees-with-model
+"Concrete, Precast",Concrete,agrees-with-model
+Concreto armado,ANY,unpinned
+CONDENSER WATER PUMP 30 HP,ANY,unpinned
+CONDUCTIVE BASE,NONE,plan-refusal
+CONDUIT PVC 16MM BLACK,ANY,unpinned
+CONDUIT PVC 16MM BLUE,ANY,unpinned
+CONDUIT PVC 16MM GREEN,ANY,unpinned
+CONDUIT PVC 16MM GREY,ANY,unpinned
+CONDUIT PVC 16MM ORANGE,ANY,unpinned
+CONDUIT PVC 16MM RED,ANY,unpinned
+CONDUIT PVC 16MM WHITE,ANY,unpinned
+CONDUIT PVC 16MM YELLOW,ANY,unpinned
+CONDUIT PVC 20MM BLACK,ANY,unpinned
+CONDUIT PVC 20MM BLUE,ANY,unpinned
+CONDUIT PVC 20MM GREEN,ANY,unpinned
+CONDUIT PVC 20MM GREY,ANY,unpinned
+CONDUIT PVC 20MM ORANGE,ANY,unpinned
+CONDUIT PVC 20MM RED,ANY,unpinned
+CONDUIT PVC 20MM WHITE,ANY,unpinned
+CONDUIT PVC 20MM YELLOW,ANY,unpinned
+CONDUIT PVC 25MM BLACK,ANY,unpinned
+CONDUIT PVC 25MM BLUE,ANY,unpinned
+CONDUIT PVC 25MM GREEN,ANY,unpinned
+CONDUIT PVC 25MM GREY,ANY,unpinned
+CONDUIT PVC 25MM ORANGE,ANY,unpinned
+CONDUIT PVC 25MM WHITE,ANY,unpinned
+CONDUIT PVC 25MM YELLOW,ANY,unpinned
+CONSTANT SPRING HANGER 50MM,ANY,unpinned
+CONTROL CABLE 2CX1.5MM²,ANY,unpinned
+CONTROL CABLE 4CX2.5MM²,ANY,unpinned
+Copper,Metal,agrees-with-model
+COPPER PIPE TYPE L 12MM (3-8 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE L 15MM (1-2 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE L 25MM (1 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE L 28MM (1.25 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE L 35MM (1.5 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE L 42MM (2 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE M 15MM (1-2 INCH),Metal,agrees-with-model
+COPPER PIPE TYPE M 22MM (1 INCH),Metal,agrees-with-model
+CORE LAYERS,NONE,plan-refusal
+CORIAN WALL PANELS 12MM,ANY,unpinned
+Cork - Plastic,Plastic,named-substance
+CORK TILE,Wood,correction
+CORK TILE 6MM,ANY,unpinned
+CORRUGATED HDPE PIPE 150MM,Plastic,agrees-with-model
+CORRUGATED HDPE PIPE 200MM,Plastic,agrees-with-model
+CORRUGATED HDPE PIPE 300MM,Plastic,agrees-with-model
+CORRUGATED HDPE PIPE 375MM,Plastic,agrees-with-model
+CORRUGATED HDPE PIPE 450MM,Plastic,agrees-with-model
+CORRUGATED METAL PANEL 0.7MM,ANY,unpinned
+Couch - Fabric,ANY,unpinned
+Couch - Legs,ANY,unpinned
+Counter Top,ANY,unpinned
+COUNTER TOP BASIN 600MM ROUND,ANY,unpinned
+Coupe - Zone de Coupe,NONE,plan-refusal
+CPVC PIPE SCH80 25MM (1 INCH),Plastic,agrees-with-model
+CPVC PIPE SCH80 50MM (2 INCH),Plastic,agrees-with-model
+CRAZY PAVING 40MM,ANY,unpinned
+CUSTOM ORB 0.5MM,ANY,unpinned
+CUT PILE CARPET,Textile,plan-write
+Damp-proofing,ANY,unpinned
+dark gray,NONE,plan-refusal
+DATA SOCKET CAT6 RJ45,ANY,unpinned
+DATA SOCKET CAT6A RJ45 DUAL,ANY,unpinned
+DB 250A 400V 3-PHASE,ANY,unpinned
+DB 400A 400V 3-PHASE,ANY,unpinned
+DECORATIVE CEMENT TILES 12MM,ANY,unpinned
+DECORATIVE WOOD SLATS 15MM,Wood,agrees-with-model
+Default,ANY,unpinned
+Default,NONE,plan-refusal
+Default,NONE,plan-refusal
+Default,NONE,plan-refusal
+Default Floor,ANY,unpinned
+Default Floor Area Face,ANY,unpinned
+Default Form,ANY,unpinned
+Default Frame,NONE,plan-refusal
+Default Light Source,ANY,unpinned
+Default Light Source,ANY,unpinned
+Default Mass Exterior Wall,ANY,unpinned
+Default Mass Floor,ANY,unpinned
+Default Mass Interior Wall,ANY,unpinned
+Default Mass Opening,ANY,unpinned
+Default Mass Roof,ANY,unpinned
+Default Mass Shade,ANY,unpinned
+Default Mass Skylight,ANY,unpinned
+Default Mass Zone,ANY,unpinned
+Default Material 60FE7AA8,ANY,unpinned
+Default metal,NONE,plan-refusal
+Default New Material,ANY,unpinned
+Default Roof,ANY,unpinned
+Default Roof,ANY,unpinned
+Default Wall,ANY,unpinned
+DESIGNER MIRROR WALL 8MM,ANY,unpinned
+DIESEL GENERATOR 100KVA,ANY,unpinned
+DIESEL GENERATOR 250KVA,ANY,unpinned
+DIESEL GENERATOR 500KVA,ANY,unpinned
+DIESEL GENERATOR 50KVA,ANY,unpinned
+DIRECT PLASTER CEILING 12MM,ANY,unpinned
+Door - Frame,ANY,unpinned
+DOUBLE GANG 2-WAY LIGHT SWITCH 13A,ANY,unpinned
+DOUBLE-SOCKET BLACK,ANY,unpinned
+DOUBLE-SOCKET BRASS,ANY,unpinned
+DOUBLE-SOCKET BRONZE,ANY,unpinned
+DOUBLE-SOCKET BRUSHED-NICKEL,ANY,unpinned
+DOUBLE-SOCKET BRUSHED-STEEL,ANY,unpinned
+DOUBLE-SOCKET CHROME,ANY,unpinned
+DOUBLE-SOCKET STAINLESS,ANY,unpinned
+DOUBLE-SOCKET WHITE,ANY,unpinned
+DOUBLE-SWITCH BLACK,ANY,unpinned
+DOUBLE-SWITCH BRASS,ANY,unpinned
+DOUBLE-SWITCH BRONZE,ANY,unpinned
+DOUBLE-SWITCH BRUSHED-NICKEL,ANY,unpinned
+DOUBLE-SWITCH BRUSHED-STEEL,ANY,unpinned
+DOUBLE-SWITCH CHROME,ANY,unpinned
+DOUBLE-SWITCH STAINLESS,ANY,unpinned
+DOUBLE-SWITCH WHITE,ANY,unpinned
+DPC BITUMEN SHEET 3MM,ANY,unpinned
+DPC POLYTHENE 1000 GAUGE,ANY,unpinned
+DPC POLYTHENE 1200 GAUGE,ANY,unpinned
+DRY TYPE TRANSFORMER 100KVA,ANY,unpinned
+DRY TYPE TRANSFORMER 250KVA,ANY,unpinned
+DRY TYPE TRANSFORMER 500KVA,ANY,unpinned
+DUCTILE IRON GATE VALVE 150MM (6 INCH),Metal,agrees-with-model
+DWARF WALL,ANY,unpinned
+Eagle_Roofing-Tile-as-Specified,ANY,unpinned
+Earth,ANY,unpinned
+EAVE DRIP EDGE 0.5MM,ANY,unpinned
+ECONOMY CEMENT SKIRTING 75MM,ANY,unpinned
+EGGSHELL FINISH PAINT 1MM,Paint,agrees-with-model
+EGGSHELL LIGHT-GREY,ANY,unpinned
+EGGSHELL MID-GREY,ANY,unpinned
+EGGSHELL OFF-WHITE,ANY,unpinned
+EGGSHELL WHITE,ANY,unpinned
+"EIFS, Exterior Insulation",ANY,unpinned
+ELASTIC LAYER,NONE,plan-refusal
+ELASTOMERIC PIPE INSULATION 19MM,Insulation,agrees-with-model
+ELASTOMERIC PIPE INSULATION 25MM,Insulation,agrees-with-model
+ELASTOMERIC PIPE INSULATION 40MM,Insulation,agrees-with-model
+ELECTRIC FIRE PUMP 50HP,ANY,unpinned
+ELECTRIC WATER HEATER 50L,ANY,unpinned
+ELECTRIC WATER HEATER 80L,ANY,unpinned
+Electrical Analytical Loads,NONE,plan-refusal
+EMERGENCY PANEL 125A 230V,ANY,unpinned
+EMT CONDUIT 20MM (3-4 INCH),ANY,unpinned
+EMT CONDUIT 25MM (1 INCH),ANY,unpinned
+EMULSION MATT CHARCOAL,Paint,agrees-with-model
+EMULSION MATT COOL-BEIGE,Paint,agrees-with-model
+EMULSION MATT CREAM,Paint,agrees-with-model
+EMULSION MATT DARK-GREY,Paint,agrees-with-model
+EMULSION MATT IVORY,Paint,agrees-with-model
+EMULSION MATT LIGHT-GREY,Paint,agrees-with-model
+EMULSION MATT MAGNOLIA,Paint,agrees-with-model
+EMULSION MATT MID-GREY,Paint,agrees-with-model
+EMULSION MATT NAVY-BLUE,Paint,agrees-with-model
+EMULSION MATT OFF-WHITE,Paint,agrees-with-model
+EMULSION MATT SAGE-GREEN,Paint,agrees-with-model
+EMULSION MATT SOFT-BLUE,Paint,agrees-with-model
+EMULSION MATT TAUPE,Paint,agrees-with-model
+EMULSION MATT WARM-BEIGE,Paint,agrees-with-model
+EMULSION MATT WHITE,Paint,agrees-with-model
+EMULSION PAINT DIRECT ON PLASTER,ANY,unpinned
+EMULSION SILK LIGHT-GREY,Paint,agrees-with-model
+EMULSION SILK MAGNOLIA,Paint,agrees-with-model
+EMULSION SILK MID-GREY,Paint,agrees-with-model
+EMULSION SILK OFF-WHITE,Paint,agrees-with-model
+EMULSION SILK WHITE,Paint,agrees-with-model
+ENGINEERED WOOD 15MM,Wood,agrees-with-model
+ENGINEERING BRICK,Masonry,plan-write
+ENGINEERING BRICK PAVER 100MM,Masonry,agrees-with-model
+EPDM RUBBER MEMBRANE 1.5MM,ANY,unpinned
+EPOXY BASE,NONE,plan-refusal
+EPOXY TERRAZZO,Concrete,plan-write
+EPOXY TERRAZZO 12MM,ANY,unpinned
+EPOXY WALL COATING 2MM,ANY,unpinned
+EPS BOARD 50MM,ANY,unpinned
+EPS INSULATION 50MM,ANY,unpinned
+EPS INSULATION 75MM,ANY,unpinned
+EXHAUST AIR GRILLE 200X200MM,ANY,unpinned
+EXPANDED METAL MESH CEILING 50MM,ANY,unpinned
+EXPANDED POLYSTYRENE 100MM,ANY,unpinned
+EXPANDED POLYSTYRENE 50MM,ANY,unpinned
+EXPOSED AGGREGATE 100MM,ANY,unpinned
+EXPOSED AGGREGATE POLISHED 100MM,ANY,unpinned
+EXPOSED BRICK VENEER 110MM,Masonry,agrees-with-model
+EXPOSED T-GRID 25MM,ANY,unpinned
+EXPOSED T-GRID 38MM,ANY,unpinned
+EXTERIOR GYPSUM SHEATHING 12MM,ANY,unpinned
+EXTERIOR PLYWOOD 12MM,Wood,agrees-with-model
+EXTERIOR PLYWOOD 9MM,Wood,agrees-with-model
+EXTERIOR TIMBER CLADDING 35MM,ANY,unpinned
+Exterior Walls,NONE,plan-refusal
+EXTERNAL GYPSUM FIBER 15MM,ANY,unpinned
+EXTERNAL RENDER 15MM + WEATHERGUARD,ANY,unpinned
+EXTERNAL RENDER TEXTURED 20MM,ANY,unpinned
+EXTERNAL ROUGH CAST 18MM,ANY,unpinned
+EXTERNAL WALL - CAVITY,ANY,unpinned
+EXTERNAL WALL - INSULATED,ANY,unpinned
+EXTERNAL WALL - STANDARD,ANY,unpinned
+EXTERNAL WALL - STONE,ANY,unpinned
+EXTRA IMPACT RESISTANT 20MM,ANY,unpinned
+EXTRA LARGE COBBLESTONE 150MM,ANY,unpinned
+EXTRA LARGE PORCELAIN 800X1600MM,ANY,unpinned
+EXTRUDED POLYSTYRENE 25MM,ANY,unpinned
+EXTRUDED POLYSTYRENE 50MM,ANY,unpinned
+FABRIC CEILING SYSTEM 1MM,ANY,unpinned
+Fabric Light Brown,ANY,unpinned
+FABRIC WRAPPED ACOUSTIC 50MM,ANY,unpinned
+FABRIC WRAPPED PANEL 25MM,ANY,unpinned
+FABRIC WRAPPED PANEL 50MM,ANY,unpinned
+FAST DRY SCREED,Concrete,plan-write
+FAST DRYING SCREED 30MM,Concrete,agrees-with-model
+FDB 100A 400V 3-PHASE,ANY,unpinned
+FDB 63A 230V SINGLE PHASE,ANY,unpinned
+FIBER CEMENT BOARD 15MM,ANY,unpinned
+FIBER CEMENT CEILING 6MM,ANY,unpinned
+FIBER CEMENT CEILING 9MM,ANY,unpinned
+FIBER CEMENT TILES 6MM,ANY,unpinned
+FIBER OPTIC 12-CORE SM OS2,ANY,unpinned
+FIBER OPTIC 6-CORE SM OS2,ANY,unpinned
+FIBERGLASS ACOUSTIC TILE 15MM,ANY,unpinned
+FIBERGLASS ACOUSTIC TILE 20MM,ANY,unpinned
+FIBERGLASS BATT 100MM,ANY,unpinned
+FIBERGLASS BLANKET 75MM,ANY,unpinned
+FIBERGLASS DUCT BOARD 25MM,ANY,unpinned
+FIBERGLASS DUCT BOARD 50MM,ANY,unpinned
+FIBERGLASS PIPE INSULATION 25MM,Insulation,agrees-with-model
+FIBERGLASS PIPE INSULATION 50MM,Insulation,agrees-with-model
+FINISH COAT,NONE,plan-refusal
+FINISH-SEAL,NONE,plan-refusal
+FIRE ALARM CONTROL PANEL 2-LOOP,ANY,unpinned
+FIRE ALARM CONTROL PANEL 8-LOOP,ANY,unpinned
+FIRE ALARM SOUNDER,ANY,unpinned
+FIRE ALARM VISUAL BEACON,ANY,unpinned
+FIRE DAMPER 300MM 2HR,ANY,unpinned
+FIRE DAMPER 600X400MM 3HR,ANY,unpinned
+FIRE RATED CABLE TRAY 300MM 2HR,ANY,unpinned
+FIRE RATED DUCT 1.0MM 2HR,ANY,unpinned
+FIRE-RATED GYPSUM 15MM,ANY,unpinned
+FIRE-RATED GYPSUM TYPE X 12.5MM,ANY,unpinned
+FIRE-RATED GYPSUM TYPE X 15MM,ANY,unpinned
+FIRE-RESISTANT PLASTER WHITE 25MM,ANY,unpinned
+FIRE-RETARDANT WHITE,ANY,unpinned
+FIXED TEMPERATURE HEAT DETECTOR 68°C,ANY,unpinned
+FixedBC,ANY,unpinned
+FLANGED BUTTERFLY VALVE 150MM (6 INCH),ANY,unpinned
+FLAT OVAL DUCT 200X100MM,ANY,unpinned
+FLAT OVAL DUCT 300X150MM,ANY,unpinned
+FLEXIBLE DUCT 100MM (4 INCH),ANY,unpinned
+FLEXIBLE DUCT 125MM (5 INCH),ANY,unpinned
+FLEXIBLE DUCT 152MM (6 INCH),ANY,unpinned
+FLEXIBLE DUCT 203MM (8 INCH),ANY,unpinned
+FLEXIBLE DUCT 250MM (10 INCH),ANY,unpinned
+FLEXIBLE GYPSUM BOARD 6MM,ANY,unpinned
+FLEXIBLE PVC SKIRTING 60MM,ANY,unpinned
+FLOOR CERAMIC BEIGE-MATT,ANY,unpinned
+FLOOR CERAMIC BLACK-GLOSS,ANY,unpinned
+FLOOR CERAMIC GREY-GLOSS,ANY,unpinned
+FLOOR CERAMIC GREY-MATT,ANY,unpinned
+FLOOR CERAMIC WHITE-GLOSS,ANY,unpinned
+FLOOR CERAMIC WHITE-MATT,ANY,unpinned
+FLOOR EPOXY BLUE,ANY,unpinned
+FLOOR EPOXY DARK-GREY,ANY,unpinned
+FLOOR EPOXY GREEN,ANY,unpinned
+FLOOR EPOXY LIGHT-GREY,ANY,unpinned
+FLOOR EPOXY MID-GREY,ANY,unpinned
+FLOOR EPOXY YELLOW,ANY,unpinned
+FLOOR LAMINATE ASH,ANY,unpinned
+FLOOR LAMINATE OAK-DARK,ANY,unpinned
+FLOOR LAMINATE OAK-GREY,ANY,unpinned
+FLOOR LAMINATE OAK-LIGHT,ANY,unpinned
+FLOOR LAMINATE OAK-MEDIUM,ANY,unpinned
+FLOOR LAMINATE WALNUT,ANY,unpinned
+FLOOR MOUNTED CLOSE COUPLED WC,ANY,unpinned
+FLOOR PORCELAIN CONCRETE-DARK,ANY,unpinned
+FLOOR PORCELAIN CONCRETE-LIGHT,ANY,unpinned
+FLOOR PORCELAIN MARBLE-GREY,ANY,unpinned
+FLOOR PORCELAIN MARBLE-WHITE,ANY,unpinned
+FLOOR PORCELAIN WOOD-OAK,ANY,unpinned
+FLOOR PORCELAIN WOOD-WALNUT,ANY,unpinned
+FLOOR REGISTER 250X100MM,ANY,unpinned
+FLOOR TIMBER-ENG ASH,ANY,unpinned
+FLOOR TIMBER-ENG MAPLE,ANY,unpinned
+FLOOR TIMBER-ENG OAK-GREY,ANY,unpinned
+FLOOR TIMBER-ENG OAK-NATURAL,ANY,unpinned
+FLOOR TIMBER-ENG OAK-SMOKED,ANY,unpinned
+FLOOR TIMBER-ENG WALNUT,ANY,unpinned
+FLOWING SCREED,Concrete,plan-write
+FLOWING SELF-LEVELING SCREED 35MM,Concrete,agrees-with-model
+FOAM BOARD INSULATION 25MM,Insulation,agrees-with-model
+FOIL BACKED GYPSUM 12.5MM,ANY,unpinned
+FRAME,ANY,unpinned
+FRC 2CX2.5MM² FIRE ALARM CABLE,ANY,unpinned
+FRC 2CX4MM² EMERGENCY LIGHTING,ANY,unpinned
+GALVANIZED STEEL PIPE 100MM (4 INCH),Metal,agrees-with-model
+GALVANIZED STEEL PIPE 20MM (1-2 INCH),Metal,agrees-with-model
+GALVANIZED STEEL PIPE 25MM (1 INCH),Metal,agrees-with-model
+GALVANIZED STEEL PIPE 50MM (2 INCH),Metal,agrees-with-model
+GALVANIZED STEEL PIPE 80MM (3 INCH),Metal,agrees-with-model
+GI CONDUIT 20MM MEDIUM GAUGE,ANY,unpinned
+GI CONDUIT 25MM MEDIUM GAUGE,ANY,unpinned
+GI CONDUIT 32MM HEAVY GAUGE,ANY,unpinned
+Glass,Glass,agrees-with-model
+Glass,Glass,agrees-with-model
+Glass - White Transparent,Glass,plan-write
+"Glass - White, High Luminance",Glass,agrees-with-model
+GLASS CEILING PANEL 10MM,Glass,agrees-with-model
+GLASS MOSAIC,Glass,plan-write
+GLASS MOSAIC 6MM,Glass,agrees-with-model
+GLASS MOSAIC TILES 15MM,Glass,agrees-with-model
+GLASS PANEL SKIRTING 150MM,Glass,agrees-with-model
+GLASS SKIRTING 150MM,Glass,agrees-with-model
+Glass_Double,Glass,agrees-with-model
+Glass_Triple,Glass,agrees-with-model
+"Glass, Clear Glazing",Glass,agrees-with-model
+"Glass, White, High Luminance",Glass,agrees-with-model
+GLOSS FINISH PAINT 1MM,Paint,agrees-with-model
+GLOSS OIL BLACK,ANY,unpinned
+GLOSS OIL OFF-WHITE,ANY,unpinned
+GLOSS OIL WHITE,ANY,unpinned
+GLOSS PAINT INTERIOR,Paint,agrees-with-model
+Grade 250,NONE,plan-refusal
+Grade 65,NONE,plan-refusal
+GRANITE COBBLESTONE,Stone,plan-write
+GRANITE COBBLESTONE 100MM,ANY,unpinned
+GRANITE COMPOSITE SINGLE BOWL,ANY,unpinned
+GRANITE PAVING 30MM,ANY,unpinned
+GRANITE PAVING 40MM,ANY,unpinned
+GRANITE PAVING 50MM,ANY,unpinned
+GRANITE SKIRTING 100MM,ANY,unpinned
+GRANITE SLAB,Stone,plan-write
+GRANITE TILE,Stone,correction
+GRANITE TILES 20MM,ANY,unpinned
+GRANOLITHIC SCREED,Concrete,plan-write
+GRANOLITHIC SCREED 40MM,Concrete,agrees-with-model
+Grass,ANY,unpinned
+GRASS GRID PAVER 100MM,ANY,unpinned
+GRASS-GRAVEL FILL,NONE,plan-refusal
+Gravel,ANY,unpinned
+GREASE INTERCEPTOR 50L,ANY,unpinned
+GREEN ROOF MEMBRANE 6MM,ANY,unpinned
+GRID STRUCTURE,NONE,plan-refusal
+GRIND & POLISH,NONE,plan-refusal
+Grohe_MattBlack,ANY,unpinned
+GRP CEILING PANEL 12MM,ANY,unpinned
+GRP FIBERGLASS 3MM,ANY,unpinned
+GRP PANEL WATER TANK 10000L,ANY,unpinned
+GYPSUM BOARD 12.5MM,ANY,unpinned
+GYPSUM BOARD 15MM,ANY,unpinned
+GYPSUM BOARD STANDARD 12.5MM,ANY,unpinned
+GYPSUM BOARD STANDARD 15MM,ANY,unpinned
+GYPSUM BOARD STANDARD 9.5MM,ANY,unpinned
+GYPSUM DRYWALL SYSTEM 25MM,ANY,unpinned
+GYPSUM FIBER BOARD 12MM,ANY,unpinned
+GYPSUM PLASTER + PAINT 13MM,ANY,unpinned
+GYPSUM PLASTER PREMIUM,ANY,unpinned
+GYPSUM PLASTER SMOOTH 10MM,ANY,unpinned
+GYPSUM PLASTER STANDARD 12MM,ANY,unpinned
+GYPSUM SMOOTH COOL-BEIGE 12MM,ANY,unpinned
+GYPSUM SMOOTH CREAM 12MM,ANY,unpinned
+GYPSUM SMOOTH FINISH 10MM,ANY,unpinned
+GYPSUM SMOOTH IVORY 12MM,ANY,unpinned
+GYPSUM SMOOTH LIGHT-GREY 12MM,ANY,unpinned
+GYPSUM SMOOTH MAGNOLIA 12MM,ANY,unpinned
+GYPSUM SMOOTH MID-GREY 12MM,ANY,unpinned
+GYPSUM SMOOTH OFF-WHITE 12MM,ANY,unpinned
+GYPSUM SMOOTH TAUPE 12MM,ANY,unpinned
+GYPSUM SMOOTH WARM-BEIGE 12MM,ANY,unpinned
+GYPSUM SMOOTH WHITE 12MM,ANY,unpinned
+GYPSUM TEXTURED LIGHT-GREY 15MM,ANY,unpinned
+GYPSUM TEXTURED MID-GREY 15MM,ANY,unpinned
+GYPSUM TEXTURED NATURAL 15MM,ANY,unpinned
+GYPSUM TEXTURED OFF-WHITE 15MM,ANY,unpinned
+GYPSUM TEXTURED SANDSTONE 15MM,ANY,unpinned
+GYPSUM TEXTURED TERRACOTTA 15MM,ANY,unpinned
+GYPSUM TEXTURED WARM-BEIGE 15MM,ANY,unpinned
+GYPSUM TEXTURED WHITE 15MM,ANY,unpinned
+Gypsum Wall Board,ANY,unpinned
+HANDMADE ZELLIGE TILES 12MM,ANY,unpinned
+HARDBOARD CEILING PANEL 3MM,ANY,unpinned
+HARDWOOD DECKING,Wood,plan-write
+HARDWOOD DECKING 25MM,Wood,agrees-with-model
+HARDWOOD PLANK,Wood,plan-write
+HARDWOOD SKIRTING 100MM,Wood,agrees-with-model
+HARDWOOD TOP,Wood,plan-write
+HDF CORE,Wood,named-substance
+HDPE CONDUIT 100MM UNDERGROUND,ANY,unpinned
+HDPE CONDUIT 50MM UNDERGROUND,ANY,unpinned
+HDPE DRAINAGE PIPE 110MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 160MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 200MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 225MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 280MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 315MM,Plastic,agrees-with-model
+HDPE DRAINAGE PIPE 400MM,Plastic,agrees-with-model
+HDPE PIPE PN16 110MM,Plastic,agrees-with-model
+HDPE PIPE PN16 63MM,Plastic,agrees-with-model
+HEAVY DUTY BLOCK PAVING 80MM,Masonry,agrees-with-model
+HEAVY DUTY BRICK PAVER 80MM,Masonry,agrees-with-model
+HEAVY DUTY CEMENT PLASTER 25MM,ANY,unpinned
+HEAVY DUTY CEMENT SCREED 75MM,Concrete,agrees-with-model
+HEAVY DUTY GRID 40MM,ANY,unpinned
+HEAVY DUTY INTERLOCKING 80MM,ANY,unpinned
+HEAVY DUTY VAPOR BARRIER 0.20MM,ANY,unpinned
+HEAVY EXTERNAL PLASTER 30MM,ANY,unpinned
+HEAVY SLATE 10MM,ANY,unpinned
+HERRINGBONE BLOCK PAVING 65MM,ANY,unpinned
+HERRINGBONE PARQUET 15MM,Wood,agrees-with-model
+HEXAGONAL TILES 150MM,ANY,unpinned
+HIGH PRESSURE LAMINATE 8MM,ANY,unpinned
+HOLLOW CONCRETE BLOCK 10IN (250MM),Masonry,agrees-with-model
+HOLLOW CONCRETE BLOCK 4IN (100MM),Masonry,agrees-with-model
+HOLLOW CONCRETE BLOCK 6IN (150MM),Masonry,agrees-with-model
+HOLLOW CONCRETE BLOCK 8IN (200MM),Masonry,agrees-with-model
+HOLLOW CONCRETE BLOCK 9IN (225MM),Masonry,agrees-with-model
+HOMOGENEOUS VINYL TILES 2MM,ANY,unpinned
+HVAC DUCT PAINTED WHITE,ANY,unpinned
+HVAC DUCT STAINLESS KITCHEN EXTRACT,ANY,unpinned
+ICE & WATER SHIELD 2MM,ANY,unpinned
+IMAGE LAYER,NONE,plan-refusal
+IMPACT RESISTANT GYPSUM 12.5MM,ANY,unpinned
+INCLASS_LEA0030_Backrest_Plastic,ANY,unpinned
+INCLASS_LEA0030_Frame_Metal,ANY,unpinned
+INCLASS_LEA0030_Plastic_Grey,ANY,unpinned
+INCLASS_LEA0030_Seat_Plastic,ANY,unpinned
+INDUSTRIAL BLOCK PAVING 100MM,Masonry,agrees-with-model
+INDUSTRIAL SOCKET 16A 3-PIN,ANY,unpinned
+INDUSTRIAL SOCKET 32A 5-PIN,ANY,unpinned
+INDUSTRIAL SOCKET 63A 5-PIN,ANY,unpinned
+INSTANT GAS WATER HEATER 16L-MIN,ANY,unpinned
+INSULATED FLEXIBLE DUCT 152MM,ANY,unpinned
+INSULATED RECTANGULAR DUCT 100MM,ANY,unpinned
+INSULATED RECTANGULAR DUCT 25MM,ANY,unpinned
+INSULATED RECTANGULAR DUCT 50MM,ANY,unpinned
+INSULATED RECTANGULAR DUCT 75MM,ANY,unpinned
+Insulation - Duct Wrap,Insulation,agrees-with-model
+Insulation - Fiberglass,Insulation,agrees-with-model
+Insulation - PVC Jacketed Fiberglass,Insulation,agrees-with-model
+Insulation - Rigid Fiber Board,Insulation,agrees-with-model
+Interior Floors,NONE,plan-refusal
+Interior Walls,NONE,plan-refusal
+INTERLOCKING BLOCK CLC (300×150×100MM),Masonry,agrees-with-model
+INTERLOCKING BLOCK HYDRAFORM (300×150×100MM),Masonry,agrees-with-model
+INTERLOCKING BLOCK STANDARD (300×150×100MM),Masonry,agrees-with-model
+INTERLOCKING PAVER,NONE,plan-refusal
+INTERNAL PLASTER ECONOMY 12MM + PAINT,ANY,unpinned
+INTERNAL PLASTER PREMIUM 20MM + PAINT,ANY,unpinned
+INTERNAL PLASTER SMOOTH 18MM + PAINT,ANY,unpinned
+INTERNAL PLASTER STANDARD 15MM + EMULSION,ANY,unpinned
+INTERNAL WALL - AAC,ANY,unpinned
+INTERNAL WALL - STANDARD,ANY,unpinned
+IONIZATION SMOKE DETECTOR,ANY,unpinned
+IRON SHEET 26 GAUGE 1.2MM,Metal,agrees-with-model
+IRON SHEET 28 GAUGE 0.9MM,Metal,agrees-with-model
+IRON SHEET 30 GAUGE 0.7MM,Metal,agrees-with-model
+"Iron, Ductile",Metal,agrees-with-model
+Italian Light Brown,ANY,unpinned
+KITCHEN SPLASH BACK 20MM,ANY,unpinned
+KLIP-LOK PROFILE 0.7MM,ANY,unpinned
+LADDER CABLE TRAY 300MM X 1.5MM,ANY,unpinned
+LADDER CABLE TRAY 450MM X 1.5MM,ANY,unpinned
+LADDER CABLE TRAY 600MM X 2.0MM,ANY,unpinned
+LAMINATE FLOORING 8MM,ANY,unpinned
+"Laminate, Ivory, Matte",ANY,unpinned
+LARGE COBBLESTONE,Stone,plan-write
+LARGE COBBLESTONE 120MM,ANY,unpinned
+LARGE FORMAT CERAMIC 600X600MM,ANY,unpinned
+LARGE FORMAT PORCELAIN 600X1200MM,ANY,unpinned
+LEAD SHEET FLASHING 4MM,Metal,agrees-with-model
+LEATHER WALL PANELS 4MM,ANY,unpinned
+LED DOWNLIGHT 12W,ANY,unpinned
+LED DOWNLIGHT 18W,ANY,unpinned
+LED DOWNLIGHT 6W,ANY,unpinned
+LED DOWNLIGHT-12W BLACK,ANY,unpinned
+LED DOWNLIGHT-12W BRONZE,ANY,unpinned
+LED DOWNLIGHT-12W BRUSHED-NICKEL,ANY,unpinned
+LED DOWNLIGHT-12W BRUSHED-STEEL,ANY,unpinned
+LED DOWNLIGHT-12W CHROME,ANY,unpinned
+LED DOWNLIGHT-12W MATT-BLACK,ANY,unpinned
+LED DOWNLIGHT-12W WHITE,ANY,unpinned
+LED EMERGENCY BLACK,ANY,unpinned
+LED EMERGENCY BRONZE,ANY,unpinned
+LED EMERGENCY BRUSHED-NICKEL,ANY,unpinned
+LED EMERGENCY BRUSHED-STEEL,ANY,unpinned
+LED EMERGENCY CHROME,ANY,unpinned
+LED EMERGENCY LIGHT 3W,ANY,unpinned
+LED EMERGENCY MATT-BLACK,ANY,unpinned
+LED EMERGENCY WHITE,ANY,unpinned
+LED EXIT BLACK,ANY,unpinned
+LED EXIT BRONZE,ANY,unpinned
+LED EXIT BRUSHED-NICKEL,ANY,unpinned
+LED EXIT BRUSHED-STEEL,ANY,unpinned
+LED EXIT CHROME,ANY,unpinned
+LED EXIT MATT-BLACK,ANY,unpinned
+LED EXIT SIGN 5W,ANY,unpinned
+LED EXIT WHITE,ANY,unpinned
+LED HIGH BAY 100W,ANY,unpinned
+LED HIGH BAY 150W,ANY,unpinned
+LED HIGH-BAY BLACK,ANY,unpinned
+LED HIGH-BAY BRONZE,ANY,unpinned
+LED HIGH-BAY BRUSHED-NICKEL,ANY,unpinned
+LED HIGH-BAY BRUSHED-STEEL,ANY,unpinned
+LED HIGH-BAY CHROME,ANY,unpinned
+LED HIGH-BAY MATT-BLACK,ANY,unpinned
+LED HIGH-BAY WHITE,ANY,unpinned
+LED LINEAR LIGHT 1200MM 36W,ANY,unpinned
+LED LINEAR LIGHT 1500MM 48W,ANY,unpinned
+LED LINEAR-1200MM BLACK,ANY,unpinned
+LED LINEAR-1200MM BRONZE,ANY,unpinned
+LED LINEAR-1200MM BRUSHED-NICKEL,ANY,unpinned
+LED LINEAR-1200MM BRUSHED-STEEL,ANY,unpinned
+LED LINEAR-1200MM CHROME,ANY,unpinned
+LED LINEAR-1200MM MATT-BLACK,ANY,unpinned
+LED LINEAR-1200MM WHITE,ANY,unpinned
+LED PANEL 300X1200MM 40W,ANY,unpinned
+LED PANEL 600X600MM 40W,ANY,unpinned
+LED PANEL 600X600MM 48W,ANY,unpinned
+LED PANEL-600X600 BLACK,ANY,unpinned
+LED PANEL-600X600 BRONZE,ANY,unpinned
+LED PANEL-600X600 BRUSHED-NICKEL,ANY,unpinned
+LED PANEL-600X600 BRUSHED-STEEL,ANY,unpinned
+LED PANEL-600X600 CHROME,ANY,unpinned
+LED PANEL-600X600 MATT-BLACK,ANY,unpinned
+LED PANEL-600X600 WHITE,ANY,unpinned
+LED PENDANT BLACK,ANY,unpinned
+LED PENDANT BRONZE,ANY,unpinned
+LED PENDANT BRUSHED-NICKEL,ANY,unpinned
+LED PENDANT BRUSHED-STEEL,ANY,unpinned
+LED PENDANT CHROME,ANY,unpinned
+LED PENDANT MATT-BLACK,ANY,unpinned
+LED PENDANT WHITE,ANY,unpinned
+LED STREET LIGHT 100W,ANY,unpinned
+LED STREET LIGHT 60W,ANY,unpinned
+LED TRACK BLACK,ANY,unpinned
+LED TRACK BRONZE,ANY,unpinned
+LED TRACK BRUSHED-NICKEL,ANY,unpinned
+LED TRACK BRUSHED-STEEL,ANY,unpinned
+LED TRACK CHROME,ANY,unpinned
+LED TRACK MATT-BLACK,ANY,unpinned
+LED TRACK WHITE,ANY,unpinned
+LIFT CHECK VALVE 20MM (3-4 INCH),ANY,unpinned
+LIGHTWEIGHT SCREED,Concrete,plan-write
+LIGHTWEIGHT SCREED 40MM,ANY,unpinned
+LIME PLASTER HERITAGE (1-3),ANY,unpinned
+LIME PLASTER TRADITIONAL 12MM,ANY,unpinned
+LIME PLASTER TRADITIONAL 20MM,ANY,unpinned
+LIME RENDER EXTERNAL 25MM,ANY,unpinned
+LIME TRADITIONAL CREAM 20MM,ANY,unpinned
+LIME TRADITIONAL WHITE 20MM,ANY,unpinned
+LIME VENETIAN CREAM 3MM,ANY,unpinned
+LIME VENETIAN WHITE 3MM,ANY,unpinned
+LIMESTONE FLAGSTONE,Stone,plan-write
+LIMESTONE FLAGSTONE 50MM,ANY,unpinned
+LIMESTONE PAVING 40MM,ANY,unpinned
+LIMESTONE SLAB,Stone,plan-write
+LIMESTONE TILE,Stone,correction
+LIMESTONE TILES 20MM,ANY,unpinned
+LIMESTONE WALL TILES 15MM,ANY,unpinned
+LINE MARKING,NONE,plan-refusal
+LINEAR SLOT DIFFUSER 1200MM,ANY,unpinned
+Lining - Fiberglass Board,ANY,unpinned
+Lining - Textile,ANY,unpinned
+LINOLEUM SHEET,Plastic,named-substance
+LINOLEUM SHEET 2.5MM,ANY,unpinned
+Liquid - Red Wine,NONE,plan-refusal
+LIQUID APPLIED AIR BARRIER 2MM,ANY,unpinned
+LIQUID APPLIED MEMBRANE 2MM,ANY,unpinned
+LIQUID TIGHT FLEXIBLE 20MM,ANY,unpinned
+LIQUID TIGHT FLEXIBLE 25MM,ANY,unpinned
+LONGSPAN PROFILE 0.5MM,ANY,unpinned
+LOOP CARPET,Textile,plan-write
+LOOP PILE CARPET 7MM,ANY,unpinned
+LOW PROFILE ACCESS FLOOR 100MM,ANY,unpinned
+LUG BUTTERFLY VALVE 100MM (4 INCH),ANY,unpinned
+LUXURY CUT PILE 10MM,ANY,unpinned
+LUXURY VINYL TILE 5MM,ANY,unpinned
+LVT PLANK,Plastic,named-substance
+M3 - ALUMINUM,Metal,plan-write
+M3 - BODY COLOR,NONE,plan-refusal
+M3 - BODY COLOR - ROOF,NONE,plan-refusal
+M3 - CALIPERS,NONE,plan-refusal
+M3 - CHROME,Metal,named-substance
+M3 - GLASS - BLACK TRIM,Glass,plan-write
+M3 - GLASS - CLEAR,Glass,plan-write
+M3 - GLASS - DOORS,Glass,plan-write
+M3 - GLASS - REAR,Glass,plan-write
+M3 - GLASS - RED,Glass,plan-write
+M3 - GLASS - WHITE,Glass,plan-write
+M3 - GLASS - WINDSHIELD,Glass,plan-write
+M3 - INTERIOR COLOR,NONE,plan-refusal
+M3 - INTERIOR DASHBOARD,NONE,plan-refusal
+M3 - LOGO - BLUE,NONE,plan-refusal
+M3 - LOGO - WHITE,NONE,plan-refusal
+M3 - MIRRORS,NONE,plan-refusal
+M3 - ROTORS,NONE,plan-refusal
+M3 - TIRES,NONE,plan-refusal
+M3 - TRIM BLACK,NONE,plan-refusal
+M3 - UNDERBODY,NONE,plan-refusal
+M3 - WHEEL INLAY,NONE,plan-refusal
+M3 - WHEELS,NONE,plan-refusal
+MAGNETIC GREY,ANY,unpinned
+MAGNETIC PAINT 2MM,Paint,agrees-with-model
+MAKE-UP AIR UNIT 10000 CFM,ANY,unpinned
+MAKE-UP AIR UNIT 5000 CFM,ANY,unpinned
+MANUAL BALANCING VALVE 20MM,ANY,unpinned
+MANUAL VOLUME DAMPER 200MM,ANY,unpinned
+MANUAL VOLUME DAMPER 600X300MM,ANY,unpinned
+MAPLE FLOORING,Wood,named-substance
+MARBLE SKIRTING 150MM,ANY,unpinned
+MARBLE TILE,Stone,correction
+MARBLE TILES 20MM,ANY,unpinned
+MASONRY PAINT ANTHRACITE,ANY,unpinned
+MASONRY PAINT CREAM,ANY,unpinned
+MASONRY PAINT LIGHT-GREY,ANY,unpinned
+MASONRY PAINT MID-GREY,ANY,unpinned
+MASONRY PAINT SANDSTONE,ANY,unpinned
+MASONRY PAINT TERRACOTTA,ANY,unpinned
+MASONRY PAINT WHITE,ANY,unpinned
+Matress,ANY,unpinned
+Matte Black,ANY,unpinned
+MCC 630A 400V 3-PHASE,ANY,unpinned
+MDB 630A 400V 3-PHASE,ANY,unpinned
+MDB 800A 400V 3-PHASE,ANY,unpinned
+MDF - Branco padrão,ANY,unpinned
+MDF - Madeirado 2,ANY,unpinned
+MDF CEILING PANEL 12MM,Wood,agrees-with-model
+MDF PAINTED SKIRTING 100MM,Wood,agrees-with-model
+MDF SKIRTING 100MM,Wood,agrees-with-model
+MEDIUM COBBLESTONE,Stone,plan-write
+MEDIUM COBBLESTONE 100MM,ANY,unpinned
+MEDIUM FORMAT CERAMIC 300X450MM,ANY,unpinned
+Métal - Acier inoxydable,NONE,plan-refusal
+Metal - Aluminium,Metal,agrees-with-model
+Metal - Chrome,Metal,agrees-with-model
+Metal - Paint Finish - Grey,Paint,agrees-with-model
+"Metal - Paint Finish - Indian Red, Matte",Paint,agrees-with-model
+"Metal - Paint Finish - Ivory, Glossy",Paint,agrees-with-model
+"Metal - Paint Finish - Ivory,Glossy",Paint,plan-write
+Metal - Painted - Grey,Paint,agrees-with-model
+"Metal - Painted Finish - Ivory,Matte",Paint,plan-write
+Metal - Stainless Steel,Metal,agrees-with-model
+"Metal - Stainless Steel,Polished",Metal,agrees-with-model
+Metal - Steel,Metal,plan-write
+"Metal - Steel, Polished",Metal,plan-write
+METAL BAFFLE CEILING 100MM,ANY,unpinned
+METAL BATTEN BRACKET 20MM,ANY,unpinned
+METAL CASSETTE CEILING 0.7MM,ANY,unpinned
+METAL COMPOSITE PANEL 4MM,ANY,unpinned
+Metal Deck,ANY,unpinned
+METAL DECORATIVE TILES 3MM,ANY,unpinned
+Metal Door - Brindle,ANY,unpinned
+Metal Door - Red,ANY,unpinned
+Metal Furring,ANY,unpinned
+METAL GRID ACOUSTIC 15MM,ANY,unpinned
+METAL PAN CEILING 0.5MM,ANY,unpinned
+Metal Panel,ANY,unpinned
+Metal Stud Layer,ANY,unpinned
+meteeeeeeee,ANY,unpinned
+MICROCEMENT 3MM,ANY,unpinned
+MICROCEMENT HEAVY DUTY 5MM,ANY,unpinned
+MINERAL FIBER TILE 15MM 600X600,ANY,unpinned
+MINERAL FIBER TILE 19MM,ANY,unpinned
+MINERAL FIBER TILE 19MM 600X600,ANY,unpinned
+MINERAL FIBER TILE 25MM 600X600,ANY,unpinned
+MINERAL WOOL 100MM,Insulation,agrees-with-model
+MINERAL WOOL 150MM,Insulation,agrees-with-model
+MINERAL WOOL 50MM,Insulation,agrees-with-model
+MINERAL WOOL 75MM,Insulation,agrees-with-model
+MINERAL WOOL INSULATION 100MM,Insulation,agrees-with-model
+MINERAL WOOL INSULATION 50MM,Insulation,agrees-with-model
+MINERAL WOOL INSULATION 75MM,Insulation,agrees-with-model
+MIRROR CEILING PANEL 4MM,ANY,unpinned
+MIXED STONE PIECES,Stone,plan-write
+MMA RESIN,NONE,plan-refusal
+MMA RESIN 6MM,ANY,unpinned
+MOISTURE RESISTANT BOARD 12.5MM,ANY,unpinned
+MOISTURE RESISTANT GYPSUM 12.5MM,ANY,unpinned
+MOISTURE RESISTANT GYPSUM 15MM,ANY,unpinned
+MOISTURE-RESISTANT PLASTER WHITE 12MM,ANY,unpinned
+MOLD RESISTANT GYPSUM 12.5MM,ANY,unpinned
+MORAN PLASTERING PAINT 3MM,ANY,unpinned
+MOTORIZED DAMPER 800X400MM,ANY,unpinned
+MOTORIZED VOLUME DAMPER 300MM,ANY,unpinned
+Nam Nam Classic Stool H750 - Nam-nam-classic-stool-H750 - Black,ANY,unpinned
+Nam Nam Classic Stool H750 - Nam-nam-classic-stool-H750 - Yellow,ANY,unpinned
+NATURAL GRASSCLOTH WALLPAPER 3MM,ANY,unpinned
+NATURAL SLATE 8MM,ANY,unpinned
+NATURAL SLATE TILES 12MM,ANY,unpinned
+NATURAL STONE TILES 30MM,ANY,unpinned
+NBS_Concept,ANY,unpinned
+NBS_Glass_Double,Glass,agrees-with-model
+NBS_Glass_Single,Glass,agrees-with-model
+NBS_Glass_Triple,Glass,agrees-with-model
+Oak Flooring,Wood,agrees-with-model
+OIL PAINT SYSTEM,Paint,agrees-with-model
+OPEN CIRCUIT COOLING TOWER 200 TR,ANY,unpinned
+OPEN METAL GRID CEILING 15MM,ANY,unpinned
+Operable Skylights,NONE,plan-refusal
+Operable Windows,NONE,plan-refusal
+OPTICAL SMOKE DETECTOR,ANY,unpinned
+ORDINARY WALL SLATE 45MM,ANY,unpinned
+ORIENTED STRAND BOARD 12MM,ANY,unpinned
+ORIENTED STRAND BOARD 9MM,ANY,unpinned
+OSB DECK 12MM,ANY,unpinned
+OSB DECK 18MM,ANY,unpinned
+Paint - White Lining(1),Paint,agrees-with-model
+PARAPET CAPPING 0.7MM,ANY,unpinned
+PARAPET WALL,ANY,unpinned
+Parking Stripe,ANY,unpinned
+PATTERN + SEAL,NONE,plan-refusal
+pavement,ANY,unpinned
+PEDESTAL BASIN 600X480MM,ANY,unpinned
+PEDESTAL SYSTEM,NONE,plan-refusal
+PENNY ROUND MOSAIC TILES,ANY,unpinned
+PERFORATED ACOUSTIC BOARD 15MM,ANY,unpinned
+PERFORATED ALUMINUM PANEL 0.7MM,Metal,agrees-with-model
+PERFORATED CABLE TRAY 200MM X 1.2MM,ANY,unpinned
+PERFORATED CABLE TRAY 300MM X 1.5MM,ANY,unpinned
+PERFORATED CEILING DIFFUSER 600X600MM,ANY,unpinned
+PERFORATED GYPSUM ACOUSTIC 15MM,ANY,unpinned
+PERFORATED METAL ACOUSTIC 15MM,ANY,unpinned
+Pergamon-  Victoria- Roca,ANY,unpinned
+PERMEABLE INTERLOCKING 80MM,ANY,unpinned
+PERMEABLE PAVER,NONE,plan-refusal
+PEX-A PIPE 16MM (5-8 INCH),ANY,unpinned
+PEX-A PIPE 20MM (3-4 INCH),ANY,unpinned
+Phase - Demo,ANY,unpinned
+Phase - Exist,ANY,unpinned
+Phase - New,ANY,unpinned
+Phase - Temporary,ANY,unpinned
+Phase-Demo,NONE,plan-refusal
+Phase-Exist,NONE,plan-refusal
+Phase-Temp,NONE,plan-refusal
+Pine,ANY,unpinned
+Pinned,ANY,unpinned
+PIPE,ANY,unpinned
+PIPE CLAMP 100MM (4 INCH),ANY,unpinned
+PIPE CLAMP 20MM (3-4 INCH),ANY,unpinned
+PIPE CLAMP 50MM (2 INCH),ANY,unpinned
+PIPE FLASHING 0.5MM,ANY,unpinned
+PIPE ROLLER SUPPORT 100MM (4 INCH),ANY,unpinned
+PIPE SERVICE MARKED HOT WATER,ANY,unpinned
+PIR BOARD 100MM,ANY,unpinned
+PIR BOARD 50MM,ANY,unpinned
+PIR BOARD 75MM,ANY,unpinned
+Plank - Anti-slip rubber,ANY,unpinned
+Plank - MDF varnished - Black,ANY,unpinned
+Plank - MDF varnished - White,ANY,unpinned
+Plank - Powder coated cast iron - Black,ANY,unpinned
+Plank - Powder coated cast iron - White,ANY,unpinned
+Plant,ANY,unpinned
+Plaster BLACK,ANY,unpinned
+Plaster brown,ANY,unpinned
+Plaster cream,ANY,unpinned
+Plaster cream(2),ANY,unpinned
+Plaster soft white,ANY,unpinned
+Plaster white,ANY,unpinned
+Plastic - Black,Plastic,agrees-with-model
+Plastic - White,ANY,unpinned
+Plastic smooth,Plastic,named-substance
+Plastic Textured,Plastic,named-substance
+"Plastic, Opaque Black",Plastic,agrees-with-model
+PLATE HEAT EXCHANGER 100KW,ANY,unpinned
+Platic White,ANY,unpinned
+PLYWOOD CEILING PANEL 9MM,Wood,agrees-with-model
+PLYWOOD DECK 12MM,Wood,agrees-with-model
+PLYWOOD DECK 18MM,Wood,agrees-with-model
+"Plywood, Sheathing",Wood,agrees-with-model
+Poche,ANY,unpinned
+Poche,ANY,unpinned
+POLISH + SEAL,NONE,plan-refusal
+POLISHED CEMENT SCREED 50MM,Concrete,agrees-with-model
+POLISHED CONCRETE 100MM,Concrete,agrees-with-model
+Polished_Chrome,Metal,agrees-with-model
+POLYETHYLENE VAPOR BARRIER 0.15MM,ANY,unpinned
+POLYETHYLENE WATER TANK 1000L,ANY,unpinned
+POLYETHYLENE WATER TANK 500L,ANY,unpinned
+POLYISOCYANURATE BOARD 50MM,ANY,unpinned
+Polyvinyl Chloride - Rigid,Plastic,agrees-with-model
+"Polyvinyl Chloride, Rigid",Plastic,agrees-with-model
+PORCELAIN SLAB,Ceramic,plan-write
+PORCELAIN SLABS 800X1600MM 15MM,ANY,unpinned
+PORCELAIN TILE,Ceramic,plan-write
+PORCELAIN TILE SKIRTING 150MM,ANY,unpinned
+PORCELAIN TILES 600X1200MM 12MM,ANY,unpinned
+PORCELAIN TILES 600X600MM 10MM,ANY,unpinned
+PORCELAIN TILES SKIRTING 150MM,ANY,unpinned
+PPR PIPE PN20 110MM,ANY,unpinned
+PPR PIPE PN20 20MM,ANY,unpinned
+PPR PIPE PN20 25MM,ANY,unpinned
+PPR PIPE PN20 32MM,ANY,unpinned
+PPR PIPE PN20 40MM,ANY,unpinned
+PPR PIPE PN20 50MM,ANY,unpinned
+PPR PIPE PN20 63MM,ANY,unpinned
+PPR PIPE PN20 75MM,ANY,unpinned
+PPR PIPE PN20 90MM,ANY,unpinned
+PRE-INSULATED PIPE 100MM+50MM INS,ANY,unpinned
+PRE-INSULATED PIPE 50MM+25MM INS,ANY,unpinned
+Preenchimento,ANY,unpinned
+PREMIUM CEMENT SKIRTING 150MM,ANY,unpinned
+PREMIUM FABRIC WALL COVERING 2MM,ANY,unpinned
+PREMIUM PORCELAIN TILES 28MM,ANY,unpinned
+PRV 20MM (3-4 INCH) BRONZE,ANY,unpinned
+PRV 25MM (1 INCH) BRONZE,ANY,unpinned
+PU RESIN,NONE,plan-refusal
+PU RESIN FLOOR 4MM,ANY,unpinned
+PU SPORTS FLOOR 8MM,ANY,unpinned
+PU SURFACE,NONE,plan-refusal
+PVC CEILING PANEL 10MM,Plastic,agrees-with-model
+PVC CEILING PANEL 8MM,Plastic,agrees-with-model
+PVC CONDUIT 20MM HEAVY GAUGE,Plastic,agrees-with-model
+PVC CONDUIT 25MM HEAVY GAUGE,Plastic,agrees-with-model
+PVC CONDUIT 32MM HEAVY GAUGE,Plastic,agrees-with-model
+PVC DRAINAGE PIPE 100MM (4 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 110MM (4 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 150MM (6 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 200MM (8 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 250MM (10 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 32MM (1.25 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 40MM (1.5 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 50MM (2 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 75MM (3 INCH),Plastic,agrees-with-model
+PVC DRAINAGE PIPE 90MM (3 INCH),Plastic,agrees-with-model
+PVC LAMINATED PANEL 8MM,Plastic,agrees-with-model
+PVC PIPE SCH40 100MM (4 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 20MM (1-2 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 25MM (1 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 32MM (1.5 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 40MM (1.5 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 50MM (2 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 63MM (2.5 INCH),Plastic,agrees-with-model
+PVC PIPE SCH40 75MM (3 INCH),Plastic,agrees-with-model
+PVC ROOF TILES 4MM,Plastic,agrees-with-model
+PVC SINGLE PLY 1.5MM,ANY,unpinned
+PVC SKIRTING 80MM,ANY,unpinned
+PVC SKIRTING FLEXIBLE 60MM,ANY,unpinned
+PVC STRETCH CEILING 0.2MM,Plastic,agrees-with-model
+PVC TONGUE & GROOVE 8MM,ANY,unpinned
+PVC WALL CLADDING 10MM,Plastic,agrees-with-model
+PVC WIRE 1.5MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 10MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 16MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 2.5MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 25MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 4MM² SINGLE CORE,ANY,unpinned
+PVC WIRE 6MM² SINGLE CORE,ANY,unpinned
+QUARTZITE TILES 16MM,ANY,unpinned
+r-suv1 body,NONE,plan-refusal
+RATE OF RISE HEAT DETECTOR,ANY,unpinned
+RD_Ceramic White 245 243 241,Ceramic,agrees-with-model
+RD_Chrome Plated 255 255 255,ANY,unpinned
+RD_Concrete 154 153 148,ANY,unpinned
+RD_Glass Shower 208 208 208,Glass,agrees-with-model
+RD_Metal Black 25 25 25 25,ANY,unpinned
+RD_Poche 0 0 255,ANY,unpinned
+RD_Wood Oak White 180 152 110,Wood,agrees-with-model
+Rebar - ASTM A615M - Grade 420 - Billet Steel,Metal,agrees-with-model
+"Rebar, ASTM A615, Grade 60",Metal,agrees-with-model
+RECESSED FLOOR SOCKET 13A,ANY,unpinned
+RECLAIMED GRANITE SETTS 100MM,ANY,unpinned
+RECLAIMED SETT,NONE,plan-refusal
+RECLAIMED WOOD PANELS 25MM,Wood,agrees-with-model
+RECTANGULAR GALVANIZED 1000X500MM 1.5MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED 250X150MM 0.5MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED 400X200MM 0.7MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED 600X300MM 0.9MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED 800X400MM 1.2MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED STEEL DUCT 0.5MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED STEEL DUCT 0.7MM,Metal,agrees-with-model
+RECTANGULAR GALVANIZED STEEL DUCT 1.0MM,Metal,agrees-with-model
+Red Light,NONE,plan-refusal
+red paint,Paint,plan-write
+Reece_Metal_Steel,ANY,unpinned
+REFLECTIVE FOIL 5MM,ANY,unpinned
+REFLECTIVE FOIL INSULATION 5MM,Insulation,agrees-with-model
+REFLECTIVE UNDERLAY 5MM,ANY,unpinned
+Render Material 0-0-0,NONE,correction
+Render Material 0-0-255,NONE,correction
+Render Material 0-127-255,NONE,correction
+Render Material 0-255-0,NONE,correction
+Render Material 0-255-255,NONE,correction
+Render Material 0-41-165,NONE,correction
+Render Material 118-118-118,NONE,correction
+Render Material 127-0-0,NONE,correction
+Render Material 127-255-255,NONE,correction
+Render Material 128-128-128,NONE,correction
+Render Material 152-152-152,NONE,correction
+Render Material 153-153-153,NONE,correction
+Render Material 165-0-0,NONE,correction
+Render Material 165-124-82,NONE,correction
+Render Material 165-82-82,NONE,correction
+Render Material 186-186-186,NONE,correction
+Render Material 192-192-192,NONE,correction
+Render Material 255-0-0,NONE,correction
+Render Material 255-0-255,NONE,correction
+Render Material 255-127-127,NONE,correction
+Render Material 255-255-0,NONE,correction
+Render Material 255-255-255,NONE,correction
+Render Material 38-0-0,NONE,correction
+Render Material 38-38-19,NONE,correction
+Render Material 82-145-165,NONE,correction
+Render Material 84-84-84,NONE,correction
+RETAINING WALL,ANY,unpinned
+RETARDER + WASH,NONE,plan-refusal
+RETURN AIR GRILLE 150X150MM,ANY,unpinned
+RETURN AIR GRILLE 300X300MM,ANY,unpinned
+RETURN AIR GRILLE 600X300MM,ANY,unpinned
+RETURN FILTER GRILLE 300X300MM,ANY,unpinned
+RG11 COAXIAL CABLE,ANY,unpinned
+RG6 COAXIAL CABLE,ANY,unpinned
+RIDGE FLASHING 0.7MM,ANY,unpinned
+Rigid insulation,ANY,unpinned
+RISER CLAMP 100MM (4 INCH),ANY,unpinned
+RISER CLAMP 50MM (2 INCH),ANY,unpinned
+Roca - TENET - 402 City Oak,ANY,unpinned
+Roca - TENET - 434 Nordic Ash,ANY,unpinned
+Roca - TENET - 516 Glossy Grey,ANY,unpinned
+Roca - TENET - 517 Walnut,ANY,unpinned
+Roca - TENET - 806 Gloss White,ANY,unpinned
+Roca - TENET - Chrome,ANY,unpinned
+Roca - TENET - White,ANY,unpinned
+ROCKWOOL INSULATION 100MM,Insulation,agrees-with-model
+ROCKWOOL INSULATION 50MM,Insulation,agrees-with-model
+ROOF CLAY-TILE ANTIQUE,ANY,unpinned
+ROOF CLAY-TILE BLACK-GLAZED,ANY,unpinned
+ROOF CLAY-TILE BROWN,ANY,unpinned
+ROOF CLAY-TILE BUFF,ANY,unpinned
+ROOF CLAY-TILE CREAM,ANY,unpinned
+ROOF CLAY-TILE RED-TRADITIONAL,ANY,unpinned
+ROOF CLAY-TILE SLATE-GREY,ANY,unpinned
+ROOF CLAY-TILE TERRACOTTA,ANY,unpinned
+ROOF CONCRETE-TILE BLACK,Concrete,agrees-with-model
+ROOF CONCRETE-TILE BROWN,Concrete,agrees-with-model
+ROOF CONCRETE-TILE GREY,Concrete,agrees-with-model
+ROOF CONCRETE-TILE RED,Concrete,agrees-with-model
+ROOF CONCRETE-TILE SLATE,Concrete,agrees-with-model
+ROOF CONCRETE-TILE TERRACOTTA,Concrete,agrees-with-model
+ROOF MEMBRANE BLACK,ANY,unpinned
+ROOF MEMBRANE DARK-GREY,ANY,unpinned
+ROOF MEMBRANE GREEN,ANY,unpinned
+ROOF MEMBRANE LIGHT-GREY,ANY,unpinned
+ROOF MEMBRANE WHITE,ANY,unpinned
+ROOF METAL ALUMINUM,ANY,unpinned
+ROOF METAL ANTHRACITE-RAL7016,ANY,unpinned
+ROOF METAL BLACK-RAL9005,ANY,unpinned
+ROOF METAL COPPER-NATURAL,ANY,unpinned
+ROOF METAL COPPER-PATINA,ANY,unpinned
+ROOF METAL DARK-GREEN,ANY,unpinned
+ROOF METAL DARK-RED,ANY,unpinned
+ROOF METAL GALVANIZED,ANY,unpinned
+ROOF METAL WHITE,ANY,unpinned
+ROOF METAL ZINC,ANY,unpinned
+ROOF SLATE NATURAL-WELSH,ANY,unpinned
+ROOF SLATE RECYCLED,ANY,unpinned
+ROOFING FELT 1MM,ANY,unpinned
+"Roofing, EPDM Membrane",ANY,unpinned
+Roofs,NONE,plan-refusal
+ROTARY DIMMER SWITCH 400W,ANY,unpinned
+ROUGHCAST RENDER 18MM,ANY,unpinned
+ROUND CEILING DIFFUSER 150MM,ANY,unpinned
+ROUND CEILING DIFFUSER 200MM,ANY,unpinned
+RPZ BACKFLOW PREVENTER 25MM,ANY,unpinned
+RUBBER SHEET,Plastic,named-substance
+RUBBER SHEET 3MM,Plastic,agrees-with-model
+RUBBER SKIRTING 100MM,Plastic,agrees-with-model
+RUBBER TILE,Plastic,correction
+RUBBER TILE 6MM 500X500MM,Plastic,agrees-with-model
+"Rubber, Nitrile",Plastic,agrees-with-model
+RUSTIC TEXTURE PAINT 4MM,ANY,unpinned
+SAFETY RUBBER,Plastic,named-substance
+SAFETY RUBBER 10MM,Plastic,agrees-with-model
+SAFETY VINYL,Plastic,plan-write
+SAFETY VINYL 3MM,ANY,unpinned
+Sand,ANY,unpinned
+SAND TEXTURE FINISH 5MM,ANY,unpinned
+SANDSTONE FLAGSTONE,Stone,plan-write
+SANDSTONE FLAGSTONE 40MM,ANY,unpinned
+SANDSTONE PAVING 40MM,ANY,unpinned
+SANDSTONE SLAB,Stone,plan-write
+SARKING FELT 0.2MM,ANY,unpinned
+Sash,ANY,unpinned
+SATIN FINISH PAINT 1MM,Paint,agrees-with-model
+SBS MODIFIED BITUMEN 4MM,ANY,unpinned
+Scinetific Leather-Dark Brown 8032S,ANY,unpinned
+SCRUBBABLE WHITE,ANY,unpinned
+SEAL,NONE,plan-refusal
+SEAL COAT,NONE,plan-refusal
+SEALER,NONE,plan-refusal
+SEISMIC RATED GRID 25MM,ANY,unpinned
+SELF LEVELING,NONE,plan-refusal
+SELF LEVELING COMPOUND 5MM,ANY,unpinned
+SELF-ADHESIVE UNDERLAY 1MM,ANY,unpinned
+SELF-LEVELING EPOXY 3MM,ANY,unpinned
+SENSOR BASIN TAP BATTERY OPERATED,ANY,unpinned
+Shades,NONE,plan-refusal
+SHADOW GAP SKIRTING 20MM,ANY,unpinned
+SHEET VINYL,Plastic,plan-write
+SHEET VINYL 2MM,ANY,unpinned
+SHELL & TUBE HEAT EXCHANGER 200KW,ANY,unpinned
+SHIPLAP WOOD PANELS 20MM,Wood,agrees-with-model
+SHOWER AREA WATERPROOF 30MM,ANY,unpinned
+SHOWER-TAP BRUSHED-NICKEL,ANY,unpinned
+SHOWER-TAP CHROME,ANY,unpinned
+SHOWER-TAP GOLD,ANY,unpinned
+SHOWER-TAP MATT-BLACK,ANY,unpinned
+"Siding, Clapboard",ANY,unpinned
+SILICONE EXTERNAL PAINT 2MM,Paint,agrees-with-model
+SILK WALL COVERING 2MM,ANY,unpinned
+SINGLE GANG 1-WAY LIGHT SWITCH 13A,ANY,unpinned
+SINGLE GANG 2-WAY LIGHT SWITCH 13A,ANY,unpinned
+SINGLE SOCKET OUTLET 13A,ANY,unpinned
+SINGLE-SOCKET BLACK,ANY,unpinned
+SINGLE-SOCKET BRASS,ANY,unpinned
+SINGLE-SOCKET BRONZE,ANY,unpinned
+SINGLE-SOCKET BRUSHED-NICKEL,ANY,unpinned
+SINGLE-SOCKET BRUSHED-STEEL,ANY,unpinned
+SINGLE-SOCKET CHROME,ANY,unpinned
+SINGLE-SOCKET STAINLESS,ANY,unpinned
+SINGLE-SOCKET WHITE,ANY,unpinned
+SKIM COAT PLASTER 2MM,ANY,unpinned
+Slabs on Grade,NONE,plan-refusal
+SLATE PAVING 25MM,ANY,unpinned
+SLATE SLAB,Stone,named-substance
+SLATE TILE,Stone,correction
+SLATE TILES 12MM,ANY,unpinned
+Sliding Doors,NONE,plan-refusal
+SMALL COBBLESTONE,Stone,plan-write
+SMALL COBBLESTONE 80MM,ANY,unpinned
+SMALL FORMAT CERAMIC 200X200MM,ANY,unpinned
+SMOKE DAMPER 400MM MOTORIZED,ANY,unpinned
+SMOOTH CEMENT RENDER EXTERNAL 15MM,ANY,unpinned
+SOCKET OUTLET WITH USB 13A+USB,ANY,unpinned
+SOFTWOOD PAINTED SKIRTING 75MM,Wood,agrees-with-model
+SOFTWOOD SKIRTING 75MM,Wood,agrees-with-model
+"Softwood, Lumber",Wood,agrees-with-model
+SOLID BAMBOO 14MM,Wood,agrees-with-model
+SOLID CONCRETE BLOCK 10IN (250MM),Masonry,agrees-with-model
+SOLID CONCRETE BLOCK 4IN (100MM),Masonry,agrees-with-model
+SOLID CONCRETE BLOCK 6IN (150MM),Masonry,agrees-with-model
+SOLID CONCRETE BLOCK 8IN (200MM),Masonry,agrees-with-model
+SOLID CONCRETE BLOCK 9IN (225MM),Masonry,agrees-with-model
+SOLID HARDWOOD 18MM,Wood,agrees-with-model
+SOLID SURFACE PANELS 12MM,ANY,unpinned
+SPANISH CLAY TILES 14MM,ANY,unpinned
+SPC CORE,NONE,plan-refusal
+SPIRAL GALVANIZED DUCT 125MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 160MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 200MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 250MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 315MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 400MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 500MM,Metal,agrees-with-model
+SPIRAL GALVANIZED DUCT 630MM,Metal,agrees-with-model
+SPORTS SEAL,NONE,plan-refusal
+SPRAY FOAM INSULATION 50MM,Insulation,agrees-with-model
+SPRING CHECK VALVE 25MM (1 INCH),ANY,unpinned
+SPRING SAFETY VALVE 25MM,ANY,unpinned
+SQUARE CEILING DIFFUSER 300X300MM,ANY,unpinned
+SQUARE CEILING DIFFUSER 600X600MM 4-WAY,ANY,unpinned
+SS304 RECTANGULAR DUCT 1.0MM,ANY,unpinned
+SS304 RECTANGULAR DUCT 1.2MM,ANY,unpinned
+SS316 LADDER TRAY 300MM X 1.5MM,ANY,unpinned
+SS316 PIPE SCH10 50MM (2 INCH),ANY,unpinned
+Stainless Steel,Metal,agrees-with-model
+STAINLESS STEEL BALL VALVE 50MM (2 INCH),Metal,agrees-with-model
+STAINLESS STEEL DOUBLE BOWL SINK,Metal,agrees-with-model
+STAINLESS STEEL SKIRTING 80MM,Metal,agrees-with-model
+STAMPED CONCRETE 100MM,Concrete,agrees-with-model
+STANDARD ACCESS FLOOR 150MM,ANY,unpinned
+STANDARD CEMENT SCREED 50MM,Concrete,agrees-with-model
+STANDARD GYPSUM BOARD 12MM,ANY,unpinned
+STANDARD INTERLOCKING PAVER 60MM,ANY,unpinned
+STANDING SEAM 0.7MM,ANY,unpinned
+STANDING SEAM METAL 1MM,ANY,unpinned
+Steel,Metal,agrees-with-model
+Steel ASTM A36,Metal,agrees-with-model
+Steel ASTM A992,Metal,agrees-with-model
+Steel Black matte,ANY,unpinned
+STEEL C-SECTION PURLIN 75MM,Metal,agrees-with-model
+STEEL CEILING TILE 0.6MM 600X600,Metal,agrees-with-model
+STEEL ROOF TRUSS 100MM,Metal,agrees-with-model
+STEEL ROOF TRUSS 150MM,Metal,agrees-with-model
+STEEL Z-SECTION PURLIN 100MM,Metal,agrees-with-model
+STEEL-CONCRETE PANEL,Metal,plan-write
+"Steel, 45-345",Metal,agrees-with-model
+"Steel, Carbon",Metal,agrees-with-model
+"Steel, Chrome Plated",Metal,agrees-with-model
+"Steel, Paint Finish, Dark Gray",Metal,agrees-with-model
+"Steel, Paint Finish, Dark Gray, Matte",Metal,agrees-with-model
+"Steel, Paint Finish, Ivory, Glossy",Metal,agrees-with-model
+"Steel, Paint Finish, Ivory, Matte",Metal,agrees-with-model
+"Steel, Polished",Metal,agrees-with-model
+Stone 50 mm,ANY,unpinned
+STONE ASHLAR DRESSED (450×200×200MM),ANY,unpinned
+STONE COATED STEEL 0.5MM,Metal,agrees-with-model
+STONE PLASTIC COMPOSITE 5MM,Plastic,agrees-with-model
+STONE RUBBLE MASONRY (VARIABLE),Masonry,agrees-with-model
+STONE SLATE BLACK 50MM,ANY,unpinned
+STONE SLATE CLADDING (VARIABLE),ANY,unpinned
+"Structure, Steel Bar Joist Layer",Metal,agrees-with-model
+"Structure, Wood Joist/Rafter Layer",Wood,agrees-with-model
+"Structure, Wood Joist/Rafter Layer, Batt Insulation",ANY,unpinned
+STUCCO VENETIAN 3MM,ANY,unpinned
+STUD WALL METAL 146MM,ANY,unpinned
+STUD WALL METAL 195MM,ANY,unpinned
+STUD WALL METAL 245MM,ANY,unpinned
+STUD WALL METAL 70MM,ANY,unpinned
+STUD WALL METAL 92MM,ANY,unpinned
+STUD WALL TIMBER 100MM,Wood,agrees-with-model
+STUD WALL TIMBER 125MM,Wood,agrees-with-model
+STUD WALL TIMBER 150MM,Wood,agrees-with-model
+STUD WALL TIMBER 200MM,Wood,agrees-with-model
+STUD WALL TIMBER 75MM,Wood,agrees-with-model
+STUDDED RUBBER,Plastic,named-substance
+STUDDED RUBBER 8MM,Plastic,agrees-with-model
+SUBMERSIBLE SUMP PUMP 2HP,ANY,unpinned
+SUPPLY REGISTER 150X150MM 1-WAY,ANY,unpinned
+SUPPLY REGISTER 200X100MM 2-WAY,ANY,unpinned
+SWA CABLE 3CX16MM² 0.6-1KV,ANY,unpinned
+SWA CABLE 4CX35MM² 0.6-1KV,ANY,unpinned
+SWING CHECK VALVE 50MM (2 INCH),ANY,unpinned
+SWIRL CEILING DIFFUSER 300MM,ANY,unpinned
+SWITCHED SOCKET OUTLET 13A,ANY,unpinned
+SYNTHETIC UNDERLAY 0.5MM,ANY,unpinned
+System-Zones,NONE,plan-refusal
+TEMPERATURE & PRESSURE RELIEF 20MM,ANY,unpinned
+TERRACOTTA CLAY TILES 15MM,ANY,unpinned
+TERRACOTTA RAIN SCREEN 30MM,ANY,unpinned
+TERRAZZO MIX,Concrete,plan-write
+TERRAZZO SKIRTING 150MM,ANY,unpinned
+TERRAZZO TILE,Concrete,plan-write
+TERRAZZO TILES 20MM,ANY,unpinned
+Textile - Slate Blue,ANY,unpinned
+TEXTURED EXTERNAL PLASTER 20MM,ANY,unpinned
+TEXTURED-TYROLEAN RENDER,ANY,unpinned
+THERMAL GYPSUM BOARD 12.5MM,ANY,unpinned
+THERMOSTATIC SHOWER MIXER,ANY,unpinned
+THIN BRICK VENEER 100MM,Masonry,agrees-with-model
+THIN GYPSUM BOARD 9MM,ANY,unpinned
+TILE ADHESIVE FLEXIBLE,ANY,unpinned
+TILE ADHESIVE RAPID-SET,ANY,unpinned
+TILE ADHESIVE STANDARD CEMENTITIOUS,ANY,unpinned
+TILE ADHESIVE WATERPROOF,ANY,unpinned
+TILE COVE SKIRTING 100MM,ANY,unpinned
+TILE GROUT ANTHRACITE,ANY,unpinned
+TILE GROUT BEIGE,ANY,unpinned
+TILE GROUT BLACK,ANY,unpinned
+TILE GROUT GREY,ANY,unpinned
+TILE GROUT OFF-WHITE,ANY,unpinned
+TILE GROUT WHITE,ANY,unpinned
+TILE PROFILE METAL 0.5MM,ANY,unpinned
+"Tile, Mosaic, Gray",ANY,unpinned
+TILES,ANY,unpinned
+TIMBER BAFFLE CEILING 100MM,Wood,agrees-with-model
+TIMBER BATTEN 25X50MM,Wood,agrees-with-model
+TIMBER BATTEN 38X50MM,Wood,agrees-with-model
+TIMBER BATTEN 50X50MM,Wood,agrees-with-model
+TIMBER BOARD CEILING 12MM,Wood,agrees-with-model
+TIMBER BOARD DECK 25MM,Wood,agrees-with-model
+TIMBER CEILING BOARD 12MM,Wood,agrees-with-model
+TIMBER PLANK CEILING 20MM,Wood,agrees-with-model
+TIMBER PURLIN 50X100MM,Wood,agrees-with-model
+TIMBER PURLIN 50X150MM,Wood,agrees-with-model
+TIMBER RAFTER 100X50MM,Wood,agrees-with-model
+TIMBER RAFTER 150X50MM,Wood,agrees-with-model
+TIMBER SLAT CEILING 50MM,Wood,agrees-with-model
+TIMBER T&G CEILING 15MM,Wood,agrees-with-model
+TIMBER TRUSS 100X50MM,Wood,agrees-with-model
+TIMBER TRUSS 150X50MM,Wood,agrees-with-model
+TIMBER WALL PANELING 32MM,Wood,agrees-with-model
+Tire,NONE,plan-refusal
+TONGUE AND GROOVE 18MM,ANY,unpinned
+TOPCOAT,NONE,plan-refusal
+TORCH-ON MEMBRANE 3MM,ANY,unpinned
+TORCH-ON MEMBRANE 4MM,ANY,unpinned
+TOUCH DIMMER SWITCH LED 250W,ANY,unpinned
+TPO MEMBRANE 1.2MM,ANY,unpinned
+TRANSLUCENT CEILING PANEL 10MM,ANY,unpinned
+TRANSLUCENT PVC PANEL 10MM,Plastic,agrees-with-model
+TRAVERTINE STONE TILES 18MM,ANY,unpinned
+TRAVERTINE TILE,Stone,correction
+TRAVERTINE TILES 15MM,ANY,unpinned
+Trim,ANY,unpinned
+TRIPLE GANG 2-WAY LIGHT SWITCH 13A,ANY,unpinned
+TRIPLEX BOOSTER PUMP SET 3X5HP,ANY,unpinned
+TV - Black,ANY,unpinned
+TV - Glass,ANY,unpinned
+TV - Screen,ANY,unpinned
+TWIN SOCKET OUTLET 13A,ANY,unpinned
+TYROLEAN RENDER 8MM,ANY,unpinned
+ULTRA THIN CEMENT PLASTER 10MM,ANY,unpinned
+Underground Walls,NONE,plan-refusal
+UNDERLAY,NONE,plan-refusal
+UPS 10KVA ONLINE DOUBLE CONVERSION,ANY,unpinned
+UPS 20KVA ONLINE DOUBLE CONVERSION,ANY,unpinned
+VALLEY FLASHING 0.7MM,ANY,unpinned
+VAPOR BARRIER 0.15MM,ANY,unpinned
+Vapor Retarder,ANY,unpinned
+VENETIAN PLASTER 3MM,ANY,unpinned
+VERGE TRIM 0.5MM,ANY,unpinned
+VERTICAL FCU 600 CFM,ANY,unpinned
+Vinyl Composition Tile,ANY,unpinned
+VINYL LAYER,Plastic,plan-write
+VINYL LVT SOLID BLUE-COMMERCIAL,ANY,unpinned
+VINYL LVT SOLID CHARCOAL,ANY,unpinned
+VINYL LVT SOLID DARK-GREY,ANY,unpinned
+VINYL LVT SOLID GREEN-COMMERCIAL,ANY,unpinned
+VINYL LVT SOLID LIGHT-BEIGE,ANY,unpinned
+VINYL LVT SOLID LIGHT-GREY,ANY,unpinned
+VINYL LVT SOLID MID-BEIGE,ANY,unpinned
+VINYL LVT SOLID MID-GREY,ANY,unpinned
+VINYL LVT SOLID WARM-BEIGE,ANY,unpinned
+VINYL LVT SOLID WARM-GREY,ANY,unpinned
+VINYL LVT STONE CONCRETE-DARK,ANY,unpinned
+VINYL LVT STONE CONCRETE-LIGHT,ANY,unpinned
+VINYL LVT STONE LIMESTONE,ANY,unpinned
+VINYL LVT STONE SLATE-GREY,ANY,unpinned
+VINYL LVT STONE TRAVERTINE,ANY,unpinned
+VINYL LVT WOOD ASH,ANY,unpinned
+VINYL LVT WOOD BAMBOO,ANY,unpinned
+VINYL LVT WOOD CHERRY,ANY,unpinned
+VINYL LVT WOOD CHEVRON-OAK,ANY,unpinned
+VINYL LVT WOOD HICKORY,ANY,unpinned
+VINYL LVT WOOD MAPLE,ANY,unpinned
+VINYL LVT WOOD OAK-DARK,ANY,unpinned
+VINYL LVT WOOD OAK-GREY,ANY,unpinned
+VINYL LVT WOOD OAK-LIGHT,ANY,unpinned
+VINYL LVT WOOD OAK-MEDIUM,ANY,unpinned
+VINYL LVT WOOD OAK-SMOKED,ANY,unpinned
+VINYL LVT WOOD OAK-WHITE,ANY,unpinned
+VINYL LVT WOOD RECLAIMED-OAK,ANY,unpinned
+VINYL LVT WOOD TEAK,ANY,unpinned
+VINYL LVT WOOD WALNUT,ANY,unpinned
+VINYL TILE,Plastic,correction
+VINYL WALL COVERING 1MM,ANY,unpinned
+VINYL WALLPAPER SYSTEM 2MM,ANY,unpinned
+VITRIFIED TILE,Ceramic,plan-write
+VITRIFIED TILES 600X600MM 10MM,ANY,unpinned
+VRF INDOOR CASSETTE 2 HP,ANY,unpinned
+VRF INDOOR DUCTED 3 HP,ANY,unpinned
+VRF INDOOR WALL MOUNT 1.5 HP,ANY,unpinned
+VRF OUTDOOR UNIT 10 HP,ANY,unpinned
+VRF OUTDOOR UNIT 20 HP,ANY,unpinned
+VRF OUTDOOR UNIT 30 HP,ANY,unpinned
+WAFER BUTTERFLY VALVE 50MM (2 INCH),ANY,unpinned
+WAFER CHECK VALVE 100MM (4 INCH),ANY,unpinned
+WALL HUNG BASIN 550X450MM,ANY,unpinned
+WALL HUNG URINAL WITH AUTO FLUSH,ANY,unpinned
+WALL HUNG WC WITH CONCEALED TANK,ANY,unpinned
+Wall Material (1),ANY,unpinned
+Wall material 1,NONE,plan-refusal
+Water,ANY,unpinned
+WATER BOOSTER PUMP 1HP,ANY,unpinned
+WATER COOLED CHILLER 200 TR,ANY,unpinned
+WATER COOLED CHILLER 300 TR,ANY,unpinned
+WATER COOLED CHILLER 500 TR,ANY,unpinned
+WATER SOFTENER 30 LPM,ANY,unpinned
+WATERLESS URINAL WITH CARTRIDGE,ANY,unpinned
+WEAR LAYER,NONE,plan-refusal
+WEATHERGUARD EXTERIOR PAINT,Paint,agrees-with-model
+Wheel,NONE,plan-refusal
+white,NONE,plan-refusal
+White Modern Coffee Table - Plastic,ANY,unpinned
+White Modern Coffee Table - Wood,ANY,unpinned
+White-Victoria- Roca,ANY,unpinned
+WHITEBOARD PAINT 1MM,Paint,agrees-with-model
+WHITEBOARD WHITE,ANY,unpinned
+Window Frame,NONE,plan-refusal
+WIRE MESH CABLE TRAY 150MM,ANY,unpinned
+WIRE MESH CABLE TRAY 300MM,ANY,unpinned
+wood,Wood,named-substance
+Wood - Birch,Wood,agrees-with-model
+Wood - Stained,Wood,agrees-with-model
+WOOD ACOUSTIC SLAT SYSTEM 40MM,Wood,agrees-with-model
+Wood Door Panel - Birch,Wood,agrees-with-model
+WOOD FIBER ACOUSTIC TILE 25MM,ANY,unpinned
+WOOD PARQUET,Wood,named-substance
+Wood Planks,Wood,agrees-with-model
+Wood Shake,Wood,agrees-with-model
+WOOD VENEER PANEL 6MM,Wood,agrees-with-model
+WOOD VENEER PANELS 18MM,Wood,agrees-with-model
+WOODEN SPORTS FLOOR 22MM,ANY,unpinned
+WPC DECKING,NONE,plan-refusal
+XDirection,ANY,unpinned
+XL COBBLESTONE,Stone,plan-write
+XLPE CABLE 3CX10MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 3CX16MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 3CX25MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX120MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX150MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX185MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX240MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX300MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX35MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX50MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX70MM² 0.6-1KV,ANY,unpinned
+XLPE CABLE 4CX95MM² 0.6-1KV,ANY,unpinned
+XPS BOARD 50MM,ANY,unpinned
+YDirection,ANY,unpinned
+yellow,NONE,plan-refusal
+ZDirection,ANY,unpinned
+ZIG-ZAG INTERLOCKING PAVER 60MM,ANY,unpinned
+Zinc,Metal,agrees-with-model
+ZINCALUME SHEET 0.8MM,Metal,agrees-with-model
+עץ - פסים - 3,NONE,plan-refusal
+שיש עליון,ANY,unpinned
+ไนลอน สีดำ,ANY,unpinned
+เหล็ก,ANY,unpinned

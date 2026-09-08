@@ -2,6 +2,102 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 256 — a tile is a shape, and a plan that was applied can be taken back)
+
+`Materials_SetClass` ran on a 1,815-material delivered model on 2026-09-08 and
+wrote 120 classes. **Forty-one were wrong, and the user applied them.** The
+plan CSV it wrote is checked in as the regression corpus.
+
+**The two defects, and why neither was findable by inspection.**
+
+`Plan()` ended with a plain `IndexOf`. That is the #863 defect — the one
+`RenameSafetyTests.A_Corrugated_Roof_Is_Not_A_Gate` exists to pin — rebuilt
+inside code written after it was documented. It gave 32 materials the class
+Gypsum "because the name contains 'render'":
+
+    _ACCURENDER\Metals\Chrome\Polished,Plain        x6   library name
+    Render Material 128-128-128                      x26   DWG RGB placeholder
+
+**Whole-word matching fixes six of those and none of the other twenty-six**,
+because in "Render Material 128-128-128" the word *render* really is a whole
+word — it just means the renderer. Those need an explicit negative statement,
+so `NamesNoSubstance` now holds `render material`, checked before the needle
+loop, in the same spirit as `notAProductFamilies` in `STING_PROD_EXCLUSIONS.json`:
+somebody looked at it and said what it is.
+
+The other nine read `tile` before the substance word. CARPET TILE was Ceramic,
+CORK TILE was Ceramic, and so were rubber, vinyl, granite, limestone, marble,
+slate and travertine. **The model's own data proved it**: GRANITE SLAB was
+Stone and GRANITE TILE was Ceramic; SHEET VINYL was Plastic and VINYL TILE was
+Ceramic; SLATE SLAB was left blank while SLATE TILE was called Ceramic. A tile
+is a **shape**. `tile` and `tiles` now sit in a last-resort group evaluated
+after every substance word, so the one default the table makes is made in the
+open — VITRIFIED TILE is still Ceramic, pinned by its own test.
+
+**The corpus test is the deliverable.** `MaterialClassCorpusTests` drives all
+1,815 names from `Fixtures/material_names_20260908.csv`, of which 697 carry a
+pinned expectation: the 41 corrections, the 79 writes that were right, the 149
+refusals that must stay refused, 22 names that do say a substance the map had
+no word for, and **406 already-classified materials where the map's answer
+equals the class a human independently set**. That last group is free evidence
+and is the only thing that would have caught what came next.
+
+**Switching to whole-word matching regresses rows that are currently right, and
+the corpus is what found them.** Eight needles only ever worked as substrings:
+`cobblestone`, `bluestone`, `cpvc`, `polyvinyl`, `painted`, `zincalume`,
+`tiles` and `mdf`. None was on anybody's list beforehand — the handover
+predicted `blockwork` and `flagstone`, and **neither turned out to be in this
+corpus at all** (`Blockwork` is a TYPE name, not a material name; the flagstone
+rows resolve through `limestone` and `sandstone` and never needed the needle).
+Both are added anyway, because the prediction is right about the shape of the
+hazard even where it was wrong about the row.
+
+**Two ordering rules the same corpus forced.** Plastic is now evaluated before
+Wood — 31 materials are named `VINYL LVT WOOD OAK-DARK`, luxury vinyl printed
+with a wood grain, and the finish technology names the substance while the
+pattern it imitates does not. Insulation and Membrane are evaluated before
+Plastic, or `Insulation - PVC Jacketed Fiberglass` becomes a plastic and
+`EPDM RUBBER MEMBRANE 1.5MM` stops being a membrane the moment `rubber` is
+added below it. Both are pinned.
+
+Whole-word matching also removed three live wrong answers nobody had noticed:
+`DUCTILE IRON GATE VALVE` and `Iron, Ductile` were Ceramic (**duc-TILE**), and
+`Lining - Textile` was Ceramic (**tex-TILE**).
+
+**A known limit, stated rather than hidden.** A colour word that is also a
+substance still wins: `ROOF CLAY-TILE SLATE-GREY` reads as Stone and
+`Roca - TENET - 402 City Oak` reads as Wood. Rule 1 keeps both harmless in this
+model — every material of that shape already carries a human's class — but the
+honest fix is a better material name, not a longer list of exceptions.
+
+**RED then GREEN, both measured.** Against the unmodified planner:
+`The_Forty_One_Bad_Writes_Say_Something_Else_Now` failed **41 of 41**;
+`Every_Pinned_Row_In_The_Corpus_Holds` reported **122 of 697** pinned rows
+disagreeing (41 correction, 59 agrees-with-model, 22 named-substance, and **0**
+from the 79 writes and 149 refusals — no false pins). After: 0 and 0. Tags 780
+passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+**`Materials_RevertClassPlan` — because re-running cannot repair this.**
+`Materials_SetClass` never overwrites a class somebody already chose. That rule
+is right, and it is exactly what left the 41 stuck: once the tool had written
+them, the tool's own guard protected them. So the new command reads the plan
+CSV — the provenance of what was set and to what — and **reverts only where the
+material still carries what that plan proposed**. Anything changed since belongs
+to whoever changed it, and is reported rather than overwritten; which is also
+what makes the command idempotent, since after one revert the class no longer
+matches the proposal. `MaterialClassRevertPlanner` is Revit-free so the
+refusals are provable, and the reader is RFC 4180 because
+`_ACCURENDER\Solid Colors\Black,Matte` is a real material name. Pointed at the
+wrong file it says so, rather than reporting nothing to revert — which would
+read as "already clean". Button on the SETUP tab beside Set material Class.
+
+**Not verified in Revit.** Nothing here was run in a Revit session. Two points
+in particular are unverified: whether Revit 2025 accepts `""` or `"Unassigned"`
+for clearing `Material.MaterialClass` (the command tries the value the plan
+recorded, then the other spelling, then reports the failure per material rather
+than swallowing it), and the whole apply path of both commands. The planner
+halves are proven; the write halves are not.
+
 #### Completed (Phase 255 — the specific rule wins, and a stem matches a word)
 
 Asked to review product-code automation for consistency. The **logic** turned
