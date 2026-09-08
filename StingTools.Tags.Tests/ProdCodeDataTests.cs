@@ -363,6 +363,29 @@ namespace StingTools.Tags.Tests
         [InlineData("Floors", "Floor", "50 Screed", "FSC")]
         [InlineData("Floors", "Floor", "Concrete Slab 200", "SLB")]   // pre-existing, unmoved
         [InlineData("Ceilings", "Compound Ceiling", "Suspended Ceiling 600x600", "CSU")]
+        // Openings, circulation, MEP linear services — the categories where the
+        // sub-distinction changes what you BUY, which is the BOQ's criterion.
+        [InlineData("Doors", "Door", "Flush Door 900x2100", "DRT")]
+        [InlineData("Doors", "Door", "FD30 Fire Door", "DRF")]
+        [InlineData("Doors", "AD_Garage door", "4200X2700", "DRR")]
+        [InlineData("Windows", "Window", "Aluminium Casement 1200", "WNA")]
+        [InlineData("Windows", "Window", "uPVC Window 900", "WNU")]
+        [InlineData("Windows", "Tpl Casement - Top Hung Side", "1500X1200", "WNC")]
+        [InlineData("Windows", "M_Window-Awning-Double-Vertical", "600x1800", "WNW")]
+        [InlineData("Curtain Panels", "RD_Breeze Block 01_Panel", "Concrete", "SBP")]
+        [InlineData("Pipes", "Pipe Types", "uPVC 110 Soil", "PPV")]
+        [InlineData("Pipes", "Pipe Types", "PPR PN20 25mm", "PPR")]
+        [InlineData("Pipes", "Pipe Types", "Copper Tube 15mm", "PCU")]
+        [InlineData("Pipes", "Pipe Types", "GI Pipe 25mm", "PGI")]
+        [InlineData("Conduits", "Conduit", "PVC Conduit 20mm", "CPV")]
+        [InlineData("Cable Trays", "Cable Tray", "Perforated 300mm", "CTP")]
+        [InlineData("Ducts", "Rectangular Duct", "Galvanised Duct 400x200", "DGI")]
+        [InlineData("Stairs", "Stair", "RC Stair Flight", "STRC")]
+        [InlineData("Railings", "Railing", "MS Railing 1100", "RLM")]
+        [InlineData("Railings", "Railing", "Glass Balustrade 1100", "GBL")]
+        [InlineData("Structural Rebar", "Rebar", "Y12", "RBR")]
+        [InlineData("Gutter", "Gutter", "uPVC Gutter 150", "GTP")]
+        [InlineData("Plumbing Equipment", "Tank", "Poly Water Tank 5000L", "PEQT")]
         public void An_Architectural_Build_Resolves_To_Its_Own_Code(
             string category, string family, string type, string expected)
         {
