@@ -829,7 +829,10 @@ namespace StingTools.BOQ
                 var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
                 if (rules != null && rules.Count > 0)
                     csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
-                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",
+                        // KUT-10 - the bill must classify on the same key the assign pass
+                        // does, or a beam is stamped Division 03 and billed under Division 05.
+                        StingTools.Commands.Classification.CsiMap.StructuralMaterialName(doc, el));
                 if (csiRule != null)
                 {
                     if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";
