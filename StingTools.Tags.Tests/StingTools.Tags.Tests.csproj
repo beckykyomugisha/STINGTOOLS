@@ -68,6 +68,11 @@
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
+    <!-- KUT-7: the electrical standard vocabulary + sizing-support policy, and the
+         NEC 2023 tables the cable sizer now routes to. Both Revit-free; linked rather
+         than project-referenced because StingTools.Standards is net8.0-windows. -->
+    <Compile Include="..\StingTools.Standards\ElectricalStandardId.cs" Link="Standards\ElectricalStandardId.cs" />
+    <Compile Include="..\StingTools.Standards\NEC2023\NECStandards.cs" Link="Standards\NECStandards.cs" />
     <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
          per-appointment override are provable without a Revit host. -->
     <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />
