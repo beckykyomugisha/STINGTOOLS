@@ -55,6 +55,38 @@ rather than guesses when:
 
 Re-running the same reviewed sheet changes nothing the second time.
 
+## Status
+
+The review is **complete and independently verified**. `--apply` reports *37 agreed, 0 to
+change, 0 refused, 0 still unreviewed*, and a second, adversarial pass is recorded in
+[`VERIFICATION.md`](VERIFICATION.md) — 31 confirmed, 5 acceptable, 1 overturned.
+
+**What remains is a countersignature.** `VERIFICATION.md` §10 carries a sign-off block with
+name, professional registration, organisation, date and signature, left deliberately blank.
+Nothing in this repository can fill it: a signature is an accountability record, and it is
+the one part of a QS review that cannot be produced by reviewing.
+
+### The one verdict the verification overturned
+
+**Buried gas moved from `33` Mechanical services to `32` Piped supply systems**, and the
+in-building gas run (`23 11 23`) moved with it. Section `32` is literally *Piped supply
+systems*, which is what a gas main is; every other occupant of `33` is HVAC, so gas was the
+outlier there rather than the precedent.
+
+The pairing matters more than the value. Which of the two rules an element matches turns on
+whether its pipe **type name** happens to contain "buried" / "external" / "underground" — so
+if the two rows ever carry different sections, one installation bills under two headings on
+a naming accident. `Both_Gas_Rows_Bill_Under_The_Same_Section` pins that.
+
+### One caveat the signer inherits
+
+**A pile whose family name contains none of `pile` / `bored pile` / `CFA` falls through to
+the bare `Structural Foundations` rule and bills at `5` In-situ concrete, not `4`.** That is
+a naming dependency, not a classification error — `5` is right for the pad and strip footings
+that rule exists to catch — but it means two identical piles can bill under two headings if
+one is misnamed. Fixing it in the map would misclassify footings; it belongs in the
+modelling standard as a family-naming rule.
+
 ## Before you review: the `Nrm2` column is not NRM2 numbering
 
 A first pass filled every row's `QS_VERDICT` / `QS_NRM2` / `QS_NOTE` (see the sheet). It
