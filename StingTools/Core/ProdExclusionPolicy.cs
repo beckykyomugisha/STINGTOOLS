@@ -23,6 +23,12 @@ namespace StingTools.Core
 
         [JsonProperty("protectedCategories")]
         public List<string> ProtectedCategories;
+
+        /// <summary>Exact family names that are never products. Exact, so it cannot
+        /// misfire the way a substring can — and therefore allowed to override
+        /// <see cref="ProtectedCategories"/>.</summary>
+        [JsonProperty("notAProductFamilies")]
+        public List<string> NotAProductFamilies;
     }
 
     public static class ProdExclusionPolicy
@@ -59,7 +65,8 @@ namespace StingTools.Core
             return ProductExclusion.Build(
                 Pick(d => d.NotAProductCategories),
                 Pick(d => d.NotAProductPatterns),
-                Pick(d => d.ProtectedCategories));
+                Pick(d => d.ProtectedCategories),
+                Pick(d => d.NotAProductFamilies));
         }
     }
 }

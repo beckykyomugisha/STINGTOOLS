@@ -162,6 +162,52 @@ namespace StingTools.Tags.Tests
         //  Mechanism
         // ══════════════════════════════════════════════════════════════════════
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  Exact family names: deliberate identity beats an accident guard
+        // ══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public void A_Named_Family_Is_Excluded_EVEN_In_A_Protected_Category()
+        {
+            // Window-Square Opening is Revit's stock wall-void family. It sits in
+            // Windows, which is protected, so the "opening" PATTERN cannot reach it —
+            // correctly, because that guard exists to stop a fuzzy match eating a real
+            // window. An EXACT name is a different act and is allowed through.
+            Assert.Equal(ExclusionVerdict.ByFamily,
+                Shipped().Classify("Windows", "Window-Square Opening", "1000"));
+        }
+
+        [Fact]
+        public void The_Pattern_Still_Cannot_Reach_Into_A_Protected_Category()
+        {
+            // The guard this overrides must still be doing its job for everything else,
+            // or the override has quietly disabled it.
+            Assert.Equal(ExclusionVerdict.Included,
+                Shipped().Classify("Windows", "M_Window-Awning-Double-Vertical", "Opening 600"));
+        }
+
+        [Fact]
+        public void An_Exact_Name_Is_EXACT_Not_A_Substring()
+        {
+            // The whole reason this is safe. A family merely CONTAINING the listed name
+            // is a different family and stays a product.
+            var ex = ProductExclusion.Build(null, null, null, new[] { "Window-Square Opening" });
+            Assert.Equal(ExclusionVerdict.ByFamily, ex.Classify("Windows", "window-square opening", ""));
+            Assert.Equal(ExclusionVerdict.Included, ex.Classify("Windows", "Window-Square Opening Frame", ""));
+            Assert.Equal(ExclusionVerdict.Included, ex.Classify("Windows", "Steel Window-Square Opening", ""));
+        }
+
+        [Fact]
+        public void Toposolid_Is_Topography_Not_A_Product()
+        {
+            // Four of them carried NO family and NO type, so nothing could ever key a
+            // rule on them. The material schedule has excluded Toposolid and Topography
+            // all along; PROD now agrees.
+            Assert.Equal(ExclusionVerdict.ByCategory, Shipped().Classify("Toposolid", "Toposolid", "Generic - 1000mm"));
+            Assert.Equal(ExclusionVerdict.ByCategory, Shipped().Classify("Toposolid", "", ""));
+            Assert.Equal(ExclusionVerdict.ByCategory, Shipped().Classify("Topography", "", ""));
+        }
+
         [Fact]
         public void A_Protected_Category_Outranks_A_Pattern()
         {
