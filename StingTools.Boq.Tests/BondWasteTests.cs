@@ -203,6 +203,89 @@ namespace StingTools.Boq.Tests
                 Assert.Equal(-1, l.WastePctOverride);
         }
 
+        // ── plaster: the coat's allowance GOVERNS, it does not add ──────────
+
+        [Fact]
+        public void The_Plaster_Coat_Waste_Rides_The_DERIVED_Lines()
+        {
+            // 15-25% is material lost mixing and applying plaster. The cement
+            // rule's 2.5% is bag handling. The coat allowance is the larger,
+            // governing one for plaster-derived cement and sand — it replaces
+            // the rule's default rather than stacking on it, which is the
+            // decision this encodes.
+            var lines = CompoundTakeoff.MasonryWall(new MasonryWallInput
+            {
+                FaceAreaM2 = 10, IsBrick = false, UnitsPerM2 = 12.5,
+                PlasterFaces = 2, PlasterThicknessM = 0.015, PlasterWastePct = 20,
+                PlasterCementBagsPerM3 = 6, PlasterSandRatio = 1
+            });
+
+            Assert.Equal(20, lines.Single(l => l.Kind == "plaster_cement").WastePctOverride);
+            Assert.Equal(20, lines.Single(l => l.Kind == "plaster_sand").WastePctOverride);
+        }
+
+        [Fact]
+        public void The_Plaster_AREA_Line_Takes_No_Material_Allowance()
+        {
+            // Measured work a QS prices by m². It is not bought, so a material
+            // wastage on it would be an allowance on a rate, not on a quantity.
+            var lines = CompoundTakeoff.MasonryWall(new MasonryWallInput
+            {
+                FaceAreaM2 = 10, IsBrick = false, UnitsPerM2 = 12.5,
+                PlasterFaces = 2, PlasterThicknessM = 0.015, PlasterWastePct = 20,
+                PlasterCementBagsPerM3 = 6, PlasterSandRatio = 1
+            });
+
+            Assert.Equal(-1, lines.Single(l => l.Kind == "plaster").WastePctOverride);
+        }
+
+        [Fact]
+        public void An_Unstated_Coat_Waste_Falls_Back_To_The_Rule()
+        {
+            var lines = CompoundTakeoff.MasonryWall(new MasonryWallInput
+            {
+                FaceAreaM2 = 10, IsBrick = false, UnitsPerM2 = 12.5,
+                PlasterFaces = 1, PlasterThicknessM = 0.015, PlasterWastePct = 0,
+                PlasterCementBagsPerM3 = 6, PlasterSandRatio = 1
+            });
+
+            Assert.Equal(-1, lines.Single(l => l.Kind == "plaster_cement").WastePctOverride);
+        }
+
+        [Fact]
+        public void Plaster_Waste_Is_Applied_ONCE_Not_Folded_Into_The_Volume()
+        {
+            // The double-waste bug this replaces: the volume used to be
+            // multiplied by (1 + waste) here AND wasted again by the rule.
+            // 10 m² × 2 faces × 0.015 m = 0.30 m³ × 6 bags = 1.80 bags, NET.
+            var lines = CompoundTakeoff.MasonryWall(new MasonryWallInput
+            {
+                FaceAreaM2 = 10, IsBrick = false, UnitsPerM2 = 12.5,
+                PlasterFaces = 2, PlasterThicknessM = 0.015, PlasterWastePct = 20,
+                PlasterCementBagsPerM3 = 6, PlasterSandRatio = 1
+            });
+
+            Assert.Equal(1.8, lines.Single(l => l.Kind == "plaster_cement").Quantity, 3);
+        }
+
+        [Fact]
+        public void MATERIAL_LOOKUP_Still_Varies_Plaster_Waste_By_Coat()
+        {
+            var waste = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            foreach (string raw in File.ReadAllLines(
+                         Path.Combine(AppContext.BaseDirectory, "Data", "MATERIAL_LOOKUP.csv")))
+            {
+                var p = (raw ?? "").Trim().Split(',');
+                if (p.Length < 4 || !p[0].Trim().Equals("PLASTER", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!p[2].Trim().Equals("WASTE_PCT", StringComparison.OrdinalIgnoreCase)) continue;
+                if (double.TryParse(p[3].Trim(), out double v)) waste[p[1].Trim()] = v;
+            }
+
+            Assert.Equal(15, waste["THIN_COAT"]);
+            Assert.Equal(20, waste["STANDARD"]);
+            Assert.Equal(25, waste["THICK"]);
+        }
+
         // ── the shipped lookup still states the bonds ───────────────────────
 
         [Fact]
