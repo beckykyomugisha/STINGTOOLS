@@ -67,6 +67,30 @@ namespace StingTools.Core.Validation
         public bool RequireNoUnresolvedClash;
         public List<string> RequiredParams = new List<string>();
         public List<string> RequiredDims = new List<string>();
+
+        /// <summary>
+        /// KUT-4 — true when this rung asserts NOTHING an element could fail: no flag set,
+        /// no required parameter, no required dimension.
+        ///
+        /// <para><b>Derived, never hardcoded to "100".</b> LOD 100 is the rung that has this
+        /// shape today, and the reason is not an oversight in the matrix: the BIMForum LOD
+        /// specification defines 100 as CONCEPTUAL — an element "may be graphically
+        /// represented with a symbol or other generic representation", and its information
+        /// "may be derived from other Model Elements". There is genuinely nothing per-element
+        /// to verify, so inventing a requirement would be inventing a standard.</para>
+        ///
+        /// <para>Deriving it rather than naming the rung buys two things. If someone later
+        /// gives 100 a real check it becomes gating automatically, with no second place to
+        /// remember. And if someone empties 300 — by a bad merge or a mistyped key that
+        /// Newtonsoft leaves at its default — that rung stops silently passing everything and
+        /// starts reporting NOT ASSESSED, which is the same class of defect and would
+        /// otherwise look like a perfect score.</para>
+        /// </summary>
+        public bool AssertsNothing =>
+            !RequireGeometry && !ForbidPlaceholderFamilies && !RequireTypeNotGeneric
+            && !RequireManufacturerType && !RequireNoUnresolvedClash
+            && (RequiredParams == null || RequiredParams.Count == 0)
+            && (RequiredDims == null || RequiredDims.Count == 0);
     }
 
     /// <summary>
@@ -102,6 +126,41 @@ namespace StingTools.Core.Validation
             = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
+        /// KUT-4 — elements whose rung asserts nothing (see
+        /// <see cref="ResolvedLodCheck.AssertsNothing"/>).
+        ///
+        /// <para>OUTSIDE <see cref="Total"/>, exactly like <see cref="SkippedNoRule"/>, and
+        /// for the same reason: counting them as passes would report coverage the rung never
+        /// earned. LOD 100 previously passed every element in scope and reported 100%, which
+        /// reads identically to a model that genuinely satisfies every requirement — a rung
+        /// that cannot fail is not a gate, and a report that cannot tell you so is worse than
+        /// no report.</para>
+        /// </summary>
+        public int NotAssessed { get; set; }
+
+        /// <summary>Not-assessed count per category, so a report can name them.</summary>
+        public Dictionary<string, int> NotAssessedByCategory { get; set; }
+            = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// True when the rung itself asserts nothing — elements WERE in scope, and every one
+        /// of them fell through because there was no requirement to test.
+        ///
+        /// <para>Distinct from <see cref="NoElementsInScope"/>, which means the scope was
+        /// empty. Both must be reported as words rather than as a percentage, but they are
+        /// different facts and a reader needs to know which one they are looking at: "there
+        /// was nothing to check" is a matrix problem, "there was nothing here" is a model or
+        /// filter problem.</para>
+        /// </summary>
+        public bool RungAssertsNothing => Total == 0 && NotAssessed > 0;
+
+        /// <summary>
+        /// True when <see cref="OverallPct"/> means something. The one call every report
+        /// should make before printing a number.
+        /// </summary>
+        public bool HasMeaningfulResult => Total > 0;
+
+        /// <summary>
         /// True when nothing was verified. Callers MUST report this as "no elements
         /// in scope" rather than as a percentage.
         /// </summary>
@@ -114,6 +173,15 @@ namespace StingTools.Core.Validation
             string key = string.IsNullOrEmpty(category) ? "(no category)" : category;
             SkippedByCategory.TryGetValue(key, out int n);
             SkippedByCategory[key] = n + 1;
+        }
+
+        /// <summary>Record one element whose rung asserted nothing about it.</summary>
+        public void RecordNotAssessed(string category)
+        {
+            NotAssessed++;
+            string key = string.IsNullOrEmpty(category) ? "(no category)" : category;
+            NotAssessedByCategory.TryGetValue(key, out int n);
+            NotAssessedByCategory[key] = n + 1;
         }
     }
 

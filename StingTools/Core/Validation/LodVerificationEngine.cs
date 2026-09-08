@@ -181,6 +181,16 @@ namespace StingTools.Core.Validation
                     continue;
                 }
 
+                // KUT-4 - a rung that asserts nothing cannot be passed. Count it as NOT
+                // ASSESSED and leave it out of Total, so the rung reports words instead of
+                // a 100% it never earned. Derived from the resolved check, so a rung that
+                // gains a real requirement starts gating with no change here.
+                if (check.AssertsNothing)
+                {
+                    result.RecordNotAssessed(cat);
+                    continue;
+                }
+
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 if (string.IsNullOrEmpty(disc))
                 {
