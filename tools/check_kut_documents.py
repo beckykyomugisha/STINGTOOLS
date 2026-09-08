@@ -227,6 +227,35 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
                    % ", ".join(rejected))
         f.ok()
 
+        # KUT-9. The pattern is DERIVED from tools/kut_naming.py, which is also
+        # what the BEP and the Document Control Standard render their naming
+        # sections from. Checking that it still matches the derivation is what
+        # keeps "generated" true: without this, the first hand-edit silently
+        # forks the rule from the documents that publish the same lists, and the
+        # role check above would not notice -- it only tests role codes.
+        try:
+            import build_kut_owner_standards as OS
+            derived = OS.build_pattern()
+        except Exception as exc:                     # pragma: no cover - import guard
+            f.note("could not derive the sheet pattern (%s); it is unverified against "
+                   "tools/kut_naming.py" % exc)
+        else:
+            if pattern != derived:
+                f.fail(str(path),
+                       "sheetNumberPattern has drifted from tools/kut_naming.py.\n"
+                       "      on disk: %s\n"
+                       "      derived: %s\n"
+                       "      Run: python tools/build_kut_owner_standards.py"
+                       % (pattern, derived))
+            f.ok()
+
+            # And the derived pattern must accept what the convention authorises.
+            # The generator asserts this too; asserting it HERE means the shipped
+            # gate proves it, not only the tool that happened to write the file.
+            for bad in OS.verify(derived):
+                f.fail(str(path), "generated sheet pattern: %s" % bad)
+            f.ok()
+
     # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
     # keeps them distinct, and Z is deliberately a container role only.
     values = next((set(r.get("values", [])) for r in rules

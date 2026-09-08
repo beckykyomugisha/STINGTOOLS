@@ -7,9 +7,9 @@
       "type": "sheetNumberPattern",
       "severity": "WARN",
       "enabled": true,
-      "pattern": "^KUT-[A-Z0-9]{3}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z]{1,2}-\\d{4}$",
-      "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. Enabled for KUT — adjust the originator/volume/level/type table to the confirmed Owner number register. The role field is one OR TWO characters: BEP 4.2 lists FP (fire protection) and LV (low voltage), and Z for federated and multi-discipline containers. A single-character role field rejected every fire-protection and low-voltage sheet the same standard authorises.",
-      "source": "BEP 3.4 — ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
+      "pattern": "^KUT-[A-Z0-9]{3}-(?:00|01|02|03|04|05|06|ZZ)-(?:B1|GF|RF|XX|ZZ|\\d{2})-(?:BQ|CA|CR|DR|M2|M3|MS|PP|RD|RP|SC|SH|SP|TR)-(?:FP|LV|A|E|G|M|P|S|Z)-\\d{4}$",
+      "description": "Sheet numbers follow the ISO 19650 container form KUT-<originator>-<volume>-<level>-<type>-<role>-<number>, e.g. KUT-SMB-01-GF-M3-A-0001. DERIVED, NOT HAND-WRITTEN: the volume, level, type and role alternations are generated from tools/kut_naming.py by tools/build_kut_owner_standards.py, which is the same table the BEP and the Document Control Standard render their naming sections from. Run that script after any change to the convention; tools/check_kut_documents.py fails if this pattern and that table disagree. The previous pattern used [A-Z0-9]{2} for volume, level and type, which is ISO-shaped but not ISO: it accepted volume 47 and type QQ, so an invalid container name passed validation and reached a transmittal looking checked. Two subtleties the alternation encodes: level accepts \\d{2} as well as the literal codes, because the convention lists 01 as 'first floor, and upward in sequence' and an enumerated list would reject every floor above the first; and the role field is one OR TWO characters, because BEP 4.2 lists FP (fire protection) and LV (low voltage) alongside Z for federated and multi-discipline containers. The ORIGINATOR stays [A-Z0-9]{3} on purpose - the register is Symbion's to issue and has not been (ROADMAP KUT-OPEN-1), so enumerating a guess would reject the real codes on the day they arrive. Only its length is single-sourced. SEVERITY IS DELIBERATELY WARN. The pattern is now authoritative rather than provisional, which is the usual argument for BLOCK, but no KUT container can be legitimately numbered until the originator register is issued - so 'every existing sheet conforms' is true only because there are no sheets, and an empty set is not evidence. Raise to BLOCK once the register is issued and a first full sheet set has been validated against this rule.",
+      "source": "BEP 3.4 / 4.2 - ISO 19650-2 container naming; generated from tools/kut_naming.py by tools/build_kut_owner_standards.py"
     },
     {
       "id": "discipline-code-valid",
@@ -17,8 +17,19 @@
       "severity": "WARN",
       "enabled": true,
       "param": "ASS_DISCIPLINE_COD_TXT",
-      "categories": ["*"],
-      "values": ["A", "S", "M", "E", "P", "FP", "LV", "G"],
+      "categories": [
+        "*"
+      ],
+      "values": [
+        "A",
+        "S",
+        "M",
+        "E",
+        "P",
+        "FP",
+        "LV",
+        "G"
+      ],
       "description": "Discipline code must be one of the KUT design-team disciplines: A architecture/interiors, S structural, M mechanical, E electrical, P plumbing, FP fire protection, LV low-voltage/comms, G civil/site.",
       "source": "Proposal 3.6 — model breakdown structure / design-team disciplines"
     },
@@ -28,7 +39,14 @@
       "severity": "WARN",
       "enabled": true,
       "param": "FOHLIO_REF_TXT",
-      "categories": ["Furniture", "Furniture Systems", "Casework", "Plumbing Fixtures", "Specialty Equipment", "Lighting Fixtures"],
+      "categories": [
+        "Furniture",
+        "Furniture Systems",
+        "Casework",
+        "Plumbing Fixtures",
+        "Specialty Equipment",
+        "Lighting Fixtures"
+      ],
       "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). WARN, non-blocking: flags FF&E elements not yet linked to Fohlio. Run ExLink Fohlio_Import (with fohlio_map.json deployed) to populate FOHLIO_REF_TXT. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement. Categories match the KUT fohlio_map.json category list.",
       "source": "A1 — Fohlio FF&E/finishes/O&M database; proposal 3.3 information hierarchy"
     }
