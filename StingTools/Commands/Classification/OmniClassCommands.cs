@@ -254,7 +254,8 @@ namespace StingTools.Commands.Classification
                 // CSI cannot disagree about what a beam is made of.
                 string mat = StingTools.Commands.Classification.CsiMap.StructuralMaterialName(el.Document, el);
                 res.UnmappedKey = cat;
-                rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys, mat, out _, out tie);
+                string phase = StingTools.Commands.Classification.CsiMap.PhaseState(el.Document, el);
+                rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys, mat, phase, out _, out tie);
             }
 
             if (rule != null) { res.Code = OmniClassMap.Normalize(rule.Section); res.Title = rule.Title; res.Source = "map"; res.TieCount = tie; }

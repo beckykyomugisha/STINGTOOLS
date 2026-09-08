@@ -45,6 +45,31 @@ namespace StingTools.Core.Classification
         /// </summary>
         public string MaterialRegex { get; set; } = "";
 
+        /// <summary>
+        /// Optional element PHASE STATE this rule applies to — one of the
+        /// <see cref="ElementPhaseState"/> values. KUT-5.
+        ///
+        /// <para>CSI Division 02 is Existing Conditions: demolition and removals. Before this
+        /// column the resolver was never handed the element's phase, and nobody names a
+        /// toposolid "demolition", so a naming-keyed Division 02 rule <b>could not fire on a
+        /// real model</b>.</para>
+        ///
+        /// <para><b>It scores <see cref="PhaseWeight"/>, which outranks every other qualifier
+        /// combined.</b> That is deliberate and it is what MasterFormat says: Division 02
+        /// classifies by the STATE OF THE WORK, not by what the thing is. A demolished
+        /// precast beam is demolition — it is not billed as precast concrete because the
+        /// contractor is removing it, not casting it. Without the higher weight a demolished
+        /// element carrying any family or type rule would keep its product classification and
+        /// the Division 02 rule would fire only on elements no other rule matched, which is
+        /// the same "reads as coverage, delivers nothing" outcome the withdrawn naming rules
+        /// would have had.</para>
+        ///
+        /// <para>Matched exactly and case-insensitively, like <see cref="Sys"/>. An element
+        /// whose state is unknown carries the empty string and therefore matches no
+        /// phase-qualified rule.</para>
+        /// </summary>
+        public string Phase { get; set; } = "";
+
         /// <summary>What every non-material qualifier contributes. Was an implicit 1; scaled so
         /// <see cref="MaterialWeight"/> can sit between "bare category" and "category plus a named
         /// qualifier". Scaling is inert — every pre-KUT-10 rule multiplies by the same factor, so
@@ -71,6 +96,12 @@ namespace StingTools.Core.Classification
         /// then whatever the authoring tool happened to call the category.</para></summary>
         public const int MaterialWeight = 3;
 
+        /// <summary>What a matched <see cref="Phase"/> contributes. Ten, so that a
+        /// phase-qualified rule beats any combination of the product qualifiers (whose
+        /// maximum is four) while phase rules still discriminate among themselves on the
+        /// ordinary qualifiers.</summary>
+        public const int PhaseWeight = 10;
+
         private Regex _famRx, _typeRx, _matRx;
         private bool _compiled;
 
@@ -88,6 +119,9 @@ namespace StingTools.Core.Classification
         }
 
         /// <summary>Match score, or -1 when the rule does not apply. Higher = more specific.</summary>
+        public int Score(string category, string family, string type, string sys, string material)
+            => Score(category, family, type, sys, material, null);
+
         public int Score(string category, string family, string type, string sys)
             => Score(category, family, type, sys, null);
 
@@ -103,10 +137,24 @@ namespace StingTools.Core.Classification
         /// <para>The scaling is inert for every rule shipped before KUT-10: none carries a
         /// MaterialRegex, and multiplying every weight by the same factor leaves their relative
         /// order untouched.</para></summary>
-        public int Score(string category, string family, string type, string sys, string material)
+        /// <summary>Match score including the structural material AND the element phase
+        /// state, or -1 when the rule does not apply.
+        ///
+        /// <para>KUT-5 and KUT-10 each added a key to this call. They compose: a rule may
+        /// qualify on either, both or neither. Phase is tested first and outranks material,
+        /// because a demolished steel beam is Division 02 work, not Division 05 -- what is
+        /// being DONE to a member decides its work result before what it is MADE OF does.</para></summary>
+        public int Score(string category, string family, string type, string sys, string material, string phase)
         {
             Compile();
             int score = 0;
+
+            if (!string.IsNullOrEmpty(Phase))
+            {
+                if (string.IsNullOrEmpty(phase) ||
+                    !string.Equals(Phase, phase, StringComparison.OrdinalIgnoreCase)) return -1;
+                score += PhaseWeight;
+            }
 
             if (!string.IsNullOrEmpty(MaterialRegex))
             {
@@ -159,7 +207,10 @@ namespace StingTools.Core.Classification
                 // below is "< 6" rather than an exact count: ParseCsvLines DROPS a row with
                 // fewer fields than it demands, silently, so tightening it would take every
                 // project's _BIM_COORD/csi_map.csv offline with no error anywhere.
-                var f = line.Split(new[] { ',' }, 9);
+                // KUT-5 reserved column 9 for KUT-10's Material and took column 10 for Phase, so
+                // the two branches' data compose under either merge order rather than one
+                // coming to mean the other's. Split into 10; shorter rows still load.
+                var f = line.Split(new[] { ',' }, 10);
                 if (f.Length < 6) continue;
                 string cat = f[0].Trim();
                 if (cat.Length == 0) continue;
@@ -176,6 +227,7 @@ namespace StingTools.Core.Classification
                     Nrm2 = f.Length >= 7 ? f[6].Trim() : "",
                     Unit = f.Length >= 8 ? f[7].Trim() : "",
                     MaterialRegex = f.Length >= 9 ? f[8].Trim() : "",
+                    Phase = f.Length >= 10 ? f[9].Trim() : "",
                 });
             }
             return rules;
@@ -193,6 +245,13 @@ namespace StingTools.Core.Classification
             string sys, string material)
             => Resolve(rules, category, family, type, sys, material, out _, out _);
 
+        /// <summary>Material- and phase-aware resolve. Kept distinct from the out-parameter
+        /// form so a caller passing both keys binds here rather than to the score/tie overload,
+        /// where the seventh argument would have to be an out.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type,
+            string sys, string material, string phase)
+            => Resolve(rules, category, family, type, sys, material, phase, out _, out _);
+
         /// <summary>Resolve + report the winning <paramref name="score"/> and how many rules
         /// tied at that top score (<paramref name="tieCount"/>). tieCount &gt; 1 means the match
         /// is AMBIGUOUS - row order silently decided it - so an audit can surface it and a
@@ -205,6 +264,13 @@ namespace StingTools.Core.Classification
         /// <summary>Material-aware resolve reporting the winning score and the tie count.</summary>
         public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
             string material, out int score, out int tieCount)
+            => Resolve(rules, category, family, type, sys, material, null, out score, out tieCount);
+
+        /// <summary>Material- and phase-aware resolve reporting the winning score and tie count.
+        /// Every narrower overload delegates here, so a caller that has not been taught about a
+        /// key behaves exactly as before rather than silently changing answer.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
+            string material, string phase, out int score, out int tieCount)
         {
             CsiRule best = null;
             int bestScore = -1;
@@ -212,13 +278,13 @@ namespace StingTools.Core.Classification
             if (rules == null) return null;
             for (int i = 0; i < rules.Count; i++)
             {
-                int s = rules[i].Score(category, family, type, sys, material);
+                int s = rules[i].Score(category, family, type, sys, material, phase);
                 if (s > bestScore) { bestScore = s; best = rules[i]; }
             }
             if (bestScore < 0) return null;
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < rules.Count; i++)
-                if (rules[i].Score(category, family, type, sys, material) == bestScore)
+                if (rules[i].Score(category, family, type, sys, material, phase) == bestScore)
                     seen.Add(NormalizeSection(rules[i].Section));
             score = bestScore; tieCount = seen.Count;
             return best;

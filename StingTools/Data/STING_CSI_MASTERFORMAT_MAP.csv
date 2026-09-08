@@ -73,6 +73,35 @@
 #         Cast-in-Place - C30/37', 'Metal - Steel - S355JR', 'Wood - Glulam'). A project
 #         whose material library uses other words should override in _BIM_COORD/csi_map.csv
 #         rather than expect these to guess.
+#   (col 9)   RESERVED. KUT-10 claims it for a Material qualifier in a sibling change.
+#         Leave it EMPTY. Phase was placed at column 10 so the two sets of rows compose
+#         under either merge order; putting both at 9 would make one branch's data
+#         silently mean the other's.
+#
+#   Phase  (optional 10th column) the element's STATE WITHIN THE WORKS, matched exactly
+#         and case-insensitively. One of:
+#             Demolished   removed by the works                -> Division 02
+#             Temporary    built AND removed by the works      -> not classified here
+#             Existing     present before, not removed         -> not classified here
+#             New          built and still standing            -> the ordinary rules
+#         Derived from Phase Created / Phase Demolished by CsiMap.PhaseState. An element
+#         that is not phase-aware (a grid, a level) carries the empty string and can
+#         therefore never satisfy a phase-qualified rule.
+#
+#         A MATCHED Phase SCORES 10 (CsiRule.PhaseWeight) - more than every other
+#         qualifier combined. That is deliberate, and it is what MasterFormat says:
+#         Division 02 Existing Conditions classifies by the STATE OF THE WORK, not by
+#         what the thing is. A demolished precast beam is demolition; the contractor is
+#         removing it, not casting it. With a lower weight the Division 02 rule would
+#         fire only on elements no other rule matched - coverage in a review, nothing on
+#         a real model, which is exactly why the first pass's naming-keyed rows were
+#         withdrawn.
+#
+#         EXISTING AND TEMPORARY ARE DELIBERATELY NOT CLASSIFIED. Existing-to-remain is
+#         not work and a rule would assert a bill item for something nobody is being
+#         paid to touch; temporary works are Division 01 / NRM2 preliminaries and
+#         pricing them is a quantity surveyor's judgement, not this file's. Both STATES
+#         are now available to match on, so a project can add its own rule.
 #
 # The bridge resolves from the MATCHED RULE first. Section 03 30 00 is NRM2 5 for
 # a concrete floor and 14 for a concrete wall; a section-keyed lookup has to pick
@@ -308,3 +337,29 @@ Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Wa
 Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,32,
 Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,32,
 Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,32,
+
+# ---------------------------------------------------------------------------
+# APPENDED, NOT INSERTED. tools/qs_nrm2_review.py keys its review sheet on the row's
+# ORDINAL among the data rows, so adding a rule higher up re-points every ROW below it
+# and invalidates an in-progress QS review. Position is irrelevant to matching here -
+# CsiRule.PhaseWeight puts this rule above every product rule on SCORE, and row order
+# only ever decides a tie.
+# DIVISION 02 - EXISTING CONDITIONS (KUT-5). Keyed on PHASE, never on naming.
+#
+# ONE rule, and one is enough: any element the works REMOVE is demolition, whatever it
+# is made of. PhaseWeight puts it above every product rule, so a demolished wall, beam,
+# duct or fixture all land here instead of keeping the classification of the thing they
+# used to be.
+#
+# 02 41 19 SELECTIVE demolition, not 02 41 13 Building Demolition: the model tells us
+# WHICH elements are removed, which is by definition selective. Whole-building demolition
+# is a project-level decision no per-element rule can see, and a project that is doing it
+# should override this row.
+#
+# NRM2 1 = Demolitions. Read from this repository's own section vocabulary
+# (BOQCostManager.GuessSectionName), NOT from the published NRM2 numbering, which differs
+# - the in-house scheme has 4 Foundations and 5 In-situ concrete where NRM2 has 5
+# Excavating and filling. Guessing across that gap would move money.
+# Review it with:  python tools/qs_nrm2_review.py --export --divisions 02
+*,,,,02 41 19,Selective Demolition,1,,,Demolished
+# ---------------------------------------------------------------------------
