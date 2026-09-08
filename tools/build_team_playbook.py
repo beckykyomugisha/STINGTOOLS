@@ -17,7 +17,7 @@ import kut_docs_lib as K  # noqa: E402
 from midp_schema import COL_NAMES  # noqa: E402
 import kut_naming as N  # noqa: E402
 
-OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
+OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_DOCS_WORKING/issued/KUT_Project_Delivery_Playbook.docx')
 c = CorporateDoc()
 d = c.d
 h1, h2, h3 = c.h1, c.h2, c.h3
