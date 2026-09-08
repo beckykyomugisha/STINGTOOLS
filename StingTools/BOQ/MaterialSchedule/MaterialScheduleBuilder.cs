@@ -163,6 +163,11 @@ namespace StingTools.BOQ.MaterialSchedule
             string matScan = inputs.MaterialScan?.Summary();
             if (!string.IsNullOrEmpty(matScan)) msDoc.Warnings.Add(matScan);
 
+            string byType = CommodityTypeBreakdown.Summary(
+                CommodityTypeBreakdown.Build(
+                    msDoc.Stages.SelectMany(st => st.Commodities), msDoc.SourceByType));
+            if (!string.IsNullOrEmpty(byType)) msDoc.Warnings.Add(byType);
+
             if (msDoc.Options.ShowPrices)
             {
                 string provenance = RateProvenanceLabel.Summary(

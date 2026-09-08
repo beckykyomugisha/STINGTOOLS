@@ -193,6 +193,12 @@ namespace StingTools.Core.MaterialSchedule
                 if (!string.IsNullOrWhiteSpace(row.TraceRef)) a.TraceRefs.Add(row.TraceRef);
                 if (!string.IsNullOrWhiteSpace(row.Category)) a.Categories.Add(row.Category.Trim());
                 if (!string.IsNullOrWhiteSpace(row.TypeName)) a.TypeNames.Add(row.TypeName.Trim());
+                if (!string.IsNullOrWhiteSpace(row.TypeName) && row.Quantity > 0)
+                {
+                    string tn = row.TypeName.Trim();
+                    a.SourceByType.TryGetValue(tn, out double prev);
+                    a.SourceByType[tn] = prev + row.Quantity;
+                }
                 if (row.WastePctOverride >= 0 && row.Quantity > 0)
                 {
                     a.WasteWeighted += row.WastePctOverride * row.Quantity;
@@ -240,6 +246,7 @@ namespace StingTools.Core.MaterialSchedule
                         RateSource = rate.Source,
                         TraceRefs = a.TraceRefs,
                         Categories = a.Categories.ToList(),
+                        // (the per-type source is published on the DOCUMENT, below)
                         TypeNames = a.TypeNames.Take(8).ToList(),
                         SourceKind = a.SourceKind,
                         ConversionBlocked = a.ConversionBlocked,
@@ -248,6 +255,22 @@ namespace StingTools.Core.MaterialSchedule
                 }
 
                 doc.Stages.Add(section);
+            }
+
+            // One entry per commodity, merged across stages — the breakdown is
+            // about which TYPE produced a commodity, not which section it was
+            // printed in.
+            foreach (var kv in acc)
+            {
+                if (kv.Value.SourceByType.Count == 0) continue;
+                if (!doc.SourceByType.TryGetValue(kv.Key.key, out var byType))
+                    doc.SourceByType[kv.Key.key] =
+                        byType = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                foreach (var t in kv.Value.SourceByType)
+                {
+                    byType.TryGetValue(t.Key, out double prev);
+                    byType[t.Key] = prev + t.Value;
+                }
             }
 
             StageMapper.AssignLetters(doc.Stages);
@@ -301,6 +324,16 @@ namespace StingTools.Core.MaterialSchedule
             /// drag a stated blend back toward a number nobody chose.
             /// </summary>
             public double WasteWeighted, WasteWeight;
+
+            /// <summary>
+            /// Measured source per model type, for the by-type breakdown.
+            ///
+            /// The aggregator's own numerator, so a share computed from it
+            /// cannot disagree with the order line it came from — the same
+            /// reason the breakdown apportions rather than re-converts.
+            /// </summary>
+            public readonly Dictionary<string, double> SourceByType =
+                new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
             public readonly SortedSet<string> TypeNames =
                 new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
