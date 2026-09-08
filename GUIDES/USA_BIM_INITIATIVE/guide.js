@@ -530,13 +530,6 @@ A(
     'Three: help me find the route to fund the rest. Not your money, your judgement on which door to knock on, and ideally an introduction."',
   ]),
 
-  h3('Q10 · If someone raises the financing paper you sent earlier'),
-  p('The presentation does not mention it and you should not raise it. But the President has a copy, so have one sentence ready in case it comes up.', { italic: true, color: GREY }),
-  say('ANSWER', [
-    '"I sent that earlier and I have set it aside. I would rather not ask a professional body to take on a financial commitment for something it has not yet evaluated. What I am asking for today costs the Society nothing."',
-  ]),
-  p('Then move on. Do not elaborate and do not reopen it.', { italic: true, color: GREY }),
-
   h2('Questions you should ask them'),
   p('Ending on your questions makes it a conversation between colleagues rather than a pitch, and every one of these closes something you genuinely need.'),
   numbered('What would accreditation require for a course like this, and what points would it carry?'),
