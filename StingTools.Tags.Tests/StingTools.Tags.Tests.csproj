@@ -82,6 +82,9 @@
          MaterialProdOverrideRegistry (which needs an Element) so the SHIPPED rule
          table is assertable: an unanchored stem handed sheep's wool an EPS code. -->
     <Compile Include="..\StingTools\Core\MaterialProdOverrideRules.cs" Link="Core\MaterialProdOverrideRules.cs" />
+    <!-- Which layer of a compound element NAMES it. Revit-free so the choice is
+         testable: every defect here has been a wrong choice, not a failed read. -->
+    <Compile Include="..\StingTools\Core\PrimaryMaterialSelector.cs" Link="Core\PrimaryMaterialSelector.cs" />
     <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
          per-appointment override are provable without a Revit host. -->
     <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />

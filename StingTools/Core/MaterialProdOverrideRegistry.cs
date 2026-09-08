@@ -60,6 +60,8 @@ namespace StingTools.Core
         {
             try
             {
+                // 1. An EXPLICIT material on the instance or type wins outright —
+                //    somebody said what this is, and no inference beats that.
                 Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
                 if (p != null && p.StorageType == StorageType.ElementId)
                 {
@@ -67,6 +69,14 @@ namespace StingTools.Core
                     if (mid != null && mid.Value > 0)
                         return el.Document?.GetElement(mid)?.Name;
                 }
+
+                // 2. A COMPOUND element is named by its core, not its skin. Without
+                //    this, a 230 mm rendered masonry wall reported gypsum, because
+                //    GetMaterialIds returns the finish layer first.
+                string layered = ReadCompoundPrimaryMaterial(el);
+                if (!string.IsNullOrEmpty(layered)) return layered;
+
+                // 3. Last resort: first material the element admits to.
                 var mats = el.GetMaterialIds(false);
                 if (mats != null)
                 {
@@ -79,6 +89,56 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"ReadPrimaryMaterialName {el?.Id}: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// Flatten the element type's <c>CompoundStructure</c> into layers and ask
+        /// <see cref="PrimaryMaterialSelector"/> which one names the element.
+        ///
+        /// <para>Returns null for anything that is not a layered host (a
+        /// FamilyInstance, a type with no compound structure), so the caller falls
+        /// through to its existing behaviour unchanged.</para>
+        /// </summary>
+        private static string ReadCompoundPrimaryMaterial(Element el)
+        {
+            try
+            {
+                var doc = el?.Document;
+                if (doc == null) return null;
+                if (!(doc.GetElement(el.GetTypeId()) is HostObjAttributes host)) return null;
+
+                CompoundStructure cs = host.GetCompoundStructure();
+                if (cs == null) return null;
+
+                var layers = new List<MaterialLayer>();
+                var csLayers = cs.GetLayers();
+                for (int i = 0; i < csLayers.Count; i++)
+                {
+                    var cl = csLayers[i];
+                    string name = null;
+                    if (cl.MaterialId != null && cl.MaterialId.Value > 0)
+                        name = doc.GetElement(cl.MaterialId)?.Name;
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    layers.Add(new MaterialLayer
+                    {
+                        Index = i,
+                        MaterialName = name,
+                        // Width is in FEET. Millimetres only because the selector
+                        // compares thicknesses to each other — any consistent unit
+                        // would do, and mm is what every other STING layer reader uses.
+                        ThicknessMm = cl.Width * 304.8,
+                        IsStructure = cl.Function == MaterialFunctionAssignment.Structure,
+                    });
+                }
+
+                return PrimaryMaterialSelector.Select(layers);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadCompoundPrimaryMaterial {el?.Id}: {ex.Message}");
+                return null;
+            }
         }
 
         private static void EnsureLoaded()
