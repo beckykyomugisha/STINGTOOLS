@@ -60,7 +60,7 @@ SHEET = ROOT / 'docs/qs_review/nrm2_site_civil_review.csv'
 DEFAULT_DIVISIONS = ('31', '32', '33')
 
 SHEET_COLS = ['ROW', 'Category', 'FamilyRegex', 'TypeRegex', 'Sys', 'Section', 'Title',
-              'Current_Nrm2', 'Unit', 'QS_VERDICT', 'QS_NRM2', 'QS_NOTE']
+              'Qualifier', 'Current_Nrm2', 'Unit', 'QS_VERDICT', 'QS_NRM2', 'QS_NOTE']
 
 VERDICT_OK = {'ok', 'agree', 'correct', 'y', 'yes'}
 VERDICT_CHANGE = {'change', 'wrong', 'no', 'n', 'amend'}
@@ -86,6 +86,47 @@ def read_map():
 def division(section):
     s = (section or '').strip()
     return s.split(' ', 1)[0] if s else ''
+
+
+def rule_identity(f):
+    """What makes a map row the row it is: the rule, not its position.
+
+    --export used to carry verdicts over by ROW NUMBER. Row numbers are positions,
+    so inserting a rule mid-file silently re-attached every later note to a
+    different rule -- a QS's reasoning about kerbs quietly becoming their reasoning
+    about turf, with nothing to notice it. (--apply's staleness check would have
+    caught the mismatch afterwards, but only after --export had already scrambled
+    the sheet.) Identity survives insertion, deletion and reordering; the row number
+    is still written to the sheet, because --apply needs a handle to address, but it
+    is no longer what carries the answers.
+
+    Six rules in the map are duplicates on these fields, distinguished only by their
+    material/phase qualifier -- 111 and 112 are both `Structural Foundations /
+    (?i)pile / 31 62 00 / Driven Piles`, one qualified `precast`. Keying on the
+    fields alone collapses each pair and hands both rows the last one's note, which
+    is the same corruption in a smaller place. The occurrence ordinal separates them
+    and is stable under insertion anywhere else in the file.
+    """
+    return tuple((f[i] or '').strip() if len(f) > i else '' for i in range(6))
+
+
+def rule_identity_from_sheet(r):
+    return tuple((r.get(k) or '').strip()
+                 for k in ('Category', 'FamilyRegex', 'TypeRegex', 'Sys', 'Section', 'Title'))
+
+
+def keyed(identity, counter):
+    """identity + how many rows with this identity came before it."""
+    counter[identity] = counter.get(identity, -1) + 1
+    return identity + (counter[identity],)
+
+
+def qualifier(f):
+    """The material / phase columns. They are what distinguishes an otherwise
+    duplicate rule, so the sheet must show them or the reviewer sees two identical
+    rows and no way to tell which is which."""
+    return ' '.join(p for p in ((f[8] or '').strip() if len(f) > 8 else '',
+                                (f[9] or '').strip() if len(f) > 9 else '') if p)
 
 
 def vocabulary():
@@ -147,21 +188,23 @@ def cmd_export(divisions):
         # Preserve any verdicts already filled in, so re-exporting after the map
         # changes does not throw away a review in progress.
         with io.open(SHEET, encoding='utf-8-sig', newline='') as fh:
+            seen_prev = {}
             for r in csv.DictReader(fh):
-                existing[r.get('ROW', '')] = r
+                existing[keyed(rule_identity_from_sheet(r), seen_prev)] = r
 
     kept = 0
     with io.open(SHEET, 'w', encoding='utf-8', newline='') as fh:
         w = csv.writer(fh)
         w.writerow(SHEET_COLS)
+        seen_now = {}
         for n, f in picked:
-            prev = existing.get(str(n), {})
+            prev = existing.get(keyed(rule_identity(f), seen_now), {})
             verdict = (prev.get('QS_VERDICT') or '').strip()
             qs_nrm2 = (prev.get('QS_NRM2') or '').strip()
             note = (prev.get('QS_NOTE') or '').strip()
             if verdict:
                 kept += 1
-            w.writerow([n, f[0], f[1], f[2], f[3], f[4], f[5],
+            w.writerow([n, f[0], f[1], f[2], f[3], f[4], f[5], qualifier(f),
                         f[6].strip(), (f[7].strip() if len(f) >= 8 else ''),
                         verdict, qs_nrm2, note])
 

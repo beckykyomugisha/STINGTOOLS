@@ -156,5 +156,86 @@ namespace StingTools.Boq.Tests
                 "below-ground drainage sections must bill at 31 Drainage below ground, not " +
                 "as a piped supply: " + string.Join("; ", wrong));
         }
+
+        [Fact]
+        public void External_Works_Have_Sections_Of_Their_Own()
+        {
+            // The scheme had none. Roads, paving, kerbs, fencing and soft landscaping all
+            // carried 4, so they printed under a heading reading "Foundations" — a bill a
+            // reader would take at face value, because a foundations section on a project
+            // with foundations is not suspicious.
+            var vocab = Vocabulary();
+            Assert.Equal("External works — roads, paving and kerbs", vocab["40"]);
+            Assert.Equal("Fencing, gates and barriers", vocab["41"]);
+            Assert.Equal("Soft landscaping", vocab["42"]);
+        }
+
+        [Fact]
+        public void No_Exterior_Improvement_Row_Bills_As_Foundations()
+        {
+            // CSI division 32 is Exterior Improvements. Nothing in it is a foundation.
+            // Division 31 is deliberately NOT covered: it is Site Preparation, and its
+            // piling and shoring rows bill at 4 correctly.
+            var root = RepoRoot(MapCsv).FullName;
+            string[] wrong = File.ReadAllLines(Path.Combine(root, MapCsv))
+                .Where(l => !l.StartsWith("#") && !l.StartsWith("Category,"))
+                .Select(l => l.Split(','))
+                .Where(f => f.Length >= 7 && f[4].Trim().StartsWith("32 ") && f[6].Trim() == "4")
+                .Select(f => $"{f[4].Trim()} {f[5].Trim()}")
+                .ToArray();
+
+            Assert.True(wrong.Length == 0,
+                "exterior-improvement rows still billing under 4 Foundations: " +
+                string.Join("; ", wrong));
+        }
+
+        [Fact]
+        public void The_Mixed_Fence_And_Balustrade_Rule_Was_Split()
+        {
+            // One rule matched fence|gate|balustrade and gave all three one code. A
+            // balustrade is a railing, not a fence; they belong in different sections and
+            // no single answer was right. Matching is score-based rather than positional,
+            // so the split rule was APPENDED — the review sheet carries row numbers, and
+            // inserting mid-file would have renumbered every row after it.
+            string path = Path.Combine(AppContext.BaseDirectory, "Data",
+                                       "STING_CSI_MASTERFORMAT_MAP.csv");
+            Assert.True(File.Exists(path), "shipped map not copied to the test output: " + path);
+            var rules = StingTools.Core.Classification.CsiMasterFormat
+                                  .ParseCsvLines(File.ReadAllLines(path));
+
+            var fence = StingTools.Core.Classification.CsiMasterFormat.Resolve(
+                rules, "Generic Models", "Boundary Fence 1800mm", "Galvanised", null);
+            Assert.NotNull(fence);
+            Assert.Equal("32 31 00", fence.Section);
+            Assert.Equal("41", fence.Nrm2);
+
+            var balustrade = StingTools.Core.Classification.CsiMasterFormat.Resolve(
+                rules, "Generic Models", "Glass Balustrade", "Frameless", null);
+            Assert.NotNull(balustrade);
+            Assert.Equal("05 52 00", balustrade.Section);
+            Assert.Equal("20", balustrade.Nrm2);
+        }
+
+        [Fact]
+        public void Entourage_Never_Reaches_Takeoff()
+        {
+            // Entourage is Revit's presentation context — the cars, people and trees that
+            // make a render read as a place. Nobody buys it. Unlike the 2D content in the
+            // same exclusion set it is real 3D geometry, so it does not arrive looking like
+            // noise: it prices as plausible "each" rows, and it was classified in the CSI
+            // map as Site Improvements, which is how it survived.
+            //
+            // The Nrm2 column cannot express this — every element that reaches takeoff gets
+            // a section, from the rule or from DeriveNrm2Section's keyword fallback. "Not
+            // measured" is a collection decision, so it is enforced at collection.
+            string src = File.ReadAllText(
+                Path.Combine(RepoRoot(CostManager).FullName, CostManager));
+            var block = Regex.Match(src, @"_defaultExcludedBic\s*=\s*new HashSet<BuiltInCategory>\s*\{(.*?)\}",
+                                    RegexOptions.Singleline);
+            Assert.True(block.Success,
+                "_defaultExcludedBic not found in " + CostManager + " — this test cannot " +
+                "pass vacuously, so the parse must be updated if the field moved.");
+            Assert.Contains("OST_Entourage", block.Groups[1].Value);
+        }
     }
 }

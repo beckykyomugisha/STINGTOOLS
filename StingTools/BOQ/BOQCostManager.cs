@@ -3581,6 +3581,13 @@ namespace StingTools.BOQ
             BuiltInCategory.OST_Dimensions,
             BuiltInCategory.OST_RvtLinks,
             BuiltInCategory.OST_RasterImages,
+            // Entourage is Revit's presentation context — the cars, people and trees
+            // placed to make a render read as a place. It is not part of the works and
+            // nobody buys it, but it is 3D model geometry, so unlike the 2D content
+            // above it does not look like noise: it arrives as plausible "each" rows
+            // and prices. It was classified in the CSI map as Site Improvements, which
+            // is how it survived this long.
+            BuiltInCategory.OST_Entourage,
         };
 
         /// <summary>
@@ -4293,6 +4300,19 @@ namespace StingTools.BOQ
                 case "34": return "Electrical services";
                 case "35": return "Lighting and small power";
                 case "36": return "Security and fire alarm";
+                // External works. The scheme had no section for them at all: roads,
+                // paving, kerbs, fencing and soft landscaping all carried 4, so they
+                // printed under a heading reading "Foundations". NRM2's own external
+                // works numbers (35 Site works, 36 Fencing, 37 Soft landscaping,
+                // 38 External fixtures) were not available -- 35 and 36 are taken here
+                // by services -- and reusing 37/38 at their NRM2 values would have
+                // deepened the trap this vocabulary already sets: it agrees with NRM2
+                // at 14/15/16 and diverges elsewhere, so a reader who spot-checks it
+                // concludes it IS NRM2. A fresh block above the existing range cannot
+                // be misread as alignment.
+                case "40": return "External works — roads, paving and kerbs";
+                case "41": return "Fencing, gates and barriers";
+                case "42": return "Soft landscaping";
                 default: return string.IsNullOrEmpty(firstCategory) ? "General" : firstCategory;
             }
         }
