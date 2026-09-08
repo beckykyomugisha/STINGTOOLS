@@ -107,6 +107,43 @@ TBC,Structural Columns,*Timber*|*Glulam*,Timber / Glulam Column,S,STR,BS EN 1995
 BM,Structural Framing,*Concrete Beam*|*RC Beam*,Reinforced Concrete Beam,S,STR,BS EN 1992-1-1
 STB2,Structural Framing,*Steel Beam*|*UB*|*IPE*,Structural Steel Beam,S,STR,BS EN 1993-1-1
 CLT,Structural Framing,*CLT*|*Cross Laminated*,Cross-Laminated Timber Beam,S,STR,BS EN 1995-1-1
+# ── Architectural fabric: WALLS, ROOFS, FLOORS, CEILINGS ────────────────────
+# Keyed on the TYPE name, never the family. Every wall in every project shares
+# the family name "Basic Wall", so a rule keyed on it would give them all one
+# code — Prod_GenerateRules skips system families for exactly this reason, and
+# ProdCodeDataTests fails any rule here that matches a bare family name.
+#
+# These reach a type only when its NAME says what it is. On the first real
+# model 4 of 11 wall/roof/floor type names did: CLAY BRICK, Curtain Wall,
+# Partition, coping. The other 7 ("Exterior_CreamWhite_230", "Generic - 225mm",
+# "stepsr 7") name a colour, a thickness or nothing, and no rule can rescue
+# them — that is a naming-standard problem, not a rule-coverage one.
+#
+# Most-specific-wins, so "Concrete Block Wall" resolves WBL (Concrete Block, 14)
+# rather than WRC, and a breeze-block CURTAIN panel resolves WCW (Curtain Wall,
+# 12) rather than WBL (Block, 5).
+WBK,Walls,*Brick*,Brick Masonry Wall,A,ARC,BS EN 1996-1-1
+WBL,Walls,*Blockwork*|*Block Wall*|*Concrete Block*|*Hollow Block*|*Solid Block*,Concrete Block Masonry Wall,A,ARC,BS EN 1996-1-1
+WSN,Walls,*Stone Wall*|*Rubble*|*Masonry Stone*,Stone Masonry Wall,A,ARC,BS EN 1996-1-1
+WRC,Walls,*RC Wall*|*Reinforced Concrete Wall*|*Shear Wall*|*Concrete Wall*,Reinforced Concrete Wall,S,STR,BS EN 1992-1-1
+WPT,Walls,*Partition*|*Stud*|*Drywall*|*Plasterboard Wall*,Framed / Stud Partition,A,ARC,BS 5234-2
+WCW,Walls,*Curtain Wall*|*Curtain Panel Wall*,Curtain Walling,A,ARC,BS EN 13830
+WCV,Walls,*Cavity*,Cavity Masonry Wall,A,ARC,BS EN 1996-1-1
+WPR,Walls,*Parapet*,Parapet Wall,A,ARC,BS 8000-3
+WCP,Walls,*Coping*,Wall Coping,A,ARC,BS 5642-2
+WBD,Walls,*Boundary Wall*|*Compound Wall*|*Perimeter Wall*|*Fence Wall*,Boundary / Compound Wall,A,ARC,none
+RWL,Walls,*Retaining*,Retaining Wall,S,STR,BS EN 1997-1
+RSH,Roofs,*Sheet*|*Corrugated*|*Profiled Metal*|*IT4*|*IT5*,Profiled Sheet Roof Covering,A,ARC,BS EN 508-1
+RTL,Roofs,*Roof Tile*|*Tiled Roof*|*Clay Tile*|*Concrete Tile*|*Shingle*,Tiled / Shingled Roof Covering,A,ARC,BS 5534
+RCS,Roofs,*Concrete Roof*|*RC Roof*|*Roof Slab*,Reinforced Concrete Roof Slab,S,STR,BS EN 1992-1-1
+RFL,Roofs,*Flat Roof*|*Built-Up Felt*|*Single Ply*|*Roof Membrane*,Flat Roof Membrane System,A,ARC,BS 8217
+RSG,Roofs,*Sloped Glazing*|*Rooflight*|*Skylight*,Rooflight / Sloped Glazing,A,ARC,BS 5516-2
+FGS,Floors,*Ground Slab*|*Ground Bearing*|*Slab on Grade*|*Oversite*,Ground-Bearing Floor Slab,S,STR,BS 8204-1
+FRB,Floors,*Ribbed Slab*|*Hollow Pot*|*Hollowpot*|*Waffle*|*Coffered*,Ribbed / Hollow-Pot Suspended Slab,S,STR,BS EN 1992-1-1
+FSC,Floors,*Screed*,Floor Screed,A,ARC,BS 8204-1
+FTM,Floors,*Timber Floor*|*Floor Joist*,Timber Suspended Floor,S,STR,BS EN 1995-1-1
+CSU,Ceilings,*Suspended Ceiling*|*Grid Ceiling*|*Lay-in*|*MF Ceiling*,Suspended Ceiling System,A,ARC,BS EN 13964
+CPB,Ceilings,*Plasterboard Ceiling*|*Gypsum Ceiling*|*Skim Ceiling*,Plasterboard Ceiling,A,ARC,BS 8212
 SLB,Floors,*Concrete Slab*|*RC Slab*,Reinforced Concrete Slab / Floor,S,STR,BS EN 1992-1-1
 PSB,Floors,*Post-Tension*|*PT Slab*,Post-Tensioned Concrete Slab,S,STR,BS EN 1992-1-5
 CFS,Floors,*Composite*|*Metal Deck*,Composite Metal Deck Floor Slab,S,STR,BS EN 1994-1-1
