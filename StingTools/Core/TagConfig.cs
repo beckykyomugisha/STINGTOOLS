@@ -2089,8 +2089,14 @@ namespace StingTools.Core
 
         private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
         {
+            // KUT-11 — both names must answer for system elements or the rule lookup
+            // below is unreachable for them. GetFamilyName now returns the SYSTEM family
+            // ("Floor", "Rectangular Duct", "Wall Foundation") and GetElementTypeName the
+            // type ("Concrete Slab 200"). Together they are what the eleven corporate
+            // rules shipped on Ducts / Floors / Structural Foundations match against;
+            // with either half empty those rows had never once fired.
             string familyName = ParameterHelpers.GetFamilyName(el);
-            string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            string symbolName = ParameterHelpers.GetElementTypeName(el);
 
             // Data-driven, single-source PROD resolution. The per-category rule
             // lists are fetched from Revit here (project overlay + corporate CSV);

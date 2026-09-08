@@ -637,6 +637,25 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void Shipped_Covering_Densities_Stay_In_A_Believable_Band()
+        {
+            // The protection the perDriver band used to give, moved to where the
+            // number went. A SHEET fixed at every second corrugation on purlins
+            // at 0.9-1.2 m is roughly 4-14/m2; a TILE is nailed, so exactly 0 —
+            // and 0 is a real figure here, not an absent one, which is why it is
+            // asserted rather than skipped.
+            var units = Units();
+
+            foreach (string sheet in new[] { "roof-sheet", "roof-sheet-boxprofile" })
+                Assert.InRange(units.ResolveByCommodityKey(sheet).FastenersPerM2, 4.0, 14.0);
+
+            foreach (string tile in new[] { "roof-tile", "roof-tile-clay",
+                                            "roof-tile-concrete", "roof-tile-stonecoated",
+                                            "roof-shingle" })
+                Assert.Equal(0.0, units.ResolveByCommodityKey(tile).FastenersPerM2);
+        }
+
+        [Fact]
         public void The_Shipped_Ratios_Stay_In_A_Believable_Band()
         {
             // Not a rubber stamp: each band is the range a QS would argue inside,
@@ -650,8 +669,12 @@ namespace StingTools.Boq.Tests
             Assert.InRange(by["binding_wire"].PerDriver, 0.008, 0.02);
             // 0.15-0.25 kg/m² for sawn-timber formwork through several reuses.
             Assert.InRange(by["formwork_nails"].PerDriver, 0.1, 0.4);
-            // Every second corrugation on purlins at 0.9-1.2 m is roughly 8-14/m².
-            Assert.InRange(by["roof_fastener"].PerDriver, 6.0, 20.0);
+            // roof_fastener's ratio MOVED. The driver is now a count, produced
+            // per covering from each rule's own FastenersPerM2, so perDriver is
+            // 1 by construction and a band on it would assert nothing. The band
+            // that matters is on the densities themselves — see
+            // Shipped_Covering_Densities_Stay_In_A_Believable_Band below.
+            Assert.Equal(1.0, by["roof_fastener"].PerDriver);
         }
 
         [Fact]
@@ -679,7 +702,15 @@ namespace StingTools.Boq.Tests
             var lib = Consumables();
             var stages = Stages();
             var drivers = new ConsumableDrivers
-            { WalledAreaM2 = 564.22, RebarKg = 8000, FormworkM2 = 300, RoofCoveringM2 = 856 };
+            {
+                WalledAreaM2 = 564.22, RebarKg = 8000, FormworkM2 = 300, RoofCoveringM2 = 856,
+                // Fasteners are COUNTED per covering now rather than re-ratioed
+                // from the area, so the count driver has to be fed too: 856 m2
+                // of corrugated at 8/m2. Feeding only the area would leave
+                // roof_fastener producing nothing and this test asserting three
+                // rules where the library has four.
+                RoofFastenerNr = 856 * 8
+            };
 
             var rows = ConsumablesCalculator.Quantify(drivers, lib.Rules, new ConsumablesTally());
             Assert.Equal(lib.Rules.Count, rows.Count);
@@ -721,7 +752,14 @@ namespace StingTools.Boq.Tests
             var lib = Consumables();
             var stages = Stages();
             var rows = ConsumablesCalculator.Quantify(
-                new ConsumableDrivers { WalledAreaM2 = 500, RebarKg = 8000, FormworkM2 = 300, RoofCoveringM2 = 856 },
+                new ConsumableDrivers
+                {
+                    WalledAreaM2 = 500, RebarKg = 8000, FormworkM2 = 300, RoofCoveringM2 = 856,
+                    // Fasteners are COUNTED per covering now, not re-ratioed from
+                    // the area: 856 m2 of corrugated at 8/m2. The area driver
+                    // stays because the note still reports it.
+                    RoofFastenerNr = 856 * 8
+                },
                 lib.Rules, new ConsumablesTally());
 
             // Descriptions are BLANKED so that only the CONSTITUENT KIND can

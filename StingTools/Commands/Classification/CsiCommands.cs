@@ -135,12 +135,7 @@ namespace StingTools.Commands.Classification
         /// only ever fires for system elements and changes nothing for loadable families.</para>
         /// </summary>
         public static string TypeName(Document doc, Element el)
-        {
-            string t = ParameterHelpers.GetFamilySymbolName(el);
-            if (!string.IsNullOrEmpty(t)) return t;
-            try { return doc.GetElement(el.GetTypeId())?.Name ?? ""; }
-            catch (Exception ex) { StingLog.Warn($"CSI TypeName {el?.Id}: {ex.Message}"); return ""; }
-        }
+            => ParameterHelpers.GetElementTypeName(el);
 
         /// <summary>
         /// The element's STRUCTURAL material name, for the MaterialRegex column. KUT-10.

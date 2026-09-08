@@ -26,6 +26,7 @@ namespace StingTools.BOQ.MaterialSchedule
             {
                 WriteScheduleSheet(wb.Worksheets.Add("Material Schedule"), doc);
                 WriteSummarySheet(wb.Worksheets.Add("Summary"), doc);
+                WriteByTypeSheet(wb, doc);
                 WriteValidationSheet(wb.Worksheets.Add("Validation"), doc);
 
                 string dir = Path.GetDirectoryName(path);
@@ -197,6 +198,68 @@ namespace StingTools.BOQ.MaterialSchedule
             if (bold) ws.Range(row, 1, row, 3).Style.Fill.BackgroundColor = BoqXlsxStyle.HeaderFill;
             if (bold) ws.Range(row, 1, row, 3).Style.Font.FontColor = XLColor.White;
             BoqXlsxStyle.MoneyFormat(ws.Range(row, 3, row, 3));
+        }
+
+        /// <summary>
+        /// Each commodity split across the model TYPES that produced it.
+        ///
+        /// The schedule aggregates because that is what you BUY — three shingle
+        /// roofs are one pile of bundles. This is for the three things a
+        /// quantity gets used for that aggregation destroys: checking a number
+        /// against the model, phasing a delivery, and dividing work between
+        /// subcontractors.
+        ///
+        /// NOT written when nothing was split. A sheet of single-type rows
+        /// repeats the schedule, and a second document that merely restates the
+        /// first is one more place for the two to disagree.
+        /// </summary>
+        private static void WriteByTypeSheet(XLWorkbook wb, MaterialScheduleDocument doc)
+        {
+            var breakdowns = CommodityTypeBreakdown.Build(
+                doc.Stages.SelectMany(st => st.Commodities), doc.SourceByType);
+
+            if (breakdowns.All(b => b.IsSingleType)) return;
+
+            var ws = wb.Worksheets.Add("By Type");
+            BoqXlsxStyle.BannerRow(ws, "BY TYPE — what produced each commodity");
+
+            int row = 3;
+            ws.Cell(row, 1).Value =
+                "The ORDER line in the schedule is what you buy and is unchanged. Each part below is "
+              + "that order APPORTIONED by measured share — not re-converted, because rounding each "
+              + "type up to whole units separately would order more than the schedule says.";
+            ws.Cell(row, 1).Style.Font.Italic = true;
+            ws.Range(row, 1, row, 6).Merge();
+            row += 2;
+
+            BoqXlsxStyle.WriteHeader(ws, row,
+                new[] { "Commodity", "Model type", "Measured", "Share", "Order qty", "Unit" });
+            row++;
+
+            foreach (var b in breakdowns.Where(x => !x.IsSingleType))
+            {
+                var head = ws.Cell(row, 1);
+                head.Value = b.Description;
+                head.Style.Font.Bold = true;
+                ws.Cell(row, 5).Value = b.OrderQuantity;
+                ws.Cell(row, 6).Value = DisplayUnit(b.SupplierUnit);
+                ws.Cell(row, 5).Style.Font.Bold = true;
+                row++;
+
+                foreach (var part in b.Parts)
+                {
+                    ws.Cell(row, 2).Value = part.TypeName;
+                    ws.Cell(row, 3).Value = Math.Round(part.SourceQuantity, 2);
+                    ws.Cell(row, 4).Value = Math.Round(part.Share * 100.0, 1) / 100.0;
+                    ws.Cell(row, 4).Style.NumberFormat.Format = "0.0%";
+                    ws.Cell(row, 5).Value = part.OrderQuantity;
+                    ws.Cell(row, 6).Value = DisplayUnit(b.SupplierUnit);
+                    row++;
+                }
+                row++;
+            }
+
+            foreach (var c in ws.ColumnsUsed()) c.AdjustToContents();
         }
 
         private static void WriteValidationSheet(IXLWorksheet ws, MaterialScheduleDocument doc)

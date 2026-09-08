@@ -404,6 +404,7 @@ namespace StingTools.BOQ.Takeoff
                     FamilyName = GetFamilyName(doc, el),
                     TypeName = el.Name ?? "",
                     MaterialName = GetPrimaryMaterialName(doc, el) ?? "",
+                    WastePctOverride = c.WastePctOverride,
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
                     ConstituentKind = c.Kind,
@@ -1442,13 +1443,31 @@ namespace StingTools.BOQ.Takeoff
             if (measured <= 0) return empty;
 
             var cover = TileCoverages(found.Label);
+
+            // The fourth member of the set. BLE_TILE_SIZE_TXT has been declared
+            // in MR_PARAMETERS.txt with a GUID all along and read by nothing —
+            // parameter first, then an inference from the material name, then
+            // the project default, exactly as brick bond, block size and
+            // plaster type already resolve. The inference is RECORDED through
+            // Resolution, so a guessed band lowers row confidence and is named
+            // rather than passing as a stated fact.
+            var tileRes = new Resolution();
+            string sizeRaw = ParameterHelpers.GetString(el, "BLE_TILE_SIZE_TXT");
+            string tileSize = InferOrCanon("tile size",
+                Core.Materials.MaterialKeyCanonicaliser.TileSize(sizeRaw),
+                () => Core.Materials.MaterialKeyCanonicaliser.TileSize(found.Label),
+                tileRes, "DEFAULT");
+            double tileWaste = Resolve(tileRes, "tile size",
+                $"TILE {tileSize}", "WASTE_PCT", "TILE DEFAULT");
+
             return CompoundTakeoff.TiledFinish(new TiledFinishInput
             {
                 AreaM2 = areaM2 * measured,
                 IsWall = isWall,
                 TileLabel = found.Label,
                 AdhesiveKgPerM2 = cover.AdhesiveKgPerM2,
-                GroutKgPerM2 = cover.GroutKgPerM2
+                GroutKgPerM2 = cover.GroutKgPerM2,
+                WastePctOverride = tileWaste
             });
         }
 

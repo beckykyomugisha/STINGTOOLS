@@ -2,13 +2,21 @@
 # MasterFormat section + title for SpecLink reconciliation. Columns:
 #   Category    Revit category name (exact, case-insensitive). "*" = any.
 #   FamilyRegex optional regex tested against the family name (case-insensitive).
-#               ONLY USABLE ON LOADABLE-FAMILY CATEGORIES. ParameterHelpers.GetFamilyName
-#               returns "" for anything that is not a FamilyInstance, and Score treats an
-#               empty candidate as no-match — so a FamilyRegex on a SYSTEM category (Walls,
-#               Floors, Roofs, Ceilings, Pipes, Ducts, Conduits, Cable Trays, Stairs,
-#               Railings, Ramps, Topography, Toposolid, Pads) can NEVER fire. Put those
-#               discriminators in TypeRegex instead. Mixed categories exist: Structural
-#               Foundations isolated footings are FamilyInstance, wall footings are not.
+#               MATCHES THE FAMILY NAME, WHICH ON A SYSTEM CATEGORY IS THE SYSTEM FAMILY.
+#               Since KUT-11, ParameterHelpers.GetFamilyName answers for every element:
+#               the loadable family for a FamilyInstance, and the SYSTEM family for a
+#               system element - "Basic Wall", "Curtain Wall", "Rectangular Duct",
+#               "Pipe Types", "Wall Foundation". Before KUT-11 it answered "" for those
+#               and Score treats an empty candidate as no-match, so a FamilyRegex on a
+#               SYSTEM category could never fire; that is no longer true.
+#               It is still the wrong column for most discriminators: a system family
+#               name says only WHAT KIND of wall/duct an element is, never what it is
+#               made of or what it does. Material, size and service discriminators go in
+#               TypeRegex, which reads the type name on every category. Use FamilyRegex
+#               on a system category only when the system family itself is the answer
+#               (e.g. "Curtain Wall" vs "Basic Wall").
+#               Mixed categories exist: Structural Foundations isolated footings are
+#               FamilyInstance, wall footings are not.
 #   TypeRegex   optional regex tested against the type/symbol name. Safe on every category —
 #               CsiMap.TypeName falls back to the element type's name for system elements.
 #   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.

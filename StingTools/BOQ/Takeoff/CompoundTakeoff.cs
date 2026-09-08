@@ -34,8 +34,29 @@ namespace StingTools.BOQ.Takeoff
         public double Quantity;
         public string Nrm2Section;
 
+        /// <summary>
+        /// The wastage this line's own VARIANT implies, or -1 for "the supplier
+        /// rule's default is fine".
+        ///
+        /// Wastage still lives in exactly one place — the supplier rule applies
+        /// it, and this only tells the rule a better number than its flat
+        /// default. Applying it here as well is the double-waste bug that was
+        /// removed earlier; nothing multiplies by this.
+        ///
+        /// MATERIAL_LOOKUP has carried per-bond cutting waste all along (stack
+        /// 3%, stretcher 5, garden wall 6, English 7, Flemish 8). It was
+        /// resolved per wall into UnitWastePct and read by NOTHING, so every
+        /// wall got the rule's flat 5 and a Flemish bond was under-ordered by
+        /// three points.
+        /// </summary>
+        public double WastePctOverride;
+
         public CompoundLine(string kind, string description, string unit, double quantity, string nrm2)
-        { Kind = kind; Description = description; Unit = unit; Quantity = Math.Round(quantity, 4); Nrm2Section = nrm2; }
+        {
+            Kind = kind; Description = description; Unit = unit;
+            Quantity = Math.Round(quantity, 4); Nrm2Section = nrm2;
+            WastePctOverride = -1;
+        }
     }
 
     public struct MasonryWallInput
@@ -48,7 +69,22 @@ namespace StingTools.BOQ.Takeoff
         public double UnitWastePct;      // cutting waste on the units
         public int PlasterFaces;         // 0 / 1 / 2 plastered faces
         public double PlasterThicknessM; // plaster coat thickness
-        /// <summary>RETIRED — see UnitWastePct.</summary>
+
+        /// <summary>
+        /// The coat's application waste, from PLASTER {type} WASTE_PCT — thin 15%,
+        /// standard and lime 20, thick 25.
+        ///
+        /// It was RETIRED because applying it in the take-off AND letting the
+        /// supplier rule apply its own wasted the cement twice. It is live again
+        /// on the other side of that fix: nothing here multiplies by it, it is
+        /// handed to the supplier rule as the allowance to use INSTEAD of the
+        /// rule's default.
+        ///
+        /// That substitution is the decision. The cement rule's 2.5% is bag
+        /// handling and spillage; plaster's 15-25% is material lost in mixing
+        /// and application, and it is the larger, governing allowance for
+        /// plaster-derived cement and sand rather than an addition to it.
+        /// </summary>
         public double PlasterWastePct;
         public double MortarRatioM3PerM2;     // mortar volume per m² of wall
         public double MortarCementBagsPerM3;  // from MORTAR mix (MAT-2)
@@ -90,6 +126,16 @@ namespace StingTools.BOQ.Takeoff
         public string TileLabel;         // material name, for the description
         public double AdhesiveKgPerM2;   // manufacturer spreading rate
         public double GroutKgPerM2;      // joint width / tile size dependent
+
+        /// <summary>
+        /// Cutting waste for this tile's SIZE band, or -1 when unstated.
+        ///
+        /// MATERIAL_LOOKUP has banded it 20 / 12 / 10 / 8 for mosaic / small /
+        /// medium / large since before this schedule existed; the supplier rule
+        /// applied a flat 10% to all of them, so a mosaic splashback was
+        /// under-ordered by half its cutting allowance.
+        /// </summary>
+        public double WastePctOverride;
     }
 
     /// <summary>
@@ -286,7 +332,12 @@ namespace StingTools.BOQ.Takeoff
             {
                 double units = area * m.UnitsPerM2;
                 lines.Add(new CompoundLine(m.IsBrick ? "brick_units" : "block_units",
-                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
+                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry)
+                {
+                    // The BOND's cutting waste, handed to the supplier rule
+                    // rather than applied here.
+                    WastePctOverride = m.UnitWastePct > 0 ? m.UnitWastePct : -1
+                });
             }
 
             // 3. Mortar m³ and its cement (bags) + sand (m³) from the MAT-2 mix.
@@ -312,12 +363,18 @@ namespace StingTools.BOQ.Takeoff
                 // used to multiply by PlasterWastePct (20%), so the cement and
                 // sand derived from it were wasted twice.
                 double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM);
+                // The coat's application allowance rides on the DERIVED lines
+                // only. The plaster m2 above is measured work a QS prices by
+                // area — it is not bought, so it takes no material allowance.
+                double coatWaste = m.PlasterWastePct > 0 ? m.PlasterWastePct : -1;
                 if (plasterVol > 0 && m.PlasterCementBagsPerM3 > 0)
                     lines.Add(new CompoundLine("plaster_cement", "Plaster — cement", "bag",
-                        plasterVol * m.PlasterCementBagsPerM3, SecPlaster));
+                        plasterVol * m.PlasterCementBagsPerM3, SecPlaster)
+                    { WastePctOverride = coatWaste });
                 if (plasterVol > 0 && m.PlasterSandRatio > 0)
                     lines.Add(new CompoundLine("plaster_sand", "Plaster — sand", "m3",
-                        plasterVol * m.PlasterSandRatio, SecPlaster));
+                        plasterVol * m.PlasterSandRatio, SecPlaster)
+                    { WastePctOverride = coatWaste });
 
                 // Painted area IS the plastered face area — no new measurement,
                 // just the quantity already derived above given its own kind so
@@ -499,9 +556,14 @@ namespace StingTools.BOQ.Takeoff
             if (area <= 0) return lines;
 
             string label = string.IsNullOrWhiteSpace(t.TileLabel) ? "tiling" : t.TileLabel.Trim();
+            // The TILE row carries the size band's waste. Adhesive and grout
+            // do NOT: they are spread over the area and their own rules own
+            // their allowance, so a mosaic's cutting waste is not a reason to
+            // buy half as much adhesive again.
             lines.Add(new CompoundLine(t.IsWall ? "wall_tile" : "floor_tile",
                 t.IsWall ? $"Wall tiling — {label}" : $"Floor tiling — {label}",
-                "m2", area, SecPlaster));
+                "m2", area, SecPlaster)
+            { WastePctOverride = t.WastePctOverride > 0 ? t.WastePctOverride : -1 });
 
             if (t.AdhesiveKgPerM2 > 0)
                 lines.Add(new CompoundLine("tile_adhesive", "Tile adhesive", "kg",
