@@ -45,6 +45,36 @@ biggest lever on that chair's verdict.
 
 ---
 
+### D-13 · Who chairs the ICT Cluster? — `OPEN`
+**Owner:** Davis · **Ask:** Ken, with the date
+
+Not in the published Council list, so the ICT Cluster is a sub-committee. This person
+will deliver the technical verdict and is the audience for half the presentation.
+Knowing the name — and anything about their background — is worth more than another
+slide.
+
+**Answer:**
+
+---
+
+### D-14 · What does CPD accreditation actually require? — `OPEN`
+**Owner:** the Society · **Ask:** in the meeting
+
+Practising architects need **20 CPD points a year to renew a licence** (Architects
+Registration (Continuing Professional Development) Bye Laws, gazetted 2019). What is
+not known: how a multi-day course is accredited by ARB, how points are awarded, and
+what members currently pay for CPD in Kampala.
+
+All three are things the Society knows and Davis does not — which makes asking them a
+good move rather than a gap. It makes the Society a co-owner of the idea.
+
+**Blocks:** whether the training programme can be sold as accredited CPD, which is
+both the strongest institutional argument and a funding route in itself.
+
+**Answer:**
+
+---
+
 ### D-05 · When is the meeting? — `OPEN`
 **Owner:** Davis · **Ask:** Ken
 
@@ -163,7 +193,8 @@ debt service ~USD 26,000 rather than 20,000.
 ### D-01 · What office does Ken hold? — `CLOSED 2026-09-08`
 
 **Kenneth Amunsiimire is the President of the Uganda Society of Architects.** Confirmed
-by Davis.
+by Davis, and corroborated by the published 23rd Council (elected 5 December 2025,
+serving to 2027).
 
 So the documents were right: the applicant contact block and the MOU signature block
 (**Title: President**) are correct and need no change. Finding F-02 in the review is

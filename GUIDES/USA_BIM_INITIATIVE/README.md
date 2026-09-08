@@ -27,9 +27,16 @@ corporate counterparty and without its original consideration. See D-10, D-11, D
 ## Who is in the room
 
 Confirmed by Ken on 2026-09-08 (WhatsApp): **Chair, Board of Practice · Chairman, ICT
-Cluster · approximately 3 further members.** Five people, senior, professional-body
-governance. Ken — the President — is convening them; they do not answer to him for
-this purpose, so treat the room as the decision-maker.
+Cluster · approximately 3 further members.** Ken — the President — is convening them;
+they do not answer to him for this purpose, so treat the room as the decision-maker.
+
+From the published 23rd Council (2025–2027): President **Arch. Amunsimiire Kenneth**,
+Board of Practice **Arch. Abdu Wahab Nyanzi**, Board of Education **Arch. Daniel
+Sekamwa**, Board of Research and Development **Arch. Clare Ruhweza**. The ICT Cluster
+chair is not published — ask Ken for the name.
+
+**Ask Ken to add the Chair of the Board of Education.** Training and CPD are his
+remit, and CPD is the strongest argument available. See `06_VALUE_TO_THE_SOCIETY.md`.
 
 The two chairs want different things, and the presentation is built around that split:
 
@@ -39,15 +46,20 @@ The two chairs want different things, and the presentation is built around that 
 | Chairman, ICT Cluster | *Is this real, and is it sound?* | Live demonstration on a real model, open formats, exit path, why not just Autodesk |
 | Members (~3) | Follow whichever chair leads | Clarity and brevity — 20 minutes of content, not 40 pages |
 
-## The agreed ask (decided 2026-09-08)
+## The agreed ask (revised 2026-09-08)
 
-**Endorsement only.** Endorse the training programme, name a technical counterpart in
-the ICT Cluster, agree a first cohort. Nothing that costs the Society money.
+**Convince them with what exists, so the Society helps find the funding.**
 
-The staging was decided first (the hardest of three bundled decisions would otherwise
-dominate the room); then the UDB route was parked entirely, which removes the
-financing decision from the meeting altogether. Say that out loud — a risk you have
-visibly removed buys more credibility than one you never raised.
+Three things: endorse the training programme (and look at CPD accreditation), name a
+technical counterpart in the ICT Cluster, and help identify a funding route from the
+options in `07_FUNDING_ROUTES.md`.
+
+Not a request for the Society's money, and not a request to borrow — the UDB route is
+parked and the presentation says so out loud. A risk visibly withdrawn buys more
+credibility than one never raised.
+
+**The single best thing to leave with is a name and an introduction**, not a
+resolution to consider it.
 
 ## What is in this folder
 
@@ -59,6 +71,8 @@ visibly removed buys more credibility than one you never raised.
 | [`03_ANTICIPATED_QUESTIONS.md`](03_ANTICIPATED_QUESTIONS.md) | The hard questions with prepared answers — rehearse these out loud |
 | [`04_ACTION_TRACKER.md`](04_ACTION_TRACKER.md) | Dated actions, pre- and post-meeting |
 | [`05_CONSISTENT_NARRATIVE.md`](05_CONSISTENT_NARRATIVE.md) | The single agreed wording. Anything said publicly comes from here. |
+| [`06_VALUE_TO_THE_SOCIETY.md`](06_VALUE_TO_THE_SOCIETY.md) | **Where the platform matters to the institution** — CPD, standards, member economics, and who is actually in the room |
+| [`07_FUNDING_ROUTES.md`](07_FUNDING_ROUTES.md) | Eight routes the Society can open. **Print this and take it in.** |
 | [`source-docs/`](source-docs/) | Pointers to the four source documents (originals stay where they are) |
 
 ## Standing rules for this workstream
