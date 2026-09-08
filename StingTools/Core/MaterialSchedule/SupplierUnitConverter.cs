@@ -94,6 +94,30 @@ namespace StingTools.Core.MaterialSchedule
         public string FeedsDriver = "";
 
         /// <summary>
+        /// Fasteners per m2 of THIS covering. -1 means not stated.
+        ///
+        /// STING_CONSUMABLES applied a flat 11/m2 to every roof covering. For
+        /// tiles that is wrong by KIND rather than by degree, and
+        /// MATERIAL_LOOKUP.csv has said so since long before the material
+        /// schedule existed:
+        ///
+        ///     CLAY_TILE      0     CORRUGATED     8
+        ///     CONCRETE_TILE  0     BOX_PROFILE    6
+        ///                          STANDING_SEAM  4
+        ///                          FIBRE_CEMENT  10
+        ///
+        /// Tiles are nailed every other course, not screwed, so a tiled roof
+        /// was being quoted a pack count for fixings it does not use. Four
+        /// profiles with four densities also means one flat number cannot be
+        /// right for all of them.
+        ///
+        /// Unlike the COVERAGE figures (see PhysicalConstantDriftTests) this
+        /// needed no supplier to settle: the data was already in the repository
+        /// stating the opposite, and unread.
+        /// </summary>
+        public double FastenersPerM2 = -1;
+
+        /// <summary>
         /// The construction stage this commodity belongs to, overriding whatever
         /// stage the ELEMENT's category routes to. Required on any category rule.
         ///
