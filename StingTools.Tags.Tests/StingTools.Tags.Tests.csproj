@@ -73,6 +73,12 @@
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
+    <!-- KUT-8: the project-region -> engine-region translation, and the preset table
+         it must stay in step with. Both are Revit-free (StingTools.Standards targets
+         net8.0-windows, so the FILES are linked rather than the project referenced -
+         a ProjectReference across the TFM would warn). -->
+    <Compile Include="..\StingTools.Standards\EngineRegionMap.cs" Link="Standards\EngineRegionMap.cs" />
+    <Compile Include="..\StingTools.Standards\ProjectStandardsManager.cs" Link="Standards\ProjectStandardsManager.cs" />
     <!-- BS EN ISO 22014 name parsing. Revit-free so the "declared" tier is provable. -->
     <Compile Include="..\StingTools\Core\ProdNameCode.cs" Link="Core\ProdNameCode.cs" />
     <!-- The house-standard catalogue POCOs, so the shipped baseline is checked
