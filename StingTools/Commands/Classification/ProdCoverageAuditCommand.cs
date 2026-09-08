@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -102,6 +102,7 @@ namespace StingTools.Commands.Classification
                 var rolls = new SortedDictionary<string, CatRoll>(StringComparer.OrdinalIgnoreCase);
                 var rows = new List<string> { "Category,Family,Type,PROD,Source,Specific" };
                 int scanned = 0, specific = 0, specificEqualsDefault = 0;
+                int genericLoadable = 0, genericSystem = 0;
 
                 foreach (Element el in collector)
                 {
@@ -119,7 +120,7 @@ namespace StingTools.Commands.Classification
                     { skippedByTagger++; continue; }
 
                     if (exclusion.Classify(cat, ParameterHelpers.GetFamilyName(el),
-                                           ParameterHelpers.GetFamilySymbolName(el)) != ExclusionVerdict.Included)
+                                           ParameterHelpers.GetElementTypeName(el)) != ExclusionVerdict.Included)
                     {
                         excluded++;
                         excludedByCat.TryGetValue(cat, out int ne);
@@ -144,8 +145,31 @@ namespace StingTools.Commands.Classification
                     r.BySource[source] = r.BySource.TryGetValue(source, out int n) ? n + 1 : 1;
 
                     string fam = ParameterHelpers.GetFamilyName(el) ?? "";
-                    string typ = ParameterHelpers.GetFamilySymbolName(el) ?? "";
+                    // GetElementTypeName, NOT GetFamilySymbolName. The latter answers ""
+                    // for anything that is not a FamilyInstance, so every wall, roof and
+                    // floor reported a BLANK type — while the resolver this is REPORTING
+                    // ON matched against "Generic - 200mm" all along (KUT-11 moved it to
+                    // GetElementTypeName; the audit was never moved with it).
+                    //
+                    // It is the field that matters most here. Prod_GenerateRules skips
+                    // system families on purpose — a rule keyed on "Basic Wall" matches
+                    // every wall in the model — so the ONLY route to a specific PROD code
+                    // for a wall is a hand-written rule keyed on its TYPE name, and the
+                    // audit was hiding exactly that.
+                    string typ = ParameterHelpers.GetElementTypeName(el) ?? "";
                     if (!isSpecific && !string.IsNullOrEmpty(fam)) r.GenericFamilies.Add(fam);
+
+                    // Split the gap by what can actually CLOSE it. Prod_GenerateRules
+                    // seeds only LOADABLE families; a system element (wall, roof, floor)
+                    // needs a hand-written rule keyed on its type name, because a rule
+                    // keyed on "Basic Wall" would match every wall in the model. Telling
+                    // a reader to run the seeder for those sends them somewhere that will
+                    // silently skip their 98 elements.
+                    if (!isSpecific)
+                    {
+                        if (string.IsNullOrEmpty(ParameterHelpers.GetLoadableFamilyName(el))) genericSystem++;
+                        else genericLoadable++;
+                    }
 
                     rows.Add(string.Join(",", Csv(cat), Csv(fam), Csv(typ), Csv(prod), Csv(source), isSpecific ? "Y" : "N"));
                 }
@@ -217,8 +241,15 @@ namespace StingTools.Commands.Classification
                     sb.AppendLine($"  {kv.Key}: {gen}/{r.Total} generic  → add prod_codes.csv rows for: {fams}");
                 }
                 sb.AppendLine();
-                sb.AppendLine("Fix: run Prod_GenerateRules, then add/curate FAMILY_PATTERN rows for the families above,");
-                sb.AppendLine("and re-run Tag & Combine (Skip mode) to fill the now-specific PROD codes.");
+                sb.AppendLine($"Of the {scanned - specific} generic element(s): {genericLoadable} are LOADABLE families and");
+                sb.AppendLine("  Prod_GenerateRules will seed a rule for each; " + genericSystem + " are SYSTEM elements");
+                sb.AppendLine("  (walls, roofs, floors) which it deliberately SKIPS — a rule keyed on \"Basic Wall\"");
+                sb.AppendLine("  would match every wall in the model. Those need a rule keyed on the TYPE name");
+                sb.AppendLine("  instead; the Type column of the CSV below is that name.");
+                sb.AppendLine();
+                sb.AppendLine("Fix: run Prod_GenerateRules for the loadable ones, hand-write FAMILY_PATTERN rows");
+                sb.AppendLine("for the system ones (the pattern matches FAMILY + TYPE), then re-run Tag & Combine");
+                sb.AppendLine("(Skip mode) to fill the now-specific PROD codes.");
                 sb.AppendLine();
                 sb.AppendLine("Note: \"specific %\" counts every project/corporate/LPS/sleeve match (a generous");
                 sb.AppendLine($"measure) and does not credit material-suffix differentiation; of those, {specificEqualsDefault}");
