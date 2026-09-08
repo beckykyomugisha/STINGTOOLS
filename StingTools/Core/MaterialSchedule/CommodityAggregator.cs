@@ -20,6 +20,10 @@ namespace StingTools.Core.MaterialSchedule
         /// <summary>The element's material name. Matched BEFORE the type name —
         /// see SupplierUnitRule.MatchMaterialPatterns for why.</summary>
         public string MaterialName = "";
+
+        /// <summary>Wastage this row's variant implies, or -1 for the rule's
+        /// default. Blended across rows that merge — see the accumulator.</summary>
+        public double WastePctOverride = -1;
         public string Description = "";
         public string Unit = "";        // source unit as measured
         public double Quantity;
@@ -189,6 +193,11 @@ namespace StingTools.Core.MaterialSchedule
                 if (!string.IsNullOrWhiteSpace(row.TraceRef)) a.TraceRefs.Add(row.TraceRef);
                 if (!string.IsNullOrWhiteSpace(row.Category)) a.Categories.Add(row.Category.Trim());
                 if (!string.IsNullOrWhiteSpace(row.TypeName)) a.TypeNames.Add(row.TypeName.Trim());
+                if (row.WastePctOverride >= 0 && row.Quantity > 0)
+                {
+                    a.WasteWeighted += row.WastePctOverride * row.Quantity;
+                    a.WasteWeight += row.Quantity;
+                }
             }
 
             // Materialise stages in definition order, dropping empties.
@@ -212,7 +221,8 @@ namespace StingTools.Core.MaterialSchedule
                 foreach (var kv in mine)
                 {
                     var a = kv.Value;
-                    var conv = SupplierUnitConverter.Convert(a.Rule, a.SourceQuantity);
+                    double blendedWaste = a.WasteWeight > 0 ? a.WasteWeighted / a.WasteWeight : -1;
+                    var conv = SupplierUnitConverter.Convert(a.Rule, a.SourceQuantity, blendedWaste);
                     var rate = input.Rates?.Resolve(kv.Key.key)
                                ?? new CommodityRate { RateUGX = 0, Source = "unpriced" };
 
@@ -276,6 +286,22 @@ namespace StingTools.Core.MaterialSchedule
             public List<string> TraceRefs = new List<string>();
             public readonly SortedSet<string> Categories =
                 new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>
+            /// Quantity-weighted numerator for the blended waste, and the
+            /// quantity that carried an override at all.
+            ///
+            /// Rows merge by commodity, so a wall in Flemish bond (8%) and one
+            /// in stack bond (3%) become ONE order line and cannot both have
+            /// their own allowance. Weighting by quantity is the only blend
+            /// that keeps the total right: the bigger wall moves the figure
+            /// more, which is what a QS would do by hand.
+            ///
+            /// Rows with NO override are excluded from both sides rather than
+            /// counted at the rule's default — that would let one unstated row
+            /// drag a stated blend back toward a number nobody chose.
+            /// </summary>
+            public double WasteWeighted, WasteWeight;
+
             public readonly SortedSet<string> TypeNames =
                 new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         }
