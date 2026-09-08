@@ -2,6 +2,52 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
+
+`prod_coverage_20260908_221546.csv` still carries
+
+    Site,A_Revit_Suv_3d_car,A_Revit_Suv_3d_car,STE-GLZ,category,N
+
+— a supplier's entourage car, counted in the PROD denominator and reported as a
+product with no specific code. **The corporate list is right not to name it.**
+`STING_PROD_EXCLUSIONS.json` says so in its own comment: a family that exists in
+one project belongs in that project's `_data/coord/prod_exclusions.json`. The
+override simply did not exist yet, and now does — **written outside this
+repository**, at
+`D:\Work 2026\Trokon\AMANDA S. HERRING\PROJECTN\_data\coord\prod_exclusions.json`,
+two lines declaring `notAProductFamilies` only.
+
+**The risk worth testing is not the car.** A two-line override that declares ONE
+list could quietly replace the other three, and the audit would then report a
+large, plausible, wrong coverage figure — with the 1,187 wall voids back in the
+denominator and Doors no longer protected — with nothing in the run to say so.
+`ProdExclusionPolicy.Build` already gets this right (null = inherit, `[]` =
+exclude nothing) and `A_Project_Override_Replaces_Only_The_List_It_Declares`
+already pinned the general rule, but **not the shape a real override has**:
+families-only, layered over the shipped corporate file.
+
+Two tests close that. One asserts the omission — the shipped corporate policy
+does NOT exclude the car, deliberately — so a later reader sees a decision
+rather than a gap somebody forgot. The other layers the exact override text over
+the real `STING_PROD_EXCLUSIONS.json` and asserts the car is excluded **and**
+that Rooms, Detail Items, the `opening` and `muntin` patterns and the Doors
+protection all survive. It also asserts the one thing the override COSTS:
+`notAProductFamilies` is replaced, not merged, so `Window-Square Opening` stops
+being excluded by family — the documented contract, now visible rather than
+assumed.
+
+**RED by sabotage, since the behaviour under test was already correct.** There is
+no honest before-state for a gate over code that works, so the gate was broken
+instead: dropping the `f(project) != null` guard in `ProdExclusionPolicy.Build`
+made a families-only override null the other three lists, and **2 of 21**
+exclusion tests failed — the new one and the general one it complements. Guard
+restored, 21 of 21 pass. A gate only ever seen passing is not evidence.
+
+**Not verified in Revit.** `Prod_CoverageAudit` was not re-run, so the SUV is
+still in the last audit on disk; the override takes effect the next time it runs
+against that project. The file is on the D: drive and is not, and should not be,
+in this repository.
+
 #### Completed (Phase 255 — the specific rule wins, and a stem matches a word)
 
 Asked to review product-code automation for consistency. The **logic** turned
