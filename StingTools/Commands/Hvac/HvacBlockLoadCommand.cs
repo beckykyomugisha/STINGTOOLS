@@ -161,10 +161,13 @@ namespace StingTools.Commands.Hvac
                                          .OrderByDescending(r => r.PeakSensibleW).Take(10))
                 {
                     string dcvNote = z.DcvSavingsPct > 5
-                        ? $" · DCV avg {z.AverageOaLs:F0} L/s (–{z.DcvSavingsPct:F0} %)"
+                        // KUT-6 - shown in the project's display unit (CFM on an imperial
+                        // project). The STAMP above stays SI: HVC_OA_LS is l/s by its own
+                        // name and every solver reads it that way.
+                        ? $" · DCV avg {StingTools.Core.Units.MepDisplayUnits.AirFlow(z.AverageOaLs, 0)} (–{z.DcvSavingsPct:F0} %)"
                         : "";
                     panel.Text($"{z.ZoneName} · {z.PeakSensibleW / 1000:F1} kW @ {z.PeakHour:D2}:00 · " +
-                               $"{z.AreaM2:F0} m² · OA {z.OaLs:F0} L/s{dcvNote}");
+                               $"{z.AreaM2:F0} m² · OA {StingTools.Core.Units.MepDisplayUnits.AirFlow(z.OaLs, 0)}{dcvNote}");
                 }
 
                 // Aggregate DCV savings across the building.

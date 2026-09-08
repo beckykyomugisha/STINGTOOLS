@@ -279,7 +279,7 @@ namespace StingTools.Commands.Routing
             panel.AddSection("PUMP DUTY POINT");
             if (opFlow > 0)
             {
-                panel.Metric("Duty flow", $"{opFlow*1000:F2} l/s")
+                panel.Metric("Duty flow", StingTools.Core.Units.MepDisplayUnits.WaterFlow(opFlow*1000))
                      .Metric("Duty head", $"{opHead:F2} m");
             }
             else
