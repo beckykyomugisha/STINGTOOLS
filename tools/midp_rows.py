@@ -103,8 +103,8 @@ row('E-200', 'Electrical', 'ZZ', 'Electrical model', 'Model', 'M3', DB, '300', '
 row('E-201', 'Electrical', 'ZZ', 'Power and lighting layouts (50%)', 'Drawing', 'DR', DB, '300', 'PDF/DWG', 'S2', 'Shared', 4, 4, 'MEP lead', 'TIDP-E', 2, 'N', 'Y', 'N', 'Both', '', 'Lighting layouts under role E (G-03)')
 row('P-200', 'Public Health', 'ZZ', 'Plumbing and drainage model', 'Model', 'M3', DB, '300', 'RVT/IFC', 'S2', 'Shared', 2, 4, 'MEP lead', 'TIDP-P', 2, 'Y', 'Y', 'N', 'Both', '', 'Real pipework with code falls; fixtures placed')
 row('P-201', 'Public Health', 'ZZ', 'Plumbing and drainage layouts (50%)', 'Drawing', 'DR', DB, '300', 'PDF/DWG', 'S2', 'Shared', 4, 4, 'MEP lead', 'TIDP-P', 2, 'N', 'Y', 'N', 'New P02', 'Added: 50% set for P was missing while the drawing schedule plans P sheets', '')
-row('FP-200', 'Fire Protection', 'ZZ', 'Fire strategy and suppression layout', 'Model/Document', 'M3', DB, '300', 'RVT/PDF', 'S2', 'Shared', 2, 4, 'Fire lead', 'TIDP-Y', 2, 'Y', 'Y', 'N', 'Aug P01', '', 'Sprinkler and detection layout')
-row('LV-200', 'Low Voltage', 'ZZ', 'Low voltage containment and equipment rooms', 'Model', 'M3', DB, '300', 'RVT/IFC', 'S2', 'Shared', 2, 4, 'LV lead', 'TIDP-Y', 2, 'Y', 'Y', 'N', 'New P02', 'Added: LV appears in Aug only at Deliverable C', '')
+row('FP-200', 'Fire Protection', 'ZZ', 'Fire strategy and suppression layout', 'Model/Document', 'M3', DB, '300', 'RVT/PDF', 'S2', 'Shared', 2, 4, 'Fire lead', 'TIDP-Y-FP', 2, 'Y', 'Y', 'N', 'Aug P01', '', 'Sprinkler and detection layout')
+row('LV-200', 'Low Voltage', 'ZZ', 'Low voltage containment and equipment rooms', 'Model', 'M3', DB, '300', 'RVT/IFC', 'S2', 'Shared', 2, 4, 'LV lead', 'TIDP-Y-LV', 2, 'Y', 'Y', 'N', 'New P02', 'Added: LV appears in Aug only at Deliverable C', '')
 row('G-200', 'Civil and Site', '00', 'Site model', 'Model', 'M3', DB, '300', 'RVT/IFC', 'S2', 'Shared', 2, 4, 'Civil lead', 'TIDP-C', 2, 'Y', 'Y', 'N', 'Jun P01', 'Restored from June (absent in Aug)', 'Real site model; drainage and access')
 row('G-201', 'Civil and Site', '00', 'Site and drainage drawings (50%)', 'Drawing', 'DR', DB, '300', 'PDF/DWG', 'S2', 'Shared', 4, 4, 'Civil lead', 'TIDP-C', 2, 'N', 'Y', 'N', 'Jun P01', 'Restored from June (absent in Aug)', '')
 row('Z-210', IM, 'ZZ', 'Coordination reports (fortnightly) and Deliverable B clash close-out', 'Report', 'CR', DB, '300', 'PDF/BCF', 'S2', 'Shared', 2, 4, 'Information Manager', 'TIDP-Z', 3, 'N', 'N', 'N', 'Both', 'ISO type CR', 'No unresolved high-priority clashes at the gate')
@@ -127,8 +127,8 @@ row('M-303', 'Mechanical', 'ZZ', 'BMS point-naming convention and point data on 
 row('E-300', 'Electrical', 'ZZ', 'Electrical model and drawing set (100%)', 'Model/Drawing', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'MEP lead', 'TIDP-E', 2, 'Y', 'Y', 'N', 'Both', '', '')
 row('E-301', 'Electrical', 'ZZ', 'Panel schedules and single-line diagrams', 'Schedule/Drawing', 'DR', DC, '350', 'PDF/XLSX', 'S4', 'Shared', 8, 8, 'MEP lead', 'TIDP-E', 2, 'Y', 'Y', 'N', 'Jun P01', 'June ref E-300b restored', 'Sheets in the 6xxx and 7xxx bands')
 row('P-300', 'Public Health', 'ZZ', 'Plumbing model and drawing set (100%)', 'Model/Drawing', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'MEP lead', 'TIDP-P', 2, 'Y', 'Y', 'N', 'Both', '', '')
-row('FP-300', 'Fire Protection', 'ZZ', 'Fire strategy and model (100%)', 'Model/Document', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'Fire lead', 'TIDP-Y', 2, 'Y', 'Y', 'N', 'Both', '', 'Transition to the design-build contractor agreed')
-row('LV-300', 'Low Voltage', 'ZZ', 'Communications and security model and drawings', 'Model/Drawing', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'LV lead', 'TIDP-Y', 2, 'Y', 'Y', 'N', 'Aug P01', '', 'Restricted-information handling per BEP 8.1')
+row('FP-300', 'Fire Protection', 'ZZ', 'Fire strategy and model (100%)', 'Model/Document', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'Fire lead', 'TIDP-Y-FP', 2, 'Y', 'Y', 'N', 'Both', '', 'Transition to the design-build contractor agreed')
+row('LV-300', 'Low Voltage', 'ZZ', 'Communications and security model and drawings', 'Model/Drawing', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'LV lead', 'TIDP-Y-LV', 2, 'Y', 'Y', 'N', 'Aug P01', '', 'Restricted-information handling per BEP 8.1')
 row('G-300', 'Civil and Site', '00', 'Civil and site model and drawings (100%)', 'Model/Drawing', 'M3', DC, '350', 'RVT/PDF', 'S4', 'Shared', 5, 8, 'Civil lead', 'TIDP-C', 2, 'Y', 'Y', 'N', 'Jun P01', 'Restored from June (absent in Aug)', '')
 row('Z-310', 'QS / Cost', 'ZZ', 'Bill of quantities (tender)', 'Schedule', 'CP', DC, '350', 'XLSX', 'S4', 'Shared', 8, 8, 'Quantity Surveyor', 'TIDP-Q', 2, 'Y', 'N', 'Y', 'Both', 'ISO type BQ', '')
 row('Z-311', 'All disciplines', 'ZZ', 'Specifications (RIB SpecLink, CSI MasterFormat)', 'Specification', 'SP', DC, '350', 'PDF', 'S4', 'Shared', 8, 8, 'Task Team Managers', 'TIDP-ALL', 2, 'Y', 'N', 'Y', 'Both', 'Responsible: Lead AP → each discipline authors (RACI C12)', 'Issued sets archived with the milestone')
@@ -146,8 +146,8 @@ row('Z-411', IM, 'ZZ', 'Conformed-set conformance audit and compliance report', 
 # ── 3.1 Construction ────────────────────────────────────────────────────────
 for d, disc, resp, tidp, extra in [('A', 'Architecture', 'Architecture lead', 'TIDP-A', ''), ('S', 'Structure', 'Structural lead', 'TIDP-S', ''),
                                     ('M', 'Mechanical', 'MEP lead', 'TIDP-M', 'Maintenance type on plumbing fixtures from LOD 400'), ('E', 'Electrical', 'MEP lead', 'TIDP-E', ''),
-                                    ('P', 'Public Health', 'MEP lead', 'TIDP-P', ''), ('FP', 'Fire Protection', 'Design-build fire contractor', 'TIDP-Y', 'D-B contractor becomes engineer of record'),
-                                    ('LV', 'Low Voltage', 'LV lead', 'TIDP-Y', ''), ('G', 'Civil and Site', 'Civil lead', 'TIDP-C', '')]:
+                                    ('P', 'Public Health', 'MEP lead', 'TIDP-P', ''), ('FP', 'Fire Protection', 'Design-build fire contractor', 'TIDP-Y-FP', 'D-B contractor becomes engineer of record'),
+                                    ('LV', 'Low Voltage', 'LV lead', 'TIDP-Y-LV', ''), ('G', 'Civil and Site', 'Civil lead', 'TIDP-C', '')]:
     row(f'{d}-500', disc, '00' if d == 'G' else 'ZZ', 'Construction-stage model (revisions tracked)', 'Model', 'M3', C31, '400', 'RVT/IFC', 'A1', 'Published', 12, 43, resp, tidp, 2, 'Y', 'Y', 'N',
         'Jun P01', 'Per-discipline rows restored; Aug collapsed them into ALL-500 (G-02)', extra)
 row('C-500', 'Contractor', 'ZZ', 'Shop drawings and fabrication models (steel, MEP modules, façade)', 'Model/Drawing', 'M3', C31, '400', 'RVT/IFC/PDF', 'S2', 'Shared', 12, 43, 'Contractor', 'TIDP-W', 2, 'Y', 'Y', 'N', 'New P02', 'Added (Playbook 6.6; risk "late specialist models")', 'Linked into the federation')
@@ -169,8 +169,8 @@ row('FF-601', 'FF&E', 'ZZ', 'Installed FF&E and finishes reconciliation report (
 # ── 3.3 Deliverable D ───────────────────────────────────────────────────────
 for d, disc, resp, tidp, nm in [('A', 'Architecture', 'Architecture lead', 'TIDP-A', 'As-built architectural model'), ('S', 'Structure', 'Structural lead', 'TIDP-S', 'As-built structural model'),
                                  ('M', 'Mechanical', 'MEP lead', 'TIDP-M', 'As-built mechanical model'), ('E', 'Electrical', 'MEP lead', 'TIDP-E', 'As-built electrical model'),
-                                 ('P', 'Public Health', 'MEP lead', 'TIDP-P', 'As-built plumbing and drainage model'), ('FP', 'Fire Protection', 'Design-build fire contractor', 'TIDP-Y', 'As-built fire protection model'),
-                                 ('LV', 'Low Voltage', 'LV lead', 'TIDP-Y', 'As-built low voltage model'), ('G', 'Civil and Site', 'Civil lead', 'TIDP-C', 'As-built civil and site model')]:
+                                 ('P', 'Public Health', 'MEP lead', 'TIDP-P', 'As-built plumbing and drainage model'), ('FP', 'Fire Protection', 'Design-build fire contractor', 'TIDP-Y-FP', 'As-built fire protection model'),
+                                 ('LV', 'Low Voltage', 'LV lead', 'TIDP-Y-LV', 'As-built low voltage model'), ('G', 'Civil and Site', 'Civil lead', 'TIDP-C', 'As-built civil and site model')]:
     row(f'{d}-700', disc, '00' if d == 'G' else 'ZZ', nm + ' (LOD 500, verified)', 'Model', 'M3', DD, '500', 'RVT/IFC', 'A1', 'Published', 48, 49, resp, tidp, 1, 'Y', 'Y', 'Y',
         'Both' if d in ('A', 'S', 'M') else 'Jun P01', 'Month M45 → M48–M49 (A-01)' + ('' if d in ('A', 'S', 'M') else '; per-discipline row restored (G-02)'), 'Authored by the design consultant from the Contractor as-built documentation; verified by the Information Manager')
 row('C-700', 'Contractor', 'ZZ', 'Final as-built documentation, commissioning records, warranties and O&M documents', 'Document', 'RP', DD, '500', 'PDF', 'A1', 'Published', 48, 48, 'Contractor', 'TIDP-W', 1, 'Y', 'Y', 'Y', 'New P02', 'Added (A1: within 60 days of substantial completion)', 'Input to the record model verification')
@@ -198,18 +198,31 @@ RETIRED = [
     ('Z-703 (June)', 'Jun P01', 'Final handover transmittal + archive', 'Became Z-704 (Aug Z-703 is the Deliverable D gate pack)'),
 ]
 
+# THE REGISTER REF IS NOT A ROLE CODE. Refs like FP-200, LV-200 and G-100 keep
+# the discipline letters this project used before it adopted the BS EN ISO
+# 19650-2 UK NA set, and they stay that way deliberately. A ref is an internal
+# register id, not a container field: nothing validates it against the role
+# table and nothing downstream reads it as one.
+#
+# Renaming them to the standard letters is not merely unnecessary, it is not
+# possible. Fire protection and low voltage both issue under Y, so FP-200 and
+# LV-200 would both become Y-200 -- six collisions in total (Y-200, Y-300,
+# Y-500, C-700, Y-700, C-500, the last because civil's G-500 would collide with
+# the contractor's existing C-500). Thirteen rows also cite these refs in their
+# change notes, which would silently stop resolving.
+
 TIDPS = [('TIDP-Z', 'Information Management', 'Symbion Consulting Group Studios — Information Manager', 'Z'),
          ('TIDP-A', 'Architecture and interiors', '[FILL — architecture practice]', 'A'),
          ('TIDP-S', 'Structural', '[FILL — structural engineer]', 'S'),
          ('TIDP-M', 'Mechanical', '[FILL — MEP engineer]', 'M'),
          ('TIDP-E', 'Electrical', '[FILL — MEP engineer]', 'E'),
          ('TIDP-P', 'Public health (plumbing and drainage)', '[FILL — MEP engineer]', 'P'),
-         ('TIDP-Y', 'Fire protection', '[FILL — fire engineer / design-build contractor]', 'FP'),
-         ('TIDP-Y', 'Low voltage and communications', '[FILL — LV engineer]', 'LV'),
-         ('TIDP-C', 'Civil and site', '[FILL — civil engineer]', 'G'),
-         ('TIDP-Q', 'Quantity surveying / cost', '[FILL — quantity surveyor]', 'Z'),
-         ('TIDP-I', 'FF&E and finishes (Interior Designer)', '[FILL — interior designer]', 'A'),
-         ('TIDP-W', 'Contractor and specialists', '[FILL — main contractor]', 'ZZZ')]
+         ('TIDP-Y-FP', 'Fire protection', '[FILL — fire engineer / design-build contractor]', 'Y'),
+         ('TIDP-Y-LV', 'Low voltage and communications', '[FILL — LV engineer]', 'Y'),
+         ('TIDP-C', 'Civil and site', '[FILL — civil engineer]', 'C'),
+         ('TIDP-Q', 'Quantity surveying / cost', '[FILL — quantity surveyor]', 'Q'),
+         ('TIDP-I', 'FF&E and finishes (Interior Designer)', '[FILL — interior designer]', 'I'),
+         ('TIDP-W', 'Contractor and specialists', '[FILL — main contractor]', 'W')]
 
 STAGES = [MOB, DA, DB, DC, TEN, CON, C31, C32, DD]
 ISS_STATUS = ['A1 authorised', 'B1 with comments', 'Rejected (reissue)', 'S2 information']
