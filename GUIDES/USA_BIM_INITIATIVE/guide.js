@@ -134,9 +134,9 @@ A(
 A(
   h1('How to use this'),
   tbl(['When', 'What to read'], [
-    ['A week before', 'Part 1, then Part 3. Start the demonstration rehearsals.'],
-    ['The night before', 'Part 2 out loud, twice. Part 7 out loud once. Part 8 last thing.'],
-    ['On the day', 'Part 9. Then put it away and talk to people.'],
+    ['A week before', 'Part 1, then Part 5. Start the demonstration rehearsals.'],
+    ['The night before', 'Part 2 out loud, twice. Part 10 out loud once. Part 11 last thing.'],
+    ['On the day', 'Part 12. Then put it away and talk to people.'],
   ], [1, 3]),
   gap(200),
   note('The one rule',
@@ -195,114 +195,241 @@ A(
 /* ============================================ PART 2 SCRIPT */
 A(
   h1('Part 2 · What to say'),
-  p('The full script, slide by slide. It is also in the speaker notes of the deck, so it can be read from the presenter view. Learn the shape rather than the words.'),
-  p('Around twenty minutes of material. The discussion afterwards is the point, so do not fill the hour.', { italic: true, color: GREY }),
+  p('Slide by slide. It is also in the speaker notes of the deck, so it can be read from presenter view on the day. Learn the shape rather than the words.'),
+  p('Around twenty-five minutes of material, plus the demonstration. The discussion afterwards is the point, so do not fill the hour.', { italic: true, color: GREY }),
 
-  h2('Slide 1 · Opening'),
+  h2('1 · Opening'),
   say('SAY', [
-    '"Mr President, Chairman, thank you for the time. I have been building something for about two years and I thought it was time I showed the Council rather than kept describing it.',
-    'I will show you where it has got to, what is left, and what it would take to finish. Then I want to put a view to you about where I think this whole area is going, and hear whether you agree.',
-    'I am not asking the Council to decide anything today. I would rather have your thinking than a decision."',
+    '"Mr President, Chairman, thank you for the time. I have spent about two years building something and I thought it was time I showed the Council properly rather than kept describing it in passing.',
+    'What I want to show you is two things really. A working BIM platform, and the standards that go with it. Then I would like to put a view to you about where I think all of this is heading, and hear whether you see it the same way."',
   ]),
 
-  h2('Slide 2 · Six things you have probably not seen'),
-  p('Ninety seconds, fast. This is the slide that decides what kind of attention you get for the next twenty minutes.'),
+  h2('2 · Two halves of the same thing'),
+  p('The frame everything else sits inside. Do not rush it.'),
   say('SAY', [
-    '"You all know what BIM is, so I am not going to explain it. Let me instead show you six things I think are new, and then go through them properly.',
-    'You can talk to the model in plain English. One element keeps the same identity across four different modelling tools, including a free one. A model gets a compliance score, an actual number. Drawings, schedules and quantities come out of the model rather than being drawn again. Handover data is assembled as you build rather than at the end. And Ugandan conditions are built in as defaults, which no imported tool does.',
+    '"There is a platform: tools inside the modelling software, and a shared record around it. Checking, classification, drawings, schedules, quantities, handover data, issues and correspondence, all in one flow rather than five separate products.',
+    'And there are standards: naming, classification, drawing conventions, what level of detail belongs at what stage, what a handover has to contain. Written down, and checkable by the software rather than only by argument.',
+    'Most tools give you the first half. The second half usually gets left to each practice to invent for itself, which is a large part of why our drawings do not talk to each other."',
+  ]),
+
+  h2('3 · Eight things you may not have seen'),
+  p('Ninety seconds, fast. This decides what kind of attention you get for the rest of the session.'),
+  say('SAY', [
+    '"You all know what BIM is, so I will not explain it. Let me show you eight things I think are new, and then take them one at a time.',
+    'You can talk to the model in plain English. You can hold a live meeting inside the model rather than over a screen share. One element keeps the same identity across four modelling tools, including a free one. You can raise an issue by long-pressing the element on your phone. A model gets a compliance score. Drawings, schedules and quantities come out of the model. Handover data is assembled as you build. And Ugandan conditions are built in as defaults.',
     'Any one of those is useful on its own. Together they change what a working day looks like."',
   ]),
 
-  h2('Slide 3 · The two parts'),
+  h2('4 · One flow, from model to handover'),
   say('SAY', [
-    '"Two parts. StingTools sits inside the modelling software and does the checking, the tagging, and produces the drawings, schedules, quantities and handover data. PlanScape is the shared record around it, where the documents and issues live for the whole team.',
-    'They were designed as one system rather than bolted together. Started in 2021, with about two years of full-time work in them."',
+    '"What I was trying to build was one chain rather than five products with exports between them.',
+    'You model in whatever you use. Classification and naming get applied to a standard. The check runs and gives you a score and a report of what fails. Issues sit in one record the team shares. Drawings, schedules and quantities come out of the model. And the handover data has been accumulating the whole way along.',
+    'Each step already knows what the last one did. That is most of why handover information is usually such a miserable exercise, and why it is not one here."',
   ]),
 
-  h2('Slide 4 · The same work, without the evening'),
-  p('This is the slide most likely to land emotionally, because everyone in the room has lived it.'),
+  h2('5 · The same work, without the evening'),
   say('SAY', [
-    '"This is the part I care most about. The point of any of this is not that it does something nobody could do before. It is that it does the same work without somebody staying until midnight.',
-    'Naming and classifying a model used to be element by element. Producing a drawing set meant setting up every sheet. A schedule of quantities was counted, typed, and out of date by the time it was issued. Finding what was wrong meant reading drawings and hoping. Handover information got assembled at the end, from memory.',
+    '"This is the part I care most about. Naming and classifying a model used to be element by element. Producing a drawing set meant setting up every sheet. A schedule of quantities was counted, typed, and out of date by the time it was issued. Finding what was wrong meant reading drawings and hoping. Handover information got assembled at the end, from memory.',
     'Every one of those is now a pass that runs while you make tea."',
   ]),
   note('Then tell one real story',
-    'A specific job, a specific evening, how long it took then and how long it takes now. One concrete anecdote from your own projects will do more work than the whole table. Architects believe other architects about late nights, and this is the moment the room stops evaluating and starts recognising.'),
+    'A specific job, a specific evening, how long it took then and how long it takes now. One anecdote from your own projects will do more than the whole table. Architects believe other architects about late nights, and this is where the room stops evaluating and starts recognising.'),
 
-  h2('Slide 5 · It does not matter what you draw in'),
+  h2('6 · It does not matter what you draw in'),
   say('SAY', [
-    '"A fair question at this point is which software it needs. The answer matters less than you would expect.',
-    'There is a full add-in inside Revit, which is the deepest integration. ArchiCAD works by saving to IFC, and changes come back the other way. Tekla arrives the same way, so the structural engineer is on the same project. And there is a free, open-source route through Blender and Bonsai that costs nothing at all.',
-    'The line that matters is the last one. Every element keeps the same identity across all four. I have tested that with one element resolving across all of them at once.',
-    'It is also the reason I would argue any of this could ever belong to the profession rather than to one company. Something tied to a single supplier should not be a national anything."',
-  ]),
-  p('If asked how deep each one goes, be exact: Revit is a native add-in, the others go through IFC, and there is no native ArchiCAD or Tekla plug-in. The precision is what makes the claim believable.', { italic: true, color: GREY }),
-
-  h2('Slide 6 · The demonstration'),
-  p('Six to eight minutes. Part 3 covers it fully.'),
-
-  h2('Slide 7 · And before long, you will simply ask it'),
-  p('The slide that will make the technical people in the room sit forward. Accuracy matters more here than anywhere, because this is the one they will most want to test.'),
-  say('SAY', [
-    '"The last thing I want to show you is not finished, and I am showing it anyway because I think it is where all of this is going.',
-    'The connection between an AI assistant and the model itself is built and tested. Over forty operations: it can query a model, create things, tag, size, export. And it is built carefully. Every operation checks the licence, runs inside a transaction that can be rolled back, and can be run as a trial first, so nothing happens to a model that cannot be undone.',
-    'What I am still finishing is the conversation layer on top. So I am not going to demonstrate it and tell you it works.',
-    'But the direction is clear enough. Instead of learning where a command lives, you ask for the outcome. Which rooms are missing a fire rating. Tag this level. Give me quantities for the north block. The research here has moved very fast in two years, and the expectation across the industry is that practices will be running their own assistants on their own projects well before 2030. I would rather we arrived early than caught up late."',
+    '"A full add-in inside Revit, which is the deepest integration. ArchiCAD by saving to IFC, with changes coming back. Tekla the same way. And a free open-source route through Blender and Bonsai.',
+    'Every element keeps the same identity across all four. I have tested that with a single element resolving across all of them at once.',
+    'It is also why I would say this belongs to the profession rather than to one company. A tool tied to a single supplier should probably not be anybody\'s national standard."',
   ]),
 
-  h2('Slide 8 · Where it stands'),
+  h2('7 · Meet inside the model, not over it'),
+  p('The slide that separates this from every other tool the room has seen, and from Zoom. Give it time.'),
   say('SAY', [
-    '"Let me be plain about how far along it is.',
-    'Working now, in daily use on live projects: the shared record, document control, issues, mobile offline, the model checking, and the drawings, schedules, quantities and handover data.',
-    'Being finished: serving many practices from one system, payments, hosting sized for the region, an independent security review, and the conversation layer I just showed you.',
-    'And not yet validated: the engineering calculation engines. They are complete and tested but they have never been through independent professional validation, so I only offer them as commissioned work with manual checks alongside. I would rather say that here than have an engineer discover it.',
-    'The summary is one line. Ready for one practice today. Not ready to serve the whole profession at once. That gap is the work that is left."',
+    '"This is the part I am proudest of, and I have not seen it anywhere else.',
+    'We all know what a coordination meeting looks like. Somebody shares their screen, everybody else squints at it, and half the room is looking at a drawing they cannot navigate.',
+    'Here nobody screen-shares. There is a live meeting with camera and voice, in the browser or on a phone, and everyone is inside the same model. When the presenter isolates something, or colours the model by clash status, or cuts a section, everyone who is following sees their own view move to the same place. They are not watching a video of the model. They are in it.',
+    'And the meeting keeps itself: minutes, action items, who attended. It can be recorded, so somebody who could not attend can watch it, or you can go back to it when a decision gets questioned six months later.',
+    'I should be straight with you, as I have been about everything else. All of that is built and running. The last test on my list is a real two-person meeting with cameras on, and that is a test I cannot do alone."',
+  ]),
+  note('That last line is an opportunity',
+    'If somebody offers to be the second person, accept immediately and fix a date before you leave the room. It is the cheapest possible way for a Council member to become involved, and it turns them from an audience into a participant.'),
+
+  h2('8 · What you can do inside the model'),
+  p('Do not read all eight. Pick three and show them in the demonstration instead.'),
+  say('SAY', [
+    '"And while you are in there, it is a proper coordination viewer rather than a picture.',
+    'Isolate what matters and ghost the rest so you keep your bearings. Colour the model by clash status, issue status, discipline, level, any parameter you like. Explode an assembly. Cut a section, take a measurement. Mark up in three dimensions rather than drawing on a screenshot. Pin an issue to an element, at the point you are looking at, so whoever picks it up later knows exactly what you meant.',
+    'Clashes come in as pins you can filter by status and type, which is what actually makes a coordination meeting move.',
+    'It is colour-blind safe, which matters because roughly one man in twelve needs that and almost nobody asks. And all of it works on a phone, because that is where site is."',
   ]),
 
-  h2('Slide 9 · What it would take to finish'),
+  h2('9 · The demonstration'),
+  p('Six to eight minutes. Part 5 covers it fully.'),
+
+  h2('10 · What global platforms will not do for us'),
+  p('Deliver generously rather than competitively. Part 3 has the full argument.'),
   say('SAY', [
-    '"You asked how far along and what is left, so here is the money side of it.',
-    'Thirty-six thousand two hundred dollars to complete the platform. Twelve thousand for a year of hosting sized for regional use. Fifteen thousand for three training groups of about twenty-five people each. With contingency, about seventy-two and a half thousand dollars, or two hundred and sixty-nine million shillings.',
+    '"People sometimes ask why build this at all when the international products exist. This is my honest answer.',
+    'It is priced per practice rather than per person, and everyone outside your office joins free. The large vendors cannot do that; their whole business model is per seat.',
+    'Ugandan conditions are in it as defaults. Wind, seismic zone, soil bearing, design rainfall by region. Nobody in California is going to build that.',
+    'It works with no connection, because that is what our sites are like. It bills in shillings, and mobile money is coming, because most practices here do not have a corporate card. There is a free route through open-source software, which would undercut their own funnel. And if something goes wrong you can reach somebody in this time zone who has worked on a project like yours.',
+    'None of that is them being worse than us. It is that a market our size does not justify the work for them. It does for us, because it is the only market we have."',
+  ]),
+
+  h2('11 · And the standard is already drafted'),
+  say('SAY', [
+    '"Publishing a standard is the easy part. Getting anyone to comply with it is where most of them quietly die, because compliance is expensive and nobody can check it.',
+    'So what is in here is a working draft: naming and classification applied automatically, drawing types and title blocks so a set behaves the same way every time, what level of detail is expected at each stage, what a handover has to contain, and a check that runs against all of it.',
+    'I want to be careful how I put this. It is a draft I built because I needed one, not a proposal I am putting to you. But if the profession ever wanted a standard of its own, it is a starting point rather than a blank page."',
+  ]),
+  note('Then leave it there',
+    'Do not push it. If the Council picks it up it becomes their idea, which is the only way it would ever actually happen.'),
+
+  h2('12 · And before long, you will simply ask it'),
+  p('Accuracy matters more here than anywhere. Part 7 covers what is true and what is not.'),
+  say('SAY', [
+    '"The connection between an AI assistant and the model is built and tested. Over forty operations: query, create, tag, size, export. Every one checks the licence, runs inside a transaction that can be rolled back, and can be run as a trial first, so nothing happens to a model that cannot be undone.',
+    'What I am still finishing is the conversation layer on top, so I am not going to demonstrate it and tell you it works.',
+    'But the direction seems clear. Instead of learning where a command lives, you ask for the outcome. That matters for adoption more than it sounds, because most of what stops people using tools like this is not disagreement. It is that learning where everything lives takes time nobody has."',
+  ]),
+
+  h2('13 · Where it stands today'),
+  say('SAY', [
+    '"Working now, in daily use on live projects: the shared record, document control, issues, mobile offline, model checking, drawings, schedules, quantities and handover data.',
+    'Being finished: serving many practices from one system, payments, hosting sized for the region, an independent security review, and the conversation layer.',
+    'Not yet validated: the engineering calculation engines. Complete and tested, but never through independent professional validation, so I only offer them as commissioned work with manual checks alongside.',
+    'One line: ready for one practice today, not ready to serve the whole profession at once."',
+  ]),
+
+  h2('14 · Priced so that BIM can be normal'),
+  say('SAY', [
+    '"In my experience most practices here do not avoid BIM because they disagree with it. They avoid it because of what it costs to do properly, and because it feels like something for big jobs.',
+    'So it is priced per practice rather than per person. Everyone outside your office joins free. It is billed in shillings. And there is a free route for anyone with no software budget at all.',
+    'Twenty-five dollars a month for the modelling tools alone. Sixty for everything up to three people. A hundred and thirty for a practice of four to ten.',
+    'I am not claiming it does everything the international products do. I am saying it does what a Ugandan practice needs every week, at a price that lets BIM be normal rather than exceptional."',
+  ]),
+
+  h2('15 · What it would take to finish'),
+  say('SAY', [
+    '"Thirty-six thousand two hundred dollars to complete the platform. Twelve thousand for a year of hosting sized for regional use. Fifteen thousand for three training groups of about twenty-five people each. With contingency, about seventy-two and a half thousand dollars.',
     'The three are separable. The training in particular stands on its own and could start first."',
   ]),
   p('Then stop. See Part 1 on letting them raise the funding question.', { bold: true }),
 
-  h2('Slide 10 · The case for everyday BIM'),
+  h2('16 · Where I think this is all heading'),
   say('SAY', [
-    '"I want to put one thing to you about adoption.',
-    'In my experience most practices here do not avoid BIM because they disagree with it. They avoid it because of what it costs to do properly, and because it feels like something for big jobs.',
-    'So this is priced per practice rather than per person. Everyone outside your office joins free, which matters because the usual reason coordination software dies on a project is that nobody will pay for the other parties to be on it. It is billed in shillings. And there is a free route for anyone with no software budget at all.',
-    'Twenty-five dollars a month for the modelling tools on their own. Sixty for everything up to three people. A hundred and thirty for a practice of four to ten.',
-    'I am not claiming it does everything the international products do. I am saying it does the things a Ugandan practice needs every week, at a price that lets BIM be normal rather than exceptional."',
+    '"Requirements are becoming machine-readable, and the open standard for that arrived in 2024. Open formats are winning, and the open model format became an ISO standard the same year. AI working directly with models has moved very fast, and the expectation is that practices run their own assistants well before 2030. And the value is moving past handover into operation and maintenance.',
+    'That is my reading. I would like to know whether the Council sees it the same way, because if I am wrong about the direction I would rather find out now than in three years."',
   ]),
 
-  h2('Slides 11 and 12 · Where this is heading, and where we could aim'),
-  p('The heart of the session. Deliver both as opinions open to correction, because that is what they are.'),
+  h2('17 · How something like this actually spreads'),
+  p('Ambition delivered modestly. The last line is what stops it sounding grandiose, so do not drop it.'),
   say('SAY', [
-    '"I want to put a view to you and hear whether you agree, because between you you will have seen more of this than I have.',
-    'Four things seem to me to be happening. Information requirements are becoming machine-readable, and the open standard for that arrived in 2024. Open formats are winning, and the open model format became an ISO standard in the same year. AI working directly with models has moved very fast, and the expectation is that practices run their own assistants well before 2030. And the value is moving past handover into operation and maintenance.',
-    'If that reading is roughly right, here is where I think the tools should aim. Adopt the open requirements standard, so that what a client asks for and whether a model meets it become the same thing. Keep open formats at the centre, because that is what makes any of it shareable. Finish the assistant carefully.',
-    'And a fourth, which I put last because it is the Council\'s to decide and not mine. There is a working draft in the tools of naming, classification and what a handover should contain. If the profession ever wanted something of its own, that draft is a starting point. It would need the Council to shape it and put its name to it, if the Council wanted that at all.',
-    'These are suggestions. If you see the priorities differently, I would rather build to that."',
+    '"If something like this does work, I do not think it spreads by anybody announcing it.',
+    'It starts with a handful of members putting it on real jobs, because it fits their work and their budget. If that goes well, the naming and conventions gradually become how members deliver, and at that point the Council would want a hand in shaping them, which is as it should be. Then clients start asking for what our members can already produce, rather than the other way round.',
+    'And beyond that, honestly, the region. Kenya, Rwanda and Tanzania have the same conditions we do, the same gap, and no local platform either. But that is a long way off and I would rather earn it here first.',
+    'None of that happens by announcement. It happens one practice at a time."',
   ]),
-  note('Do not push the fourth one',
-    'Put it down and leave it there. If they pick it up, it becomes their idea, which is worth far more than it being yours. If they do not, nothing is lost and you have not asked for anything.'),
 
-  h2('Slide 13 · What you would value from them'),
+  h2('18 · Adoption is closer than it looks'),
+  p('The emotional close, and the sentence you want repeated to people who were not in the room. Slow down.'),
+  say('SAY', [
+    '"We have talked about BIM adoption in this country as though it were a five-year problem. Skills, cost, software, standards, all of it a long way off.',
+    'But look at where the pieces actually are. The tools work, and not as a prototype: they are in daily use on live projects. The price fits, so a three-person practice can afford it, and there is a free route for anyone who cannot. It works with whatever people already own, or with nothing at all. And a standard is drafted, not from scratch, but from something that already runs.',
+    'I am not saying it is finished, and I have been honest about what is not. But I think adoption here is closer to a decision than it is to a five-year problem, and that is not something I could have said two years ago."',
+  ]),
+
+  h2('19 · What you would value from them'),
   say('SAY', [
     '"I will stop there, because what I came for is your thinking rather than a decision.',
-    'Have I read the direction correctly, or am I missing something you can see from where you sit?',
-    'What would members actually use? I have built what I needed on my own projects, and you know the membership far better than I do.',
-    'Would training be useful, and if so what shape should it take and who should shape the content?',
-    'And who else should see this, inside the Society or outside it?',
+    'Have I read the direction correctly, or am I missing something you can see from where you sit? What would members actually use? Would training be useful, and who should shape the content? And who else should see this?',
     'I am not asking the Council to decide anything today. Thank you for the time."',
   ]),
   p('Then be quiet and let them talk. The whole session is designed to arrive here.', { bold: true })
 );
 
+/* ============================================ PART 3 DIFFERENTIATION */
+A(
+  h1('Part 3 · What only a local platform can do'),
+  p('The commercial heart of the case. The argument is not that the international products are bad, because they are very good. It is that a market of our size does not justify certain work for them, and does for you.'),
+
+  h2('The seven things they will not build'),
+  tbl(['What', 'Why they will not'], [
+    ['Price per practice rather than per person', 'Their entire revenue model is per seat. Matching this would mean undoing how they earn, so they cannot, however much they might want to.'],
+    ['Everyone outside the office joining free', 'Same reason, and it is the most useful single thing for a project here, because the usual reason coordination software dies is that nobody will pay for the other parties.'],
+    ['Ugandan conditions as defaults', 'Wind, seismic, soil bearing, design rainfall by region. Encoding one small market\'s conditions is economically irrational for a global vendor.'],
+    ['Genuine neutrality about authoring', 'A vendor cannot be neutral about its own modelling tool. Only a third party can be, which is why the multi-tool identity matters more than it first appears.'],
+    ['A free open-source route', 'Letting people take part at zero licence cost would undercut their own funnel.'],
+    ['Billing in shillings, and mobile money', 'Too small a market to justify local payment integration, and most practices here have no corporate card.'],
+    ['Working properly with no connection', 'Their products assume connectivity, because their main markets have it.'],
+  ], [1.5, 2.5]),
+  gap(180),
+  note('Say it generously',
+    'The line that makes this land is the one that gives them credit: "None of this is them being worse than us. It is that a market our size does not justify the work for them. It does for us, because it is the only market we have." Delivered that way it reads as clear-eyed rather than defensive, and nobody has to defend a supplier they may also use.'),
+  gap(160),
+  h2('Two more, worth knowing but not worth a slide'),
+  bullet('Hosting in Uganda, so data need not leave the country.'),
+  bullet('Support in the same time zone from somebody who has worked on a project like theirs. It matters more than any feature when something breaks on a Friday afternoon.'),
+  gap(160),
+  h2('And the one they have not got at all'),
+  p('A live coordination meeting held inside the model, where the presenter can move everyone\'s view. The big platforms have viewers, and separately everyone has video calls. Putting the two together, with camera and voice on one side and follow-the-presenter on the other, is genuinely uncommon and it is the thing most likely to be remembered from the session.'),
+  p('Be honest about its state: built and running, with a real two-person camera test still outstanding.', { italic: true, color: GREY }),
+  gap(160),
+  h2('What not to do with this argument'),
+  bullet('Do not name competitors on a slide.'),
+  bullet('Do not volunteer a price comparison. The structural argument is stronger and survives any discount they offer.'),
+  bullet('Do not claim feature parity. You have not built twenty years of software, and saying so plainly is what makes the rest credible.'),
+  gap(160),
+  note('If they push you to compare on price',
+    'Answer precisely if asked, never volunteer it. At published list prices the main authoring collection is about USD 3,675 per seat per year, cloud collaboration around USD 1,284 per collaborator, and cloud document access about USD 500 per user with no free tier. A ten-person practice reaches roughly USD 12,840 a year before adding a single contractor. The same ten people here are about USD 1,560, with unlimited free external members. Say it once and stop: "the difference is not really the price, it is that they charge for every person on the project and we do not." Then note these are list prices rather than reseller quotes, and that nothing here replaces the authoring software.')
+);
+
+/* ============================================ PART 4 HOW IT IS USED */
+A(
+  h1('Part 4 · How it is actually used'),
+  p('Three things worth being fluent on, because they are what turn a list of features into something a practice can picture itself doing.'),
+
+  h2('A medium-sized project, start to finish'),
+  tbl(['Stage', 'What happens'], [
+    ['Set up', 'Project created, the standard applied, the team invited. Consultants, contractor and client all join free.'],
+    ['Design', 'Authors model in Revit, ArchiCAD or the free route. Naming and classification applied as they go rather than at the end.'],
+    ['Check and coordinate', 'The audit runs and scores the model. Clashes arrive as filterable pins. The coordination meeting happens inside the model.'],
+    ['Document and tender', 'Sheets, title blocks, schedules and quantities out of the model. Transmittals and a drawing register kept automatically.'],
+    ['Build', 'Site records, photographs and issues from a phone, working offline and syncing when there is signal.'],
+    ['Hand over and operate', 'The asset register assembled along the way, so facilities management inherits data rather than a box of drawings.'],
+  ], [1.1, 2.9]),
+  gap(160),
+  p('The line to underline is the last one. Handover is normally a miserable exercise done in the final fortnight by whoever is least busy. Here it is a by-product of having done the rest properly.', { bold: true }),
+
+  h2('Authors, coordinators, and everyone else'),
+  p('Explain this before showing prices, or the prices will not make sense. It is also the moment a room realises the economics are a different shape rather than merely cheaper.'),
+  tbl(['Who', 'What they do', 'What they cost'], [
+    ['Authors', 'Model the building', 'They need their own modelling software, which you do not sell and are not replacing. The tools sit inside whatever they already use.'],
+    ['Coordinators', 'Run the job: checking, issues, documents, meetings, quantities', 'Named seats. This is the part a practice pays for.'],
+    ['Everyone else', 'Client, contractor, quantity surveyor, other consultants', 'Unlimited and free. View, comment, raise issues, join meetings, with nobody buying them a licence.'],
+  ], [0.8, 1.7, 2.3]),
+  gap(160),
+  say('THE LINE THAT LANDS IT', [
+    '"A four-person practice usually pays for two or three coordinators, and the rest of the project team costs nothing at all.',
+    'That is a different shape from paying per head, and it is the reason the whole team actually ends up on the platform rather than just the two people whose licences somebody could justify."',
+  ]),
+
+  h2('What a client checks from a phone'),
+  p('Every one of these is a phone call an architect in that room has taken on a weekend. That recognition is what makes the slide work.'),
+  bullet('What am I being asked to decide? Issues and approvals in one list rather than buried in email.'),
+  bullet('What did I approve, and when? A dated record, so nobody relies on memory a year later.'),
+  bullet('What does it actually look like? The model on the phone, rotate it, tap an element.'),
+  bullet('What is happening on site? Photographs from the last visit, dated and located.'),
+  bullet('Where did we get to on that? Minutes, actions, and the recording if there was one.'),
+  bullet('Is anything stuck? Open issues by status, so a three-week-old question is visible.'),
+  gap(160),
+  note('The sentence that usually gets a laugh',
+    '"And it costs them nothing to be there, which is the part that makes it actually happen. On a per-user platform the client is a licence somebody has to justify, so they never get added, and then they ring you on a Saturday instead." Let the laugh land. It is recognition, and recognition is what you are there for.')
+);
+
 /* ============================================ PART 3 DEMO */
 A(
-  h1('Part 3 · The demonstration'),
+  h1('Part 5 · The demonstration'),
   note('The rule',
     'Nothing is demonstrated live that has not been proven twice, end to end, on the same setup you will actually run on. A demonstration that half works in front of this room is worse than a recording that works.'),
   gap(180),
@@ -338,7 +465,7 @@ A(
 
 /* ============================================ PART 4 WHERE BIM IS GOING */
 A(
-  h1('Part 4 · Where BIM is going'),
+  h1('Part 6 · Where BIM is going'),
   p('The research behind the view you are putting to the Council. Know it well enough to discuss it, because someone in that room will want to.'),
 
   h2('1 · Requirements are becoming machine-readable'),
@@ -368,7 +495,7 @@ A(
 
 /* ============================================ PART 5 ASSISTANT */
 A(
-  h1('Part 5 · The assistant, and how to talk about it'),
+  h1('Part 7 · The assistant, and how to talk about it'),
   p('This is the most exciting thing you have and the easiest to overstate. Both facts deserve attention.'),
 
   h2('What is actually true'),
@@ -396,7 +523,7 @@ A(
 
 /* ============================================ PART 6 PROPOSALS */
 A(
-  h1('Part 6 · What you are proposing'),
+  h1('Part 8 · What you are proposing'),
   p('Four proposals, offered as suggestions. The first three are about the tools. The fourth is about the profession, and it belongs to the Council rather than to you.'),
 
   h2('1 · Adopt the open requirements standard'),
@@ -420,7 +547,7 @@ A(
 
 /* ============================================ PART 7 QUESTIONS */
 A(
-  h1('Part 7 · The questions you will be asked'),
+  h1('Part 9 · The questions you will be asked'),
   p('Rehearse these out loud. A prepared answer delivered hesitantly reads worse than an honest "I do not know" delivered calmly.'),
 
   h3('"Which software does it need?"'),
@@ -485,7 +612,7 @@ A(
 
 /* ============================================ PART 8 WORDING */
 A(
-  h1('Part 8 · Wording to keep consistent'),
+  h1('Part 10 · Wording to keep consistent'),
   p('Say these the same way every time, in the room and afterwards.'),
 
   h2('How far along it is'),
@@ -523,7 +650,7 @@ A(
 
 /* ============================================ PART 9 CHECKLIST */
 A(
-  h1('Part 9 · Checklist'),
+  h1('Part 11 · Checklist'),
   h2('A week before'),
   bullet('Start the demonstration rehearsals. They take longer than anyone expects.'),
   bullet('Verify the operation count for the assistant, and check the prices are current.'),
@@ -556,7 +683,7 @@ A(
 
 /* ============================================ PART 10 CLOSE */
 A(
-  h1('Part 10 · Afterwards'),
+  h1('Part 12 · Afterwards'),
   h2('If they engage'),
   p('The most likely good outcome is that one or two people in the room become interested and want to talk more. That is worth more than a resolution, because it is a person rather than a minute. Follow it up within the week while the presentation is still vivid.'),
 
