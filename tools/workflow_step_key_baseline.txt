@@ -1,0 +1,32 @@
+# WF-4 baseline: workflow step keys that WorkflowStep does not bind, as of 2026-09-08.
+#
+# Tier 5 of tools/check_workflow_wiring.ps1 fails on any unbound key that is not
+# listed here. THIS LIST ONLY SHRINKS: the gate also reports an entry that no
+# preset writes any more, so a deletion has to remove its line in the same commit
+# and a stale entry cannot linger claiming something about a file that changed.
+#
+# NOT LISTED, AND DELIBERATELY SO: "order", "id" and "_notes" (40, 33 and 23 uses).
+# Those are documentation - they carry no execution intent, so a reader is not
+# misled by them the way they are by the four below. "order" is additionally safe
+# only because Tier 3 already fails any preset whose "order" values disagree with
+# array position; without that tier it would be the most dangerous key in the file,
+# because it reads exactly like sequencing and the engine runs array order.
+#
+# THE FOUR BELOW ARE DIFFERENT. Each states real filtering intent that the engine
+# has no support for, so the preset reads as configured and behaves as if the line
+# were absent. They are not an accepted state. Each needs either:
+#
+#   (a) a property on WorkflowStep in StingTools/Core/WorkflowEngine.cs AND engine
+#       code that acts on it, or
+#   (b) deletion from the preset, which removes a stated intention.
+#
+# Choosing between those is a decision about what these penetration workflows are
+# supposed to do in Revit, and that cannot be settled from a terminal - so they are
+# made VISIBLE here rather than guessed at.
+#
+# Format:  KEY<TAB>note
+
+skipIfFamilyLoaded	WORKFLOW_PenetrationRegister step 1, WORKFLOW_PenetrationSweep step 1. Intent: skip the seed-family build when the families are already loaded. The engine has SkipIfDataUnchanged, which is a different question (has the DATA changed), so this cannot simply be renamed onto it.
+scheduleNameFilter	WORKFLOW_PenetrationRegister step 6, WORKFLOW_PenetrationSweep step 5. Intent: restrict the step to schedules whose name matches. No step-scoped filtering exists in WorkflowEngine at all - the engine runs a command, it does not narrow what the command sees.
+drawingTypeId	WORKFLOW_PenetrationRegister step 7. Intent: pin the produced drawing to one DrawingType id. DrawingTypeRegistry can resolve an id, but nothing plumbs a per-step value through to it.
+sheetNumberFilter	WORKFLOW_PenetrationRegister step 8. Intent: restrict the step to sheets whose number matches. Same missing capability as scheduleNameFilter.

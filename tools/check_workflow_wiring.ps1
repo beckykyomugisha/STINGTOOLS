@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Wiring gate -- data that names a command must name one that exists.
-    Tiers 1-3 cover workflow presets; Tier 4 covers dock-panel buttons.
+    Tiers 1-3 and 5 cover workflow presets; Tier 4 covers dock-panel buttons.
 
 .DESCRIPTION
     A workflow preset is data, and so is a XAML button's Tag. Both name a command by
@@ -40,6 +40,29 @@
       preset by "order" in an editor, or inserts a step and renumbers, and the file then
       states one sequence while the engine runs another with no error anywhere. Fix by
       reordering the array, renumbering "order", or deleting the key.
+
+    TIER 5 -- STEP KEYS WorkflowStep DOES NOT BIND (explicit baseline). WF-4.
+      Tier 1 catches ONE mis-keyed name. This catches the general case: any key an author
+      writes into a step that the engine never reads. Newtonsoft ignores an unknown property
+      silently, so the key sits in the file looking like configuration and does nothing --
+      the same shape as Tier 1, without the single well-known spelling.
+
+      THE BOUND SET IS DERIVED, NOT LISTED HERE. It is read out of WorkflowStep's own
+      [JsonProperty("...")] attributes and property names in WorkflowEngine.cs, so a property
+      added to the class is understood by this gate immediately and a list cannot rot. If that
+      parse yields an implausibly small set the gate FAILS rather than reporting every key in
+      every preset as unbound -- a check that finds everything broken is a broken check.
+
+      Three keys are ALLOWED as documentation, not baselined: "order", "id" and "_notes"
+      (40, 33 and 23 uses). They carry no execution intent, and "order" is already policed by
+      Tier 3, which is the tier that makes it safe to leave in the files.
+
+      Baselined in tools/workflow_step_key_baseline.txt are the four that DO express intent
+      the engine has no support for -- skipIfFamilyLoaded, scheduleNameFilter, drawingTypeId,
+      sheetNumberFilter -- across two penetration presets. They are not an accepted state:
+      each has to be implemented in WorkflowStep or deleted from the preset. Implementing them
+      is a Revit-behaviour decision, so they are made VISIBLE here rather than guessed at. The
+      baseline may shrink, never grow.
 
     TIER 4 -- PANEL BUTTONS THAT DISPATCH TO NOTHING (hard zero + explicit baseline).
       A <Button Tag="X" Click="Cmd_Click"> in a panel XAML sends X to the dispatcher.
@@ -131,9 +154,58 @@ if (Test-Path $baselineFile) {
     }
 }
 
+# ── Tier 5 setup: the keys WorkflowStep actually binds, read from the class itself.
+#    Derived rather than listed so the gate cannot drift from WorkflowEngine.cs.
+# A plain IndexOf('public class WorkflowStep') PREFIX-MATCHES "public class
+# WorkflowStepResult", which lives in this same file. Were it declared first, this
+# would silently parse the wrong class and read its keys as the step's. Anchor on a
+# non-identifier character after the name. (Found by sabotage-verifying this tier:
+# renaming the class to WorkflowStepRenamed did not trip the instrument check.)
+$stepMatch = [regex]::Match($engineText, 'public class WorkflowStep(?![A-Za-z0-9_])')
+if (-not $stepMatch.Success) {
+    Write-Host "Workflow-wiring FAILED -- WorkflowStep class not found in WorkflowEngine.cs." -ForegroundColor Red
+    exit 1
+}
+$stepStart = $stepMatch.Index
+$stepEnd = $engineText.IndexOf("`n    public class ", $stepStart + 10)
+if ($stepEnd -lt 0) { $stepEnd = $engineText.Length }
+$stepBody = $engineText.Substring($stepStart, $stepEnd - $stepStart)
+
+$boundKeys = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($m in [regex]::Matches($stepBody, '\[JsonProperty\("([^"]+)"\)\]')) {
+    [void]$boundKeys.Add($m.Groups[1].Value)
+}
+# Newtonsoft also binds a bare property name, case-insensitively, when no attribute is given.
+foreach ($m in [regex]::Matches($stepBody, 'public\s+[\w<>?\[\]]+\s+(\w+)\s*\{\s*get')) {
+    [void]$boundKeys.Add($m.Groups[1].Value)
+}
+# INSTRUMENT CHECK. If this parse breaks, every key in every preset reads as unbound --
+# which is a broken checker, not a finding. Fail loudly instead.
+if ($boundKeys.Count -lt 10) {
+    Write-Host "Workflow-wiring FAILED -- only $($boundKeys.Count) bound step keys parsed from WorkflowStep; the reader is wrong, not the presets." -ForegroundColor Red
+    exit 1
+}
+
+# Documentation keys: no execution intent, deliberately allowed. "order" is safe to leave
+# in the files only because Tier 3 polices it against array position.
+$docKeys = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+foreach ($k in @('order', 'id', '_notes')) { [void]$docKeys.Add($k) }
+
+$keyBaseFile = Join-Path $scriptDir 'workflow_step_key_baseline.txt'
+$keyBaseline = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+if (Test-Path $keyBaseFile) {
+    foreach ($line in Get-Content $keyBaseFile) {
+        $t = $line.Trim()
+        if ($t.Length -eq 0 -or $t.StartsWith('#')) { continue }
+        [void]$keyBaseline.Add(($t -split '\s')[0])
+    }
+}
+
 $tierOne   = @()   # steps keyed "tag"
 $tierTwo   = @()   # commandTag with no case label
 $tierThree = @()   # "order" disagreeing with array position
+$tierFive  = @()   # step keys WorkflowStep does not bind
+$usedKeyBase = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
 $usedBase  = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
 $stepCount = 0
 $files     = Get-ChildItem -Path $dataDir -Filter 'WORKFLOW_*.json' -File
@@ -149,6 +221,15 @@ foreach ($f in $files) {
         $i++; $stepCount++
         $names = @($step.PSObject.Properties.Name)
         if ($names -contains 'order') { $orderVals += [int]$step.order }
+
+        # TIER 5 -- keys the engine never reads. Checked before the commandTag branches
+        # below so a step that ALSO trips Tier 1 still has its stray keys reported;
+        # a `continue` further down would hide them.
+        foreach ($k in $names) {
+            if ($boundKeys.Contains($k) -or $docKeys.Contains($k)) { continue }
+            if ($keyBaseline.Contains($k)) { [void]$usedKeyBase.Add($k); continue }
+            $tierFive += "$($f.Name) step $i : key '$k' is not bound by WorkflowStep -- it is read by nothing"
+        }
         if (($names -contains 'tag') -and -not ($names -contains 'commandTag')) {
             $tierOne += "$($f.Name) step $i : {""tag"": ""$($step.tag)""} -- WorkflowStep binds ""commandTag"""
             continue
@@ -310,6 +391,20 @@ if ($tierThree.Count -gt 0) {
     Write-Host 'Reorder the array to match, renumber "order" to match the array, or delete the key.'
 }
 
+if ($tierFive.Count -gt 0) {
+    $failed = $true
+    Write-Host ""
+    Write-Host "Workflow-wiring FAILED -- Tier 5: $($tierFive.Count) step key(s) WorkflowStep does not bind:" -ForegroundColor Red
+    $tierFive | Sort-Object | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'Newtonsoft ignores an unknown property silently, so the key sits in the preset'
+    Write-Host 'looking like configuration and is read by nothing. Either bind it -- add the'
+    Write-Host 'property to WorkflowStep in WorkflowEngine.cs and make the engine act on it --'
+    Write-Host 'or delete it from the preset. Do NOT add it to'
+    Write-Host 'tools/workflow_step_key_baseline.txt to make this pass: that file records what'
+    Write-Host 'was already unbound when the tier was written, and it may shrink, never grow.'
+}
+
 if ($tierFour.Count -gt 0) {
     $failed = $true
     Write-Host ""
@@ -322,6 +417,19 @@ if ($tierFour.Count -gt 0) {
     Write-Host 'tools/button_wiring_baseline.txt unless review agrees the button should stay dead.'
 }
 
+$staleKeys = @($keyBaseline | Where-Object { -not $usedKeyBase.Contains($_) })
+if ($staleKeys.Count -gt 0) {
+    $failed = $true
+    Write-Host ""
+    Write-Host "Workflow-wiring FAILED -- Tier 5: $($staleKeys.Count) step-key baseline entry/ies are no longer unbound in any preset:" -ForegroundColor Red
+    $staleKeys | Sort-Object | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'Either the key is now BOUND by WorkflowStep, or no preset writes it any more.'
+    Write-Host 'Both are good news; delete the line from tools/workflow_step_key_baseline.txt in'
+    Write-Host 'the same commit. An entry for a key nobody writes is a claim about a preset that'
+    Write-Host 'no longer says it, and it silently re-permits the key if it ever comes back.'
+}
+
 if ($failed) { exit 1 }
 
 $stale = @($baseline | Where-Object { -not $usedBase.Contains($_) })
@@ -332,6 +440,8 @@ Write-Host "  ResolveCommand case labels                      : $($resolvable.Co
 Write-Host "  Tier 1 steps keyed ""tag"" (must be 0)            : 0"
 Write-Host "  Tier 2 unresolvable outside the baseline        : 0"
 Write-Host "  Tier 3 presets whose ""order"" contradicts array  : 0"
+Write-Host "  Tier 5 unbound step keys outside the baseline   : 0"
+Write-Host "  WorkflowStep keys the engine binds              : $($boundKeys.Count)"
 Write-Host "  Baselined 'no command exists' tags in use       : $($usedBase.Count)"
 Write-Host "  Panel XAMLs scanned                             : $panelsScanned"
 Write-Host "  Cmd_Click buttons scanned                       : $($btnTags.Count)"
@@ -340,10 +450,19 @@ Write-Host "  Tier 4 buttons dispatching to nothing           : 0"
 if ($btnUsedBase.Count -gt 0) {
     Write-Host "  Baselined dead buttons in use                   : $($btnUsedBase.Count)"
 }
+if ($usedKeyBase.Count -gt 0) {
+    Write-Host "  Baselined unbound step keys in use              : $($usedKeyBase.Count)"
+}
 if ($stale.Count -gt 0) {
     Write-Host ""
     Write-Host "Note: $($stale.Count) baseline entry/ies are no longer referenced by any preset:"
     $stale | Sort-Object | ForEach-Object { Write-Host "  $_" }
     Write-Host "Remove them from tools/workflow_wiring_baseline.txt -- the baseline may shrink, never grow."
 }
+# NOTE the asymmetry with the Tier 2 baseline above, which only WARNS about a stale
+# entry. Tier 5's baseline FAILS on one, because "the baseline only shrinks" is not a
+# rule if nothing enforces it -- and because a stale entry here is the exact signal
+# that somebody FIXED a key (bound it, or deleted it from the preset) and left the
+# claim behind. Tier 2's weaker behaviour is left alone: changing it would fail
+# unrelated presets and does not belong in this change.
 exit 0
