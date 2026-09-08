@@ -10,7 +10,7 @@
 //
 //  Setting it by hand across 43 materials is the work this closes.
 //
-//  TWO RULES KEEP IT HONEST:
+//  THREE RULES KEEP IT HONEST:
 //    1. An EXISTING Class is never overwritten. Somebody chose it, and a bulk
 //       tool that silently replaces a human's classification is worse than one
 //       that does nothing.
@@ -19,10 +19,54 @@
 //       models; assigning them a plausible Class would launder a guess into a
 //       controlled field, which is precisely the confidence this codebase keeps
 //       having to unpick.
+//    3. A needle matches a WORD, not a run of letters, and SUBSTANCE outranks
+//       FORM. Both halves of rule 3 were bought with a bad write.
+//
+//  WHAT RULE 3 COST (2026-09-08, on a 1,815-material delivered model; the whole
+//  run is checked in at
+//  StingTools.Tags.Tests/Fixtures/material_names_20260908.csv):
+//
+//    * A plain IndexOf gave 32 materials the class Gypsum "because the name
+//      contains 'render'". Six were AccuRender library appearances — chrome,
+//      transparent plastics, solid colours — where "render" is a substring of
+//      the LIBRARY's name. Twenty-six were DWG-import placeholders literally
+//      called "Render Material 128-128-128", where "render" is a whole word and
+//      means visualisation, not cement render. The first six are what whole-word
+//      matching is for; the last twenty-six are what NamesNoSubstance is for.
+//      Whole-word matching alone would have left all 26 wrong.
+//    * Nine materials were classified Ceramic because the name contains "tile" —
+//      CARPET TILE, CORK TILE, RUBBER TILE, VINYL TILE, GRANITE TILE, LIMESTONE
+//      TILE, MARBLE TILE, SLATE TILE, TRAVERTINE TILE. The model's own data
+//      proved it: GRANITE SLAB was called Stone and GRANITE TILE Ceramic; SHEET
+//      VINYL was Plastic and VINYL TILE Ceramic. A tile is a SHAPE. It says
+//      nothing about what the thing is made of, so it is evaluated LAST, after
+//      every substance word has had its turn.
+//
+//  All 41 were written into the user's model before the defect was found, which
+//  is why MaterialClassRevertPlanner exists.
+//
+//  TWO ORDERING RULES THE SAME CORPUS FORCED, both easy to undo by accident:
+//    * PLASTIC is evaluated before WOOD. Thirty-one materials are named
+//      "VINYL LVT WOOD OAK-DARK" and friends — luxury vinyl tile printed with a
+//      wood grain. The finish technology names the substance; the pattern it
+//      imitates does not. Same reason Ceramic already beat Stone on
+//      "FLOOR PORCELAIN WOOD-OAK".
+//    * INSULATION and MEMBRANE are evaluated before PLASTIC, or
+//      "Insulation - PVC Jacketed Fiberglass" becomes a plastic and
+//      "EPDM RUBBER MEMBRANE 1.5MM" stops being a membrane the moment "rubber"
+//      is added below.
+//
+//  A KNOWN LIMIT, stated rather than hidden: a colour word that is also a
+//  substance still wins. "ROOF CLAY-TILE SLATE-GREY" reads as Stone and
+//  "Roca - TENET - 402 City Oak" reads as Wood. Rule 1 keeps both harmless here
+//  — every material of that shape in the corpus already carries a human's Class
+//  — but a new model could hit it, and the honest fix is a better material name,
+//  not a longer list of exceptions.
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using StingTools.Core.MaterialSchedule;
 
 namespace StingTools.Core.Materials
 {
@@ -51,13 +95,30 @@ namespace StingTools.Core.Materials
             "Textile", "Earth", "Generic",
         };
 
+        /// <summary>
+        /// Names that carry a substance word and are not a material at all. Checked
+        /// BEFORE the needle loop, because whole-word matching cannot help here: in
+        /// "Render Material 128-128-128" the word "render" really is a whole word — it
+        /// just means the renderer. Twenty-six of those arrived from a DWG import and
+        /// every one of them was classified Gypsum.
+        ///
+        /// This is the same kind of statement as "notAProductFamilies" in
+        /// STING_PROD_EXCLUSIONS.json: somebody looked at it and said what it is. Add to
+        /// it only with a name you have actually seen, and say where you saw it.
+        /// </summary>
+        public static readonly string[] NamesNoSubstance =
+        {
+            "render material",   // DWG-import RGB placeholder, e.g. "Render Material 0-41-165"
+        };
+
         // Longest, most specific needle first: "stone coated" must not read as Stone.
         private static readonly (string Needle, string Class)[] Map =
         {
             ("stone coated", "Metal"), ("galvanised", "Metal"), ("galvanized", "Metal"),
-            ("reinforcement", "Metal"), ("rebar", "Metal"), ("steel", "Metal"),
-            ("aluminium", "Metal"), ("aluminum", "Metal"), ("copper", "Metal"),
-            ("brass", "Metal"), ("zinc", "Metal"), ("lead", "Metal"),
+            ("zincalume", "Metal"), ("reinforcement", "Metal"), ("rebar", "Metal"),
+            ("steel", "Metal"), ("aluminium", "Metal"), ("aluminum", "Metal"),
+            ("copper", "Metal"), ("brass", "Metal"), ("zinc", "Metal"), ("lead", "Metal"),
+            ("chrome", "Metal"), ("iron", "Metal"),
 
             // Masonry BEFORE concrete, or "Hollow Concrete Block" reads as Concrete and a
             // block wall is classified as in-situ. A concrete block is masonry; the word
@@ -66,7 +127,7 @@ namespace StingTools.Core.Materials
             // kind ever shows up.
             ("clay brick", "Masonry"), ("brick", "Masonry"),
             ("concrete block", "Masonry"), ("screen block", "Masonry"),
-            ("block", "Masonry"), ("masonry", "Masonry"),
+            ("block", "Masonry"), ("blockwork", "Masonry"), ("masonry", "Masonry"),
 
             ("concrete", "Concrete"), ("screed", "Concrete"), ("mortar", "Concrete"),
             ("grout", "Concrete"), ("terrazzo", "Concrete"),
@@ -74,16 +135,11 @@ namespace StingTools.Core.Materials
             ("plaster", "Gypsum"), ("render", "Gypsum"), ("gypsum", "Gypsum"),
             ("plasterboard", "Gypsum"), ("drywall", "Gypsum"),
 
-            ("porcelain", "Ceramic"), ("ceramic", "Ceramic"), ("tile", "Ceramic"),
+            ("porcelain", "Ceramic"), ("ceramic", "Ceramic"),
 
-            ("timber", "Wood"), ("hardwood", "Wood"), ("softwood", "Wood"),
-            ("plywood", "Wood"), ("mvule", "Wood"), ("cypress", "Wood"),
-
-            ("glass", "Glass"), ("glazing", "Glass"),
-
-            ("upvc", "Plastic"), ("pvc", "Plastic"), ("hdpe", "Plastic"),
-            ("polyethylene", "Plastic"), ("polypropylene", "Plastic"), ("vinyl", "Plastic"),
-
+            // Insulation and membrane before plastic — see the header. A PVC-jacketed
+            // insulation is insulation and an EPDM roofing membrane is a membrane; the
+            // polymer each is made from is the less useful of the two facts.
             ("mineral wool", "Insulation"), ("rockwool", "Insulation"),
             ("insulation", "Insulation"), ("polystyrene", "Insulation"),
             ("polyurethane", "Insulation"),
@@ -91,16 +147,43 @@ namespace StingTools.Core.Materials
             ("bitumen", "Membrane"), ("dpm", "Membrane"), ("felt", "Membrane"),
             ("membrane", "Membrane"),
 
+            // Plastic before wood — see the header. "rubber" and "linoleum" are not
+            // chemically plastics, and cork is a plant tissue rather than a wood; Revit's
+            // vocabulary has no better bucket for a resilient floor finish, and splitting
+            // one trade across three classes would help nobody. Stated so the next reader
+            // knows it was a decision and not an oversight.
+            ("upvc", "Plastic"), ("cpvc", "Plastic"), ("pvc", "Plastic"),
+            ("hdpe", "Plastic"), ("polyethylene", "Plastic"), ("polypropylene", "Plastic"),
+            ("polyvinyl", "Plastic"), ("vinyl", "Plastic"), ("lvt", "Plastic"),
+            ("rubber", "Plastic"), ("linoleum", "Plastic"), ("plastic", "Plastic"),
+
+            ("timber", "Wood"), ("hardwood", "Wood"), ("softwood", "Wood"),
+            ("plywood", "Wood"), ("mvule", "Wood"), ("cypress", "Wood"),
+            ("mdf", "Wood"), ("hdf", "Wood"), ("parquet", "Wood"), ("bamboo", "Wood"),
+            ("cork", "Wood"), ("oak", "Wood"), ("maple", "Wood"), ("wood", "Wood"),
+
+            ("glass", "Glass"), ("glazing", "Glass"),
+
+            // Textile before stone, or "Textile - Slate Blue" is a rock.
+            ("carpet", "Textile"), ("fabric", "Textile"), ("textile", "Textile"),
+
             ("granite", "Stone"), ("marble", "Stone"), ("limestone", "Stone"),
-            ("sandstone", "Stone"), ("hardcore", "Stone"), ("aggregate", "Stone"),
+            ("sandstone", "Stone"), ("bluestone", "Stone"), ("cobblestone", "Stone"),
+            ("flagstone", "Stone"), ("slate", "Stone"), ("travertine", "Stone"),
+            ("quartzite", "Stone"), ("hardcore", "Stone"), ("aggregate", "Stone"),
             ("stone", "Stone"),
 
-            ("paint", "Paint"), ("emulsion", "Paint"), ("enamel", "Paint"),
-            ("coating", "Paint"), ("weatherguard", "Paint"),
-
-            ("carpet", "Textile"), ("fabric", "Textile"),
+            ("paint", "Paint"), ("painted", "Paint"), ("emulsion", "Paint"),
+            ("enamel", "Paint"), ("coating", "Paint"), ("weatherguard", "Paint"),
 
             ("sand", "Earth"), ("murram", "Earth"), ("soil", "Earth"),
+
+            // ── FORM, and nothing but form. Evaluated after every substance word above,
+            //    because a tile is a shape: CARPET TILE is textile, CORK TILE is wood,
+            //    SLATE TILE is stone. A name whose only content word is "tile" is a
+            //    ceramic tile by convention — the one default this table makes, made
+            //    last and in the open rather than by an accident of ordering.
+            ("tile", "Ceramic"), ("tiles", "Ceramic"),
         };
 
         /// <param name="existingClass">What Revit already holds. Non-empty means leave it.</param>
@@ -122,8 +205,17 @@ namespace StingTools.Core.Materials
             if (string.IsNullOrWhiteSpace(materialName))
             { p.Reason = "unnamed"; return p; }
 
+            foreach (string phrase in NamesNoSubstance)
+                if (PatternMatch.Contains(materialName, phrase))
+                {
+                    p.Reason = $"'{phrase}' names no substance — left blank rather than guessed";
+                    return p;
+                }
+
+            // PatternMatch.Contains, not IndexOf: "_ACCURENDER" is not a render and
+            // "ducTILE iron" is not a tile. Both were live wrong answers in a model.
             foreach (var (needle, cls) in Map)
-                if (materialName.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
+                if (PatternMatch.Contains(materialName, needle))
                 {
                     p.ProposedClass = cls;
                     p.Reason = $"name contains '{needle}'";
