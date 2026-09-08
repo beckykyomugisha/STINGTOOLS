@@ -98,9 +98,11 @@ namespace StingTools.UI
 
         public static void WriteRegionToProject(Document doc, MaterialRegion region)
         {
-            // Writes the singleton; ProjectStandardsManager fires its
-            // StandardsChanged event so the HVAC / Plumbing surfaces
-            // pick up the change automatically.
+            // Writes the singleton; ProjectStandardsManager fires StandardsChanged,
+            // which EngineRegionSync subscribes to and translates into the HVAC sizing
+            // and LPS risk regions (KUT-8). Until that subscriber existed this comment
+            // was aspirational: the event had no listeners at all, and changing the
+            // region here moved nothing but the MAT tab's own formatting.
             try
             {
                 string standardsKey = MapToStandardsKey(region);
