@@ -47,6 +47,7 @@ restored, 21 of 21 pass. A gate only ever seen passing is not evidence.
 still in the last audit on disk; the override takes effect the next time it runs
 against that project. The file is on the D: drive and is not, and should not be,
 in this repository.
+
 #### Completed (Phase 256 — a tile is a shape, and a plan that was applied can be taken back)
 
 `Materials_SetClass` ran on a 1,815-material delivered model on 2026-09-08 and
@@ -494,6 +495,7 @@ bullet rather than silently closed.
 **Caveat:** built and unit-tested on Windows (0 errors / 0 warnings; Cost 105,
 Scheduling 38, BOQ 196 green) but **not exercised inside Revit** — the four command
 tags, the capture dialog and the panel buttons are unverified at runtime.
+
 #### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
 
 Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
@@ -745,6 +747,7 @@ field is on a consuming path.
 - **Untagged-count** in the standards-gate warning now counts non-null rules only.
 - **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
   coerces a rejected tick, so a TwoWay binding reverts its visual.
+
 #### Completed (Phase 252 — the baseline reaches family-backed elements, and a catalogue that renews itself)
 
 Phase 246 shipped a baseline that could create wall, floor, roof and ceiling types and could only
@@ -887,6 +890,7 @@ read it as. That, and the fact that an *unresolvable* step silently passes the c
 logged as ROADMAP SMK-3a / SMK-3b.
 
 Advisory list: **2 → 0**. Smoke-gate assertions: **170 → 173**.
+
 #### Completed (Phase 226 — DEP-6a: a real-Redis test for the handoff jti replay guard)
 
 The `/api/auth/handoff/exchange` single-use guard is a Redis
@@ -919,6 +923,7 @@ test would pass or fail on whether a docker Redis happened to be running.
   choice stays a decision, not an accident.
 
 Closes ROADMAP **DEP-6a**.
+
 #### Completed (Phase 251 — one roof accessory measured, two refused out loud)
 
 Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
@@ -1859,6 +1864,7 @@ message specific enough to act on, pointing the wrong way.
 
 The durable fix is not in the plugin — it is an always-on instance. Logged in
 [`ROADMAP.md`](ROADMAP.md) against #705, which already wants the custom domain attached.
+
 #### Completed (Phase 238 — the invite note named the wrong cause)
 
 Follow-on to Phase 237, found by verifying that fix against the live server rather than
@@ -2502,6 +2508,7 @@ automatically by the `StingTools.*.Tests/*.csproj` glob in
 `.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
 **Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
 remains open.
+
 #### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
 
 Full accuracy/consistency review of the Document Management Center
@@ -3150,6 +3157,7 @@ restored tree. **Nothing was exercised in a live Revit session** — no workflow
 Files: `StingTools/Core/WorkflowEngine.cs` (+72 cases) · 14 `StingTools/Data/WORKFLOW_*.json` ·
 `tools/check_workflow_wiring.ps1` + `tools/workflow_wiring_baseline.txt` (new) ·
 `.github/workflows/stingtools-plugin.yml`.
+
 #### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
 
 Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information
@@ -3524,6 +3532,7 @@ and dispatch-parity gates green.
   guard. Product code — including `ProjectAccessAttribute` — is untouched. Does not
   reproduce locally: the local full suite is byte-identical at 73 failures / 442 tests
   before and after, so CI is the verification.
+
 #### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
 
 Phase 212 had to drop the end-to-end test for the handoff guarantee — *a
@@ -4054,6 +4063,7 @@ to `SUIT`) — and wires STING to populate it automatically.
   **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
   drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
   discipline swatches show their **hex codes** from the definitive registry.
+
 #### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
 
 A live verification of SB-5a surfaced a real defect in the shared reconcile
@@ -4225,6 +4235,7 @@ New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker
 `StingBridge/tests/e2e_ifc_pull_reconcile.py`
 
 ---
+
 #### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
 
 Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
@@ -4565,6 +4576,7 @@ branch could no longer merge. Data-file only; no code, no GUID edits.
   changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
   lines, and every file's row count preserved (numstat additions == deletions per
   file). Data-only change, no `dotnet build` run (Linux sandbox).
+
 #### Completed (Phase 224 — drawings-production P2, tracks A + D)
 
 Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
@@ -5747,6 +5759,7 @@ table was exercised against 20 cases in a standalone harness. **Revit runtime ve
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
 and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
 every path there is warning-wrapped rather than fatal.
+
 #### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
 
 ArchiCAD elements were leaving the bridge with 7-segment tags
@@ -6177,6 +6190,7 @@ cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finali
   (inverted vs the type binding used by propagation) — latent bug for families built via "Inject
   Params"; and SEQ zero-pad has a dual source of truth (`TagConfig.SeqPadWidth` + `ParamRegistry.NumPad`)
   kept in sync only by the panel writing both.
+
 #### Completed (Phase 198 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
 
 Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature
@@ -6840,6 +6854,7 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+
 #### Completed (Phase 197 — MEP visual-tag declutter: one tag per run, branch `claude/mep-tag-declutter-advice`)
 
 Smart Placement was drawing **one visual `IndependentTag` per modelled segment**, so a single pipe or
@@ -6953,6 +6968,7 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+
 #### Completed (HVAC gap remediation Tier 3 item 3.4 — branch `claude/hvac-impl`)
 
 Item 3.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the gbXML load import no longer overwrites Space
@@ -7494,6 +7510,7 @@ Verified safe against interference: the conduit drift detector
 **Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
 `StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
 `StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+
 #### Completed (STALE-P2 — Make the dashboard STALE count actionable: Select / Highlight / Clear, branch `claude/stale-select-filter`)
 
 Follow-up to STALE-1…STALE-4. The dashboards show a `ComplianceScan.StaleCount`
@@ -9838,6 +9855,7 @@ against engine/scorer consumption):
 | Conduits / Pipes / Cable Trays | ANNOTATED | routing outputs (obstruction-only as targets); tooltip added |
 | Specialty Equipment | ANNOTATED | no baseline rules — needs project/specialty pack |
 | Nurse Call Devices | ANNOTATED | needs healthcare rule pack |
+
 #### Completed (BOQ 5D — inline result action bar: Open-Export + Action buttons)
 
 Slice 3 review found the inline renderer dropped the dialog footer entirely, so
@@ -11139,6 +11157,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H
@@ -11861,6 +11880,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (Phase 196 — tag-creation inject path: pre-skip type conflicts + failure swallower, mirrors LoadSharedParams)
 
 `CreateTagFamilies` could throw the unrecoverable Revit modal **"… cannot be
@@ -13017,6 +13037,7 @@ the `SuggestionEngine` strip with inline "→ Open" jump buttons.
    `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
    need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
    + `CorporateLibrary` degrade gracefully when the params aren't bound.
+
 #### Completed (Phase 189a — review hardening + condition-based maintenance)
 
 Two review passes over the Phase 189 build.
@@ -15566,6 +15587,7 @@ drift detection + SyncStyles.
 #### Completed (Phase 41 — Build Error Fix: CS1597 Semicolon After Method)
 
 411. **CS1597 fix: ValidateCDETransition trailing semicolon** — Removed invalid trailing semicolon (`};` → `}`) from `BIMManagerEngine.ValidateCDETransition()` method closing brace in `BIMManagerCommands.cs:110`. The semicolon is valid after lambda/delegate declarations but not after regular methods. The remaining 12 build errors (CS8300 merge conflict markers) are from the user's local build environment where a prior merge was not fully resolved — no merge conflict markers exist in the branch source files.
+
 #### Completed (Phase 39 — Document Management Center Enhancement)
 
 391. **Action bar TabControl redesign** — Replaced single-row horizontal-scrolling `WrapPanel` (58+ hidden buttons requiring sideways scroll) with 7-tab `TabControl`: FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP. All buttons visible without scrolling. Each tab groups related operations with section labels.
@@ -19800,6 +19822,7 @@ Two non-blocking observations from running the build/verify pass:
   host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
   `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
   the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.
+
 #### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
 
 **Bug**: `PropagateUniversalTagCommand` and `MigrateTagLabelReferencesCommand`
