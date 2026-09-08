@@ -247,8 +247,12 @@ namespace StingTools.Boq.Tests
             // CompoundTakeoffBuilder.BuildWall decides by material name:
             // contains "brick" -> bricks, else blocks.
             var b = Shipped();
-            var brickWall = b.WallTypes.First(t => t.Name.IndexOf("Brick", StringComparison.OrdinalIgnoreCase) >= 0);
-            var blockWall = b.WallTypes.First(t => t.Name.IndexOf("Blockwork", StringComparison.OrdinalIgnoreCase) >= 0);
+            // Selected on the ISO 22014 TYPE FIELD, not on an English word. The house
+            // standard deliberately moved "Brick" and "Blockwork" out of the name and into
+            // the PROD code, so a test keyed on the word was keyed on the one part of the
+            // name the standard does not promise to keep.
+            var brickWall = b.WallTypes.First(t => t.Name.IndexOf("_WBK_", StringComparison.OrdinalIgnoreCase) >= 0);
+            var blockWall = b.WallTypes.First(t => t.Name.IndexOf("_WBL_", StringComparison.OrdinalIgnoreCase) >= 0);
 
             Assert.Contains(brickWall.Layers, l => l.Material.ToLowerInvariant().Contains("brick"));
             Assert.DoesNotContain(blockWall.Layers, l => l.Material.ToLowerInvariant().Contains("brick"));
@@ -260,7 +264,9 @@ namespace StingTools.Boq.Tests
             // A roof only decomposes when its material EXPLICITLY reads as
             // concrete — an unnamed roof is treated as unknown, never as
             // concrete, so 137 m3 is not invented.
-            var roof = Shipped().RoofTypes.First(t => t.Name.IndexOf("Flat Roof", StringComparison.OrdinalIgnoreCase) >= 0);
+            // RFL is the flat-roof-membrane code; "Flat Roof" now lives in the PROD code
+            // rather than in the type name.
+            var roof = Shipped().RoofTypes.First(t => t.Name.IndexOf("_RFL_", StringComparison.OrdinalIgnoreCase) >= 0);
 
             Assert.Contains(roof.Layers, l => l.Material.ToLowerInvariant().Contains("concrete"));
         }

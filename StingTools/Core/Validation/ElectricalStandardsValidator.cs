@@ -59,6 +59,33 @@ namespace StingTools.Core.Validation
         // still works on stock projects.
         private static volatile Thresholds _cached;
 
+        /// <summary>
+        /// KUT-7 — the standard this run is judged against. Canonical id; defaults to
+        /// the panel selection, and to BS 7671 when there is no panel.
+        ///
+        /// <para>Two of these checks genuinely differ between BS 7671 and NEC 2023 and
+        /// the validator used to apply the BS rule to both:</para>
+        /// <list type="bullet">
+        /// <item><b>Draw-in spacing.</b> BS 7671 §522.8.4 works to a maximum run between
+        /// draw-in points (6 m applied here as a conservative ceiling). <b>NEC has no
+        /// maximum conduit run length at all</b> — Articles 344.26 / 358.26 / 352.26
+        /// constrain the TOTAL BEND ANGLE between pull points, not the distance. Reporting
+        /// a 6 m violation on an NEC job invents a rule that does not exist.</item>
+        /// <item><b>Bend limit.</b> BS 7671 §522.8.5 caps the COUNT at three 90° bends
+        /// (IET GN1 §7.4 allows four in 50 mm+ rigid steel). NEC caps the SUM at 360°
+        /// between pull points — four quarter bends — regardless of conduit size or
+        /// material.</item>
+        /// </list>
+        /// <para>The fill percentages, by contrast, do NOT need branching: the 53 / 31 / 40
+        /// figures already applied are NEC Chapter 9 Table 1, and BS EN 61386 practice
+        /// lands on the same numbers, so both standards are served by one table. That is
+        /// stated rather than left to look like an oversight.</para>
+        /// </summary>
+        public string StandardId { get; set; } = StingTools.Standards.ElectricalStandardId.Default;
+
+        private bool IsNec => StingTools.Standards.ElectricalStandardId.Normalise(StandardId)
+                              == StingTools.Standards.ElectricalStandardId.Nec2023;
+
         /// <summary>BS 7671 §522.8.5 — max bends between draw-in points.</summary>
         public int MaxBendsBetweenDrawIn { get; set; } = -1;
 
@@ -115,7 +142,11 @@ namespace StingTools.Core.Validation
                 try
                 {
                     double lengthMm = ReadLengthMm(el);
-                    if (lengthMm > MaxRunLengthMm)
+                    // NEC constrains total bend degrees between pull points, not distance
+                    // (344.26 / 352.26 / 358.26). Applying the BS 7671 §522.8.4 draw-in
+                    // spacing under an NEC label would report a violation of a rule that
+                    // does not exist in that code.
+                    if (!IsNec && lengthMm > MaxRunLengthMm)
                     {
                         // Suggest a draw-in box position that breaks the run
                         // into ≤MaxRunLengthMm segments. Halving works for
@@ -136,7 +167,12 @@ namespace StingTools.Core.Validation
                     // the per-conduit lookup when MaxBendsBetweenDrawIn
                     // is left at its default (3).
                     int effectiveCap = MaxBendsBetweenDrawIn;
-                    if (effectiveCap == 3)
+                    // NEC 344.26 / 352.26 / 358.26: not more than the equivalent of four
+                    // quarter bends (360 deg total) between pull points. Flat - it does not
+                    // vary with conduit size or material, so the IET GN1 size-aware lookup
+                    // below must not run.
+                    if (IsNec) effectiveCap = 4;
+                    else if (effectiveCap == 3)
                     {
                         try
                         {
@@ -157,9 +193,12 @@ namespace StingTools.Core.Validation
                         string fix = excess == 1
                             ? $"Add a draw-in box after the {effectiveCap}rd bend, then continue."
                             : $"Add {excess} draw-in boxes (one after every {effectiveCap} bends).";
+                        string bendClause = IsNec
+                            ? "NEC 2023 344.26 / 352.26 / 358.26 — 360° total between pull points"
+                            : "BS 7671 §522.8.5 + IET GN1 §7.4 size-aware";
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                             "ELEC.BENDS.EXCESS",
-                            $"{bends} bends between draw-in points (limit {effectiveCap} — BS 7671 §522.8.5 + IET GN1 §7.4 size-aware). {fix}",
+                            $"{bends} bends between draw-in points (limit {effectiveCap} — {bendClause}). {fix}",
                             ValidatorTag));
                     }
 
@@ -180,7 +219,8 @@ namespace StingTools.Core.Validation
                                 : "Upsize the conduit to the next standard trade size.";
                             results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                                 "ELEC.FILL.OVER",
-                                $"Cable fill {pct:F1}% exceeds {limit:F0}% ({tableName}, BS EN 61386). {fix}",
+                                $"Cable fill {pct:F1}% exceeds {limit:F0}% ({tableName}, " +
+                                (IsNec ? "NEC Chapter 9 Table 1" : "BS EN 61386") + $"). {fix}",
                                 ValidatorTag));
                         }
                         else if (pct > limit * 0.9)
