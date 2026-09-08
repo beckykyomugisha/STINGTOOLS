@@ -69,7 +69,22 @@ namespace StingTools.BOQ.Takeoff
         public double UnitWastePct;      // cutting waste on the units
         public int PlasterFaces;         // 0 / 1 / 2 plastered faces
         public double PlasterThicknessM; // plaster coat thickness
-        /// <summary>RETIRED — see UnitWastePct.</summary>
+
+        /// <summary>
+        /// The coat's application waste, from PLASTER {type} WASTE_PCT — thin 15%,
+        /// standard and lime 20, thick 25.
+        ///
+        /// It was RETIRED because applying it in the take-off AND letting the
+        /// supplier rule apply its own wasted the cement twice. It is live again
+        /// on the other side of that fix: nothing here multiplies by it, it is
+        /// handed to the supplier rule as the allowance to use INSTEAD of the
+        /// rule's default.
+        ///
+        /// That substitution is the decision. The cement rule's 2.5% is bag
+        /// handling and spillage; plaster's 15-25% is material lost in mixing
+        /// and application, and it is the larger, governing allowance for
+        /// plaster-derived cement and sand rather than an addition to it.
+        /// </summary>
         public double PlasterWastePct;
         public double MortarRatioM3PerM2;     // mortar volume per m² of wall
         public double MortarCementBagsPerM3;  // from MORTAR mix (MAT-2)
@@ -338,12 +353,18 @@ namespace StingTools.BOQ.Takeoff
                 // used to multiply by PlasterWastePct (20%), so the cement and
                 // sand derived from it were wasted twice.
                 double plasterVol = plasterArea * Math.Max(0, m.PlasterThicknessM);
+                // The coat's application allowance rides on the DERIVED lines
+                // only. The plaster m2 above is measured work a QS prices by
+                // area — it is not bought, so it takes no material allowance.
+                double coatWaste = m.PlasterWastePct > 0 ? m.PlasterWastePct : -1;
                 if (plasterVol > 0 && m.PlasterCementBagsPerM3 > 0)
                     lines.Add(new CompoundLine("plaster_cement", "Plaster — cement", "bag",
-                        plasterVol * m.PlasterCementBagsPerM3, SecPlaster));
+                        plasterVol * m.PlasterCementBagsPerM3, SecPlaster)
+                    { WastePctOverride = coatWaste });
                 if (plasterVol > 0 && m.PlasterSandRatio > 0)
                     lines.Add(new CompoundLine("plaster_sand", "Plaster — sand", "m3",
-                        plasterVol * m.PlasterSandRatio, SecPlaster));
+                        plasterVol * m.PlasterSandRatio, SecPlaster)
+                    { WastePctOverride = coatWaste });
 
                 // Painted area IS the plastered face area — no new measurement,
                 // just the quantity already derived above given its own kind so
