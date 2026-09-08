@@ -696,11 +696,13 @@ PM-1 landed (the §2 correctness bugs + the do-once shared helpers
   section; clash → tracked issue (via the normalizer) into `issues.json` with SLA +
   reconcile `clashes.json`.
 - **PM-3 — remainder.** Done: index-linked fluctuations engine (feeds AFC +
-  FinalAccount). Still open: schedule-driven cash-flow S-curve (real time-phased PV,
-  consuming the PM-4 CPM dates); dayworks build-up (via `StarRate`); loss & expense /
-  compensation events (off the captured EOT days); CVR report; NRM1 elemental cost
-  plan + OCE; line-level cost-to-complete; commitments register; QuickBooks/Sage/Excel
-  export.
+  FinalAccount); schedule-driven cash-flow S-curve (`Core/Schedule/CashFlowSCurve.cs`
+  — real time-phased PV off per-task start/finish, consumed by EVM with the manual-%
+  path kept as fallback); contractor CVR, loss & expense, line-level cost-to-complete
+  and commitments register (`Commands/Cost/Pm3LifecycleCommands.cs`); dayworks capture
+  + build-up + final-account pricing (`Core/Variation/DayworkModels.cs`,
+  `Commands/Cost/DayworkCommands.cs`). Still open: NRM1 elemental cost plan + OCE;
+  QuickBooks/Sage/Excel export.
 - **PM-4 — remainder.** Done: the pure `CpmEngine` (forward/backward pass → critical
   path + total/free float, cycle detection). Still open: converge the two MSP/XER
   parsers + read P6 `TASKPRED`/MSP links to feed the engine; model-driven % complete;
@@ -732,14 +734,16 @@ retention release and the sign-off guard. Still open:
   V6 `CarbonStageTracker` computes them and now shares the A1-A3 basis; the BOQ row
   is explicitly scoped "A1-A3 upfront"); repoint/relabel the dead legacy
   `CARBON_FACTORS.csv` loader.
-- **WP-Q — remainder.** Index-linked Fluctuations engine (NEDO/BCIS formula or local
-  CPI, basket UI) feeding both AFC and Final Account; contractor CVR (`Cost_CVR`)
-  fusing BOQ total + latest cert + VOs + PS movement + retention + EVM + cash-flow;
-  itemised contra-charges register behind the flat `OtherDeductions`; Materials-on-Site
-  capture into `SovLine.MaterialsOnSite` with a vesting trail + statutory
-  payment/pay-less dates; Dayworks build-up sheet (mirror the star-rate builder);
-  distinct PC-sum mechanism (NRM2 defined/undefined) separate from provisional sums;
-  time-phased EVM BCWS curve; adjudication hardening (IQR/std-dev outliers).
+- **WP-Q — remainder.** Itemised contra-charges register behind the flat
+  `OtherDeductions`; Materials-on-Site capture into `SovLine.MaterialsOnSite` with a
+  vesting trail + statutory payment/pay-less dates; distinct PC-sum mechanism (NRM2
+  defined/undefined) separate from provisional sums; adjudication hardening
+  (IQR/std-dev outliers). **CVR fusion deltas** — `CvrReportCommand` fuses BOQ total,
+  latest cert, VOs and EVM, but does not yet (a) break retention out as its own line,
+  (b) track PS movement into the CVR, or (c) read Value off the S-curve — provisions
+  remain a manual `CVR_PROVISIONS_UGX` knob. (Fluctuations engine, contractor CVR,
+  time-phased EVM BCWS curve and the Dayworks build-up sheet are all done — see the
+  PM-3 bullet above.)
 - **WP-A — remainder.** Off-thread rate-feed pre-warm on document open; a low-frequency
   scheduled server-baseline drift check (surface `SyncState=Conflict` proactively).
 - **WP6 — remainder.** Snapshot one FX rate per build + make currency mandatory on
