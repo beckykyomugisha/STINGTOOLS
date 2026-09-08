@@ -7,7 +7,7 @@
       "type": "sheetNumberPattern",
       "severity": "WARN",
       "enabled": true,
-      "pattern": "^KUT-[A-Z0-9]{3}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z]{1,2}-\\d{4}$",
+      "pattern": "^KUT-[A-Z0-9]{3}-(?:00|01|02|03|04|05|06|ZZ)-(?:B1|GF|RF|XX|ZZ|\\d{2})-(?:CO|CP|CR|DR|IE|M2|M3|MI|PP|PR|RD|RI|RP|SH|SN|SP|SU|VS)-(?:A|C|E|I|M|P|Q|S|W|X|Y|Z)-\\d{4}$",
       "description": "Sheet numbers follow the ISO 19650 container form KUT-ZZZ-XX-XX-M3-A-0001. Enabled for KUT — adjust the originator/volume/level/type table to the confirmed Owner number register. The role field is one OR TWO characters: BEP 4.2 lists FP (fire protection) and LV (low voltage), and Z for federated and multi-discipline containers. A single-character role field rejected every fire-protection and low-voltage sheet the same standard authorises.",
       "source": "BEP 3.4 — ISO 19650-2 container naming (KUT-originator-volume-level-type-discipline-number)"
     },
@@ -17,9 +17,23 @@
       "severity": "WARN",
       "enabled": true,
       "param": "ASS_DISCIPLINE_COD_TXT",
-      "categories": ["*"],
-      "values": ["A", "S", "M", "E", "P", "FP", "LV", "G"],
-      "description": "Discipline code must be one of the KUT design-team disciplines: A architecture/interiors, S structural, M mechanical, E electrical, P plumbing, FP fire protection, LV low-voltage/comms, G civil/site.",
+      "categories": [
+        "*"
+      ],
+      "values": [
+        "A",
+        "C",
+        "E",
+        "I",
+        "M",
+        "P",
+        "Q",
+        "S",
+        "W",
+        "X",
+        "Y"
+      ],
+      "description": "Discipline code must be one of the BS EN ISO 19650-2 UK National Annex Table NA.3 role codes used on KUT: A architect, C civil engineer, E electrical engineer, I interior designer, M mechanical engineer, P public health engineer, Q quantity surveyor, S structural engineer, W contractor, X sub-contractor, Y specialist designer. Z is reserved for federated and multi-discipline containers. Fire protection and low voltage are issued under Y, Specialist Designer, and distinguished by the Volume/System field: an invented role code is invalid on every downstream system that reads the standard, and silently so.",
       "source": "Proposal 3.6 — model breakdown structure / design-team disciplines"
     },
     {
@@ -28,7 +42,14 @@
       "severity": "WARN",
       "enabled": true,
       "param": "FOHLIO_REF_TXT",
-      "categories": ["Furniture", "Furniture Systems", "Casework", "Plumbing Fixtures", "Specialty Equipment", "Lighting Fixtures"],
+      "categories": [
+        "Furniture",
+        "Furniture Systems",
+        "Casework",
+        "Plumbing Fixtures",
+        "Specialty Equipment",
+        "Lighting Fixtures"
+      ],
       "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). WARN, non-blocking: flags FF&E elements not yet linked to Fohlio. Run ExLink Fohlio_Import (with fohlio_map.json deployed) to populate FOHLIO_REF_TXT. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement. Categories match the KUT fohlio_map.json category list.",
       "source": "A1 — Fohlio FF&E/finishes/O&M database; proposal 3.3 information hierarchy"
     }

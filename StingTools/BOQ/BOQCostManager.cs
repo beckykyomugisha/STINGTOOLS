@@ -828,8 +828,21 @@ namespace StingTools.BOQ
             {
                 var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
                 if (rules != null && rules.Count > 0)
-                    csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
-                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
+                    // KUT-11 — ParameterHelpers.GetFamilyName, not the local one. The local
+                    // helper falls back to the element TYPE's name, so for a system element it
+                    // put the type name in BOTH the family and the type slot: a FamilyRegex row
+                    // on a system category would have matched a TYPE name here while the same
+                    // map, resolved through CsiAssign, was matching "" and skipping. Two paths,
+                    // two answers, one map. Both now answer with the system FAMILY name.
+                    csiRule = CsiMasterFormat.Resolve(rules, catName, ParameterHelpers.GetFamilyName(el), el.Name ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",
+                        // KUT-10 - the bill must classify on the same key the assign pass
+                        // does, or a beam is stamped Division 03 and billed under Division 05.
+                        StingTools.Commands.Classification.CsiMap.StructuralMaterialName(doc, el),
+                        // KUT-5 — the bill must classify on the same key the assign pass
+                        // does, or a demolished wall is stamped 02 41 19 and billed as
+                        // masonry. The NRM2 bridge below then bills it under Demolitions.
+                        StingTools.Commands.Classification.CsiMap.PhaseState(doc, el));
                 if (csiRule != null)
                 {
                     if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";
@@ -3568,6 +3581,13 @@ namespace StingTools.BOQ
             BuiltInCategory.OST_Dimensions,
             BuiltInCategory.OST_RvtLinks,
             BuiltInCategory.OST_RasterImages,
+            // Entourage is Revit's presentation context — the cars, people and trees
+            // placed to make a render read as a place. It is not part of the works and
+            // nobody buys it, but it is 3D model geometry, so unlike the 2D content
+            // above it does not look like noise: it arrives as plausible "each" rows
+            // and prices. It was classified in the CSI map as Site Improvements, which
+            // is how it survived this long.
+            BuiltInCategory.OST_Entourage,
         };
 
         /// <summary>
@@ -4280,6 +4300,19 @@ namespace StingTools.BOQ
                 case "34": return "Electrical services";
                 case "35": return "Lighting and small power";
                 case "36": return "Security and fire alarm";
+                // External works. The scheme had no section for them at all: roads,
+                // paving, kerbs, fencing and soft landscaping all carried 4, so they
+                // printed under a heading reading "Foundations". NRM2's own external
+                // works numbers (35 Site works, 36 Fencing, 37 Soft landscaping,
+                // 38 External fixtures) were not available -- 35 and 36 are taken here
+                // by services -- and reusing 37/38 at their NRM2 values would have
+                // deepened the trap this vocabulary already sets: it agrees with NRM2
+                // at 14/15/16 and diverges elsewhere, so a reader who spot-checks it
+                // concludes it IS NRM2. A fresh block above the existing range cannot
+                // be misread as alignment.
+                case "40": return "External works — roads, paving and kerbs";
+                case "41": return "Fencing, gates and barriers";
+                case "42": return "Soft landscaping";
                 default: return string.IsNullOrEmpty(firstCategory) ? "General" : firstCategory;
             }
         }
@@ -4403,6 +4436,12 @@ namespace StingTools.BOQ
             return !string.IsNullOrEmpty(typ) ? typ : fam;
         }
 
+        /// <summary>Family name for DISPLAY and for the bill's FamilyName column, which is
+        /// deliberately NOT <see cref="ParameterHelpers.GetFamilyName"/>: this one falls back to
+        /// the element TYPE's name ("Generic - 200mm"), which is what a reader of a bill wants to
+        /// see, where the shared helper answers the system FAMILY name ("Basic Wall"), which is
+        /// what a rule wants to match. Classification goes through the shared helper (KUT-11);
+        /// this stays as it is so issued bill text does not move.</summary>
         private static string GetFamilyName(Element el)
         {
             try

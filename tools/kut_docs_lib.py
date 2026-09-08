@@ -95,6 +95,18 @@ _PARTS_RX = re.compile(re.escape(PARTS_PREFIX) + r"([0-9a-f]{64})")
 # fields from it directly, and the playbook and the register reach it through
 # midp_schema. A file that changes a document's bytes must be listed, or the
 # staleness stamp says "current" about a document built from something else.
+# The issued pack lives in one folder. GENERATED stays keyed by BASENAME:
+# corporate_docx.save() looks the name up to decide whether to stamp
+# provenance, and a prefixed key makes every document look like it was
+# written somewhere else -- which silently skips the stamp.
+ISSUED_DIR = "KUT_DOCS_WORKING/issued"
+
+
+def issued_path(root, name):
+    """Filesystem path of an issued document, from its GENERATED key."""
+    return root / ISSUED_DIR / name
+
+
 GENERATED = {
     "KUT_BIM_Execution_Plan.docx": ("tools/build_bep.py", "tools/corporate_docx.py",
                                     "tools/kut_naming.py",

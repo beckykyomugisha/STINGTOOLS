@@ -31,7 +31,9 @@ namespace StingTools.Core
     public static class ProdPatternMatcher
     {
         // One parsed alternative: either a bare substring (Sub) or a compiled glob (Rx).
-        private sealed class Alt { public string Sub; public Regex Rx; }
+        // Weight is the alternative's LITERAL length — the pattern with the wildcards
+        // stripped — and is what makes "most specific wins" computable. See Strength.
+        private sealed class Alt { public string Sub; public Regex Rx; public int Weight; }
 
         // Keyed by the raw (upper-cased) pattern string; thread-safe + persists for the
         // session. Cleared via Reset() when the rule sets are reloaded.
@@ -55,6 +57,42 @@ namespace StingTools.Core
             return false;
         }
 
+        /// <summary>
+        /// How SPECIFICALLY a pattern matches: the literal length of the longest
+        /// matching alternative, or -1 when nothing matches. Zero is a legal
+        /// strength (a pattern that is nothing but wildcards).
+        ///
+        /// <para>This exists because STING_PROD_CODES.csv reads like a dictionary of
+        /// independent rules and behaves like an ordered chain. Ten shipped rows were
+        /// written by authors who expected the specific rule to win and it did not:
+        /// <c>*Boiler Feed*</c> sat below <c>*Boiler*</c>, <c>*Fire Damper*</c> below
+        /// <c>*Damper*</c>, <c>*Fume Hood*</c> below <c>*Hood*</c>, <c>*Mop Sink*</c>
+        /// below <c>*Sink*</c>. Three rows could never fire at all. Nothing errored —
+        /// a boiler feed pump simply tagged as a boiler.</para>
+        ///
+        /// <para>Reordering the file would have fixed those ten and left the eleventh
+        /// author to make the same mistake, so the ranking moved here instead. Length
+        /// of the LITERAL is the measure: <c>*Fire Damper*</c> (12) beats
+        /// <c>*Damper*</c> (6) because it says more about the thing it matched.</para>
+        /// </summary>
+        public static int Strength(string nameUpper, string patternUpper)
+        {
+            if (string.IsNullOrEmpty(nameUpper) || string.IsNullOrEmpty(patternUpper))
+                return -1;
+
+            int best = -1;
+            Alt[] alts = _cache.GetOrAdd(patternUpper, Parse);
+            for (int i = 0; i < alts.Length; i++)
+            {
+                Alt a = alts[i];
+                bool hit = a.Sub != null
+                    ? nameUpper.Contains(a.Sub)
+                    : (a.Rx != null && a.Rx.IsMatch(nameUpper));
+                if (hit && a.Weight > best) best = a.Weight;
+            }
+            return best;
+        }
+
         /// <summary>Drop the compiled-pattern cache (call on rule-set reload).</summary>
         public static void Reset() => _cache.Clear();
 
@@ -66,16 +104,22 @@ namespace StingTools.Core
                 string alt = altRaw.Trim();
                 if (alt.Length == 0) continue;
 
+                int weight = LiteralLength(alt);
+
                 if (alt.IndexOfAny(GlobChars) < 0)
                 {
-                    list.Add(new Alt { Sub = alt }); // bare substring — fast path
+                    list.Add(new Alt { Sub = alt, Weight = weight }); // bare substring — fast path
                     continue;
                 }
 
                 try
                 {
                     string rx = GlobToRegex(alt);
-                    list.Add(new Alt { Rx = new Regex(rx, RegexOptions.Compiled | RegexOptions.CultureInvariant) });
+                    list.Add(new Alt
+                    {
+                        Rx = new Regex(rx, RegexOptions.Compiled | RegexOptions.CultureInvariant),
+                        Weight = weight,
+                    });
                 }
                 catch { /* malformed glob — skip this alternative */ }
             }
@@ -83,6 +127,28 @@ namespace StingTools.Core
         }
 
         private static readonly char[] GlobChars = { '*', '?', '[' };
+
+        /// <summary>
+        /// The alternative's literal length: every character that is not a wildcard.
+        /// A character class counts as ONE character, because it stands for one —
+        /// <c>DN20-PN1[06]</c> says as much about a match as <c>DN20-PN106</c> does.
+        /// </summary>
+        private static int LiteralLength(string alt)
+        {
+            int n = 0;
+            for (int i = 0; i < alt.Length; i++)
+            {
+                char c = alt[i];
+                if (c == '*') continue;
+                if (c == '[')
+                {
+                    int close = alt.IndexOf(']', i + 1);
+                    if (close >= 0) { n++; i = close; continue; }
+                }
+                n++;   // '?' included: it still occupies a position
+            }
+            return n;
+        }
 
         /// <summary>
         /// Translate a glob (<c>*</c> = any run, <c>?</c> = any one char,

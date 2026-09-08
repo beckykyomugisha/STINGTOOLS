@@ -86,6 +86,7 @@ namespace StingTools.BOQ.MaterialSchedule
                     Category = item.Category ?? "",
                     TypeName = item.TypeName ?? "",
                     MaterialName = item.MaterialName ?? "",
+                    WastePctOverride = item.WastePctOverride,
                     Description = item.ItemName ?? "",
                     Unit = BoqUnits.Normalise(item.Unit),
                     Quantity = item.Quantity,
@@ -127,6 +128,7 @@ namespace StingTools.BOQ.MaterialSchedule
                 var drivers = ConsumableDrivers.From(inputs.Constituents, inputs.Units);
                 foreach (string m in drivers.UnitMismatches) consumablesTally.UnitMismatches.Add(m);
                 consumablesTally.RoofCoveringUnattributedM2 = drivers.RoofCoveringUnattributedM2;
+                consumablesTally.RoofCoveringMeasuredM2 = drivers.RoofCoveringM2;
                 inputs.Constituents.AddRange(
                     ConsumablesCalculator.Quantify(drivers, conLib.Rules, consumablesTally));
             }
@@ -161,6 +163,11 @@ namespace StingTools.BOQ.MaterialSchedule
             // decides a row's UNIT, which a quantities-only buy-list needs too.
             string matScan = inputs.MaterialScan?.Summary();
             if (!string.IsNullOrEmpty(matScan)) msDoc.Warnings.Add(matScan);
+
+            string byType = CommodityTypeBreakdown.Summary(
+                CommodityTypeBreakdown.Build(
+                    msDoc.Stages.SelectMany(st => st.Commodities), msDoc.SourceByType));
+            if (!string.IsNullOrEmpty(byType)) msDoc.Warnings.Add(byType);
 
             if (msDoc.Options.ShowPrices)
             {

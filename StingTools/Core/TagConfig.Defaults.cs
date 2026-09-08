@@ -491,7 +491,7 @@ namespace StingTools.Core
                 { "Air Terminals", "GRL" }, { "Duct Accessories", "DAC" },
                 { "Duct Fittings", "DFT" }, { "Ducts", "DU" },
                 { "Duct Insulation", "DIN" }, { "Duct Lining", "DLN" },
-                { "Flex Ducts", "FDU" }, { "Mechanical Equipment", "AHU" },
+                { "Flex Ducts", "FDU" }, { "Mechanical Equipment", "MEQ" },
                 { "Mechanical Control Devices", "MCD" }, { "Mechanical Equipment Sets", "MES" },
                 { "Pipes", "PP" }, { "Pipe Fittings", "PFT" },
                 { "Pipe Accessories", "PAC" }, { "Pipe Insulation", "PIN" },
@@ -502,7 +502,7 @@ namespace StingTools.Core
                 { "Sprinklers", "SPR" }, { "Fire Alarm Devices", "FAD" },
                 { "Fire Protection", "FPR" },
                 // MEP — Electrical
-                { "Electrical Equipment", "DB" }, { "Electrical Fixtures", "SKT" },
+                { "Electrical Equipment", "EEQ" }, { "Electrical Fixtures", "SKT" },
                 { "Electrical Connectors", "ECN" },
                 { "Lighting Fixtures", "LUM" }, { "Lighting Devices", "LDV" },
                 { "Conduits", "CDT" }, { "Conduit Fittings", "CFT" },

@@ -292,6 +292,10 @@ namespace StingTools.BOQ
         /// </summary>
         public string MaterialName;
 
+        /// <summary>Wastage this row's variant implies, or -1 for the supplier
+        /// rule's default. See CompoundLine.WastePctOverride.</summary>
+        public double WastePctOverride = -1;
+
         // ── P1 aggregation ─────────────────────────────────────────────────
         // When several near-identical modelled elements collapse into one BOQ
         // row, SimilarCount holds the element count and ConstituentElementIds
@@ -415,6 +419,7 @@ namespace StingTools.BOQ
                 CarbonQuality = this.CarbonQuality,
                 CarbonMaterial = this.CarbonMaterial,
                 MaterialName = this.MaterialName,
+                WastePctOverride = this.WastePctOverride,
                 SimilarCount = this.SimilarCount,
                 ConstituentElementIds = this.ConstituentElementIds != null
                     ? new List<long>(this.ConstituentElementIds) : new List<long>(),

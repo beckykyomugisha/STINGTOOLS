@@ -131,9 +131,9 @@ def cell(row, i):
 
 def check_freshness(root: Path, f: Findings, verbose: bool):
     for name in K.ISSUED:
-        path = root / name
+        path = K.issued_path(root, name)
         if not path.exists():
-            f.fail(name, "missing from the repository root")
+            f.fail(name, "missing from KUT_DOCS_WORKING/issued/")
             continue
 
         want = K.inputs_digest(root, name)
@@ -227,6 +227,35 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
                    % ", ".join(rejected))
         f.ok()
 
+        # KUT-9. The pattern is DERIVED from tools/kut_naming.py, which is also
+        # what the BEP and the Document Control Standard render their naming
+        # sections from. Checking that it still matches the derivation is what
+        # keeps "generated" true: without this, the first hand-edit silently
+        # forks the rule from the documents that publish the same lists, and the
+        # role check above would not notice -- it only tests role codes.
+        try:
+            import build_kut_owner_standards as OS
+            derived = OS.build_pattern()
+        except Exception as exc:                     # pragma: no cover - import guard
+            f.note("could not derive the sheet pattern (%s); it is unverified against "
+                   "tools/kut_naming.py" % exc)
+        else:
+            if pattern != derived:
+                f.fail(str(path),
+                       "sheetNumberPattern has drifted from tools/kut_naming.py.\n"
+                       "      on disk: %s\n"
+                       "      derived: %s\n"
+                       "      Run: python tools/build_kut_owner_standards.py"
+                       % (pattern, derived))
+            f.ok()
+
+            # And the derived pattern must accept what the convention authorises.
+            # The generator asserts this too; asserting it HERE means the shipped
+            # gate proves it, not only the tool that happened to write the file.
+            for bad in OS.verify(derived):
+                f.fail(str(path), "generated sheet pattern: %s" % bad)
+            f.ok()
+
     # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
     # keeps them distinct, and Z is deliberately a container role only.
     values = next((set(r.get("values", [])) for r in rules
@@ -242,7 +271,7 @@ def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
     # Both render from tools/kut_naming.py, so they cannot differ today -- this
     # check exists so that stops being true loudly rather than quietly if
     # somebody writes a table back out by hand in either document.
-    std_path = root / STANDARD
+    std_path = K.issued_path(root, STANDARD)
     if std_path.exists():
         std_t = K.docx_tables(std_path)
         st = find_table(std_t, "Field", "Length", "Permitted values")
@@ -511,7 +540,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
     claims it."""
     claimed = {}
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         t = re.search(r"Document reference\s*(KUT-[A-Z0-9\-]+)", text)
         if not t:
             # The .docx tables put the label and value in separate cells.
@@ -522,7 +551,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
             f.fail(name, "states no document reference of its own")
 
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
             owners = [n for n, c in claimed.items() if c == ref]
             if ref == claimed.get(name):
@@ -823,11 +852,18 @@ _NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s
 
 def check_no_leakage(root: Path, f: Findings, verbose: bool):
     for name in tuple(K.ISSUED) + CLIENT_FACING_SOURCES:
-        path = root / name
+        # This loop mixes two kinds of path. The issued documents live in
+        # ISSUED_DIR and are addressed by basename; CLIENT_FACING_SOURCES are
+        # repo-relative paths under GUIDES/. Resolving both the same way sends
+        # the GUIDES files to a directory that does not exist, and a missing
+        # file here is SKIPPED rather than failed -- so the leakage scan would
+        # go quietly blind on the two hand-edited sources most likely to name a
+        # tool.
+        path = K.issued_path(root, name) if name in K.ISSUED else root / name
         if not path.exists():
             if name in CLIENT_FACING_SOURCES:
                 continue              # the guides are optional; the pack is not
-            f.fail(name, "missing from the repository root")
+            f.fail(name, "missing from KUT_DOCS_WORKING/issued/")
             continue
         text = _NOTE_RX.sub(" ", read_text(path))
         hits = []
@@ -871,7 +907,7 @@ def check_placeholders(root: Path, f: Findings, verbose: bool):
     """
     counts = {}
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         counts[name] = len(re.findall(r"\[FILL", text))
 
     path = root / BASELINE
@@ -1018,18 +1054,18 @@ def main() -> int:
     root = Path(args.repo_root) if args.repo_root else Path(__file__).resolve().parent.parent
     f = Findings()
 
-    missing = [n for n in K.ISSUED if not (root / n).exists()]
+    missing = [n for n in K.ISSUED if not K.issued_path(root, n).exists()]
     if missing:
         print("KUT document gate FAILED.\n")
         for n in missing:
-            print("  %s: missing from the repository root" % n)
+            print("  %s: missing from %s/" % (n, K.ISSUED_DIR))
         return 1
 
     check_freshness(root, f, args.verbose)
 
-    bep_t = K.docx_tables(root / BEP)
-    pb_t = K.docx_tables(root / PLAYBOOK)
-    midp_path = root / MIDP
+    bep_t = K.docx_tables(K.issued_path(root, BEP))
+    pb_t = K.docx_tables(K.issued_path(root, PLAYBOOK))
+    midp_path = K.issued_path(root, MIDP)
 
     check_naming_config(root, bep_t, f, args.verbose)
     check_midp_plans(midp_path, f, args.verbose)

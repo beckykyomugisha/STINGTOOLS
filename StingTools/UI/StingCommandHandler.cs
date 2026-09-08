@@ -794,6 +794,8 @@ namespace StingTools.UI
                     // would create and writes nothing until that is confirmed.
                     case "Baseline_Audit": RunCommand<Commands.Baseline.BaselineAuditCommand>(app); break;
                     case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
+                    case "Baseline_RenameTypes": RunCommand<Commands.Baseline.RenameTypesToStandardCommand>(app); break;
+                    case "Materials_SetClass":   RunCommand<Commands.Baseline.SetMaterialClassCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 

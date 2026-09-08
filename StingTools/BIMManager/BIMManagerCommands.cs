@@ -10062,7 +10062,13 @@ namespace StingTools.BIMManager
                         double bestDist = 500.0 / 304.8; // 500mm in feet
                         foreach (var (el, fam, typ, center) in byLocation)
                         {
-                            if (!fam.Equals(family, StringComparison.OrdinalIgnoreCase)) continue;
+                            // KUT-11 — a tag map exported BEFORE the system-family fallback
+                            // carries "family": "" for every wall, floor, pipe and duct, while
+                            // this side now computes "Basic Wall". Treat an unrecorded family as
+                            // "no opinion" rather than as a value to match, so an older export
+                            // still lands. Type + the 500 mm radius still discriminate.
+                            if (!string.IsNullOrEmpty(family) &&
+                                !fam.Equals(family, StringComparison.OrdinalIgnoreCase)) continue;
                             if (!typ.Equals(type, StringComparison.OrdinalIgnoreCase)) continue;
                             double dist = importCenter.DistanceTo(center);
                             if (dist < bestDist)

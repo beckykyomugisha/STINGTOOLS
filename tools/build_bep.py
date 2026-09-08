@@ -13,7 +13,7 @@ from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
 import kut_docs_lib as K  # noqa: E402
 import kut_naming as N  # noqa: E402
 
-OUT = 'KUT_BIM_Execution_Plan.docx'
+OUT = 'KUT_DOCS_WORKING/issued/KUT_BIM_Execution_Plan.docx'
 
 # ── project identity ─────────────────────────────────────────────────────────
 # One definition, because it appears in the title page, the roles table, the

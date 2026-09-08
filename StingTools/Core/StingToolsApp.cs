@@ -928,6 +928,11 @@ namespace StingTools.Core
                 // to the .rvt → leave singleton unchanged.
                 try
                 {
+                    // KUT-8 — attach the engine wire BEFORE ApplyRegionalPreset fires, or
+                    // the StandardsChanged raised below reaches nobody and the engines keep
+                    // the previous document's region. Attach() is idempotent and seeds once.
+                    StingTools.Core.EngineRegionSync.Attach();
+
                     var pi = e.Document?.ProjectInformation;
                     string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
                     string source = "PROJECT_REGION";
@@ -943,6 +948,14 @@ namespace StingTools.Core
                         {
                             mgr.ApplyRegionalPreset(projectRegion);
                             StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
+                        }
+                        else
+                        {
+                            // Already on the right region, so ApplyRegionalPreset raises
+                            // nothing — but on the first document of a session the engines
+                            // have never been pushed. An unchanged setting is not the same
+                            // as a propagated one.
+                            StingTools.Core.EngineRegionSync.SyncNow("document-open (region unchanged)");
                         }
                     }
                 }

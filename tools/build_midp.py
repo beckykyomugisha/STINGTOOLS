@@ -24,7 +24,7 @@ import midp_rows as D                                             # noqa: E402
 import midp_schema as S                                           # noqa: E402
 from midp_schema import COLS, COL_NAMES, LIST_COL, LISTS          # noqa: E402
 
-OUT = 'KUT_Master_Information_Delivery_Plan.xlsx'
+OUT = 'KUT_DOCS_WORKING/issued/KUT_Master_Information_Delivery_Plan.xlsx'
 
 NAVY = '1F3654'
 SLATE = '444F5C'
@@ -720,7 +720,10 @@ wb.properties.modified = _EPOCH
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 wb.properties.description = K.with_provenance(
     'Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
-    'tools/build_midp.py', K.inputs_digest(_ROOT, OUT))
+    # GENERATED is keyed by BASENAME, not by path: corporate_docx.save() looks
+    # a document up by basename to decide whether to stamp provenance, and the
+    # two must agree or the stamp is silently skipped.
+    'tools/build_midp.py', K.inputs_digest(_ROOT, pathlib.Path(OUT).name))
 
 wb.active = 0
 wb.save(OUT)
