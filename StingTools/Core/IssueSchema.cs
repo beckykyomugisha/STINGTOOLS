@@ -304,10 +304,12 @@ namespace StingTools.Core
             // 5. Status.
             //
             // Migration DELIBERATELY does not rewrite a status it does not recognise.
-            // The register carries states this normalizer has no kind for — "RESPONDED"
-            // and "ACCEPTED" are both written by UpdateIssueCommand and filtered on
-            // exactly elsewhere — and canonicalising them here would collapse them to
-            // "UNKNOWN", destroying a distinction the workflow depends on.
+            //
+            // IM-9 removed the specific case this warning named: "RESPONDED" and "ACCEPTED"
+            // now have their own kinds, so canonicalising either is the identity rather than
+            // a collapse to "UNKNOWN". The rule still stands for any OTHER unrecognised
+            // spelling - a register can carry a state this class has not been taught, and
+            // rewriting it would destroy a distinction the workflow may depend on.
             //
             // Canonical spelling is enforced where it is safe to do so instead:
             //   * on CREATE   (IssueSchema.Create always writes "OPEN"),
@@ -471,8 +473,11 @@ namespace StingTools.Core
             row["modified_by"] = user ?? "unknown";
             row["modified_date"] = now.ToString("o", CultureInfo.InvariantCulture);
 
-            var kind = IssueStatusNormalizer.Normalize(to);
-            if (kind == IssueStatusKind.Closed || kind == IssueStatusKind.Void)
+            // IM-9. Was `Closed || Void`, written before ACCEPTED existed as a kind, so an
+            // issue closed by acceptance never got a date_closed - it read as still-running
+            // in any report that measures age from that field. IsTerminal is the one place
+            // that fact now lives.
+            if (IssueStatusNormalizer.IsTerminal(IssueStatusNormalizer.Normalize(to)))
                 row["date_closed"] = now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
             if (row["status_history"] is not JArray hist) { hist = new JArray(); row["status_history"] = hist; }
