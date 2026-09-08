@@ -1,0 +1,94 @@
+name: Binding Spec Drift Gate
+
+# `tools/param_binding_resolver.py` writes THREE files in one run:
+#
+#   docs/RESOLVED_BINDINGS.csv          the audit view a human reads (every
+#                                       parameter, including those bound to nothing)
+#   docs/binding_gaps.csv               the unresolved residue
+#   StingTools/Data/RESOLVED_BINDINGS.csv  the deployable projection the plugin ships
+#
+# They are different projections, so they are MEANT to differ from each other.
+# But one run writes all three, so they must be the same AGE -- and for a long
+# time they were not. At the point this gate was written the deployable was 520
+# lines stale and the audit view 245, which meant the file a human opened to check
+# a binding was fresher than the file Revit actually loaded, and the fresher one
+# was the more reassuring. Nothing reported that; a stale generated file looks
+# exactly like a current one.
+#
+# This gate makes the drift impossible rather than correcting it once: regenerate,
+# and fail if anything moved. A binding change is then always a deliberate,
+# reviewable diff in the same commit as the rule that caused it.
+#
+# The gate does NOT check that the bindings are RIGHT. It checks only that the
+# committed files are what the committed resolver produces from the committed
+# inputs. Judging a binding still needs a human -- see LIFE-6 in docs/ROADMAP.md.
+
+on:
+  push:
+    paths:
+      - 'tools/param_binding_resolver.py'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/CATEGORY_BINDINGS.csv'
+      - 'StingTools/Data/RESOLVED_BINDINGS.csv'
+      - 'docs/RESOLVED_BINDINGS.csv'
+      - 'docs/binding_gaps.csv'
+      - '.github/workflows/binding-spec-drift.yml'
+  pull_request:
+    paths:
+      - 'tools/param_binding_resolver.py'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/CATEGORY_BINDINGS.csv'
+      - 'StingTools/Data/RESOLVED_BINDINGS.csv'
+      - 'docs/RESOLVED_BINDINGS.csv'
+      - 'docs/binding_gaps.csv'
+      - '.github/workflows/binding-spec-drift.yml'
+  workflow_dispatch:
+
+jobs:
+  regenerate-is-a-noop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The resolver scans StingTools/**/*.cs for its code-usage tier and resolves
+      # every path relative to the repo root, so it must run from there.
+      - name: Regenerate the binding spec
+        run: python tools/param_binding_resolver.py
+
+      - name: Fail if any of the three outputs moved
+        run: |
+          set -o pipefail
+          if git diff --quiet -- \
+               docs/RESOLVED_BINDINGS.csv \
+               docs/binding_gaps.csv \
+               StingTools/Data/RESOLVED_BINDINGS.csv; then
+            echo "Binding spec is current: regenerating changed nothing."
+            exit 0
+          fi
+          echo "::error::The committed binding spec is not what the resolver produces."
+          echo
+          echo "One run writes all three files. If you changed the resolver,"
+          echo "MR_PARAMETERS.txt or CATEGORY_BINDINGS.csv, regenerate and commit"
+          echo "ALL THREE together:"
+          echo
+          echo "    python tools/param_binding_resolver.py"
+          echo
+          echo "Do not hand-edit these files -- they are generated. A parameter"
+          echo "ABSENT from the deployable spec is intentionally UNBOUND, so an"
+          echo "accidental deletion here makes a parameter go dark rather than"
+          echo "bind wrongly, and nothing at runtime will say so."
+          echo
+          git --no-pager diff --stat -- \
+            docs/RESOLVED_BINDINGS.csv \
+            docs/binding_gaps.csv \
+            StingTools/Data/RESOLVED_BINDINGS.csv
+          echo
+          git --no-pager diff -- \
+            docs/RESOLVED_BINDINGS.csv \
+            docs/binding_gaps.csv \
+            StingTools/Data/RESOLVED_BINDINGS.csv | head -200
+          exit 1
