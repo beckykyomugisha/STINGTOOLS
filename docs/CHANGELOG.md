@@ -2,6 +2,107 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 255 — the specific rule wins, and a stem matches a word)
+
+Asked to review product-code automation for consistency. The **logic** turned
+out to be in good shape — a pure `ProdResolver` with a documented precedence
+chain, source-tier constants asserted against the strings actually emitted, and
+fifteen tests. The **data** it reads had none, and was carrying three defects.
+Every one of them resolved to a confident wrong code rather than to an error.
+
+**Ten rules were shadowed; three could never fire at all.**
+
+    BFP *Boiler Feed*            eaten by  BCH *Boiler*
+    MVP *Vacuum Pump Plant*      eaten by  CIR *Circulating*|*Pump*
+    FSD *Fire Damper*            eaten by  DMP *Damper*
+    MOP *Mop Sink*               eaten by  SKT *Sink*
+    TRV *Thermostatic Radiator*  eaten by  TSV *Thermostatic*
+    FHD *Fume Hood*              eaten by  HED *Hood*
+
+A boiler feed pump tagged as a boiler. Twelve dead alternatives across ten
+rules.
+
+**Ten different authors each wrote a specific rule expecting it to win, and
+that is the finding.** It is not ten data mistakes: the file **reads like a
+dictionary of independent rules and behaves like an ordered chain**. So the fix
+went into the matcher, not into reordering 188 rows — reordering frees these
+ten and leaves the eleventh author to make the same mistake next month.
+
+Within a tier the most specific matching rule now wins, measured by the literal
+length of the matched alternative — `*Fire Damper*` (12) beats `*Damper*` (6)
+because it says more about the thing it matched. **Ties keep file order**, so
+nothing that used to resolve one way starts resolving the other for want of a
+tie-break, and **the tier chain is untouched**: a vaguer PROJECT rule still
+beats a sharper corporate one, which is what "project overlay wins" means.
+
+One data fix was still needed. `CIR` kept a bare `*Pump*` alternative doing
+`PMP`'s job, and ranking cannot separate a tie — so that one is a curation
+question, not a mechanical one.
+
+**A stem matched inside a longer word — the same class as #863.** The
+material-override patterns are unanchored regexes run over a free-text material
+name:
+
+    "SheEPS Wool Insulation"     -> INS-EPS
+    "Acoustic SPIRal Liner"      -> INS-PIR
+    "ResPIRator Filter Housing"  -> INS-PIR
+    "PreFABRICated Ductwork"     -> FAB
+
+Sheep's wool shows the shape of it: **a real insulation handed a different
+insulation's code**, silently, in a tag nobody re-reads. #863 fixed this class
+in the material schedule the week before; nobody had looked at the PROD table.
+
+Fixed in the DATA this time, and deliberately not by a mechanism, because
+intent is per-alternative and only the author has it: `\bgalv` must keep
+matching "galvanised" and `\bcement` "cementitious", while `\beps\b` must stop
+matching "sheeps". `pvc` keeps a trailing-only anchor so uPVC and cPVC still
+resolve. A blanket `\b…\b` would have traded one silent wrong answer for
+another.
+
+**One PROD code declared two disciplines.** `VIE` / `ZVB` / `AAP` each said `P`
+in one row and `MG` in another, so a tag's discipline segment depended on which
+category somebody happened to model the thing in. All six rows are
+`SYSTEM=MGS` / HTM 02-01 and `MG` is the discipline the healthcare pack added
+for exactly that, so `P` is a leftover from before it existed. Only columns 0-2
+are read today, which makes this **inert** — asserted anyway, because an inert
+disagreement is a live one the day someone wires the `DISCIPLINE` column.
+
+**The gate.** Every shipped rule is now fed the literal it was authored for and
+must be the row that answers. Both CSVs were previously read by no test at all
+— the same asymmetry the material schedule carried until its physical constants
+got a drift gate in #846.
+
+Two things are **named rather than decided quietly**, each with a test that
+fails the day it is settled so the note cannot rot: "Lead-Free Solder" still
+takes `-PB` (not a boundary problem — the word *is* "lead"; a `(?!-free)`
+special case invites tin-free and chrome-free after it), and BHD/BHT remain two
+codes for one product under two disciplines, which is a healthcare-catalogue
+call.
+
+**The vocabularies do not meet, and that is correct.** 185 PROD codes, 30
+commodity keys, **zero overlap**, and nothing under `Core/MaterialSchedule/`
+references `ProdMap` or `ProdResolver`. A PROD code names *what an element is*
+for a tag; a commodity key names *what you buy*, and one roof yields several.
+Forcing them into one vocabulary would break both. Recorded so nobody
+"harmonises" them later. Where they legitimately meet is `BOQCostManager` /
+`RateProviders`, which already read PROD.
+
+`StingTools.Tags.Tests` **362 → 392** cases (the Boq suite, which Phase 254's
+count refers to, is unaffected at 1,225). Build 0/0, **six mutations verified
+failing**.
+
+**One mutation PASSED first and is the one worth keeping.** M4 over-anchored
+`galv`, and the test survived because `"Galvanised Steel Sheet"` also contains
+"Steel" — so it had been proving that the ROW resolved, never that the PREFIX
+did the work. The data point is now a name with no other stem in it. Third time
+in this run a gate needed the mutation to expose it.
+
+**Not verified in Revit.** This moves twelve resolutions, all of them from a
+generic code to the specific one their author asked for. `Prod_CoverageAudit`
+is the read-only check — but its headline "specific %" **will not move**, since
+all twelve already counted as specific with the wrong rule matching. The
+evidence is the PROD column of its per-element CSV, not the summary.
+
 #### Completed (Phase 254 — the data files stop disagreeing with each other, and a covering says what it is)
 
 Phase 253 made pricing possible. This phase came from one question — "how
