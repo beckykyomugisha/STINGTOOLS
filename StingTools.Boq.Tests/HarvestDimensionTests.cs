@@ -123,6 +123,77 @@ namespace StingTools.Boq.Tests
         }
 
         [Fact]
+        public void A_Name_Carrying_An_EXTRA_Feature_Dimension_Is_NOT_Reported()
+        {
+            // Verbatim from the first real harvest. "900 x 2100 w 300 Vent" is a
+            // correctly named door: width and height both match, and the
+            // unmatched 300 is the VENT - a real feature that is not one of the
+            // dimensions harvested and was never meant to be.
+            //
+            // The original rule flagged any unmatched number and produced two
+            // findings of this shape out of seven. A name carrying an extra
+            // dimension is more informative than the parameter list, not in
+            // conflict with it.
+            var report = new TypeHarvestReport();
+            TypeHarvestBuilder.Build(new[]
+            {
+                Observed("Doors", "900 x 2100 w 300 Vent", ("Width", 900), ("Height", 2100))
+            }, "PRJ", report);
+
+            Assert.Empty(report.NameDisagreesWithSize);
+        }
+
+        [Fact]
+        public void A_Name_Whose_Sizes_Are_ALL_Absent_Is_Still_Reported()
+        {
+            // The other real one: a door named 4200X2700 whose only harvested
+            // dimension is a 40 mm thickness. Nothing in the name is a size the
+            // type has, so the name describes a different product.
+            var report = new TypeHarvestReport();
+            TypeHarvestBuilder.Build(new[]
+            {
+                Observed("Doors", "4200X2700", ("Thickness", 40))
+            }, "PRJ", report);
+
+            Assert.Single(report.NameDisagreesWithSize);
+        }
+
+        [Fact]
+        public void One_Matching_Dimension_Is_Enough_To_Clear_A_Name()
+        {
+            // The boundary the two rules disagree on, stated directly: under
+            // "any unmatched" this flags, under "none matched" it does not.
+            var report = new TypeHarvestReport();
+            TypeHarvestBuilder.Build(new[]
+            {
+                Observed("Windows", "1200 x 9999", ("Width", 1200))
+            }, "PRJ", report);
+
+            Assert.Empty(report.NameDisagreesWithSize);
+        }
+
+        [Fact]
+        public void A_Name_Whose_Only_Number_Is_A_Dedup_Suffix_Is_Not_Reported()
+        {
+            // What the >= 10 filter still guards, now that the predicate is
+            // "none matched". Revit appends 2 / 3 to disambiguate a duplicated
+            // type name, and that digit is not a dimension. Without the filter
+            // this name has exactly one number, it matches nothing, and the type
+            // is flagged for a suffix Revit wrote itself.
+            //
+            // Every OTHER small-number case is now cleared by the predicate
+            // itself, which is why the mutation that drops the filter moves only
+            // this test.
+            var report = new TypeHarvestReport();
+            TypeHarvestBuilder.Build(new[]
+            {
+                Observed("Doors", "Flush Door 2", ("Width", 900), ("Height", 2100))
+            }, "PRJ", report);
+
+            Assert.Empty(report.NameDisagreesWithSize);
+        }
+
+        [Fact]
         public void A_Name_That_Matches_Its_Parameters_Is_Not_Reported()
         {
             var report = new TypeHarvestReport();
