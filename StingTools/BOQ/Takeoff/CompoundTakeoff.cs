@@ -126,6 +126,16 @@ namespace StingTools.BOQ.Takeoff
         public string TileLabel;         // material name, for the description
         public double AdhesiveKgPerM2;   // manufacturer spreading rate
         public double GroutKgPerM2;      // joint width / tile size dependent
+
+        /// <summary>
+        /// Cutting waste for this tile's SIZE band, or -1 when unstated.
+        ///
+        /// MATERIAL_LOOKUP has banded it 20 / 12 / 10 / 8 for mosaic / small /
+        /// medium / large since before this schedule existed; the supplier rule
+        /// applied a flat 10% to all of them, so a mosaic splashback was
+        /// under-ordered by half its cutting allowance.
+        /// </summary>
+        public double WastePctOverride;
     }
 
     /// <summary>
@@ -546,9 +556,14 @@ namespace StingTools.BOQ.Takeoff
             if (area <= 0) return lines;
 
             string label = string.IsNullOrWhiteSpace(t.TileLabel) ? "tiling" : t.TileLabel.Trim();
+            // The TILE row carries the size band's waste. Adhesive and grout
+            // do NOT: they are spread over the area and their own rules own
+            // their allowance, so a mosaic's cutting waste is not a reason to
+            // buy half as much adhesive again.
             lines.Add(new CompoundLine(t.IsWall ? "wall_tile" : "floor_tile",
                 t.IsWall ? $"Wall tiling — {label}" : $"Floor tiling — {label}",
-                "m2", area, SecPlaster));
+                "m2", area, SecPlaster)
+            { WastePctOverride = t.WastePctOverride > 0 ? t.WastePctOverride : -1 });
 
             if (t.AdhesiveKgPerM2 > 0)
                 lines.Add(new CompoundLine("tile_adhesive", "Tile adhesive", "kg",

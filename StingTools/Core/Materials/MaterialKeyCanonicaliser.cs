@@ -39,6 +39,57 @@ namespace StingTools.Core.Materials
             return s;
         }
 
+        /// <summary>
+        /// Tile size → MOSAIC / SMALL / MEDIUM / LARGE, the keys
+        /// MATERIAL_LOOKUP already bands waste by.
+        ///
+        /// The fourth member of a set that already had three: brick bond, block
+        /// size and plaster type all resolve a BLE_* parameter through a
+        /// canonicaliser with an inference fallback. Tile size was the hole —
+        /// BLE_TILE_SIZE_TXT has been declared in MR_PARAMETERS.txt with a GUID
+        /// all along and read by nothing, so waste was flat at 10% for a mosaic
+        /// splashback and a 600 mm porcelain floor alike. The lookup has banded
+        /// it 20 / 12 / 10 / 8 since before the schedule existed.
+        ///
+        /// Accepts both the band name and a dimension: "MOSAIC", "600x600",
+        /// "600", "Porcelain 300x600". A dimension is banded on its SMALLER
+        /// side, because that is the edge that governs cutting waste.
+        /// </summary>
+        public static string TileSize(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            string s = raw.Trim().ToUpperInvariant();
+
+            // A stated band wins over anything parsed out of the text.
+            foreach (string band in new[] { "MOSAIC", "SMALL", "MEDIUM", "LARGE" })
+                if (s.Contains(band)) return band;
+
+            string t = Regex.Replace(s.Replace('×', 'x').Replace('X', 'x').Replace('*', 'x'),
+                                     @"\s+", "");
+
+            // "300x600" → band on the SMALLER edge: a long thin tile is cut on
+            // its short side, and that is where the waste comes from.
+            var two = Regex.Match(t, @"(\d+)x(\d+)");
+            if (two.Success
+                && int.TryParse(two.Groups[1].Value, out int a1)
+                && int.TryParse(two.Groups[2].Value, out int b1))
+                return Band(Math.Min(a1, b1));
+
+            var one = Regex.Match(t, @"(\d+)");
+            if (one.Success && int.TryParse(one.Groups[1].Value, out int only))
+                return Band(only);
+
+            return "";
+        }
+
+        /// <summary>The bands MATERIAL_LOOKUP's own comments describe.</summary>
+        private static string Band(int mm) =>
+            mm <= 0   ? ""
+          : mm < 100  ? "MOSAIC"
+          : mm < 300  ? "SMALL"
+          : mm < 600  ? "MEDIUM"
+                      : "LARGE";
+
         /// <summary>Mortar mix → "1:N" with whitespace around ':' collapsed
         /// ("1 : 6" → "1:6"). cement:lime:sand designations pass through upper-cased.</summary>
         public static string MortarMix(string raw)
