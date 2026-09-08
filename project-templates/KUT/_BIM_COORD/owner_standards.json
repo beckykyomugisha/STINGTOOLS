@@ -17,9 +17,24 @@
       "severity": "WARN",
       "enabled": true,
       "param": "ASS_DISCIPLINE_COD_TXT",
-      "categories": ["*"],
-      "values": ["A", "S", "M", "E", "P", "FP", "LV", "G"],
-      "description": "Discipline code must be one of the KUT design-team disciplines: A architecture/interiors, S structural, M mechanical, E electrical, P plumbing, FP fire protection, LV low-voltage/comms, G civil/site.",
+      "categories": [
+        "*"
+      ],
+      "values": [
+        "A",
+        "C",
+        "E",
+        "I",
+        "M",
+        "P",
+        "Q",
+        "S",
+        "W",
+        "X",
+        "Y",
+        "Z"
+      ],
+      "description": "Discipline code must be one of the BS EN ISO 19650-2 UK National Annex Table NA.3 role codes used on KUT: A architect, C civil engineer, E electrical engineer, I interior designer, M mechanical engineer, P public health engineer, Q quantity surveyor, S structural engineer, W contractor, X sub-contractor, Y specialist designer. Z is reserved for federated and multi-discipline containers. Fire protection and low voltage are issued under Y, Specialist Designer, and distinguished by the Volume/System field: an invented role code is invalid on every downstream system that reads the standard, and silently so.",
       "source": "Proposal 3.6 — model breakdown structure / design-team disciplines"
     },
     {
@@ -28,7 +43,14 @@
       "severity": "WARN",
       "enabled": true,
       "param": "FOHLIO_REF_TXT",
-      "categories": ["Furniture", "Furniture Systems", "Casework", "Plumbing Fixtures", "Specialty Equipment", "Lighting Fixtures"],
+      "categories": [
+        "Furniture",
+        "Furniture Systems",
+        "Casework",
+        "Plumbing Fixtures",
+        "Specialty Equipment",
+        "Lighting Fixtures"
+      ],
       "description": "FF&E elements should carry a Fohlio item reference (link, never duplicate — proposal 3.3). WARN, non-blocking: flags FF&E elements not yet linked to Fohlio. Run ExLink Fohlio_Import (with fohlio_map.json deployed) to populate FOHLIO_REF_TXT. Fohlio remains authoritative for FF&E/O&M; this is a coordination link check, not an authoring requirement. Categories match the KUT fohlio_map.json category list.",
       "source": "A1 — Fohlio FF&E/finishes/O&M database; proposal 3.3 information hierarchy"
     }
