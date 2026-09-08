@@ -33,6 +33,8 @@ namespace StingTools.Core.Baseline
         /// <summary>Revit category display name — Walls / Floors / Roofs / Ceilings.</summary>
         public string Category = "";
         public string CurrentName = "";
+        /// <summary>ISO 22014 Source field, from PRJ_ORG_ORIGINATOR_CODE_TXT. Defaults PLNS.</summary>
+        public string Originator = "PLNS";
         /// <summary>Layers as the compound structure gives them, exterior to interior.</summary>
         public List<MaterialLayer> Layers = new List<MaterialLayer>();
         /// <summary>How many elements use this type. Renaming an unused type is noise.</summary>
@@ -43,8 +45,12 @@ namespace StingTools.Core.Baseline
     {
         public string Category = "";
         public string CurrentName = "";
+        /// <summary>ISO 22014 Source field.</summary>
+        public string Originator = "PLNS";
         /// <summary>Null when the model does not say enough to name the type.</summary>
         public string ProposedName;
+        /// <summary>The PROD code the proposed name declares in its Type field.</summary>
+        public string ProdCode;
         /// <summary>Why — shown to the reader either way.</summary>
         public string Reason = "";
         public int InstanceCount;
@@ -57,10 +63,36 @@ namespace StingTools.Core.Baseline
 
     public static class TypeRenamePlanner
     {
-        private static readonly Dictionary<string, string> UseCode =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        /// <summary>
+        /// Category → the PROD code each substance resolves to there.
+        ///
+        /// <para>The ISO 22014 <b>Type</b> field IS the PROD code, so a conforming type
+        /// name and the element's ISO 19650 tag cannot fork. Before this, a name carried
+        /// the word "Blockwork" while the resolver derived "WBL" from it — two
+        /// vocabularies for one fact, free to disagree the moment either was edited.</para>
+        /// </summary>
+        private static readonly Dictionary<string, Dictionary<string, string>> CodeFor =
+            new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
             {
-                ["Walls"] = "WL", ["Floors"] = "FL", ["Roofs"] = "RF", ["Ceilings"] = "CL",
+                ["Walls"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Blockwork"] = "WBL", ["Clay Brick"] = "WBK", ["Screen Block"] = "SBP",
+                    ["RC"] = "WRC", ["Timber"] = "WPT", ["Plasterboard"] = "WPT",
+                    ["Steel"] = "WPT", ["Stone"] = "WSN",
+                },
+                ["Floors"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["RC"] = "SLB", ["Timber"] = "FTM", ["Plywood"] = "FTM",
+                },
+                ["Roofs"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["RC"] = "RCS", ["Corrugated Sheet"] = "RSH", ["Clay Tile Roof"] = "RTL",
+                    ["Stone Coated Tile Roof"] = "RTL", ["Timber"] = "RSH",
+                },
+                ["Ceilings"] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Plasterboard"] = "CPB", ["Timber"] = "CPB",
+                },
             };
 
         /// <summary>
@@ -109,9 +141,10 @@ namespace StingTools.Core.Baseline
                 Category = input?.Category ?? "",
                 CurrentName = input?.CurrentName ?? "",
                 InstanceCount = input?.InstanceCount ?? 0,
+                Originator = string.IsNullOrWhiteSpace(input?.Originator) ? "PLNS" : input.Originator,
             };
 
-            if (input == null || !UseCode.TryGetValue(p.Category, out string use))
+            if (input == null || !CodeFor.TryGetValue(p.Category, out var codes))
             { p.Reason = "not a layered host category"; return p; }
 
             var layers = (input.Layers ?? new List<MaterialLayer>())
@@ -126,7 +159,7 @@ namespace StingTools.Core.Baseline
                     ?? layers.OrderByDescending(l => l.ThicknessMm).ThenBy(l => l.Index).FirstOrDefault();
 
             string substance = Match(core.MaterialName, Substance);
-            if (substance == null)
+            if (substance == null || !codes.TryGetValue(substance, out string prod))
             {
                 p.Reason = $"the core material '{core.MaterialName}' names no substance this "
                          + "recognises — rename the MATERIAL first (rule M1), then re-run";
@@ -136,7 +169,7 @@ namespace StingTools.Core.Baseline
             // Size from the core's own thickness, so it describes the thing rather than
             // repeating whatever number the old name happened to carry.
             string size = core.ThicknessMm >= 1
-                ? " " + Math.Round(core.ThicknessMm).ToString("0", CultureInfo.InvariantCulture)
+                ? Math.Round(core.ThicknessMm).ToString("0", CultureInfo.InvariantCulture)
                 : "";
 
             // Finish from the finish layers, not from the core.
@@ -144,11 +177,13 @@ namespace StingTools.Core.Baseline
                                   .Select(l => Match(l.MaterialName, Finish))
                                   .FirstOrDefault(f => f != null);
 
-            p.ProposedName = $"STING {use} - {substance}{size}"
-                           + (finish != null ? $" - {finish}" : "");
+            // BS EN ISO 22014: Source_Type_Subtype. Underscore between fields, hyphen
+            // between components inside a field, no spaces anywhere.
+            p.ProdCode = prod;
+            p.ProposedName = ProdNameCode.Compose(p.Originator, prod, substance + size, finish);
             p.Reason = finish != null
-                ? $"core '{core.MaterialName}' + finish layer"
-                : $"core '{core.MaterialName}'; no finish layer to read";
+                ? $"core '{core.MaterialName}' + finish layer → {prod}"
+                : $"core '{core.MaterialName}' → {prod}; no finish layer to read";
             return p;
         }
 

@@ -2,18 +2,30 @@
   "_comment": [
     "STING HOUSE STANDARD - the host types and materials a model is authored with.",
     "",
-    "Every name here is chosen so the plugin can READ it. Type names resolve to a",
-    "specific PROD code through STING_PROD_CODES.csv; material names resolve to a",
-    "material suffix through STING_MATERIAL_PROD_OVERRIDES.csv. A standard the tool",
-    "cannot read is the failure this whole catalogue exists to prevent, and",
-    "BaselineCatalogueTests fails the build if any entry stops resolving.",
+    "TYPE NAMES FOLLOW BS EN ISO 22014:2024 (which superseded BS 8541-1 in May 2024):",
     "",
-    "NAMING SHAPE: <use> - <substance + size> - <finish>",
-    "  use        WL / FL / RF / CL, so a browser sorts by element kind",
-    "  substance  what the schedule measures - Blockwork 200, RC Slab 150",
-    "  finish     what the take-off decomposes - Plastered Both Faces, Ceramic Tiled",
-    "A size alone is not a product name. 'Generic - 225mm' and 'Exterior_CreamWhite_230'",
-    "are real type names from delivered models and neither can ever be measured.",
+    "    PLNS_WBL_Hollow200-PlasteredBothFaces",
+    "    ^^^^ ^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "    |    |   Subtype - what distinguishes this one from its siblings",
+    "    |    Type - the ISO 19650 PROD code the plugin already mints",
+    "    Source - originator, from PRJ_ORG_ORIGINATOR_CODE_TXT",
+    "",
+    "Underscore between FIELDS, hyphen between COMPONENTS inside a field, no spaces,",
+    "PascalCase within a component. Three fields, in that order.",
+    "",
+    "WHY THE TYPE FIELD IS THE PROD CODE. The plugin already mints an ISO 19650 asset",
+    "tag whose PROD segment classifies the product. A type name carrying the WORD",
+    "'Blockwork' beside a tag carrying the CODE 'WBL' is two vocabularies for one fact,",
+    "free to disagree the moment either is edited. Naming the code directly means the",
+    "resolver READS it rather than inferring it - source tier 'declared', above the",
+    "corporate patterns and below a project overlay.",
+    "",
+    "The pattern rules are unchanged and still carry every model that does NOT conform.",
+    "They are the rescue path, not the standard.",
+    "",
+    "MATERIAL names keep their readable shape - <Family> - <Qualifier> - <Grade> - because",
+    "Revit materials are not library objects and ISO 22014 does not govern them. Their",
+    "controlled field is Material.Class, which Materials_SetClass fills.",
     "",
     "LAYERS, NOT PAINT: every finish is a LAYER with its own material, and the core",
     "carries the Structure function. An element-level material overrides all of it.",
@@ -239,7 +251,7 @@
   ],
   "wallTypes": [
     {
-      "name": "STING WL - Blockwork 200 - Plastered Both Faces",
+      "name": "PLNS_WBL_Hollow200-PlasteredBothFaces",
       "purpose": "External and load-bearing default. Both plaster faces are LAYERS, which is what makes rendering measurable",
       "layers": [
         {
@@ -260,7 +272,7 @@
       ]
     },
     {
-      "name": "STING WL - Blockwork 150 - Plastered Both Faces",
+      "name": "PLNS_WBL_Hollow150-PlasteredBothFaces",
       "purpose": "Internal load-bearing wall",
       "layers": [
         {
@@ -281,7 +293,7 @@
       ]
     },
     {
-      "name": "STING WL - Blockwork 100 - Plastered Both Faces",
+      "name": "PLNS_WBL_Hollow100-PlasteredBothFaces",
       "purpose": "Internal non-load-bearing partition",
       "layers": [
         {
@@ -302,7 +314,7 @@
       ]
     },
     {
-      "name": "STING WL - Blockwork 200 - Fair Face External",
+      "name": "PLNS_WBL_Hollow200-FairFaceExternal",
       "purpose": "External block wall left fair-faced outside, plastered inside",
       "layers": [
         {
@@ -318,7 +330,7 @@
       ]
     },
     {
-      "name": "STING WL - Clay Brick 295 - Fair Faced",
+      "name": "PLNS_WBK_Clay295-FairFaced",
       "purpose": "Fair-faced clay brickwork, no render either side",
       "layers": [
         {
@@ -329,7 +341,7 @@
       ]
     },
     {
-      "name": "STING WL - Clay Brick 150 - Plastered Internal",
+      "name": "PLNS_WBK_Clay150-PlasteredInternal",
       "purpose": "Half-brick skin, rendered internally",
       "layers": [
         {
@@ -345,7 +357,7 @@
       ]
     },
     {
-      "name": "STING WL - RC Wall 200 - Plastered Both Faces",
+      "name": "PLNS_WRC_Wall200-PlasteredBothFaces",
       "purpose": "Reinforced concrete wall. The EXPLICIT concrete material is what lets it decompose to concrete, rebar and formwork",
       "layers": [
         {
@@ -366,7 +378,7 @@
       ]
     },
     {
-      "name": "STING WL - RC Retaining Wall 250",
+      "name": "PLNS_RWL_Retaining250-Tanked",
       "purpose": "Below-ground retaining wall, tanked externally",
       "layers": [
         {
@@ -382,7 +394,7 @@
       ]
     },
     {
-      "name": "STING WL - Stud Partition 100 - Boarded Both Faces",
+      "name": "PLNS_WPT_Stud100-BoardedBothFaces",
       "purpose": "Metal or timber stud partition with plasterboard both faces",
       "layers": [
         {
@@ -403,7 +415,7 @@
       ]
     },
     {
-      "name": "STING WL - Blockwork 200 - Tiled One Face",
+      "name": "PLNS_WBL_Hollow200-TiledOneFace",
       "purpose": "Wet-area wall. The tile LAYER is what makes wall tiling measurable",
       "layers": [
         {
@@ -424,7 +436,7 @@
       ]
     },
     {
-      "name": "STING WL - Boundary Wall 200 - Fair Faced",
+      "name": "PLNS_WBD_Boundary200-FairFaced",
       "purpose": "Compound / boundary wall with coping",
       "layers": [
         {
@@ -437,7 +449,7 @@
   ],
   "floorTypes": [
     {
-      "name": "STING FL - RC Slab 150 - Ceramic Tiled",
+      "name": "PLNS_SLB_RC150-CeramicTiled",
       "purpose": "Suspended slab with a tiled finish. The tile LAYER is what makes floor tiling measurable",
       "layers": [
         {
@@ -458,7 +470,7 @@
       ]
     },
     {
-      "name": "STING FL - RC Slab 200 - Porcelain Tiled",
+      "name": "PLNS_SLB_RC200-PorcelainTiled",
       "purpose": "Heavier suspended slab, large-format porcelain",
       "layers": [
         {
@@ -479,7 +491,7 @@
       ]
     },
     {
-      "name": "STING FL - RC Slab 150 - Terrazzo",
+      "name": "PLNS_SLB_RC150-Terrazzo",
       "purpose": "Suspended slab with in-situ terrazzo",
       "layers": [
         {
@@ -495,7 +507,7 @@
       ]
     },
     {
-      "name": "STING FL - RC Slab 150 - Screed Only",
+      "name": "PLNS_SLB_RC150-ScreedOnly",
       "purpose": "Suspended slab left screeded, finish by others",
       "layers": [
         {
@@ -511,7 +523,7 @@
       ]
     },
     {
-      "name": "STING FL - Ground Slab 150 - Ceramic Tiled",
+      "name": "PLNS_FGS_Ground150-CeramicTiled",
       "purpose": "Ground-bearing slab on DPM and hardcore. Hardcore and DPM are LAYERS so both are measurable",
       "layers": [
         {
@@ -542,7 +554,7 @@
       ]
     },
     {
-      "name": "STING FL - Ground Slab 150 - Screed Only",
+      "name": "PLNS_FGS_Ground150-ScreedOnly",
       "purpose": "Ground-bearing slab, finish by others",
       "layers": [
         {
@@ -568,7 +580,7 @@
       ]
     },
     {
-      "name": "STING FL - Hollow Pot Slab 250 - Ceramic Tiled",
+      "name": "PLNS_FRB_HollowPot250-CeramicTiled",
       "purpose": "Ribbed / hollow-pot suspended slab, the East African economy span",
       "layers": [
         {
@@ -589,7 +601,7 @@
       ]
     },
     {
-      "name": "STING FL - RC Steps - Terrazzo",
+      "name": "PLNS_FSP_RC150-Terrazzo",
       "purpose": "Cast-in-place steps and landings",
       "layers": [
         {
@@ -607,7 +619,7 @@
   ],
   "roofTypes": [
     {
-      "name": "STING RF - RC Flat Roof 225 - Felt",
+      "name": "PLNS_RFL_RC225-BuiltUpFelt",
       "purpose": "Concrete flat roof with built-up felt. The EXPLICIT concrete material is what lets it decompose to concrete, rebar and formwork",
       "layers": [
         {
@@ -628,7 +640,7 @@
       ]
     },
     {
-      "name": "STING RF - Corrugated Sheet Roof - IT4 on Timber",
+      "name": "PLNS_RSH_IT4-OnTimberPurlins",
       "purpose": "Galvanised IT4 sheeting on softwood purlins, the Uganda default",
       "layers": [
         {
@@ -644,7 +656,7 @@
       ]
     },
     {
-      "name": "STING RF - Clay Tile Roof - on Timber",
+      "name": "PLNS_RTL_ClayTile-OnTimberBattens",
       "purpose": "Clay roof tiling on battens and softwood",
       "layers": [
         {
@@ -660,7 +672,7 @@
       ]
     },
     {
-      "name": "STING RF - Stone Coated Tile Roof - on Timber",
+      "name": "PLNS_RTL_StoneCoated-OnTimberBattens",
       "purpose": "Stone-coated steel tile on softwood",
       "layers": [
         {
@@ -676,7 +688,7 @@
       ]
     },
     {
-      "name": "STING RF - RC Roof Slab 200 - Insulated Felt",
+      "name": "PLNS_RCS_RC200-InsulatedFelt",
       "purpose": "Warm flat roof with insulation between deck and membrane",
       "layers": [
         {
@@ -699,7 +711,7 @@
   ],
   "ceilingTypes": [
     {
-      "name": "STING CL - Suspended Gypsum Ceiling",
+      "name": "PLNS_CSU_Gypsum9-ConcealedGrid",
       "purpose": "Plasterboard ceiling on a concealed grid",
       "layers": [
         {
@@ -710,7 +722,7 @@
       ]
     },
     {
-      "name": "STING CL - Plasterboard Ceiling on Timber",
+      "name": "PLNS_CPB_Gypsum9-OnTimberBrandering",
       "purpose": "Board fixed direct to softwood brandering",
       "layers": [
         {
@@ -726,7 +738,7 @@
       ]
     },
     {
-      "name": "STING CL - Plastered Soffit",
+      "name": "PLNS_CPL_CementRender12-DirectToSlab",
       "purpose": "Rendered soffit direct to the slab, no void",
       "layers": [
         {

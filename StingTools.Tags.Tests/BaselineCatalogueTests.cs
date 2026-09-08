@@ -68,6 +68,17 @@ namespace StingTools.Tags.Tests
             return outList;
         }
 
+        private static IEnumerable<string> AllCodes()
+        {
+            foreach (string raw in File.ReadAllLines(Path.Combine(DataDir(), "STING_PROD_CODES.csv")).Skip(1))
+            {
+                string line = (raw ?? "").Trim();
+                if (line.Length == 0 || line.StartsWith("#")) continue;
+                var c = line.Split(new[] { ',' });
+                if (c.Length >= 3 && c[0].Trim().Length > 0) yield return c[0].Trim();
+            }
+        }
+
         public static IEnumerable<object[]> HostTypeGroups()
         {
             var c = Load();
@@ -91,12 +102,20 @@ namespace StingTools.Tags.Tests
                           : category == "Roofs" ? "Basic Roof"
                           : category == "Floors" ? "Floor" : "Compound Ceiling";
 
-            ProdResolver.Resolve(family, typeName, category, null, Rules(category), null, out string source);
+            var codes = new HashSet<string>(AllCodes(), StringComparer.OrdinalIgnoreCase);
+            ProdResolver.Resolve(family, typeName, category, null, Rules(category), null,
+                                 out string source, codes);
 
             Assert.True(ProdResolver.IsSpecific(source),
                 $"The house standard prescribes '{typeName}', and the plugin resolves it to the "
                 + $"{category} category default. A standard that names a type the tool cannot read "
                 + "is prescribing the problem it exists to fix — add the rule, or rename the type.");
+
+            // And specifically via the DECLARED tier. The ISO 22014 Type field IS the PROD
+            // code, so nothing should be inferred from a conforming name — a catalogue
+            // entry resolving by PATTERN would mean that field is decorative, and the two
+            // vocabularies this shape exists to merge would still be running in parallel.
+            Assert.Equal(ProdResolver.Sources.Declared, source);
         }
 
         [Fact]
@@ -172,13 +191,15 @@ namespace StingTools.Tags.Tests
 
             foreach (string must in new[]
             {
-                "Blockwork 200",       // the Uganda default wall
-                "Clay Brick",          // 48 elements on one model
-                "Stud Partition",      // the 97mm partition
-                "Ground Slab",         // was entirely absent from the starter set
-                "Hollow Pot",          // the East African economy span
-                "Corrugated Sheet",    // IT4, the default roof
-                "RC Flat Roof",
+                // Keyed on the ISO 22014 SUBTYPE field, which is where the human-readable
+                // build survives once the Type field became the PROD code.
+                "_WBL_Hollow200",      // the Uganda default wall
+                "_WBK_Clay295",        // clay brick, 48 elements on one model
+                "_WPT_Stud100",        // the 97mm partition
+                "_FGS_Ground150",      // ground slab, absent from the starter set
+                "_FRB_HollowPot250",   // the East African economy span
+                "_RSH_IT4",            // corrugated sheet, the default roof
+                "_RFL_RC225",          // RC flat roof
             })
                 Assert.True(all.Any(n => n.IndexOf(must, StringComparison.OrdinalIgnoreCase) >= 0),
                     $"The catalogue no longer covers '{must}', which a delivered model used.");
