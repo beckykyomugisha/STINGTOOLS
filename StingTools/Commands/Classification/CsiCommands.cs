@@ -136,6 +136,61 @@ namespace StingTools.Commands.Classification
         /// </summary>
         public static string TypeName(Document doc, Element el)
             => ParameterHelpers.GetElementTypeName(el);
+
+        /// <summary>
+        /// The element's STRUCTURAL material name, for the MaterialRegex column. KUT-10.
+        ///
+        /// <para>MasterFormat 2020 divides by work result and material — Division 03 Concrete,
+        /// 04 Masonry, 05 Metals, 06 Wood — so the material is the primary key and the Revit
+        /// category is the fallback. Read from <c>STRUCTURAL_MATERIAL_PARAM</c> on the instance,
+        /// then on the type, because that parameter is where an engineer DECLARES what a member
+        /// is. Never from the type name: "W310x39" is a naming convention, not a fact.</para>
+        ///
+        /// <para><b><see cref="StingTools.BOQ.PrimaryMaterial"/> is deliberately not used
+        /// here.</b> It leads with dominant-by-volume across <c>GetMaterialIds</c>, which is
+        /// exactly right for pricing a compound assembly and wrong for classifying a member: on
+        /// a composite or clad element the largest volume can be a finish or an insulation
+        /// layer, and Division 05 steelwork would be billed as Division 07. The two questions
+        /// are different, so they get different resolvers.</para>
+        ///
+        /// <para>Returns "" when nothing is declared — which is not a failure. An element with
+        /// no structural material falls through to the category-keyed default, which is what
+        /// that default is FOR.</para>
+        /// </summary>
+        public static string StructuralMaterialName(Document doc, Element el)
+        {
+            if (doc == null || el == null) return "";
+            string byInstance = MaterialFrom(doc, el, BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+            if (!string.IsNullOrEmpty(byInstance)) return byInstance;
+            try
+            {
+                var typeId = el.GetTypeId();
+                if (typeId != null && typeId.Value > 0)
+                {
+                    var et = doc.GetElement(typeId);
+                    if (et != null)
+                    {
+                        string byType = MaterialFrom(doc, et, BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                        if (!string.IsNullOrEmpty(byType)) return byType;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiStructMat", $"CSI structural material {el.Id}: {ex.Message}"); }
+            return "";
+        }
+
+        private static string MaterialFrom(Document doc, Element el, BuiltInParameter bip)
+        {
+            try
+            {
+                var p = el.get_Parameter(bip);
+                if (p == null || p.StorageType != StorageType.ElementId) return "";
+                var id = p.AsElementId();
+                if (id == null || id.Value <= 0) return "";
+                return (doc.GetElement(id) as Material)?.Name ?? "";
+            }
+            catch { return ""; }
+        }
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -182,7 +237,9 @@ namespace StingTools.Commands.Classification
                     string fam = ParameterHelpers.GetFamilyName(el);
                     string type = CsiMap.TypeName(doc, el);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
+                    // KUT-10 — material first, category as the fallback.
+                    string mat = CsiMap.StructuralMaterialName(doc, el);
+                    var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys, mat);
                     if (rule == null)
                     {
                         unresolved++;
