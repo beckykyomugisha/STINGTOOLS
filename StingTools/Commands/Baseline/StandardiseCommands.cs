@@ -90,9 +90,18 @@ namespace StingTools.Commands.Baseline
                 }
 
                 counts.TryGetValue(t.Id.Value, out int used);
+
+                // FamilyName is half of what the PROD rules match against ("Basic Wall
+                // Exterior_CreamWhite_230"), so without it the planner cannot ask what the
+                // type resolves to today and the code gate cannot fire.
+                string fam = null;
+                try { fam = t.FamilyName; }
+                catch (Exception ex) { StingLog.WarnRateLimited("Std.Fam", $"FamilyName {t.Id}: {ex.Message}"); }
+
                 outList.Add(new TypeRenameInput
                 {
-                    Category = cat, CurrentName = t.Name, Layers = layers, InstanceCount = used,
+                    Category = cat, FamilyName = fam ?? "", CurrentName = t.Name,
+                    Layers = layers, InstanceCount = used,
                 });
             }
             return outList;
@@ -116,18 +125,36 @@ namespace StingTools.Commands.Baseline
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
-                var plans = TypeRenamePlanner.PlanAll(Standardise.ReadHostTypes(doc));
+                // The resolver is passed IN, so TypeRenamePlanner stays Revit-free and the
+                // rename asks the same question ProdResolver answers for every tag.
+                var plans = TypeRenamePlanner.PlanAll(
+                    Standardise.ReadHostTypes(doc),
+                    i =>
+                    {
+                        string code = TagConfig.ResolveProdForNames(
+                            doc, i.FamilyName, i.CurrentName, i.Category, out string src);
+                        return new ExistingProdCode
+                        {
+                            Code = code, Source = src, IsSpecific = ProdResolver.IsSpecific(src),
+                        };
+                    });
                 if (plans.Count == 0)
                 {
                     TaskDialog.Show("Rename Types", "No layered host types found in this model.");
                     return Result.Succeeded;
                 }
 
-                var rows = new List<string> { "Category,CurrentName,ProposedName,Instances,Outcome,Reason" };
+                var rows = new List<string>
+                { "Category,CurrentName,ProposedName,Instances,Outcome,ExistingCode,ExistingSource,DeclaredCode,Reason" };
                 foreach (var p in plans.OrderBy(x => x.Category).ThenBy(x => x.CurrentName))
                     rows.Add(string.Join(",", Standardise.Csv(p.Category), Standardise.Csv(p.CurrentName),
                         Standardise.Csv(p.ProposedName ?? ""), p.InstanceCount,
-                        p.AlreadyConforms ? "conforms" : p.IsProposal ? "rename" : "cannot name",
+                        p.AlreadyConforms ? "conforms"
+                            : p.IsProposal ? "rename"
+                            : p.RefusedToProtectCode ? "refused - would change the product code"
+                            : "cannot name",
+                        Standardise.Csv(p.Existing?.Code ?? ""), Standardise.Csv(p.Existing?.Source ?? ""),
+                        Standardise.Csv(p.DeclaredCode ?? ""),
                         Standardise.Csv(p.Reason)));
                 string path = Standardise.Write(doc, "type_rename_plan", rows);
 

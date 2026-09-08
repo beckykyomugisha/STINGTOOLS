@@ -48,6 +48,95 @@ still in the last audit on disk; the override takes effect the next time it runs
 against that project. The file is on the D: drive and is not, and should not be,
 in this repository.
 
+#### Completed (Phase 257 — a rename stops overwriting a product code that was already right)
+
+`ProdResolver` puts a code DECLARED in a type name **above** the corporate
+pattern rules, deliberately: a name that states its answer beats an inference.
+`TypeRenamePlanner` composes exactly such a name. So `Baseline_RenameTypes` was
+never only a rename — it overwrites the classification, permanently, and nothing
+downstream queries the rule again.
+
+**Two rows from a real run on 2026-09-08 prove it.** Both resolve correctly
+today, from a corporate rule, and the rename plan from the same session proposed
+to change them:
+
+    Floors,Floor,stepsr 7,FSP-CON,corporate,Y    ->  PLNS_SLB_RC450-Tiled   FSP -> SLB
+    Walls,Basic Wall,coping,WCP-CON,corporate,Y  ->  PLNS_WRC_RC250         WCP -> WRC
+
+**`CodeFor` cannot be widened to cover them, and that is the finding.** It is
+keyed on the SUBSTANCE read off the core material, and `*Steps*` and `*Coping*`
+describe what an element is FOR. A concrete step and a concrete slab have the
+same core material; so do a retaining wall and a shear wall, a ground-bearing
+slab and a suspended one. Reconciled against `STING_PROD_CODES.csv`, **eight
+codes the rules use on these four categories are unreachable from a substance
+word** — WCP, RWL, WBD, FGS, FSP, FRB, RFL, CSU — and the reconciliation is now
+in the file as a comment naming each one, per the brief's "either give it a word
+or record why it cannot".
+
+**So the fix is a refusal, not a bigger table.** `TypeRenameProposal` gains
+`DeclaredCode` and `Existing` (code + source + whether it is specific), the
+resolution is passed in as a delegate so the planner stays Revit-free, and a
+proposal is withheld when it would declare a different code from one the type
+already resolves to **specifically**.
+
+**The line that took the most care: a CATEGORY DEFAULT is not an answer.** WL /
+FL / RF / CLG mean nobody has classified the thing, and replacing one is the
+entire purpose of the command. A gate that refused *every* code change — which
+is how the defect was first written up — would refuse `Exterior_CreamWhite_230 2`
+(WL, category) and `IntFloor_tile_150` (FL, category), and with them nearly every
+rename worth making, leaving the tool able to rename only the types that least
+need it. Both sides are pinned: `CLAY BRICK VILLAGE LARGE` resolves WBK from a
+corporate rule and the proposal declares WBK, so it stands.
+
+**The gate found ten more, in the shipped house catalogue.** `No_Catalogue_Type_
+Would_Have_Its_Own_Code_Renamed_Away` walks `STING_PROJECT_BASELINE.json` and
+found **10 of 27** types whose own planner disagrees with their own name —
+`PLNS_FSP_RC150-Terrazzo` would have been renamed to `PLNS_SLB_RC150-Terrazzo`,
+`PLNS_RWL_Retaining250-Tanked` to `PLNS_WRC_RC250-Felt`, and eight more. All ten
+are now refused.
+
+**One data fix, separately evidenced.** Four wall types on the same model
+— `Generic - 150/200/300mm Masonry` and `M_Exterior - Brick on CMU` — carry the
+core material *Concrete Masonry Units* and were all proposed as `PLNS_WRC_*`,
+reinforced concrete, because the substance table saw the word "concrete" and had
+no longer needle above it. `concrete masonry unit`, `masonry unit` and `cmu` now
+sit above `concrete`, the same ordering rule the class table next door already
+used. Cast in-situ concrete still reads RC — pinned as the control row.
+
+**Two claims in the brief did not survive contact with the data, and are not
+implemented.** `Exterior_CreamWhite_230 2 -> PLNS_WBK_ClayBrick205-Plastered` was
+described as "clay brick proposed for a 230 render wall": the model's own core
+material for that type is **`Brick, Common(1)`**, so the proposal is the planner
+doing exactly what it promises. And `IntFloor_tile_150 -> PLNS_SLB_RC500` was
+described as "a 500 mm core on a type named 150": the size comes from the core
+LAYER, which is 500 — the planner's header already says it will not repeat
+whatever number the old name happened to carry, and the name is what is wrong.
+Both rows now pass the gate as legitimate upgrades from a category default.
+
+**RED then GREEN.** Against the planner with the new fields but no refusal:
+`No_Rename_Replaces_A_Code_That_Already_Resolves_Specifically` failed on **2 of
+6** fixture rows (`stepsr 7`, `coping` — exactly the two the brief named);
+`No_Catalogue_Type_Would_Have_Its_Own_Code_Renamed_Away` failed on **10 of 27**;
+`A_Concrete_Masonry_Unit_Is_Blockwork_Not_Reinforced_Concrete` failed **4 of 5**
+cases; whole file **7 failed / 5 passed of 12**. After: 0, 0, 0, and 14 of 14.
+Tags 732 passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+The fixture is the two real CSVs joined — the coverage audit (what each type
+resolves to, and how) and the rename plan (what was proposed, off which core
+material). Two tests run before any verdict: one asserts the test's own resolver
+reproduces what the Revit run recorded, the other that the reconstructed layers
+compose the same names the run proposed. Without those, every refusal below them
+would be proved against a different type.
+
+**Not verified in Revit.** `Baseline_RenameTypes` was not run in a Revit session
+and `deploy.bat` was not run. `HostObjAttributes.FamilyName` is read for the
+first time here and is unexercised; `TagConfig.ResolveProdForNames` is new and
+its project-overlay branch has never run against a real
+`_BIM_COORD/prod_codes.csv`. **`Baseline_RenameTypes` is still not safe to
+apply** on the strength of this alone — the gate stops the downgrade it was
+built for, and the remaining question, whether every proposed name is *right*,
+is a separate one.
+
 #### Completed (Phase 256 — a tile is a shape, and a plan that was applied can be taken back)
 
 `Materials_SetClass` ran on a 1,815-material delivered model on 2026-09-08 and

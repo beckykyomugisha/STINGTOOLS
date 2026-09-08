@@ -1,0 +1,7 @@
+Category,Family,CurrentName,ExistingProd,ExistingSource,CoreMaterial,CoreThicknessMm,FinishMaterial,RecordedProposal,MustPropose
+Floors,Floor,stepsr 7,FSP,corporate,"Concrete, Cast In Situ(1)",450,Floor Tile 300x300,PLNS_SLB_RC450-Tiled,no
+Walls,Basic Wall,coping,WCP,corporate,CONCRETE CAST IN SITU 50MM,250,,PLNS_WRC_RC250,no
+Walls,Basic Wall,CLAY BRICK VILLAGE LARGE (295×150×130MM),WBK,corporate,CLAY BRICK VILLAGE LARGE (295×150×130MM),150,,PLNS_WBK_ClayBrick150,yes
+Walls,Basic Wall,Exterior_CreamWhite_230 2,WL,category,"Brick, Common(1)",205,Plaster - Cement Render 1:4,PLNS_WBK_ClayBrick205-Plastered,yes
+Walls,Basic Wall,Exterior_BrownWhite_230,WL,category,"Brick, Common(1)",205,Plaster - Cement Render 1:4,PLNS_WBK_ClayBrick205-Plastered,yes
+Floors,Floor,IntFloor_tile_150,FL,category,"Concrete, Cast In Situ(1)",500,Tile - Ceramic Floor,PLNS_SLB_RC500-CeramicTiled,yes
