@@ -269,5 +269,71 @@ namespace StingTools.Tags.Tests
             Assert.Equal(ExclusionVerdict.Included, cleared.Classify("Rooms", "", ""));
             Assert.Equal(ExclusionVerdict.ByPattern, cleared.Classify("Walls", "Opening", ""));
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  The shape a real project override actually has
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>The exact file written for the Herring project on 2026-09-08, at
+        /// &lt;project&gt;/_data/coord/prod_exclusions.json. Copied verbatim: a test against
+        /// a paraphrase of the file would not be a test of the file.</summary>
+        private const string HerringOverride =
+            "{\n  \"notAProductFamilies\": [\"A_Revit_Suv_3d_car\"]\n}\n";
+
+        [Fact]
+        public void The_Entourage_Car_Was_Counted_As_A_Product_And_Corporate_Is_Right_Not_To_Fix_It()
+        {
+            // prod_coverage_20260908_221546.csv, verbatim:
+            //     Site,A_Revit_Suv_3d_car,A_Revit_Suv_3d_car,STE-GLZ,category,N
+            // A supplier's entourage car, counted in the denominator and reported as a
+            // product with no specific code. The corporate list DELIBERATELY does not
+            // name it — its own comment says a family that exists in one project belongs
+            // in that project's override — so this asserts the omission rather than
+            // treating it as a gap somebody forgot.
+            Assert.Equal(ExclusionVerdict.Included,
+                Shipped().Classify("Site", "A_Revit_Suv_3d_car", "A_Revit_Suv_3d_car"));
+        }
+
+        [Fact]
+        public void A_Families_Only_Override_Excludes_The_Car_And_Inherits_Everything_Else()
+        {
+            // The risk this pins is not the car. It is that a two-line override declaring
+            // ONE list could quietly replace the other three — and the audit would then
+            // report a large, plausible, wrong coverage figure with the 1,187 wall voids
+            // back in the denominator and Doors no longer protected. Nothing in the run
+            // would say so.
+            var corp = ProdExclusionPolicy.Parse(
+                File.ReadAllText(Path.Combine(DataDir(), "STING_PROD_EXCLUSIONS.json")), out string err);
+            Assert.True(corp != null, "STING_PROD_EXCLUSIONS.json did not parse: " + err);
+
+            var proj = ProdExclusionPolicy.Parse(HerringOverride, out string perr);
+            Assert.True(proj != null, "the override did not parse: " + perr);
+
+            var ex = ProdExclusionPolicy.Build(corp, proj);
+
+            // What the override says.
+            Assert.Equal(ExclusionVerdict.ByFamily,
+                ex.Classify("Site", "A_Revit_Suv_3d_car", "A_Revit_Suv_3d_car"));
+
+            // Everything it does NOT say, still inherited from corporate.
+            Assert.Equal(ExclusionVerdict.ByCategory, ex.Classify("Rooms", "", ""));
+            Assert.Equal(ExclusionVerdict.ByCategory, ex.Classify("Detail Items", "Filled region", ""));
+            Assert.Equal(ExclusionVerdict.ByPattern,
+                ex.Classify("Generic Models", "M_GM_OpeningWall_Instance", "Opening"));
+            Assert.Equal(ExclusionVerdict.ByPattern,
+                ex.Classify("Generic Models", "M_Muntin Pattern_2x2", ""));
+
+            // protectedCategories survives too — a door called "Opening" is still a door.
+            Assert.Equal(ExclusionVerdict.Included, ex.Classify("Doors", "Opening Door", ""));
+
+            // And the corporate families list is REPLACED, not merged — which is the
+            // documented contract, and worth seeing rather than assuming. The corporate
+            // entry that stops being matched is Revit's stock wall-void family, whose
+            // absence a project taking this override should know about.
+            Assert.Equal(ExclusionVerdict.Included,
+                ex.Classify("Windows", "Window-Square Opening", ""));
+            Assert.Equal(ExclusionVerdict.ByFamily,
+                Shipped().Classify("Windows", "Window-Square Opening", ""));
+        }
     }
 }
