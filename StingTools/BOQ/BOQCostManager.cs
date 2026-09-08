@@ -829,7 +829,11 @@ namespace StingTools.BOQ
                 var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
                 if (rules != null && rules.Count > 0)
                     csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
-                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",
+                        // KUT-5 — the bill must classify on the same key the assign pass
+                        // does, or a demolished wall is stamped 02 41 19 and billed as
+                        // masonry. The NRM2 bridge below then bills it under Demolitions.
+                        StingTools.Commands.Classification.CsiMap.PhaseState(doc, el));
                 if (csiRule != null)
                 {
                     if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";

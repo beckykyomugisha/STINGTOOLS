@@ -63,6 +63,8 @@
     <Compile Include="..\StingTools\Core\Cobie\CobieFieldMap.cs" Link="Core\Cobie\CobieFieldMap.cs" />
     <Compile Include="..\StingTools\Docs\ReviewCommentTracker.cs" Link="Docs\ReviewCommentTracker.cs" />
     <Compile Include="..\StingTools\Core\Classification\CsiMasterFormat.cs" Link="Core\Classification\CsiMasterFormat.cs" />
+    <!-- KUT-5: the Revit-free phase classification the Division 02 rule keys on. -->
+    <Compile Include="..\StingTools\Core\Classification\ElementPhaseState.cs" Link="Core\Classification\ElementPhaseState.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />

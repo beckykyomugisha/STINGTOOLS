@@ -30,6 +30,37 @@ namespace StingTools.Core.Classification
         /// spec can drive the BOQ measurement-basis advisory. Blank = no opinion.</summary>
         public string Unit { get; set; } = "";
 
+        /// <summary>
+        /// Optional element PHASE STATE this rule applies to — one of the
+        /// <see cref="ElementPhaseState"/> values. KUT-5.
+        ///
+        /// <para>CSI Division 02 is Existing Conditions: demolition and removals. Before this
+        /// column the resolver was never handed the element's phase, and nobody names a
+        /// toposolid "demolition", so a naming-keyed Division 02 rule <b>could not fire on a
+        /// real model</b>.</para>
+        ///
+        /// <para><b>It scores <see cref="PhaseWeight"/>, which outranks every other qualifier
+        /// combined.</b> That is deliberate and it is what MasterFormat says: Division 02
+        /// classifies by the STATE OF THE WORK, not by what the thing is. A demolished
+        /// precast beam is demolition — it is not billed as precast concrete because the
+        /// contractor is removing it, not casting it. Without the higher weight a demolished
+        /// element carrying any family or type rule would keep its product classification and
+        /// the Division 02 rule would fire only on elements no other rule matched, which is
+        /// the same "reads as coverage, delivers nothing" outcome the withdrawn naming rules
+        /// would have had.</para>
+        ///
+        /// <para>Matched exactly and case-insensitively, like <see cref="Sys"/>. An element
+        /// whose state is unknown carries the empty string and therefore matches no
+        /// phase-qualified rule.</para>
+        /// </summary>
+        public string Phase { get; set; } = "";
+
+        /// <summary>What a matched <see cref="Phase"/> contributes. Ten, so that a
+        /// phase-qualified rule beats any combination of the product qualifiers (whose
+        /// maximum is four) while phase rules still discriminate among themselves on the
+        /// ordinary qualifiers.</summary>
+        public const int PhaseWeight = 10;
+
         private Regex _famRx, _typeRx;
         private bool _compiled;
 
@@ -47,9 +78,25 @@ namespace StingTools.Core.Classification
 
         /// <summary>Match score, or -1 when the rule does not apply. Higher = more specific.</summary>
         public int Score(string category, string family, string type, string sys)
+            => Score(category, family, type, sys, null);
+
+        /// <summary>Match score including the element's phase state, or -1 when the rule does
+        /// not apply. See <see cref="Phase"/> for why phase outranks the product qualifiers.</summary>
+        public int Score(string category, string family, string type, string sys, string phase)
         {
             Compile();
             int score = 0;
+
+            if (!string.IsNullOrEmpty(Phase))
+            {
+                if (string.IsNullOrEmpty(phase) ||
+                    !string.Equals(Phase, phase, StringComparison.OrdinalIgnoreCase)) return -1;
+                // MERGE NOTE (KUT-10): that change scales the other qualifiers to
+                // CsiRule.QualifierWeight. PhaseWeight is already far above their maximum, so
+                // nothing here needs to move; only the score++ lines below become
+                // "score += QualifierWeight".
+                score += PhaseWeight;
+            }
 
             bool anyCat = !string.IsNullOrEmpty(Category) && Category != "*";
             if (anyCat)
@@ -87,10 +134,23 @@ namespace StingTools.Core.Classification
                 if (string.IsNullOrWhiteSpace(raw)) continue;
                 string line = raw.TrimEnd('\r');
                 if (line.TrimStart().StartsWith("#")) continue;
-                // Split into 8 so the optional 7th "Nrm2" + 8th "Unit" columns are read while
-                // 6-column legacy rows keep working. The shipped Titles carry no commas, so
-                // Title stays whole on the shorter rows.
-                var f = line.Split(new[] { ',' }, 8);
+                // Split into 10 so the optional trailing columns are read while 6-column
+                // legacy rows keep working. The shipped Titles carry no commas, so Title
+                // stays whole on the shorter rows.
+                //
+                //   7  Nrm2      8  Unit      9  (reserved)      10  Phase
+                //
+                // COLUMN 9 IS RESERVED, NOT UNUSED. KUT-10 claims it for a Material
+                // qualifier in a sibling change. Phase was placed at 10 so the two sets of
+                // shipped rows compose under either merge order; putting both at 9 would
+                // have made one branch's data silently mean the other's.
+                //
+                // A PROJECT OVERLAY WRITTEN AGAINST ANY EARLIER COLUMN COUNT STILL LOADS.
+                // That is why the guard below is "< 6" rather than an exact count:
+                // ParseCsvLines DROPS a row with fewer fields than it demands, SILENTLY,
+                // with no error anywhere — so tightening it would take every project's
+                // _BIM_COORD/csi_map.csv offline and look like the map simply had no opinion.
+                var f = line.Split(new[] { ',' }, 10);
                 if (f.Length < 6) continue;
                 string cat = f[0].Trim();
                 if (cat.Length == 0) continue;
@@ -106,6 +166,8 @@ namespace StingTools.Core.Classification
                     Title = f[5].Trim(),
                     Nrm2 = f.Length >= 7 ? f[6].Trim() : "",
                     Unit = f.Length >= 8 ? f[7].Trim() : "",
+                    // f[8] is the reserved column — see the split comment above.
+                    Phase = f.Length >= 10 ? f[9].Trim() : "",
                 });
             }
             return rules;
@@ -114,7 +176,14 @@ namespace StingTools.Core.Classification
         /// <summary>Best-matching rule for the element context, or null when none apply.
         /// Highest score wins; ties resolve to the earliest rule in the list.</summary>
         public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys)
-            => Resolve(rules, category, family, type, sys, out _, out _);
+            => Resolve(rules, category, family, type, sys, null, out _, out _);
+
+        /// <summary>Phase-aware resolve (KUT-5). The four-argument overloads remain and
+        /// delegate here with no phase, so every caller that has not been taught about phases
+        /// behaves exactly as before rather than silently changing answer.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type,
+            string sys, string phase)
+            => Resolve(rules, category, family, type, sys, phase, out _, out _);
 
         /// <summary>Resolve + report the winning <paramref name="score"/> and how many rules
         /// tied at that top score (<paramref name="tieCount"/>). tieCount &gt; 1 means the match
@@ -123,6 +192,11 @@ namespace StingTools.Core.Classification
         /// that tie but agree on the code are not flagged.</summary>
         public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
             out int score, out int tieCount)
+            => Resolve(rules, category, family, type, sys, null, out score, out tieCount);
+
+        /// <summary>Phase-aware resolve reporting the winning score and the tie count.</summary>
+        public static CsiRule Resolve(IReadOnlyList<CsiRule> rules, string category, string family, string type, string sys,
+            string phase, out int score, out int tieCount)
         {
             CsiRule best = null;
             int bestScore = -1;
@@ -130,13 +204,13 @@ namespace StingTools.Core.Classification
             if (rules == null) return null;
             for (int i = 0; i < rules.Count; i++)
             {
-                int s = rules[i].Score(category, family, type, sys);
+                int s = rules[i].Score(category, family, type, sys, phase);
                 if (s > bestScore) { bestScore = s; best = rules[i]; }
             }
             if (bestScore < 0) return null;
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < rules.Count; i++)
-                if (rules[i].Score(category, family, type, sys) == bestScore)
+                if (rules[i].Score(category, family, type, sys, phase) == bestScore)
                     seen.Add(NormalizeSection(rules[i].Section));
             score = bestScore; tieCount = seen.Count;
             return best;
