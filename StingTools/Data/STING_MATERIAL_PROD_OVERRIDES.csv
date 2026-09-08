@@ -41,6 +41,7 @@ Category,MaterialPattern,Suffix
 *,(?i)\bbitumen|\basphalt,BIT
 *,(?i)\bstone|\bgranite|\bmarble|\blimestone|\bsandstone,STN
 *,(?i)\btile|\bceramic|\bporcelain,TIL
+*,(?i)\bterrazzo,TRZ
 *,(?i)\bcarpet,CPT
 *,(?i)\brubber|\bEPDM\b|\bneoprene,RBR
 *,(?i)\bfabrics?\b|\btextile|\bcurtain.*material,FAB

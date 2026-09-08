@@ -134,16 +134,18 @@ WCP,Walls,*Coping*,Wall Coping,A,ARC,BS 5642-2
 WBD,Walls,*Boundary Wall*|*Compound Wall*|*Perimeter Wall*|*Fence Wall*,Boundary / Compound Wall,A,ARC,none
 RWL,Walls,*Retaining*,Retaining Wall,S,STR,BS EN 1997-1
 RSH,Roofs,*Sheet*|*Corrugated*|*Profiled Metal*|*IT4*|*IT5*,Profiled Sheet Roof Covering,A,ARC,BS EN 508-1
-RTL,Roofs,*Roof Tile*|*Tiled Roof*|*Clay Tile*|*Concrete Tile*|*Shingle*,Tiled / Shingled Roof Covering,A,ARC,BS 5534
+RTL,Roofs,*Roof Tile*|*Tile Roof*|*Tiled Roof*|*Clay Tile*|*Concrete Tile*|*Stone Coated*|*Shingle*,Tiled / Shingled Roof Covering,A,ARC,BS 5534
 RCS,Roofs,*Concrete Roof*|*RC Roof*|*Roof Slab*,Reinforced Concrete Roof Slab,S,STR,BS EN 1992-1-1
 RFL,Roofs,*Flat Roof*|*Built-Up Felt*|*Single Ply*|*Roof Membrane*,Flat Roof Membrane System,A,ARC,BS 8217
 RSG,Roofs,*Sloped Glazing*|*Rooflight*|*Skylight*,Rooflight / Sloped Glazing,A,ARC,BS 5516-2
 FGS,Floors,*Ground Slab*|*Ground Bearing*|*Slab on Grade*|*Oversite*,Ground-Bearing Floor Slab,S,STR,BS 8204-1
 FRB,Floors,*Ribbed Slab*|*Hollow Pot*|*Hollowpot*|*Waffle*|*Coffered*,Ribbed / Hollow-Pot Suspended Slab,S,STR,BS EN 1992-1-1
+FSP,Floors,*Steps*|*Step Slab*|*Stair Landing Slab*,Cast-in-Place Steps / Landing,S,STR,BS EN 1992-1-1
 FSC,Floors,*Screed*,Floor Screed,A,ARC,BS 8204-1
 FTM,Floors,*Timber Floor*|*Floor Joist*,Timber Suspended Floor,S,STR,BS EN 1995-1-1
 CSU,Ceilings,*Suspended Ceiling*|*Grid Ceiling*|*Lay-in*|*MF Ceiling*,Suspended Ceiling System,A,ARC,BS EN 13964
 CPB,Ceilings,*Plasterboard Ceiling*|*Gypsum Ceiling*|*Skim Ceiling*,Plasterboard Ceiling,A,ARC,BS 8212
+CPL,Ceilings,*Plastered Soffit*|*Rendered Soffit*|*Plaster Ceiling*,Plastered Soffit,A,ARC,BS EN 13914-1
 # ── Openings: DOORS + WINDOWS ───────────────────────────────────────────────
 # Leaf material and operation are what a door schedule and a BOQ price on.
 DRT,Doors,*Timber Door*|*Flush Door*|*Panel Door*|*Solid Core*|*Hollow Core*,Timber Leaf Door,A,ARC,BS EN 14351-2
