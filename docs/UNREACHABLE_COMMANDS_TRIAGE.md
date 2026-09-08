@@ -21,13 +21,13 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-08 (WF-7)
 
-- **Total IExternalCommand classes**: **1719**
-- **Reached by a dispatch layer**: **1688**
+- **Total IExternalCommand classes**: **1720**
+- **Reached by a dispatch layer**: **1689**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **9**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1719; the script fails if they stop adding up.
+The four buckets partition all 1720; the script fails if they stop adding up.
 
 ### What the old 126 was, and why it was wrong
 
@@ -44,7 +44,7 @@ layers. Dispatch is:
 | legacy ribbon | `Core/StingToolsApp.cs`, `typeof(X).FullName` → `PushButtonData` | 30 |
 | markup + data | `.addin`, `.xaml`, shipped `.json` / `.csv` | 56 |
 
-Layers overlap, so those figures sum to more than 1688; a command reached twice is
+Layers overlap, so those figures sum to more than 1689; a command reached twice is
 counted once in the total.
 
 Two further corrections the re-derivation forced, both of which had inflated the
