@@ -12,47 +12,54 @@ Two rules that apply to every answer below:
 
 ---
 
-## Q1 · "Is the platform finished, or are you asking us to borrow to finish it?"
+## Q1 · "Is the platform finished, or is it still being built?"
 
-**The one that decides the meeting.** Ken holds both documents. Answer before asked.
+**The one that decides the meeting.** Ken holds two documents that used to disagree
+on this. Answer before you are asked.
 
 > The coordination core is in production and in daily use on live projects — documents,
 > issues, dashboards, the mobile app. The Revit add-in is in production use for tagging,
 > model audit, drawings, schedules and quantities.
 >
-> What the financing would fund is a different thing: turning a platform that works for
-> one deployment into a product that can be sold to many organisations across four
-> countries. Multi-tenancy, payments, regional hosting, an independent security review,
-> and the training programme.
+> The work still in hand is a different thing: turning a platform that works for one
+> deployment into a product that can be sold to many organisations across several
+> countries. Multi-tenancy, payments, regional hosting, an independent security
+> review, and the training programme.
 >
 > Production-ready for one deployment; not yet productised for a regional market.
-> That's the honest position, and it's why the number is USD 72,680 and not USD 500,000.
+> That's the honest position, and it's why the completion budget is about USD 36,000
+> and not half a million.
 
-**If pressed on the MoWT proposal saying "complete":** *"That sentence describes the
-coordination core, and in that document I also state that the platform remains in
-active development and list platform maturity in the risk register. But you're right
-that the two read inconsistently side by side, and I'm correcting the wording so they
-don't."* — Concede it. It is a fair hit and conceding it costs nothing.
+**If pressed on the MoWT proposal saying "complete":** the wording was corrected on
+2026-09-08, so you can answer in the past tense: *"You're right that an earlier
+version read that way. I've corrected it, because the two documents have to say the
+same thing."* Concede it. It is a fair hit, conceding costs nothing, and the fix is
+already made.
 
 ---
 
-## Q2 · "Why does the Society have to borrow? Why can't your company?"
+## Q2 · "So what are you actually asking us to fund?"
 
-> Because UDB lends on trading history and Planscape is a young company. The Society
-> has standing a young company doesn't.
+The UDB route is parked, so the borrowing question should not arise. If it does,
+because they have read the September package:
+
+> Nothing, today. I sent you a proposal built around a Uganda Development Bank facility
+> with the Society as borrower. I've set that aside — I'd rather not ask a professional
+> body to take on debt for a platform it hasn't evaluated yet, and I want to look at
+> other routes first.
 >
-> And I want to be direct that this is the weakest part of my proposal, which is why
-> I am not asking you to decide it today. I don't yet know whether the Society can
-> legally borrow in its own name — that's the first item on my own list of unresolved
-> questions.
+> What I'm asking for today costs the Society nothing.
 
-**If they ask what the alternative is** — this is the moment for the reserve structure:
+**Then stop talking.** Do not fill the silence by re-opening the financing case.
 
-> One alternative worth considering: instead of the Society borrowing, the Society
-> commits to purchase — underwriting training cohorts, or member subscriptions. That
-> gives my company revenue-backed borrowing capacity in its own name, and asks the
-> Society for something I suspect your constitution clearly permits. I'd rather have
-> the right structure than my first draft of one.
+**If they ask what the other routes are** — answer honestly at whatever stage you have
+actually reached. "I don't have a settled answer yet" is a fine reply; inventing a route
+you have not explored is not.
+
+**If they offer to help with financing** — that is a good outcome, not a cue to present
+the old numbers. Take it as an action, not a decision: *"I'd welcome that. Could I come
+back to you with a specific, costed proposition once I've looked at the options
+properly?"*
 
 ---
 
@@ -81,21 +88,19 @@ Say it before they do.
 
 ---
 
-## Q5 · "Could an office bearer end up personally liable?"
+## Q5 · "Could this put the Society, or one of us, on the hook for anything?"
 
-Do not soften this.
+The honest answer is much better than it was a week ago. Give it directly.
 
-> Possibly, and that's why it needs the full committee rather than any one person. If
-> the Society has no suitable unencumbered assets, UDB's usual alternative is a personal
-> guarantee from an office bearer. That would mean an individual carrying personal
-> exposure for a loan whose proceeds go to my company. I've put that in writing in the
-> proposal because I'm not willing to have it discovered later.
+> No. In the proposal I sent, the Society would have been the borrower — and if it had
+> no suitable security, a bank's usual alternative is a personal guarantee from an
+> office bearer. I put that in writing because I wasn't willing to have it discovered
+> later, and it's one of the reasons I've set that route aside.
 >
-> It's also part of why I'm not asking for a financing decision today.
+> What I'm asking for today carries no financial obligation of any kind.
 
-**Never say the MOU protects them from this.** MOU §13 governs the parties between
-themselves; the Society would be liable to UDB regardless. If someone offers you that
-misreading, correct it.
+**Do not reintroduce the risk in order to look candid.** Say it once, say it is parked,
+move on.
 
 ---
 
@@ -174,8 +179,9 @@ Have this word-perfect. It is the close.
 > yours and not mine.
 > Three: agree a date for a first cohort, and help me reach members to fill it.
 >
-> The financing is a separate conversation for whenever the committee is ready, and it
-> needs answers I don't have yet — starting with whether the Society can borrow at all.
+> There's no financing ask attached to any of that. If it ever comes back, it comes
+> back as a specific costed proposition through your own process, not as part of this
+> conversation.
 
 ---
 
@@ -184,12 +190,12 @@ Have this word-perfect. It is the close.
 Ending on your questions makes it a conversation between colleagues rather than a
 pitch. It also closes items in `00_DECISION_LOG.md`.
 
-1. How is the Society registered, and what does the constitution say about borrowing?
-   (→ D-02)
+1. How is the Society registered, and what does the constitution say about
+   arrangements with a member's business? (→ D-02, D-03)
 2. What approval would something like this need, and what is the calendar for it?
    (→ D-03)
 3. Would the Society give me its registration details, founding year and membership
-   numbers? (→ closes F-07, UDB application §2)
+   numbers? Useful whatever route this takes, and I don't have them. (→ F-07)
 4. Who would you want as technical counterpart in the ICT Cluster?
 5. What has the Society tried before on BIM adoption, and what stalled it?
 6. What would make this an easy yes for you, and what would make it an easy no?

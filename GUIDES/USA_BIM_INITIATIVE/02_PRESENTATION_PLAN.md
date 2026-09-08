@@ -17,18 +17,19 @@ people, senior, professional-body governance.
 
 ### Secondary — explicitly *not* asked for on the day
 
-4. The USD 72,680 UDB financing, the MOU, and the national-platform branding are
-   presented **as a phase-two proposition requiring the committee's own due
-   diligence**, with the open items in `00_DECISION_LOG.md` named honestly.
+4. **The UDB financing is off the table** (parked 2026-09-08). Say so plainly. The
+   MOU and the national-platform branding are phase-two matters for the committee's
+   own process. Open items in `00_DECISION_LOG.md` are named honestly if asked.
 
 ### Say the staging out loud
 
 Do not let them think you are hiding the loan — they have already read it. Open with
 the structure:
 
-> "You have three documents from me. I am not asking you to decide on financing today,
-> because I do not yet know whether the Society can legally borrow, and neither do you.
-> What I am asking for today is much smaller."
+> "You have three documents from me, and one of them asks the Society to take on a
+> bank loan. I've set that aside. I'd rather not ask a professional body to carry debt
+> for a platform it hasn't evaluated yet, and I want to look at other routes first.
+> What I'm asking for today is much smaller, and it costs the Society nothing."
 
 That sentence does more work than any slide. It removes the threat, demonstrates you
 have read your own risks, and makes the smaller ask feel like a concession you are
@@ -47,9 +48,9 @@ Their question: *does this expose us?*
 - **Name the governance route, don't assume it.** "This needs the Executive Committee,
   or whatever the constitution requires — I am not asking any individual to commit the
   Society."
-- **Be explicit about liability.** If financing ever proceeds, the Society is the
-  borrower and is liable to UDB regardless of what the MOU says between the parties.
-  Do not let MOU §13 be heard as protection from the bank. Saying this yourself is the
+- **Be explicit that today's ask carries no liability.** The borrowing route is
+  parked, and the personal-guarantee exposure goes with it — that was the sharpest
+  risk in the original package. Volunteering a risk you have just removed is the
   single most credibility-positive move available.
 - **Continuity.** Lift MoWT §11.3 wholesale: open formats (RVT, DWG, IFC 4, BCF 2.1,
   COBie), source-code escrow, self-hosting, documented configuration, priced exit to
@@ -84,7 +85,7 @@ Their question: *is this real, and is it sound?*
 | 5–8 | What the platform is, and **exactly where it stands** (narrative doc, verbatim) | ICT Cluster |
 | 8–14 | **Demonstration** | ICT Cluster |
 | 14–17 | The training programme: what a cohort covers, what a member walks away able to do | Both |
-| 17–19 | Where the financing proposition sits, and the open questions I cannot answer alone | Board of Practice |
+| 17–19 | What I am *not* asking for: the loan route is set aside, and why | Board of Practice |
 | 19–20 | The three things I am asking for today | Both |
 | 20–60 | Discussion | — |
 
@@ -130,9 +131,12 @@ Record the outcome in `00_DECISION_LOG.md` D-04.
 **Leave-behind:** the USA proposal, with §9 re-dated (F-03) and the completion
 paragraph inserted. The proposal is the leave-behind, never the script.
 
-**Bring but do not hand out unless asked:** the UDB application and the MOU. They are
-drafts with open placeholders; handing them round invites line-editing instead of a
-decision.
+**Do not bring the UDB application at all.** It is parked. Handing round a loan
+request you have just said you are not making creates exactly the confusion the
+staging is meant to avoid.
+
+**Bring but do not hand out unless asked:** the MOU. It is a draft with open
+placeholders, and its economics need restating now the loan is gone (→ D-10).
 
 **Have ready if asked:** the MoWT proposal, the demo recording, a one-page summary of
 what a training cohort covers.
@@ -147,10 +151,10 @@ containing a date that has passed.
 - Verbal endorsement of the training programme, with a named counterpart in the ICT
   Cluster
 - A date, or a route to a date, for a pilot cohort
-- The Society's registration details and constitutional position on borrowing → closes
-  D-02, D-03, and unblocks UDB application §2 (F-07)
-- A named person to take the financing question into the proper committee
+- The Society's registration details and constitutional position → closes D-02 and
+  D-03, and fills the gap at F-07
+- A named person to approach if and when a financing proposition is ready
 
-**Anything beyond this is upside.** A "we will consider the financing" is a success,
-not a deferral — the current documents cannot honestly support more than that until
-D-02 and D-06 are answered.
+**Anything beyond this is upside.** With the loan removed there is no longer a hard
+ask that can be refused — which is precisely why this version of the meeting is more
+likely to end well than the one the September package set up.

@@ -32,23 +32,30 @@ development", §11.2 is candid about unvalidated MEP engines, and the risk regis
 carries "Platform maturity (toolchain still completing)". The failure is that the
 headline sentence and the loan's premise were never reconciled in writing.
 
-**Fix:** adopt the single paragraph in `05_CONSISTENT_NARRATIVE.md` and use it in the
-room, in the MoWT proposal §11.1, and anywhere else the question arises. Say it
-yourself, first, before anyone finds it.
+**FIXED 2026-09-08.** The reconciling wording is now in all three live documents:
+MoWT §11.1 ("complete and in daily use" → "in production and in daily use", plus the
+productisation paragraph), USA proposal §1 (new *Where the platform stands today*
+paragraph), and MOU Recital A. All three verified opening cleanly in Word.
+Originals preserved in `_backup_20260908/` beside each document.
+
+Still to do: say it out loud in the room, first, before anyone finds it.
 
 ---
 
-## F-02 · CRITICAL — the named signatory may be wrong
+## F-02 · ~~CRITICAL~~ CLOSED 2026-09-08 — the signatory was correct
 
-UDB application §12 and the MOU signature block both put **Kenneth Amunsiimire** as
-**President**. The meeting is with the *Chair, Board of Practice* and the *Chairman,
-ICT Cluster*. If Ken chairs the Board of Practice rather than holding the presidency,
-three things are wrong in documents already sent: the applicant contact, the signature
-block, and the assumed approval route. → `00_DECISION_LOG.md` D-01.
+**Ken is the President.** Confirmed by Davis 2026-09-08. The applicant contact and the
+MOU signature block are correct; nothing to change. → `00_DECISION_LOG.md` D-01.
 
-**Related:** USA §8 correctly declares the Davis–Ken professional relationship as a
-possible conflict. The consequence is under-stated — **it means Ken cannot be the
-approver.** Build the presentation to stand without his advocacy.
+But note what it means: the meeting is with the *Chair, Board of Practice* and the
+*Chairman, ICT Cluster* — a group the President is convening, not one that answers to
+him. The room is the decision-maker.
+
+**Related, and now sharper:** USA §8 declares the Davis–Ken professional relationship
+as a possible conflict. With Ken confirmed as President, that declaration carries more
+weight, not less — the person bringing the proposal in is the Society's most senior
+office bearer. Declare it first, and say the decision belongs to the committee and the
+constitution. That protects Ken as much as Davis.
 
 ---
 
@@ -77,10 +84,12 @@ the traction a lender wants to see and exactly the credibility a professional bo
 ICT chair wants. Meanwhile the UDB application's Year-1 projection — 20 organisations
 at ~USD 150/month — reads as pure hope.
 
-**Fix:** add MoWT to UDB §7 (revenue model) and to §10 (supporting documents), framed
-as a live prospect, not a signed contract. **And add the flip side to §11's risk
-register**: one customer at roughly 23% of projected Year-1 revenue is a concentration
-risk, currently unacknowledged.
+**Fix, re-scoped 2026-09-08:** the UDB application is parked, so this now applies to
+whatever replaces it (→ D-11) and to the initiative proposal itself. A live proposal
+to the most infrastructure-intensive institution in government is the strongest
+evidence of demand available, and it belongs wherever demand is argued. Frame it as a
+live prospect, never a signed contract — and carry the flip side too: one customer at
+roughly 23% of projected Year-1 revenue is a concentration risk.
 
 ---
 
@@ -158,8 +167,14 @@ Three different approval thresholds. Bundled, the hardest dominates — and it i
 one the proposal itself admits may not be legally possible (§8). It can sink two much
 easier yeses.
 
-**Resolved 2026-09-08:** stage the ask. Endorsement first, financing as phase two.
-See `02_PRESENTATION_PLAN.md`.
+**Resolved 2026-09-08, twice over.** First, stage the ask: endorsement first,
+financing as phase two. Then the UDB route was parked entirely (→ D-11), which removes
+decision (1) from the room altogether. What is left is much closer to a single, clean
+proposition — which is a better position than the package started in.
+
+**Consequence for the MOU:** the 3–5% revenue share was consideration *for acting as
+borrower*. With no loan there is no such consideration, and the MOU's economics have no
+basis until the deal is re-stated (→ D-10).
 
 **Worth keeping in reserve:** rather than the Society borrowing, the Society
 **commits to purchase** — underwriting training cohorts or member subscriptions. That

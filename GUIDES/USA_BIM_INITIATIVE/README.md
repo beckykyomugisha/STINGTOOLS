@@ -11,19 +11,25 @@ worse than no tracker.
 
 ## The situation in one paragraph
 
-Davis Mayanja (Director, Planscape Consulting Engineers Ltd) has sent the Society a
-three-document package — an initiative proposal, a draft UDB loan application, and a
-draft MOU — asking the Society to borrow **USD 72,680** in its own name to complete
-the platform, fund East African hosting, and run three training cohorts, in exchange
-for 3–5% of net platform income. A presentation to Society leadership is being
-arranged. The same platform is separately under proposal to the Ministry of Works
-and Transport.
+Davis Mayanja has sent the Society a three-document package — an initiative proposal,
+a draft UDB loan application, and a draft MOU — originally asking the Society to
+borrow **USD 72,680** in its own name to complete the platform, fund East African
+hosting and run three training cohorts, in exchange for 3–5% of net platform income.
+A presentation to Society leadership is being arranged. The same platform is
+separately under proposal to the Ministry of Works and Transport.
+
+**Changed 2026-09-08.** The UDB route is parked ("we are first trying other means")
+and the loan application is out of the live folder. Ken is confirmed as **President**
+of the Society. Planscape Consulting Engineers Ltd is to be closed for tax reasons,
+with "PlanScape" kept purely as the platform name — which leaves the MOU without a
+corporate counterparty and without its original consideration. See D-10, D-11, D-12.
 
 ## Who is in the room
 
 Confirmed by Ken on 2026-09-08 (WhatsApp): **Chair, Board of Practice · Chairman, ICT
 Cluster · approximately 3 further members.** Five people, senior, professional-body
-governance.
+governance. Ken — the President — is convening them; they do not answer to him for
+this purpose, so treat the room as the decision-maker.
 
 The two chairs want different things, and the presentation is built around that split:
 
@@ -35,15 +41,13 @@ The two chairs want different things, and the presentation is built around that 
 
 ## The agreed ask (decided 2026-09-08)
 
-**Endorsement first, financing second.** The primary ask in the room is the thing that
-costs the Society nothing and can be decided on the day: endorse the training
-programme and name the ICT Cluster as counterpart. The USD 72,680 UDB financing goes
-in as a phase-two item requiring the committee's own due diligence.
+**Endorsement only.** Endorse the training programme, name a technical counterpart in
+the ICT Cluster, agree a first cohort. Nothing that costs the Society money.
 
-Rationale: the package currently bundles three decisions with three different
-approval thresholds, and the hardest of them — a loan the proposal itself admits the
-Society may not be legally able to take (§8) — otherwise dominates the room and can
-sink two much easier yeses.
+The staging was decided first (the hardest of three bundled decisions would otherwise
+dominate the room); then the UDB route was parked entirely, which removes the
+financing decision from the meeting altogether. Say that out loud — a risk you have
+visibly removed buys more credibility than one you never raised.
 
 ## What is in this folder
 
@@ -68,5 +72,8 @@ sink two much easier yeses.
    survive without him advocating.
 3. **Never demonstrate anything not rehearsed on the deployed build.** See the
    rehearsal gate in `02_PRESENTATION_PLAN.md`.
-4. **No date goes into a document unless it is still achievable.** The 7–11 September
+4. **Assign the platform IP out of the company before it is dissolved.** Property
+   still held by a dissolved company vests in the Government as *bona vacantia*.
+   → D-12.
+5. **No date goes into a document unless it is still achievable.** The 7–11 September
    dates in the current drafts have already passed.

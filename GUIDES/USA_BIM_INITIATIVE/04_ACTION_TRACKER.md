@@ -9,32 +9,39 @@ Status: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` dropped, with a r
 
 ---
 
+## Done 2026-09-08
+
+| | Action |
+|---|---|
+| `[x]` | Completion-status wording written into MoWT §11.1, USA proposal §1 and MOU Recital A; all three verified opening cleanly in Word. Originals in `_backup_20260908/` |
+| `[x]` | Ken confirmed as President — D-01 closed, F-02 closed, no document change needed |
+| `[x]` | UDB loan application moved to `_parked_UDB_route/` with a note on what stays useful |
+| `[x]` | Workspace updated: the ask is now endorsement only, and the personal-guarantee risk is parked with the route |
+
+---
+
 ## Now — before the date is even agreed
 
 | | Action | Why |
 |---|---|---|
-| `[ ]` | **Reply to Ken** thanking him for the seat list, and propose two or three dates | Nothing else starts until D exists |
-| `[ ]` | **Ask Ken what office he holds**, and who the President is | F-02 / D-01 — a named signatory may be wrong in a document already sent |
-| `[ ]` | **Write the completion-status paragraph** into `05_CONSISTENT_NARRATIVE.md` and commit to it | F-01 — the single highest-value fix in the whole package |
-| `[ ]` | **Re-date USA proposal §9**; remove the 7–11 September cohort reference | F-03 — the timeline expired yesterday |
-| `[ ]` | **Call UDB** and ask whether a professional body can borrow under either product | D-06 — costs nothing, de-risks everything, and the answer is needed either way |
-
-That UDB call is the highest-leverage item on this page. A ten-minute call can save
-the Society a governance process for a facility they were never eligible for.
+| `[ ]` | **Assign the platform IP out of Planscape Consulting Engineers Ltd to yourself, in writing and dated** | **Do this before anything else.** Property still held by a dissolved company vests in the Government as *bona vacantia*. MOU §4 asserts the company owns the platform, so this is not hypothetical. A one-page deed with a lawyer. → D-12 |
+| `[ ]` | **Talk to your accountant about closing the company** — specifically whether MoWT can procure from an individual under PPDA, and what losing limited liability means for you | The tax saving is real; so are these. Decide with both in view → D-12 |
+| `[ ]` | **Reply to Ken** — thank him for the seat list, propose two or three dates | Nothing else starts until D exists → D-05 |
+| `[ ]` | **Decide what "other means" actually means** | The initiative proposal cannot be corrected until this is answered — it is built end to end around a UDB loan → D-11 |
+| `[ ]` | **Decide what the Society gets, now there is no loan** | The 3–5% share was consideration for acting as borrower. With no loan the MOU has no economic basis → D-10 |
+| `[ ]` | **Call UDB anyway** and ask whether a professional body can borrow under either product | Ten minutes. Tells you whether the parked route was ever real, which you want to know before spending time reviving it → D-06 |
 
 ---
 
-## D-14 — document corrections
+## Once D-10 and D-11 are answered — document rework
 
 | | Action | Ref |
 |---|---|---|
-| `[ ]` | Insert the completion paragraph into MoWT proposal §11.1 | F-01 |
-| `[ ]` | Add MoWT as a live prospect to UDB application §7 and §10 | F-04 |
-| `[ ]` | Add customer-concentration risk to UDB §11 | F-04 |
-| `[ ]` | Add FX risk to UDB §11 | F-05 |
-| `[ ]` | State the grace-period interest treatment in UDB §7, or flag it as a question for UDB | F-05 / D-08 |
-| `[ ]` | Correct the signatory and contact blocks once D-01 is answered | F-02 |
-| `[ ]` | Decide the position on the revenue-share base before anyone negotiates it | D-09 |
+| `[ ]` | Rework initiative proposal §3, §4, §8, §9 off the UDB framing | D-11 |
+| `[ ]` | Redraft the MOU: parties, IP clause, and §5–§7 (loan, repayment, revenue share) | D-10, D-12 |
+| `[ ]` | Re-date USA proposal §9; remove the 7–11 September cohort reference | F-03 |
+| `[ ]` | Add MoWT as a live prospect wherever demand is argued | F-04 |
+| `[ ]` | Build the bottom-up basis for the revenue projections | F-05 |
 
 ---
 
@@ -59,10 +66,10 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 | | Action |
 |---|---|
 | `[ ]` | Draft slides against the run sheet — 20 minutes, not 40 pages |
-| `[ ]` | Rehearse Q1, Q3, Q5 and Q10 out loud until they are fluent |
+| `[ ]` | Rehearse Q1, Q2, Q3, Q5 and Q10 out loud until they are fluent |
 | `[ ]` | Print the leave-behind (corrected USA proposal) ×6 |
 | `[ ]` | Assemble the one-page training-cohort summary |
-| `[ ]` | Prepare the questions *you* will ask them (`03_ANTICIPATED_QUESTIONS.md`) |
+| `[ ]` | Prepare the questions *you* will ask them |
 
 ---
 
@@ -74,6 +81,7 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 | `[ ]` | Test the projector, resolution and cable at the venue if possible |
 | `[ ]` | Load everything offline — assume no internet |
 | `[ ]` | Charge laptop; bring the charger and an HDMI adapter |
+| `[ ]` | **Leave the UDB application behind** — it is parked, do not carry it into the room |
 | `[ ]` | Re-read `05_CONSISTENT_NARRATIVE.md` last thing |
 
 ---
@@ -83,8 +91,8 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 | | Action |
 |---|---|
 | `[ ]` | Declare the conflict in the first two minutes |
-| `[ ]` | State the staged ask before presenting anything |
-| `[ ]` | Ask your six questions — do not leave without D-02, D-03 and the §2 details |
+| `[ ]` | Say plainly that the loan route is set aside, and why |
+| `[ ]` | Ask your six questions — do not leave without D-02, D-03 and the membership details |
 | `[ ]` | Write down who said what, immediately afterwards, before it fades |
 
 ---
@@ -97,7 +105,6 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 | `[ ]` | Log every answer into `00_DECISION_LOG.md` and close what closed |
 | `[ ]` | Send anything promised in the room, by the date promised |
 | `[ ]` | Update `05_CONSISTENT_NARRATIVE.md` with any wording the Society preferred |
-| `[ ]` | Decide, honestly, whether the financing route is still live |
 
 ---
 
@@ -105,6 +112,5 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 
 | | Action |
 |---|---|
-| `[ ]` | Keep the MoWT thread moving — it is the strongest evidence in the USA conversation, and it is not contingent on this meeting |
-| `[ ]` | Register the PlanScape and StingTools names in Uganda (USA §5, USD 300–600) — cheapest and most urgent item in the whole package, and nothing about it waits on the Society |
-| `[ ]` | Build the bottom-up market basis for the revenue projections | 
+| `[ ]` | **Register the PlanScape and StingTools names in Uganda** (USD 300–600). Cheapest item in the whole package, nothing about it waits on the Society, and it matters *more* now the company is closing — the name needs an owner of record |
+| `[ ]` | Keep the MoWT thread moving. It is the strongest evidence in the USA conversation and is not contingent on this meeting — but check the PPDA/entity question before the company closes |

@@ -9,32 +9,12 @@ Status: `OPEN` · `ASKED` (waiting on someone) · `CLOSED` (answer recorded belo
 
 ## Blocking the presentation
 
-### D-01 · What office does Ken actually hold? — `OPEN`
-**Owner:** Davis · **Ask:** Ken directly, before the meeting
-
-The UDB application names *"Kenneth Amunsiimire, President, Uganda Society of
-Architects"* as applicant contact, and the MOU signature block reads **Title:
-President**. But the meeting is with the *Chair, Board of Practice* and the *Chairman,
-ICT Cluster*. If Ken is not the President, then the named signatory, the named
-contact, and the whole assumed approval route are wrong — in documents already sent.
-
-**Blocks:** the UDB application contact block, the MOU signature block, and the
-approval path in `02_PRESENTATION_PLAN.md`.
-
-**Answer:**
-
----
-
 ### D-02 · How is the Society registered, and can it borrow? — `OPEN`
 **Owner:** the Society · **Ask:** in the meeting, or from Ken beforehand
 
-UDB lends to registered companies, cooperatives or registered groups. USA proposal §8
-raises this as the first unresolved item and it remains unresolved. If the Society
-cannot take on debt in its own name, the entire financing structure needs a different
-vehicle — for example a jointly-owned company.
-
-**Blocks:** any commitment on financing. This is precisely why the ask is staged —
-do not present a loan without knowing it is legally possible.
+Still worth answering even with the UDB route parked (D-11). If the Society cannot
+take on debt in its own name, that rules out a whole class of "other means" before
+time is spent on them — and if it can, that is useful to know.
 
 **Answer:**
 
@@ -43,11 +23,10 @@ do not present a loan without knowing it is legally possible.
 ### D-03 · What does the constitution require to approve this? — `OPEN`
 **Owner:** the Society · **Ask:** in the meeting
 
-A loan of this size plus an income-sharing arrangement with an individual member is
-unlikely to be within any single office bearer's authority. Need to know: which body
-decides, what quorum, what notice period, and whether a members' vote is required.
+Which body decides, what quorum, what notice, and whether a members' vote is needed.
+Applies to any arrangement with a member's business, not only to borrowing.
 
-**Blocks:** the realistic timeline for anything beyond endorsement.
+**Blocks:** the realistic timeline for anything beyond a verbal endorsement.
 
 **Answer:**
 
@@ -57,11 +36,10 @@ decides, what quorum, what notice period, and whether a members' vote is require
 **Owner:** Davis · **Resolve by:** the rehearsal gate, D-7
 
 Cannot be answered from the repository. Must be proven twice, end to end, against the
-build the demonstration will actually run on. See the gate in
-`02_PRESENTATION_PLAN.md`.
+build the demonstration will actually run on. See `02_PRESENTATION_PLAN.md`.
 
-**Blocks:** whether the ICT Cluster chair sees a live demo or a recording — which is
-the single biggest lever on that chair's verdict.
+**Blocks:** whether the ICT Cluster chair sees a live demo or a recording — the single
+biggest lever on that chair's verdict.
 
 **Answer:**
 
@@ -70,87 +48,134 @@ the single biggest lever on that chair's verdict.
 ### D-05 · When is the meeting? — `OPEN`
 **Owner:** Davis · **Ask:** Ken
 
-Not yet scheduled as of 2026-09-08. Everything in `04_ACTION_TRACKER.md` is expressed
-as an offset from the meeting date (D-14, D-7, D-1), so fixing this date starts the
-clock on all of it.
+Not yet scheduled as of 2026-09-08. Everything in `04_ACTION_TRACKER.md` is an offset
+from the meeting date, so fixing this starts the clock on all of it.
 
 **Answer:**
 
 ---
 
-## Blocking a UDB submission (phase two — not needed for the presentation)
+### D-11 · If not UDB, what is the financing route? — `OPEN`
+**Owner:** Davis · **Blocks:** most of the initiative proposal
 
-### D-06 · Does UDB lend to a professional body at all? — `OPEN`
-**Owner:** Davis · **Ask:** call UDB directly
+Decided 2026-09-08 to park UDB and try other means. The initiative proposal is built
+end to end around a UDB loan — 32 UDB references and 26 loan references across
+sections 3, 4, 8, 9 and 10 — so it cannot simply have the acronym deleted. It has to be
+re-pointed at whatever the route actually is.
 
-UDB's published products read as written for ordinary small businesses — turnover
-thresholds, business bank statements, trading history. A membership association's
-finances look nothing like that. One phone call settles it, and the answer determines
-whether there is an application at all. **This call should happen regardless of how
-the meeting goes** — it costs nothing and de-risks everything downstream.
+Materially different documents come out of each of these:
 
-**Answer:**
-
----
-
-### D-07 · What security would UDB require, and who carries it? — `OPEN`
-**Owner:** the Society, with UDB
-
-If the Society has no suitable unencumbered assets, the usual alternative is a
-personal guarantee from an office bearer — meaning an individual carries personal
-exposure for a loan whose proceeds go to a private company. Section 9 of the loan
-application is currently *"[To be completed]"*.
-
-This is the question most likely to stop the room cold. Have the answer, or
-have an explicit "we don't know yet, and here's how we'd find out".
+| Route | What the proposal becomes |
+|---|---|
+| The Society funds or underwrites directly | A purchase or sponsorship proposition rather than loan sponsorship. Much easier governance, and the Society's money is at risk only for what it chose to buy. |
+| Prepaid member subscriptions / cohort fees | A commercial pre-sale. Needs no MOU of this kind at all. |
+| A different lender, or grant funding | Same structure, different appendix. Least rework of the four. |
+| No external financing — bootstrap on training revenue | Financing sections come out entirely; the proposal becomes a training and endorsement proposition, which is what the presentation already leads with. |
 
 **Answer:**
 
 ---
 
-### D-08 · Is interest capitalised during the grace period? — `OPEN`
-**Owner:** Davis, to confirm with UDB
+### D-12 · Who is the counterparty, once the company closes? — `OPEN`
+**Owner:** Davis · **Blocks:** the entire MOU
 
-The application's ~USD 20,000/year debt service assumes repayment on the original
-USD 72,680 (arithmetic checks out: USD 18,964/yr at 11% over 5 years). If interest
-capitalises across a three-year grace period, the balance at amortisation is roughly
-**USD 99,400** and annual debt service is nearer **USD 26,000**, over an eight-year
-total term.
+Davis intends to close Planscape Consulting Engineers Ltd for tax reasons and keep
+"PlanScape" purely as the platform name. The MOU names the company as a party 3 times
+and refers to "the Company" 14 times — as IP owner, as obligor, and as the party
+delivering training and hosting. With no company, every one of those needs a new
+subject.
 
-**Blocks:** the credibility of §7 of the loan application.
+Options: Davis Mayanja as an individual · a registered business name or sole
+proprietorship · a new entity formed later · keep the company alive until the agreement
+is signed and decide afterwards.
+
+**Do this first, regardless of the answer:** assign the platform IP out of the company
+to Davis personally, in writing and dated, **before** any dissolution. Property still
+held by a dissolved company vests in the Government as *bona vacantia*. MOU §4
+currently asserts the company owns the platform, so this is not hypothetical.
+
+**Also check before closing:** whether MoWT can procure a multi-year subscription and
+professional services from an individual under PPDA — the proposal prices VAT and
+withholding-tax certificates, which presume a registered supplier with a TIN. And note
+that contracting personally removes the limited-liability shield.
 
 **Answer:**
 
 ---
+
+## Open regardless of route
 
 ### D-09 · What is the revenue-share base? — `OPEN`
-**Owner:** Davis, to decide before the MOU is negotiated
+**Owner:** Davis, before any agreement is negotiated
 
 MOU §1 defines *Net Platform Income* as subscription and usage revenue only, less
 payment processing. That **excludes training fees, implementation and BIM-manager
-services** — which, on the MoWT proposal's own §8.7, is where much of the money is.
-So the Society would carry the loan that funds the training programme while sharing
-only in the revenue line that excludes training.
+services** — which, on the MoWT proposal's own §8.7, is where much of the money is. So
+the Society would support the training programme while sharing only in the revenue line
+that excludes training.
 
-Either widen the base or have a clear, sayable reason why not. Expect the ICT chair
-to find this.
+Survives the UDB decision: whatever the Society gives, the question of what it gets
+still needs an answer.
 
 **Answer:**
 
 ---
 
-### D-10 · Does the Society's share justify its risk? — `OPEN`
-**Owner:** joint
+### D-10 · What does the Society actually get now? — `OPEN`
+**Owner:** joint · **Changed by the UDB decision**
 
-3–5% of net income, capped at 1.5× the loan, ending 12 months after repayment. On the
-Year-3 projection that is roughly **USD 14,600/year** against a USD 72,680 liability
-possibly standing behind a personal guarantee. The asymmetry is real; the committee
-will feel it even if nobody articulates it.
+The 3–5% share, capped at 1.5× the loan, was *consideration for acting as borrower*.
+With no loan, that consideration no longer exists, and the MOU's economics have no
+basis. The deal has to be re-stated: what does the Society give (endorsement, member
+access, national identity) and what does it get (revenue share? discounted member
+rates? free cohorts? a seat in governance?).
+
+**This is the question that has to be answered before the MOU can be redrafted at all.**
 
 **Answer:**
+
+---
+
+## Parked — the UDB route (paused 2026-09-08)
+
+Davis: *"remove the UDB for now, we are first trying other means."* The application is
+parked in `_parked_UDB_route/` beside the live documents, with a note on what stays
+useful in it. These stay open in case it is revived.
+
+**D-06 is still worth closing now**, because the answer tells you whether the route was
+ever available at all.
+
+### D-06 · Does UDB lend to a professional body? — `OPEN`
+One phone call. Costs nothing, and closes off a route permanently if the answer is no.
+
+### D-07 · What security would UDB require, and who carries it? — `PARKED`
+Section 9 of the application is still "[To be completed]". The personal-guarantee
+exposure was the sharpest risk in the package; parking the route parks the risk too.
+
+### D-08 · Is interest capitalised during the grace period? — `PARKED`
+If it is, the balance at amortisation is ~USD 99,400 rather than 72,680, and annual
+debt service ~USD 26,000 rather than 20,000.
 
 ---
 
 ## Closed
 
-*(move items here with the answer and the date)*
+### D-01 · What office does Ken hold? — `CLOSED 2026-09-08`
+
+**Kenneth Amunsiimire is the President of the Uganda Society of Architects.** Confirmed
+by Davis.
+
+So the documents were right: the applicant contact block and the MOU signature block
+(**Title: President**) are correct and need no change. Finding F-02 in the review is
+closed.
+
+**Two consequences that do not go away:**
+
+1. The meeting is with the *Chair, Board of Practice* and the *Chairman, ICT Cluster*.
+   Ken is convening a group that does not report to him for this purpose — treat the
+   room as the decision-makers, not Ken.
+2. **The conflict declaration matters more, not less.** The President has an existing
+   professional relationship with the proposer and is the one bringing the proposal in.
+   Declare it first, and say plainly that the decision should rest with the committee
+   and the constitution rather than with the President. That protects Ken at least as
+   much as it protects Davis.

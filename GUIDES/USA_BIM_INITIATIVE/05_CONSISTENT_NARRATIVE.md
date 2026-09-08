@@ -13,30 +13,31 @@ that is the whole point.
 
 ---
 
-## 1 · Completion status
+## 1 · Completion status — ✅ APPLIED to all live documents 2026-09-08
 
-**The most important paragraph in this folder.** Two documents in Ken's hands
-currently disagree on this (`01_DOCUMENT_REVIEW.md` F-01). Use this wording verbatim,
-in the room and in the documents:
+The wording below is now in MoWT §11.1, USA proposal §1 and MOU Recital A. Use it
+verbatim in the room too.
 
 > The coordination core is in production and in daily use on live projects: the common
 > data environment, document control, issues and RFIs, dashboards and the mobile
 > application. StingTools is in production use for tagging, model audit, drawing and
 > schedule production, quantities and handover data.
 >
-> What the financing would fund is a different kind of work: turning a platform that
-> works for one deployment into a product that can be sold to many organisations across
-> four countries — support for multiple organisations and countries on one system,
-> mobile money payments, hosting sized for the region, an independent security review,
-> and the training programme.
+> The work still in hand is of a different kind: turning a platform that works for one
+> deployment into a product that can be sold to many organisations across several
+> countries — support for multiple organisations and countries on one system, mobile
+> money payments, hosting sized for the region, and an independent security review.
 >
 > Production-ready for one deployment; not yet productised for a regional market.
 
-**Never say:** "the platform is complete", "the platform is finished", or anything that
-implies the financing is optional polish.
+Deliberately **route-neutral** — it says what the work is, not who pays for it, so it
+survives the UDB route being parked and whatever replaces it.
+
+**Never say:** "the platform is complete", "the platform is finished", or anything
+implying the remaining work is optional polish.
 
 **Never say:** "the platform doesn't work yet" either. It does. Both overstatements are
-avoidable.
+avoidable, and the second is the one people reach for when they are being modest.
 
 **Also carry, whenever calculations come up** (from MoWT §11.2):
 
@@ -69,7 +70,7 @@ liability that grows with the platform's profile.
 **Only after the Society has actually agreed to it:**
 
 > The Society's national BIM platform, developed by one of its members and
-> commercialised in partnership with Planscape Consulting Engineers Ltd.
+> commercialised in partnership with the Society.
 
 **Until then** — and this is the position for the presentation itself:
 
@@ -82,59 +83,77 @@ trust, and it would undercut the very §8 commitment quoted at the top of this f
 
 ---
 
-## 4 · Ownership
+## 4 · Ownership — ⚠️ WORDING PENDING (→ D-12)
 
-> PlanScape, StingTools and all related work remain the property of Planscape
-> Consulting Engineers Ltd. Nothing proposed transfers ownership. The Society would
-> receive the right to describe the platform as its national BIM platform, a defined
-> share of net platform income, and a training programme for its members.
+The substance does not change: **the platform belongs to Davis, not to the Society, and
+nothing proposed transfers it.** What is unresolved is the legal subject, because
+Planscape Consulting Engineers Ltd is to be closed and "PlanScape" kept as the platform
+name only.
 
-Never blur this. The clarity is a strength — it means the Society is not being asked to
-take on custody of an asset it cannot maintain.
+Interim wording, safe to use in the room:
+
+> PlanScape and StingTools are owned by their developer. Nothing proposed transfers
+> ownership. The Society would receive the right to describe the platform as its
+> national BIM initiative, a training programme for its members, and an agreed share in
+> what the platform earns.
+
+**Do not** name Planscape Consulting Engineers Ltd as owner in any new document until
+D-12 is settled and the IP has been assigned out of the company in writing. The MOU as
+drafted still names the company; it needs redrafting either way.
+
+Never blur the ownership point itself. The clarity is a strength — it means the Society
+is not being asked to take custody of an asset it cannot maintain.
 
 ---
 
-## 5 · The conflict of interest
+## 5 · The conflict of interest — now sharper
+
+Ken is the **President** of the Society (confirmed 2026-09-08), and he is bringing this
+proposal in.
 
 > Davis Mayanja and Kenneth Amunsiimire have an existing professional relationship. It
-> is declared in the proposal and stated at the start of any presentation. Ken's role
-> is to introduce the initiative, not to approve it; the decision should rest with the
-> Society's proper governance process on the merits.
+> is declared in the proposal and stated at the start of any presentation. The
+> President's role here is to introduce the initiative, not to approve it; the decision
+> should rest with the Society's proper governance process, on the merits.
 
-Say this **before** anyone else raises it. Every time.
-
----
-
-## 6 · Liability, if financing is discussed
-
-> If the Society were to borrow from UDB, the Society would be the borrower and would
-> be liable to UDB. The repayment agreement obliges Planscape Consulting Engineers Ltd
-> to repay the Society on the same schedule, but that is an agreement between the two
-> parties — it does not change the Society's obligation to the bank.
-
-**Never let MOU §13 be presented as protection from UDB.** If someone in the room
-offers that reading, correct it. Correcting it costs one sentence and buys the kind of
-credibility that carries the rest of the meeting.
+Say this **before** anyone else raises it. Every time. It protects Ken at least as much
+as it protects Davis.
 
 ---
 
-## 7 · The ask, as currently staged
+## 6 · Financing — the UDB route is parked
 
-> I am asking the Society to endorse the training programme, name a technical
-> counterpart in the ICT Cluster, and agree a first cohort. The financing proposition
-> is a separate decision for the Society's own process, and it depends on questions I
-> cannot answer alone — beginning with whether the Society can legally borrow in its
-> own name.
+> I am not asking the Society to borrow. I explored a Uganda Development Bank facility
+> and have set it aside for now while I look at other routes. If financing comes back
+> onto the table it will come back as a specific, costed proposition, through the
+> Society's own governance process, not as part of this conversation.
+
+**The whole personal-guarantee exposure goes with it.** That was the sharpest risk in
+the original package and the thing most likely to stop the room; parking the route
+parks the risk. Say so plainly — it makes the remaining ask much easier to hear.
+
+The costed completion budget (USD 36,200 / 12,000 / 15,000) stays valid and stays
+sayable. What is no longer being asked is *who pays for it and on what terms*.
+→ D-11.
+
+---
+
+## 7 · The ask
+
+> I am asking the Society to endorse the training programme, to name a technical
+> counterpart in the ICT Cluster so the evaluation is yours rather than mine, and to
+> agree a first cohort. None of that costs the Society money.
 
 ---
 
 ## Where this wording must appear
 
-| Document | Which sections |
-|---|---|
-| MoWT proposal | §11.1 (completion status) — currently the source of the contradiction |
-| USA proposal | §1 (origin, completion), §8 (conflict, consistent story) |
-| UDB application | §1, §3 (completion status, origin) |
-| MOU | §4, §8 (ownership, public description) |
-| Presentation | Opening two minutes; the platform segment |
-| Any email or WhatsApp | Wherever status, origin or the Society's role comes up |
+| Document | Which sections | Status |
+|---|---|---|
+| MoWT proposal | §11.1 completion status | ✅ applied |
+| USA proposal | §1 completion status + origin | ✅ applied |
+| MOU | Recital A completion status | ✅ applied |
+| USA proposal | §3, §4, §8, §9 — the UDB framing | ⏳ pending D-11 |
+| MOU | parties, §4 IP, §5–§7 loan and revenue share | ⏳ pending D-10, D-12 |
+| Presentation | opening two minutes; the platform segment | ⏳ to build |
+| Any email or WhatsApp | wherever status, origin or the Society's role comes up | ongoing |
