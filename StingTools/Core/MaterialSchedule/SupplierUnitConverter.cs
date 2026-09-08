@@ -273,6 +273,18 @@ namespace StingTools.Core.MaterialSchedule
             => Math.Ceiling(v * 100.0 - 1e-9) / 100.0;
 
         public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity)
+            => Convert(rule, sourceQuantity, -1);
+
+        /// <summary>
+        /// As above, with the wastage the row's own variant implies.
+        ///
+        /// A NEGATIVE override means "use the rule's default" — not "no waste".
+        /// Those are different, and conflating them would silently drop the
+        /// allowance on every row that has no variant to speak of, which is
+        /// most of them.
+        /// </summary>
+        public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity,
+                                                 double wastePctOverride)
         {
             if (rule == null)
                 return new SupplierUnitResult
@@ -287,7 +299,9 @@ namespace StingTools.Core.MaterialSchedule
             if (factor <= 0 || double.IsNaN(factor) || double.IsInfinity(factor)) factor = 1.0;
 
             double net = sourceQuantity / factor;
-            double waste = Math.Max(0, rule.DefaultWastagePct);
+            double waste = wastePctOverride >= 0
+                ? wastePctOverride
+                : Math.Max(0, rule.DefaultWastagePct);
             double order = net * (1.0 + waste / 100.0);
             // Countable units round UP — you cannot buy 2.08 truck trips.
             // Divisible units round UP to 2 dp: order quantity is what someone

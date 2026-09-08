@@ -86,6 +86,7 @@ namespace StingTools.BOQ.MaterialSchedule
                     Category = item.Category ?? "",
                     TypeName = item.TypeName ?? "",
                     MaterialName = item.MaterialName ?? "",
+                    WastePctOverride = item.WastePctOverride,
                     Description = item.ItemName ?? "",
                     Unit = BoqUnits.Normalise(item.Unit),
                     Quantity = item.Quantity,

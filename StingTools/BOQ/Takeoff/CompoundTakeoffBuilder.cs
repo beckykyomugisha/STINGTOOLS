@@ -404,6 +404,7 @@ namespace StingTools.BOQ.Takeoff
                     FamilyName = GetFamilyName(doc, el),
                     TypeName = el.Name ?? "",
                     MaterialName = GetPrimaryMaterialName(doc, el) ?? "",
+                    WastePctOverride = c.WastePctOverride,
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
                     ConstituentKind = c.Kind,

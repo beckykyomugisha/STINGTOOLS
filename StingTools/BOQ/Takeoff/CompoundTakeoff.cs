@@ -34,8 +34,29 @@ namespace StingTools.BOQ.Takeoff
         public double Quantity;
         public string Nrm2Section;
 
+        /// <summary>
+        /// The wastage this line's own VARIANT implies, or -1 for "the supplier
+        /// rule's default is fine".
+        ///
+        /// Wastage still lives in exactly one place — the supplier rule applies
+        /// it, and this only tells the rule a better number than its flat
+        /// default. Applying it here as well is the double-waste bug that was
+        /// removed earlier; nothing multiplies by this.
+        ///
+        /// MATERIAL_LOOKUP has carried per-bond cutting waste all along (stack
+        /// 3%, stretcher 5, garden wall 6, English 7, Flemish 8). It was
+        /// resolved per wall into UnitWastePct and read by NOTHING, so every
+        /// wall got the rule's flat 5 and a Flemish bond was under-ordered by
+        /// three points.
+        /// </summary>
+        public double WastePctOverride;
+
         public CompoundLine(string kind, string description, string unit, double quantity, string nrm2)
-        { Kind = kind; Description = description; Unit = unit; Quantity = Math.Round(quantity, 4); Nrm2Section = nrm2; }
+        {
+            Kind = kind; Description = description; Unit = unit;
+            Quantity = Math.Round(quantity, 4); Nrm2Section = nrm2;
+            WastePctOverride = -1;
+        }
     }
 
     public struct MasonryWallInput
@@ -286,7 +307,12 @@ namespace StingTools.BOQ.Takeoff
             {
                 double units = area * m.UnitsPerM2;
                 lines.Add(new CompoundLine(m.IsBrick ? "brick_units" : "block_units",
-                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry));
+                    m.IsBrick ? "Bricks" : "Blocks", "nr", units, SecMasonry)
+                {
+                    // The BOND's cutting waste, handed to the supplier rule
+                    // rather than applied here.
+                    WastePctOverride = m.UnitWastePct > 0 ? m.UnitWastePct : -1
+                });
             }
 
             // 3. Mortar m³ and its cement (bags) + sand (m³) from the MAT-2 mix.
