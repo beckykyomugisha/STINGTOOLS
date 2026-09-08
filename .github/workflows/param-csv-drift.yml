@@ -1,0 +1,91 @@
+name: Parameter CSV Drift Gate
+
+# MR_PARAMETERS.txt and MR_PARAMETERS.csv state the same facts about the same 3,598
+# shared parameters. The .txt is authoritative -- it is the Revit shared-parameter
+# file the plugin actually binds from -- and tools/sync_csv_from_txt.py derives the
+# .csv from it.
+#
+# Except it only derived SOME of it. The script corrected Data_Type on an existing
+# row and added rows for new parameters, but never re-checked Group_Name. So a
+# parameter whose group moved in the .txt kept its old group name in the .csv
+# forever, and 28 rows had drifted:
+#
+#     12 x WARN_SHT_*   csv WARN_THRESHOLDS   txt RGL_CMPL
+#      8 x WARN_SLV_* / WARN_PROP_CARBON_MATERIALS
+#                       csv WARN_THRESHOLDS   txt STINGTags_ISO19650
+#      6 x BLE_SLAB_*   csv CST_PROC          txt BLE_ELES
+#      2 x BLE_DOOR_MATERIAL_FINISH_TXT, BLE_STRUCT_STEEL_SECTION_TXT
+#                       csv BLE_ELES          txt CST_PROC
+#
+# Nothing reported it. Two files stating one fact, with the copies drifting, is the
+# dominant defect class in this repository; this gate makes it impossible rather
+# than correcting it once.
+#
+# WHAT THIS GATE DOES NOT DO. It does not check that the groups are RIGHT. It checks
+# only that the committed .csv is what the committed generator produces from the
+# committed .txt. Deciding which group a parameter belongs in is an authoring
+# decision and belongs in the .txt.
+#
+# A NOTE ON MEASURING THIS YOURSELF. On a PARAM line in the .txt, the GROUP field is
+# a group ID; the names live in a separate GROUP table (`*GROUP ID NAME` ->
+# `GROUP<TAB>1<TAB>ASS_MNG`). Comparing that id directly to the CSV's Group_Name
+# reports all 3,598 rows as wrong -- which is a broken instrument, not a finding.
+# Resolve the id through the GROUP table first. If a check tells you everything is
+# broken, check the check.
+
+on:
+  push:
+    paths:
+      - 'tools/sync_csv_from_txt.py'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/MR_PARAMETERS.csv'
+      - '.github/workflows/param-csv-drift.yml'
+  pull_request:
+    paths:
+      - 'tools/sync_csv_from_txt.py'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/MR_PARAMETERS.csv'
+      - '.github/workflows/param-csv-drift.yml'
+  workflow_dispatch:
+
+jobs:
+  regenerate-is-a-noop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The generator resolves its paths from its own location, so it runs from
+      # anywhere -- but keep it at the repo root for consistency with the other gates.
+      - name: Regenerate MR_PARAMETERS.csv from MR_PARAMETERS.txt
+        run: python tools/sync_csv_from_txt.py
+
+      # The generator writes a .bak beside the file. It is not committed and must not
+      # make the tree look dirty.
+      - name: Drop the generator's backup
+        run: rm -f StingTools/Data/MR_PARAMETERS.csv.bak
+
+      - name: Fail if the committed CSV is not what the generator produces
+        run: |
+          set -o pipefail
+          if git diff --quiet -- StingTools/Data/MR_PARAMETERS.csv; then
+            echo "Parameter CSV is current: regenerating changed nothing."
+            exit 0
+          fi
+          echo "::error::MR_PARAMETERS.csv is not what sync_csv_from_txt.py produces from MR_PARAMETERS.txt."
+          echo
+          echo "MR_PARAMETERS.txt is authoritative. If you changed a parameter's group,"
+          echo "type or set, change it THERE and regenerate:"
+          echo
+          echo "    python tools/sync_csv_from_txt.py"
+          echo
+          echo "Do not hand-edit MR_PARAMETERS.csv -- it is generated, and a hand edit"
+          echo "is silently reverted by the next person who runs the generator."
+          echo
+          git --no-pager diff --stat -- StingTools/Data/MR_PARAMETERS.csv
+          echo
+          git --no-pager diff -- StingTools/Data/MR_PARAMETERS.csv | head -200
+          exit 1
