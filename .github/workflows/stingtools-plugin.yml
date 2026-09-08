@@ -62,6 +62,13 @@ jobs:
         shell: pwsh
         run: ./tools/check_workflow_wiring.ps1
 
+      # Unreachable commands: docs/UNREACHABLE_COMMANDS_TRIAGE.md carried a count
+      # measured against ONE of six dispatch layers, and a count in that file drives
+      # deletions -- an over-report there is an invitation to delete live code. The
+      # number is now derived; this fails when the doc drifts from the tree.
+      - name: Unreachable-commands count is current
+        run: python3 tools/recount_unreachable_commands.py --check
+
       - name: Command doc-acquisition discipline
         shell: pwsh
         run: ./tools/check_command_doc_acquisition.ps1
