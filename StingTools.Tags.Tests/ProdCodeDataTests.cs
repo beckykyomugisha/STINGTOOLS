@@ -198,17 +198,46 @@ namespace StingTools.Tags.Tests
         //  1b. A system-category rule must need the TYPE name
         // ══════════════════════════════════════════════════════════════════════
 
-        /// <summary>Families that are not loadable — every element in these categories
-        /// shares the family name, so it discriminates nothing.</summary>
+        /// <summary>
+        /// The CATCH-ALL system family of each category: the name Revit gives an element
+        /// that has not been specialised into some other kind. These discriminate
+        /// nothing, because everything lands there by default.
+        ///
+        /// <para><b>Not every system family qualifies, and that distinction is the
+        /// point.</b> "Curtain Wall" and "Sloped Glazing" are also system families, but
+        /// they name a distinct KIND: a rule matching them gives every curtain wall one
+        /// code, which is a true statement about curtain walls. A rule matching "Basic
+        /// Wall" gives every wall in the model one code, which is the category default
+        /// wearing a rule's clothes.</para>
+        ///
+        /// <para>This list NARROWED when the architectural fabric rules landed and this
+        /// gate rejected <c>*Curtain Wall*</c> and <c>*Sloped Glazing*</c>. Narrowing a
+        /// gate to admit one's own new rules is exactly how a gate stops meaning
+        /// anything, so the justification is worth stating: the original reason — "every
+        /// element shares this family name, so it discriminates nothing" — was simply
+        /// UNTRUE of those two. Ducts, Pipes and Structural Foundations left for the
+        /// same reason; "Rectangular Duct" and "Wall Foundation" are kinds, and neither
+        /// category has a catch-all at all.
+        /// <c>The_System_Family_Guard_Actually_Fires</c> proves Basic Wall is still
+        /// caught, and <c>A_Kind_Bearing_System_Family_May_Be_Matched</c> pins the other
+        /// half so this cannot quietly widen back.</para>
+        /// </summary>
         private static readonly (string Category, string Family)[] SystemFamilies =
         {
-            ("Walls", "Basic Wall"), ("Walls", "Curtain Wall"), ("Walls", "Stacked Wall"),
-            ("Roofs", "Basic Roof"), ("Roofs", "Sloped Glazing"),
+            ("Walls", "Basic Wall"), ("Walls", "Stacked Wall"),
+            ("Roofs", "Basic Roof"),
             ("Floors", "Floor"),
             ("Ceilings", "Compound Ceiling"), ("Ceilings", "Basic Ceiling"),
-            ("Ducts", "Rectangular Duct"), ("Ducts", "Round Duct"), ("Ducts", "Oval Duct"),
-            ("Pipes", "Pipe Types"),
-            ("Structural Foundations", "Wall Foundation"), ("Structural Foundations", "Foundation Slab"),
+        };
+
+        /// <summary>System families that DO discriminate — a rule may match these,
+        /// and the architectural fabric rules deliberately do.</summary>
+        private static readonly (string Category, string Family)[] KindBearingSystemFamilies =
+        {
+            ("Walls", "Curtain Wall"),
+            ("Roofs", "Sloped Glazing"),
+            ("Ducts", "Rectangular Duct"), ("Ducts", "Round Duct"),
+            ("Structural Foundations", "Wall Foundation"),
         };
 
         /// <summary>
@@ -250,6 +279,33 @@ namespace StingTools.Tags.Tests
             Assert.True(ProdPatternMatcher.Matches("BASIC WALL ", "*BASIC WALL*"));
         }
 
+        /// <summary>
+        /// The other half of the narrowing, so it cannot quietly widen back: a rule
+        /// matching a KIND-BEARING system family is allowed, and at least one shipped
+        /// rule actually does it. Without this, someone could restore the strict list
+        /// and delete the architectural rules, and both halves would still "pass".
+        /// </summary>
+        [Fact]
+        public void A_Kind_Bearing_System_Family_May_Be_Matched()
+        {
+            var rows = ProdRows();
+            var matched = new List<string>();
+
+            foreach (var (cat, fam) in KindBearingSystemFamilies)
+                foreach (var row in rows.Where(r => string.Equals(r.Category, cat, StringComparison.OrdinalIgnoreCase)))
+                    if (ProdPatternMatcher.Matches((fam + " ").ToUpperInvariant(), row.Pattern))
+                        matched.Add($"{fam} -> {row.Code}");
+
+            Assert.True(matched.Count > 0,
+                "No shipped rule matches a kind-bearing system family. Either the architectural "
+                + "fabric rules were removed, or the catch-all list was widened back — and this "
+                + "gate exists because narrowing it was a judgement call worth keeping visible.");
+
+            // The two that caused the narrowing, named so the reason stays legible.
+            Assert.Contains("Curtain Wall -> WCW", matched);
+            Assert.Contains("Sloped Glazing -> RSG", matched);
+        }
+
         [Fact]
         public void And_Those_Rules_Still_Resolve_Once_A_Type_Name_Arrives()
         {
@@ -271,6 +327,97 @@ namespace StingTools.Tags.Tests
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Floors"] = "FLR" },
                 out string blindSrc);
             Assert.False(ProdResolver.IsSpecific(blindSrc));
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  1b-ii. The architectural fabric rules resolve real names
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Walls, Roofs and Ceilings had NO rules at all — every one fell to the
+        /// category default. These are the conventional build names, checked through the
+        /// real resolver so a rule that stops matching fails here rather than going
+        /// quietly generic on the next project.
+        /// </summary>
+        [Theory]
+        // Verbatim from a real model
+        [InlineData("Walls", "Basic Wall", "CLAY BRICK VILLAGE LARGE (295x150x130MM)", "WBK")]
+        [InlineData("Walls", "Curtain Wall", "RD_Breeze Block 01 - 20X20cm", "WCW")]
+        [InlineData("Walls", "Basic Wall", "Interior - 97mm Partition (1-hr)", "WPT")]
+        [InlineData("Walls", "Basic Wall", "coping", "WCP")]
+        // Conventional names a future project would use
+        [InlineData("Walls", "Basic Wall", "230 Blockwork Rendered", "WBL")]
+        [InlineData("Walls", "Basic Wall", "Concrete Block Wall 200", "WBL")]
+        [InlineData("Walls", "Basic Wall", "200 RC Wall", "WRC")]
+        [InlineData("Walls", "Basic Wall", "Cavity Wall 300", "WCV")]
+        [InlineData("Walls", "Basic Wall", "Boundary Wall 230", "WBD")]
+        [InlineData("Walls", "Basic Wall", "Parapet 230", "WPR")]
+        [InlineData("Walls", "Basic Wall", "Retaining Wall 250", "RWL")]
+        [InlineData("Roofs", "Basic Roof", "IT4 Corrugated Sheet", "RSH")]
+        [InlineData("Roofs", "Basic Roof", "Clay Tile Roof", "RTL")]
+        [InlineData("Roofs", "Basic Roof", "Asphalt Shingle Roof", "RTL")]
+        [InlineData("Roofs", "Basic Roof", "200 RC Roof Slab", "RCS")]
+        [InlineData("Roofs", "Sloped Glazing", "Rooflight 1200", "RSG")]
+        [InlineData("Floors", "Floor", "Ground Slab 150", "FGS")]
+        [InlineData("Floors", "Floor", "Hollow Pot Slab 250", "FRB")]
+        [InlineData("Floors", "Floor", "50 Screed", "FSC")]
+        [InlineData("Floors", "Floor", "Concrete Slab 200", "SLB")]   // pre-existing, unmoved
+        [InlineData("Ceilings", "Compound Ceiling", "Suspended Ceiling 600x600", "CSU")]
+        // Openings, circulation, MEP linear services — the categories where the
+        // sub-distinction changes what you BUY, which is the BOQ's criterion.
+        [InlineData("Doors", "Door", "Flush Door 900x2100", "DRT")]
+        [InlineData("Doors", "Door", "FD30 Fire Door", "DRF")]
+        [InlineData("Doors", "AD_Garage door", "4200X2700", "DRR")]
+        [InlineData("Windows", "Window", "Aluminium Casement 1200", "WNA")]
+        [InlineData("Windows", "Window", "uPVC Window 900", "WNU")]
+        [InlineData("Windows", "Tpl Casement - Top Hung Side", "1500X1200", "WNC")]
+        [InlineData("Windows", "M_Window-Awning-Double-Vertical", "600x1800", "WNW")]
+        [InlineData("Curtain Panels", "RD_Breeze Block 01_Panel", "Concrete", "SBP")]
+        [InlineData("Pipes", "Pipe Types", "uPVC 110 Soil", "PPV")]
+        [InlineData("Pipes", "Pipe Types", "PPR PN20 25mm", "PPR")]
+        [InlineData("Pipes", "Pipe Types", "Copper Tube 15mm", "PCU")]
+        [InlineData("Pipes", "Pipe Types", "GI Pipe 25mm", "PGI")]
+        [InlineData("Conduits", "Conduit", "PVC Conduit 20mm", "CPV")]
+        [InlineData("Cable Trays", "Cable Tray", "Perforated 300mm", "CTP")]
+        [InlineData("Ducts", "Rectangular Duct", "Galvanised Duct 400x200", "DGI")]
+        [InlineData("Stairs", "Stair", "RC Stair Flight", "STRC")]
+        [InlineData("Railings", "Railing", "MS Railing 1100", "RLM")]
+        [InlineData("Railings", "Railing", "Glass Balustrade 1100", "GBL")]
+        [InlineData("Structural Rebar", "Rebar", "Y12", "RBR")]
+        [InlineData("Gutter", "Gutter", "uPVC Gutter 150", "GTP")]
+        [InlineData("Plumbing Equipment", "Tank", "Poly Water Tank 5000L", "PEQT")]
+        public void An_Architectural_Build_Resolves_To_Its_Own_Code(
+            string category, string family, string type, string expected)
+        {
+            Assert.Equal(expected, ProdResolver.Resolve(
+                family, type, category, null, ForCategory(ProdRows(), category), null, out _));
+        }
+
+        /// <summary>
+        /// The half no rule can reach, stated rather than left as a silent gap. These are
+        /// real type names from a delivered model: a colour, a thickness, a typo. Nothing
+        /// in them says what the thing IS, so they resolve generically and SHOULD — the
+        /// fix is a naming standard, not another rule.
+        ///
+        /// <para>If one of these ever starts resolving, a rule has become loose enough to
+        /// match a name that carries no product word, which is the failure this whole
+        /// pass has been about.</para>
+        /// </summary>
+        [Theory]
+        [InlineData("Walls", "Basic Wall", "Exterior_CreamWhite_230 2")]
+        [InlineData("Walls", "Basic Wall", "Exterior_BrownWhite_230")]
+        [InlineData("Roofs", "Basic Roof", "Generic - 225mm")]
+        [InlineData("Floors", "Floor", "stepsr 7")]
+        [InlineData("Floors", "Floor", "IntFloor_tile_150")]
+        public void A_Type_Name_That_Says_Nothing_Stays_Generic(string category, string family, string type)
+        {
+            ProdResolver.Resolve(family, type, category, null, ForCategory(ProdRows(), category),
+                                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                                 { ["Walls"] = "WL", ["Roofs"] = "RF", ["Floors"] = "FL" },
+                                 out string source);
+            Assert.False(ProdResolver.IsSpecific(source),
+                $"'{type}' names a colour, a thickness or nothing at all. A rule matching it "
+                + "would be matching noise.");
         }
 
         // ══════════════════════════════════════════════════════════════════════

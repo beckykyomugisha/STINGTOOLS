@@ -107,6 +107,116 @@ TBC,Structural Columns,*Timber*|*Glulam*,Timber / Glulam Column,S,STR,BS EN 1995
 BM,Structural Framing,*Concrete Beam*|*RC Beam*,Reinforced Concrete Beam,S,STR,BS EN 1992-1-1
 STB2,Structural Framing,*Steel Beam*|*UB*|*IPE*,Structural Steel Beam,S,STR,BS EN 1993-1-1
 CLT,Structural Framing,*CLT*|*Cross Laminated*,Cross-Laminated Timber Beam,S,STR,BS EN 1995-1-1
+# ── Architectural fabric: WALLS, ROOFS, FLOORS, CEILINGS ────────────────────
+# Keyed on the TYPE name, never the family. Every wall in every project shares
+# the family name "Basic Wall", so a rule keyed on it would give them all one
+# code — Prod_GenerateRules skips system families for exactly this reason, and
+# ProdCodeDataTests fails any rule here that matches a bare family name.
+#
+# These reach a type only when its NAME says what it is. On the first real
+# model 4 of 11 wall/roof/floor type names did: CLAY BRICK, Curtain Wall,
+# Partition, coping. The other 7 ("Exterior_CreamWhite_230", "Generic - 225mm",
+# "stepsr 7") name a colour, a thickness or nothing, and no rule can rescue
+# them — that is a naming-standard problem, not a rule-coverage one.
+#
+# Most-specific-wins, so "Concrete Block Wall" resolves WBL (Concrete Block, 14)
+# rather than WRC, and a breeze-block CURTAIN panel resolves WCW (Curtain Wall,
+# 12) rather than WBL (Block, 5).
+WBK,Walls,*Brick*,Brick Masonry Wall,A,ARC,BS EN 1996-1-1
+WBL,Walls,*Blockwork*|*Block Wall*|*Concrete Block*|*Hollow Block*|*Solid Block*,Concrete Block Masonry Wall,A,ARC,BS EN 1996-1-1
+WSN,Walls,*Stone Wall*|*Rubble*|*Masonry Stone*,Stone Masonry Wall,A,ARC,BS EN 1996-1-1
+WRC,Walls,*RC Wall*|*Reinforced Concrete Wall*|*Shear Wall*|*Concrete Wall*,Reinforced Concrete Wall,S,STR,BS EN 1992-1-1
+WPT,Walls,*Partition*|*Stud*|*Drywall*|*Plasterboard Wall*,Framed / Stud Partition,A,ARC,BS 5234-2
+WCW,Walls,*Curtain Wall*|*Curtain Panel Wall*,Curtain Walling,A,ARC,BS EN 13830
+WCV,Walls,*Cavity*,Cavity Masonry Wall,A,ARC,BS EN 1996-1-1
+WPR,Walls,*Parapet*,Parapet Wall,A,ARC,BS 8000-3
+WCP,Walls,*Coping*,Wall Coping,A,ARC,BS 5642-2
+WBD,Walls,*Boundary Wall*|*Compound Wall*|*Perimeter Wall*|*Fence Wall*,Boundary / Compound Wall,A,ARC,none
+RWL,Walls,*Retaining*,Retaining Wall,S,STR,BS EN 1997-1
+RSH,Roofs,*Sheet*|*Corrugated*|*Profiled Metal*|*IT4*|*IT5*,Profiled Sheet Roof Covering,A,ARC,BS EN 508-1
+RTL,Roofs,*Roof Tile*|*Tiled Roof*|*Clay Tile*|*Concrete Tile*|*Shingle*,Tiled / Shingled Roof Covering,A,ARC,BS 5534
+RCS,Roofs,*Concrete Roof*|*RC Roof*|*Roof Slab*,Reinforced Concrete Roof Slab,S,STR,BS EN 1992-1-1
+RFL,Roofs,*Flat Roof*|*Built-Up Felt*|*Single Ply*|*Roof Membrane*,Flat Roof Membrane System,A,ARC,BS 8217
+RSG,Roofs,*Sloped Glazing*|*Rooflight*|*Skylight*,Rooflight / Sloped Glazing,A,ARC,BS 5516-2
+FGS,Floors,*Ground Slab*|*Ground Bearing*|*Slab on Grade*|*Oversite*,Ground-Bearing Floor Slab,S,STR,BS 8204-1
+FRB,Floors,*Ribbed Slab*|*Hollow Pot*|*Hollowpot*|*Waffle*|*Coffered*,Ribbed / Hollow-Pot Suspended Slab,S,STR,BS EN 1992-1-1
+FSC,Floors,*Screed*,Floor Screed,A,ARC,BS 8204-1
+FTM,Floors,*Timber Floor*|*Floor Joist*,Timber Suspended Floor,S,STR,BS EN 1995-1-1
+CSU,Ceilings,*Suspended Ceiling*|*Grid Ceiling*|*Lay-in*|*MF Ceiling*,Suspended Ceiling System,A,ARC,BS EN 13964
+CPB,Ceilings,*Plasterboard Ceiling*|*Gypsum Ceiling*|*Skim Ceiling*,Plasterboard Ceiling,A,ARC,BS 8212
+# ── Openings: DOORS + WINDOWS ───────────────────────────────────────────────
+# Leaf material and operation are what a door schedule and a BOQ price on.
+DRT,Doors,*Timber Door*|*Flush Door*|*Panel Door*|*Solid Core*|*Hollow Core*,Timber Leaf Door,A,ARC,BS EN 14351-2
+DRM,Doors,*Steel Door*|*Metal Door*|*Hollow Metal*|*Louvre Door*,Steel / Metal Door,A,ARC,BS EN 1634-1
+DRG,Doors,*Glazed Door*|*Glass Door*|*Frameless Door*,Glazed Door,A,ARC,BS EN 14351-1
+DRF,Doors,*Fire Door*|*FD30*|*FD60*|*FD90*|*FD120*,Fire-Rated Doorset,A,FP,BS 476-22
+DRS,Doors,*Sliding Door*|*Slider*|*Patio Door*,Sliding Door,A,ARC,BS EN 14351-1
+DRR,Doors,*Roller Shutter*|*Garage Door*|*Up and Over*,Roller Shutter / Garage Door,A,ARC,BS EN 13241
+DRA,Doors,*Aluminium Door*|*uPVC Door*|*PVCU Door*,Aluminium / uPVC Door,A,ARC,BS EN 14351-1
+DRO,Doors,*Revolving*|*Automatic Door*|*Swing Operator*,Automatic / Revolving Door,A,ARC,BS EN 16005
+WNA,Windows,*Aluminium Window*|*Alu Window*|*Aluminium Casement*,Aluminium Window,A,ARC,BS EN 14351-1
+WNU,Windows,*uPVC Window*|*PVCU Window*|*PVC-U Window*,uPVC Window,A,ARC,BS EN 12608
+WNT,Windows,*Timber Window*|*Hardwood Window*,Timber Window,A,ARC,BS 644
+WNS,Windows,*Steel Window*|*Louvre Window*|*Nako*,Steel / Louvre Window,A,ARC,BS 6510
+WNC,Windows,*Casement*,Casement Window,A,ARC,BS EN 14351-1
+WNW,Windows,*Awning*|*Top Hung*|*Top-Hung*,Awning / Top-Hung Window,A,ARC,BS EN 14351-1
+WNL,Windows,*Sliding Window*|*Horizontal Slider*,Sliding Window,A,ARC,BS EN 14351-1
+WNF,Windows,*Fixed Light*|*Fixed Window*|*Picture Window*,Fixed Light,A,ARC,BS EN 14351-1
+# ── Curtain walling components ──────────────────────────────────────────────
+CPG,Curtain Panels,*Glazed Panel*|*Glass Panel*|*Spandrel*,Glazed Curtain Panel,A,ARC,BS EN 13830
+CPS,Curtain Panels,*Louvre Panel*|*Solid Panel*|*Infill Panel*,Solid / Louvre Infill Panel,A,ARC,BS EN 13830
+SBP,Curtain Panels,*Breeze Block*|*Screen Block*|*Perforated Block*,Screen / Breeze Block Panel,A,ARC,BS EN 1996-1-1
+MLT,Curtain Wall Mullions,*Transom*,Curtain Wall Transom,A,ARC,BS EN 13830
+MLM,Curtain Wall Mullions,*Mullion*,Curtain Wall Mullion,A,ARC,BS EN 13830
+# ── Circulation: STAIRS, RAILINGS, RAMPS ────────────────────────────────────
+STRC,Stairs,*Concrete Stair*|*RC Stair*|*Cast-in-Place Stair*,Reinforced Concrete Stair,S,STR,BS EN 1992-1-1
+STRP,Stairs,*Precast Stair*,Precast Concrete Stair,S,STR,BS EN 13670
+STRS,Stairs,*Steel Stair*|*Metal Pan*,Steel Stair,S,STR,BS EN 1993-1-1
+STRT,Stairs,*Timber Stair*|*Wood Stair*,Timber Stair,S,STR,BS EN 1995-1-1
+RLS,Railings,*Stainless*|*SS Railing*,Stainless Steel Railing,A,ARC,BS EN 1090-1
+RLM,Railings,*Mild Steel*|*MS Railing*|*Steel Railing*|*Galvanised Railing*,Mild Steel Railing,A,ARC,BS EN 1090-1
+GBL,Railings,*Glass Railing*|*Glass Balustrade*|*Frameless Balustrade*,Glass Balustrade,A,ARC,BS 6180
+RLT,Railings,*Timber Railing*|*Timber Balustrade*,Timber Railing,A,ARC,BS 6180
+HRS,Handrails,*Stainless*,Stainless Steel Handrail,A,ARC,BS 8300-2
+HRM,Handrails,*Mild Steel*|*MS Handrail*|*Steel Handrail*,Mild Steel Handrail,A,ARC,BS 8300-2
+HRT,Handrails,*Timber Handrail*|*Hardwood Handrail*,Timber Handrail,A,ARC,BS 8300-2
+RMC,Ramps,*Concrete Ramp*|*RC Ramp*,Reinforced Concrete Ramp,S,STR,BS 8300-1
+# ── Roof edge + rainwater ───────────────────────────────────────────────────
+FSB,Fascia,*Timber Fascia*|*Barge Board*|*Bargeboard*,Timber Fascia / Barge Board,A,ARC,BS 8000-5
+FSM,Fascia,*Metal Fascia*|*Aluminium Fascia*|*PPC Fascia*,Metal Fascia,A,ARC,BS EN 508-1
+GTP,Gutter,*PVC Gutter*|*uPVC Gutter*|*Plastic Gutter*,uPVC Rainwater Gutter,P,SAN,BS EN 607
+GTM,Gutter,*Metal Gutter*|*Aluminium Gutter*|*Galvanised Gutter*|*Steel Gutter*,Metal Rainwater Gutter,P,SAN,BS EN 612
+SFT,Roof Soffits,*Timber Soffit*|*Ply Soffit*,Timber Soffit,A,ARC,BS 8000-5
+SFM,Roof Soffits,*Metal Soffit*|*PVC Soffit*|*uPVC Soffit*,Metal / uPVC Soffit,A,ARC,BS EN 14509
+# ── Structural: rebar family + framing accessories ──────────────────────────
+RBR,Structural Rebar,*Rebar*|*Reinforcement Bar*|*Y10*|*Y12*|*Y16*|*Y20*|*Y25*|*Y32*,Reinforcement Bar,S,STR,BS 4449
+RBM,Structural Fabric Reinforcement,*Mesh*|*Fabric*|*A142*|*A193*|*A252*|*A393*,Reinforcement Fabric / Mesh,S,STR,BS 4483
+RBC,Structural Rebar Couplers,*Coupler*,Rebar Coupler,S,STR,BS 8597
+TRU,Structural Trusses,*Truss*,Structural Truss,S,STR,BS EN 1993-1-1
+BSY,Structural Beam Systems,*Beam System*|*Joist System*,Structural Beam System,S,STR,BS EN 1993-1-1
+SCN,Structural Connections,*Connection*|*Base Plate*|*Splice*,Structural Connection,S,STR,BS EN 1993-1-8
+# ── MEP: the material IS the product for linear services ────────────────────
+PPV,Pipes,*uPVC*|*PVC-U*|*PVC Pipe*,uPVC Pipe,P,SAN,BS EN 1329-1
+PPR,Pipes,*PPR*|*PP-R*|*Polypropylene*,PPR Pressure Pipe,P,DCW,BS EN ISO 15874
+PCU,Pipes,*Copper Pipe*|*Copper Tube*,Copper Pipe,P,DCW,BS EN 1057
+PGI,Pipes,*Galvanised*|*Galvanized*|*GI Pipe*|*Mild Steel Pipe*,Galvanised Steel Pipe,P,DCW,BS EN 10255
+PPE,Pipes,*HDPE*|*MDPE*|*Polyethylene*,Polyethylene Pipe,P,DCW,BS EN 12201
+PCI,Pipes,*Cast Iron*|*Ductile Iron*,Cast / Ductile Iron Pipe,P,SAN,BS EN 877
+DGI,Ducts,*Galvanised Duct*|*GI Duct*|*Galvanised Steel Duct*,Galvanised Steel Duct,M,HVAC,BS EN 1505
+DPI,Ducts,*Pre-Insulated*|*Phenolic Duct*|*PIR Duct*,Pre-Insulated Duct,M,HVAC,BS EN 13403
+DFX,Ducts,*Flexible Duct*|*Flexi Duct*,Flexible Duct,M,HVAC,BS EN 13180
+CPV,Conduits,*PVC Conduit*|*uPVC Conduit*|*Plastic Conduit*,PVC Conduit,E,LV,BS EN 61386-21
+CGI,Conduits,*Galvanised Conduit*|*Steel Conduit*|*GI Conduit*,Steel Conduit,E,LV,BS EN 61386-21
+CTP,Cable Trays,*Perforated*,Perforated Cable Tray,E,LV,BS EN 61537
+CTL,Cable Trays,*Ladder*,Cable Ladder,E,LV,BS EN 61537
+CTS,Cable Trays,*Solid Bottom*|*Solid Tray*|*Trunking*,Solid-Bottom Tray / Trunking,E,LV,BS EN 61537
+# ── Plumbing equipment + electrical accessories ─────────────────────────────
+PEQT,Plumbing Equipment,*Water Tank*|*Storage Tank*|*Poly Tank*,Water Storage Tank,P,DCW,BS EN 13280
+PEQP,Plumbing Equipment,*Booster*|*Pressure Set*|*Water Pump*,Booster / Pressure Set,P,DCW,BS EN 806-2
+PEQS,Plumbing Equipment,*Septic*|*Soakaway*|*Biodigester*|*Bio-Digester*,Septic Tank / Soakaway,P,SAN,BS 6297
+PEQH,Plumbing Equipment,*Water Heater*|*Geyser*|*Calorifier*|*Solar Water*,Water Heater / Calorifier,P,HWS,BS EN 12897
+EFS,Electrical Fixtures,*Switch*|*Dimmer*,Wiring Accessory - Switch,E,LV,BS EN 60669
+EFP,Electrical Fixtures,*Socket*|*Outlet*|*Power Point*,Wiring Accessory - Socket Outlet,E,LV,BS 1363-2
 SLB,Floors,*Concrete Slab*|*RC Slab*,Reinforced Concrete Slab / Floor,S,STR,BS EN 1992-1-1
 PSB,Floors,*Post-Tension*|*PT Slab*,Post-Tensioned Concrete Slab,S,STR,BS EN 1992-1-5
 CFS,Floors,*Composite*|*Metal Deck*,Composite Metal Deck Floor Slab,S,STR,BS EN 1994-1-1
