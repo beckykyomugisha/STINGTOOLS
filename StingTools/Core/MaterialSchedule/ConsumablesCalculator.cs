@@ -68,10 +68,29 @@ namespace StingTools.Core.MaterialSchedule
         public readonly SortedSet<string> UnitMismatches =
             new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private static bool IsRoofCovering(string commodityKey) =>
-            !string.IsNullOrWhiteSpace(commodityKey)
-            && (commodityKey.Equals("roof-sheet", StringComparison.OrdinalIgnoreCase)
-             || commodityKey.Equals("roof-tile", StringComparison.OrdinalIgnoreCase));
+        /// <summary>The unit a driver is counted in. A quantity measured in
+        /// another dimension is never added to it.</summary>
+        internal static string UnitFor(string driver)
+        {
+            switch ((driver ?? "").Trim().ToLowerInvariant())
+            {
+                case "rebar_kg": return "kg";
+                default:         return "m2";
+            }
+        }
+
+        /// <summary>Add to a driver by name. An unknown name adds nothing —
+        /// the rule declaring it is reported by Validate, not healed here.</summary>
+        public void Add(string driver, double quantity)
+        {
+            switch ((driver ?? "").Trim().ToLowerInvariant())
+            {
+                case "walled_area_m2":   WalledAreaM2 += quantity; break;
+                case "rebar_kg":         RebarKg += quantity; break;
+                case "formwork_m2":      FormworkM2 += quantity; break;
+                case "roof_covering_m2": RoofCoveringM2 += quantity; break;
+            }
+        }
 
         public double Value(string driver)
         {
@@ -133,21 +152,28 @@ namespace StingTools.Core.MaterialSchedule
                     continue;
                 }
 
-                // The roof covering has no kind of its own — the supplier table
-                // matches it by category and type pattern.
+                // A covering has no kind of its own — the supplier table matches
+                // it by category, material or type pattern, and the RULE says
+                // which driver it feeds. Nothing here names a commodity.
                 if (units != null && string.IsNullOrEmpty(kind))
                 {
-                    var res = units.Resolve(r.ConstituentKind, r.Category, r.TypeName);
-                    if (res.Rule != null && IsRoofCovering(res.Rule.CommodityKey))
+                    var res = units.Resolve(r.ConstituentKind, r.Category, r.TypeName, r.MaterialName);
+                    if (res.Rule != null && !string.IsNullOrWhiteSpace(res.Rule.FeedsDriver))
                     {
-                        if (Is("m2")) d.RoofCoveringM2 += r.Quantity;
+                        if (Is(UnitFor(res.Rule.FeedsDriver))) d.Add(res.Rule.FeedsDriver, r.Quantity);
                         else d.UnitMismatches.Add($"{res.Rule.CommodityKey} in '{r.Unit}'");
                     }
-                    else if (res.Match == SupplierUnitMatch.CategoryTypeMismatch
-                             && IsRoofCovering(res.CandidateCommodityKey) && Is("m2"))
+                    else if (res.Match == SupplierUnitMatch.CategoryTypeMismatch)
                     {
-                        // A roof whose product is unknown. Measured, not usable.
-                        d.RoofCoveringUnattributedM2 += r.Quantity;
+                        // Measured, but the product is unknown, so the ratio for
+                        // it is unknown too. Tracked apart from the real driver
+                        // and never added to it.
+                        var candidate = units.ResolveByCommodityKey(res.CandidateCommodityKey);
+                        if (candidate != null
+                            && string.Equals(candidate.FeedsDriver, "roof_covering_m2",
+                                             StringComparison.OrdinalIgnoreCase)
+                            && Is("m2"))
+                            d.RoofCoveringUnattributedM2 += r.Quantity;
                     }
                 }
             }

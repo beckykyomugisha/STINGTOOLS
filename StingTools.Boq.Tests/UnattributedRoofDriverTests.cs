@@ -29,7 +29,11 @@ namespace StingTools.Boq.Tests
                 {
                     CommodityKey = "roof-sheet",
                     MatchCategories = new List<string> { "Roofs" },
-                    MatchTypePatterns = new List<string> { "IT4", "Corrugated" }
+                    MatchTypePatterns = new List<string> { "IT4", "Corrugated" },
+                    // Which commodities feed a driver is DATA now, not a
+                    // hardcoded key list in ConsumableDrivers. A rule that
+                    // declares nothing feeds nothing — which is the point.
+                    FeedsDriver = "roof_covering_m2"
                 }
             }
         };
