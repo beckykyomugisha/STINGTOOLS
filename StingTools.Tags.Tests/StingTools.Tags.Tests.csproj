@@ -115,6 +115,10 @@
          half that makes them safe on a delivered model - are provable. -->
     <Compile Include="..\StingTools\Core\Baseline\TypeRenamePlanner.cs" Link="Core\Baseline\TypeRenamePlanner.cs" />
     <Compile Include="..\StingTools\Core\Materials\MaterialClassPlanner.cs" Link="Core\Materials\MaterialClassPlanner.cs" />
+    <!-- The undo for a plan that was applied before the planner behind it was fixed.
+         Revit-free so its REFUSALS - not reverting a class a human changed since - are
+         provable without a host. -->
+    <Compile Include="..\StingTools\Core\Materials\MaterialClassRevertPlanner.cs" Link="Core\Materials\MaterialClassRevertPlanner.cs" />
     <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
          per-appointment override are provable without a Revit host. -->
     <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />

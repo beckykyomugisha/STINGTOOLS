@@ -1968,6 +1968,9 @@
                                 <Button Style="{StaticResource OrangeBtn}" Content="Set material Class (asks first)" Tag="Materials_SetClass" Click="Cmd_Click"
                                         ToolTip="Fills Revit's Material Class from the material name where it is blank. Class is the controlled field the embodied-carbon and BOQ cost engines read, so a material with none is answered by nothing at all. Never overwrites a class somebody chose, and never invents one for a name that says nothing."
                                         HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Undo a material Class plan (asks first)" Tag="Materials_RevertClassPlan" Click="Cmd_Click"
+                                        ToolTip="Puts back the classes a material_class_plan CSV set. Pick the plan file; it reverts ONLY where the material still carries what that plan proposed, so anything you have changed since is reported and left alone. Needed because Set material Class never overwrites an existing class - including one it set itself, which is why re-running it cannot repair a bad write."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 

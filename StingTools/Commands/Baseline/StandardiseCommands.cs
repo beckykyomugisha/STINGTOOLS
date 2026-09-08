@@ -323,5 +323,165 @@ namespace StingTools.Commands.Baseline
             try { return m?.MaterialClass ?? ""; }
             catch (Exception ex) { StingLog.WarnRateLimited("Std.MatCls", $"MaterialClass: {ex.Message}"); return ""; }
         }
+
+        /// <summary>The same guarded read, for the revert command next door.</summary>
+        internal static string ReadClassOf(Material m) => SafeClass(m);
+    }
+
+    /// <summary>
+    /// Materials_RevertClassPlan — put back the classes a material_class_plan set.
+    ///
+    /// Materials_SetClass never overwrites a class somebody already chose. That rule is
+    /// right, and on 2026-09-08 it is what left 41 wrong classes stuck in a delivered
+    /// model: once the tool had written them, the tool's own guard protected them, and
+    /// re-running the corrected planner changed nothing.
+    ///
+    /// So this reads the plan CSV that run wrote — the provenance of exactly what was set
+    /// and to what — and reverts only where the material still carries what that plan
+    /// proposed. Anything changed since belongs to whoever changed it and is reported,
+    /// not overwritten.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class RevertMaterialClassCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+                Document doc = ctx.Doc;
+
+                string startIn = null;
+                try { startIn = StingPaths.Meta(doc, "_BIM_COORD"); }
+                catch (Exception ex) { StingLog.Warn("Revert: coord folder: " + ex.Message); }
+
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Pick the material_class_plan CSV to undo",
+                    Filter = "Material class plan (material_class_plan_*.csv)|material_class_plan_*.csv"
+                           + "|CSV (*.csv)|*.csv",
+                    DefaultExt = ".csv",
+                };
+                if (!string.IsNullOrEmpty(startIn) && Directory.Exists(startIn)) dlg.InitialDirectory = startIn;
+                if (dlg.ShowDialog() != true) return Result.Cancelled;
+
+                var planRows = MaterialClassRevertPlanner.ReadPlan(
+                    File.ReadAllLines(dlg.FileName, Encoding.UTF8), out string readError);
+                if (readError != null)
+                {
+                    // A wrong file must say so. "0 to revert" would read as "already clean".
+                    TaskDialog.Show("Revert Material Class",
+                        $"Cannot read {Path.GetFileName(dlg.FileName)} — {readError}");
+                    return Result.Failed;
+                }
+
+                // Current class per material name. Duplicate names cannot be told apart by
+                // name alone, so the first wins and the rest are reported as ambiguous
+                // rather than reverted on a coin toss.
+                var current = new Dictionary<string, string>(StringComparer.Ordinal);
+                var ambiguous = new HashSet<string>(StringComparer.Ordinal);
+                var byName = new Dictionary<string, Material>(StringComparer.Ordinal);
+                foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material)).Cast<Material>())
+                {
+                    string n = m.Name ?? "";
+                    if (current.ContainsKey(n)) { ambiguous.Add(n); continue; }
+                    current[n] = SetMaterialClassCommand.ReadClassOf(m);
+                    byName[n] = m;
+                }
+
+                var ps = MaterialClassRevertPlanner.PlanAll(planRows, current);
+                var todo = ps.Where(x => x.WillRevert && !ambiguous.Contains(x.MaterialName)).ToList();
+
+                var rows = new List<string> { "Material,PlannedClass,CurrentClass,RestoreTo,WillRevert,Reason" };
+                foreach (var p in ps)
+                    rows.Add(string.Join(",", Standardise.Csv(p.MaterialName), Standardise.Csv(p.PlannedClass),
+                        Standardise.Csv(p.CurrentClass ?? "(not in model)"), Standardise.Csv(p.RestoreTo),
+                        p.WillRevert && !ambiguous.Contains(p.MaterialName) ? "yes" : "no",
+                        Standardise.Csv(ambiguous.Contains(p.MaterialName)
+                            ? "more than one material has this name — cannot tell them apart" : p.Reason)));
+                string path = Standardise.Write(doc, "material_class_revert", rows);
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Plan read: " + Path.GetFileName(dlg.FileName));
+                sb.AppendLine();
+                sb.AppendLine(MaterialClassRevertPlanner.Summary(ps));
+                if (ambiguous.Count > 0)
+                    sb.AppendLine($"{ambiguous.Count} name(s) belong to more than one material and are "
+                                + "left alone — they cannot be told apart by name.");
+                foreach (var p in todo.Take(12))
+                    sb.AppendLine($"  {p.MaterialName}  {p.PlannedClass}  →  "
+                                + (p.RestoreTo.Length == 0 ? "(no class)" : p.RestoreTo));
+                if (todo.Count > 12) sb.AppendLine($"  … and {todo.Count - 12} more, in the CSV");
+                if (path != null) { sb.AppendLine(); sb.AppendLine("Revert plan: " + path); }
+
+                if (todo.Count == 0)
+                {
+                    TaskDialog.Show("Revert Material Class", sb.ToString());
+                    return Result.Succeeded;
+                }
+
+                var td = new TaskDialog("Revert Material Class")
+                {
+                    MainInstruction = $"{todo.Count} material(s) will go back to how the plan found them",
+                    MainContent = sb.ToString() + Environment.NewLine + "Apply?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+                int done = 0; var failed = new List<string>();
+                using (var t = new Transaction(doc, "STING Revert Material Class"))
+                {
+                    t.Start();
+                    foreach (var p in todo)
+                    {
+                        if (!byName.TryGetValue(p.MaterialName, out Material m) || m == null)
+                        { failed.Add($"{p.MaterialName} — no longer present"); continue; }
+
+                        // Revit spells "no class" two ways and which one the API accepts is
+                        // a version question this code cannot answer for itself. Try the
+                        // value the plan recorded, then the other spelling, then give up
+                        // NOISILY — a swallowed failure here looks exactly like a success.
+                        if (TrySetClass(m, p.RestoreTo, out string e1)) { done++; continue; }
+                        string alt = p.RestoreTo.Length == 0 ? "Unassigned" : "";
+                        if (TrySetClass(m, alt, out string e2)) { done++; continue; }
+                        failed.Add($"{p.MaterialName} — {e1}; and as '{Describe(alt)}': {e2}");
+                    }
+                    t.Commit();
+                }
+
+                var res = new StringBuilder($"Reverted {done} of {todo.Count} material(s).");
+                if (failed.Count > 0)
+                {
+                    res.AppendLine().AppendLine().AppendLine("Not reverted:");
+                    foreach (string f in failed.Take(10)) res.AppendLine("  " + f);
+                    if (failed.Count > 10) res.AppendLine($"  … and {failed.Count - 10} more, in the log");
+                }
+                if (path != null) { res.AppendLine().AppendLine("Revert plan: " + path); }
+                TaskDialog.Show("Revert Material Class", res.ToString());
+                StingLog.Info($"Materials_RevertClassPlan: {done}/{todo.Count} reverted, "
+                            + $"{failed.Count} failed, from {dlg.FileName} -> {path}");
+                foreach (string f in failed) StingLog.Warn("Materials_RevertClassPlan: " + f);
+                return Result.Succeeded;
+            }
+            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (Exception ex)
+            {
+                StingLog.Error("Materials_RevertClassPlan", ex);
+                message = ex.Message;
+                return Result.Failed;
+            }
+        }
+
+        private static bool TrySetClass(Material m, string value, out string error)
+        {
+            error = null;
+            try { m.MaterialClass = value; return true; }
+            catch (Exception ex) { error = ex.Message; return false; }
+        }
+
+        private static string Describe(string cls) => cls.Length == 0 ? "(blank)" : cls;
     }
 }

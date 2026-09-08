@@ -796,6 +796,10 @@ namespace StingTools.UI
                     case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
                     case "Baseline_RenameTypes": RunCommand<Commands.Baseline.RenameTypesToStandardCommand>(app); break;
                     case "Materials_SetClass":   RunCommand<Commands.Baseline.SetMaterialClassCommand>(app); break;
+                    // The undo for the one above. Set material Class will not overwrite an
+                    // existing class - including one it wrote itself - so a bad write cannot
+                    // be repaired by re-running it.
+                    case "Materials_RevertClassPlan": RunCommand<Commands.Baseline.RevertMaterialClassCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 
