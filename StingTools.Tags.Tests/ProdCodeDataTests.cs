@@ -274,6 +274,50 @@ namespace StingTools.Tags.Tests
         }
 
         // ══════════════════════════════════════════════════════════════════════
+        //  1c. A generic default must not wear a specific product's name
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// The category default is the LAST RESORT — "no rule matched". So it must not
+        /// be a code that a family-specific rule also issues, or the generic and the
+        /// specific become indistinguishable in the output.
+        ///
+        /// <para>Two shipped defaults did exactly that: Electrical Equipment defaulted
+        /// to <c>DB</c> (distribution board) and Mechanical Equipment to <c>AHU</c> (air
+        /// handling unit), while every other default names its CATEGORY — Doors→DR,
+        /// Walls→WL, Furniture→FUR, Plumbing Equipment→PEQ. A Bosch built-in appliance
+        /// therefore read as a distribution board, confidently, in a tag nobody
+        /// re-reads. They are now EEQ and MEQ, following the file's own PEQ precedent,
+        /// and the DB / AHU rules still fire for real boards and real AHUs.</para>
+        ///
+        /// <para>The map itself lives on the Revit-bound TagConfig, so what is asserted
+        /// here is the half that can be: the two generic codes are issued by NO rule,
+        /// and the two they replaced ARE — which is what made them wrong.</para>
+        /// </summary>
+        [Theory]
+        [InlineData("EEQ")]
+        [InlineData("MEQ")]
+        public void A_Generic_Category_Default_Is_Issued_By_No_Specific_Rule(string generic)
+        {
+            var owners = ProdRows().Where(r => r.Code == generic).Select(r => r.ToString()).ToList();
+            Assert.True(owners.Count == 0,
+                $"'{generic}' is a CATEGORY DEFAULT — the code for 'no rule matched'. A specific "
+                + "rule issuing it too makes the two indistinguishable: " + string.Join("; ", owners));
+        }
+
+        [Theory]
+        [InlineData("DB", "Electrical Equipment")]
+        [InlineData("AHU", "Mechanical Equipment")]
+        public void And_The_Codes_They_Replaced_Really_Were_Specific_Products(string code, string category)
+        {
+            // Without this the test above asserts a distinction that may not exist. These
+            // two are named by real rules, which is precisely why using them as the
+            // catch-all was a confident wrong answer rather than a vague one.
+            Assert.Contains(ProdRows(),
+                r => r.Code == code && string.Equals(r.Category, category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
         //  2. One code, one discipline
         // ══════════════════════════════════════════════════════════════════════
 

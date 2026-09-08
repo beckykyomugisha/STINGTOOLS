@@ -30,6 +30,8 @@
   "notAProductCategories": [
     "Rooms",
     "Spaces",
+    "Toposolid",
+    "Topography",
     "Areas",
     "Detail Items",
     "Lines",
@@ -56,5 +58,23 @@
   "protectedCategories": [
     "Doors",
     "Windows"
+  ],
+
+  "_families_comment": [
+    "EXACT family names that are never products. Exact, so unlike a pattern it",
+    "cannot misfire — and therefore allowed to override protectedCategories.",
+    "",
+    "Window-Square Opening is Revit's stock wall-void family: it sits in the",
+    "Windows category, which is protected, so the 'opening' PATTERN cannot touch",
+    "it and should not be able to. Naming the family in full is a different act —",
+    "somebody looked at it and said what it is.",
+    "",
+    "Keep this list to families that ship with Revit or a shared library. A family",
+    "that exists in one project (a supplier's entourage car, say) belongs in that",
+    "project's _data/coord/prod_exclusions.json, not here."
+  ],
+
+  "notAProductFamilies": [
+    "Window-Square Opening"
   ]
 }

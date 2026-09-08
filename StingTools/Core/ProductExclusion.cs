@@ -45,6 +45,10 @@ namespace StingTools.Core
         /// <summary>Legitimate category, but this instance is not a thing —
         /// an opening, a muntin pattern, a filled region.</summary>
         ByPattern,
+
+        /// <summary>Named outright, by exact family name. Unlike a pattern this
+        /// cannot misfire, so it overrides a protected category.</summary>
+        ByFamily,
     }
 
     /// <summary>
@@ -56,17 +60,24 @@ namespace StingTools.Core
         private readonly HashSet<string> _categories;
         private readonly HashSet<string> _protected;
         private readonly List<string> _patterns;
+        private readonly HashSet<string> _families;
 
         /// <summary>Nothing is excluded. The correct default: a policy that
         /// silently removes rows nobody asked it to remove is worse than none.</summary>
         public static readonly ProductExclusion None =
-            new ProductExclusion(null, null, null);
+            new ProductExclusion(null, null, null, null);
 
         private ProductExclusion(
             IEnumerable<string> categories,
             IEnumerable<string> patterns,
-            IEnumerable<string> protectedCategories)
+            IEnumerable<string> protectedCategories,
+            IEnumerable<string> families)
         {
+            _families = new HashSet<string>(
+                (families ?? Enumerable.Empty<string>())
+                    .Where(f => !string.IsNullOrWhiteSpace(f)).Select(f => f.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
             _categories = new HashSet<string>(
                 (categories ?? Enumerable.Empty<string>())
                     .Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()),
@@ -86,12 +97,14 @@ namespace StingTools.Core
         public static ProductExclusion Build(
             IEnumerable<string> excludedCategories,
             IEnumerable<string> excludedDescriptionPatterns,
-            IEnumerable<string> protectedCategories)
-            => new ProductExclusion(excludedCategories, excludedDescriptionPatterns, protectedCategories);
+            IEnumerable<string> protectedCategories,
+            IEnumerable<string> excludedFamilies = null)
+            => new ProductExclusion(excludedCategories, excludedDescriptionPatterns,
+                                    protectedCategories, excludedFamilies);
 
         /// <summary>True when this policy would exclude nothing, so a caller can
         /// say "no exclusions applied" rather than reporting a silent zero.</summary>
-        public bool IsEmpty => _categories.Count == 0 && _patterns.Count == 0;
+        public bool IsEmpty => _categories.Count == 0 && _patterns.Count == 0 && _families.Count == 0;
 
         public int CategoryCount => _categories.Count;
         public int PatternCount => _patterns.Count;
@@ -107,6 +120,19 @@ namespace StingTools.Core
 
             if (cat.Length > 0 && _categories.Contains(cat))
                 return ExclusionVerdict.ByCategory;
+
+            // An EXACT family name, checked before the protected-category guard and
+            // able to override it.
+            //
+            // The guard exists because a fuzzy substring written for one thing matched
+            // another — a pattern for Generic Models voids ate a real window type. An
+            // exact name cannot do that: "Window-Square Opening" is Revit's stock
+            // wall-void family, named in full by somebody who looked at it, and there is
+            // no other family it could accidentally be. Deliberate identity outranks a
+            // guard built to catch accidents; a substring never does.
+            if (_families.Count > 0 && !string.IsNullOrWhiteSpace(description)
+                && _families.Contains(description.Trim()))
+                return ExclusionVerdict.ByFamily;
 
             if (_patterns.Count == 0) return ExclusionVerdict.Included;
 
