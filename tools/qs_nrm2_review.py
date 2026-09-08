@@ -22,9 +22,16 @@ transcribed wrong.
 
 WHAT --apply WILL AND WILL NOT DO
   * It writes ONLY rows whose QS_VERDICT says change, and only when QS_NRM2 differs.
-  * It refuses an NRM2 code that appears nowhere else in the map. A typo produces a
-    section that silently collects nothing, which is the failure this file keeps
-    finding; better to reject it and say so.
+  * It refuses a code that GuessSectionName (BOQCostManager.cs) does not name. That
+    function turns the integer into the heading printed on the bill, so a code it
+    does not know prints the raw Revit category and the section silently collects
+    nothing. The test used to be "does another row already use it", which made a
+    defined-but-unused section unwritable -- codes 3 and 31 were correct, defined,
+    and unreachable, because the only way to satisfy the refusal was the apply it
+    was blocking.
+  * It applies the rows it CAN and names the rows it cannot, exiting non-zero. It
+    used to write nothing at all if any row refused, which meant a review holding
+    even one unanswerable row could never land any of its answers.
   * It matches on the row id AND re-checks the category and section still agree, so a
     stale sheet fails loudly instead of writing to whatever row moved into that slot.
   * It is idempotent: applying the same reviewed sheet twice changes nothing the
@@ -38,10 +45,14 @@ import argparse
 import csv
 import io
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MAP = ROOT / 'StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv'
+# The work-section vocabulary. GuessSectionName here turns the Nrm2 integer into the
+# heading printed on the bill, so it decides what codes exist -- see vocabulary().
+SECTION_NAMES = ROOT / 'StingTools/BOQ/BOQCostManager.cs'
 SHEET = ROOT / 'docs/qs_review/nrm2_site_civil_review.csv'
 
 # The divisions the map header flags as wanting a QS's eye. A parameter rather than a
@@ -77,9 +88,49 @@ def division(section):
     return s.split(' ', 1)[0] if s else ''
 
 
-def known_nrm2_codes(rows):
-    """Every NRM2 code the map already uses. An answer outside this set is far more
-    likely a typo than a section this project has never billed under."""
+def vocabulary():
+    """Every work-section code this project HAS, parsed from the authority.
+
+    `GuessSectionName` in BOQCostManager.cs turns the integer into the heading a
+    reader sees on the bill, so it -- not the map -- decides what a real section is.
+    A code it does not know prints as the raw Revit category instead.
+
+    This check used to be "does the code appear on another row of the map", which
+    made a defined-but-unused section unwritable: the refusal told you to "add it to
+    a row that already bills under it first", and the only way to do that was the
+    apply this refusal was blocking. Codes 3 (Groundworks) and 31 (Drainage below
+    ground) sat in that trap -- correct, defined, and unreachable.
+
+    Usage is still the wrong test in the other direction too: a code becoming unused
+    (the last row carrying it gets re-classified) would silently make it unwritable
+    again.
+
+    Parsing C# from Python is a real coupling, so it fails LOUDLY. If the function
+    is renamed or restructured this exits rather than falling back to the old
+    usage-based set -- a quiet fallback here would re-introduce the trap and look
+    like the tool working.
+    """
+    if not SECTION_NAMES.exists():
+        sys.exit('cannot find %s -- the work-section vocabulary lives in its '
+                 'GuessSectionName' % SECTION_NAMES)
+    src = io.open(SECTION_NAMES, encoding='utf-8', errors='replace').read()
+    block = re.search(r'GuessSectionName\s*\([^)]*\)\s*\{(.*?)\n        \}', src, re.S)
+    if not block:
+        sys.exit('could not find GuessSectionName in %s. It is the source of truth for\n'
+                 'what a work-section code means; if it moved or was renamed, update\n'
+                 'SECTION_NAMES / this parse rather than guessing from map usage.'
+                 % SECTION_NAMES.relative_to(ROOT))
+    codes = dict(re.findall(r'case\s+"(\d+)"\s*:\s*return\s+"([^"]+)"\s*;', block.group(1)))
+    if not codes:
+        sys.exit('GuessSectionName parsed but yielded no `case "N": return "..."` codes '
+                 'in %s -- the switch shape changed.' % SECTION_NAMES.relative_to(ROOT))
+    return codes
+
+
+def codes_used(rows):
+    """Every code the map actually carries. Only used to report the reverse defect:
+    a code billed on a row that the vocabulary does not name prints as the raw
+    category, so the bill silently loses its heading."""
     return {f[6].strip() for _i, f in rows if len(f) >= 7 and f[6].strip()}
 
 
@@ -131,7 +182,8 @@ def cmd_apply(dry_run):
 
     raw, _h, rows = read_map()
     by_n = {n: (i, f) for n, (i, f) in enumerate(rows, start=1)}
-    known = known_nrm2_codes(rows)
+    known = vocabulary()
+    orphaned = sorted(codes_used(rows) - set(known), key=lambda c: (len(c), c))
 
     with io.open(SHEET, encoding='utf-8-sig', newline='') as fh:
         review = list(csv.DictReader(fh))
@@ -169,31 +221,35 @@ def cmd_apply(dry_run):
             agreed += 1   # marked change, gave the same code back
             continue
         if new not in known:
-            problems.append('row %s (%s / %s): NRM2 %r appears nowhere else in the map. If it is '
-                            'genuinely a new work section, add it to a row that already bills under '
-                            'it first, so a typo cannot create a section that collects nothing.'
-                            % (rid, f[0], f[4], new))
+            problems.append('row %s (%s / %s): %r is not a work section this project has. '
+                            'GuessSectionName in %s knows %s. A code it does not know prints '
+                            'the raw category instead of a heading, so the section silently '
+                            'collects nothing -- add it there first if it is genuinely new.'
+                            % (rid, f[0], f[4], new, SECTION_NAMES.name,
+                               ', '.join(sorted(known, key=int))))
             continue
         changes.append((i, f, new))
 
     for p in problems:
         print('REFUSED  ' + p)
+    if orphaned:
+        print('WARNING  the map bills under %s, which GuessSectionName does not name -- '
+              'those rows print the raw Revit category instead of a section heading.'
+              % ', '.join(orphaned))
     print()
     print('reviewed rows   : %d agreed, %d to change, %d refused, %d still unreviewed'
           % (agreed, len(changes), len(problems), unreviewed))
 
-    if problems:
-        print('\nNothing written -- fix the refusals above and re-run.')
-        return 1
     if not changes:
-        print('Nothing to apply.')
-        return 0
+        print('\nNothing to apply.' if not problems
+              else '\nNothing written -- every row for change was refused.')
+        return 1 if problems else 0
 
     for i, f, new in changes:
         print('  %-26s %-12s %s -> %s' % (f[0], f[4], f[6].strip(), new))
     if dry_run:
         print('\n--dry-run: nothing written.')
-        return 0
+        return 1 if problems else 0
 
     for i, f, new in changes:
         parts = raw[i].split(',', 8)
@@ -201,8 +257,19 @@ def cmd_apply(dry_run):
         raw[i] = ','.join(parts)
     io.open(MAP, 'w', encoding='utf-8', newline='\n').write('\n'.join(raw) + '\n')
     print('\napplied %d change(s) to %s' % (len(changes), MAP.relative_to(ROOT)))
+
+    # A refused row is a row still carrying its ORIGINAL code, which is exactly the
+    # code the review says is wrong. Previously any refusal blocked the whole apply,
+    # which made the tool unusable on a real review: a review normally has rows that
+    # cannot be answered yet, and holding the answerable ones hostage to them meant
+    # nothing ever landed. Rows are independent -- there is no cross-row invariant to
+    # protect -- so the answerable ones apply and the rest are named. The non-zero
+    # exit keeps a partial apply from reading as a finished one.
+    if problems:
+        print('%d row(s) were REFUSED and still carry the code the review rejects. '
+              'They are listed above.' % len(problems))
     print('Re-run --export so the sheet shows the new current values.')
-    return 0
+    return 1 if problems else 0
 
 
 def main():

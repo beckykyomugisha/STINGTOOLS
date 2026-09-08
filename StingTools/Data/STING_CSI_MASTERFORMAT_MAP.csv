@@ -263,10 +263,10 @@ Structural Columns,,,,06 17 00,Shop-Fabricated Structural Wood,16,,(?i)glulam|gl
 Structural Columns,,,,06 11 00,Wood Framing,16,,(?i)wood|timber|lumber|softwood|hardwood
 Structural Columns,,,,05 12 00,Structural Steel Framing,15,,(?i)steel|metal|\bCHS\b|\bSHS\b|\bRHS\b|iron
 Structural Columns,,,,03 30 00,Cast-in-Place Concrete,5,
-Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,5,m
+Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,4,m
 Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning,4,
-Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,
-Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,,(?i)precast|pre-cast
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,4,
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,4,,(?i)precast|pre-cast
 # Structural Foundations - MATERIAL ROWS. Deliberately only TWO: a concrete row would
 # restate the bare-category fallback below (same section, same NRM2) and a steel row
 # would outscore the sheet-pile shoring work result for no gain. That leaves PRECAST
@@ -298,10 +298,10 @@ Generic Models,(?i)elevator|\blift\b,,,14 20 00,Elevators,33,
 Mechanical Equipment,(?i)elevator|\blift\b,,,14 20 00,Elevators,33,
 #
 # ── Division 31 — Earthwork (A2 Civil) ───────────────────────────────────────
-Topography,,,,31 20 00,Earth Moving,4,m3
-Toposolid,,,,31 20 00,Earth Moving,4,m3
-Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,4,
-Pads,,,,31 23 00,Excavation and Fill,4,m3
+Topography,,,,31 20 00,Earth Moving,3,m3
+Toposolid,,,,31 20 00,Earth Moving,3,m3
+Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,3,
+Pads,,,,31 23 00,Excavation and Fill,3,m3
 Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,4,
 #
 # ── Division 32 — Exterior Improvements (A2 Civil + A1 Site/Landscape) ───────
@@ -311,16 +311,16 @@ Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,4,
 Parking,,,,32 12 16,Asphalt Paving,4,
 Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,4,m2
 Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,4,m
-Walls,,(?i)retaining,,32 32 00,Retaining Walls,4,m2
+Walls,,(?i)retaining,,32 32 00,Retaining Walls,14,m2
 Generic Models,(?i)fence|gate|balustrade,,,32 31 00,Fences and Gates,4,m
-Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,4,
+Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,22,
 Site,,,,32 30 00,Site Improvements,4,
 Entourage,,,,32 30 00,Site Improvements,4,
 Planting,(?i)tree,,,32 93 43,Trees,4,
 Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,4,m2
 Planting,,,,32 93 00,Plants,4,
-Pipes,,,IRR,32 84 00,Planting Irrigation,4,m
-Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,4,m
+Pipes,,,IRR,32 84 00,Planting Irrigation,32,m
+Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,32,m
 #
 # ── Division 33 — Utilities (A2 Civil) ───────────────────────────────────────
 # Site runs are separated from in-building services by a TypeRegex on the pipe /
@@ -328,15 +328,15 @@ Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,4,m
 # scores above the plain SYS rows in Divisions 22/23/26 so the site utility wins.
 Pipes,,(?i)site|external|buried|underground,DCW,33 11 00,Water Utility Distribution Piping,32,m
 Pipes,,(?i)site|external|buried|underground,GAS,33 51 00,Natural-Gas Distribution,33,m
-Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping,32,m
-Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping,32,m
-Pipes,,,SDS,33 46 00,Subdrainage,32,m
+Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping,31,m
+Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping,31,m
+Pipes,,,SDS,33 46 00,Subdrainage,31,m
 Conduits,,(?i)site|external|buried|underground,,33 71 00,Electrical Utility Transmission and Distribution,34,m
-Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures,32,
-Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains,32,
-Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,32,
+Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures,31,
+Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains,31,
+Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,31,
 Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,32,
-Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,32,
+Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,31,
 
 # ---------------------------------------------------------------------------
 # APPENDED, NOT INSERTED. tools/qs_nrm2_review.py keys its review sheet on the row's
