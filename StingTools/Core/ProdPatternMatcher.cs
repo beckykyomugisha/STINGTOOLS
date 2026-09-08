@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using StingTools.Core.MaterialSchedule;
 
 namespace StingTools.Core
 {
@@ -21,7 +22,7 @@ namespace StingTools.Core
     ///
     /// Supported pattern forms (all matched against an already-upper-cased
     /// family+type name):
-    ///   • plain substring            "AIR HANDLING"            → Contains
+    ///   • plain substring            "AIR HANDLING"            → word-bounded Contains
     ///   • leading/trailing wildcard  "*FCU*" / "FCU*" / "*FCU" → glob
     ///   • embedded wildcard          "VRV*UNIT"                → glob
     ///   • single-char wildcard       "DN2?"                    → glob (? = any one char)
@@ -51,7 +52,7 @@ namespace StingTools.Core
             for (int i = 0; i < alts.Length; i++)
             {
                 Alt a = alts[i];
-                if (a.Sub != null) { if (nameUpper.Contains(a.Sub)) return true; }
+                if (a.Sub != null) { if (PatternMatch.Contains(nameUpper, a.Sub)) return true; }
                 else if (a.Rx != null && a.Rx.IsMatch(nameUpper)) return true;
             }
             return false;
@@ -86,7 +87,7 @@ namespace StingTools.Core
             {
                 Alt a = alts[i];
                 bool hit = a.Sub != null
-                    ? nameUpper.Contains(a.Sub)
+                    ? PatternMatch.Contains(nameUpper, a.Sub)
                     : (a.Rx != null && a.Rx.IsMatch(nameUpper));
                 if (hit && a.Weight > best) best = a.Weight;
             }
@@ -108,7 +109,12 @@ namespace StingTools.Core
 
                 if (alt.IndexOfAny(GlobChars) < 0)
                 {
-                    list.Add(new Alt { Sub = alt, Weight = weight }); // bare substring — fast path
+                    // Bare substring - no glob to compile. Matched WORD-BOUNDED via
+                    // PatternMatch.Contains, not String.Contains: an unanchored
+                    // Contains lets a short pattern match inside a longer word
+                    // ("PUMP" in "PUMPHOUSE", "RC" in "PORCELAIN"), which produces a
+                    // confident wrong PROD code and no error. PROD-4.
+                    list.Add(new Alt { Sub = alt, Weight = weight });
                     continue;
                 }
 

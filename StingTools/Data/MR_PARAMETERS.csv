@@ -1,4 +1,4 @@
-# v6.8 | 20260907 | 3598 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3598 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -67,12 +67,12 @@ Generic Models,BLE_FLR_LD_CAP_KPA,c9176e37-501e-5f2a-b4b4-0b66a37f88b5,NUMBER,CS
 Generic Models,BLE_FLR_SLIP_RESISTANCE_RATING_NR,8587af48-41e4-551b-b127-47fbfba712da,TEXT,CST_PROC,Type,Ble Flr Slip Resistance Rating Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_STRUCTURAL_SYSTEM_TXT,6fd7e2d6-1471-58dd-9226-6424a5ca3072,TEXT,CST_PROC,Type,Ble Flr Structural System Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_FLR_THICKNESS_MM,4e849c26-5bfe-5ca2-bb5a-aa39e03e31bb,LENGTH,CST_PROC,Type,Ble Flr Thickness Mm [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_SYSTEM_TXT,51ab0001-5c0d-5eab-9a01-000000000001,TEXT,CST_PROC,Type,MAT-4 slab system: Solid/Ribbed/Waffle/HollowPot/Maxspan/BeamBlock [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_RIB_WIDTH_MM,51ab0002-5c0d-5eab-9a01-000000000002,TEXT,CST_PROC,Type,MAT-4 slab rib width (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_RIB_SPACING_MM,51ab0003-5c0d-5eab-9a01-000000000003,TEXT,CST_PROC,Type,MAT-4 slab rib spacing centre-to-centre (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_RIB_DEPTH_MM,51ab0004-5c0d-5eab-9a01-000000000004,TEXT,CST_PROC,Type,MAT-4 slab rib depth below topping (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_TOPPING_MM,51ab0005-5c0d-5eab-9a01-000000000005,TEXT,CST_PROC,Type,MAT-4 slab structural topping thickness (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
-Generic Models,BLE_SLAB_BLOCK_SIZE_TXT,51ab0006-5c0d-5eab-9a01-000000000006,TEXT,CST_PROC,Type,MAT-4 slab infill block/pot size LxW (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_SYSTEM_TXT,51ab0001-5c0d-5eab-9a01-000000000001,TEXT,BLE_ELES,Type,MAT-4 slab system: Solid/Ribbed/Waffle/HollowPot/Maxspan/BeamBlock [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_WIDTH_MM,51ab0002-5c0d-5eab-9a01-000000000002,TEXT,BLE_ELES,Type,MAT-4 slab rib width (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_SPACING_MM,51ab0003-5c0d-5eab-9a01-000000000003,TEXT,BLE_ELES,Type,MAT-4 slab rib spacing centre-to-centre (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_RIB_DEPTH_MM,51ab0004-5c0d-5eab-9a01-000000000004,TEXT,BLE_ELES,Type,MAT-4 slab rib depth below topping (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_TOPPING_MM,51ab0005-5c0d-5eab-9a01-000000000005,TEXT,BLE_ELES,Type,MAT-4 slab structural topping thickness (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
+Generic Models,BLE_SLAB_BLOCK_SIZE_TXT,51ab0006-5c0d-5eab-9a01-000000000006,TEXT,BLE_ELES,Type,MAT-4 slab infill block/pot size LxW (mm) [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,BLE_FURNITURE_FINISH_TXT,f24d7043-d3ff-4e0b-a87f-80262eacfa89,TEXT,CST_PROC,Type,Furniture surface finish specification [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_HEADROOM_MM,ad4e4145-628a-4bd4-b622-79c2aa300d41,LENGTH,CST_PROC,Type,General headroom clearance in mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BLE_MULLION_DEPTH_MM,16606b2b-a814-4599-a295-8fb7e35e73da,TEXT,CST_PROC,Type,Curtain wall mullion depth in mm [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -2343,12 +2343,12 @@ Sheets,SHT_LEVEL_TXT,db60894e-8e07-5aff-bcdb-bdaebaceac89,TEXT,PRJ_INFORMATION,I
 Sheets,SHT_REV_TXT,7542b276-3ab7-5b55-8154-830bd6f20b76,TEXT,PRJ_INFORMATION,Instance,Sheet revision code from project revision [ISO 19650-2:2018],False,,,MULTI,0,0
 Sheets,SHT_TAG_1_TXT,73019587-020b-5860-bcb1-3dcadeb6f3ac,TEXT,PRJ_INFORMATION,Instance,Sheet ISO 19650 document code assembled from tokens [ISO 19650-2:2018],False,,,MULTI,0,0
 Sheets,SHT_TAG_7_TXT,a06370b5-d989-533c-b7af-09ba545790fb,TEXT,PRJ_INFORMATION,Instance,Sheet rich narrative description [ISO 19650-2:2018],False,,,MULTI,0,0
-Generic Models,WARN_SHT_DISC_MISSING,28d4ba6f-2217-5951-9c85-852446b07cd0,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline code missing [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_MULTI_DISC_MEP,404da214-e745-560b-a0ee-184ff5356aa3,TEXT,WARN_THRESHOLDS,Type,Warning: sheet contains multiple MEP disciplines [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NAMING_ARCH,bb241f6b-869c-5a5c-81d1-517e05f59f6a,TEXT,WARN_THRESHOLDS,Type,Warning: architectural sheet naming non-compliant [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NAMING_STR,ce2a3aba-950d-5a00-b0bd-3691ae912df7,TEXT,WARN_THRESHOLDS,Type,Warning: structural sheet naming non-compliant [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_REV_MISSING,9d229c53-3e50-580f-8fb2-e9f953255be7,TEXT,WARN_THRESHOLDS,Type,Warning: sheet revision information missing [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_TAG1_EMPTY,99dfa464-1361-5041-bcfc-f042aa64dd74,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) is empty [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_DISC_MISSING,28d4ba6f-2217-5951-9c85-852446b07cd0,TEXT,RGL_CMPL,Type,Warning: sheet discipline code missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_MULTI_DISC_MEP,404da214-e745-560b-a0ee-184ff5356aa3,TEXT,RGL_CMPL,Type,Warning: sheet contains multiple MEP disciplines [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NAMING_ARCH,bb241f6b-869c-5a5c-81d1-517e05f59f6a,TEXT,RGL_CMPL,Type,Warning: architectural sheet naming non-compliant [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NAMING_STR,ce2a3aba-950d-5a00-b0bd-3691ae912df7,TEXT,RGL_CMPL,Type,Warning: structural sheet naming non-compliant [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_REV_MISSING,9d229c53-3e50-580f-8fb2-e9f953255be7,TEXT,RGL_CMPL,Type,Warning: sheet revision information missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_TAG1_EMPTY,99dfa464-1361-5041-bcfc-f042aa64dd74,TEXT,RGL_CMPL,Type,Warning: sheet primary tag (TAG1) is empty [ISO 19650],False,,,MULTI,1,0
 Generic Models,SLV_REF_TXT,a32226dd-518c-5158-b3c7-aa3df7ac0b43,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve reference code,False,,,MULTI,1,1
 Generic Models,SLV_SZ_MM,ed2365b1-c559-573e-a9ae-c8554db2572b,LENGTH,SLV_SLEEVE_PARAMS,Instance,Sleeve size in millimetres,False,,,MULTI,1,1
 Generic Models,SLV_MAT_TXT,9b6071cf-8b10-574c-b40e-2dfbfc60b8d9,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve material (steel/PVC/cast iron),False,,,MULTI,1,1
@@ -2381,24 +2381,24 @@ Generic Models,BLE_MATERIAL_TXT,6a532cfc-c412-5f81-9b93-5c7e4d0ac31a,TEXT,BLE_EL
 Generic Models,SLV_TAG_7_PARA_TXT,4529fc89-90fb-56f9-955a-2d54998a294c,TEXT,SLV_SLEEVE_PARAMS,Instance,Sleeve paragraph container [ISO 19650-3:2020],False,,,MULTI,1,1
 Generic Models,SLV_TAG,fa93b8a1-3383-5c1f-8935-0dadba420f50,TEXT,SLV_SLEEVE_PARAMS,Instance,MEP Sleeve discipline tag container [ISO 19650-3:2020],False,,,MULTI,1,1
 Generic Models,WARN_PER_EMBODIED_CARBON_KG_CO2_M2_ARCH,f2f0b231-ac86-59fd-a1f7-5e7dc0c111a1,TEXT,STINGTags_ISO19650,Type,Tag warning: per embodied carbon kg CO2/m2 architectural [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,WARN_THRESHOLDS,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NO_LEVEL,8033c0d1-0e55-5f56-9d71-af7f7d849900,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no level reference [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NO_ORIGINATOR,9ffd26e3-dfdf-50d6-b0c1-2e377a82b792,TEXT,WARN_THRESHOLDS,Type,Warning: sheet has no originator code [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NO_TAG1,7f9ff3af-83eb-5ffc-be71-2056c8959aad,TEXT,WARN_THRESHOLDS,Type,Warning: sheet primary tag (TAG1) missing [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SHT_NO_TAG7,03d934d7-342d-54b9-8a9d-605f11ff2f3e,TEXT,WARN_THRESHOLDS,Type,Warning: sheet TAG7 narrative missing [ISO 19650],False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_FIRESTOP,fbbff16e-ad11-554f-a2a3-1ba91250ddfd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing firestop system [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_INSPECTION,3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing inspection record [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_SERVICE,3dcb019c-4d45-50d4-976a-f7e434824ccd,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing service identification [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_SIZE,5c78cafc-d62b-5d50-99de-19cb2dea49de,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing size specification [ISO 19650-3:2020],False,,,MULTI,1,0
-Generic Models,BLE_DOOR_MATERIAL_FINISH_TXT,88ef6723-f840-5bad-b4ab-404bfe2734ed,TEXT,BLE_ELES,Type,Door material and finish specification [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,BLE_STRUCT_STEEL_SECTION_TXT,3409f563-245b-54f0-ac10-943a04d01711,TEXT,BLE_ELES,Type,Structural steel section size designation [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,WARN_SHT_DISC_MISMATCH,ae00ba3e-96a9-5dac-bee2-b89817614765,TEXT,RGL_CMPL,Type,Warning: sheet discipline mismatch between name and content [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_DISC,745e3b6f-84a1-537c-af98-6cd0415c0610,TEXT,RGL_CMPL,Type,Warning: sheet has no discipline code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_LEVEL,8033c0d1-0e55-5f56-9d71-af7f7d849900,TEXT,RGL_CMPL,Type,Warning: sheet has no level reference [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_ORIGINATOR,9ffd26e3-dfdf-50d6-b0c1-2e377a82b792,TEXT,RGL_CMPL,Type,Warning: sheet has no originator code [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG1,7f9ff3af-83eb-5ffc-be71-2056c8959aad,TEXT,RGL_CMPL,Type,Warning: sheet primary tag (TAG1) missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SHT_NO_TAG7,03d934d7-342d-54b9-8a9d-605f11ff2f3e,TEXT,RGL_CMPL,Type,Warning: sheet TAG7 narrative missing [ISO 19650],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_FIRESTOP,fbbff16e-ad11-554f-a2a3-1ba91250ddfd,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing firestop system [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_INSPECTION,3c5e1027-76c0-54f9-a6dd-0f7fcf654ba7,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing inspection record [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SERVICE,3dcb019c-4d45-50d4-976a-f7e434824ccd,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing service identification [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SIZE,5c78cafc-d62b-5d50-99de-19cb2dea49de,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing size specification [ISO 19650-3:2020],False,,,MULTI,1,0
+Generic Models,BLE_DOOR_MATERIAL_FINISH_TXT,88ef6723-f840-5bad-b4ab-404bfe2734ed,TEXT,CST_PROC,Type,Door material and finish specification [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BLE_STRUCT_STEEL_SECTION_TXT,3409f563-245b-54f0-ac10-943a04d01711,TEXT,CST_PROC,Type,Structural steel section size designation [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CST_S_SUPPLIER_TXT,19c35478-2931-539c-aae4-1d650103f02e,TEXT,COM_DAT,Type,Material supplier name for BOQ schedules [ISO 19650-2:2018],False,,,MULTI,1,0
 Generic Models,PER_ACOUSTICS_NRC_NR,fa8c2f84-1460-5dd7-9e30-0ea892613156,TEXT,PER_SUST,Type,Noise Reduction Coefficient for acoustic performance [ISO 19650-1:2018],False,,,MULTI,0,0
-Generic Models,WARN_PROP_CARBON_MATERIALS,49ce16f4-fc21-5e30-9bc3-958b117ae699,TEXT,WARN_THRESHOLDS,Type,Tag warning: prop carbon materials,False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_FIRE_RATING,6efed066-5053-591b-95c5-d27ce25ffa11,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing fire rating,False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_REF,bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing reference,False,,,MULTI,1,0
-Generic Models,WARN_SLV_NO_SEAL,dc546eb8-fe7b-534d-97bd-f2958ad7c3ce,TEXT,WARN_THRESHOLDS,Type,Tag warning: sleeve missing seal,False,,,MULTI,1,0
+Generic Models,WARN_PROP_CARBON_MATERIALS,49ce16f4-fc21-5e30-9bc3-958b117ae699,TEXT,STINGTags_ISO19650,Type,Tag warning: prop carbon materials,False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_FIRE_RATING,6efed066-5053-591b-95c5-d27ce25ffa11,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing fire rating,False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_REF,bd8e24b9-0cf7-5b1e-8680-5e8d13e4aa56,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing reference,False,,,MULTI,1,0
+Generic Models,WARN_SLV_NO_SEAL,dc546eb8-fe7b-534d-97bd-f2958ad7c3ce,TEXT,STINGTags_ISO19650,Type,Tag warning: sleeve missing seal,False,,,MULTI,1,0
 Generic Models,ACC_ISSUE_ID_TXT,5753b5aa-000a-4000-8000-000000000002,TEXT,ACC_SYNC,Type,Autodesk Construction Cloud Issue GUID for bidirectional sync,False,,,MULTI,1,0
 Generic Models,ACC_SYNC_STATUS_TXT,5753b5aa-000a-4000-8000-000000000003,TEXT,ACC_SYNC,Type,ACC sync status (SYNCED / PENDING / ERROR),False,,,MULTI,1,0
 Generic Models,ARC_FACTORY_ORDER_REF_TXT,273b9909-16b4-5c49-8c96-ff59f2e5ea40,TEXT,BLE_ELES,Type,Joinery factory order reference [BS 8000-5:1990],False,,,MULTI,1,0
