@@ -828,7 +828,13 @@ namespace StingTools.BOQ
             {
                 var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
                 if (rules != null && rules.Count > 0)
-                    csiRule = CsiMasterFormat.Resolve(rules, catName, GetFamilyName(el), el.Name ?? "",
+                    // KUT-11 — ParameterHelpers.GetFamilyName, not the local one. The local
+                    // helper falls back to the element TYPE's name, so for a system element it
+                    // put the type name in BOTH the family and the type slot: a FamilyRegex row
+                    // on a system category would have matched a TYPE name here while the same
+                    // map, resolved through CsiAssign, was matching "" and skipping. Two paths,
+                    // two answers, one map. Both now answer with the system FAMILY name.
+                    csiRule = CsiMasterFormat.Resolve(rules, catName, ParameterHelpers.GetFamilyName(el), el.Name ?? "",
                         ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "");
                 if (csiRule != null)
                 {
@@ -4403,6 +4409,12 @@ namespace StingTools.BOQ
             return !string.IsNullOrEmpty(typ) ? typ : fam;
         }
 
+        /// <summary>Family name for DISPLAY and for the bill's FamilyName column, which is
+        /// deliberately NOT <see cref="ParameterHelpers.GetFamilyName"/>: this one falls back to
+        /// the element TYPE's name ("Generic - 200mm"), which is what a reader of a bill wants to
+        /// see, where the shared helper answers the system FAMILY name ("Basic Wall"), which is
+        /// what a rule wants to match. Classification goes through the shared helper (KUT-11);
+        /// this stays as it is so issued bill text does not move.</summary>
         private static string GetFamilyName(Element el)
         {
             try
