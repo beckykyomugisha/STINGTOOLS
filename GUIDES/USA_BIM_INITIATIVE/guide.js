@@ -125,9 +125,9 @@ A(
       text: 'Prepared for Davis Mayanja  ·  September 2026', font: BF, size: 20, color: GREY })] }),
   ], TINT),
   gap(400),
-  p('You are not pitching. You are a member of the Society showing the Council what you have built, how far it has got, what it would take to finish, and where you think the whole area is going. Then you are asking what they make of it.', { size: 22 }),
+  p('One thing to say, and everything else serves it: adopting BIM in Uganda used to be expensive and difficult, and it is not any more. You are showing the Council why, and then leaving the decision entirely with them.', { size: 22 }),
   gap(140),
-  p('That posture is the single most important thing in this document. Everything else follows from it.', { size: 22, bold: true })
+  p('You are proposing, not asking. That distinction is the single most important thing in this document, and everything else follows from it.', { size: 22, bold: true })
 );
 
 /* ============================================ HOW TO USE */
@@ -158,6 +158,13 @@ A(
     ['"I need" or "I am asking for"', 'The presentation deliberately has no ask. Introducing one halfway through undoes the posture the rest of it is built on.'],
     ['Anything you have not verified', 'These are senior professionals with long memories. One overstatement checked and found wanting costs more than the whole presentation earns.'],
   ], [1.3, 2.7]),
+
+  h2('Propose, do not ask'),
+  p('There is a real difference between "I am asking the Society to endorse this" and "one thing the Society might consider is endorsing this". The first puts them in the position of granting or refusing. The second puts them in the position of judging, which is what a Council is actually for and what they will enjoy far more.'),
+  p('Practically: say "I would propose", "you might consider", "if the Council saw merit in it". Then hand the decision over explicitly and stop. The closing slide says the last word is entirely theirs, including deciding none of it, and you should say that sentence out loud rather than leaving it on the screen.', { after: 200 }),
+  note('The sentence that carries the whole posture',
+    '"All three are suggestions, and the last word is entirely yours, including deciding none of them. I would genuinely rather have your thinking than a decision today." Said plainly and then followed by silence, it does more for you than any amount of persuading. A room that does not have to defend itself listens properly.'),
+  gap(200),
 
   h2('Strong proposals, held lightly'),
   p('You said you do not want to look as though you have already decided everything, and that instinct is right. But there is a failure mode on the other side too: arriving with no view at all produces a pleasant conversation and no follow-up.'),
@@ -196,154 +203,93 @@ A(
 A(
   h1('Part 2 · What to say'),
   p('Slide by slide. It is also in the speaker notes of the deck, so it can be read from presenter view on the day. Learn the shape rather than the words.'),
-  p('Around twenty-five minutes of material, plus the demonstration. The discussion afterwards is the point, so do not fill the hour.', { italic: true, color: GREY }),
+  p('The deck runs in four acts: what has changed, what now exists, why it is now within reach, and what it could mean for the Society. About twenty-five minutes of slides plus the demonstration. The discussion afterwards is the point, so do not fill the hour.', { italic: true, color: GREY }),
 
   h2('1 · Opening'),
   say('SAY', [
-    '"Mr President, Chairman, thank you for the time. I have spent about two years building something and I thought it was time I showed the Council properly rather than kept describing it in passing.',
-    'What I want to show you is two things really. A working BIM platform, and the standards that go with it. Then I would like to put a view to you about where I think all of this is heading, and hear whether you see it the same way."',
+    '"Mr President, Chairman, thank you for the time. I have spent about two years building something, and I thought it was time I showed the Council properly rather than kept describing it in passing.',
+    'What I want to put to you is fairly simple. Adopting BIM in this country has always been expensive and difficult. I think that has changed, and I would like to show you why, and then hear whether you see it the same way."',
   ]),
 
-  h2('2 · Two halves of the same thing'),
-  p('The frame everything else sits inside. Do not rush it.'),
+  h2('2 · Where this is going'),
+  p('Say the shape up front so nobody spends twenty minutes waiting for the catch.'),
   say('SAY', [
-    '"There is a platform: tools inside the modelling software, and a shared record around it. Checking, classification, drawings, schedules, quantities, handover data, issues and correspondence, all in one flow rather than five separate products.',
-    'And there are standards: naming, classification, drawing conventions, what level of detail belongs at what stage, what a handover has to contain. Written down, and checkable by the software rather than only by argument.',
-    'Most tools give you the first half. The second half usually gets left to each practice to invent for itself, which is a large part of why our drawings do not talk to each other."',
+    '"There are three things I would put to you. That the Society might endorse a BIM training programme for its members. That somebody in the ICT Cluster looks at this properly, so the judgement about whether it is any good is yours rather than mine. And that at some point we talk about how the remaining work could be funded.',
+    'I am not asking the Society for money. I am not asking you to decide anything today. And I am not asking for exclusivity or anything that binds your members.',
+    'These are suggestions. Whether any of them is worth doing is entirely your call, and I would genuinely rather hear your thinking than get a decision."',
   ]),
 
-  h2('3 · Eight things you may not have seen'),
-  p('Ninety seconds, fast. This decides what kind of attention you get for the rest of the session.'),
+  h2('ACT ONE · What has changed (slides 3 to 5)'),
   say('SAY', [
-    '"You all know what BIM is, so I will not explain it. Let me show you eight things I think are new, and then take them one at a time.',
-    'You can talk to the model in plain English. You can hold a live meeting inside the model rather than over a screen share. One element keeps the same identity across four modelling tools, including a free one. You can raise an issue by long-pressing the element on your phone. A model gets a compliance score. Drawings, schedules and quantities come out of the model. Handover data is assembled as you build. And Ugandan conditions are built in as defaults.',
-    'Any one of those is useful on its own. Together they change what a working day looks like."',
+    '"The way a set of building information is expected to be put together has changed, and it changed outside Uganda first. ISO 19650 is now the accepted international standard, and governments have been requiring it one after another. Dubai in 2013. Singapore in 2015. The United Kingdom in 2016. Germany in 2020. Thirteen years, four continents, and it has only gone one way.',
+    'I am not telling you Uganda has mandated anything. It has not. I am telling you the direction of travel.',
+    'The region has not kept pace. Kenya is the obvious comparison, and published research finds adoption still lagging, with poor coordination of information named as the consequence. Uganda is in the same position with two extra problems: no national standard, and nothing on the market built here.',
+    'And what does that cost a practice in your membership? Not being asked twice, because a practice with no answer stops appearing on shortlists and never learns why. Competing on unequal terms against firms that already work this way. And paying for it on site, where coordination errors cost the most.',
+    'But I want to be clear about what the real problem has been, because it was never the idea. Nobody in this room needs persuading that BIM is a better way to work. We have known that for fifteen years.',
+    'The problem was that it was expensive: per-seat licensing at our fee levels, in dollars, before anyone had drawn a line. It was difficult: standards you had to invent yourself, tools that assumed a connection, a learning curve nobody had time for. And it felt like something for big jobs, so a four-person practice quietly decided it was not for them.',
+    'Everything after this is about those three things, and whether they are still true."',
   ]),
+  note('Slide 5 is the hinge of the presentation',
+    'It reframes everything that follows, and it flatters the room rather than lecturing it. Deliver it slowly. You are agreeing with them about the last fifteen years before you tell them anything has changed, and that is what makes the change believable.'),
 
-  h2('4 · One flow, from model to handover'),
-  say('SAY', [
-    '"What I was trying to build was one chain rather than five products with exports between them.',
-    'You model in whatever you use. Classification and naming get applied to a standard. The check runs and gives you a score and a report of what fails. Issues sit in one record the team shares. Drawings, schedules and quantities come out of the model. And the handover data has been accumulating the whole way along.',
-    'Each step already knows what the last one did. That is most of why handover information is usually such a miserable exercise, and why it is not one here."',
+  h2('ACT TWO · What now exists (slides 6 to 16)'),
+  p('Two parts and the standards, eight things they may not have seen, the project lifecycle, the automation, the four modelling tools, meetings inside the model, the viewer, what a client sees, the demonstration, the assistant, and where it stands.'),
+  say('THE SPINE OF IT', [
+    '"There are two halves: a platform, and the standards to run it on. Most tools give you the first half; the second usually gets left to each practice to invent for itself, which is a fair part of why our drawings do not talk to each other.',
+    'Let me show you eight things I think are new, and then take them one at a time.',
+    'The point of any of it is not that it does something nobody could do before. It is that it does the same work without somebody staying until midnight.',
+    'And a fair question is which software it needs. The answer matters less than you would expect — Revit, ArchiCAD, Tekla, or a free open-source route, with every element keeping the same identity across all four."',
   ]),
+  gap(140),
+  note('Two moments in this act carry more than the rest',
+    'The automation slide, where you tell one real story from your own projects about a specific evening — architects believe other architects about late nights. And the meetings slide, where the offer to be the second person on a camera test turns a Council member from an audience into a participant. If somebody takes it, fix a date before you leave the room.'),
+  gap(140),
+  p('Close the act on the honesty slide. Working now, being finished, not yet validated. "Ready for one practice to use today. Not yet ready to serve the whole profession at once."', { bold: true }),
 
-  h2('5 · The same work, without the evening'),
+  h2('ACT THREE · Why it is now within reach (slides 17 to 19)'),
+  p('This act is the "cheap" half of your thesis. Roles first, because the prices make no sense without them.'),
   say('SAY', [
-    '"This is the part I care most about. Naming and classifying a model used to be element by element. Producing a drawing set meant setting up every sheet. A schedule of quantities was counted, typed, and out of date by the time it was issued. Finding what was wrong meant reading drawings and hoping. Handover information got assembled at the end, from memory.',
-    'Every one of those is now a pass that runs while you make tea."',
-  ]),
-  note('Then tell one real story',
-    'A specific job, a specific evening, how long it took then and how long it takes now. One anecdote from your own projects will do more than the whole table. Architects believe other architects about late nights, and this is where the room stops evaluating and starts recognising.'),
-
-  h2('6 · It does not matter what you draw in'),
-  say('SAY', [
-    '"A full add-in inside Revit, which is the deepest integration. ArchiCAD by saving to IFC, with changes coming back. Tekla the same way. And a free open-source route through Blender and Bonsai.',
-    'Every element keeps the same identity across all four. I have tested that with a single element resolving across all of them at once.',
-    'It is also why I would say this belongs to the profession rather than to one company. A tool tied to a single supplier should probably not be anybody\'s national standard."',
-  ]),
-
-  h2('7 · Meet inside the model, not over it'),
-  p('The slide that separates this from every other tool the room has seen, and from Zoom. Give it time.'),
-  say('SAY', [
-    '"This is the part I am proudest of, and I have not seen it anywhere else.',
-    'We all know what a coordination meeting looks like. Somebody shares their screen, everybody else squints at it, and half the room is looking at a drawing they cannot navigate.',
-    'Here nobody screen-shares. There is a live meeting with camera and voice, in the browser or on a phone, and everyone is inside the same model. When the presenter isolates something, or colours the model by clash status, or cuts a section, everyone who is following sees their own view move to the same place. They are not watching a video of the model. They are in it.',
-    'And the meeting keeps itself: minutes, action items, who attended. It can be recorded, so somebody who could not attend can watch it, or you can go back to it when a decision gets questioned six months later.',
-    'I should be straight with you, as I have been about everything else. All of that is built and running. The last test on my list is a real two-person meeting with cameras on, and that is a test I cannot do alone."',
-  ]),
-  note('That last line is an opportunity',
-    'If somebody offers to be the second person, accept immediately and fix a date before you leave the room. It is the cheapest possible way for a Council member to become involved, and it turns them from an audience into a participant.'),
-
-  h2('8 · What you can do inside the model'),
-  p('Do not read all eight. Pick three and show them in the demonstration instead.'),
-  say('SAY', [
-    '"And while you are in there, it is a proper coordination viewer rather than a picture.',
-    'Isolate what matters and ghost the rest so you keep your bearings. Colour the model by clash status, issue status, discipline, level, any parameter you like. Explode an assembly. Cut a section, take a measurement. Mark up in three dimensions rather than drawing on a screenshot. Pin an issue to an element, at the point you are looking at, so whoever picks it up later knows exactly what you meant.',
-    'Clashes come in as pins you can filter by status and type, which is what actually makes a coordination meeting move.',
-    'It is colour-blind safe, which matters because roughly one man in twelve needs that and almost nobody asks. And all of it works on a phone, because that is where site is."',
-  ]),
-
-  h2('9 · The demonstration'),
-  p('Six to eight minutes. Part 5 covers it fully.'),
-
-  h2('10 · What global platforms will not do for us'),
-  p('Deliver generously rather than competitively. Part 3 has the full argument.'),
-  say('SAY', [
-    '"People sometimes ask why build this at all when the international products exist. This is my honest answer.',
-    'It is priced per practice rather than per person, and everyone outside your office joins free. The large vendors cannot do that; their whole business model is per seat.',
-    'Ugandan conditions are in it as defaults. Wind, seismic zone, soil bearing, design rainfall by region. Nobody in California is going to build that.',
-    'It works with no connection, because that is what our sites are like. It bills in shillings, and mobile money is coming, because most practices here do not have a corporate card. There is a free route through open-source software, which would undercut their own funnel. And if something goes wrong you can reach somebody in this time zone who has worked on a project like yours.',
-    'None of that is them being worse than us. It is that a market our size does not justify the work for them. It does for us, because it is the only market we have."',
-  ]),
-
-  h2('11 · And the standard is already drafted'),
-  say('SAY', [
-    '"Publishing a standard is the easy part. Getting anyone to comply with it is where most of them quietly die, because compliance is expensive and nobody can check it.',
-    'So what is in here is a working draft: naming and classification applied automatically, drawing types and title blocks so a set behaves the same way every time, what level of detail is expected at each stage, what a handover has to contain, and a check that runs against all of it.',
-    'I want to be careful how I put this. It is a draft I built because I needed one, not a proposal I am putting to you. But if the profession ever wanted a standard of its own, it is a starting point rather than a blank page."',
-  ]),
-  note('Then leave it there',
-    'Do not push it. If the Council picks it up it becomes their idea, which is the only way it would ever actually happen.'),
-
-  h2('12 · And before long, you will simply ask it'),
-  p('Accuracy matters more here than anywhere. Part 7 covers what is true and what is not.'),
-  say('SAY', [
-    '"The connection between an AI assistant and the model is built and tested. Over forty operations: query, create, tag, size, export. Every one checks the licence, runs inside a transaction that can be rolled back, and can be run as a trial first, so nothing happens to a model that cannot be undone.',
-    'What I am still finishing is the conversation layer on top, so I am not going to demonstrate it and tell you it works.',
-    'But the direction seems clear. Instead of learning where a command lives, you ask for the outcome. That matters for adoption more than it sounds, because most of what stops people using tools like this is not disagreement. It is that learning where everything lives takes time nobody has."',
-  ]),
-
-  h2('13 · Where it stands today'),
-  say('SAY', [
-    '"Working now, in daily use on live projects: the shared record, document control, issues, mobile offline, model checking, drawings, schedules, quantities and handover data.',
-    'Being finished: serving many practices from one system, payments, hosting sized for the region, an independent security review, and the conversation layer.',
-    'Not yet validated: the engineering calculation engines. Complete and tested, but never through independent professional validation, so I only offer them as commissioned work with manual checks alongside.',
-    'One line: ready for one practice today, not ready to serve the whole profession at once."',
-  ]),
-
-  h2('14 · Priced so that BIM can be normal'),
-  say('SAY', [
-    '"In my experience most practices here do not avoid BIM because they disagree with it. They avoid it because of what it costs to do properly, and because it feels like something for big jobs.',
-    'So it is priced per practice rather than per person. Everyone outside your office joins free. It is billed in shillings. And there is a free route for anyone with no software budget at all.',
-    'Twenty-five dollars a month for the modelling tools alone. Sixty for everything up to three people. A hundred and thirty for a practice of four to ten.',
+    '"Before I show prices it is worth explaining who actually gets counted, because it is not what people expect. Authors need their own modelling software, which I do not sell. Coordinators are named seats, and that is what a practice pays for. And everyone else — client, contractor, quantity surveyor, other consultants — is unlimited and free.',
+    'So a four-person practice usually pays for two or three coordinators, and the rest of the project team costs nothing at all.',
+    'Twenty-five dollars a month for the modelling tools on their own. Sixty for everything up to three people. A hundred and thirty for a practice of four to ten. Billed in shillings. And there is a free route for anyone with no software budget at all.',
     'I am not claiming it does everything the international products do. I am saying it does what a Ugandan practice needs every week, at a price that lets BIM be normal rather than exceptional."',
   ]),
+  p('Then the differentiation slide, delivered generously: none of it is the big platforms being worse, it is that a market our size does not justify the work for them, and does for us.'),
 
-  h2('15 · What it would take to finish'),
+  h2('ACT FOUR · What it could mean for the Society (slides 20 to 22)'),
   say('SAY', [
-    '"Thirty-six thousand two hundred dollars to complete the platform. Twelve thousand for a year of hosting sized for regional use. Fifteen thousand for three training groups of about twenty-five people each. With contingency, about seventy-two and a half thousand dollars.',
-    'The three are separable. The training in particular stands on its own and could start first."',
+    '"If any of this is useful to the Society, the first place is not a favour I would be doing you. It is something you are already obliged to do. Every practising architect needs twenty CPD points a year to renew a licence, and this content is hard to source here.',
+    'The second is the standards. Publishing a standard is the easy part; getting anyone to comply is where most of them quietly die. What is in here is a working draft with a check that runs against it. It is a draft I built because I needed one, not a proposal I am putting to you — but if the profession ever wanted a standard of its own, it is a starting point rather than a blank page.',
+    'And so you are not looking at something abstract, this is roughly what a training week could cover. The shape is mine; the content should be yours."',
   ]),
-  p('Then stop. See Part 1 on letting them raise the funding question.', { bold: true }),
+  note('Do not push the standard',
+    'Put it down and leave it. If the Council picks it up it becomes their idea, which is the only way it would ever actually happen. If they do not, nothing is lost and you have not asked for anything.'),
 
-  h2('16 · Where I think this is all heading'),
+  h2('23 to 24 · The limits, and what remains'),
   say('SAY', [
-    '"Requirements are becoming machine-readable, and the open standard for that arrived in 2024. Open formats are winning, and the open model format became an ISO standard the same year. AI working directly with models has moved very fast, and the expectation is that practices run their own assistants well before 2030. And the value is moving past handover into operation and maintenance.',
-    'That is my reading. I would like to know whether the Council sees it the same way, because if I am wrong about the direction I would rather find out now than in three years."',
+    '"Three things I want you to hear from me rather than find out. The deepest automation is inside Revit, and there is no native ArchiCAD or Tekla plug-in. The engineering calculation engines have never been independently validated. And it is not finished.',
+    'You would have found all three in about four minutes. I would rather you heard them from me.',
+    'And so you have the whole picture, finishing it would take about thirty-six thousand dollars for the platform, twelve for a year of regional hosting, and fifteen for three training groups. With contingency, about seventy-two and a half thousand. The three are separable, and the training stands on its own."',
   ]),
+  p('Then stop. See Part 1 on letting them raise the funding question rather than raising it yourself.', { bold: true }),
 
-  h2('17 · How something like this actually spreads'),
-  p('Ambition delivered modestly. The last line is what stops it sounding grandiose, so do not drop it.'),
+  h2('25 · The thing you came to say'),
+  p('The payoff, and the sentence you want repeated to people who were not in the room. Slow right down and add nothing after it.'),
   say('SAY', [
-    '"If something like this does work, I do not think it spreads by anybody announcing it.',
-    'It starts with a handful of members putting it on real jobs, because it fits their work and their budget. If that goes well, the naming and conventions gradually become how members deliver, and at that point the Council would want a hand in shaping them, which is as it should be. Then clients start asking for what our members can already produce, rather than the other way round.',
-    'And beyond that, honestly, the region. Kenya, Rwanda and Tanzania have the same conditions we do, the same gap, and no local platform either. But that is a long way off and I would rather earn it here first.',
-    'None of that happens by announcement. It happens one practice at a time."',
-  ]),
-
-  h2('18 · Adoption is closer than it looks'),
-  p('The emotional close, and the sentence you want repeated to people who were not in the room. Slow down.'),
-  say('SAY', [
-    '"We have talked about BIM adoption in this country as though it were a five-year problem. Skills, cost, software, standards, all of it a long way off.',
-    'But look at where the pieces actually are. The tools work, and not as a prototype: they are in daily use on live projects. The price fits, so a three-person practice can afford it, and there is a free route for anyone who cannot. It works with whatever people already own, or with nothing at all. And a standard is drafted, not from scratch, but from something that already runs.',
-    'I am not saying it is finished, and I have been honest about what is not. But I think adoption here is closer to a decision than it is to a five-year problem, and that is not something I could have said two years ago."',
+    '"If there is one thing I would like to leave you with, it is this.',
+    'We have talked about BIM adoption in this country as though it were a five-year problem. Skills, cost, software, standards, all a long way off. And for a long time that was fair.',
+    'But look at where the pieces actually are now. It is cheap — from twenty-five dollars a month, billed in shillings, and free if you have no budget at all. It is easy — the standards work happens as you model rather than as a second job at the end of one. It works with whatever people already own, or with nothing. And a standard is drafted, not from scratch, but from something that already runs on real projects.',
+    'I am not saying it is finished, and I have been honest about what is not. But adopting BIM in Uganda is no longer expensive and no longer difficult, and none of that was true two years ago.',
+    'That is really the whole of what I came to say."',
   ]),
 
-  h2('19 · What you would value from them'),
+  h2('26 to 27 · Where it could go, and the proposal'),
   say('SAY', [
-    '"I will stop there, because what I came for is your thinking rather than a decision.',
-    'Have I read the direction correctly, or am I missing something you can see from where you sit? What would members actually use? Would training be useful, and who should shape the content? And who else should see this?',
-    'I am not asking the Council to decide anything today. Thank you for the time."',
+    '"If something like this does work, I do not think it spreads by anybody announcing it. It starts with a handful of members putting it on real jobs. If that goes well, the naming and conventions gradually become how members deliver, and at that point the Council would want a hand in shaping them. Then clients start asking for what our members can already produce.',
+    'And beyond that, honestly, the region. Kenya, Rwanda and Tanzania have the same conditions and the same gap. But that is a long way off and I would rather earn it here first.',
+    'So, to put it plainly, three things I would propose. That the Society considers endorsing a training programme for members, and that we look together at whether it could be accredited for CPD. That somebody here looks at this properly, so the judgement is yours rather than mine. And that at some point we talk about how the rest gets funded — not your money, your view on which door is worth knocking on.',
+    'All three are suggestions. The last word is entirely yours, including deciding none of them. I would genuinely rather have your thinking than a decision today.',
+    'Thank you for the time."',
   ]),
   p('Then be quiet and let them talk. The whole session is designed to arrive here.', { bold: true })
 );
