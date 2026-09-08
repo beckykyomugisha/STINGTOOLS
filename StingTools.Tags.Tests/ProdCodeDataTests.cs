@@ -195,6 +195,85 @@ namespace StingTools.Tags.Tests
         }
 
         // ══════════════════════════════════════════════════════════════════════
+        //  1b. A system-category rule must need the TYPE name
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>Families that are not loadable — every element in these categories
+        /// shares the family name, so it discriminates nothing.</summary>
+        private static readonly (string Category, string Family)[] SystemFamilies =
+        {
+            ("Walls", "Basic Wall"), ("Walls", "Curtain Wall"), ("Walls", "Stacked Wall"),
+            ("Roofs", "Basic Roof"), ("Roofs", "Sloped Glazing"),
+            ("Floors", "Floor"),
+            ("Ceilings", "Compound Ceiling"), ("Ceilings", "Basic Ceiling"),
+            ("Ducts", "Rectangular Duct"), ("Ducts", "Round Duct"), ("Ducts", "Oval Duct"),
+            ("Pipes", "Pipe Types"),
+            ("Structural Foundations", "Wall Foundation"), ("Structural Foundations", "Foundation Slab"),
+        };
+
+        /// <summary>
+        /// All 11 shipped rules on a system category resolve on the TYPE name, and none
+        /// on the family name alone.
+        ///
+        /// <para>This is what makes the audit's advice true. `Prod_GenerateRules`
+        /// deliberately SKIPS system families — a project overlay row keyed on
+        /// "Basic Wall" would match every wall in the model, a category default wearing
+        /// a family rule's clothes — so the only route to a specific PROD code for a
+        /// wall is a rule keyed on its type. If someone adds a bare family rule here it
+        /// will not error; it will quietly give every wall in every project one code.</para>
+        ///
+        /// <para>The resolver matches against <c>"{family} {type}"</c>, so a wall with no
+        /// type name resolved against <c>"Basic Wall "</c> — which is what this feeds.</para>
+        /// </summary>
+        [Fact]
+        public void No_Shipped_Rule_On_A_System_Category_Matches_The_Bare_Family_Name()
+        {
+            var rows = ProdRows();
+            var offenders = new List<string>();
+
+            foreach (var (cat, fam) in SystemFamilies)
+                foreach (var row in rows.Where(r => string.Equals(r.Category, cat, StringComparison.OrdinalIgnoreCase)))
+                    if (ProdPatternMatcher.Matches((fam + " ").ToUpperInvariant(), row.Pattern))
+                        offenders.Add($"{row} matches the bare family name '{fam}'");
+
+            Assert.True(offenders.Count == 0,
+                "A PROD rule on a system category that matches the FAMILY name alone gives EVERY element "
+                + "in that category the same code — the family name is shared by all of them. Put the "
+                + "material, size or service test in the pattern so it needs the TYPE name:\n  "
+                + string.Join("\n  ", offenders));
+        }
+
+        [Fact]
+        public void The_System_Family_Guard_Actually_Fires()
+        {
+            // The row it exists to catch, fed to the same matcher.
+            Assert.True(ProdPatternMatcher.Matches("BASIC WALL ", "*BASIC WALL*"));
+        }
+
+        [Fact]
+        public void And_Those_Rules_Still_Resolve_Once_A_Type_Name_Arrives()
+        {
+            // The guard above must not be satisfiable by shipping rules that match
+            // NOTHING. This is the payoff half: a floor typed "Concrete Slab 200"
+            // resolves to SLB, which is only reachable because the resolver reads
+            // GetElementTypeName rather than GetFamilySymbolName (KUT-11).
+            var rows = ProdRows();
+            Assert.Equal("SLB", ProdResolver.Resolve(
+                "Floor", "Concrete Slab 200", "Floors",
+                null, ForCategory(rows, "Floors"), null, out string src));
+            Assert.Equal(ProdResolver.Sources.Corporate, src);
+
+            // ...and the same floor with NO type name cannot resolve, which is exactly
+            // the state the audit used to REPORT (blank Type column) while the resolver
+            // was seeing the type all along.
+            ProdResolver.Resolve("Floor", "", "Floors",
+                null, ForCategory(rows, "Floors"),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Floors"] = "FLR" },
+                out string blindSrc);
+            Assert.False(ProdResolver.IsSpecific(blindSrc));
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
         //  2. One code, one discipline
         // ══════════════════════════════════════════════════════════════════════
 
