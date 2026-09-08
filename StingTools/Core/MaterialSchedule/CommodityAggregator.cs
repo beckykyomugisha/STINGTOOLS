@@ -20,6 +20,10 @@ namespace StingTools.Core.MaterialSchedule
         /// <summary>The element's material name. Matched BEFORE the type name —
         /// see SupplierUnitRule.MatchMaterialPatterns for why.</summary>
         public string MaterialName = "";
+
+        /// <summary>Wastage this row's variant implies, or -1 for the rule's
+        /// default. Blended across rows that merge — see the accumulator.</summary>
+        public double WastePctOverride = -1;
         public string Description = "";
         public string Unit = "";        // source unit as measured
         public double Quantity;
@@ -162,7 +166,15 @@ namespace StingTools.Core.MaterialSchedule
                 // their own could ever be decided by material, so those are the
                 // denominator — counting the rest would report a coverage the
                 // feature was never asked for.
-                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null)
+                // Only categories some rule could ever claim. A second project
+                // reported "200 rows could be identified by material, 3
+                // matched" and listed 56 unplaced materials led by
+                // '911 CARRERA S - BODY COLOR' - a Porsche in the entourage.
+                // A car's paint is never a building commodity, and counting it
+                // made a working feature read as a 1.5% success rate while
+                // burying the materials that DO need a pattern.
+                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null
+                    && CategoryCouldConvert(input.Units, row.Category))
                 {
                     var scan = input.MaterialScan;
                     scan.RowsInspected++;
@@ -189,6 +201,17 @@ namespace StingTools.Core.MaterialSchedule
                 if (!string.IsNullOrWhiteSpace(row.TraceRef)) a.TraceRefs.Add(row.TraceRef);
                 if (!string.IsNullOrWhiteSpace(row.Category)) a.Categories.Add(row.Category.Trim());
                 if (!string.IsNullOrWhiteSpace(row.TypeName)) a.TypeNames.Add(row.TypeName.Trim());
+                if (!string.IsNullOrWhiteSpace(row.TypeName) && row.Quantity > 0)
+                {
+                    string tn = row.TypeName.Trim();
+                    a.SourceByType.TryGetValue(tn, out double prev);
+                    a.SourceByType[tn] = prev + row.Quantity;
+                }
+                if (row.WastePctOverride >= 0 && row.Quantity > 0)
+                {
+                    a.WasteWeighted += row.WastePctOverride * row.Quantity;
+                    a.WasteWeight += row.Quantity;
+                }
             }
 
             // Materialise stages in definition order, dropping empties.
@@ -212,7 +235,8 @@ namespace StingTools.Core.MaterialSchedule
                 foreach (var kv in mine)
                 {
                     var a = kv.Value;
-                    var conv = SupplierUnitConverter.Convert(a.Rule, a.SourceQuantity);
+                    double blendedWaste = a.WasteWeight > 0 ? a.WasteWeighted / a.WasteWeight : -1;
+                    var conv = SupplierUnitConverter.Convert(a.Rule, a.SourceQuantity, blendedWaste);
                     var rate = input.Rates?.Resolve(kv.Key.key)
                                ?? new CommodityRate { RateUGX = 0, Source = "unpriced" };
 
@@ -230,6 +254,7 @@ namespace StingTools.Core.MaterialSchedule
                         RateSource = rate.Source,
                         TraceRefs = a.TraceRefs,
                         Categories = a.Categories.ToList(),
+                        // (the per-type source is published on the DOCUMENT, below)
                         TypeNames = a.TypeNames.Take(8).ToList(),
                         SourceKind = a.SourceKind,
                         ConversionBlocked = a.ConversionBlocked,
@@ -238,6 +263,22 @@ namespace StingTools.Core.MaterialSchedule
                 }
 
                 doc.Stages.Add(section);
+            }
+
+            // One entry per commodity, merged across stages — the breakdown is
+            // about which TYPE produced a commodity, not which section it was
+            // printed in.
+            foreach (var kv in acc)
+            {
+                if (kv.Value.SourceByType.Count == 0) continue;
+                if (!doc.SourceByType.TryGetValue(kv.Key.key, out var byType))
+                    doc.SourceByType[kv.Key.key] =
+                        byType = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                foreach (var t in kv.Value.SourceByType)
+                {
+                    byType.TryGetValue(t.Key, out double prev);
+                    byType[t.Key] = prev + t.Value;
+                }
             }
 
             StageMapper.AssignLetters(doc.Stages);
@@ -263,6 +304,34 @@ namespace StingTools.Core.MaterialSchedule
                                  StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// True when ANY rule in the table names this category. Furniture,
+        /// entourage and casework are named by none, so a material on them can
+        /// never become a commodity and counting it only dilutes the scan.
+        ///
+        /// A rule with no categories at all (matched by kind or material alone)
+        /// makes every category a candidate - which is correct, because such a
+        /// rule really could claim anything.
+        /// </summary>
+        private static bool CategoryCouldConvert(SupplierUnitTable units, string category)
+        {
+            if (units?.Rules == null) return true;
+            if (string.IsNullOrWhiteSpace(category)) return true;
+            string c = category.Trim();
+            foreach (var r in units.Rules)
+            {
+                if (r?.MatchCategories == null || r.MatchCategories.Count == 0)
+                {
+                    if (r?.MatchMaterialPatterns != null && r.MatchMaterialPatterns.Count > 0)
+                        return true;   // material-only rule: any category could carry it
+                    continue;
+                }
+                foreach (string mc in r.MatchCategories)
+                    if (string.Equals(mc, c, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         private sealed class Accum
         {
             public SupplierUnitRule Rule;
@@ -276,6 +345,32 @@ namespace StingTools.Core.MaterialSchedule
             public List<string> TraceRefs = new List<string>();
             public readonly SortedSet<string> Categories =
                 new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            /// <summary>
+            /// Quantity-weighted numerator for the blended waste, and the
+            /// quantity that carried an override at all.
+            ///
+            /// Rows merge by commodity, so a wall in Flemish bond (8%) and one
+            /// in stack bond (3%) become ONE order line and cannot both have
+            /// their own allowance. Weighting by quantity is the only blend
+            /// that keeps the total right: the bigger wall moves the figure
+            /// more, which is what a QS would do by hand.
+            ///
+            /// Rows with NO override are excluded from both sides rather than
+            /// counted at the rule's default — that would let one unstated row
+            /// drag a stated blend back toward a number nobody chose.
+            /// </summary>
+            public double WasteWeighted, WasteWeight;
+
+            /// <summary>
+            /// Measured source per model type, for the by-type breakdown.
+            ///
+            /// The aggregator's own numerator, so a share computed from it
+            /// cannot disagree with the order line it came from — the same
+            /// reason the breakdown apportions rather than re-converts.
+            /// </summary>
+            public readonly Dictionary<string, double> SourceByType =
+                new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
             public readonly SortedSet<string> TypeNames =
                 new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
         }

@@ -2,21 +2,55 @@
 # MasterFormat section + title for SpecLink reconciliation. Columns:
 #   Category    Revit category name (exact, case-insensitive). "*" = any.
 #   FamilyRegex optional regex tested against the family name (case-insensitive).
-#               ONLY USABLE ON LOADABLE-FAMILY CATEGORIES. ParameterHelpers.GetFamilyName
-#               returns "" for anything that is not a FamilyInstance, and Score treats an
-#               empty candidate as no-match — so a FamilyRegex on a SYSTEM category (Walls,
-#               Floors, Roofs, Ceilings, Pipes, Ducts, Conduits, Cable Trays, Stairs,
-#               Railings, Ramps, Topography, Toposolid, Pads) can NEVER fire. Put those
-#               discriminators in TypeRegex instead. Mixed categories exist: Structural
-#               Foundations isolated footings are FamilyInstance, wall footings are not.
+#               MATCHES THE FAMILY NAME, WHICH ON A SYSTEM CATEGORY IS THE SYSTEM FAMILY.
+#               Since KUT-11, ParameterHelpers.GetFamilyName answers for every element:
+#               the loadable family for a FamilyInstance, and the SYSTEM family for a
+#               system element - "Basic Wall", "Curtain Wall", "Rectangular Duct",
+#               "Pipe Types", "Wall Foundation". Before KUT-11 it answered "" for those
+#               and Score treats an empty candidate as no-match, so a FamilyRegex on a
+#               SYSTEM category could never fire; that is no longer true.
+#               It is still the wrong column for most discriminators: a system family
+#               name says only WHAT KIND of wall/duct an element is, never what it is
+#               made of or what it does. Material, size and service discriminators go in
+#               TypeRegex, which reads the type name on every category. Use FamilyRegex
+#               on a system category only when the system family itself is the answer
+#               (e.g. "Curtain Wall" vs "Basic Wall").
+#               Mixed categories exist: Structural Foundations isolated footings are
+#               FamilyInstance, wall footings are not.
 #   TypeRegex   optional regex tested against the type/symbol name. Safe on every category —
 #               CsiMap.TypeName falls back to the element type's name for system elements.
 #   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
 #   Section     CSI MasterFormat number (e.g. 23 31 00).
 #   Title       CSI section title.
-# Most-specific row wins (more matched qualifiers = higher score; ties: first).
-# Starter baseline — codes are common approximations to be confirmed against the
-# project's RIB SpecLink spec. Projects extend/override via _BIM_COORD/csi_map.csv.
+# Most-specific row wins; ties resolve to the first row. Each qualifier scores 2 and a
+# matched Material scores 3 (CsiRule.QualifierWeight / MaterialWeight), which encodes
+# MasterFormat's own hierarchy:
+#     category alone                 2   the fallback
+#     category + material            5   a DECLARED material beats a name guess
+#     category + family/type         4   a name guess
+#     category + family + material   7   a named WORK RESULT beats material alone
+# A precast pile is made of precast concrete and is still measured under 31 62 00, not
+# 03 41 00 - which is why the driven-pile row is repeated with a precast qualifier. Where
+# a material row would only ever outrank a work result for no gain it was not added at
+# all, rather than added and then fenced off with a twin.
+#
+# BASIS OF THE STRUCTURAL CODES (KUT-10). No longer 'common approximations to be
+# confirmed': they follow CSI MasterFormat 2020, which divides by WORK RESULT AND
+# MATERIAL rather than by authoring-tool category -
+#     Division 03  Concrete   03 30 00 cast-in-place, 03 41 00 precast
+#     Division 04  Masonry    04 20 00 unit masonry
+#     Division 05  Metals     05 12 00 structural steel, 05 21 00 steel joists
+#     Division 06  Wood       06 11 00 wood framing, 06 17 00 shop-fabricated structural wood
+# A Revit 'Structural Framing' element can be any of those, which is exactly why a
+# category-keyed default was a judgement call. The element's STRUCTURAL MATERIAL is now the
+# primary key and the category is the fallback, so the mapping follows MasterFormat's own
+# basis instead of guessing from the category name.
+#
+# THE CATEGORY-KEYED ROWS THAT REMAIN ARE A FALLBACK, NOT AN ANSWER. They apply only when
+# no structural material is declared on the element or its type. A project whose members
+# carry no structural material is being classified on the weakest available evidence; the
+# fix is to set the parameter, not to re-tune the fallback. Projects extend/override via
+# _BIM_COORD/csi_map.csv.
 # ---------------------------------------------------------------------------
 # Nrm2 / Unit (optional 7th + 8th columns)
 #
@@ -28,6 +62,46 @@
 #   Unit  the section's preferred measurement basis. ADVISORY only: it never
 #         re-measures a quantity, it flags a line whose rate is priced per a
 #         different basis than the spec measures.
+#
+#   Material  (optional 9th column) regex tested against the element's STRUCTURAL
+#         MATERIAL - BuiltInParameter.STRUCTURAL_MATERIAL_PARAM on the instance, then on
+#         the type. Read from that parameter and NEVER from the type name: 'W310x39' is a
+#         naming convention, not a fact about what a member is made of.
+#         Blank = the row does not care, which is every row shipped before KUT-10.
+#         The resolver is fed a MATERIAL NAME as the project spells it, so the patterns
+#         match substrings that survive the usual Revit library spellings ('Concrete,
+#         Cast-in-Place - C30/37', 'Metal - Steel - S355JR', 'Wood - Glulam'). A project
+#         whose material library uses other words should override in _BIM_COORD/csi_map.csv
+#         rather than expect these to guess.
+#   (col 9)   RESERVED. KUT-10 claims it for a Material qualifier in a sibling change.
+#         Leave it EMPTY. Phase was placed at column 10 so the two sets of rows compose
+#         under either merge order; putting both at 9 would make one branch's data
+#         silently mean the other's.
+#
+#   Phase  (optional 10th column) the element's STATE WITHIN THE WORKS, matched exactly
+#         and case-insensitively. One of:
+#             Demolished   removed by the works                -> Division 02
+#             Temporary    built AND removed by the works      -> not classified here
+#             Existing     present before, not removed         -> not classified here
+#             New          built and still standing            -> the ordinary rules
+#         Derived from Phase Created / Phase Demolished by CsiMap.PhaseState. An element
+#         that is not phase-aware (a grid, a level) carries the empty string and can
+#         therefore never satisfy a phase-qualified rule.
+#
+#         A MATCHED Phase SCORES 10 (CsiRule.PhaseWeight) - more than every other
+#         qualifier combined. That is deliberate, and it is what MasterFormat says:
+#         Division 02 Existing Conditions classifies by the STATE OF THE WORK, not by
+#         what the thing is. A demolished precast beam is demolition; the contractor is
+#         removing it, not casting it. With a lower weight the Division 02 rule would
+#         fire only on elements no other rule matched - coverage in a review, nothing on
+#         a real model, which is exactly why the first pass's naming-keyed rows were
+#         withdrawn.
+#
+#         EXISTING AND TEMPORARY ARE DELIBERATELY NOT CLASSIFIED. Existing-to-remain is
+#         not work and a rule would assert a bill item for something nobody is being
+#         paid to touch; temporary works are Division 01 / NRM2 preliminaries and
+#         pricing them is a quantity surveyor's judgement, not this file's. Both STATES
+#         are now available to match on, so a project can add its own rule.
 #
 # The bridge resolves from the MATCHED RULE first. Section 03 30 00 is NRM2 5 for
 # a concrete floor and 14 for a concrete wall; a section-keyed lookup has to pick
@@ -162,15 +236,45 @@ Nurse Call Devices,,,,28 17 00,Nurse Call Systems,36,
 # name says otherwise. Confirm against the SpecLink books and override in
 # _BIM_COORD/csi_map.csv.
 Structural Framing,(?i)precast,,,03 41 00,Precast Structural Concrete,5,
+Structural Framing,(?i)precast,,,03 41 00,Precast Structural Concrete,5,,(?i)concrete|\bRC\b|cementitious|precast
 Structural Framing,(?i)concrete|\bRC\b,,,03 30 00,Cast-in-Place Concrete,5,
 Structural Framing,(?i)joist|purlin,,,05 21 00,Steel Joist Framing,15,
+Structural Framing,(?i)joist|purlin,,,05 21 00,Steel Joist Framing,15,,(?i)steel|metal|\bCHS\b|\bSHS\b|\bRHS\b|iron
+# Structural Framing - MATERIAL ROWS (MasterFormat div 03/04/05/06). The bare-category
+# row at the end is the FALLBACK, used only when no structural material is declared;
+# steel is the least-wrong guess for framing, not a claim about any project.
+Structural Framing,,,,04 20 00,Unit Masonry,14,,(?i)masonry|brick|block ?work|\bCMU\b|stone
+Structural Framing,,,,03 41 00,Precast Structural Concrete,5,,(?i)precast|pre-cast
+Structural Framing,,,,03 30 00,Cast-in-Place Concrete,5,,(?i)concrete|\bRC\b|cementitious
+Structural Framing,,,,06 17 00,Shop-Fabricated Structural Wood,16,,(?i)glulam|glue.?lam|\bLVL\b|\bCLT\b|laminated
+Structural Framing,,,,06 11 00,Wood Framing,16,,(?i)wood|timber|lumber|softwood|hardwood
+Structural Framing,,,,05 12 00,Structural Steel Framing,15,,(?i)steel|metal|\bCHS\b|\bSHS\b|\bRHS\b|iron
 Structural Framing,,,,05 12 00,Structural Steel Framing,15,
 Structural Columns,(?i)precast,,,03 41 00,Precast Structural Concrete,5,
+Structural Columns,(?i)precast,,,03 41 00,Precast Structural Concrete,5,,(?i)concrete|\bRC\b|cementitious|precast
 Structural Columns,(?i)steel|\bUC\b|\bW\d|HSS|CHS|SHS|RHS,,,05 12 00,Structural Steel Framing,15,
+# Structural Columns - MATERIAL ROWS. The bare-category fallback stays cast-in-place
+# concrete. The type-name row above still discriminates when the name says 'UC' or
+# 'HSS' and NO material is declared; a declared material outscores it (5 > 4).
+Structural Columns,,,,04 20 00,Unit Masonry,14,,(?i)masonry|brick|block ?work|\bCMU\b|stone
+Structural Columns,,,,03 41 00,Precast Structural Concrete,5,,(?i)precast|pre-cast
+Structural Columns,,,,03 30 00,Cast-in-Place Concrete,5,,(?i)concrete|\bRC\b|cementitious
+Structural Columns,,,,06 17 00,Shop-Fabricated Structural Wood,16,,(?i)glulam|glue.?lam|\bLVL\b|\bCLT\b|laminated
+Structural Columns,,,,06 11 00,Wood Framing,16,,(?i)wood|timber|lumber|softwood|hardwood
+Structural Columns,,,,05 12 00,Structural Steel Framing,15,,(?i)steel|metal|\bCHS\b|\bSHS\b|\bRHS\b|iron
 Structural Columns,,,,03 30 00,Cast-in-Place Concrete,5,
 Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,5,m
-Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,
 Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning,4,
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,
+Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,,(?i)precast|pre-cast
+# Structural Foundations - MATERIAL ROWS. Deliberately only TWO: a concrete row would
+# restate the bare-category fallback below (same section, same NRM2) and a steel row
+# would outscore the sheet-pile shoring work result for no gain. That leaves PRECAST
+# as the only material row that can outrank a division-31 work result, which is why
+# the driven-pile row above carries a precast twin: a precast pile is measured under
+# 31 62 00, not 03 41 00.
+Structural Foundations,,,,04 20 00,Unit Masonry,14,,(?i)masonry|brick|block ?work|\bCMU\b|stone
+Structural Foundations,,,,03 41 00,Precast Structural Concrete,5,,(?i)precast|pre-cast
 Structural Foundations,,,,03 30 00,Cast-in-Place Concrete,5,
 Floors,,(?i)metal deck|steel deck|profiled deck,,05 31 00,Steel Decking,15,
 Walls,,(?i)cold.?formed|\bSFS\b|stone skin|rainscreen,,05 40 00,Cold-Formed Metal Framing,15,
@@ -233,3 +337,29 @@ Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Wa
 Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,32,
 Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,32,
 Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,32,
+
+# ---------------------------------------------------------------------------
+# APPENDED, NOT INSERTED. tools/qs_nrm2_review.py keys its review sheet on the row's
+# ORDINAL among the data rows, so adding a rule higher up re-points every ROW below it
+# and invalidates an in-progress QS review. Position is irrelevant to matching here -
+# CsiRule.PhaseWeight puts this rule above every product rule on SCORE, and row order
+# only ever decides a tie.
+# DIVISION 02 - EXISTING CONDITIONS (KUT-5). Keyed on PHASE, never on naming.
+#
+# ONE rule, and one is enough: any element the works REMOVE is demolition, whatever it
+# is made of. PhaseWeight puts it above every product rule, so a demolished wall, beam,
+# duct or fixture all land here instead of keeping the classification of the thing they
+# used to be.
+#
+# 02 41 19 SELECTIVE demolition, not 02 41 13 Building Demolition: the model tells us
+# WHICH elements are removed, which is by definition selective. Whole-building demolition
+# is a project-level decision no per-element rule can see, and a project that is doing it
+# should override this row.
+#
+# NRM2 1 = Demolitions. Read from this repository's own section vocabulary
+# (BOQCostManager.GuessSectionName), NOT from the published NRM2 numbering, which differs
+# - the in-house scheme has 4 Foundations and 5 In-situ concrete where NRM2 has 5
+# Excavating and filling. Guessing across that gap would move money.
+# Review it with:  python tools/qs_nrm2_review.py --export --divisions 02
+*,,,,02 41 19,Selective Demolition,1,,,Demolished
+# ---------------------------------------------------------------------------

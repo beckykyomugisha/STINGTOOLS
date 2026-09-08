@@ -282,15 +282,18 @@ table(['Code', 'Discipline'],
       widths=[2.6, 14.0])
 
 h2('4.4  Type codes')
-table(['Code', 'Type', 'Code', 'Type'],
-      [['M3', '3D model', 'RP', 'Report'],
-       ['M2', '2D model or drafting', 'CA', 'Calculation'],
-       ['DR', 'Drawing', 'RD', 'Room data sheet'],
-       ['SH', 'Sheet', 'MS', 'Method statement'],
-       ['SC', 'Schedule', 'PP', 'Presentation'],
-       ['SP', 'Specification', 'CR', 'Clash or coordination report'],
-       ['TR', 'Transmittal or notice', 'BQ', 'Bill of quantities']],
-      widths=[2.0, 6.3, 2.0, 6.3])
+# Generated from N.TYPES, not restated. This table was a hand-written second
+# copy of the type codes and drifted from the naming source the moment the
+# project adopted the BS EN ISO 19650-2 UK NA set -- the document gate caught
+# it, which is the only reason it is not still wrong.
+_t = list(N.TYPES)
+_half = (len(_t) + 1) // 2
+_rows = []
+for _i in range(_half):
+    _l = _t[_i]
+    _r = _t[_i + _half] if _i + _half < len(_t) else ('', '')
+    _rows.append([_l[0], _l[1], _r[0], _r[1]])
+table(['Code', 'Type', 'Code', 'Type'], _rows, widths=[1.6, 6.7, 1.6, 6.7])
 
 h2('4.5  Level codes')
 table(['Code', 'Level'],

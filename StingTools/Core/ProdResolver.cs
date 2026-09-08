@@ -59,14 +59,12 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(familyName))
             {
                 // 1. Project overlay wins.
-                if (projRulesForCategory != null)
-                    foreach (var (pattern, prodCode) in projRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Project; return prodCode; }
+                string proj = Strongest(projRulesForCategory, combinedName);
+                if (proj != null) { source = Sources.Project; return proj; }
 
                 // 2. Corporate baseline.
-                if (corpRulesForCategory != null)
-                    foreach (var (pattern, prodCode) in corpRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Corporate; return prodCode; }
+                string corp = Strongest(corpRulesForCategory, combinedName);
+                if (corp != null) { source = Sources.Corporate; return corp; }
 
                 // 3. Lightning Protection System (BS EN 62305) — CROSS-category;
                 //    family-name (not category) discriminates the sub-element kind.
@@ -90,6 +88,38 @@ namespace StingTools.Core
             }
             source = Sources.Gen;
             return "GEN";
+        }
+
+        /// <summary>
+        /// The PROD code of the MOST SPECIFIC rule that matches, or null when none does.
+        ///
+        /// <para>Within one tier the rules are peers, not a chain: the author of
+        /// <c>*Fire Damper*</c> and the author of <c>*Damper*</c> were describing two
+        /// different products, and which of them sits higher in the CSV is an accident
+        /// of when each was added. Ten shipped rows lost that accident — see
+        /// <see cref="ProdPatternMatcher.Strength"/> for the list.</para>
+        ///
+        /// <para>Ties keep FILE ORDER, so two rules of equal specificity resolve exactly
+        /// as they always did, and the project overlay's documented "prepended wins"
+        /// behaviour is unchanged.</para>
+        /// </summary>
+        private static string Strongest(
+            IReadOnlyList<(string Pattern, string ProdCode)> rules, string combinedName)
+        {
+            if (rules == null) return null;
+
+            string best = null;
+            int bestStrength = int.MinValue;
+
+            for (int i = 0; i < rules.Count; i++)
+            {
+                int s = ProdPatternMatcher.Strength(combinedName, rules[i].Pattern);
+                if (s < 0) continue;                 // no match
+                if (s <= bestStrength) continue;     // strictly greater, so ties keep file order
+                bestStrength = s;
+                best = rules[i].ProdCode;
+            }
+            return best;
         }
 
         /// <summary>Returns the LPS PROD code for an upper-cased family+type name,

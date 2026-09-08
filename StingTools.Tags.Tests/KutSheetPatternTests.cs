@@ -92,11 +92,11 @@ namespace StingTools.Tags.Tests
         [InlineData("KUT-SMB-01-02-M3-A-0001")]
         [InlineData("KUT-SMB-01-12-M3-A-0001")]
         // Two-character roles, which a single [A-Z] would have rejected.
-        [InlineData("KUT-SMB-01-GF-DR-FP-0001")]
-        [InlineData("KUT-SMB-01-GF-DR-LV-0001")]
+        [InlineData("KUT-SMB-01-GF-DR-Y-0001")]   // fire protection: Y, Specialist Designer
+        [InlineData("KUT-SMB-01-GF-DR-Y-0001")]   // low voltage: Y, same reason
         // Real references published in the issued document set.
         [InlineData("KUT-SMB-ZZ-ZZ-RP-Z-0002")]
-        [InlineData("KUT-SMB-ZZ-ZZ-SC-Z-0001")]
+        [InlineData("KUT-SMB-ZZ-ZZ-SH-Z-0001")]   // SH is the schedule code, not SC
         [InlineData("KUT-SMB-ZZ-ZZ-CR-Z-0007")]
         public void Accepts(string name)
             => Assert.True(Shipped().IsMatch(name), $"pattern rejected the authorised name {name}");
@@ -105,7 +105,15 @@ namespace StingTools.Tags.Tests
         [InlineData("KUT-SMB-47-GF-M3-A-0001", "volume 47 does not exist")]
         [InlineData("KUT-SMB-01-GF-QQ-A-0001", "type QQ does not exist")]
         [InlineData("KUT-SMB-01-Q1-M3-A-0001", "level Q1 does not exist")]
-        [InlineData("KUT-SMB-01-GF-M3-Q-0001", "role Q does not exist")]
+        [InlineData("KUT-SMB-01-GF-M3-V-0001", "role V is not in the standard set")]
+        // The codes this project withdrew when it adopted BS EN ISO 19650-2 UK NA.
+        // Pinned as rejections: they were valid names until #865, so nothing else
+        // would notice if the pattern quietly started accepting them again.
+        [InlineData("KUT-SMB-01-GF-DR-FP-0001", "FP was withdrawn; fire protection is Y")]
+        [InlineData("KUT-SMB-01-GF-DR-LV-0001", "LV was withdrawn; low voltage is Y")]
+        [InlineData("KUT-SMB-01-GF-DR-G-0001",  "G was withdrawn; Civil is C")]
+        [InlineData("KUT-SMB-ZZ-ZZ-SC-Z-0001",  "SC was withdrawn; a schedule is SH")]
+        [InlineData("KUT-SMB-TE-GF-DR-A-1001",  "TE was the site convention volume; volumes are numeric")]
         [InlineData("KUT-SMB-01-GF-M3-A-001", "Number is four digits")]
         [InlineData("KUT-SMB-01-GF-M3-A-00001", "Number is four digits")]
         [InlineData("KUT-SM-01-GF-M3-A-0001", "originator is three characters")]

@@ -178,7 +178,10 @@ def verify(pattern):
     rejects(_sample(volume='47'), 'volume 47 does not exist')
     rejects(_sample(type_code='QQ'), 'type QQ does not exist')
     rejects(_sample(level='Q1'), 'level Q1 does not exist')
-    rejects(_sample(role='Q'), 'role Q does not exist')
+    # Q was a non-existent role until the project adopted the BS EN ISO 19650-2 UK NA
+    # Table NA.3 set, in which Q is Quantity Surveyor. The negative case has to move to
+    # a letter the standard genuinely does not use, or this check passes by being wrong.
+    rejects(_sample(role='V'), 'role V is not in the standard set')
     rejects(_sample(number='001'), 'Number is four digits')
     rejects(_sample(number='00001'), 'Number is four digits')
     rejects(_sample(originator='SM'), 'originator is %d characters' % N.ORIGINATOR_LENGTH)

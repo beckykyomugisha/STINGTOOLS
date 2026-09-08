@@ -165,7 +165,7 @@ namespace StingTools.BOQ.Takeoff
 
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
             bool isBrick = IsBrickWall(doc, el, material);
-            bool isRc = material.Contains("concrete") || material.Contains("rc") || material.Contains("reinforced");
+            bool isRc = material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc") || material.Contains("reinforced");
             var res = new Resolution();
 
             // Units per m² + cutting waste + mortar-per-m² from bond/block tables.
@@ -247,7 +247,7 @@ namespace StingTools.BOQ.Takeoff
             bool requireExplicitConcrete = false, bool hostIsRoof = false)
         {
             string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-            bool isConcrete = material.Contains("concrete") || material.Contains("rc");
+            bool isConcrete = material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc");
             // Blank material reads as concrete for a FLOOR and as unknown for a
             // roof — see the Roofs branch in TryBuild.
             bool isRc = isConcrete || !(requireExplicitConcrete || material.Length != 0);
@@ -404,6 +404,7 @@ namespace StingTools.BOQ.Takeoff
                     FamilyName = GetFamilyName(doc, el),
                     TypeName = el.Name ?? "",
                     MaterialName = GetPrimaryMaterialName(doc, el) ?? "",
+                    WastePctOverride = c.WastePctOverride,
                     Quantity = Math.Round(c.Quantity, 3),
                     Unit = c.Unit,
                     ConstituentKind = c.Kind,
@@ -1004,7 +1005,7 @@ namespace StingTools.BOQ.Takeoff
                 // footprint, because a concrete roof usually HAS one and would
                 // otherwise produce a confident fascia run for a parapet.
                 string material = (GetPrimaryMaterialName(doc, el) ?? "").ToLowerInvariant();
-                if (material.Contains("concrete") || material.Contains("rc")
+                if (material.Contains("concrete") || Core.MaterialSchedule.PatternMatch.Contains(material, "rc")
                  || material.Contains("reinforced"))
                 {
                     RoofAccessoryScan.Tally.ConcreteRoofsSkipped++;
@@ -1442,13 +1443,31 @@ namespace StingTools.BOQ.Takeoff
             if (measured <= 0) return empty;
 
             var cover = TileCoverages(found.Label);
+
+            // The fourth member of the set. BLE_TILE_SIZE_TXT has been declared
+            // in MR_PARAMETERS.txt with a GUID all along and read by nothing —
+            // parameter first, then an inference from the material name, then
+            // the project default, exactly as brick bond, block size and
+            // plaster type already resolve. The inference is RECORDED through
+            // Resolution, so a guessed band lowers row confidence and is named
+            // rather than passing as a stated fact.
+            var tileRes = new Resolution();
+            string sizeRaw = ParameterHelpers.GetString(el, "BLE_TILE_SIZE_TXT");
+            string tileSize = InferOrCanon("tile size",
+                Core.Materials.MaterialKeyCanonicaliser.TileSize(sizeRaw),
+                () => Core.Materials.MaterialKeyCanonicaliser.TileSize(found.Label),
+                tileRes, "DEFAULT");
+            double tileWaste = Resolve(tileRes, "tile size",
+                $"TILE {tileSize}", "WASTE_PCT", "TILE DEFAULT");
+
             return CompoundTakeoff.TiledFinish(new TiledFinishInput
             {
                 AreaM2 = areaM2 * measured,
                 IsWall = isWall,
                 TileLabel = found.Label,
                 AdhesiveKgPerM2 = cover.AdhesiveKgPerM2,
-                GroutKgPerM2 = cover.GroutKgPerM2
+                GroutKgPerM2 = cover.GroutKgPerM2,
+                WastePctOverride = tileWaste
             });
         }
 

@@ -18,7 +18,7 @@ SRB,Mechanical Equipment,*Sorption*,Sorption / Desiccant Unit,M,HVAC,CIBSE Guide
 HEX,Mechanical Equipment,*Heat Exchanger*|*Plate*,Plate Heat Exchanger,M,HWS,CIBSE Guide B
 CAL,Mechanical Equipment,*Calorifier*,Calorifier / Hot Water Storage Vessel,M,HWS,BS EN 12897
 EXP,Mechanical Equipment,*Expansion*,Expansion Vessel,M,HWS,BS EN 13831
-CIR,Mechanical Equipment,*Circulating*|*Pump*,Circulation Pump,M,HWS,BS EN 16297
+CIR,Mechanical Equipment,*Circulating*|*Circulation Pump*,Circulation Pump,M,HWS,BS EN 16297
 BFP,Mechanical Equipment,*Boiler Feed*,Boiler Feed Pump,M,HWS,CIBSE Guide B
 PMP,Mechanical Equipment,*Pump*,General Pump,M,HWS,BS EN 16297
 DMP,Ducts,*Damper*|*Motorised*,Motorised Volume Control Damper,M,HVAC,BS EN 1751
@@ -121,9 +121,9 @@ MGA,Specialty Equipment,*Air*|*Medical Air*|*MAP*,Medical Air Outlet — Bedhead
 MGV,Specialty Equipment,*Vacuum*|*MGPS Vac*,Medical Vacuum Outlet — Bedhead,P,MGS,HTM 02-01
 MGE,Specialty Equipment,*EVAC*,Anaesthetic Gas Scavenging (EVAC) Outlet,P,MGS,HTM 02-01
 MNF,Specialty Equipment,*Manifold*|*Medical Manifold*,Medical Gas Manifold / Cylinder Manifold,P,MGS,HTM 02-01
-VIE,Specialty Equipment,*VIE*|*Vacuum Insulated*,Vacuum Insulated Evaporator (VIE),P,MGS,HTM 02-01
-ZVB,Specialty Equipment,*Zone Valve*|*MGS Valve*,Medical Gas Zone Valve Box,P,MGS,HTM 02-01
-AAP,Specialty Equipment,*Area Alarm*|*MGS Alarm*,Medical Gas Area Alarm Panel,P,MGS,HTM 02-01
+VIE,Specialty Equipment,*VIE*|*Vacuum Insulated*,Vacuum Insulated Evaporator (VIE),MG,MGS,HTM 02-01
+ZVB,Specialty Equipment,*Zone Valve*|*MGS Valve*,Medical Gas Zone Valve Box,MG,MGS,HTM 02-01
+AAP,Specialty Equipment,*Area Alarm*|*MGS Alarm*,Medical Gas Area Alarm Panel,MG,MGS,HTM 02-01
 MSP,Mechanical Equipment,*Medical Suction*,Medical Suction / Vacuum Pump Set,P,MGS,HTM 02-01
 MCP,Mechanical Equipment,*Medical Compressor*,Medical Air Compressor Set,P,MGS,HTM 02-01
 BHD,Specialty Equipment,*Bedhead*|*Trunking*,Bedhead Trunking / Service Panel,E,NCL,HTM 08-03

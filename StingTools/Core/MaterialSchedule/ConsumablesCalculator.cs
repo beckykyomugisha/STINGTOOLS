@@ -44,6 +44,14 @@ namespace StingTools.Core.MaterialSchedule
         public double RoofCoveringM2;
 
         /// <summary>
+        /// Fasteners, already COUNTED per covering rather than derived by one
+        /// flat ratio over a mixed roof. A sheet roof and a tiled roof on the
+        /// same building need different numbers and one of them is zero, which
+        /// no single ratio over the combined area can express.
+        /// </summary>
+        public double RoofFastenerNr;
+
+        /// <summary>
         /// Roof covering that WAS measured but could not be attributed to a
         /// product: the category resolved to a roof commodity and the type name
         /// matched no pattern, so the supplier table refused to convert it.
@@ -75,6 +83,8 @@ namespace StingTools.Core.MaterialSchedule
             switch ((driver ?? "").Trim().ToLowerInvariant())
             {
                 case "rebar_kg": return "kg";
+                // Counted FROM an area, so the ROW that feeds it is in m2.
+                case "roof_fastener_nr": return "m2";
                 default:         return "m2";
             }
         }
@@ -89,6 +99,7 @@ namespace StingTools.Core.MaterialSchedule
                 case "rebar_kg":         RebarKg += quantity; break;
                 case "formwork_m2":      FormworkM2 += quantity; break;
                 case "roof_covering_m2": RoofCoveringM2 += quantity; break;
+                case "roof_fastener_nr": RoofFastenerNr += quantity; break;
             }
         }
 
@@ -100,6 +111,7 @@ namespace StingTools.Core.MaterialSchedule
                 case "rebar_kg":         return RebarKg;
                 case "formwork_m2":      return FormworkM2;
                 case "roof_covering_m2": return RoofCoveringM2;
+                case "roof_fastener_nr": return RoofFastenerNr;
                 default:                 return 0;
             }
         }
@@ -160,7 +172,20 @@ namespace StingTools.Core.MaterialSchedule
                     var res = units.Resolve(r.ConstituentKind, r.Category, r.TypeName, r.MaterialName);
                     if (res.Rule != null && !string.IsNullOrWhiteSpace(res.Rule.FeedsDriver))
                     {
-                        if (Is(UnitFor(res.Rule.FeedsDriver))) d.Add(res.Rule.FeedsDriver, r.Quantity);
+                        if (Is(UnitFor(res.Rule.FeedsDriver)))
+                        {
+                            d.Add(res.Rule.FeedsDriver, r.Quantity);
+
+                            // The fastener count, per covering, in the same
+                            // pass. A covering that states no density adds
+                            // NOTHING rather than borrowing another's — a roof
+                            // nobody has measured fixings for is not a roof
+                            // with zero fixings, and those are different facts.
+                            if (res.Rule.FastenersPerM2 >= 0
+                                && string.Equals(res.Rule.FeedsDriver, "roof_covering_m2",
+                                                 StringComparison.OrdinalIgnoreCase))
+                                d.RoofFastenerNr += r.Quantity * res.Rule.FastenersPerM2;
+                        }
                         else d.UnitMismatches.Add($"{res.Rule.CommodityKey} in '{r.Unit}'");
                     }
                     else if (res.Match == SupplierUnitMatch.CategoryTypeMismatch)
@@ -214,7 +239,7 @@ namespace StingTools.Core.MaterialSchedule
     {
         private static readonly HashSet<string> KnownDrivers =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "walled_area_m2", "rebar_kg", "formwork_m2", "roof_covering_m2" };
+            { "walled_area_m2", "rebar_kg", "formwork_m2", "roof_covering_m2", "roof_fastener_nr" };
 
         public static IReadOnlyCollection<string> AllDrivers => KnownDrivers;
 

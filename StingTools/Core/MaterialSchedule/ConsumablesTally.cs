@@ -68,6 +68,20 @@ namespace StingTools.Core.MaterialSchedule
         /// </summary>
         public double RoofCoveringUnattributedM2;
 
+        /// <summary>
+        /// Roof covering that was measured AND identified, in m2.
+        ///
+        /// Separates two zeros that read identically. On a second project the
+        /// fastener driver was zero and the note said "with no driver the
+        /// quantity would be invented" - while 437 m2 of shingle and clay tile
+        /// sat priced above it. Both are NAILED, so zero screws is the right
+        /// answer, not a missing one.
+        ///
+        /// Same failure as the unattributed case one level down: the number is
+        /// correct and the sentence explaining it is not.
+        /// </summary>
+        public double RoofCoveringMeasuredM2;
+
         /// <summary>Driver rows skipped because their measured unit disagreed
         /// with the unit the driver is counted in. Carried through from
         /// ConsumableDrivers so one line reports the whole source.</summary>
@@ -84,6 +98,7 @@ namespace StingTools.Core.MaterialSchedule
             UnusableRules.Clear();
             UnitMismatches.Clear();
             RoofCoveringUnattributedM2 = 0;
+            RoofCoveringMeasuredM2 = 0;
         }
 
         public void Consider(string kind) { RulesConsidered++; }
@@ -135,6 +150,18 @@ namespace StingTools.Core.MaterialSchedule
 
                 // ... unless the driver is zero because nothing could be
                 // IDENTIFIED, which is a different fact with a different fix.
+                // A covering that is nailed rather than screwed. The count is
+                // zero because it SHOULD be, and saying "no driver" invites
+                // somebody to go looking for a fault that is not there.
+                if (RoofCoveringMeasuredM2 > 0
+                    && DriversAbsent.ContainsKey("roof_fastener_nr"))
+                {
+                    s += $" The roof fastener count is zero because the {RoofCoveringMeasuredM2:N0} m² "
+                       + "of covering measured here is NAILED, not screwed — tiles and shingles are "
+                       + "fixed every other course. That is the right answer for this roof, not a "
+                       + "missing measurement.";
+                }
+
                 if (RoofCoveringUnattributedM2 > 0
                     && DriversAbsent.ContainsKey("roof_covering_m2"))
                 {

@@ -180,6 +180,14 @@ namespace StingTools.Core.MaterialSchedule
         /// </summary>
         public string ProjectRatesPath = "";
 
+        /// <summary>
+        /// Measured source per (commodityKey, typeName), for the by-type sheet.
+        /// Carried on the document because the breakdown must be computed from
+        /// the SAME numerator the order lines were, not from a second pass.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double>> SourceByType =
+            new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
         public List<string> Warnings = new List<string>();
 
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.
