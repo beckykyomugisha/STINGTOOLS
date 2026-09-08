@@ -59,15 +59,19 @@ Detail and evidence in `06_VALUE_TO_THE_SOCIETY.md`.
 
 ### 1 · A change is coming to your members' market (make the problem theirs)
 
-MoWT is considering mandating BIM above UGX 5 billion. Donor-financed work increasingly
-carries digital delivery requirements. Practices that cannot deliver to those
-requirements stop being shortlisted, and the work goes elsewhere — including abroad.
+ISO 19650 is now the accepted international standard for project information, and the
+UK, UAE, Singapore and Germany mandate BIM on public work. Kenya — the obvious regional
+comparison — is documented as lagging, with poor coordination of information named as
+the consequence. Uganda has neither a national standard nor locally supported tooling.
+
+Practices with no answer stop being shortlisted and never learn why; they compete
+against firms that already work this way; and they pay for it on site.
 
 A professional body exists to protect its members' standing. This is squarely its
 business, and it is happening whether or not the Society engages with you.
 
-**Say "proposed", not "mandated".** You have a live proposal with MoWT; you do not have
-a directive. Overstating it is the fastest way to lose this room.
+**Say "the direction of travel", never "it is being mandated here".** There is no
+Ugandan mandate, and claiming one is the fastest way to lose this room.
 
 ### 2 · Here is what exists — the demonstration
 
@@ -82,8 +86,8 @@ State the completion position **before** you demo, in the words from
 - **Statutory CPD.** 20 points a year, required for licence renewal. A flagship
   programme the Society owns, in content that is hard to source locally.
 - **A national standard the Society authors.** Not a PDF — a working implementation that
-  software can check compliance against. Plus the seat already proposed for the
-  architects' bodies on a national BIM standards working group.
+  software can check compliance against, so the Society arrives at any future standards
+  conversation with a working draft rather than an opinion.
 - **Member economics.** Per-organisation pricing, unlimited free external members,
   shilling billing — and a Society-negotiated member rate, offered before they ask.
 
@@ -105,7 +109,7 @@ Then, and only then: what remains to be finished, what it costs, and the funding
   buys more than one you never raised.
 - **Documentation quality, evidence and disputes** — his language. Audit, revision
   control, a defensible record of what was issued and when.
-- **Continuity** — open formats, escrow, self-hosting, priced exit (MoWT §11.3). Answers
+- **Continuity** — open formats, escrow, self-hosting, a priced exit path. Answers
   "what if you're unavailable" before it is asked.
 - **No exclusivity, no ownership transfer, no obligation on members.**
 
@@ -132,7 +136,7 @@ Then, and only then: what remains to be finished, what it costs, and the funding
 | Min | Segment | Whose attention |
 |---|---|---|
 | 0–2 | Thanks, who I am, **the conflict declaration**, and the shape of the ask | Board of Practice |
-| 2–5 | **The change coming to members' market** — MoWT, donors, procurement | Both |
+| 2–5 | **The change coming to members' market** — the standard, and the region | Both |
 | 5–7 | What the platform is, and **exactly where it stands** (verbatim) | ICT Cluster |
 | 7–13 | **Demonstration** | ICT Cluster |
 | 13–17 | **What the Society gets** — CPD, the standard, member economics | Both |
@@ -140,10 +144,10 @@ Then, and only then: what remains to be finished, what it costs, and the funding
 | 19–20 | The three things I am asking for | Both |
 | 20–60 | Discussion | — |
 
-**MoWT:** bring it deliberately, as evidence. "The same platform is under discussion
-with the Ministry of Works and Transport" — a proposal, not a contract. If it surfaces on
-its own after you have discussed completion status, it reads as inconsistency rather than
-momentum.
+**MoWT is out of this presentation entirely** (Davis, 2026-09-08). That conversation is
+still pending and is not to be used as evidence here. If it is raised because Ken has the
+proposal, say only that it is a separate discussion you are not able to characterise yet,
+and move on.
 
 ---
 
@@ -192,8 +196,8 @@ re-dated (F-03, outstanding). The proposal is the leave-behind, never the script
 **Do not bring the UDB application.** It is parked. Handing round a loan request you have
 just said you are not making creates exactly the confusion this is meant to avoid.
 
-**Have ready if asked:** the MoWT proposal, the demo recording, a one-page summary of
-what a cohort covers.
+**Have ready if asked:** the demo recording, and a one-page summary of what a cohort
+covers.
 
 **Do not bring:** anything describing the MOU as ready to sign, or any timeline
 containing a date that has passed.

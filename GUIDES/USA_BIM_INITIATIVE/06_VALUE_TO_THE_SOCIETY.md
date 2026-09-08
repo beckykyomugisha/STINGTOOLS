@@ -60,24 +60,34 @@ you don't. Asking is also a good way to make them co-owners of the idea.
 
 ## 2 · Members getting locked out of their own market — the "why now"
 
+**MoWT is deliberately excluded from this argument** (Davis, 2026-09-08 — that
+conversation is still pending and is not to be used here). The case stands without it,
+and is arguably cleaner for a professional body, because it positions the Society as
+leading rather than reacting.
+
 This is the argument that should open the substantive part of the presentation, because
 it makes the problem **theirs**, not yours.
 
-- The Ministry of Works and Transport is actively considering mandating BIM on
-  construction and rehabilitation projects above UGX 5 billion. You have a live proposal
-  in front of them saying exactly that.
-- Donor-financed work — World Bank, AfDB, JICA, EU — increasingly carries digital
-  delivery and asset-data requirements.
-- Practices that cannot deliver to those requirements do not get shortlisted. The work
-  goes to firms that can, including foreign ones.
+- **ISO 19650 is now the accepted international standard** for managing project
+  information — naming, versioning, approval, handover.
+- **Governments have started mandating BIM on public work** — the United Kingdom, the
+  UAE, Singapore and Germany among them. It has only ever moved in one direction.
+- **Kenya, the obvious regional comparison, is documented as lagging**, with poor
+  coordination of information between project parties named as the consequence.
+- **Uganda has neither a national information standard for architectural delivery nor
+  any locally built, locally supported tooling.**
+
+So a practice with no answer to "how will information be delivered" stops appearing on
+shortlists and never learns why; it competes against international and regional firms
+that already work this way; and it pays for the shortfall on site, where coordination
+errors are most expensive and the architect usually carries the blame.
 
 A professional body exists to protect its members' standing and livelihood. **A change
-in procurement that its members are not ready for is precisely its business.** The
-Society can either find out when members start losing tenders, or get ahead of it.
+in what clients expect, that its members are not ready for, is precisely its business.**
 
-Frame it as a warning you are bringing them, not a sales opportunity. And be scrupulous:
-the MoWT mandate is *proposed*, not issued. Say "proposed". Overstating it is the
-fastest way to lose the room.
+**Say "the direction of travel", never "it is being mandated here".** There is no
+Ugandan mandate. Claiming one is the fastest way to lose the room, and someone will
+check.
 
 ---
 
@@ -92,13 +102,12 @@ Naming and tagging schemes, drawing types, title blocks, view templates — and 
 that *checks* a model against them and reports what fails. A standard that software can
 enforce is a standard that gets used.
 
-There is also a seat waiting. The MoWT proposal §13 already recommends convening a
-national infrastructure BIM standards working group including the architects'
-registration bodies. **The Society can take that seat as a founding member rather than
-being invited later** — and arrive with a working draft rather than an opinion.
+And if a national standards conversation ever convenes in Uganda, **the Society
+arrives with a working draft rather than an opinion** — which is the difference
+between chairing that conversation and being consulted on it.
 
-Value to the Society: national authority, a visible contribution to public policy, and
-relevance with government that it did not have to manufacture.
+Value to the Society: authority on a question nobody else here has answered, and a
+visible contribution to the profession it did not have to manufacture.
 
 ---
 
@@ -191,7 +200,7 @@ An architects' body will find these in about four minutes if you don't.
 | **StingTools is a Revit add-in, and many Ugandan architects use ArchiCAD** | The single most likely objection in this specific room. PlanScape is authoring-agnostic through IFC, and there is an ArchiCAD bridge, but it is early. Say so plainly and say what the roadmap is. If this lands as a gotcha rather than a disclosure, it costs you the ICT chair. |
 | MEP calculation engines are not independently validated | Complete and tested, never carried through independent professional validation. Offered only as separately commissioned services, with manual cross-checks in parallel. Then invite the Society's engineers to be the validators — it turns a weakness into a role for them. |
 | Production-ready for one deployment, not productised for many | The wording in `05_CONSISTENT_NARRATIVE.md`. Volunteer it. |
-| The MoWT mandate is proposed, not issued | Say "proposed" every time. |
+| There is no Ugandan BIM mandate | Say "the direction of travel". Never imply one exists. |
 
 ---
 

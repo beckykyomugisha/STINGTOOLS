@@ -94,17 +94,16 @@ multi-year association.
 
 ---
 
-### 4 · Government and the MoWT route
+### 4 · Government partnership
 
-**Why it works:** if the Ministry proceeds with a BIM mandate, capacity building stops
-being a nice idea and becomes a public need — and the Society is the obvious delivery
-partner for the architectural profession. The MoWT proposal §13 already recommends
-engaging the universities and the professional bodies.
+**Why it works:** if public procurement moves toward digital delivery requirements,
+capacity building stops being a nice idea and becomes a public need — and the Society
+is the obvious delivery partner for the architectural profession.
 
 **What the Society unlocks:** standing to be that partner, which an individual does not
 have.
 
-**Caution:** this is contingent on a mandate that has not been issued. Present it as an
+**Caution:** this is contingent on something that has not happened. Present it as an
 opportunity to prepare for, never as funding that exists.
 
 ---

@@ -84,7 +84,7 @@ Say it before they do.
 > path to Autodesk Construction Cloud is priced, so migrating is a budget decision,
 > not a rescue.
 
-(Source: MoWT §11.3. This is well-developed material — use it.)
+(Well-developed material. Use it — it answers the key-person question before it is asked.)
 
 ---
 
@@ -112,10 +112,7 @@ The weakest area on paper — F-04. Handle with what is true:
 > six-building institutional campus in central Kampala, eight-plus design disciplines,
 > ISO 19650, to a US client's standards.
 >
-> It's also under active proposal to the Ministry of Works and Transport for their
-> engineering portfolio. That's a proposal, not a signed contract, and I won't
-> overstate it. But it's the most infrastructure-intensive institution in government
-> and they're taking it seriously enough to have asked for a second version.
+> That is the honest answer, and I am not going to dress up a pipeline for you.
 
 **Then invert it:** *"What I don't have is twenty Ugandan practices using it, and
 that's precisely what the Society's endorsement and a training cohort would build."*
@@ -130,9 +127,7 @@ that's precisely what the Society's endorsement and a training cohort would buil
 >
 > Autodesk charges per user. We charge per organisation, with unlimited free external
 > members — so consultants, contractors and clients join a project at no licence cost.
-> For the Ministry at equivalent coverage that's the difference between about UGX 71
-> million a year and UGX 345 million. For a ten-person practice here it's the difference
-> between viable and not.
+> For a ten-person practice here that is the difference between viable and not.
 >
 > And it's priced in shillings, hosted in Uganda if you want it that way, and supported
 > from Kampala.

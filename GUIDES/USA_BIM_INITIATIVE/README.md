@@ -15,8 +15,7 @@ Davis Mayanja has sent the Society a three-document package — an initiative pr
 a draft UDB loan application, and a draft MOU — originally asking the Society to
 borrow **USD 72,680** in its own name to complete the platform, fund East African
 hosting and run three training cohorts, in exchange for 3–5% of net platform income.
-A presentation to Society leadership is being arranged. The same platform is
-separately under proposal to the Ministry of Works and Transport.
+A presentation to Society leadership is being arranged.
 
 **Changed 2026-09-08.** The UDB route is parked ("we are first trying other means")
 and the loan application is out of the live folder. Ken is confirmed as **President**
@@ -73,7 +72,23 @@ resolution to consider it.
 | [`05_CONSISTENT_NARRATIVE.md`](05_CONSISTENT_NARRATIVE.md) | The single agreed wording. Anything said publicly comes from here. |
 | [`06_VALUE_TO_THE_SOCIETY.md`](06_VALUE_TO_THE_SOCIETY.md) | **Where the platform matters to the institution** — CPD, standards, member economics, and who is actually in the room |
 | [`07_FUNDING_ROUTES.md`](07_FUNDING_ROUTES.md) | Eight routes the Society can open. **Print this and take it in.** |
+| `deck.js` / `guide.js` | Generators for the two deliverables below. Edit and re-run rather than hand-editing the output. |
 | [`source-docs/`](source-docs/) | Pointers to the four source documents (originals stay where they are) |
+
+## The deliverables
+
+Both live beside the source documents in `C:\Dev\UGANDA SOCIETY OF ARCHITECHTS(USA)\`:
+
+| File | What it is |
+|---|---|
+| `USA_BIM_Presentation_Guide_Sep2026.docx` | 25 pages. Everything to know and everything to say — the ask, the room, the full script, the demo gate, the value map, the funding routes, the hard questions, the fixed wording, the checklists. |
+| `USA_BIM_Presentation_Sep2026.pptx` | 17 slides, corporate, with the full spoken script in the speaker notes of every slide. |
+
+Regenerate with `node deck.js <out.pptx>` and `node guide.js <out.docx>` from this folder
+(needs `npm install pptxgenjs docx`). **MoWT is excluded from both** — Davis, 2026-09-08:
+that conversation is still pending and is not to be used here.
+
+---
 
 ## Standing rules for this workstream
 

@@ -40,7 +40,7 @@ Status: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` dropped, with a r
 | `[ ]` | Rework initiative proposal §3, §4, §8, §9 off the UDB framing | D-11 |
 | `[ ]` | Redraft the MOU: parties, IP clause, and §5–§7 (loan, repayment, revenue share) | D-10, D-12 |
 | `[ ]` | Re-date USA proposal §9; remove the 7–11 September cohort reference | F-03 |
-| `[ ]` | Add MoWT as a live prospect wherever demand is argued | F-04 |
+| `[ ]` | ~~Add MoWT as a live prospect~~ — **dropped 2026-09-08**; MoWT is excluded from this workstream | F-04 |
 | `[ ]` | Build the bottom-up basis for the revenue projections | F-05 |
 
 ---
@@ -113,4 +113,4 @@ Full checklist in `02_PRESENTATION_PLAN.md`. Summary:
 | | Action |
 |---|---|
 | `[ ]` | **Register the PlanScape and StingTools names in Uganda** (USD 300–600). Cheapest item in the whole package, nothing about it waits on the Society, and it matters *more* now the company is closing — the name needs an owner of record |
-| `[ ]` | Keep the MoWT thread moving. It is the strongest evidence in the USA conversation and is not contingent on this meeting — but check the PPDA/entity question before the company closes |
+| `[ ]` | The MoWT conversation is separate and still pending — **do not use it as evidence in the USA meeting.** Still check the procurement/entity question before the company closes |
