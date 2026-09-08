@@ -135,11 +135,123 @@ namespace StingTools.Commands.Classification
         /// only ever fires for system elements and changes nothing for loadable families.</para>
         /// </summary>
         public static string TypeName(Document doc, Element el)
+            => ParameterHelpers.GetElementTypeName(el);
+
+        /// <summary>
+        /// The element's STRUCTURAL material name, for the MaterialRegex column. KUT-10.
+        ///
+        /// <para>MasterFormat 2020 divides by work result and material — Division 03 Concrete,
+        /// 04 Masonry, 05 Metals, 06 Wood — so the material is the primary key and the Revit
+        /// category is the fallback. Read from <c>STRUCTURAL_MATERIAL_PARAM</c> on the instance,
+        /// then on the type, because that parameter is where an engineer DECLARES what a member
+        /// is. Never from the type name: "W310x39" is a naming convention, not a fact.</para>
+        ///
+        /// <para><b><see cref="StingTools.BOQ.PrimaryMaterial"/> is deliberately not used
+        /// here.</b> It leads with dominant-by-volume across <c>GetMaterialIds</c>, which is
+        /// exactly right for pricing a compound assembly and wrong for classifying a member: on
+        /// a composite or clad element the largest volume can be a finish or an insulation
+        /// layer, and Division 05 steelwork would be billed as Division 07. The two questions
+        /// are different, so they get different resolvers.</para>
+        ///
+        /// <para>Returns "" when nothing is declared — which is not a failure. An element with
+        /// no structural material falls through to the category-keyed default, which is what
+        /// that default is FOR.</para>
+        /// </summary>
+        public static string StructuralMaterialName(Document doc, Element el)
         {
-            string t = ParameterHelpers.GetFamilySymbolName(el);
-            if (!string.IsNullOrEmpty(t)) return t;
-            try { return doc.GetElement(el.GetTypeId())?.Name ?? ""; }
-            catch (Exception ex) { StingLog.Warn($"CSI TypeName {el?.Id}: {ex.Message}"); return ""; }
+            if (doc == null || el == null) return "";
+            string byInstance = MaterialFrom(doc, el, BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+            if (!string.IsNullOrEmpty(byInstance)) return byInstance;
+            try
+            {
+                var typeId = el.GetTypeId();
+                if (typeId != null && typeId.Value > 0)
+                {
+                    var et = doc.GetElement(typeId);
+                    if (et != null)
+                    {
+                        string byType = MaterialFrom(doc, et, BuiltInParameter.STRUCTURAL_MATERIAL_PARAM);
+                        if (!string.IsNullOrEmpty(byType)) return byType;
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiStructMat", $"CSI structural material {el.Id}: {ex.Message}"); }
+            return "";
+        }
+
+        private static string MaterialFrom(Document doc, Element el, BuiltInParameter bip)
+        {
+            try
+            {
+                var p = el.get_Parameter(bip);
+                if (p == null || p.StorageType != StorageType.ElementId) return "";
+                var id = p.AsElementId();
+                if (id == null || id.Value <= 0) return "";
+                return (doc.GetElement(id) as Material)?.Name ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>Ordered phase ids for a document, cached per document. The ORDER is the
+        /// whole point: "existing" means created in a phase before the works, and that is a
+        /// question about position in the sequence, not about a phase's name.</summary>
+        private static readonly Dictionary<string, List<long>> _phaseOrder =
+            new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
+
+        private static List<long> PhaseOrder(Document doc)
+        {
+            string key = doc?.PathName ?? doc?.Title ?? "";
+            lock (_phaseOrder)
+            {
+                if (_phaseOrder.TryGetValue(key, out var cached)) return cached;
+                var order = new List<long>();
+                try
+                {
+                    foreach (Phase ph in doc.Phases)
+                        if (ph != null) order.Add(ph.Id.Value);
+                }
+                catch (Exception ex) { StingLog.Warn($"CSI PhaseOrder: {ex.Message}"); }
+                _phaseOrder[key] = order;
+                return order;
+            }
+        }
+
+        /// <summary>
+        /// The element's state within the works — the Phase qualifier's candidate. KUT-5.
+        ///
+        /// <para>Revit expresses demolition through <c>Phase Created</c> and <c>Phase
+        /// Demolished</c>, so that is what this reads. The classification rules live in the
+        /// Revit-free <see cref="ElementPhaseState"/> so they are testable; this method only
+        /// turns two <c>ElementId</c>s into positions in the document's phase sequence.</para>
+        ///
+        /// <para>Returns "" for anything that is not phase-aware, which
+        /// <c>CsiRule.Score</c> treats as no-match — so a grid or a level can never satisfy a
+        /// Division 02 rule.</para>
+        /// </summary>
+        public static string PhaseState(Document doc, Element el)
+        {
+            if (doc == null || el == null) return ElementPhaseState.Unknown;
+            try
+            {
+                var order = PhaseOrder(doc);
+                if (order.Count == 0) return ElementPhaseState.Unknown;
+
+                int created = IndexOfPhase(order, el.CreatedPhaseId);
+                int demolished = IndexOfPhase(order, el.DemolishedPhaseId);
+                return ElementPhaseState.Classify(created, demolished, order.Count);
+            }
+            catch (Exception ex)
+            {
+                // Not every element exposes these — asking a view or a grid throws.
+                StingLog.WarnRateLimited("CsiPhase", $"CSI phase state {el?.Id}: {ex.Message}");
+                return ElementPhaseState.Unknown;
+            }
+        }
+
+        private static int IndexOfPhase(List<long> order, ElementId id)
+        {
+            if (id == null || id.Value <= 0) return -1;
+            return order.IndexOf(id.Value);
         }
     }
 
@@ -187,7 +299,10 @@ namespace StingTools.Commands.Classification
                     string fam = ParameterHelpers.GetFamilyName(el);
                     string type = CsiMap.TypeName(doc, el);
                     string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                    var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys);
+                    // KUT-10 — material first, category as the fallback.
+                    string mat = CsiMap.StructuralMaterialName(doc, el);
+                    string phase = CsiMap.PhaseState(doc, el);
+                    var rule = CsiMasterFormat.Resolve(rules, cat, fam, type, sys, mat, phase, out _, out _);
                     if (rule == null)
                     {
                         unresolved++;

@@ -25,3 +25,13 @@ shared/ifc/**        text eol=lf
 docs/examples/*/smoke_test.json       text eol=lf
 docs/examples/*/REVIT_SMOKE_TEST.md   text eol=lf
 docs/examples/*/*.docx                binary
+
+# Same reasoning again for the three files tools/param_binding_resolver.py writes.
+# binding-spec-drift.yml regenerates them on Linux and calls `git diff` — so if a
+# Windows checkout materialised CRLF, every PR touching a parameter would fail the
+# gate on line endings alone and the real diff would be invisible underneath.
+# The resolver now pins its own writers to LF (see the LF constant at its top);
+# this stops git undoing that on checkout.
+StingTools/Data/RESOLVED_BINDINGS.csv text eol=lf
+docs/RESOLVED_BINDINGS.csv            text eol=lf
+docs/binding_gaps.csv                 text eol=lf

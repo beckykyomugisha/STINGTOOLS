@@ -1,167 +1,882 @@
 {
-  "schemaVersion": "1.0",
-  "note": "STING model-authoring baseline. Corporate default; project override at <project>/_BIM_COORD/project_baseline.json, which wins by name. Material NAMES are load-bearing: the compound take-off infers brick vs block vs RC from them, and the finish classifier recognises tiling from them. Renaming a material here without checking those two is how a schedule goes quiet. Levels are deliberately EMPTY - level names and elevations are project decisions, so put them in the project override rather than auditing every model against someone else's storey heights.",
-
-  "materials": [
-    { "name": "Concrete C25", "purpose": "General structural concrete - slabs, columns, foundations", "colour": "150,150,150" },
-    { "name": "Concrete C30", "purpose": "Higher-grade structural concrete - RC walls, transfer elements", "colour": "140,140,140" },
-    { "name": "Blinding Concrete C15", "purpose": "Unreinforced blinding under foundations", "colour": "170,170,170" },
-    { "name": "Burnt Clay Brick", "purpose": "Brick masonry - the take-off reads 'brick' from this name", "colour": "150,80,60" },
-    { "name": "Hollow Concrete Block 200mm", "purpose": "Block masonry - the take-off falls to block when the name is not brick", "colour": "160,160,150" },
-    { "name": "Cement Plaster", "purpose": "Render / plaster coat; the painted area is derived from it", "colour": "200,195,185" },
-    { "name": "Cement Screed", "purpose": "Floor screed under a tiled or applied finish", "colour": "190,185,175" },
-    { "name": "Ceramic Tile", "purpose": "Floor and wall tiling - recognised as tiling by the finish classifier", "colour": "220,215,205" },
-    { "name": "Porcelain Tile", "purpose": "Large-format tiling; carries a higher adhesive coverage", "colour": "225,222,215" },
-    { "name": "Terrazzo Tile", "purpose": "Terrazzo flooring", "colour": "205,200,190" },
-    { "name": "Reinforcement Steel", "purpose": "Rebar - reported in kg from the concrete volume", "colour": "90,90,95" },
-    { "name": "Timber Formwork", "purpose": "Sawn formwork, measured by contact area", "colour": "180,150,110" },
-    { "name": "Gypsum Wall Board", "purpose": "Plasterboard linings and suspended ceilings", "colour": "230,228,222" },
-    { "name": "Emulsion Paint - Interior", "purpose": "Interior decoration to plastered faces", "colour": "245,245,240" },
-    { "name": "Weather-guard Paint - Exterior", "purpose": "Exterior decoration to plastered faces", "colour": "240,238,230" },
-    { "name": "Corrugated Iron Sheet", "purpose": "Sheet roof covering - the supplier rule converts it per sheet", "colour": "120,125,130" },
-    { "name": "Clay Roof Tile", "purpose": "Tiled roof covering", "colour": "160,90,70" }
+  "_comment": [
+    "STING HOUSE STANDARD - the host types and materials a model is authored with.",
+    "",
+    "TYPE NAMES FOLLOW BS EN ISO 22014:2024 (which superseded BS 8541-1 in May 2024):",
+    "",
+    "    PLNS_WBL_Hollow200-PlasteredBothFaces",
+    "    ^^^^ ^^^ ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "    |    |   Subtype - what distinguishes this one from its siblings",
+    "    |    Type - the ISO 19650 PROD code the plugin already mints",
+    "    Source - originator, from PRJ_ORG_ORIGINATOR_CODE_TXT",
+    "",
+    "Underscore between FIELDS, hyphen between COMPONENTS inside a field, no spaces,",
+    "PascalCase within a component. Three fields, in that order.",
+    "",
+    "WHY THE TYPE FIELD IS THE PROD CODE. The plugin already mints an ISO 19650 asset",
+    "tag whose PROD segment classifies the product. A type name carrying the WORD",
+    "'Blockwork' beside a tag carrying the CODE 'WBL' is two vocabularies for one fact,",
+    "free to disagree the moment either is edited. Naming the code directly means the",
+    "resolver READS it rather than inferring it - source tier 'declared', above the",
+    "corporate patterns and below a project overlay.",
+    "",
+    "The pattern rules are unchanged and still carry every model that does NOT conform.",
+    "They are the rescue path, not the standard.",
+    "",
+    "MATERIAL names keep their readable shape - <Family> - <Qualifier> - <Grade> - because",
+    "Revit materials are not library objects and ISO 22014 does not govern them. Their",
+    "controlled field is Material.Class, which Materials_SetClass fills.",
+    "",
+    "LAYERS, NOT PAINT: every finish is a LAYER with its own material, and the core",
+    "carries the Structure function. An element-level material overrides all of it.",
+    "",
+    "Project override: <project>/_data/coord/project_baseline.json, same shape."
   ],
-
+  "materials": [
+    {
+      "name": "Concrete C15 Blinding",
+      "purpose": "Blinding under foundations and ground slabs",
+      "colour": "170,170,170"
+    },
+    {
+      "name": "Concrete C20",
+      "purpose": "Non-structural fill, kerbs, mass concrete",
+      "colour": "160,160,160"
+    },
+    {
+      "name": "Concrete C25",
+      "purpose": "General structural concrete - slabs, columns, foundations",
+      "colour": "150,150,150"
+    },
+    {
+      "name": "Concrete C30",
+      "purpose": "Suspended slabs and beams where C25 is insufficient",
+      "colour": "140,140,140"
+    },
+    {
+      "name": "Masonry - Hollow Concrete Block 100mm",
+      "purpose": "Internal non-load-bearing partition block",
+      "colour": "196,186,170"
+    },
+    {
+      "name": "Masonry - Hollow Concrete Block 150mm",
+      "purpose": "Internal load-bearing block",
+      "colour": "192,182,166"
+    },
+    {
+      "name": "Masonry - Hollow Concrete Block 200mm",
+      "purpose": "External and load-bearing block, the Uganda default",
+      "colour": "188,178,162"
+    },
+    {
+      "name": "Masonry - Solid Concrete Block 150mm",
+      "purpose": "Retaining and below-DPC masonry",
+      "colour": "180,170,155"
+    },
+    {
+      "name": "Masonry - Clay Brick 295x150x130",
+      "purpose": "Facing and fair-faced clay brickwork",
+      "colour": "150,88,64"
+    },
+    {
+      "name": "Masonry - Screen Block 200x200",
+      "purpose": "Breeze / screen block to curtain and ventilation panels",
+      "colour": "198,190,178"
+    },
+    {
+      "name": "Mortar - Cement Sand 1:4",
+      "purpose": "Bedding mortar to blockwork and brickwork",
+      "colour": "175,172,165"
+    },
+    {
+      "name": "Plaster - Cement Render 1:4",
+      "purpose": "Two-coat cement plaster to masonry, internal and external",
+      "colour": "205,202,195"
+    },
+    {
+      "name": "Screed - Cement Sand 1:3",
+      "purpose": "Floor screed under tiling and to falls",
+      "colour": "198,195,188"
+    },
+    {
+      "name": "Grout - Tile Joint",
+      "purpose": "Tile joint grout",
+      "colour": "215,213,208"
+    },
+    {
+      "name": "Steel - Reinforcement Bar Y",
+      "purpose": "High-yield reinforcement to BS 4449",
+      "colour": "110,110,118"
+    },
+    {
+      "name": "Steel - Fabric Mesh A142",
+      "purpose": "Mesh reinforcement to ground slabs",
+      "colour": "115,115,122"
+    },
+    {
+      "name": "Steel - Structural S275",
+      "purpose": "Structural sections, plates and connections",
+      "colour": "100,100,110"
+    },
+    {
+      "name": "Steel - Galvanised Sheet G28",
+      "purpose": "Roof sheeting, gutters and flashings",
+      "colour": "168,172,178"
+    },
+    {
+      "name": "Steel - Mild Steel Section",
+      "purpose": "Railings, balustrades, gates and grilles",
+      "colour": "105,105,112"
+    },
+    {
+      "name": "Timber - Hardwood Mvule",
+      "purpose": "Joinery, doors, fascia and external timber",
+      "colour": "128,92,54"
+    },
+    {
+      "name": "Timber - Softwood Cypress",
+      "purpose": "Roof trusses, purlins and carcassing",
+      "colour": "176,140,96"
+    },
+    {
+      "name": "Timber - Plywood 18mm",
+      "purpose": "Formwork, soffits and sheathing",
+      "colour": "190,162,120"
+    },
+    {
+      "name": "Tile - Ceramic Floor 300x300",
+      "purpose": "Standard ceramic floor tiling",
+      "colour": "216,210,200"
+    },
+    {
+      "name": "Tile - Porcelain Floor 600x600",
+      "purpose": "Large-format porcelain floor tiling",
+      "colour": "222,218,212"
+    },
+    {
+      "name": "Tile - Ceramic Wall 250x400",
+      "purpose": "Wall tiling to wet areas",
+      "colour": "228,226,222"
+    },
+    {
+      "name": "Terrazzo - Cast In Situ",
+      "purpose": "In-situ terrazzo floor and skirting",
+      "colour": "205,200,190"
+    },
+    {
+      "name": "Paint - Emulsion Interior",
+      "purpose": "Internal emulsion to plaster and board",
+      "colour": "238,236,230"
+    },
+    {
+      "name": "Paint - Weatherguard Exterior",
+      "purpose": "External weatherproof coating to render",
+      "colour": "232,228,220"
+    },
+    {
+      "name": "Paint - Gloss Enamel",
+      "purpose": "Gloss to joinery and metalwork",
+      "colour": "236,234,228"
+    },
+    {
+      "name": "Gypsum - Wall Board 12.5mm",
+      "purpose": "Plasterboard to stud partitions",
+      "colour": "230,228,222"
+    },
+    {
+      "name": "Gypsum - Ceiling Board 9mm",
+      "purpose": "Plasterboard to suspended ceilings",
+      "colour": "232,230,225"
+    },
+    {
+      "name": "Roofing - Clay Tile",
+      "purpose": "Clay roof tiling",
+      "colour": "158,92,66"
+    },
+    {
+      "name": "Roofing - Stone Coated Tile",
+      "purpose": "Stone-coated steel roof tile",
+      "colour": "120,112,100"
+    },
+    {
+      "name": "Bitumen - Felt Membrane",
+      "purpose": "Built-up felt to flat roofs",
+      "colour": "70,68,66"
+    },
+    {
+      "name": "Bitumen - DPM 1000 Gauge",
+      "purpose": "Damp-proof membrane under ground slabs",
+      "colour": "60,58,58"
+    },
+    {
+      "name": "Insulation - Mineral Wool",
+      "purpose": "Thermal and acoustic quilt",
+      "colour": "222,214,186"
+    },
+    {
+      "name": "Insulation - EPS Board",
+      "purpose": "Expanded polystyrene board",
+      "colour": "238,236,228"
+    },
+    {
+      "name": "Glass - Float Clear 6mm",
+      "purpose": "Standard glazing",
+      "colour": "196,214,220"
+    },
+    {
+      "name": "Glass - Toughened 10mm",
+      "purpose": "Balustrades, doors and low-level glazing",
+      "colour": "190,210,218"
+    },
+    {
+      "name": "Aluminium - Powder Coated",
+      "purpose": "Window and door frames, louvres",
+      "colour": "170,174,178"
+    },
+    {
+      "name": "PVC - uPVC Section",
+      "purpose": "uPVC windows, gutters and rainwater goods",
+      "colour": "225,225,222"
+    },
+    {
+      "name": "Hardcore - Stone Fill",
+      "purpose": "Compacted hardcore bed under ground slabs",
+      "colour": "142,138,130"
+    },
+    {
+      "name": "Aggregate - Crushed Stone 20mm",
+      "purpose": "Coarse aggregate",
+      "colour": "150,146,138"
+    }
+  ],
   "wallTypes": [
     {
-      "name": "STING Blockwork 200 - Plastered Both Faces",
-      "purpose": "Standard internal / external block wall, plastered and painted both sides",
+      "name": "PLNS_WBL_Hollow200-PlasteredBothFaces",
+      "purpose": "External and load-bearing default. Both plaster faces are LAYERS, which is what makes rendering measurable",
       "layers": [
-        { "function": "Finish1", "material": "Cement Plaster", "thicknessMm": 12 },
-        { "function": "Structure", "material": "Hollow Concrete Block 200mm", "thicknessMm": 200 },
-        { "function": "Finish2", "material": "Cement Plaster", "thicknessMm": 12 }
+        {
+          "function": "Finish1",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        },
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 200mm",
+          "thicknessMm": 200
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
       ]
     },
     {
-      "name": "STING Blockwork 200 - Tiled Wet Area",
-      "purpose": "Bathroom / kitchen wall: plastered outside, tiled inside. The tiled face is measured as tiling and is NOT painted",
+      "name": "PLNS_WBL_Hollow150-PlasteredBothFaces",
+      "purpose": "Internal load-bearing wall",
       "layers": [
-        { "function": "Finish1", "material": "Cement Plaster", "thicknessMm": 12 },
-        { "function": "Structure", "material": "Hollow Concrete Block 200mm", "thicknessMm": 200 },
-        { "function": "Finish2", "material": "Ceramic Tile", "thicknessMm": 8 }
+        {
+          "function": "Finish1",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        },
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 150mm",
+          "thicknessMm": 150
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
       ]
     },
     {
-      "name": "STING Brickwork 230 - Plastered Both Faces",
-      "purpose": "Burnt clay brick wall - the take-off reads 'brick' and counts bricks, not blocks",
+      "name": "PLNS_WBL_Hollow100-PlasteredBothFaces",
+      "purpose": "Internal non-load-bearing partition",
       "layers": [
-        { "function": "Finish1", "material": "Cement Plaster", "thicknessMm": 12 },
-        { "function": "Structure", "material": "Burnt Clay Brick", "thicknessMm": 230 },
-        { "function": "Finish2", "material": "Cement Plaster", "thicknessMm": 12 }
+        {
+          "function": "Finish1",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        },
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 100mm",
+          "thicknessMm": 100
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
       ]
     },
     {
-      "name": "STING RC Wall 200",
-      "purpose": "Reinforced concrete wall - decomposes to concrete, rebar and formwork to both faces",
+      "name": "PLNS_WBL_Hollow200-FairFaceExternal",
+      "purpose": "External block wall left fair-faced outside, plastered inside",
       "layers": [
-        { "function": "Structure", "material": "Concrete C30", "thicknessMm": 200 }
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 200mm",
+          "thicknessMm": 200
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WBK_Clay295-FairFaced",
+      "purpose": "Fair-faced clay brickwork, no render either side",
+      "layers": [
+        {
+          "function": "Structure",
+          "material": "Masonry - Clay Brick 295x150x130",
+          "thicknessMm": 295
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WBK_Clay150-PlasteredInternal",
+      "purpose": "Half-brick skin, rendered internally",
+      "layers": [
+        {
+          "function": "Structure",
+          "material": "Masonry - Clay Brick 295x150x130",
+          "thicknessMm": 150
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WRC_Wall200-PlasteredBothFaces",
+      "purpose": "Reinforced concrete wall. The EXPLICIT concrete material is what lets it decompose to concrete, rebar and formwork",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 200
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
+      ]
+    },
+    {
+      "name": "PLNS_RWL_Retaining250-Tanked",
+      "purpose": "Below-ground retaining wall, tanked externally",
+      "layers": [
+        {
+          "function": "Membrane",
+          "material": "Bitumen - DPM 1000 Gauge",
+          "thicknessMm": 1
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 250
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WPT_Stud100-BoardedBothFaces",
+      "purpose": "Metal or timber stud partition with plasterboard both faces",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Gypsum - Wall Board 12.5mm",
+          "thicknessMm": 12.5
+        },
+        {
+          "function": "Structure",
+          "material": "Timber - Softwood Cypress",
+          "thicknessMm": 75
+        },
+        {
+          "function": "Finish2",
+          "material": "Gypsum - Wall Board 12.5mm",
+          "thicknessMm": 12.5
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WBL_Hollow200-TiledOneFace",
+      "purpose": "Wet-area wall. The tile LAYER is what makes wall tiling measurable",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Tile - Ceramic Wall 250x400",
+          "thicknessMm": 8
+        },
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 200mm",
+          "thicknessMm": 200
+        },
+        {
+          "function": "Finish2",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
+      ]
+    },
+    {
+      "name": "PLNS_WBD_Boundary200-FairFaced",
+      "purpose": "Compound / boundary wall with coping",
+      "layers": [
+        {
+          "function": "Structure",
+          "material": "Masonry - Hollow Concrete Block 200mm",
+          "thicknessMm": 200
+        }
       ]
     }
   ],
-
   "floorTypes": [
     {
-      "name": "STING RC Slab 150 - Ceramic Tiled",
+      "name": "PLNS_SLB_RC150-CeramicTiled",
       "purpose": "Suspended slab with a tiled finish. The tile LAYER is what makes floor tiling measurable",
       "layers": [
-        { "function": "Finish1", "material": "Ceramic Tile", "thicknessMm": 10 },
-        { "function": "Substrate", "material": "Cement Screed", "thicknessMm": 40 },
-        { "function": "Structure", "material": "Concrete C25", "thicknessMm": 150 }
+        {
+          "function": "Finish1",
+          "material": "Tile - Ceramic Floor 300x300",
+          "thicknessMm": 10
+        },
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 40
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        }
       ]
     },
     {
-      "name": "STING RC Slab 200 - Porcelain Tiled",
-      "purpose": "Heavier slab with large-format porcelain; adhesive coverage is higher than ceramic",
+      "name": "PLNS_SLB_RC200-PorcelainTiled",
+      "purpose": "Heavier suspended slab, large-format porcelain",
       "layers": [
-        { "function": "Finish1", "material": "Porcelain Tile", "thicknessMm": 10 },
-        { "function": "Substrate", "material": "Cement Screed", "thicknessMm": 40 },
-        { "function": "Structure", "material": "Concrete C25", "thicknessMm": 200 }
+        {
+          "function": "Finish1",
+          "material": "Tile - Porcelain Floor 600x600",
+          "thicknessMm": 12
+        },
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 40
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 200
+        }
       ]
     },
     {
-      "name": "STING RC Slab 150 - Screed Only",
-      "purpose": "Slab left screeded, finish applied later or scheduled on the room",
+      "name": "PLNS_SLB_RC150-Terrazzo",
+      "purpose": "Suspended slab with in-situ terrazzo",
       "layers": [
-        { "function": "Substrate", "material": "Cement Screed", "thicknessMm": 40 },
-        { "function": "Structure", "material": "Concrete C25", "thicknessMm": 150 }
+        {
+          "function": "Finish1",
+          "material": "Terrazzo - Cast In Situ",
+          "thicknessMm": 20
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        }
       ]
     },
     {
-      "name": "STING Ground Slab 150 on Blinding",
-      "purpose": "Ground-bearing slab; the blinding is unreinforced by definition",
+      "name": "PLNS_SLB_RC150-ScreedOnly",
+      "purpose": "Suspended slab left screeded, finish by others",
       "layers": [
-        { "function": "Structure", "material": "Concrete C25", "thicknessMm": 150 },
-        { "function": "Substrate", "material": "Blinding Concrete C15", "thicknessMm": 50 }
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 50
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        }
+      ]
+    },
+    {
+      "name": "PLNS_FGS_Ground150-CeramicTiled",
+      "purpose": "Ground-bearing slab on DPM and hardcore. Hardcore and DPM are LAYERS so both are measurable",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Tile - Ceramic Floor 300x300",
+          "thicknessMm": 10
+        },
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 40
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        },
+        {
+          "function": "Membrane",
+          "material": "Bitumen - DPM 1000 Gauge",
+          "thicknessMm": 1
+        },
+        {
+          "function": "Substrate",
+          "material": "Hardcore - Stone Fill",
+          "thicknessMm": 200
+        }
+      ]
+    },
+    {
+      "name": "PLNS_FGS_Ground150-ScreedOnly",
+      "purpose": "Ground-bearing slab, finish by others",
+      "layers": [
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 50
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        },
+        {
+          "function": "Membrane",
+          "material": "Bitumen - DPM 1000 Gauge",
+          "thicknessMm": 1
+        },
+        {
+          "function": "Substrate",
+          "material": "Hardcore - Stone Fill",
+          "thicknessMm": 200
+        }
+      ]
+    },
+    {
+      "name": "PLNS_FRB_HollowPot250-CeramicTiled",
+      "purpose": "Ribbed / hollow-pot suspended slab, the East African economy span",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Tile - Ceramic Floor 300x300",
+          "thicknessMm": 10
+        },
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 40
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 250
+        }
+      ]
+    },
+    {
+      "name": "PLNS_FSP_RC150-Terrazzo",
+      "purpose": "Cast-in-place steps and landings",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Terrazzo - Cast In Situ",
+          "thicknessMm": 20
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 150
+        }
       ]
     }
   ],
-
   "roofTypes": [
     {
-      "name": "STING RC Flat Roof 225",
-      "purpose": "Concrete flat roof. The EXPLICIT concrete material is what lets it decompose to concrete, rebar and formwork - an unnamed roof material is treated as unknown, never as concrete",
+      "name": "PLNS_RFL_RC225-BuiltUpFelt",
+      "purpose": "Concrete flat roof with built-up felt. The EXPLICIT concrete material is what lets it decompose to concrete, rebar and formwork",
       "layers": [
-        { "function": "Structure", "material": "Concrete C25", "thicknessMm": 225 }
+        {
+          "function": "Finish1",
+          "material": "Bitumen - Felt Membrane",
+          "thicknessMm": 4
+        },
+        {
+          "function": "Substrate",
+          "material": "Screed - Cement Sand 1:3",
+          "thicknessMm": 50
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 225
+        }
       ]
     },
     {
-      "name": "STING Sheet Roof - Corrugated IT4 G28",
-      "purpose": "Sheet covering. The type NAME carries the supplier rule's patterns (sheet / corrugat / it4 / g28) so it converts to a sheet count",
+      "name": "PLNS_RSH_IT4-OnTimberPurlins",
+      "purpose": "Galvanised IT4 sheeting on softwood purlins, the Uganda default",
       "layers": [
-        { "function": "Finish1", "material": "Corrugated Iron Sheet", "thicknessMm": 1 }
+        {
+          "function": "Finish1",
+          "material": "Steel - Galvanised Sheet G28",
+          "thicknessMm": 0.5
+        },
+        {
+          "function": "Structure",
+          "material": "Timber - Softwood Cypress",
+          "thicknessMm": 50
+        }
       ]
     },
     {
-      "name": "STING Tiled Roof - Clay Tile",
-      "purpose": "Tiled covering; the name carries the roof-tile rule's patterns",
+      "name": "PLNS_RTL_ClayTile-OnTimberBattens",
+      "purpose": "Clay roof tiling on battens and softwood",
       "layers": [
-        { "function": "Finish1", "material": "Clay Roof Tile", "thicknessMm": 20 }
+        {
+          "function": "Finish1",
+          "material": "Roofing - Clay Tile",
+          "thicknessMm": 15
+        },
+        {
+          "function": "Structure",
+          "material": "Timber - Softwood Cypress",
+          "thicknessMm": 50
+        }
+      ]
+    },
+    {
+      "name": "PLNS_RTL_StoneCoated-OnTimberBattens",
+      "purpose": "Stone-coated steel tile on softwood",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Roofing - Stone Coated Tile",
+          "thicknessMm": 5
+        },
+        {
+          "function": "Structure",
+          "material": "Timber - Softwood Cypress",
+          "thicknessMm": 50
+        }
+      ]
+    },
+    {
+      "name": "PLNS_RCS_RC200-InsulatedFelt",
+      "purpose": "Warm flat roof with insulation between deck and membrane",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Bitumen - Felt Membrane",
+          "thicknessMm": 4
+        },
+        {
+          "function": "Insulation",
+          "material": "Insulation - EPS Board",
+          "thicknessMm": 50
+        },
+        {
+          "function": "Structure",
+          "material": "Concrete C25",
+          "thicknessMm": 200
+        }
       ]
     }
   ],
-
   "ceilingTypes": [
     {
-      "name": "STING Suspended Gypsum Ceiling",
+      "name": "PLNS_CSU_Gypsum9-ConcealedGrid",
       "purpose": "Plasterboard ceiling on a concealed grid",
       "layers": [
-        { "function": "Finish1", "material": "Gypsum Wall Board", "thicknessMm": 12.5 }
+        {
+          "function": "Finish1",
+          "material": "Gypsum - Ceiling Board 9mm",
+          "thicknessMm": 9
+        }
+      ]
+    },
+    {
+      "name": "PLNS_CPB_Gypsum9-OnTimberBrandering",
+      "purpose": "Board fixed direct to softwood brandering",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Gypsum - Ceiling Board 9mm",
+          "thicknessMm": 9
+        },
+        {
+          "function": "Structure",
+          "material": "Timber - Softwood Cypress",
+          "thicknessMm": 50
+        }
+      ]
+    },
+    {
+      "name": "PLNS_CPL_CementRender12-DirectToSlab",
+      "purpose": "Rendered soffit direct to the slab, no void",
+      "layers": [
+        {
+          "function": "Finish1",
+          "material": "Plaster - Cement Render 1:4",
+          "thicknessMm": 12
+        }
       ]
     }
   ],
-
   "levels": [],
-
   "familyExpectations": [
     {
       "category": "Structural Columns",
-      "namePatterns": [ "Concrete", "RC", "STING" ],
+      "namePatterns": [
+        "Concrete",
+        "RC",
+        "STING"
+      ],
       "minimumTypes": 1,
       "guidance": "Load a concrete column family and name its types so the material reads as concrete - the take-off decides column decomposition from the material, not the family name."
     },
     {
-      "category": "Structural Foundations",
-      "namePatterns": [ "Pad", "Strip", "Raft", "Concrete", "STING" ],
+      "category": "Structural Framing",
+      "namePatterns": [
+        "Concrete",
+        "RC",
+        "Steel",
+        "STING"
+      ],
       "minimumTypes": 1,
-      "guidance": "Load a foundation family. Pads and strips shutter on their SIDES only because they bear on the ground; blinding carries no rebar."
+      "guidance": "Beam types must name their material. A beam called 300x600 decomposes to nothing."
     },
     {
-      "category": "Structural Framing",
-      "namePatterns": [ "Concrete", "RC", "Beam", "STING" ],
+      "category": "Structural Foundations",
+      "namePatterns": [
+        "Pad",
+        "Strip",
+        "Raft",
+        "Concrete",
+        "STING"
+      ],
       "minimumTypes": 1,
-      "guidance": "Load a concrete beam family; steel framing is left on the composite line rather than decomposed."
+      "guidance": "Name the foundation KIND - Pad, Strip, Raft - so the PROD rules can tell them apart. A size alone resolves to the category default."
     },
     {
       "category": "Doors",
-      "namePatterns": [],
-      "minimumTypes": 1,
-      "guidance": "Doors are bought and belong in the schedule. They need a RATE keyed by type name in _BIM_COORD/commodity_rates.csv - the export names the exact key for every unpriced one."
+      "namePatterns": [
+        "Flush",
+        "Timber",
+        "Steel",
+        "Glazed",
+        "Fire",
+        "Sliding",
+        "FD30",
+        "FD60"
+      ],
+      "minimumTypes": 2,
+      "guidance": "Door types must name the leaf material or the fire rating. '900 x 2100' is a size, and a size is not a product - 20 doors on a delivered model resolved to nothing for exactly this reason."
     },
     {
       "category": "Windows",
-      "namePatterns": [],
+      "namePatterns": [
+        "Aluminium",
+        "uPVC",
+        "Timber",
+        "Steel",
+        "Casement",
+        "Awning",
+        "Sliding",
+        "Fixed"
+      ],
+      "minimumTypes": 2,
+      "guidance": "Window types must name the frame material or the operation. Both are what a window schedule prices."
+    },
+    {
+      "category": "Curtain Panels",
+      "namePatterns": [
+        "Glazed",
+        "Solid",
+        "Louvre",
+        "Screen Block",
+        "Breeze"
+      ],
       "minimumTypes": 1,
-      "guidance": "As doors: present in the schedule, priced by type name in the project rate card."
+      "guidance": "A curtain panel that names its infill resolves; one called by a supplier code does not."
+    },
+    {
+      "category": "Stairs",
+      "namePatterns": [
+        "RC",
+        "Concrete",
+        "Precast",
+        "Steel",
+        "Timber"
+      ],
+      "minimumTypes": 1,
+      "guidance": "Name the stair construction. The finish belongs in the type name after the construction, not instead of it."
+    },
+    {
+      "category": "Railings",
+      "namePatterns": [
+        "Mild Steel",
+        "MS",
+        "Stainless",
+        "Glass",
+        "Timber"
+      ],
+      "minimumTypes": 1,
+      "guidance": "Railing types are priced by material and height - both belong in the name."
+    },
+    {
+      "category": "Pipes",
+      "namePatterns": [
+        "uPVC",
+        "PVC",
+        "PPR",
+        "Copper",
+        "GI",
+        "Galvanised",
+        "HDPE"
+      ],
+      "minimumTypes": 1,
+      "guidance": "For a linear service the MATERIAL is the product. A pipe type that does not name its material cannot be priced."
+    },
+    {
+      "category": "Plumbing Fixtures",
+      "namePatterns": [
+        "WC",
+        "Basin",
+        "Lavatory",
+        "Sink",
+        "Shower",
+        "Urinal",
+        "Bath"
+      ],
+      "minimumTypes": 3,
+      "guidance": "Sanitaryware resolves well already - these are the fixture words the corporate rules match."
     }
   ]
 }

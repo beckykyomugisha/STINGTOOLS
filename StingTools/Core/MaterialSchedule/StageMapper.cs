@@ -159,7 +159,7 @@ namespace StingTools.Core.MaterialSchedule
             if (!string.IsNullOrWhiteSpace(typeText) && _byTypePattern.Count > 0)
             {
                 foreach (var kv in _byTypePattern)
-                    if (typeText.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (PatternMatch.Contains(typeText, kv.Key))
                         return kv.Value;
             }
 
