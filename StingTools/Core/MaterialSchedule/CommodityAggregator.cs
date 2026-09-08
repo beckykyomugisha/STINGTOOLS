@@ -66,47 +66,32 @@ namespace StingTools.Core.MaterialSchedule
             // a List per row.
             var stageIndex = StageIndex.Build(input.StageDefs, input.DefaultStageId);
 
-            var patterns = (input.ExcludedDescriptionPatterns ?? new List<string>())
-                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
-
-            var excluded = new HashSet<string>(
-                input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-
-            var protectedCats = new HashSet<string>(
-                input.ExclusionProtectedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            // The exclusion MECHANISM lives in ProductExclusion so the PROD coverage
+            // audit decides "not a thing" the same way this does. The LISTS stay
+            // per-purpose: this one excludes Furniture (you do not buy a sofa by the
+            // cubic metre) and the PROD audit must not, because FUR is a real code.
+            var exclusion = ProductExclusion.Build(
+                input.ExcludedCategories,
+                input.ExcludedDescriptionPatterns,
+                input.ExclusionProtectedCategories);
 
             foreach (var row in input.Constituents ?? new List<ConstituentInput>())
             {
                 if (row == null) continue;
 
-                // MAT-SCHED-8 — not a material. Counted, not silently dropped:
-                // a real export turned beds and TV shelves into purchasable
-                // commodities, 60 rows of noise and a UGX 0 grand total.
-                if (!string.IsNullOrWhiteSpace(row.Category) && excluded.Contains(row.Category.Trim()))
+                // MAT-SCHED-8 — not a material. Counted, not silently dropped: a
+                // real export turned beds and TV shelves into purchasable
+                // commodities, 60 rows of noise and a UGX 0 grand total. The
+                // pattern layer catches what no category rule can — an opening
+                // sold 1,187 times under Generic Models, which elsewhere holds
+                // genuine building elements.
+                var verdict = exclusion.Classify(row.Category, row.Description, row.TypeName);
+                if (verdict != ExclusionVerdict.Included)
                 {
-                    string c = row.Category.Trim();
+                    string c = string.IsNullOrWhiteSpace(row.Category) ? "(uncategorised)" : row.Category.Trim();
                     doc.ExcludedByCategory.TryGetValue(c, out int n);
                     doc.ExcludedByCategory[c] = n + 1;
                     continue;
-                }
-
-                // Not a material despite a legitimate category — an opening, a
-                // muntin pattern, a trim. Blank patterns are skipped: "".IndexOf
-                // returns 0 and would exclude the entire model.
-                if (patterns.Count > 0
-                    && !(!string.IsNullOrWhiteSpace(row.Category) && protectedCats.Contains(row.Category.Trim())))
-                {
-                    string hay = (row.Description ?? "") + " " + (row.TypeName ?? "");
-                    bool hit = false;
-                    foreach (string pat in patterns)
-                        if (hay.IndexOf(pat, StringComparison.OrdinalIgnoreCase) >= 0) { hit = true; break; }
-                    if (hit)
-                    {
-                        string c2 = string.IsNullOrWhiteSpace(row.Category) ? "(uncategorised)" : row.Category.Trim();
-                        doc.ExcludedByCategory.TryGetValue(c2, out int n2);
-                        doc.ExcludedByCategory[c2] = n2 + 1;
-                        continue;
-                    }
                 }
 
                 // Constituent kind first, then category (+ optional type pattern).

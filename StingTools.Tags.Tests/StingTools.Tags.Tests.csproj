@@ -73,6 +73,11 @@
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
+    <!-- The shared "not a thing" mechanism + the PROD policy that loads it. Kept
+         Revit-free so the shipped exclusion list is asserted against the real
+         model counts that exposed the 0.8%-vs-3.1% denominator. -->
+    <Compile Include="..\StingTools\Core\ProductExclusion.cs" Link="Core\ProductExclusion.cs" />
+    <Compile Include="..\StingTools\Core\ProdExclusionPolicy.cs" Link="Core\ProdExclusionPolicy.cs" />
     <!-- The Revit-free half of the material-driven PROD suffix. Split out of
          MaterialProdOverrideRegistry (which needs an Element) so the SHIPPED rule
          table is assertable: an unanchored stem handed sheep's wool an EPS code. -->
