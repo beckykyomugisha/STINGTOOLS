@@ -1,4 +1,9 @@
 import os,re,csv,collections
+# csv.writer's default lineterminator is CRLF whatever open(newline="") does, so
+# the terminator has to be set on the WRITER. All three outputs are pinned to LF
+# and to `text eol=lf` in .gitattributes: the drift gate regenerates on Linux and
+# diffs, so a Windows-authored CRLF file would fail CI on a tree nobody edited.
+LF = "\n"
 # ---- code scan: param -> set(code domains) ----
 params={}
 for line in open("StingTools/Data/MR_PARAMETERS.txt",encoding="utf-8",errors="replace"):
@@ -49,7 +54,7 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
 "ROOF":"Roofs","STAIR":"Stairs|Railings","RAMP":"Ramps","RAILING":"Railings","CASEWORK":"Casework","FURN":"Furniture|Furniture Systems",
 "PARK":"Parking","COLUMN":"Columns|Structural Columns","ROOM":"Rooms","FINISH":"Walls|Floors|Ceilings|Roofs|Rooms",
-"MATERIAL":"Materials","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
+"MATERIAL":"Materials","SHEET":"Sheets","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
 SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"DATA","MGS":"HEALTH","CLN":"HEALTH","CEQ":"HEALTH","RAD":"HEALTH","FLS":"FIRE"}
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
@@ -64,7 +69,16 @@ def resolve(n,desc,depth=0):
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
-    if pre in("Qto","VT","TB","TBL","SHT","VIEW"): return "NONE","excluded"
+    # SHT_* binds to Sheets. It sat in the excluded tuple beside the genuinely
+    # unbindable prefixes (Qto quantity sets, view/title-block metadata), so every
+    # regeneration silently dropped ten sheet parameters that the committed spec
+    # bound -- and "absent from the spec" means intentionally UNBOUND, not
+    # broad-bound, so they go dark rather than wrong. Only ONE of the ten has a
+    # CATEGORY_BINDINGS.csv row to fall back on; the other nine bind nowhere.
+    # This must come before the _TAG_ rule so SHT_TAG_1_TXT / SHT_TAG_7_TXT land
+    # on Sheets rather than being treated as element tag containers.
+    if pre=="SHT": return "SHEET","sheet"
+    if pre in("Qto","VT","TB","TBL","VIEW"): return "NONE","excluded"
     # A classification code is a property of the thing, not of a discipline, so every
     # classification axis binds universally. CSI was here alone; UNICLASS (Pr/Ss/EF),
     # NBS and the per-element RFI URL are the other four ClassificationReader.Read()
@@ -135,11 +149,11 @@ for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
+    w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
+    w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
 with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
+    w=csv.writer(f, lineterminator=LF); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
     for n,g,srcx,cats,d in sorted(out):
         if cats!="": w.writerow([n,cats])
 print("code-usage recovered:",src["code-usage"])

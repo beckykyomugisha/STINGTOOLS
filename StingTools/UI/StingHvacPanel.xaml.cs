@@ -70,6 +70,17 @@ namespace StingTools.UI
             // Seed sizing-role rows from the registry on first show so the CALCS tab is non-empty.
             try { SeedSizingRolesFromRegistry(); }
             catch (Exception ex) { StingLog.Warn($"SeedSizingRoles: {ex.Message}"); }
+
+            // KUT-8 — a panel constructed AFTER startup must start on the same region as
+            // one constructed before it, so it re-reads the project preset rather than
+            // trusting the combo's XAML default.
+            try
+            {
+                StingTools.Core.EngineRegionSync.Attach();
+                ApplyProjectRegion(StingTools.Standards.EngineRegionMap.ToMepSizingRegion(
+                    StingTools.Standards.ProjectStandardsManager.Instance.Region));
+            }
+            catch (Exception ex) { StingLog.Warn($"HVAC project-region seed: {ex.Message}"); }
         }
 
         private void SeedSizingRolesFromRegistry()
@@ -497,6 +508,46 @@ namespace StingTools.UI
         {
             if (cmbRegion?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
                 SelectedRegion = tag;
+        }
+
+        /// <summary>
+        /// KUT-8 — select the region the PROJECT is in, rather than staying on the
+        /// combo's hardcoded default. Called by <c>EngineRegionSync</c> at startup and
+        /// whenever the project preset changes.
+        ///
+        /// <para>Moves the combo, not just the backing field, because the combo is what
+        /// the engineer reads: a header saying "UK / SI" while the engine sizes to
+        /// something else is a worse failure than the one this closes. Marshals to the
+        /// UI thread — the caller is the standards singleton, not the dispatcher.</para>
+        ///
+        /// <para>A tag the combo does not offer is IGNORED, not forced: the region list
+        /// here is the set the rules file carries, and selecting nothing would leave the
+        /// header blank while the engine used a value no item names.</para>
+        /// </summary>
+        public void ApplyProjectRegion(string engineRegionTag)
+        {
+            if (string.IsNullOrWhiteSpace(engineRegionTag)) return;
+            try
+            {
+                Action apply = () =>
+                {
+                    if (cmbRegion?.Items == null) return;
+                    foreach (var obj in cmbRegion.Items)
+                    {
+                        if (obj is ComboBoxItem ci && ci.Tag is string t &&
+                            string.Equals(t, engineRegionTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cmbRegion.SelectedItem = ci;   // raises cmbRegion_SelectionChanged, which sets SelectedRegion
+                            return;
+                        }
+                    }
+                    StingLog.Warn($"StingHvacPanel.ApplyProjectRegion: no combo item tagged '{engineRegionTag}'; " +
+                                  $"leaving the header on '{SelectedRegion}'.");
+                };
+                if (Dispatcher.CheckAccess()) apply();
+                else Dispatcher.BeginInvoke(apply);
+            }
+            catch (Exception ex) { StingLog.Warn($"StingHvacPanel.ApplyProjectRegion: {ex.Message}"); }
         }
 
         private void cmbDensity_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -72,7 +72,12 @@ namespace StingTools.Commands.Classification
                     string cat = ParameterHelpers.GetCategoryName(el);
                     if (string.IsNullOrEmpty(cat) || !known.Contains(cat)) continue;
 
-                    string fam = ParameterHelpers.GetFamilyName(el);
+                    // KUT-11 — deliberately the LOADABLE name. This command writes
+                    // FAMILY_PATTERN rows into the project overlay, and a row keyed on a
+                    // system family name ("Basic Wall") matches every wall in the model,
+                    // which is a category default wearing a family rule's clothes. The
+                    // empty string is the skip signal here, so it must stay one.
+                    string fam = ParameterHelpers.GetLoadableFamilyName(el);
                     if (string.IsNullOrEmpty(fam)) continue;
 
                     if (!seen.Add(cat + SEP + fam)) continue; // first representative per (cat, family)

@@ -36,8 +36,8 @@ name: KUT Issued Document Gate
 on:
   push:
     paths:
-      - 'KUT_*.docx'
-      - 'KUT_*.xlsx'
+      - 'KUT_DOCS_WORKING/issued/*.docx'
+      - 'KUT_DOCS_WORKING/issued/*.xlsx'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
@@ -59,8 +59,8 @@ on:
       - '.github/workflows/kut-document-gate.yml'
   pull_request:
     paths:
-      - 'KUT_*.docx'
-      - 'KUT_*.xlsx'
+      - 'KUT_DOCS_WORKING/issued/*.docx'
+      - 'KUT_DOCS_WORKING/issued/*.xlsx'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
@@ -127,7 +127,7 @@ jobs:
           python tools/build_midp.py
           python tools/build_document_control.py
           python tools/build_symbion_request.py
-          git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx' || {
+          git diff --exit-code -- 'KUT_DOCS_WORKING/issued/*.docx' 'KUT_*.xlsx' || {
             echo "--- which OPC parts actually differ ---"
             python tools/diff_ooxml.py
             exit 1

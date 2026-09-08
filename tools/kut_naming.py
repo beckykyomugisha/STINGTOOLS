@@ -58,37 +58,70 @@ LEVELS = (
 # The role field of a container name. ROLES are also the asset discipline codes
 # validated on every element; CONTAINER_ONLY exists in a container name and
 # never on an element, which is why owner_standards.json does not list it.
+# ── role codes ──────────────────────────────────────────────────────────────
+# BS EN ISO 19650-2 UK National Annex, Table NA.3. The role field states the
+# DISCIPLINE OF THE ORIGINATOR, not the subject of the container, and the codes
+# are the standard's -- not this project's.
+#
+# Two earlier project inventions were withdrawn when the project adopted the
+# standard set, because each collided with a standard meaning:
+#   G was used for Civil.        In the standard G is Geographical/Land Surveyor;
+#                                Civil Engineer is C.
+#   Interiors were folded into A. The standard separates Interior Designer as I,
+#                                which is also who owns the FF&E record.
+# FP (fire protection) and LV (low voltage) are not in the standard at all. Both
+# are issued under Y, Specialist Designer, and distinguished by the Volume/System
+# field rather than by inventing a role code -- an invented code is invalid on
+# every downstream system that reads the standard, and silently so.
 ROLES = (
-    ('A', 'Architecture and interiors'),
-    ('S', 'Structural'),
-    ('M', 'Mechanical'),
-    ('E', 'Electrical, including lighting'),
-    ('P', 'Public health — plumbing and drainage'),
-    ('FP', 'Fire protection'),
-    ('LV', 'Low voltage and communications'),
-    ('G', 'Civil and site'),
+    ('A', 'Architect'),
+    ('C', 'Civil Engineer'),
+    ('E', 'Electrical Engineer'),
+    ('I', 'Interior Designer — including FF&E and finishes'),
+    ('M', 'Mechanical Engineer'),
+    ('P', 'Public Health Engineer — plumbing and drainage'),
+    ('Q', 'Quantity Surveyor'),
+    ('S', 'Structural Engineer'),
+    ('W', 'Contractor'),
+    ('X', 'Sub-contractor'),
+    ('Y', 'Specialist Designer — fire protection, low voltage and communications'),
 )
 CONTAINER_ONLY_ROLES = (
-    ('Z', 'Multi-discipline, federated and management containers'),
+    ('Z', 'General — multi-discipline, federated and management containers'),
 )
 ALL_ROLES = ROLES + CONTAINER_ONLY_ROLES
 
 # ── type codes ──────────────────────────────────────────────────────────────
+# BS EN ISO 19650-2 UK National Annex, Table NA.2.
+#
+# SH IS A SCHEDULE, NOT A SHEET. The project previously read SH as "Sheet" and
+# invented SC for a schedule, which inverted the standard: a container named
+# ...-SH-A-0100 was valid under both readings and meant a sheet to one reader
+# and a schedule to the other. A sheet is not a type in the standard -- a sheet
+# is a DRAWING, DR.
+#
+# CA (calculation), MS (method statement) and DC (document) were project
+# inventions and are withdrawn; each is a report, RP. BQ is withdrawn in favour
+# of the standard's CP, Cost plan.
 TYPES = (
+    ('CO', 'Correspondence'),
+    ('CP', 'Cost plan — including bills of quantities'),
+    ('CR', 'Clash rendition'),
+    ('DR', 'Drawing — including sheets'),
+    ('IE', 'Information exchange — including transmittals'),
+    ('M2', '2D model'),
     ('M3', '3D model'),
-    ('M2', '2D model or drafting'),
-    ('DR', 'Drawing'),
-    ('SH', 'Sheet'),
-    ('SC', 'Schedule'),
-    ('SP', 'Specification'),
-    ('RP', 'Report'),
-    ('CA', 'Calculation'),
-    ('RD', 'Room data sheet'),
-    ('MS', 'Method statement'),
+    ('MI', 'Minutes or action list'),
     ('PP', 'Presentation'),
-    ('CR', 'Clash or coordination report'),
-    ('TR', 'Transmittal or notice'),
-    ('BQ', 'Bill of quantities'),
+    ('PR', 'Programme'),
+    ('RD', 'Room data sheet'),
+    ('RI', 'Request for information'),
+    ('RP', 'Report — including calculations and method statements'),
+    ('SH', 'Schedule'),
+    ('SN', 'Snagging list'),
+    ('SP', 'Specification'),
+    ('SU', 'Survey'),
+    ('VS', 'Visualisation'),
 )
 TYPE_CODES = [c for c, _m in TYPES]
 

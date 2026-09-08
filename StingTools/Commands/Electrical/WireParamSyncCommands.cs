@@ -501,7 +501,12 @@ namespace StingTools.Commands.Electrical
             if (conduits.Count == 0)
             { TaskDialog.Show("Cable Sizer Sync", "No conduits found."); return Result.Succeeded; }
 
-            int sized = 0;
+            // KUT-7 - read the panel selection ONCE. Before this the standard was
+            // omitted from CableSizeInput entirely, so this command silently sized to
+            // BS 7671 whatever the panel said.
+            string activeStandard = StingTools.Standards.ElectricalStandardId.Normalise(
+                StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+            int sized = 0, refused = 0;
             using var tx = new Transaction(doc, "STING Cable Sizer Sync");
             tx.Start();
             foreach (var el in conduits)
@@ -537,10 +542,15 @@ namespace StingTools.Commands.Electrical
                         Phases         = phases,
                         AmbientTempC   = 30,
                         VDLimitPct     = 3.0,
+                        // KUT-7 - was omitted entirely, so this silently defaulted to
+                        // BS 7671 whatever the panel said.
+                        Standard       = activeStandard,
                     };
 
                     var result = CableSizerEngine.Calculate(input);
                     if (result == null) continue;
+                    // A refusal must not be written to the model as a zero CSA.
+                    if (!result.Sized) { refused++; continue; }
 
                     SetDouble(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2);
                     SetDouble(el, "ELC_WIRE_AMPACITY_A",        result.DesignCurrentA);
@@ -552,7 +562,15 @@ namespace StingTools.Commands.Electrical
             }
             tx.Commit();
 
+            // KUT-7 - a refusal is REPORTED, not folded into the "sized" count and not
+            // written to the model as a zero CSA. A conduit left unsized because the
+            // selected standard cannot be calculated is a fact the engineer needs to see.
+            string refusedLine = refused > 0
+                ? $"\n{refused} conduit(s) were NOT sized: {StingTools.Standards.ElectricalStandardId.Label(activeStandard)} "
+                  + "conductor sizing is not implemented, so their parameters were left untouched.\n"
+                : "";
             TaskDialog.Show("Cable Sizer Sync", $"Cable-sized {sized} conduit(s).\n"
+                + refusedLine
                 + "Parameters CSA, Iz, VD, and breaker rating have been updated.\n"
                 + "Re-run 'W-Batch' to refresh annotations.");
             return Result.Succeeded;

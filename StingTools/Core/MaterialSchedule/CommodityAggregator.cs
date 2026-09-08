@@ -66,47 +66,32 @@ namespace StingTools.Core.MaterialSchedule
             // a List per row.
             var stageIndex = StageIndex.Build(input.StageDefs, input.DefaultStageId);
 
-            var patterns = (input.ExcludedDescriptionPatterns ?? new List<string>())
-                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
-
-            var excluded = new HashSet<string>(
-                input.ExcludedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-
-            var protectedCats = new HashSet<string>(
-                input.ExclusionProtectedCategories ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            // The exclusion MECHANISM lives in ProductExclusion so the PROD coverage
+            // audit decides "not a thing" the same way this does. The LISTS stay
+            // per-purpose: this one excludes Furniture (you do not buy a sofa by the
+            // cubic metre) and the PROD audit must not, because FUR is a real code.
+            var exclusion = ProductExclusion.Build(
+                input.ExcludedCategories,
+                input.ExcludedDescriptionPatterns,
+                input.ExclusionProtectedCategories);
 
             foreach (var row in input.Constituents ?? new List<ConstituentInput>())
             {
                 if (row == null) continue;
 
-                // MAT-SCHED-8 — not a material. Counted, not silently dropped:
-                // a real export turned beds and TV shelves into purchasable
-                // commodities, 60 rows of noise and a UGX 0 grand total.
-                if (!string.IsNullOrWhiteSpace(row.Category) && excluded.Contains(row.Category.Trim()))
+                // MAT-SCHED-8 — not a material. Counted, not silently dropped: a
+                // real export turned beds and TV shelves into purchasable
+                // commodities, 60 rows of noise and a UGX 0 grand total. The
+                // pattern layer catches what no category rule can — an opening
+                // sold 1,187 times under Generic Models, which elsewhere holds
+                // genuine building elements.
+                var verdict = exclusion.Classify(row.Category, row.Description, row.TypeName);
+                if (verdict != ExclusionVerdict.Included)
                 {
-                    string c = row.Category.Trim();
+                    string c = string.IsNullOrWhiteSpace(row.Category) ? "(uncategorised)" : row.Category.Trim();
                     doc.ExcludedByCategory.TryGetValue(c, out int n);
                     doc.ExcludedByCategory[c] = n + 1;
                     continue;
-                }
-
-                // Not a material despite a legitimate category — an opening, a
-                // muntin pattern, a trim. Blank patterns are skipped: "".IndexOf
-                // returns 0 and would exclude the entire model.
-                if (patterns.Count > 0
-                    && !(!string.IsNullOrWhiteSpace(row.Category) && protectedCats.Contains(row.Category.Trim())))
-                {
-                    string hay = (row.Description ?? "") + " " + (row.TypeName ?? "");
-                    bool hit = false;
-                    foreach (string pat in patterns)
-                        if (hay.IndexOf(pat, StringComparison.OrdinalIgnoreCase) >= 0) { hit = true; break; }
-                    if (hit)
-                    {
-                        string c2 = string.IsNullOrWhiteSpace(row.Category) ? "(uncategorised)" : row.Category.Trim();
-                        doc.ExcludedByCategory.TryGetValue(c2, out int n2);
-                        doc.ExcludedByCategory[c2] = n2 + 1;
-                        continue;
-                    }
                 }
 
                 // Constituent kind first, then category (+ optional type pattern).
@@ -166,7 +151,15 @@ namespace StingTools.Core.MaterialSchedule
                 // their own could ever be decided by material, so those are the
                 // denominator — counting the rest would report a coverage the
                 // feature was never asked for.
-                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null)
+                // Only categories some rule could ever claim. A second project
+                // reported "200 rows could be identified by material, 3
+                // matched" and listed 56 unplaced materials led by
+                // '911 CARRERA S - BODY COLOR' - a Porsche in the entourage.
+                // A car's paint is never a building commodity, and counting it
+                // made a working feature read as a 1.5% success rate while
+                // burying the materials that DO need a pattern.
+                if (string.IsNullOrWhiteSpace(row.ConstituentKind) && input.MaterialScan != null
+                    && CategoryCouldConvert(input.Units, row.Category))
                 {
                     var scan = input.MaterialScan;
                     scan.RowsInspected++;
@@ -294,6 +287,34 @@ namespace StingTools.Core.MaterialSchedule
             return string.Equals(StingTools.BOQ.BoqUnits.Normalise(measured),
                                  StingTools.BOQ.BoqUnits.Normalise(ruleSource),
                                  StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// True when ANY rule in the table names this category. Furniture,
+        /// entourage and casework are named by none, so a material on them can
+        /// never become a commodity and counting it only dilutes the scan.
+        ///
+        /// A rule with no categories at all (matched by kind or material alone)
+        /// makes every category a candidate - which is correct, because such a
+        /// rule really could claim anything.
+        /// </summary>
+        private static bool CategoryCouldConvert(SupplierUnitTable units, string category)
+        {
+            if (units?.Rules == null) return true;
+            if (string.IsNullOrWhiteSpace(category)) return true;
+            string c = category.Trim();
+            foreach (var r in units.Rules)
+            {
+                if (r?.MatchCategories == null || r.MatchCategories.Count == 0)
+                {
+                    if (r?.MatchMaterialPatterns != null && r.MatchMaterialPatterns.Count > 0)
+                        return true;   // material-only rule: any category could carry it
+                    continue;
+                }
+                foreach (string mc in r.MatchCategories)
+                    if (string.Equals(mc, c, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
         }
 
         private sealed class Accum

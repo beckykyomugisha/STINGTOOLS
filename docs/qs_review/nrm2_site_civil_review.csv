@@ -1,37 +1,38 @@
-ROW,Category,FamilyRegex,TypeRegex,Sys,Section,Title,Current_Nrm2,Unit,QS_VERDICT,QS_NRM2,QS_NOTE
-94,Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,5,m,,,
-95,Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,5,,,,
-96,Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning,4,,,,
-105,Railings,,(?i)fence|gate,,32 31 00,Fences and Gates,4,m,,,
-113,Topography,,,,31 20 00,Earth Moving,4,m3,,,
-114,Toposolid,,,,31 20 00,Earth Moving,4,m3,,,
-115,Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,4,,,,
-116,Pads,,,,31 23 00,Excavation and Fill,4,m3,,,
-117,Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,4,,,,
-118,Roads,,(?i)concrete,,32 13 13,Concrete Paving,4,m2,,,
-119,Roads,,,,32 12 16,Asphalt Paving,4,,,,
-120,Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,4,,,,
-121,Parking,,,,32 12 16,Asphalt Paving,4,,,,
-122,Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,4,m2,,,
-123,Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,4,m,,,
-124,Walls,,(?i)retaining,,32 32 00,Retaining Walls,4,m2,,,
-125,Generic Models,(?i)fence|gate|balustrade,,,32 31 00,Fences and Gates,4,m,,,
-126,Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,4,,,,
-127,Site,,,,32 30 00,Site Improvements,4,,,,
-128,Entourage,,,,32 30 00,Site Improvements,4,,,,
-129,Planting,(?i)tree,,,32 93 43,Trees,4,,,,
-130,Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,4,m2,,,
-131,Planting,,,,32 93 00,Plants,4,,,,
-132,Pipes,,,IRR,32 84 00,Planting Irrigation,4,m,,,
-133,Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,4,m,,,
-134,Pipes,,(?i)site|external|buried|underground,DCW,33 11 00,Water Utility Distribution Piping,32,m,,,
-135,Pipes,,(?i)site|external|buried|underground,GAS,33 51 00,Natural-Gas Distribution,33,m,,,
-136,Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping,32,m,,,
-137,Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping,32,m,,,
-138,Pipes,,,SDS,33 46 00,Subdrainage,32,m,,,
-139,Conduits,,(?i)site|external|buried|underground,,33 71 00,Electrical Utility Transmission and Distribution,34,m,,,
-140,Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures,32,,,,
-141,Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains,32,,,,
-142,Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,32,,,,
-143,Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,32,,,,
-144,Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,32,,,,
+ROW,Category,FamilyRegex,TypeRegex,Sys,Section,Title,Qualifier,Current_Nrm2,Unit,QS_VERDICT,QS_NRM2,QS_NOTE
+109,Structural Foundations,(?i)bored pile|\bCFA\b,,,31 63 00,Bored Piles,,4,m,change,4,Piling is substructure measured in linear metres so billing it under 5 In-situ concrete (which measures concrete volume/formwork/reinforcement) mismatches the row's own 'm' unit; 4 Foundations is the nearest home because this scheme has no Piling section (NRM2 7) - see report caveat about the out-of-scope bare-foundation fallback which is also 5.
+110,Structural Foundations,(?i)shoring|underpin|sheet pile,,,31 40 00,Shoring and Underpinning,,4,,ok,,Underpinning and permanent sheet piling are substructure work so 4 Foundations is right; note the rule also catches temporary shoring which is a Division 01 / preliminaries item and a QS may want that split out rather than billed as permanent work.
+111,Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,,4,,change,4,Same reasoning as row 109 - driven piling is foundation work not superstructure in-situ concrete; moved to 4 Foundations for consistency with the bored-pile row.
+112,Structural Foundations,(?i)pile,,,31 62 00,Driven Piles,(?i)precast|pre-cast,4,,change,4,Precast-material twin of row 111 and must move with it or a precast pile bills under a different section than an identical in-situ one.
+123,Railings,,(?i)fence|gate,,32 31 00,Fences and Gates,,41,m,change,41,"Fences and gates bill under the new 41 Fencing, gates and barriers; previously 4 Foundations because the scheme had no external-works section."
+131,Topography,,,,31 20 00,Earth Moving,,3,m3,change,3,Bulk earth moving is excavating and filling which this scheme calls 3 Groundworks; 3 exists in the vocabulary but appears on no row in the map so it cannot be written here without being added first.
+132,Toposolid,,,,31 20 00,Earth Moving,,3,m3,change,3,Same as row 131 - a toposolid cut/fill volume is groundworks (3) not foundations; code 3 is unused in the map.
+133,Toposolid,,(?i)grading|regrade|formation,,31 22 00,Grading,,3,,change,3,Grading and formation levels are groundworks (3) not foundations; code 3 is unused in the map.
+134,Pads,,,,31 23 00,Excavation and Fill,,3,m3,change,3,A Revit building pad is excavation and filling which is groundworks (3); foundation excavation still measures under groundworks in NRM2 rather than under the Foundations heading; code 3 is unused in the map.
+135,Generic Models,(?i)erosion|silt fence|sediment|swale,,,31 25 00,Erosion and Sedimentation Controls,,3,,change,3,"Erosion and sedimentation controls are CSI 31 25 00 site preparation, and both halves of the rule (temporary silt fence, permanent swale) are site-preparation works, so 3 Groundworks covers the row without splitting it. The temporary/permanent distinction would matter for a preliminaries section, which this scheme does not have."
+136,Roads,,(?i)concrete,,32 13 13,Concrete Paving,,40,m2,change,40,Rigid (concrete) paving is external works; new section 40.
+137,Roads,,,,32 12 16,Asphalt Paving,,40,,change,40,Flexible (asphalt) road construction is external works; new section 40.
+138,Parking,(?i)stripe|marking|bay line,,,32 17 23,Pavement Markings,,40,,change,40,Pavement markings are measured with the paving they are applied to; 40.
+139,Parking,,,,32 12 16,Asphalt Paving,,40,,change,40,Car park paving is external works; 40.
+140,Floors,,(?i)paving|pavement|sidewalk|walkway|hardstand|plaza,,32 14 00,Unit Paving,,40,m2,change,40,"External unit paving to footways and plazas is external works, not an internal floor finish; 40."
+141,Generic Models,(?i)\bkerb\b|\bcurb\b|gutter,,,32 16 13,Concrete Curbs and Gutters,,40,m,change,40,"Kerbs, channels and gutters are measured with the road works; 40."
+142,Walls,,(?i)retaining,,32 32 00,Retaining Walls,,14,m2,change,14,A retaining wall is a permanent structural wall and this file's stated convention bills every wall at 14 (its header notes 03 30 00 is 5 for a concrete floor and 14 for a concrete wall); 'Foundations' is wrong - flagged as a judgement call since a mass concrete retaining wall could equally be argued to 5.
+143,Generic Models,(?i)fence|gate,,,32 31 00,Fences and Gates,,41,m,change,41,"Rule split: it matched fence|gate|balustrade and could not resolve to one section. Narrowed to fence|gate here, billing under the new 41 Fencing, gates and barriers; a balustrade is a railing and now has its own appended rule at 05 52 00 Metal Railings / 20."
+144,Site,(?i)bench|bollard|litter|planter|seat|shelter,,,32 33 00,Site Furnishings,,22,,change,22,Site furnishings are furniture and fittings and this map already bills benches and seating at 22 (Specialty Equipment bench|pew|seating); NRM2 proper puts external fixtures at 38 but that has no code here and 22 is the established internal precedent.
+145,Site,,,,32 30 00,Site Improvements,,40,,change,40,General site improvements are external works; 40.
+146,Entourage,,,,32 30 00,Site Improvements,,40,,change,40,Entourage is Revit presentation context and should generate NO priced line at all. That is now enforced where it belongs -- OST_Entourage is in the takeoff exclusion set -- so this code is never reached; it is set to 40 only so the map does not claim external works are foundations.
+147,Planting,(?i)tree,,,32 93 43,Trees,,42,,change,42,Tree planting is soft landscaping; new section 42.
+148,Planting,(?i)turf|grass|lawn|sod,,,32 92 00,Turf and Grasses,,42,m2,change,42,Turfing and seeding are soft landscaping; 42.
+149,Planting,,,,32 93 00,Plants,,42,,change,42,Shrub and plant beds are soft landscaping; 42.
+150,Pipes,,,IRR,32 84 00,Planting Irrigation,,32,m,change,32,Irrigation mains and laterals are a piped water supply system so 32 Piped supply systems is the right home and matches every other water-carrying pipe row in this map; a QS whose landscape contractor prices irrigation as part of soft landscaping may prefer it there instead.
+151,Sprinklers,(?i)irrigation|lawn|landscape,,,32 84 00,Planting Irrigation,,32,m,change,32,Landscape irrigation heads sit on the piped supply system so 32 is correct; this row's real job is diverting them away from the Sprinklers category default of 36 fire suppression which it still does.
+152,Pipes,,(?i)site|external|buried|underground,DCW,33 11 00,Water Utility Distribution Piping,,32,m,ok,,Buried site water distribution main is a piped supply system so 32 is correct and consistent with the in-building DCW row; the trench excavation and backfill is groundworks but that is measured separately and is not this row's element.
+153,Pipes,,(?i)site|external|buried|underground,GAS,33 51 00,Natural-Gas Distribution,,32,m,change,32,"Independent verification overturned the first pass. Section 32 is literally Piped supply systems, which is what a buried gas main is; every other occupant of 33 is HVAC (ducts, air terminals, hydronic and refrigerant pipe, AHUs, chillers, boilers), so gas was the outlier there rather than the precedent. Row 161, the in-building gas run at CSI 23 11 23, MUST move with it: splitting them would bill one installation under two headings decided by whether a pipe type name happens to say ""buried""."
+154,Pipes,,,BGD,33 31 00,Sanitary Utility Sewerage Piping,,31,m,change,31,Below-ground foul drainage is NOT a piped supply system - this scheme has an exactly correct code 31 Drainage below ground but no row in the map uses it so it cannot be written here; add 31 to the map first.
+155,Pipes,,,SWD,33 41 00,Storm Utility Drainage Piping,,31,m,change,31,Below-ground surface-water drainage belongs at 31 Drainage below ground not 32 Piped supply systems; code 31 exists in the vocabulary but is unused in the map.
+156,Pipes,,,SDS,33 46 00,Subdrainage,,31,m,change,31,Subsoil and land drainage belongs at 31 Drainage below ground not 32 Piped supply systems; code 31 exists in the vocabulary but is unused in the map.
+157,Conduits,,(?i)site|external|buried|underground,,33 71 00,Electrical Utility Transmission and Distribution,,34,m,ok,,Buried site electrical distribution is still electrical services so 34 is correct and consistent with the in-building Conduits row; the duct trench excavation is groundworks but is measured separately.
+158,Generic Models,(?i)manhole|inspection chamber,,,33 39 00,Sanitary Utility Sewerage Structures,,31,,change,31,Manholes and inspection chambers are measured with below-ground drainage (31) not as a piped supply system; code 31 exists in the vocabulary but is unused in the map.
+159,Generic Models,(?i)soakaway|catch.?basin|gully|storm,,,33 44 00,Storm Utility Water Drains,,31,,change,31,Soakaways gullies and catchpits are below-ground drainage ancillaries (31) not piped supply; code 31 exists in the vocabulary but is unused in the map.
+160,Generic Models,(?i)septic,,,33 36 00,Utility Septic Tanks,,31,,change,31,Septic tanks are measured with below-ground drainage (31) alongside the drain runs they serve not as a piped supply system; code 31 exists in the vocabulary but is unused in the map.
+161,Generic Models,(?i)water tank|reservoir|storage tank,,,33 16 00,Water Utility Storage Tanks,,32,,ok,,A potable water storage tank is part of the piped supply installation so 32 is right; if the 'reservoir' alternative catches a site-built concrete structure its shell would be in-situ concrete (5) with only the pipework and fittings at 32.
+162,Mechanical Equipment,(?i)sewage treatment|package plant|\bSTW\b,,,33 30 00,Sanitary Sewerage Utilities,,31,,change,31,A packaged sewage treatment plant is measured with below-ground drainage (31) as a drainage installation not as a piped supply system; some QSs bill packaged plant as mechanical plant (33) instead so this is a judgement - either way 32 is the weakest of the three; code 31 is unused in the map.

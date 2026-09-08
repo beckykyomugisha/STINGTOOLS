@@ -347,9 +347,22 @@
    "matchKinds": [
     "roof_underlay"
    ],
-   "matchCategories": [],
-   "matchTypePatterns": [],
-   "stageId": ""
+   "matchCategories": [
+    "Roofs"
+   ],
+   "matchTypePatterns": [
+    "felt",
+    "underlay",
+    "sarking"
+   ],
+   "stageId": "roof",
+   "matchMaterialPatterns": [
+    "felt",
+    "underlay",
+    "sarking",
+    "breather membrane"
+   ],
+   "sourceNote": "45 m2 per 1 x 45 m roll, 15% for laps and cutting. Until now this commodity matched NOTHING: it listed the constituent kind 'roof_underlay', which nothing emits, and no category, material or type pattern - so a real 1,608 m2 of ROOFING FELT 1MM reached a schedule as an unpriced area. NOMINAL COVER - confirm the roll size before ordering."
   },
   {
    "commodityKey": "hoop-iron",

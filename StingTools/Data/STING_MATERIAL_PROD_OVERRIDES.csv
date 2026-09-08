@@ -3,28 +3,49 @@ Category,MaterialPattern,Suffix
 # First match wins. Category = "*" applies to every category.
 # MaterialPattern is regex, case-insensitive.
 # Suffix is appended to the base PROD with a "-" separator.
-*,(?i)concrete|cement|grout|mortar,CON
-*,(?i)steel|metal|stainless|galv|UB |UC |^IPE|^HE[ABMR]?,STL
-*,(?i)timber|wood|hardwood|softwood|plywood|MDF|chipboard|OSB,TIM
-*,(?i)brick|masonry|block,MAS
-*,(?i)glass|glazing|laminate.*glass|toughened,GLZ
-*,(?i)plaster|gypsum|drywall,GYP
-*,(?i)copper,CU
-*,(?i)brass,BRZ
-*,(?i)aluminium|aluminum,ALU
-*,(?i)pvc|vinyl|hdpe|abs|polypropylene|polyethylene,PLA
-*,(?i)mineral wool|rockwool|stone wool|glass wool,INS-MW
-*,(?i)pir|polyurethane,INS-PIR
-*,(?i)eps|expanded polystyrene,INS-EPS
-*,(?i)xps|extruded polystyrene,INS-XPS
-*,(?i)cellulose,INS-CEL
-*,(?i)bitumen|asphalt,BIT
-*,(?i)stone|granite|marble|limestone|sandstone,STN
-*,(?i)tile|ceramic|porcelain,TIL
-*,(?i)carpet,CPT
-*,(?i)rubber|EPDM|neoprene,RBR
-*,(?i)fabric|textile|curtain.*material,FAB
-*,(?i)paint|coating,PNT
-*,(?i)resin|epoxy,RSN
-*,(?i)lead,PB
-*,(?i)zinc,ZN
+#
+# ANCHOR EVERY ALTERNATIVE. These patterns are unanchored regexes run over a
+# free-text material name, so a bare stem matches INSIDE longer words:
+#     eps    matched  "SheEPS Wool Insulation"    -> INS-EPS
+#     pir    matched  "Acoustic SPIRal Liner"     -> INS-PIR
+#     pir    matched  "ResPIRator Filter Housing" -> INS-PIR
+#     fabric matched  "PreFABRICated Ductwork"    -> FAB
+# Sheep's wool is the one that shows the shape of it: a real insulation given
+# a different insulation's code, silently, in a tag nobody re-reads.
+#
+# Leading \b on everything. Trailing \b ONLY where no legitimate longer word
+# exists — because several stems are DELIBERATE prefixes and must stay open:
+#     \bgalv    -> galvanised        \bcement  -> cementitious
+#     \bsteel   -> steelwork         \bplaster -> plasterboard
+#     \bblock   -> blockwork         \bstone   -> stonework
+# Only the author knows which is which, which is why this is curated data and
+# not an inferred rule. ProdCodeDataTests asserts both halves: the four names
+# above must NOT match, and the six stems above must STILL match.
+*,(?i)\bconcrete|\bcement|\bgrout|\bmortar,CON
+*,(?i)\bsteel|\bmetal|\bstainless|\bgalv|\bUB |\bUC |^IPE\b|^HE[ABMR]?\b,STL
+*,(?i)\btimber|\bwood|\bhardwood|\bsoftwood|\bplywood|\bMDF\b|\bchipboard|\bOSB\b,TIM
+*,(?i)\bbrick|\bmasonry|\bblock,MAS
+*,(?i)\bglass|\bglazing|\blaminate.*glass|\btoughened,GLZ
+*,(?i)\bplaster|\bgypsum|\bdrywall,GYP
+*,(?i)\bcopper,CU
+*,(?i)\bbrass,BRZ
+*,(?i)\baluminium|\baluminum,ALU
+# pvc keeps a TRAILING-only anchor so uPVC / cPVC / PVCu still resolve; no
+# English word contains "pvc", so the leading edge needs no guard.
+*,(?i)pvc\b|\bvinyl|\bhdpe\b|\babs\b|\bpolypropylene|\bpolyethylene,PLA
+*,(?i)\bmineral wool|\brockwool|\bstone wool|\bglass wool,INS-MW
+*,(?i)\bpir\b|\bpolyurethane,INS-PIR
+*,(?i)\beps\b|\bexpanded polystyrene,INS-EPS
+*,(?i)\bxps\b|\bextruded polystyrene,INS-XPS
+*,(?i)\bcellulose,INS-CEL
+*,(?i)\bbitumen|\basphalt,BIT
+*,(?i)\bstone|\bgranite|\bmarble|\blimestone|\bsandstone,STN
+*,(?i)\btile|\bceramic|\bporcelain,TIL
+*,(?i)\bterrazzo,TRZ
+*,(?i)\bcarpet,CPT
+*,(?i)\brubber|\bEPDM\b|\bneoprene,RBR
+*,(?i)\bfabrics?\b|\btextile|\bcurtain.*material,FAB
+*,(?i)\bpaint|\bcoating,PNT
+*,(?i)\bresin|\bepoxy,RSN
+*,(?i)\blead\b,PB
+*,(?i)\bzinc,ZN

@@ -53,6 +53,10 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityRateResolver.cs" Link="MaterialSchedule\CommodityRateResolver.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\StageMapper.cs" Link="MaterialSchedule\StageMapper.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityAggregator.cs" Link="MaterialSchedule\CommodityAggregator.cs" />
+    <!-- The exclusion MECHANISM, shared with the PROD coverage audit so "not a
+         thing" is decided once. The LISTS stay per-purpose: the schedule excludes
+         Furniture, the PROD audit must not. -->
+    <Compile Include="..\StingTools\Core\ProductExclusion.cs" Link="Core\ProductExclusion.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\Reconciler.cs" Link="MaterialSchedule\Reconciler.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ManualRowPlacer.cs" Link="MaterialSchedule\ManualRowPlacer.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\SiteToolsCalculator.cs" Link="MaterialSchedule\SiteToolsCalculator.cs" />
@@ -71,6 +75,7 @@
     <Compile Include="..\StingTools\Core\MaterialSchedule\TypePatternPlanner.cs" Link="MaterialSchedule\TypePatternPlanner.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\MaterialMatchTally.cs" Link="MaterialSchedule\MaterialMatchTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\CommodityTypeBreakdown.cs" Link="MaterialSchedule\CommodityTypeBreakdown.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\PatternMatch.cs" Link="MaterialSchedule\PatternMatch.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\ConsumablesTally.cs" Link="MaterialSchedule\ConsumablesTally.cs" />
     <Compile Include="..\StingTools\Core\MaterialSchedule\RoofAccessoryTally.cs" Link="MaterialSchedule\RoofAccessoryTally.cs" />
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Baseline\ProjectBaselineModel.cs" />

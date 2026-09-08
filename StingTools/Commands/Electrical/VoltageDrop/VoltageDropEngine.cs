@@ -157,31 +157,24 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         /// <summary>
         /// Convert nominal CSA in mm² to a printable label (e.g. "4mm²" or "10AWG").
         /// </summary>
-        public static string FormatCsa(double csaMm2, string standard = "BS7671")
+        /// <summary>
+        /// Render a metric cross-sectional area.
+        ///
+        /// <para><b>KUT-7 removed a <c>standard</c> parameter from this method, and the
+        /// removal is the point.</b> When it was passed "NEC" it returned the "closest AWG
+        /// approximation by CSA" — so a conductor chosen from BS 7671 Appendix 4, on the
+        /// standard mm2 series, was PRINTED as an AWG size. That is not a unit conversion;
+        /// it is a BS 7671 answer wearing an NEC designation, and nothing downstream could
+        /// tell. NEC sizing now happens on NEC Table 310.16 and returns a real AWG / kcmil
+        /// trade size from that table, so there is nothing left to approximate.</para>
+        ///
+        /// <para>The parameter was also never once supplied with a value that reached the
+        /// AWG branch: the panel emits "NEC2023", this tested for "NEC". Restoring a
+        /// standard argument here would re-open exactly that seam.</para>
+        /// </summary>
+        public static string FormatCsa(double csaMm2)
         {
             if (csaMm2 <= 0) return "—";
-            string std = (standard ?? "").Trim().ToUpperInvariant();
-            if (std == "NEC")
-            {
-                // Closest AWG approximation by CSA.
-                string awg = csaMm2 switch
-                {
-                    <= 2.1 => "14AWG",
-                    <= 3.5 => "12AWG",
-                    <= 5.5 => "10AWG",
-                    <= 8.5 => "8AWG",
-                    <= 13.5 => "6AWG",
-                    <= 21.5 => "4AWG",
-                    <= 33.7 => "2AWG",
-                    <= 42.5 => "1AWG",
-                    <= 53.6 => "1/0AWG",
-                    <= 67.5 => "2/0AWG",
-                    <= 85.1 => "3/0AWG",
-                    <= 107.1 => "4/0AWG",
-                    _ => $"{csaMm2:0.0}mm²"
-                };
-                return awg;
-            }
             return csaMm2 < 10 ? $"{csaMm2:0.0}mm²" : $"{(int)csaMm2}mm²";
         }
     }

@@ -43,6 +43,22 @@ namespace StingTools.Commands.Electrical.CableSizer
         public int ProposedBreakerA { get; set; }
         public string Warning { get; set; } = "";
         public string DerivationNote { get; set; } = "";
+
+        /// <summary>KUT-7 — the canonical standard this result was calculated UNDER,
+        /// not the one that was asked for. They differ only when the request was
+        /// refused, in which case this is null and <see cref="Sized"/> is false.</summary>
+        public string StandardId { get; set; }
+
+        /// <summary>The clause-level basis of the calculation, for the derivation note
+        /// and for anything that has to defend the number later.</summary>
+        public string StandardBasis { get; set; } = "";
+
+        /// <summary>False when the engine declined to size — an unsupported standard, or
+        /// no tabulated size that satisfies the constraints. <b>A caller must check this
+        /// before writing <see cref="RecommendedCsaMm2"/> anywhere</b>: a refusal leaves
+        /// it at 0, and 0 written into a parameter reads as "not yet sized" rather than
+        /// as "we refused", which is the same silent-zero failure this gap is about.</summary>
+        public bool Sized { get; set; }
     }
 
     /// <summary>
@@ -154,10 +170,38 @@ namespace StingTools.Commands.Electrical.CableSizer
                 : watts / (voltageV * pf);
         }
 
+        /// <summary>
+        /// Size a conductor under the standard named by <see cref="CableSizeInput.Standard"/>.
+        ///
+        /// <para>KUT-7. This used to be one BS 7671 Appendix 4 calculation for every
+        /// standard, with the standard consulted in exactly two places afterwards: the
+        /// breaker lookup, and a routine that renamed the resulting mm2 to the nearest
+        /// AWG. NEC 2023 now routes to <c>NECStandards</c> — Table 310.16 and the 310.15
+        /// corrections — so an AWG answer comes from the AWG table. AS/NZS 3000 is
+        /// REFUSED, because its tables are not in this tree and a cable size carrying a
+        /// standard's name onto a drawing must come from that standard.</para>
+        /// </summary>
         public static CableSizeResult Calculate(CableSizeInput input)
         {
             var result = new CableSizeResult();
             if (input == null) { result.Warning = "Null input"; return result; }
+
+            string standardId = StingTools.Standards.ElectricalStandardId.Normalise(input.Standard);
+            result.StandardId = standardId;
+            if (!StingTools.Standards.ElectricalStandardId
+                    .SupportsConductorSizing(standardId, out string basis, out string refusal))
+            {
+                // Refuse rather than hand back a BS 7671 size wearing another standard's
+                // name. Downstream cannot tell the two apart, and a cable size is written
+                // to a drawing.
+                result.Sized = false;
+                result.Warning = refusal;
+                result.DerivationNote = "No calculation performed.";
+                StingLog.Warn($"CableSizerEngine: refused to size under " +
+                              $"{StingTools.Standards.ElectricalStandardId.Label(standardId)} — tables not shipped.");
+                return result;
+            }
+            result.StandardBasis = basis;
 
             double iB = DesignCurrent(input.LoadKW, input.VoltageV, input.PowerFactor, input.Phases);
             result.DesignCurrentA = iB;
@@ -166,6 +210,9 @@ namespace StingTools.Commands.Electrical.CableSizer
                 result.Warning = "Invalid load / voltage / PF — cannot compute design current.";
                 return result;
             }
+
+            if (standardId == StingTools.Standards.ElectricalStandardId.Nec2023)
+                return CalculateNec(input, result, iB);
 
             double cf = InstallMethodFactor(input.InstallMethod)
                       * InsulationFactor(input.Insulation)
@@ -196,23 +243,162 @@ namespace StingTools.Commands.Electrical.CableSizer
 
             if (winner == null)
             {
+                result.Sized = false;
                 result.Warning = "No tabulated size satisfies the voltage-drop limit at this length / current.";
                 return result;
             }
 
             result.RecommendedCsaMm2 = winner.Value;
-            result.CsaLabel = $"{VoltageDropEngine.FormatCsa(winner.Value, input.Standard)} {input.Material}/{input.Insulation}";
+            // The mm2 series IS this standard's series, so the label needs no translation.
+            result.CsaLabel = $"{VoltageDropEngine.FormatCsa(winner.Value)} {input.Material}/{input.Insulation}";
             result.ActualVoltDropPct = winnerVd;
             result.VDCompliant = winnerVd <= maxVD;
+            result.Sized = true;
 
-            result.ProposedBreakerA = string.Equals(input.Standard, "NEC", StringComparison.OrdinalIgnoreCase)
-                ? VoltageDropEngine.NextStandardBreakerSizeNEC(iB, input.ContinuousLoad)
-                : VoltageDropEngine.NextStandardBreakerSizeBS(iB, input.ContinuousLoad);
+            // BS 7671 §433.1.1 / IEC 60364-4-43: In >= Ib, and 1.45 x In <= Iz.
+            result.ProposedBreakerA = VoltageDropEngine.NextStandardBreakerSizeBS(iB, input.ContinuousLoad);
 
             result.DerivationNote =
                 $"Ib={iB:0.0}A, CF={cf:0.00} (method={input.InstallMethod} ins={input.Insulation} ta={input.AmbientTempC}°C), " +
-                $"opT={opTemp:0}°C, target VD ≤ {maxVD:0.0}%";
+                $"opT={opTemp:0}°C, target VD ≤ {maxVD:0.0}% — {result.StandardBasis}";
             return result;
+        }
+
+        /// <summary>
+        /// NEC 2023 conductor sizing, on the NEC's own tables.
+        ///
+        /// <para>Clause by clause: ampacity from <b>Table 310.16</b> at the 75 °C column
+        /// (the termination limit for equipment rated over 100 A, and the column
+        /// 110.14(C)(1) drives most designs to); ambient correction from <b>Table
+        /// 310.15(B)(1)</b>; more than three current-carrying conductors adjusted per
+        /// <b>310.15(C)(1)</b>; overcurrent device from the standard ratings in
+        /// <b>240.6(A)</b>; a continuous load carried at 125% per <b>210.19(A)(1)</b> and
+        /// <b>215.2(A)(1)</b>; and the small-conductor limit of <b>240.4(D)</b> applied to
+        /// 14, 12 and 10 AWG.</para>
+        ///
+        /// <para>Voltage drop is NOT a NEC requirement. 210.19(A) Informational Note 4 and
+        /// 215.2(A) Informational Note 2 RECOMMEND 3% on a branch circuit and 5% overall;
+        /// the engine reports the figure and flags it against the caller's limit, but a
+        /// conductor is not upsized for it here, because doing so would enforce as a rule
+        /// something the code offers as advice.</para>
+        /// </summary>
+        private static CableSizeResult CalculateNec(CableSizeInput input, CableSizeResult result, double iB)
+        {
+            try
+            {
+                // 210.19(A)(1) / 215.2(A)(1) - a continuous load is carried at 125%.
+                double sizingCurrent = input.ContinuousLoad ? iB * 1.25 : iB;
+
+                var material = string.Equals(input.Material, "Al", StringComparison.OrdinalIgnoreCase)
+                    ? StingTools.Standards.NEC2023.ConductorMaterial.Aluminum
+                    : StingTools.Standards.NEC2023.ConductorMaterial.Copper;
+
+                // 3 current-carrying conductors on a single-phase circuit (L+N counts 2,
+                // but the adjustment threshold is >3, so both 1ph and 3ph sit at or below
+                // it unless the caller says otherwise). Bundling beyond that is a routing
+                // fact this engine is not given.
+                int ccc = input.Phases == 3 ? 3 : 2;
+
+                string awg = null;
+                double ampacity = 0;
+                foreach (string size in NecSizeLadder)
+                {
+                    double a;
+                    try { a = StingTools.Standards.NEC2023.NECStandards.GetConductorAmpacity(size, material, 75); }
+                    catch (ArgumentException) { continue; }   // size absent from the table for this material
+                    a = StingTools.Standards.NEC2023.NECStandards.ApplyTemperatureCorrection(a, input.AmbientTempC);
+                    a = StingTools.Standards.NEC2023.NECStandards.ApplyBundlingAdjustment(a, ccc);
+                    if (a >= sizingCurrent) { awg = size; ampacity = a; break; }
+                }
+
+                if (awg == null)
+                {
+                    result.Sized = false;
+                    result.Warning =
+                        $"No single conductor in NEC Table 310.16 carries {sizingCurrent:0.0} A after " +
+                        $"310.15(B)(1) ambient and 310.15(C)(1) adjustment. Parallel conductors " +
+                        $"(310.10(G)) are required and are not sized here.";
+                    return result;
+                }
+
+                double csaMm2 = NecCircularMilsToMm2(awg);
+                result.RecommendedCsaMm2 = csaMm2;
+                result.CsaLabel = $"{NecSizeLabel(awg)} {input.Material}/{input.Insulation}";
+                result.Sized = true;
+
+                // 240.6(A) standard rating, then the 240.4(D) small-conductor ceiling.
+                int breaker = StingTools.Standards.NEC2023.NECStandards.GetStandardBreakerSize(sizingCurrent);
+                int maxForSize = StingTools.Standards.NEC2023.NECStandards.GetMaximumBreakerSize(awg);
+                if (maxForSize > 0 && breaker > maxForSize) breaker = maxForSize;
+                result.ProposedBreakerA = breaker;
+
+                // Informational only - see the summary above.
+                double maxVD = input.VDLimitPct > 0 ? input.VDLimitPct : 3.0;
+                double opTemp = OperatingTemperature(input.Insulation);
+                result.ActualVoltDropPct = VoltageDropEngine.CalculateVoltDropPercent(
+                    iB, input.LengthM, csaMm2, input.Material, input.VoltageV, input.Phases, opTemp);
+                result.VDCompliant = result.ActualVoltDropPct <= maxVD;
+                if (!result.VDCompliant)
+                    result.Warning =
+                        $"Voltage drop {result.ActualVoltDropPct:0.00}% exceeds the {maxVD:0.0}% target. " +
+                        "NEC 210.19(A) Informational Note 4 RECOMMENDS 3% (5% overall) but does not " +
+                        "require it, so the conductor was not upsized. Upsize deliberately if the " +
+                        "project specification makes the limit binding.";
+
+                result.DerivationNote =
+                    $"Ib={iB:0.0}A" + (input.ContinuousLoad ? $", x1.25 continuous = {sizingCurrent:0.0}A [210.19(A)(1)]" : "") +
+                    $", Table 310.16 @75°C corrected to {ampacity:0.0}A " +
+                    $"(ta={input.AmbientTempC:0}°C [310.15(B)(1)], {ccc} CCC [310.15(C)(1)]), " +
+                    $"OCPD {breaker}A [240.6(A)" + (maxForSize > 0 ? " capped by 240.4(D)" : "") + "] — " +
+                    result.StandardBasis;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                // A throw here means the NEC path itself failed. Refuse - do NOT fall
+                // through to the BS path, which is exactly the substitution this gap
+                // exists to stop.
+                StingLog.Error("CableSizerEngine.CalculateNec", ex);
+                result.Sized = false;
+                result.Warning = $"NEC 2023 sizing failed: {ex.Message}. No size was produced; " +
+                                 "the BS 7671 path was NOT used as a substitute.";
+                return result;
+            }
+        }
+
+        /// <summary>NEC conductor series, smallest first. Trade sizes as
+        /// <c>NECStandards</c> keys them: AWG below 250, then kcmil.</summary>
+        private static readonly string[] NecSizeLadder =
+        {
+            "14", "12", "10", "8", "6", "4", "3", "2", "1",
+            "1/0", "2/0", "3/0", "4/0",
+            "250", "300", "350", "400", "500", "600", "700", "750",
+        };
+
+        private static readonly Dictionary<string, double> NecCircularMils = new Dictionary<string, double>
+        {
+            ["14"] = 4110, ["12"] = 6530, ["10"] = 10380, ["8"] = 16510,
+            ["6"] = 26240, ["4"] = 41740, ["3"] = 52620, ["2"] = 66360,
+            ["1"] = 83690, ["1/0"] = 105600, ["2/0"] = 133100, ["3/0"] = 167800,
+            ["4/0"] = 211600, ["250"] = 250000, ["300"] = 300000, ["350"] = 350000,
+            ["400"] = 400000, ["500"] = 500000, ["600"] = 600000, ["700"] = 700000,
+            ["750"] = 750000,
+        };
+
+        /// <summary>The TRUE mm2 area of an AWG / kcmil size, so a downstream numeric
+        /// parameter carries the real cross-section rather than a nearest-metric guess.
+        /// 1 circular mil = pi/4 x (0.001 in)^2 = 5.067075e-4 mm2.</summary>
+        internal static double NecCircularMilsToMm2(string size)
+            => NecCircularMils.TryGetValue(size ?? "", out double cm)
+                ? Math.Round(cm * 5.067074790e-4, 2)
+                : 0.0;
+
+        /// <summary>"12" -> "12AWG"; "250" -> "250kcmil". The table keys both as bare
+        /// numbers, and printing "250AWG" would name a conductor that does not exist.</summary>
+        internal static string NecSizeLabel(string size)
+        {
+            if (string.IsNullOrEmpty(size)) return "—";
+            return size.Length >= 3 && !size.Contains("/") ? $"{size}kcmil" : $"{size}AWG";
         }
 
         /// <summary>
