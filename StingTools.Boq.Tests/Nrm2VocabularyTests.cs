@@ -237,5 +237,68 @@ namespace StingTools.Boq.Tests
                 "pass vacuously, so the parse must be updated if the field moved.");
             Assert.Contains("OST_Entourage", block.Groups[1].Value);
         }
+
+        [Fact]
+        public void Both_Gas_Rows_Bill_Under_The_Same_Section()
+        {
+            // One gas installation, two rules: the in-building run (CSI 23 11 23) and the
+            // buried site main (33 51 00). Which one an element matches turns on whether
+            // its pipe TYPE NAME happens to contain "buried"/"external"/"underground" —
+            // so if the two rows carry different sections, the same installation bills
+            // under two headings on a naming accident. The pairing is the invariant; the
+            // value they share is the judgement (both moved 33 -> 32 on verification,
+            // section 32 being "Piped supply systems", which is what a gas main is).
+            var root = RepoRoot(MapCsv).FullName;
+            string[] codes = File.ReadAllLines(Path.Combine(root, MapCsv))
+                .Where(l => !l.StartsWith("#"))
+                .Select(l => l.Split(','))
+                .Where(f => f.Length >= 7 && f[3].Trim() == "GAS")
+                .Select(f => f[6].Trim())
+                .ToArray();
+
+            Assert.Equal(2, codes.Length);
+            Assert.True(codes.Distinct().Count() == 1,
+                "the in-building and buried gas rules bill under different sections (" +
+                string.Join(" vs ", codes) + ") — the same installation would bill two ways " +
+                "depending on whether the pipe type name says 'buried'.");
+        }
+
+        [Fact]
+        public void Every_Section_Has_A_Class_In_Both_Cross_Walks()
+        {
+            // A bill can be issued under CESMM4 or POMI, and both cross-walk the section
+            // code to their own class. Both used a `_ => "Z"` default, so a section they
+            // did not know became Miscellaneous with nothing logged — and nine defined
+            // sections were unmapped, which meant groundworks, both drainage sections,
+            // carpentry, finishes and fittings all collapsed into one undifferentiated
+            // class on a bill that looked complete.
+            //
+            // The cross-walks are Revit-dependent, so this asserts over their SOURCE, the
+            // way the vocabulary itself is read. A `Z` written deliberately is a
+            // classification; a `Z` reached by omission is a silent failure, and the two
+            // are indistinguishable in the output — so completeness is the only thing
+            // that can be checked from outside.
+            const string Standards = "StingTools/BOQ/MeasurementStandard/MeasurementStandards.cs";
+            string src = File.ReadAllText(
+                Path.Combine(RepoRoot(Standards).FullName, Standards));
+
+            foreach (string mapName in new[] { "Cesmm4ByCode", "PomiByCode" })
+            {
+                var block = Regex.Match(src, mapName + @"\s*=[^{]*\{(.*?)\n        \};",
+                                        RegexOptions.Singleline);
+                Assert.True(block.Success, mapName + " not found in " + Standards +
+                                           " — this test cannot pass vacuously.");
+                var mapped = Regex.Matches(block.Groups[1].Value, "\\[\"(\\d+)\"\\]")
+                                  .Cast<Match>().Select(m => m.Groups[1].Value).ToHashSet();
+                Assert.True(mapped.Count > 0, mapName + " parsed but yielded no codes.");
+
+                string[] missing = Vocabulary().Keys.Where(c => !mapped.Contains(c))
+                                                    .OrderBy(int.Parse).ToArray();
+                Assert.True(missing.Length == 0,
+                    mapName + " has no class for section(s) " + string.Join(", ", missing) +
+                    " — they would fall through to the miscellaneous class, collapsing a " +
+                    "whole trade with nothing said.");
+            }
+        }
     }
 }
