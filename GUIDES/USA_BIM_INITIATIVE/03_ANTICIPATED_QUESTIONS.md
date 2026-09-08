@@ -5,8 +5,8 @@ an honest "I don't know" delivered calmly.
 
 Two rules that apply to every answer below:
 
-1. **Volunteer the hard ones before they are asked.** Q1, Q3 and Q5 should come out of
-   your own mouth in the first five minutes.
+1. **Volunteer the hard ones before they are asked.** The completion status and the
+   limits should come out of your own mouth, not theirs.
 2. **Never bluff a number or a date.** "I'll come back to you with that by Friday" is a
    complete answer, and it is the only one that survives being checked afterwards.
 

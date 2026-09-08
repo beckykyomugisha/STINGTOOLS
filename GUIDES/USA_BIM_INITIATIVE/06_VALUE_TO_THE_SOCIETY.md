@@ -111,7 +111,31 @@ visible contribution to the profession it did not have to manufacture.
 
 ---
 
-## 4 · Small-practice economics — a member benefit the Society can negotiate
+## 4 · It works with whatever members already use
+
+Verified across four hosts on 2026-06-04, with one element identity resolving across
+all of them at once. In a room of architects this is the strongest slide in the deck,
+because most of them are not on Revit.
+
+| Tool | How it connects | What it means for a member |
+|---|---|---|
+| **Revit** | A full add-in | The deepest automation: tagging, checking, drawings, schedules, quantities, handover |
+| **ArchiCAD** | Save to IFC, changes written back | An ArchiCAD practice works normally and still takes part in the shared project |
+| **Blender + Bonsai** | A free, open-source extension | No licence cost at all. A member with no software budget, or a student, can take part |
+| **Tekla** | Through IFC | The structural engineer is on the same project as the architect |
+
+**Be exact about depth.** Revit is a native add-in; the others go through IFC. That is a
+deliberate design decision rather than a gap, because IFC is the open standard and it
+means nobody is locked in. **There is no native ArchiCAD plug-in and no native Tekla
+plug-in** — say so plainly if asked. The precision is what makes the rest believable.
+
+The free Blender route deserves its own beat with this audience. Access is a
+professional-body concern, and "a member with no budget can still take part" lands
+harder than any feature.
+
+---
+
+## 5 · Small-practice economics — a member benefit the Society can negotiate
 
 Most members are small practices. Per-seat licensing at Ugandan fee levels is punishing.
 
@@ -197,7 +221,7 @@ An architects' body will find these in about four minutes if you don't.
 
 | Limit | How to put it |
 |---|---|
-| **StingTools is a Revit add-in, and many Ugandan architects use ArchiCAD** | The single most likely objection in this specific room. PlanScape is authoring-agnostic through IFC, and there is an ArchiCAD bridge, but it is early. Say so plainly and say what the roadmap is. If this lands as a gotcha rather than a disclosure, it costs you the ICT chair. |
+| **The deepest automation is inside Revit** | The other tools connect through IFC, which is the open standard and means nobody is locked in. But there is no native ArchiCAD or Tekla plug-in, and saying so plainly is what makes the multi-platform claim believable. |
 | MEP calculation engines are not independently validated | Complete and tested, never carried through independent professional validation. Offered only as separately commissioned services, with manual cross-checks in parallel. Then invite the Society's engineers to be the validators — it turns a weakness into a role for them. |
 | Production-ready for one deployment, not productised for many | The wording in `05_CONSISTENT_NARRATIVE.md`. Volunteer it. |
 | There is no Ugandan BIM mandate | Say "the direction of travel". Never imply one exists. |

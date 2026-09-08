@@ -90,6 +90,19 @@ that conversation is still pending and is not to be used here.
 
 ---
 
+## Note on these working files
+
+The Word guide and the slide deck are the current, canonical versions. These markdown
+files are the working notes behind them and may lag on detail. Where they disagree,
+the deliverables win.
+
+Changed 2026-09-08: the conflict-of-interest declaration is removed (the working
+relationship with the President is in the past, not current); the bank financing route
+is excluded entirely; MoWT is excluded; multi-platform support is now a headline
+feature rather than a disclosed limitation; and a training curriculum has been added.
+
+---
+
 ## Standing rules for this workstream
 
 1. **One story, everywhere.** Origin, completion status and the Society's role are

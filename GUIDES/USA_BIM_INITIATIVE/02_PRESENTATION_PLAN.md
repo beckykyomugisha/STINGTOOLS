@@ -101,9 +101,6 @@ Then, and only then: what remains to be finished, what it costs, and the funding
 
 *Does this expose us? Is it good for the profession?*
 
-- **Declare the conflict in the first two minutes.** You and the President have a
-  professional relationship; say the decision belongs to the committee and the
-  constitution. It protects Ken as much as you.
 - **Today's ask carries no financial obligation.** The borrowing route is parked and the
   personal-guarantee exposure goes with it. Volunteering a risk you have just removed
   buys more than one you never raised.
@@ -122,10 +119,10 @@ Then, and only then: what remains to be finished, what it costs, and the funding
 - **Open formats and no lock-in** — IFC 4, BCF 2.1, COBie, RVT, DWG, Excel, PDF.
 - **Local build, local hosting, data sovereignty**, subscription spend staying in the
   domestic economy.
-- **Say the ArchiCAD limitation yourself.** StingTools is a Revit add-in; many Ugandan
-  architects use ArchiCAD; PlanScape is authoring-agnostic through IFC and the ArchiCAD
-  bridge is early. **In this specific room that is the most likely objection there is.**
-  Disclosed, it is honesty. Discovered, it costs you the chair.
+- **Lead with the multi-platform story.** Revit, ArchiCAD, Tekla and a free Blender
+  route, with one element identity across all four. **This is the slide that wins this
+  chair.** Be exact about depth: Revit is a native add-in, the others go through IFC, and
+  there is no native ArchiCAD or Tekla plug-in.
 - **What is not validated** — the MEP calculation engines. Then invite the Society's
   engineers to be the validators.
 
@@ -135,7 +132,7 @@ Then, and only then: what remains to be finished, what it costs, and the funding
 
 | Min | Segment | Whose attention |
 |---|---|---|
-| 0–2 | Thanks, who I am, **the conflict declaration**, and the shape of the ask | Board of Practice |
+| 0–2 | Thanks, who I am, and **the three asks stated up front** | Board of Practice |
 | 2–5 | **The change coming to members' market** — the standard, and the region | Both |
 | 5–7 | What the platform is, and **exactly where it stands** (verbatim) | ICT Cluster |
 | 7–13 | **Demonstration** | ICT Cluster |
