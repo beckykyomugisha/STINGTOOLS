@@ -39,7 +39,10 @@ namespace StingTools.Tags.Tests
                 L(1, "Masonry - Hollow Concrete Block 200mm", 200, structure: true),
                 L(2, "Plaster - Cement Render 1:4", 12)));
 
-            Assert.Equal("STING WL - Blockwork 200 - Plastered", p.ProposedName);
+            // BS EN ISO 22014: Source_Type_Subtype. The Type field is the PROD code, so a
+            // conforming name and the element's ISO 19650 tag cannot fork.
+            Assert.Equal("PLNS_WBL_Blockwork200-Plastered", p.ProposedName);
+            Assert.Equal("WBL", p.ProdCode);
         }
 
         [Fact]
@@ -51,7 +54,7 @@ namespace StingTools.Tags.Tests
                 L(0, "Plaster - Cement Render 1:4", 12),
                 L(1, "Masonry - Hollow Concrete Block 200mm", 200, structure: true)));
 
-            Assert.Contains("Blockwork 200", p.ProposedName);
+            Assert.Contains("Blockwork200", p.ProposedName);
             Assert.DoesNotContain("230", p.ProposedName);
         }
 
@@ -63,7 +66,7 @@ namespace StingTools.Tags.Tests
                 L(1, "Screed - Cement Sand 1:3", 40),
                 L(2, "Concrete C25", 150, structure: true)));
 
-            Assert.Equal("STING FL - RC 150 - Ceramic Tiled", p.ProposedName);
+            Assert.Equal("PLNS_SLB_RC150-CeramicTiled", p.ProposedName);
         }
 
         [Fact]
@@ -74,7 +77,7 @@ namespace StingTools.Tags.Tests
                 L(0, "Insulation - Mineral Wool", 200),
                 L(1, "Timber - Softwood Cypress", 90, structure: true)));
 
-            Assert.Contains("Timber 90", p.ProposedName);
+            Assert.Contains("Timber90", p.ProposedName);
         }
 
         // ── the refusals ──────────────────────────────────────────────────────
@@ -105,7 +108,7 @@ namespace StingTools.Tags.Tests
         {
             // Running twice must not churn. The second run proposes the same name and
             // recognises the type already has it.
-            var input = In("Walls", "STING WL - Blockwork 200 - Plastered",
+            var input = In("Walls", "PLNS_WBL_Blockwork200-Plastered",
                 L(0, "Plaster - Cement Render 1:4", 12),
                 L(1, "Masonry - Hollow Concrete Block 200mm", 200, structure: true));
 

@@ -20,6 +20,11 @@ namespace StingTools.Core
         public static class Sources
         {
             public const string Project = "project";
+
+            /// <summary>The TYPE NAME stated the code itself, in ISO 22014 form
+            /// (<c>PLNS_WBL_Hollow200-Plastered</c>). Nothing was inferred.</summary>
+            public const string Declared = "declared";
+
             public const string Corporate = "corporate";
             public const string Lps = "lps";
             public const string Sleeve = "sleeve";
@@ -35,7 +40,8 @@ namespace StingTools.Core
         /// Prod_CoverageAudit (coverage %).
         /// </summary>
         public static bool IsSpecific(string source)
-            => source == Sources.Project || source == Sources.Corporate
+            => source == Sources.Project || source == Sources.Declared
+            || source == Sources.Corporate
             || source == Sources.Lps || source == Sources.Sleeve;
 
         /// <param name="familyName">Element family name (may be null/empty).</param>
@@ -52,15 +58,28 @@ namespace StingTools.Core
             IReadOnlyList<(string Pattern, string ProdCode)> projRulesForCategory,
             IReadOnlyList<(string Pattern, string ProdCode)> corpRulesForCategory,
             IReadOnlyDictionary<string, string> prodMap,
-            out string source)
+            out string source,
+            ICollection<string> knownCodes = null)
         {
             string combinedName = $"{familyName} {typeName}".ToUpperInvariant();
+
+            // 0. The TYPE NAME states its own code, ISO 22014 style. This sits ABOVE
+            //    the corporate patterns and BELOW the project overlay: a stated code
+            //    beats an inference, an explicit project instruction beats both.
+            //
+            //    Deliberately OUTSIDE the non-empty-family guard below. A wall's family
+            //    name is "Basic Wall" for every wall ever made, so gating a name that
+            //    already carries its answer on that check would be testing the one thing
+            //    the name has made irrelevant.
+            string declared = ProdNameCode.Extract(typeName, knownCodes);
 
             if (!string.IsNullOrEmpty(familyName))
             {
                 // 1. Project overlay wins.
                 string proj = Strongest(projRulesForCategory, combinedName);
                 if (proj != null) { source = Sources.Project; return proj; }
+
+                if (declared != null) { source = Sources.Declared; return declared; }
 
                 // 2. Corporate baseline.
                 string corp = Strongest(corpRulesForCategory, combinedName);
@@ -78,6 +97,9 @@ namespace StingTools.Core
                     return "SLV";
                 }
             }
+
+            // A coded name answers even with no family name at all.
+            if (declared != null) { source = Sources.Declared; return declared; }
 
             // 5. Category default — last resort (generic, not family-specific).
             if (prodMap != null && categoryName != null &&
