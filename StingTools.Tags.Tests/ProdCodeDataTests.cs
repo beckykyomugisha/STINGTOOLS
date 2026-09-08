@@ -363,6 +363,15 @@ namespace StingTools.Tags.Tests
         [InlineData("Floors", "Floor", "50 Screed", "FSC")]
         [InlineData("Floors", "Floor", "Concrete Slab 200", "SLB")]   // pre-existing, unmoved
         [InlineData("Ceilings", "Compound Ceiling", "Suspended Ceiling 600x600", "CSU")]
+        // Reclassified while writing the house standard, which needed a Floors rule
+        // for steps. "stepsr 7" was on the CANNOT-RESOLVE list as a typo naming
+        // nothing — but it does name steps, badly, and *Steps* reads it. Moving it
+        // here rather than loosening the negative test around it: the name became
+        // resolvable because a real rule was added, not because a gate was relaxed.
+        [InlineData("Floors", "Floor", "stepsr 7", "FSP")]
+        [InlineData("Floors", "Floor", "RC Steps - Terrazzo", "FSP")]
+        [InlineData("Roofs", "Basic Roof", "Stone Coated Tile Roof", "RTL")]
+        [InlineData("Ceilings", "Compound Ceiling", "Plastered Soffit", "CPL")]
         // Openings, circulation, MEP linear services — the categories where the
         // sub-distinction changes what you BUY, which is the BOQ's criterion.
         [InlineData("Doors", "Door", "Flush Door 900x2100", "DRT")]
@@ -407,7 +416,6 @@ namespace StingTools.Tags.Tests
         [InlineData("Walls", "Basic Wall", "Exterior_CreamWhite_230 2")]
         [InlineData("Walls", "Basic Wall", "Exterior_BrownWhite_230")]
         [InlineData("Roofs", "Basic Roof", "Generic - 225mm")]
-        [InlineData("Floors", "Floor", "stepsr 7")]
         [InlineData("Floors", "Floor", "IntFloor_tile_150")]
         public void A_Type_Name_That_Says_Nothing_Stays_Generic(string category, string family, string type)
         {

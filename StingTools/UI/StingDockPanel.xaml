@@ -1,4 +1,4 @@
-﻿<Page x:Class="StingTools.UI.StingDockPanel"
+<Page x:Class="StingTools.UI.StingDockPanel"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Title="STING Tools"
@@ -1961,6 +1961,12 @@
                                         HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                                 <Button Style="{StaticResource OrangeBtn}" Content="Apply baseline (asks first)" Tag="Baseline_Apply" Click="Cmd_Click"
                                         ToolTip="Shows the full list of what it would create, then writes only after you confirm. Creates ONLY what is missing — an existing type is never edited, even when its build-up differs from the baseline. A material schedule can only measure finishes the model actually describes; this is what gives it something to read."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Rename types to standard (asks first)" Tag="Baseline_RenameTypes" Click="Cmd_Click"
+                                        ToolTip="Proposes house-standard names for the host types this model already has, reading the substance off each type's own CORE MATERIAL rather than guessing from its name. Writes the full plan to CSV and renames only after you confirm. A type whose materials do not say what it is gets NO proposal — a rename that guessed would replace a name you can see is empty with one you cannot."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Set material Class (asks first)" Tag="Materials_SetClass" Click="Cmd_Click"
+                                        ToolTip="Fills Revit's Material Class from the material name where it is blank. Class is the controlled field the embodied-carbon and BOQ cost engines read, so a material with none is answered by nothing at all. Never overwrites a class somebody chose, and never invents one for a name that says nothing."
                                         HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
