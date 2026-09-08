@@ -75,6 +75,12 @@
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
     <!-- BS EN ISO 22014 name parsing. Revit-free so the "declared" tier is provable. -->
     <Compile Include="..\StingTools\Core\ProdNameCode.cs" Link="Core\ProdNameCode.cs" />
+    <!-- PatternMatch, so the rename-safety survey uses the SHIPPED whole-word
+         matcher rather than a naive helper that reproduces the #863 defect. -->
+    <Compile Include="..\StingTools\Core\MaterialSchedule\PatternMatch.cs" Link="Core\MaterialSchedule\PatternMatch.cs" />
+    <None Include="..\StingTools\Data\STING_AEC_FILTERS.json" Link="Data\STING_AEC_FILTERS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- The house-standard catalogue POCOs, so the shipped baseline is checked
          against the rules that must read it. -->
     <Compile Include="..\StingTools\Core\Baseline\ProjectBaselineModel.cs" Link="Core\Baseline\ProjectBaselineModel.cs" />
