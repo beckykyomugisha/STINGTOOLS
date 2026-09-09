@@ -120,6 +120,14 @@
          is Revit-free by design and already unit-tested in StingTools.Boq.Tests;
          it is linked HERE too so the three answers can be compared in one place. -->
     <Compile Include="..\StingTools\Core\Materials\SubstanceVocabulary.cs" Link="Core\Materials\SubstanceVocabulary.cs" />
+    <!-- What build-up a register row asks for, and every substitution made getting
+         there. Extracted out of CompoundTypeCreator.BuildLayers because the
+         substitutions were the defect and none of them were assertable. -->
+    <Compile Include="..\StingTools\Core\Materials\CompoundLayerPlan.cs" Link="Core\Materials\CompoundLayerPlan.cs" />
+    <!-- W1: the decision that a compound-structure failure means the type was NOT
+         built, and the counting rule that follows. Four creators returned true
+         after failing, so "Created N types" meant two different things. -->
+    <Compile Include="..\StingTools\Core\Materials\TypeCreationTally.cs" Link="Core\Materials\TypeCreationTally.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BOQ\BiogenicCarbon.cs" />
     <!-- The undo for a plan that was applied before the planner behind it was fixed.
          Revit-free so its REFUSALS - not reverting a class a human changed since - are

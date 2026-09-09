@@ -6,6 +6,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Materials;
 
 namespace StingTools.Temp
 {
@@ -202,10 +203,16 @@ namespace StingTools.Temp
             var baseCableTrayType = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.CableTrayType)).FirstOrDefault() as ElementType;
             var baseConduitType  = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Electrical.ConduitType)).FirstOrDefault() as ElementType;
 
-            int created = 0;
-            int skipped = 0;
+            // created/skipped counts live on the tally now: a type built with the
+            // declared build-up and a type refused for want of one must not share a
+            // number, which is what "Created N" used to do.
             int matCreated = 0;
             var errors = new List<string>();
+            // W1/W2: kept apart from `errors` on purpose. A type that was refused because
+            // its layers could not be read is a different fact from a type whose name
+            // clashed, and one count for both is how this stayed invisible.
+            var tally = new TypeCreationTally();
+            var layerNotes = new List<string>();
 
             bool cancelled = false;
             using (Transaction tx = new Transaction(doc, $"Create {label} Types"))
@@ -232,7 +239,7 @@ namespace StingTools.Temp
 
                     if (existingTypeNames.Contains(typeName))
                     {
-                        skipped++;
+                        tally.Add(label, typeName, TypeCreationOutcome.AlreadyPresent);
                         continue;
                     }
 
@@ -272,19 +279,23 @@ namespace StingTools.Temp
                         {
                             case ElementKind.Wall:
                                 success = CreateWallType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache, baseWallType);
+                                    thicknessMm, cols, materialCache, baseWallType,
+                                    tally, layerNotes);
                                 break;
                             case ElementKind.Floor:
                                 success = CreateFloorType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache, baseFloorType);
+                                    thicknessMm, cols, materialCache, baseFloorType,
+                                    tally, layerNotes);
                                 break;
                             case ElementKind.Ceiling:
                                 success = CreateCeilingType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache, baseCeilingType);
+                                    thicknessMm, cols, materialCache, baseCeilingType,
+                                    tally, layerNotes);
                                 break;
                             case ElementKind.Roof:
                                 success = CreateRoofType(doc, typeName, matId,
-                                    thicknessMm, cols, materialCache, baseRoofType);
+                                    thicknessMm, cols, materialCache, baseRoofType,
+                                    tally, layerNotes);
                                 break;
                             case ElementKind.Duct:
                             case ElementKind.Pipe:
@@ -303,25 +314,24 @@ namespace StingTools.Temp
                         StingLog.Warn($"Type create failed: {typeName}: {ex.Message}");
                     }
 
-                    if (success)
-                    {
-                        created++;
-                        existingTypeNames.Add(typeName);
-                    }
-                    else
-                    {
-                        skipped++;
-                    }
+                    // The outcome was recorded by ApplyStructureOrFail, which is the only
+                    // place that knows whether the structure actually landed.
+                    if (success) existingTypeNames.Add(typeName);
                 }
 
                 tx.Commit();
             }
-            string report = $"Created {created} {label.ToLower()} types.\n" +
-                $"Skipped {skipped} (exist or failed).\n" +
+            string report = tally.Report() +
                 $"Materials created: {matCreated}\n" +
                 (cancelled ? "CANCELLED by user (Escape key). Types created so far are kept.\n" : "") +
                 $"Source: {Path.GetFileName(csvPath)} " +
                 $"({rows.Count} matching rows)";
+            if (layerNotes.Count > 0)
+                report += $"\n\nRead notes ({layerNotes.Count}) — what the register said versus "
+                    + $"what could be built from it:\n"
+                    + string.Join("\n", layerNotes.Take(10))
+                    + (layerNotes.Count > 10
+                        ? $"\n… and {layerNotes.Count - 10} more, in the log" : "");
             if (errors.Count > 0)
                 report += $"\n\nErrors ({errors.Count}):\n" +
                     string.Join("\n", errors.Take(10));
@@ -374,10 +384,90 @@ namespace StingTools.Temp
             return totalMm;
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        //  W1 — a type whose structure failed was reported as created
+        // ══════════════════════════════════════════════════════════════════
+        //
+        // All four Create*Type functions below caught a SetCompoundStructure
+        // failure, logged a warning, and returned TRUE. The comment said so
+        // honestly — "type was created, just no layers" — and then the function
+        // told its caller the whole operation had succeeded. The type existed,
+        // carried the BASE type's build-up, and was counted as created.
+        //
+        // CreateMEPType, eighty lines below, has always done the opposite: every
+        // failure path logs and returns false. The codebase knew.
+        //
+        // THE CHOICE, made explicitly because the brief asked for it to be:
+        // the half-made type is DELETED, inside the same transaction. Keeping it
+        // would leave a type carrying a build-up nobody asked for, and a wrong
+        // quantity that looks like a right one is worse than a missing type — it
+        // measures, prices and carbon-counts exactly like a real one. Deleting is
+        // safe here specifically because the type was duplicated microseconds
+        // earlier in this same transaction and nothing can reference it yet:
+        // this command places no instances. If that ever stops being true, keep
+        // it and report it as unbuilt instead — but do not go back to reporting
+        // it as built.
+        //
+        // NOT established: whether this path is what produced the 87 identical
+        // 100 mm concrete floors on the 2026-09-09 model. It is consistent with
+        // their shape, and the logs on the live plugin path start 2026-08-17 and
+        // hold no type-creation line. Fixed on its own terms.
+        private static bool ApplyStructureOrFail(
+            Document doc, HostObjAttributes newType, string kind, string typeName,
+            IList<CompoundStructureLayer> layers, TypeCreationTally tally)
+        {
+            if (layers == null || layers.Count == 0)
+                return Fail(doc, newType, kind, typeName,
+                            TypeCreationOutcome.RefusedNoLayers,
+                            "no layer could be built from its register row", tally);
+
+            try
+            {
+                CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+                // Revit applies default end-cap / wrapping conditions that are invalid on
+                // non-wall types; clearing them is why this ever threw.
+                cs.OpeningWrapping = OpeningWrappingCondition.None;
+                newType.SetCompoundStructure(cs);
+                tally.Add(kind, typeName, TypeCreationOutcome.CreatedAsDeclared);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return Fail(doc, newType, kind, typeName,
+                            TypeCreationOutcome.RefusedStructureFailed, ex.Message, tally);
+            }
+        }
+
+        private static bool Fail(Document doc, HostObjAttributes newType, string kind,
+                                 string typeName, TypeCreationOutcome outcome, string why,
+                                 TypeCreationTally tally)
+        {
+            var landed = outcome;
+            string note = why;
+            try
+            {
+                doc.Delete(newType.Id);
+                note += " (the half-made type was removed)";
+            }
+            catch (Exception delEx)
+            {
+                // Reported, never swallowed: a type left behind carrying the base type's
+                // build-up is the exact shape this change exists to stop, and it is a
+                // WORSE outcome than a clean refusal rather than the same one.
+                landed = TypeCreationOutcome.RefusedButLeftBehind;
+                note += $" — and it could NOT be removed ({delEx.Message}), so a type named "
+                      + $"'{typeName}' is in the model carrying the BASE type's build-up";
+            }
+            tally.Add(kind, typeName, landed, note);
+            StingLog.Warn($"CompoundTypeCreator: {kind} '{typeName}' NOT created: {note}");
+            return false;
+        }
+
         private static bool CreateWallType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
             Dictionary<string, ElementId> materialCache,
-            WallType baseWallType = null)
+            WallType baseWallType,
+            TypeCreationTally tally, ICollection<string> notes)
         {
             // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
             var baseType = baseWallType ?? new FilteredElementCollector(doc)
@@ -390,28 +480,15 @@ namespace StingTools.Temp
             WallType newType = baseType.Duplicate(typeName) as WallType;
             if (newType == null) return false;
 
-            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
-            if (layers.Count > 0)
-            {
-                try
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    newType.SetCompoundStructure(cs);
-                }
-                catch (Exception ex)
-                {
-                    // Layer validation error (too thin, all-finish, etc.) — type created without layers
-                    StingLog.Warn($"Wall '{typeName}' compound structure failed: {ex.Message}");
-                }
-            }
-
-            return true;
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
+            return ApplyStructureOrFail(doc, newType, "Wall", typeName, layers, tally);
         }
 
         private static bool CreateFloorType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
             Dictionary<string, ElementId> materialCache,
-            FloorType baseFloorType = null)
+            FloorType baseFloorType,
+            TypeCreationTally tally, ICollection<string> notes)
         {
             // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
             var baseType = baseFloorType ?? new FilteredElementCollector(doc)
@@ -424,31 +501,15 @@ namespace StingTools.Temp
             FloorType newType = baseType.Duplicate(typeName) as FloorType;
             if (newType == null) return false;
 
-            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
-            if (layers.Count > 0)
-            {
-                try
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    // BUG-01 FIX: Disable EndCap conditions that are invalid for Floor types.
-                    // Revit applies default EndCap conditions that cause errors on non-wall types.
-                    cs.OpeningWrapping = OpeningWrappingCondition.None;
-                    newType.SetCompoundStructure(cs);
-                }
-                catch (Exception ex)
-                {
-                    // EndCap or other structure error — log and continue (type was created, just no layers)
-                    StingLog.Warn($"Floor '{typeName}' compound structure failed: {ex.Message}");
-                }
-            }
-
-            return true;
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
+            return ApplyStructureOrFail(doc, newType, "Floor", typeName, layers, tally);
         }
 
         private static bool CreateCeilingType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
             Dictionary<string, ElementId> materialCache,
-            CeilingType baseCeilingType = null)
+            CeilingType baseCeilingType,
+            TypeCreationTally tally, ICollection<string> notes)
         {
             // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
             var baseType = baseCeilingType ?? new FilteredElementCollector(doc)
@@ -461,29 +522,15 @@ namespace StingTools.Temp
             CeilingType newType = baseType.Duplicate(typeName) as CeilingType;
             if (newType == null) return false;
 
-            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
-            if (layers.Count > 0)
-            {
-                try
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    // BUG-02 FIX: Disable EndCap/wrapping that causes errors on Ceiling types
-                    cs.OpeningWrapping = OpeningWrappingCondition.None;
-                    newType.SetCompoundStructure(cs);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Ceiling '{typeName}' compound structure failed: {ex.Message}");
-                }
-            }
-
-            return true;
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
+            return ApplyStructureOrFail(doc, newType, "Ceiling", typeName, layers, tally);
         }
 
         private static bool CreateRoofType(Document doc, string typeName,
             ElementId matId, double thicknessMm, string[] cols,
             Dictionary<string, ElementId> materialCache,
-            RoofType baseRoofType = null)
+            RoofType baseRoofType,
+            TypeCreationTally tally, ICollection<string> notes)
         {
             // PERF-001: base type pre-collected by caller; fall back to per-call collect only if null
             var baseType = baseRoofType ?? new FilteredElementCollector(doc)
@@ -496,23 +543,8 @@ namespace StingTools.Temp
             RoofType newType = baseType.Duplicate(typeName) as RoofType;
             if (newType == null) return false;
 
-            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache);
-            if (layers.Count > 0)
-            {
-                try
-                {
-                    CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
-                    // BUG-03 FIX: Disable EndCap/wrapping that causes errors on Roof types
-                    cs.OpeningWrapping = OpeningWrappingCondition.None;
-                    newType.SetCompoundStructure(cs);
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Roof '{typeName}' compound structure failed: {ex.Message}");
-                }
-            }
-
-            return true;
+            var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
+            return ApplyStructureOrFail(doc, newType, "Roof", typeName, layers, tally);
         }
 
         private static bool CreateMEPType(Document doc, string typeName,
@@ -570,118 +602,115 @@ namespace StingTools.Temp
         /// Falls back to a single-layer structure for homogeneous materials with no layer data.
         /// Skips R-value codes and cable cross-section values stored in thickness columns.
         /// </summary>
+        /// <summary>
+        /// The build-up the register row asks for, as Revit layers.
+        ///
+        /// <para>The decisions live in <see cref="CompoundLayerPlanner"/>, which is
+        /// Revit-free and therefore assertable. They used to live here, where a missing
+        /// thickness silently became 10 mm, a layer over 500 mm was silently dropped, a
+        /// failed material create silently substituted the type's own material, and a row
+        /// that declared layers nobody could read came out as a single default layer —
+        /// indistinguishable from a genuinely single-material row. None of it reached the
+        /// caller, so a run that read forty real thicknesses printed the same line as one
+        /// that invented forty.</para>
+        ///
+        /// <para><paramref name="notes"/> carries them out. A fatal issue means the type
+        /// was NOT built as declared, and <c>ApplyStructureOrFail</c> refuses it.</para>
+        /// </summary>
         private static IList<CompoundStructureLayer> BuildLayers(
             string[] cols, ElementId defaultMatId, double defaultThickMm,
-            Document doc, Dictionary<string, ElementId> materialCache)
+            Document doc, Dictionary<string, ElementId> materialCache,
+            ICollection<string> notes = null)
         {
+            string rowName = cols.Length > ColName ? cols[ColName].Trim() : "";
+
+            var slotMat = new List<string>();
+            var slotThick = new List<string>();
+            var slotFunc = new List<string>();
+            for (int i = 0; i < MaxLayers; i++)
+            {
+                int b = ColLayer1Start + (i * LayerStride);
+                slotMat.Add(b < cols.Length ? cols[b] : "");
+                slotThick.Add(b + 1 < cols.Length ? cols[b + 1] : "");
+                slotFunc.Add(b + 2 < cols.Length ? cols[b + 2] : "");
+            }
+
+            var plan = CompoundLayerPlanner.Plan(
+                slotMat, slotThick, slotFunc, rowName, defaultThickMm);
+
+            foreach (var issue in plan.Issues)
+                notes?.Add($"{rowName}: {issue}");
+
+            // A fatal issue means the row was not read as declared. Returning no layers is
+            // how that reaches ApplyStructureOrFail, which refuses the type and says why —
+            // rather than building something nobody asked for and counting it.
+            if (plan.Fatal.Any())
+            {
+                notes?.Add($"{rowName}: NOT built — {plan.Fatal.Count()} unreadable or dropped "
+                         + "layer(s), so its build-up would not be the one the register declares");
+                return new List<CompoundStructureLayer>();
+            }
+
             var layers = new List<CompoundStructureLayer>();
-
-            // Scan actual populated layers (don't trust MAT_LAYER_COUNT — 94 MEP rows wrong)
-            int actualLayers = CountActualLayers(cols);
-
-            if (actualLayers > 0)
+            foreach (var pl in plan.Layers)
             {
-                for (int i = 0; i < actualLayers; i++)
-                {
-                    int baseIdx = ColLayer1Start + (i * LayerStride);
-                    if (baseIdx + 2 >= cols.Length) break;
-
-                    string layerMatName = cols[baseIdx].Trim();
-                    string layerThickStr = cols[baseIdx + 1].Trim();
-                    string layerFuncStr = cols[baseIdx + 2].Trim();
-
-                    // Skip R-value codes in material column (thermal resistance, not materials)
-                    if (layerMatName.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    double layerThickMm = 0;
-                    if (!string.IsNullOrEmpty(layerThickStr) &&
-                        !layerThickStr.StartsWith("R-", StringComparison.OrdinalIgnoreCase))
-                    {
-                        double.TryParse(layerThickStr, out layerThickMm);
-                    }
-
-                    // Skip cable cross-section values (mm² stored as mm, e.g. 300.0 for a 300mm² conductor)
-                    if (layerThickMm > 500)
-                    {
-                        StingLog.Warn($"CompoundTypeCreator: Skipping layer '{layerMatName}' with thickness {layerThickMm}mm (>500mm, likely cable cross-section area)");
-                        continue;
-                    }
-                    // Revit requires minimum ~0.8mm layer thickness; enforce 1mm floor
-                    if (layerThickMm <= 0) layerThickMm = 10;
-                    if (layerThickMm < 1.0) layerThickMm = 1.0;
-
-                    // Convert mm to feet (Revit internal units)
-                    double thickFeet = layerThickMm / 304.8;
-
-                    // Resolve layer material — create if missing
-                    ElementId layerMatId = defaultMatId;
-                    if (!string.IsNullOrEmpty(layerMatName))
-                    {
-                        if (materialCache.TryGetValue(layerMatName, out ElementId foundId))
-                        {
-                            layerMatId = foundId;
-                        }
-                        else
-                        {
-                            // Auto-create sub-materials (GALVANIZED STEEL, TILE ADHESIVE, etc.)
-                            try
-                            {
-                                ElementId newId = Material.Create(doc, layerMatName);
-                                if (newId != ElementId.InvalidElementId)
-                                {
-                                    materialCache[layerMatName] = newId;
-                                    layerMatId = newId;
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                StingLog.Warn($"Layer material create failed '{layerMatName}': {ex.Message}");
-                            }
-                        }
-                    }
-
-                    MaterialFunctionAssignment func = MapLayerFunction(layerFuncStr);
-                    layers.Add(new CompoundStructureLayer(thickFeet, func, layerMatId));
-                }
-            }
-
-            // Fallback: single-layer homogeneous material (covers 165+ BLE rows with no layer data)
-            if (layers.Count == 0)
-            {
-                double thickFeet = defaultThickMm / 304.8;
-                if (thickFeet < 1.0 / 304.8) thickFeet = 1.0 / 304.8; // min 1mm
+                ElementId layerMatId = ResolveLayerMaterial(
+                    doc, pl.Material, defaultMatId, materialCache, rowName, notes);
                 layers.Add(new CompoundStructureLayer(
-                    thickFeet,
-                    MaterialFunctionAssignment.Structure,
-                    defaultMatId));
+                    pl.ThicknessMm / 304.8, MapLayerFunction(pl.Function), layerMatId));
             }
-            else
+
+            // Revit requires at least one STRUCTURE layer. Promoting the thickest is a
+            // presentation choice, not a quantity change — the thicknesses and materials
+            // are untouched — so it is a note rather than a failure.
+            if (layers.Count > 0 && !layers.Any(l => l.Function == MaterialFunctionAssignment.Structure))
             {
-                // Revit compound structures require at least one STRUCTURE layer.
-                // If all layers are FINISH/MEMBRANE/etc., promote the thickest to STRUCTURE.
-                bool hasStructure = false;
-                for (int li = 0; li < layers.Count; li++)
-                {
-                    if (layers[li].Function == MaterialFunctionAssignment.Structure)
-                    { hasStructure = true; break; }
-                }
-                if (!hasStructure)
-                {
-                    int thickestIdx = 0;
-                    double maxThick = layers[0].Width;
-                    for (int li = 1; li < layers.Count; li++)
-                    {
-                        if (layers[li].Width > maxThick)
-                        { maxThick = layers[li].Width; thickestIdx = li; }
-                    }
-                    var old = layers[thickestIdx];
-                    layers[thickestIdx] = new CompoundStructureLayer(
-                        old.Width, MaterialFunctionAssignment.Structure, old.MaterialId);
-                }
+                int thickest = 0;
+                for (int i = 1; i < layers.Count; i++)
+                    if (layers[i].Width > layers[thickest].Width) thickest = i;
+                var old = layers[thickest];
+                layers[thickest] = new CompoundStructureLayer(
+                    old.Width, MaterialFunctionAssignment.Structure, old.MaterialId);
+                notes?.Add($"{rowName}: no layer is declared STRUCTURE, so the thickest was "
+                         + "promoted to satisfy Revit (thicknesses and materials unchanged)");
             }
 
             return layers;
+        }
+
+        /// <summary>
+        /// The material for one layer, created if the project does not have it.
+        ///
+        /// <para>A create failure used to leave <c>layerMatId</c> on the TYPE's own
+        /// material and add the layer anyway — a layer with the wrong material, warned for
+        /// the create and silent about the substitution. It is now a note the caller sees,
+        /// and the substitution is named.</para>
+        /// </summary>
+        private static ElementId ResolveLayerMaterial(
+            Document doc, string layerMatName, ElementId defaultMatId,
+            Dictionary<string, ElementId> materialCache, string rowName, ICollection<string> notes)
+        {
+            if (string.IsNullOrWhiteSpace(layerMatName)) return defaultMatId;
+            if (materialCache.TryGetValue(layerMatName, out ElementId found)) return found;
+
+            try
+            {
+                ElementId created = Material.Create(doc, layerMatName);
+                if (created != ElementId.InvalidElementId)
+                {
+                    materialCache[layerMatName] = created;
+                    return created;
+                }
+                notes?.Add($"{rowName}: layer material '{layerMatName}' could not be created, "
+                         + "so that layer carries the type's own material instead");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Layer material create failed '{layerMatName}': {ex.Message}");
+                notes?.Add($"{rowName}: layer material '{layerMatName}' could not be created "
+                         + $"({ex.Message}), so that layer carries the type's own material instead");
+            }
+            return defaultMatId;
         }
 
         /// <summary>
