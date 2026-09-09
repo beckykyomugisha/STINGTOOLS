@@ -108,6 +108,10 @@ namespace StingTools.Core
 
         public int CategoryCount => _categories.Count;
         public int PatternCount => _patterns.Count;
+        /// <summary>How many exact family names are excluded. Reported because the
+        /// corporate and project lists now UNION, so the count is the only cheap way to
+        /// see that a project override added to the list rather than replacing it.</summary>
+        public int FamilyCount => _families.Count;
 
         /// <summary>
         /// Classify one element. <paramref name="description"/> and

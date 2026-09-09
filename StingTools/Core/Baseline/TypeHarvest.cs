@@ -204,10 +204,23 @@ namespace StingTools.Core.Baseline
                 .ToList();
             if (inName.Count == 0) return false;
 
-            // Every number in the name must be findable, to the millimetre, in
-            // some parameter. One that is not means the name is describing a
-            // size the type does not have.
-            return inName.Any(n => !parameters.Any(p => Math.Abs(p.ValueMm - n) < 0.5));
+            // NO number in the name is findable in any parameter.
+            //
+            // This was "ANY number unmatched" and the first real harvest showed
+            // that is too strict. `900 x 2100 w 300 Vent` is a correctly named
+            // door: its width and height both match, and the unmatched 300 is
+            // the VENT — a real feature of the product that is not one of the
+            // dimensions harvested, and was never meant to be. Two of seven
+            // findings were that shape.
+            //
+            // A name whose sizes are ALL absent is describing something the
+            // type is not: `200x200 with 12.5 plaster` measuring 450 square,
+            // `1740x2595mm` measuring 1500 x 2400. A name carrying an EXTRA
+            // dimension is simply more informative than the parameter list.
+            //
+            // Checked against all 16 types of that harvest, this keeps every
+            // genuine case and drops both vent doors.
+            return !inName.Any(n => parameters.Any(p => Math.Abs(p.ValueMm - n) < 0.5));
         }
 
         /// <summary>
