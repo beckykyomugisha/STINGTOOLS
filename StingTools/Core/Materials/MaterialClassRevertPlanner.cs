@@ -57,6 +57,11 @@ namespace StingTools.Core.Materials
         public string RestoreTo = "";
         public string Reason = "";
 
+        /// <summary>True when the material already carries what the plan found — a second
+        /// revert run, or a write that was never saved. Distinct from "somebody changed it
+        /// since", which the message used to conflate it with.</summary>
+        public bool AlreadyAsThePlanFoundIt { get; internal set; }
+
         public bool WillRevert { get; internal set; }
     }
 
@@ -83,6 +88,26 @@ namespace StingTools.Core.Materials
 
             if (currentClass == null)
             { p.Reason = "no longer in this model"; return p; }
+
+            // ALREADY BACK is not CHANGED SINCE, and conflating them alarms the reader.
+            //
+            // Run on the Herring model 2026-09-09 07:48: 1,815 rows, 0 reverted, and 120
+            // of them reported "changed since the plan ran — now 'Unassigned', the plan set
+            // 'Ceramic'. That choice wins". Every one of those 120 was in fact ALREADY
+            // reverted — the write had not been saved — so the message described a
+            // colleague overwriting the reader's data when nothing of the sort had
+            // happened. The verdict was right and the sentence was wrong, which is the
+            // harder half to notice.
+            if (string.Equals(Normalise(currentClass), p.RestoreTo, StringComparison.OrdinalIgnoreCase))
+            {
+                p.AlreadyAsThePlanFoundIt = true;
+                p.Reason = p.RestoreTo.Length == 0
+                    ? $"already back to no class, which is how the plan found it — nothing to undo "
+                    + $"(the plan set '{p.PlannedClass}')"
+                    : $"already back to '{p.RestoreTo}', which is how the plan found it — nothing to "
+                    + $"undo (the plan set '{p.PlannedClass}')";
+                return p;
+            }
 
             if (!string.Equals(Normalise(currentClass), p.PlannedClass, StringComparison.OrdinalIgnoreCase))
             {
@@ -120,12 +145,17 @@ namespace StingTools.Core.Materials
             int revert = ps.Count(x => x.WillRevert);
             int nothingSet = ps.Count(x => x.PlannedClass.Length == 0);
             int gone = ps.Count(x => x.CurrentClass == null && x.PlannedClass.Length > 0);
-            int moved = ps.Count - revert - nothingSet - gone;
+            int already = ps.Count(x => x.AlreadyAsThePlanFoundIt);
+            int moved = ps.Count - revert - nothingSet - gone - already;
             var sb = new StringBuilder();
             sb.AppendLine($"{ps.Count} row(s) in that plan: {revert} will be put back as they were.");
-            sb.AppendLine($"{nothingSet} were never written, {gone} are no longer in the model, and "
-                        + $"{moved} have been changed since the plan ran — those {moved} are left alone, "
-                        + "because somebody chose them after the tool did.");
+            sb.AppendLine($"{nothingSet} were never written and {gone} are no longer in the model.");
+            if (already > 0)
+                sb.AppendLine($"{already} already carry what the plan found, so there is nothing to "
+                            + "undo — either this has already been run, or that write was never saved.");
+            if (moved > 0)
+                sb.AppendLine($"{moved} have been changed since the plan ran and are left alone, "
+                            + "because somebody chose them after the tool did.");
             return sb.ToString();
         }
 

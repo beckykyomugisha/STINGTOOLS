@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 259 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
+
+Three small independent fixes, each proved RED before GREEN.
+
+**A source tier nobody classified used to open a gate silently.**
+`ProdResolver.IsSpecific` is a whitelist of five tiers returning false for
+everything else, and it has two consumers with **opposite safe defaults**:
+`Prod_CoverageAudit` merely understates coverage, while `TypeRenamePlanner`'s
+code-gate reads an unknown tier as "no answer to protect" and lets a
+correctly-resolved product code be renamed away — with the CSV row reading
+`rename`, exactly like every legitimate one. Two tiers (`declared`, `sleeve`)
+were added to `Sources` after that function was written; both happen to be
+listed, and the next one need not have been.
+
+`IsGeneric` is now declared as its own whitelist — **not** `!IsSpecific`, which
+would make the split trivially total and prove nothing — and
+`ProdResolverSourceTotalityTests` reflects over the `Sources` consts to assert
+every one is in exactly one set. Reflection rather than a hand-written list of
+seven, because a list needs the same edit the whitelist needs and would miss the
+same omission.
+
+*RED by sabotage:* adding an eighth const `Harvested = "harvested"` failed **1 of
+10**, naming `Sources.Harvested`. Removed; 10 of 10.
+
+**`MaterialClassCorpusTests` was pinned to one filename in two places.** The
+1,815-name corpus is the only thing that makes that file stronger than a table
+somebody thought of, so the next delivered model's list should strengthen it by
+being dropped into `Fixtures/` — not by somebody remembering to edit a string.
+The loader now globs `material_names_*.csv` in name order, every miss names the
+file it came from, and `Every_Corpus_File_In_Fixtures_Is_Actually_Being_Read`
+compares what is on disk against what was read, so a glob that matched one of
+three cannot pass quietly. The exact per-source counts stay **scoped to
+`material_names_20260908.csv` by name** — a union-wide count would move every
+time a corpus is added, which is the assertion that stops meaning anything.
+
+*RED by sabotage:* a second fixture with one wrong row moved the pinned count
+697 → **698** and failed **1 of 50**, naming the new file. Removed; 50 of 50.
+
+**An unsaved write was reported as a colleague's decision.** Run on the Herring
+model 2026-09-09 07:48, `Materials_RevertClassPlan` reported 1,815 rows, 0
+reverted, and **120 of them** as
+
+    changed since the plan ran — now 'Unassigned', the plan set 'Ceramic'.
+    That choice wins; not reverted.
+
+Every one of those 120 was in fact already reverted — the 2026-09-08 write had
+not been saved. **The verdict was right and the sentence was wrong**, which is
+the harder half to notice: it describes somebody overwriting the reader's data
+when nothing of the sort happened, on a tool whose entire purpose is to be
+trusted with a bulk undo.
+
+Already-back is now its own outcome (`AlreadyAsThePlanFoundIt`), checked before
+changed-since, and `Summary` counts the two separately. The half that must NOT be
+softened — a class a human genuinely changed afterwards — is asserted in its own
+test beside it, so the warning that matters cannot be deleted by fixing the one
+that did not.
+
+*RED:* the existing `Running_It_Twice_Does_Nothing_The_Second_Time` asserted the
+misleading wording and failed **1 of 13** the moment the message changed —
+the test had encoded the defect. Disabling the new branch failed **3 of 16**.
+GREEN 16 of 16.
+
+Tags 835 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors. **Nothing was run in Revit**; the 120-row figure is read from the CSV
+the user's own run wrote, not reproduced here.
+
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
 `prod_coverage_20260908_221546.csv` still carries
