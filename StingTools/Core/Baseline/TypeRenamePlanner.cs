@@ -85,6 +85,21 @@ namespace StingTools.Core.Baseline
         /// resolves to. A different thing from "the model does not say enough".</summary>
         public bool RefusedToProtectCode;
 
+        /// <summary>True when a name was composed and withheld because another type in the
+        /// same category would end up holding it. Distinct from both other refusals: the
+        /// model said enough, the code was right, and the answer still collided.</summary>
+        public bool RefusedAsDuplicate;
+
+        /// <summary>The name that WAS composed, kept even when a gate withheld it, so the
+        /// CSV can show what was rejected instead of an empty cell. Equal to
+        /// <see cref="ProposedName"/> whenever a proposal stands.</summary>
+        public string WithheldName;
+
+        /// <summary>True when the caller's existing-code resolver threw. The product-code
+        /// gate cannot fire for this type, and a run where that happened everywhere must not
+        /// read the same as a run where the gate examined every type and found nothing.</summary>
+        public bool ExistingLookupFailed;
+
         public bool IsProposal => !string.IsNullOrEmpty(ProposedName);
         /// <summary>True when the current name already matches what would be proposed.</summary>
         public bool AlreadyConforms =>
@@ -253,10 +268,15 @@ namespace StingTools.Core.Baseline
             // between components inside a field, no spaces anywhere.
             p.ProdCode = prod;
             p.DeclaredCode = prod;
+            // An unavailable resolver must not abort the plan — but it must not vanish
+            // either. A resolver that throws for every type disables the code gate below
+            // completely, and "0 held back" then means "the gate never ran", which reads
+            // identically to "the gate found nothing wrong".
             try { p.Existing = resolveExisting?.Invoke(input); }
-            catch (Exception) { p.Existing = null; }   // an unavailable resolver is not a proposal
+            catch (Exception) { p.Existing = null; p.ExistingLookupFailed = resolveExisting != null; }
 
             string composed = ProdNameCode.Compose(p.Originator, prod, substance + size, finish);
+            p.WithheldName = composed;
 
             // ── The code gate. ───────────────────────────────────────────────────
             // ProdResolver puts a code DECLARED in a type name above the corporate
@@ -304,8 +324,84 @@ namespace StingTools.Core.Baseline
         public static List<TypeRenameProposal> PlanAll(
             IEnumerable<TypeRenameInput> inputs,
             Func<TypeRenameInput, ExistingProdCode> resolveExisting = null)
-            => (inputs ?? Enumerable.Empty<TypeRenameInput>())
-               .Select(i => Plan(i, resolveExisting)).ToList();
+        {
+            var plans = (inputs ?? Enumerable.Empty<TypeRenameInput>())
+                        .Select(i => Plan(i, resolveExisting)).ToList();
+            GateDuplicateNames(plans);
+            return plans;
+        }
+
+        /// <summary>
+        /// ── The uniqueness gate. ─────────────────────────────────────────────
+        ///
+        /// <para><b>Revit does not stop you.</b> Its UI refuses a duplicate type name; its
+        /// API does not. On 2026-09-09 this command renamed 168 types on a delivered model
+        /// and logged <c>168/168 renamed, 0 failed</c> — while <b>137 of them landed on 19
+        /// names</b>. Eighty-seven floor types, the whole finish catalogue, became
+        /// <c>PLNS_SLB_RC100</c>. Every <c>type.Name = …</c> succeeded, so the per-type
+        /// try/catch had nothing to report. This gate is the only thing between a rename and
+        /// that outcome.</para>
+        ///
+        /// <para><b>Refuse; never disambiguate.</b> Appending <c>-2</c>, <c>-3</c> … was the
+        /// obvious repair and is the wrong one. Those 87 types are one 100 mm layer of grey
+        /// concrete under 87 names: a numeric suffix would invent a distinction the build-ups
+        /// do not contain, and — unlike the collision — it would look deliberate forever
+        /// after. The refusal is worth more than the rename, because it names the real
+        /// finding: those types are named, not modelled, and every quantity taken off them
+        /// (area, volume, embodied carbon, cost) has been answering "100 mm of concrete"
+        /// whatever the label said.</para>
+        ///
+        /// <para><b>Names being KEPT count too.</b> A rename landing on the name of a type
+        /// that is not being renamed is the same duplicate to Revit. Comparing proposals only
+        /// against other proposals would let that through, so the claim set is
+        /// <c>ProposedName ?? CurrentName</c> for every type in the run.</para>
+        ///
+        /// <para><b>Scope is the category.</b> Revit scopes type names per category, so a
+        /// floor and a roof may both be <c>PLNS_SLB_RC150</c>; gating across categories would
+        /// refuse correct renames for a clash that cannot happen.</para>
+        /// </summary>
+        private static void GateDuplicateNames(List<TypeRenameProposal> plans)
+        {
+            var claims = new Dictionary<string, List<TypeRenameProposal>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in plans)
+            {
+                string held = p.IsProposal ? p.ProposedName : p.CurrentName;
+                if (string.IsNullOrWhiteSpace(held)) continue;
+                string key = (p.Category ?? "") + " " + held.Trim();
+                if (!claims.TryGetValue(key, out var l)) claims[key] = l = new List<TypeRenameProposal>();
+                l.Add(p);
+            }
+
+            foreach (var group in claims.Values)
+            {
+                if (group.Count < 2) continue;
+
+                foreach (var p in group)
+                {
+                    // A type that already carries the name is not colliding with itself, and
+                    // one that is keeping its name is not doing anything to collide WITH.
+                    // Only a move can be refused.
+                    if (!p.IsProposal || p.AlreadyConforms) continue;
+
+                    var peers = group.Where(o => !ReferenceEquals(o, p))
+                                     .Select(o => o.CurrentName)
+                                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+
+                    string named = string.Join(", ", peers.Take(3));
+                    if (peers.Count > 3) named += $", and {peers.Count - 3} more";
+
+                    p.RefusedAsDuplicate = true;
+                    p.ProposedName = null;
+                    p.Reason = $"'{p.WithheldName}' would also be taken by {peers.Count} other "
+                             + $"{p.Category} type(s) — {named}. Revit's API accepts a duplicate type "
+                             + "name without complaint, so nothing downstream would report it. They "
+                             + "share a name because they share a build-up: same core material, same "
+                             + "thickness, same finish. As modelled they are one type, and the "
+                             + "difference lives only in the names a rename would erase — so give them "
+                             + "different layers, or leave them named.";
+                }
+            }
+        }
 
         /// <summary>
         /// One line per outcome, so a reader sees the shape of the run before opening
@@ -317,7 +413,9 @@ namespace StingTools.Core.Baseline
             int conform = ps.Count(x => x.AlreadyConforms);
             int propose = ps.Count(x => x.IsProposal && !x.AlreadyConforms);
             int guarded = ps.Count(x => x.RefusedToProtectCode);
-            int cannot = ps.Count(x => !x.IsProposal) - guarded;
+            int clashed = ps.Count(x => x.RefusedAsDuplicate);
+            int unchecked_ = ps.Count(x => x.ExistingLookupFailed);
+            int cannot = ps.Count(x => !x.IsProposal) - guarded - clashed;
             string s = $"{ps.Count} type(s): {conform} already conform, {propose} can be renamed, "
                      + $"{cannot} cannot be named from the model. The {cannot} are not failures of this "
                      + "tool — their materials do not say what they are, and a rename that guessed would "
@@ -327,6 +425,17 @@ namespace StingTools.Core.Baseline
                    + "DIFFERENT product code from the one the type already resolves to — those are "
                    + "listed in the CSV with both codes, and the answer is usually to fix the name by "
                    + "hand rather than to let a rename overwrite a correct classification.";
+            if (clashed > 0)
+                s += $" And {clashed} were held back because two or more types would have ended up "
+                   + "with the same name — Revit's API permits that silently, so the rename would "
+                   + "have looked like a clean run. Types collide here when the model gives them "
+                   + "identical build-ups, which means the distinction their old names carry is not "
+                   + "in the model at all: their areas, volumes, carbon and cost are already being "
+                   + "answered as though they were one type.";
+            if (unchecked_ > 0)
+                s += $" NOTE: {unchecked_} type(s) could not be checked against the product-code "
+                   + "rules because the resolver failed, so the code gate did not run for them. "
+                   + "Treat any rename among those as unverified rather than approved.";
             return s;
         }
 

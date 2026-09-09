@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 259 — an exact family name is additive, because it cannot misfire)
+#### Completed (Phase 261 — an exact family name is additive, because it cannot misfire)
 
 A project PROD-exclusion override REPLACED the list it declared. On 2026-09-09 a
 project file was written naming only its entourage car, and it silently dropped
@@ -55,6 +55,142 @@ countable rather than inferred.
 Tags 826 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
 0 errors. **Not verified in Revit** — `Prod_CoverageAudit` was not re-run, and the
 414 / 416 figures are read from the CSVs the user's own runs wrote.
+#### Completed (Phase 260 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
+
+Three small independent fixes, each proved RED before GREEN.
+
+**A source tier nobody classified used to open a gate silently.**
+`ProdResolver.IsSpecific` is a whitelist of five tiers returning false for
+everything else, and it has two consumers with **opposite safe defaults**:
+`Prod_CoverageAudit` merely understates coverage, while `TypeRenamePlanner`'s
+code-gate reads an unknown tier as "no answer to protect" and lets a
+correctly-resolved product code be renamed away — with the CSV row reading
+`rename`, exactly like every legitimate one. Two tiers (`declared`, `sleeve`)
+were added to `Sources` after that function was written; both happen to be
+listed, and the next one need not have been.
+
+`IsGeneric` is now declared as its own whitelist — **not** `!IsSpecific`, which
+would make the split trivially total and prove nothing — and
+`ProdResolverSourceTotalityTests` reflects over the `Sources` consts to assert
+every one is in exactly one set. Reflection rather than a hand-written list of
+seven, because a list needs the same edit the whitelist needs and would miss the
+same omission.
+
+*RED by sabotage:* adding an eighth const `Harvested = "harvested"` failed **1 of
+10**, naming `Sources.Harvested`. Removed; 10 of 10.
+
+**`MaterialClassCorpusTests` was pinned to one filename in two places.** The
+1,815-name corpus is the only thing that makes that file stronger than a table
+somebody thought of, so the next delivered model's list should strengthen it by
+being dropped into `Fixtures/` — not by somebody remembering to edit a string.
+The loader now globs `material_names_*.csv` in name order, every miss names the
+file it came from, and `Every_Corpus_File_In_Fixtures_Is_Actually_Being_Read`
+compares what is on disk against what was read, so a glob that matched one of
+three cannot pass quietly. The exact per-source counts stay **scoped to
+`material_names_20260908.csv` by name** — a union-wide count would move every
+time a corpus is added, which is the assertion that stops meaning anything.
+
+*RED by sabotage:* a second fixture with one wrong row moved the pinned count
+697 → **698** and failed **1 of 50**, naming the new file. Removed; 50 of 50.
+
+**An unsaved write was reported as a colleague's decision.** Run on the Herring
+model 2026-09-09 07:48, `Materials_RevertClassPlan` reported 1,815 rows, 0
+reverted, and **120 of them** as
+
+    changed since the plan ran — now 'Unassigned', the plan set 'Ceramic'.
+    That choice wins; not reverted.
+
+Every one of those 120 was in fact already reverted — the 2026-09-08 write had
+not been saved. **The verdict was right and the sentence was wrong**, which is
+the harder half to notice: it describes somebody overwriting the reader's data
+when nothing of the sort happened, on a tool whose entire purpose is to be
+trusted with a bulk undo.
+
+Already-back is now its own outcome (`AlreadyAsThePlanFoundIt`), checked before
+changed-since, and `Summary` counts the two separately. The half that must NOT be
+softened — a class a human genuinely changed afterwards — is asserted in its own
+test beside it, so the warning that matters cannot be deleted by fixing the one
+that did not.
+
+*RED:* the existing `Running_It_Twice_Does_Nothing_The_Second_Time` asserted the
+misleading wording and failed **1 of 13** the moment the message changed —
+the test had encoded the defect. Disabling the new branch failed **3 of 16**.
+GREEN 16 of 16.
+
+Tags 835 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors. **Nothing was run in Revit**; the 120-row figure is read from the CSV
+the user's own run wrote, not reproduced here.
+#### Completed (Phase 259 — a rename that would give two types one name is refused)
+
+`Baseline_RenameTypes` was applied to a delivered model on 2026-09-09. The log
+recorded `168/168 renamed, 0 failed`. **137 of those 168 landed on 19 names.**
+The largest group was 87 floor types — the whole finish catalogue, every screed,
+tile, carpet, paver and resin — all renamed `PLNS_SLB_RC100`.
+
+**Revit's API does not refuse a duplicate type name.** Its UI does; the API does
+not. Every `type.Name = ...` returned without throwing, so the command's
+per-type try/catch had nothing to report and the run looked clean. Nothing
+failed. Everything broke. Only the fact that the model was never saved kept this
+off disk.
+
+**Why they collided.** All 87 gave the same reason: `core 'Concrete,
+Cast-in-Place gray' -> SLB; no finish layer to read`. They are one 100 mm slab of
+grey concrete wearing 87 names. The distinction was never modelled — it lived in
+the string alone, and the rename would have erased the only record of it.
+
+**Refuse, never disambiguate.** Appending `-2`, `-3` ... was the obvious repair
+and is the wrong one: it manufactures a difference the build-ups do not contain
+and, unlike the collision, looks deliberate forever after. The refusal is worth
+more than the rename, because it names the real finding — those types are named,
+not modelled, and every quantity taken off them (area, volume, embodied carbon,
+cost) has been answering "100 mm of concrete" whatever the label promised.
+
+`TypeRenamePlanner.GateDuplicateNames` runs as a second pass in `PlanAll`. The
+claim set is `ProposedName ?? CurrentName` for every type, so a rename landing on
+a name another type is KEEPING is caught too — Revit sees no difference between
+that and two renames colliding. Scope is the category, because Revit scopes type
+names per category and gating wider would refuse correct renames for a clash that
+cannot happen.
+
+A second guard sits in the command, because a plan can be stale by the time it is
+applied: it refuses when the current name matches more than one type (no way to
+tell which the plan meant) and when the proposed name is already held.
+
+**RED before GREEN.** `TypeRenameUniquenessTests` drives
+`Fixtures/type_rename_20260909.csv` — all 168 proposals from that run, with the
+core material, thickness and finish the planner read. Against the pre-gate
+planner: 5 of 9 failing, reporting 19 collisions over 137 types, matching the
+model exactly. After: 9 of 9. `The_Fixture_Reproduces_The_Recorded_Run` asserts
+the reconstruction still composes the recorded name, so the fixture cannot
+quietly drift into describing a planner that no longer exists.
+
+**It immediately found the same defect in #892's own fixture.**
+`TypeRenameCodeGateTests.The_Summary_Separates_Cannot_Name_From_Held_Back`
+asserted "4 can be renamed". Two of those four — `Exterior_CreamWhite_230 2` and
+`Exterior_BrownWhite_230`, both `Brick, Common(1)` at 205 mm with a plaster
+finish — compose the same name. They are the pair that actually collided on the
+delivered model, carrying 6 and 5 live elements. The old number was not a
+stricter expectation; it was that fixture reproducing the defect with nothing
+checking for it.
+
+**A silent failure fixed alongside.** `Plan` wraps the caller's existing-code
+resolver in a bare `catch`, which is right — an unavailable resolver must not
+abort the plan — but a resolver that throws for every type disabled the
+product-code gate completely and reported a clean run. `ExistingLookupFailed` is
+now carried per proposal and counted in `Summary`, so a dead gate no longer reads
+identically to a gate that found nothing.
+
+The plan CSV gains a `WithheldName` column: a refusal with an empty
+`ProposedName` and no record of what was rejected tells the reader nothing about
+which gate fired or whether the name would have been reasonable.
+
+**Known and deliberately not fixed here.** `TypeRenamePlanner.Match` still uses
+`IndexOf`, the #863 shape removed from the class planner in Phase 256. The new
+corpus was used to test the switch rather than guess at it, and it breaks 7 rows:
+`Concrete Masonry Units` and `CLAY TILES PREMIUM` are plurals, and the needles
+are singular, so whole-word matching sends the CMU walls back to `WRC` and drops
+the clay-tile roofs entirely. The remedy is plural-tolerant stems, proven against
+this fixture, in its own change.
 
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
