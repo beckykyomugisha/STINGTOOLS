@@ -326,14 +326,111 @@ namespace StingTools.Tags.Tests
             // protectedCategories survives too — a door called "Opening" is still a door.
             Assert.Equal(ExclusionVerdict.Included, ex.Classify("Doors", "Opening Door", ""));
 
-            // And the corporate families list is REPLACED, not merged — which is the
-            // documented contract, and worth seeing rather than assuming. The corporate
-            // entry that stops being matched is Revit's stock wall-void family, whose
-            // absence a project taking this override should know about.
-            Assert.Equal(ExclusionVerdict.Included,
+            // And the corporate families list is UNIONED, not replaced. This assertion
+            // read the other way when this test was written, on the grounds that replace
+            // was "the documented contract, worth seeing rather than assuming". Seeing it
+            // was the point: three days later a real project wrote exactly this override
+            // and three wall voids returned to the coverage denominator. An exact family
+            // name cannot misfire, so there was nothing for replace-semantics to protect.
+            Assert.Equal(ExclusionVerdict.ByFamily,
                 ex.Classify("Windows", "Window-Square Opening", ""));
             Assert.Equal(ExclusionVerdict.ByFamily,
                 Shipped().Classify("Windows", "Window-Square Opening", ""));
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  Which keys union, and which must not
+        // ══════════════════════════════════════════════════════════════════════
+
+        [Fact]
+        public void Naming_One_Family_Does_Not_Un_Name_The_Corporate_Ones()
+        {
+            // Measured 2026-09-09. prod_coverage_20260908_221546.csv has 414 rows and NO
+            // Window-Square Opening row. After a project override declaring only the
+            // entourage car, prod_coverage_20260909_075229.csv has 416 and THREE of them —
+            // the SUV left and three wall voids arrived, and the only visible trace was a
+            // total moving by +2. A denominator has no error state.
+            var corp = ProdExclusionPolicy.Parse(
+                "{\"notAProductFamilies\":[\"Window-Square Opening\"]}", out _);
+            var proj = ProdExclusionPolicy.Parse(
+                "{\"notAProductFamilies\":[\"A_Revit_Suv_3d_car\"]}", out _);
+
+            var ex = ProdExclusionPolicy.Build(corp, proj);
+
+            Assert.Equal(ExclusionVerdict.ByFamily, ex.Classify("Site", "A_Revit_Suv_3d_car", ""));
+            Assert.Equal(ExclusionVerdict.ByFamily, ex.Classify("Windows", "Window-Square Opening", ""));
+        }
+
+        [Fact]
+        public void A_Family_Named_On_Both_Sides_Is_Named_Once()
+        {
+            // The user's own repair on 2026-09-09 was to list BOTH families in the project
+            // file. That must stay correct after this change rather than becoming a
+            // duplicate — and the union must not care about case or padding, because the
+            // two lists are maintained by different people.
+            var corp = ProdExclusionPolicy.Parse(
+                "{\"notAProductFamilies\":[\"Window-Square Opening\"]}", out _);
+            var proj = ProdExclusionPolicy.Parse(
+                "{\"notAProductFamilies\":[\" window-square opening \",\"A_Revit_Suv_3d_car\"]}", out _);
+
+            var ex = ProdExclusionPolicy.Build(corp, proj);
+            Assert.Equal(2, ex.FamilyCount);
+            Assert.Equal(ExclusionVerdict.ByFamily, ex.Classify("Windows", "Window-Square Opening", ""));
+            Assert.Equal(ExclusionVerdict.ByFamily, ex.Classify("Site", "A_Revit_Suv_3d_car", ""));
+        }
+
+        [Fact]
+        public void An_Empty_Families_List_No_Longer_Clears_The_Corporate_One()
+        {
+            // The cost of unioning, stated rather than discovered. A project CANNOT switch
+            // a corporate family back on by declaring [] — the escape hatch that
+            // replace-semantics gave it is gone, on purpose: an exact family name is not a
+            // pattern and cannot misfire, so there is no legitimate use for that hatch, and
+            // the one project that reached for it did so by accident.
+            var corp = ProdExclusionPolicy.Parse(
+                "{\"notAProductFamilies\":[\"Window-Square Opening\"]}", out _);
+            var cleared = ProdExclusionPolicy.Build(corp,
+                ProdExclusionPolicy.Parse("{\"notAProductFamilies\":[]}", out _));
+
+            Assert.Equal(ExclusionVerdict.ByFamily,
+                cleared.Classify("Windows", "Window-Square Opening", ""));
+        }
+
+        [Fact]
+        public void Patterns_And_Categories_Still_REPLACE_Because_They_Can_Misfire()
+        {
+            // The half that must not follow families. A pattern matches names nobody
+            // anticipated — "opening" once ate a real window type — and a category holds
+            // whatever a project models in it. Both need a project to be able to say
+            // "not that one", so both keep replace-semantics.
+            var corp = ProdExclusionPolicy.Parse(
+                "{\"notAProductCategories\":[\"Rooms\",\"Areas\"],"
+              + "\"notAProductPatterns\":[\"opening\",\"muntin\"],"
+              + "\"protectedCategories\":[\"Doors\",\"Windows\"]}", out _);
+
+            var narrowed = ProdExclusionPolicy.Build(corp, ProdExclusionPolicy.Parse(
+                "{\"notAProductCategories\":[\"Rooms\"],\"notAProductPatterns\":[\"muntin\"],"
+              + "\"protectedCategories\":[\"Doors\"]}", out _));
+
+            Assert.Equal(ExclusionVerdict.ByCategory, narrowed.Classify("Rooms", "", ""));
+            Assert.Equal(ExclusionVerdict.Included, narrowed.Classify("Areas", "", ""));
+            Assert.Equal(ExclusionVerdict.ByPattern, narrowed.Classify("Walls", "Muntin", ""));
+            Assert.Equal(ExclusionVerdict.Included, narrowed.Classify("Walls", "Opening", ""));
+            // Windows is no longer protected, so the pattern list — which no longer holds
+            // "opening" — is what decides. Nothing here reaches for a family.
+            Assert.Equal(ExclusionVerdict.Included, narrowed.Classify("Windows", "Opening Window", ""));
+        }
+
+        [Fact]
+        public void With_No_Project_File_At_All_Nothing_Changes()
+        {
+            // The union must not invent a families list where neither side stated one, or
+            // "no file deployed" stops being distinguishable from "a file excluding
+            // nothing" — the distinction Parse exists to preserve.
+            var corp = ProdExclusionPolicy.Parse("{\"notAProductCategories\":[\"Rooms\"]}", out _);
+            var ex = ProdExclusionPolicy.Build(corp, null);
+            Assert.Equal(0, ex.FamilyCount);
+            Assert.Equal(ExclusionVerdict.ByCategory, ex.Classify("Rooms", "", ""));
         }
     }
 }

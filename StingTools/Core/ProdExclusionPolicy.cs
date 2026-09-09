@@ -8,6 +8,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -50,23 +51,65 @@ namespace StingTools.Core
         /// <summary>
         /// Layer a project override over the corporate baseline and build the matcher.
         ///
-        /// <para>An override REPLACES a list it declares and leaves the others alone —
-        /// a null list means "not stated", an empty list means "exclude nothing". The
-        /// two must stay distinguishable or the key becomes impossible to override,
-        /// which is the trap <c>excludedCategories</c> already documents in the
-        /// visibility presets.</para>
+        /// <para><b>Three keys REPLACE; one UNIONS, and the difference is not a
+        /// convenience.</b></para>
+        ///
+        /// <para><c>notAProductCategories</c>, <c>notAProductPatterns</c> and
+        /// <c>protectedCategories</c> replace the list they declare — a null list means
+        /// "not stated", an empty list means "exclude nothing", and the two must stay
+        /// distinguishable or the key becomes impossible to override (the trap
+        /// <c>excludedCategories</c> already documents in the visibility presets). Those
+        /// three are all fuzzy or sweeping: a PATTERN can misfire on a name nobody
+        /// anticipated and a CATEGORY holds whatever a project models in it, so a project
+        /// must be able to say "not that one".</para>
+        ///
+        /// <para><c>notAProductFamilies</c> UNIONS. It is an EXACT family name — the
+        /// reason the corporate file allows it to override <c>protectedCategories</c> at
+        /// all — so it cannot misfire, and there is no coherent reason for a project to
+        /// need Revit's stock wall-void family counted as a product. Replace-semantics
+        /// here meant naming one family silently un-named every other:</para>
+        ///
+        /// <para>Measured 2026-09-09. A project override was written declaring only
+        /// <c>A_Revit_Suv_3d_car</c>, to stop an entourage car being counted. It dropped
+        /// the corporate <c>Window-Square Opening</c>, and <b>three wall voids returned to
+        /// the PROD coverage denominator</b> — visible in the audit only as the total
+        /// moving 414 → 416 while one row left and three arrived. Nothing reported it,
+        /// because a denominator has no error state.</para>
+        ///
+        /// <para>A project that genuinely wants a corporate family back in the count must
+        /// say so in the corporate file, where the argument can be had once.</para>
         /// </summary>
         public static ProductExclusion Build(ProdExclusionDocument corporate, ProdExclusionDocument project)
         {
-            List<string> Pick(Func<ProdExclusionDocument, List<string>> f)
+            List<string> Replace(Func<ProdExclusionDocument, List<string>> f)
                 => (project != null && f(project) != null) ? f(project)
                  : (corporate != null ? f(corporate) : null);
 
             return ProductExclusion.Build(
-                Pick(d => d.NotAProductCategories),
-                Pick(d => d.NotAProductPatterns),
-                Pick(d => d.ProtectedCategories),
-                Pick(d => d.NotAProductFamilies));
+                Replace(d => d.NotAProductCategories),
+                Replace(d => d.NotAProductPatterns),
+                Replace(d => d.ProtectedCategories),
+                Union(corporate?.NotAProductFamilies, project?.NotAProductFamilies));
+        }
+
+        /// <summary>
+        /// Corporate ∪ project, order-preserving and case-insensitively de-duplicated.
+        /// Returns null when NEITHER side states anything, so "no file" stays
+        /// distinguishable from "an empty list" — the same reason
+        /// <see cref="Parse"/> returns null rather than an empty document.
+        /// </summary>
+        private static List<string> Union(List<string> corporate, List<string> project)
+        {
+            if (corporate == null && project == null) return null;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var outList = new List<string>();
+            foreach (var src in new[] { corporate, project })
+                foreach (string s in src ?? Enumerable.Empty<string>())
+                {
+                    if (string.IsNullOrWhiteSpace(s)) continue;
+                    if (seen.Add(s.Trim())) outList.Add(s.Trim());
+                }
+            return outList;
         }
     }
 }

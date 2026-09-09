@@ -145,12 +145,18 @@ namespace StingTools.Commands.Baseline
                 }
 
                 var rows = new List<string>
-                { "Category,CurrentName,ProposedName,Instances,Outcome,ExistingCode,ExistingSource,DeclaredCode,Reason" };
+                { "Category,CurrentName,ProposedName,WithheldName,Instances,Outcome,ExistingCode,ExistingSource,DeclaredCode,Reason" };
                 foreach (var p in plans.OrderBy(x => x.Category).ThenBy(x => x.CurrentName))
                     rows.Add(string.Join(",", Standardise.Csv(p.Category), Standardise.Csv(p.CurrentName),
-                        Standardise.Csv(p.ProposedName ?? ""), p.InstanceCount,
+                        Standardise.Csv(p.ProposedName ?? ""),
+                        // What a gate rejected. An empty ProposedName with no record of what
+                        // was withheld tells the reader nothing about which refusal they are
+                        // looking at, or whether the name would have been reasonable.
+                        Standardise.Csv(p.IsProposal ? "" : (p.WithheldName ?? "")),
+                        p.InstanceCount,
                         p.AlreadyConforms ? "conforms"
                             : p.IsProposal ? "rename"
+                            : p.RefusedAsDuplicate ? "refused - would duplicate another type's name"
                             : p.RefusedToProtectCode ? "refused - would change the product code"
                             : "cannot name",
                         Standardise.Csv(p.Existing?.Code ?? ""), Standardise.Csv(p.Existing?.Source ?? ""),
@@ -190,13 +196,44 @@ namespace StingTools.Commands.Baseline
                 {
                     t.Start();
                     // Name by name, so one clash does not lose the rest.
+                    //
+                    // Revit's API does not refuse a duplicate type name — on 2026-09-09 it
+                    // accepted 137 of them and this loop logged "0 failed" — so the two
+                    // checks below are not belt-and-braces over an API guard. There is no
+                    // API guard. TypeRenamePlanner's uniqueness gate is the first line and
+                    // this is the last, because a plan can be stale by the time it is
+                    // applied: a type added, renamed or deleted between plan and Yes.
+                    var hosts = new FilteredElementCollector(doc).OfClass(typeof(HostObjAttributes))
+                                    .ToList();
+                    bool SameCategory(Element e, string cat)
+                        => string.Equals(e.Category?.Name, cat, StringComparison.OrdinalIgnoreCase);
+
                     foreach (var p in todo)
                     {
-                        var type = new FilteredElementCollector(doc).OfClass(typeof(HostObjAttributes))
-                            .FirstOrDefault(e => string.Equals(e.Name, p.CurrentName, StringComparison.Ordinal)
-                                              && string.Equals(e.Category?.Name, p.Category, StringComparison.OrdinalIgnoreCase));
-                        if (type == null) { failed.Add($"{p.CurrentName} — no longer present"); continue; }
-                        try { type.Name = p.ProposedName; done++; }
+                        var matches = hosts.Where(e => string.Equals(e.Name, p.CurrentName, StringComparison.Ordinal)
+                                                    && SameCategory(e, p.Category)).ToList();
+                        if (matches.Count == 0)
+                        { failed.Add($"{p.CurrentName} — no longer present"); continue; }
+                        if (matches.Count > 1)
+                        {
+                            // Already duplicated before this run. Renaming an arbitrary one
+                            // of them would be a coin toss recorded as a success.
+                            failed.Add($"{p.CurrentName} — {matches.Count} {p.Category} types already share "
+                                     + "this name, so there is no way to tell which one the plan meant");
+                            continue;
+                        }
+
+                        var taken = hosts.FirstOrDefault(e => !ReferenceEquals(e, matches[0])
+                                                           && SameCategory(e, p.Category)
+                                                           && string.Equals(e.Name, p.ProposedName, StringComparison.OrdinalIgnoreCase));
+                        if (taken != null)
+                        {
+                            failed.Add($"{p.CurrentName} → {p.ProposedName} — another {p.Category} type already "
+                                     + "holds that name. Revit would accept the duplicate silently; this does not.");
+                            continue;
+                        }
+
+                        try { matches[0].Name = p.ProposedName; done++; }
                         catch (Exception ex) { failed.Add($"{p.CurrentName} — {ex.Message}"); }
                     }
                     t.Commit();

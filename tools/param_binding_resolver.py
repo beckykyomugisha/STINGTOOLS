@@ -1,4 +1,4 @@
-import os,re,csv,collections
+import io,os,re,csv,collections
 # csv.writer's default lineterminator is CRLF whatever open(newline="") does, so
 # the terminator has to be set on the WRITER. All three outputs are pinned to LF
 # and to `text eol=lf` in .gitattributes: the drift gate regenerates on Linux and
@@ -137,11 +137,64 @@ def resolve(n,desc,depth=0):
     if cs: return cs,"code-usage"
     if cc: return "NONE","UNRESOLVED(polluted-curated)"
     return "NONE","UNRESOLVED"
+# ── The Materials cross-check ───────────────────────────────────────────────
+# "Materials" in RESOLVED_BINDINGS.csv is DROPPED by SharedParamGuids when it loads
+# the spec -- OST_Materials is a pseudo-category there. Material binding happens by
+# a different mechanism entirely: LoadSharedParamsCommand.IsMaterialRelevantParam
+# selects parameters BY NAME PREFIX and CleanMaterialBindings binds those.
+#
+# So a Materials row is honoured only if that C# rule also recognises the parameter.
+# One it does not recognise sits in the spec looking bound and binds to NOTHING --
+# and "absent from the spec" means intentionally unbound, so nothing downstream
+# reports it. That is the same failure the C# comment already records for
+# BLE_MATERIAL_TXT, which is why that name is an explicit exception there.
+#
+# The prefixes are READ OUT OF THE C# SOURCE, not copied here. A second copy of the
+# list is the defect class this generator exists to remove, and a mirror would rot
+# the first time someone edits the C# and not this file.
+def material_prefixes():
+    src_path = "StingTools/Tags/LoadSharedParamsCommand.cs"
+    text = io.open(src_path, encoding="utf-8", errors="replace").read()
+    # Anchored on the opening paren. A bare name find() PREFIX-MATCHES a renamed
+    # method -- IsMaterialRelevantParamRenamed still contains it -- so the reader
+    # would parse a method that no longer exists under that name and report a
+    # confident prefix list from it. Found by sabotaging this check with exactly
+    # that rename, which passed until the anchor was added.
+    start = text.find("private static bool IsMaterialRelevantParam(")
+    if start < 0:
+        raise SystemExit(
+            "IsMaterialRelevantParam not found in " + src_path + " -- fix this reader "
+            "rather than copying the prefix list, or the two will drift.")
+    end = text.index("\n        }", start)
+    body = text[start:end]
+    prefixes = re.findall(r'StartsWith\("([^"]+)"', body)
+    exact = re.findall(r'paramName == "([^"]+)"', body)
+    if not prefixes:
+        raise SystemExit(
+            "no StartsWith prefixes parsed out of IsMaterialRelevantParam -- the "
+            "method shape changed. Fix this reader; an empty prefix list would let "
+            "the check below pass by recognising nothing.")
+    return prefixes, exact
+
+MAT_PREFIXES, MAT_EXACT = material_prefixes()
+def material_relevant(name):
+    return any(name.startswith(px) for px in MAT_PREFIXES) or name in MAT_EXACT
+
 out=[]; src=collections.Counter()
 for n,(g,d) in params.items():
     dom,s=resolve(n,d)
     cats = "|".join(sorted(catb[n])) if dom is None else S[dom]
     out.append((n,g,s,cats,d)); src[s]+=1
+# FAIL rather than write a row that claims a binding nothing delivers.
+mat_orphans=[o[0] for o in out if o[3]=="Materials" and not material_relevant(o[0])]
+if mat_orphans:
+    raise SystemExit(
+        "%d parameter(s) resolve to Materials but IsMaterialRelevantParam does not "
+        "recognise them, so they would bind to NOTHING while the spec says they are "
+        "bound:\n  %s\n"
+        "Either give them a real category in resolve(), or add their prefix to "
+        "IsMaterialRelevantParam in StingTools/Tags/LoadSharedParamsCommand.cs."
+        % (len(mat_orphans), "\n  ".join(sorted(mat_orphans)[:20])))
 scoped=sum(1 for o in out if o[3] not in("","<ALL>")); univ=sum(1 for o in out if o[3]=="<ALL>"); unb=sum(1 for o in out if o[3]=="")
 gaps=[o for o in out if o[2].startswith("UNRESOLVED")]
 print("resolution source:")
@@ -156,5 +209,9 @@ with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8
     w=csv.writer(f, lineterminator=LF); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
     for n,g,srcx,cats,d in sorted(out):
         if cats!="": w.writerow([n,cats])
+print("material rows cross-checked against IsMaterialRelevantParam: "
+      "%d prefix(es), %d exact, %d row(s), 0 orphans"
+      % (len(MAT_PREFIXES), len(MAT_EXACT),
+         sum(1 for o in out if o[3]=="Materials")))
 print("code-usage recovered:",src["code-usage"])
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")

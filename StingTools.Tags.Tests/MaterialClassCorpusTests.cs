@@ -178,7 +178,8 @@ namespace StingTools.Tags.Tests
                 string want = r.Expect == "NONE" ? null : r.Expect;
                 string got = MaterialClassPlanner.Plan(r.Material, "").ProposedClass;
                 if (!string.Equals(want, got, StringComparison.Ordinal))
-                    misses.Add($"[{r.Source}] {r.Material}  want={want ?? "(blank)"}  got={got ?? "(blank)"}");
+                    misses.Add($"[{r.Source}] {r.Material}  want={want ?? "(blank)"}  got={got ?? "(blank)"}"
+                             + $"   ({r.File})");
             }
 
             if (misses.Count == 0) return;
@@ -210,9 +211,13 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void The_Fixture_Is_The_Whole_Run_Not_A_Sample()
         {
-            // 1,815 materials is what the plan reported. A fixture that quietly shrank
-            // would make this whole file weaker without failing anything.
-            var rows = Corpus();
+            // 1,815 materials is what the 2026-09-08 plan reported. A fixture that quietly
+            // shrank would make this whole file weaker without failing anything.
+            //
+            // Scoped to THAT file by name, deliberately. The loader now globs, and a
+            // union-wide count would move every time a corpus is added — which is exactly
+            // the assertion that stops meaning anything. Per-file counts do not move.
+            var rows = Corpus().Where(r => r.File == "material_names_20260908.csv").ToList();
             Assert.Equal(1815, rows.Count);
 
             var bySource = rows.GroupBy(r => r.Source).ToDictionary(g => g.Key, g => g.Count());
@@ -223,6 +228,24 @@ namespace StingTools.Tags.Tests
             // 120 writes and 171 refusals, exactly as the plan reported them.
             Assert.Equal(120, bySource["correction"] + bySource["plan-write"]);
             Assert.Equal(171, bySource["plan-refusal"] + bySource["named-substance"]);
+        }
+
+        [Fact]
+        public void Every_Corpus_File_In_Fixtures_Is_Actually_Being_Read()
+        {
+            // The point of globbing: dropping the next project's list in must strengthen
+            // this file without anybody editing it. So assert that what is ON DISK is what
+            // was read — a glob that silently matched nothing, or matched one of three,
+            // would leave the tests passing on less evidence than the repo contains.
+            var onDisk = Directory.GetFiles(FixtureDir(), "material_names_*.csv")
+                                  .Select(Path.GetFileName).OrderBy(f => f).ToList();
+            Assert.Equal(onDisk, CorpusFiles());
+            Assert.Contains("material_names_20260908.csv", CorpusFiles());
+
+            // And every file contributes pinned rows, or it is decoration.
+            foreach (string f in CorpusFiles())
+                Assert.True(Corpus().Any(r => r.File == f && r.Expect != "ANY"),
+                    f + " contributes no pinned row — it asserts nothing.");
         }
 
         [Fact]
@@ -242,30 +265,66 @@ namespace StingTools.Tags.Tests
         private sealed class Row
         {
             public string Material, Expect, Source;
+            /// <summary>Which fixture file it came from, so a failure names the corpus.</summary>
+            public string File;
         }
 
         private static List<Row> _corpus;
+        private static List<string> _corpusFiles;
 
+        /// <summary>
+        /// EVERY <c>Fixtures/material_names_*.csv</c>, not one named file.
+        ///
+        /// <para>This used to name <c>material_names_20260908.csv</c> in two places. The
+        /// corpus is the only thing in this file that makes it stronger than a table
+        /// somebody thought of, so the next delivered model's list should strengthen the
+        /// guarantee by being dropped in — not by somebody remembering to edit a string
+        /// here. A gate that has to be widened by hand does not get widened.</para>
+        ///
+        /// <para>Files are read in name order, so a date-stamped name orders itself.</para>
+        /// </summary>
         private static List<Row> Corpus()
         {
             if (_corpus != null) return _corpus;
 
-            var dir = new DirectoryInfo(AppContext.BaseDirectory);
-            while (dir != null && !File.Exists(Path.Combine(
-                       dir.FullName, "StingTools.Tags.Tests", "Fixtures", "material_names_20260908.csv")))
-                dir = dir.Parent;
-            Assert.True(dir != null, "Could not locate the corpus fixture from " + AppContext.BaseDirectory);
+            string dir = FixtureDir();
+            var files = Directory.GetFiles(dir, "material_names_*.csv").OrderBy(f => f).ToList();
+            Assert.True(files.Count > 0,
+                "No material_names_*.csv in " + dir + " — the corpus is what makes this file evidence.");
 
-            string path = Path.Combine(dir.FullName, "StingTools.Tags.Tests", "Fixtures", "material_names_20260908.csv");
             var rows = new List<Row>();
-            foreach (string line in File.ReadAllLines(path, Encoding.UTF8).Skip(1))
+            foreach (string path in files)
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var f = SplitCsv(line);
-                Assert.True(f.Count == 3, "Malformed fixture line: " + line);
-                rows.Add(new Row { Material = f[0], Expect = f[1], Source = f[2] });
+                string name = Path.GetFileName(path);
+                int n = 0;
+                foreach (string line in File.ReadAllLines(path, Encoding.UTF8).Skip(1))
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    var f = SplitCsv(line);
+                    Assert.True(f.Count == 3, $"Malformed line in {name}: {line}");
+                    rows.Add(new Row { Material = f[0], Expect = f[1], Source = f[2], File = name });
+                    n++;
+                }
+                Assert.True(n > 0, name + " has a header and no rows — an empty corpus is not a passing one.");
             }
+            _corpusFiles = files.Select(Path.GetFileName).ToList();
             return _corpus = rows;
+        }
+
+        private static List<string> CorpusFiles()
+        {
+            Corpus();
+            return _corpusFiles;
+        }
+
+        private static string FixtureDir()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !Directory.Exists(Path.Combine(
+                       dir.FullName, "StingTools.Tags.Tests", "Fixtures")))
+                dir = dir.Parent;
+            Assert.True(dir != null, "Could not locate the Fixtures directory from " + AppContext.BaseDirectory);
+            return Path.Combine(dir.FullName, "StingTools.Tags.Tests", "Fixtures");
         }
 
         /// <summary>
