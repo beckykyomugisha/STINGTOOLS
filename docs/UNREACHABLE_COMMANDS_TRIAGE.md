@@ -19,15 +19,20 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-08 (WF-7)
+## Counts — re-derived 2026-09-09
 
-- **Total IExternalCommand classes**: **1720**
-- **Reached by a dispatch layer**: **1689**
+- **Total IExternalCommand classes**: **1721**
+- **Reached by a dispatch layer**: **1690**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **9**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1720; the script fails if they stop adding up.
+The four buckets partition all 1721; the script fails if they stop adding up.
+
+*+1 on both totals since the 2026-09-08 (WF-7) derivation:*
+`Commands/Materials/RegisterAuditCommand` (`Materials_RegisterAudit`), which is
+dispatched from `StingCommandHandler` and has a button on the SETUP tab — so it
+lands in "reached", not in any of the three problem buckets.
 
 ### What the old 126 was, and why it was wrong
 
