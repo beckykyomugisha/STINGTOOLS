@@ -115,6 +115,12 @@
          half that makes them safe on a delivered model - are provable. -->
     <Compile Include="..\StingTools\Core\Baseline\TypeRenamePlanner.cs" Link="Core\Baseline\TypeRenamePlanner.cs" />
     <Compile Include="..\StingTools\Core\Materials\MaterialClassPlanner.cs" Link="Core\Materials\MaterialClassPlanner.cs" />
+    <!-- W3: the one list of timber-family words, and the two consumers outside
+         Core/Materials that must read it rather than keep their own. BiogenicCarbon
+         is Revit-free by design and already unit-tested in StingTools.Boq.Tests;
+         it is linked HERE too so the three answers can be compared in one place. -->
+    <Compile Include="..\StingTools\Core\Materials\SubstanceVocabulary.cs" Link="Core\Materials\SubstanceVocabulary.cs" />
+    <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BOQ\BiogenicCarbon.cs" />
     <!-- The undo for a plan that was applied before the planner behind it was fixed.
          Revit-free so its REFUSALS - not reverting a class a human changed since - are
          provable without a host. -->
