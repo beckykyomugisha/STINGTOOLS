@@ -363,17 +363,34 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void The_Summary_Separates_Cannot_Name_From_Held_Back()
         {
-            // "cannot be named from the model" and "would have changed a correct code" are
-            // different problems with different fixes, and a reader who sees one count for
-            // both will read the refusals as the tool failing.
+            // "cannot be named from the model", "would have changed a correct code" and
+            // "would have duplicated another type's name" are three different problems with
+            // three different fixes, and a reader who sees one count for all of them will
+            // read the refusals as the tool failing.
+            //
+            // This asserted "4 can be renamed" until 2026-09-09, when the uniqueness gate
+            // landed and found that two of those four — Exterior_CreamWhite_230 2 and
+            // Exterior_BrownWhite_230, both 'Brick, Common(1)' at 205 mm with a plaster
+            // finish — compose the SAME name, PLNS_WBK_ClayBrick205-Plastered. They are the
+            // pair that actually collided on the delivered model, carrying 6 and 5 live
+            // elements. The old number was not a stricter expectation; it was this fixture
+            // reproducing the defect and nothing checking for it.
             var ps = TypeRenamePlanner.PlanAll(
                 Fixture().Select(r => r.ToInput()).ToList(), Resolve);
 
             string s = TypeRenamePlanner.Summary(ps);
-            Assert.Contains("4 can be renamed", s);
+            Assert.Contains("2 can be renamed", s);
             Assert.Contains("0 cannot be named", s);
             Assert.Contains("A further 2 were held back", s);
             Assert.Contains("DIFFERENT product code", s);
+            Assert.Contains("same name", s);
+
+            var clashed = ps.Where(x => x.RefusedAsDuplicate).Select(x => x.CurrentName).ToList();
+            Assert.Equal(
+                new[] { "Exterior_BrownWhite_230", "Exterior_CreamWhite_230 2" },
+                clashed.OrderBy(n => n, StringComparer.Ordinal).ToArray());
+            Assert.All(ps.Where(x => x.RefusedAsDuplicate),
+                x => Assert.Equal("PLNS_WBK_ClayBrick205-Plastered", x.WithheldName));
         }
 
         // ══════════════════════════════════════════════════════════════════════

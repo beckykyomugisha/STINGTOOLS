@@ -44,6 +44,28 @@ namespace StingTools.Core
             || source == Sources.Corporate
             || source == Sources.Lps || source == Sources.Sleeve;
 
+        /// <summary>
+        /// True when a source tier is the GENERIC last resort — the category default, or
+        /// the GEN fallback when even that is missing.
+        ///
+        /// <para><b>Why this is its own whitelist and not <c>!IsSpecific</c>.</b>
+        /// <see cref="IsSpecific"/> names five tiers and returns false for anything else,
+        /// which is the right default for the coverage audit — an unknown tier merely
+        /// understates coverage. It is the WRONG default for the rename code-gate in
+        /// <c>TypeRenamePlanner</c>, which refuses a rename only when the existing code is
+        /// specific: there, an unrecognised tier reads as "no answer to protect" and the
+        /// gate silently stops firing. Two consumers of one function with opposite safe
+        /// defaults, and <c>declared</c> and <c>sleeve</c> were both added to
+        /// <see cref="Sources"/> after that function was written.</para>
+        ///
+        /// <para>Declaring both halves makes the split TOTAL and therefore checkable:
+        /// <c>ProdResolverSourceTotalityTests</c> reflects over <see cref="Sources"/> and
+        /// fails when a const is in neither set. A new tier is then a red test rather than
+        /// a gate that quietly opens.</para>
+        /// </summary>
+        public static bool IsGeneric(string source)
+            => source == Sources.Category || source == Sources.Gen;
+
         /// <param name="familyName">Element family name (may be null/empty).</param>
         /// <param name="typeName">Element type/symbol name (may be null).</param>
         /// <param name="categoryName">Revit category name.</param>
