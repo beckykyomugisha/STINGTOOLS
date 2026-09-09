@@ -1,0 +1,51 @@
+name: Docs Index Gate
+
+# CLAUDE.md calls docs/INDEX.md the authoritative table of contents for docs/ and
+# marks populating it a P0. It was not authoritative: 175 markdown files sat in
+# docs/ and 41 of them were named nowhere in the index.
+#
+# That is not a cosmetic gap. The index is where a reader learns whether a document
+# is CURRENT or SUPERSEDED -- the files themselves rarely say -- so an unindexed
+# document is indistinguishable from one nobody wrote. Two of the 41 were runners
+# for features that shipped months ago.
+#
+# The gate checks for the EXACT filename anywhere in INDEX.md. Not a glob: the index
+# carried `HEALTHCARE_*_PROMPT.md` standing in for seven real files, which reads as
+# coverage and is not -- you cannot click it and it does not say which of the seven
+# is current. And not markdown-link syntax: INDEX.md lists many files in prose and
+# in `·`-separated runs, so a link-only extraction reported 155 of 175 missing,
+# which is a broken measurement rather than a finding.
+#
+# The baseline is EMPTY. Every file is indexed; the 41 that were not are listed
+# under "Unclassified" in INDEX.md, which says plainly that nobody has yet decided
+# whether each is current. A file belongs in tools/docs_index_baseline.txt only if
+# it genuinely should not be indexed, and the gate also fails on a baselined file
+# that has since been indexed or deleted, so the list cannot rot.
+
+on:
+  push:
+    paths:
+      - 'docs/**/*.md'
+      - 'tools/check_docs_index.py'
+      - 'tools/docs_index_baseline.txt'
+      - '.github/workflows/docs-index.yml'
+  pull_request:
+    paths:
+      - 'docs/**/*.md'
+      - 'tools/check_docs_index.py'
+      - 'tools/docs_index_baseline.txt'
+      - '.github/workflows/docs-index.yml'
+  workflow_dispatch:
+
+jobs:
+  every-doc-is-indexed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Every markdown file under docs/ has an INDEX.md entry
+        run: python tools/check_docs_index.py
