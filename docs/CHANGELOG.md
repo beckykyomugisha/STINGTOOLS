@@ -2,6 +2,60 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 259 — an exact family name is additive, because it cannot misfire)
+
+A project PROD-exclusion override REPLACED the list it declared. On 2026-09-09 a
+project file was written naming only its entourage car, and it silently dropped
+the corporate `Window-Square Opening`:
+
+    prod_coverage_20260908_221546.csv   414 rows, 0 Window-Square Opening, 1 SUV
+    prod_coverage_20260909_075229.csv   416 rows, 3 Window-Square Opening, 0 SUV
+
+**Three wall voids returned to the coverage denominator, and the only visible
+trace was a total moving by +2.** A denominator has no error state, so nothing
+reported it — the same shape as the 1,187-void figure this exclusion list was
+built to fix in the first place.
+
+**`notAProductFamilies` now UNIONS; the other three keys still REPLACE.** The
+split is not a convenience:
+
+| key | | why |
+|---|---|---|
+| `notAProductCategories` | REPLACE | a category holds whatever a project models in it |
+| `notAProductPatterns` | REPLACE | a pattern can misfire on a name nobody foresaw — "opening" once ate a real window type |
+| `protectedCategories` | REPLACE | the project decides what is always a thing |
+| `notAProductFamilies` | **ADD** | an EXACT family name cannot misfire, which is why the corporate file already lets it override `protectedCategories` |
+
+There was nothing for replace-semantics to protect here, and the one project that
+reached for the escape hatch did so by accident. A project that genuinely wants a
+corporate family counted must argue it in the corporate file, once, rather than
+silently per project — and the JSON's own comment now says which keys are which,
+with the measurement that bought the rule.
+
+**The half that must not follow is asserted beside it.**
+`Patterns_And_Categories_Still_REPLACE_Because_They_Can_Misfire` narrows all
+three replace-keys and checks each narrowing takes effect, so a later reader
+cannot generalise "additive" across the file.
+`With_No_Project_File_At_All_Nothing_Changes` keeps the union from inventing a
+list where neither side stated one — "not deployed" must stay distinguishable
+from "excludes nothing", which is the distinction `Parse` exists to preserve.
+
+**One assertion was reversed, and its old comment is the point.** The test written
+on 2026-09-08 asserted that a families-only override loses the corporate entry,
+"which is the documented contract, and worth seeing rather than assuming". Seeing
+it was worth exactly what it cost: three days.
+
+*RED:* with replace-semantics restored, **3 of 26** exclusion tests fail —
+`Naming_One_Family_Does_Not_Un_Name_The_Corporate_Ones`,
+`An_Empty_Families_List_No_Longer_Clears_The_Corporate_One` and the reversed
+`A_Families_Only_Override_Excludes_The_Car_And_Inherits_Everything_Else`.
+GREEN 26 of 26. `ProductExclusion.FamilyCount` is exposed so the union is
+countable rather than inferred.
+
+Tags 826 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors. **Not verified in Revit** — `Prod_CoverageAudit` was not re-run, and the
+414 / 416 figures are read from the CSVs the user's own runs wrote.
+
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
 `prod_coverage_20260908_221546.csv` still carries

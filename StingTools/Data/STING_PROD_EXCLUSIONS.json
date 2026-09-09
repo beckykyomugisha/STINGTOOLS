@@ -24,7 +24,25 @@
     "exactly what the audit is for.",
     "",
     "Project override: <project>/_data/coord/prod_exclusions.json, same shape.",
-    "An override REPLACES a list it declares and leaves the others alone."
+    "",
+    "THREE KEYS REPLACE; ONE ADDS. Which is which is not a convenience:",
+    "",
+    "  notAProductCategories   REPLACE   a category holds whatever a project models",
+    "  notAProductPatterns     REPLACE   a pattern can misfire on a name nobody foresaw",
+    "  protectedCategories     REPLACE   the project decides what is always a thing",
+    "  notAProductFamilies     ADD       an EXACT family name cannot misfire",
+    "",
+    "A project declaring one of the first three replaces that list and leaves the",
+    "others alone (null = not stated, [] = exclude nothing - the two must stay",
+    "distinguishable or the key cannot be overridden at all).",
+    "",
+    "notAProductFamilies is the exception, and it was bought: on 2026-09-09 a project",
+    "override declared only its entourage car, which dropped the corporate",
+    "Window-Square Opening and returned three wall voids to the coverage denominator.",
+    "The audit showed it only as a total moving 414 -> 416. A denominator has no error",
+    "state, so nothing reported it. An exact family name cannot misfire, so there was",
+    "nothing for replace-semantics to protect. A project that genuinely wants a",
+    "corporate family counted must argue it HERE, once, not silently per project."
   ],
 
   "notAProductCategories": [
@@ -71,7 +89,8 @@
     "",
     "Keep this list to families that ship with Revit or a shared library. A family",
     "that exists in one project (a supplier's entourage car, say) belongs in that",
-    "project's _data/coord/prod_exclusions.json, not here."
+    "project's _data/coord/prod_exclusions.json, not here — and since 2026-09-09 the",
+    "two lists UNION, so naming one there no longer un-names the ones here."
   ],
 
   "notAProductFamilies": [
