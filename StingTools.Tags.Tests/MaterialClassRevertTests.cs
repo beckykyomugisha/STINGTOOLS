@@ -105,7 +105,80 @@ namespace StingTools.Tags.Tests
             // After the first revert the material carries first.RestoreTo. Feed that back.
             var second = MaterialClassRevertPlanner.Plan(row, first.RestoreTo);
             Assert.False(second.WillRevert);
-            Assert.Contains("changed since", second.Reason);
+
+            // And it says WHY in the words that are true. This assertion used to read
+            // "changed since", which is what the code said and is not what happened —
+            // see A_Write_That_Was_Never_Saved_Is_Not_Somebody_Elses_Decision below.
+            Assert.True(second.AlreadyAsThePlanFoundIt);
+            Assert.Contains("already back", second.Reason);
+            Assert.DoesNotContain("changed since", second.Reason);
+        }
+
+        [Fact]
+        public void A_Write_That_Was_Never_Saved_Is_Not_Somebody_Elses_Decision()
+        {
+            // Run on the Herring model 2026-09-09 07:48: 1,815 rows, 0 reverted, and 120 of
+            // them reported "changed since the plan ran — now 'Unassigned', the plan set
+            // 'Ceramic'. That choice wins". Every one was in fact ALREADY reverted; the
+            // write had simply not been saved. The VERDICT was right — there was nothing to
+            // do — and the SENTENCE described a colleague overwriting the reader's data.
+            //
+            // Two states, one message. The state that is genuinely somebody else's decision
+            // is asserted separately, immediately below, or fixing this would quietly delete
+            // the warning that matters.
+            var p = MaterialClassRevertPlanner.Plan(Row("CARPET TILE", "Unassigned", "Ceramic"), "Unassigned");
+
+            Assert.False(p.WillRevert);
+            Assert.True(p.AlreadyAsThePlanFoundIt);
+            Assert.Contains("already back to no class", p.Reason);
+            Assert.Contains("nothing to undo", p.Reason);
+            Assert.DoesNotContain("That choice wins", p.Reason);
+
+            // Blank and "Unassigned" are the same absence, so both spellings read the same.
+            var blank = MaterialClassRevertPlanner.Plan(Row("CARPET TILE", "Unassigned", "Ceramic"), "");
+            Assert.True(blank.AlreadyAsThePlanFoundIt);
+        }
+
+        [Fact]
+        public void A_Real_Later_Decision_Still_Says_Somebody_Chose_It()
+        {
+            // The half that must NOT be softened by the fix above. Stone is not blank and is
+            // not what the plan set, so a human has been in there.
+            var p = MaterialClassRevertPlanner.Plan(Row("GRANITE TILE", "Unassigned", "Ceramic"), "Stone");
+
+            Assert.False(p.WillRevert);
+            Assert.False(p.AlreadyAsThePlanFoundIt);
+            Assert.Contains("changed since", p.Reason);
+            Assert.Contains("That choice wins", p.Reason);
+        }
+
+        [Fact]
+        public void The_Summary_Does_Not_Report_An_Unsaved_Write_As_A_Contested_One()
+        {
+            // The count is what a reader acts on. Folding already-reverted into
+            // changed-since made a clean second run read as 120 contested materials.
+            var plan = new List<MaterialClassPlanRow>
+            {
+                Row("CARPET TILE",  "Unassigned", "Ceramic"),   // already back
+                Row("SLATE TILE",   "Unassigned", "Ceramic"),   // already back
+                Row("GRANITE TILE", "Unassigned", "Ceramic"),   // genuinely changed
+                Row("Air Openings", "Unassigned", ""),          // never written
+            };
+            var current = new Dictionary<string, string>
+            {
+                ["CARPET TILE"] = "Unassigned",
+                ["SLATE TILE"] = "",
+                ["GRANITE TILE"] = "Stone",
+                ["Air Openings"] = "",
+            };
+
+            string s = MaterialClassRevertPlanner.Summary(
+                MaterialClassRevertPlanner.PlanAll(plan, current));
+
+            Assert.Contains("0 will be put back", s);
+            Assert.Contains("2 already carry what the plan found", s);
+            Assert.Contains("1 have been changed since", s);
+            Assert.Contains("1 were never written", s);
         }
 
         // ══════════════════════════════════════════════════════════════════════
