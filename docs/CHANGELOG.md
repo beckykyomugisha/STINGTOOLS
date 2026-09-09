@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 259 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
+#### Completed (Phase 260 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
 
 Three small independent fixes, each proved RED before GREEN.
 
@@ -67,6 +67,77 @@ GREEN 16 of 16.
 Tags 835 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
 0 errors. **Nothing was run in Revit**; the 120-row figure is read from the CSV
 the user's own run wrote, not reproduced here.
+#### Completed (Phase 259 — a rename that would give two types one name is refused)
+
+`Baseline_RenameTypes` was applied to a delivered model on 2026-09-09. The log
+recorded `168/168 renamed, 0 failed`. **137 of those 168 landed on 19 names.**
+The largest group was 87 floor types — the whole finish catalogue, every screed,
+tile, carpet, paver and resin — all renamed `PLNS_SLB_RC100`.
+
+**Revit's API does not refuse a duplicate type name.** Its UI does; the API does
+not. Every `type.Name = ...` returned without throwing, so the command's
+per-type try/catch had nothing to report and the run looked clean. Nothing
+failed. Everything broke. Only the fact that the model was never saved kept this
+off disk.
+
+**Why they collided.** All 87 gave the same reason: `core 'Concrete,
+Cast-in-Place gray' -> SLB; no finish layer to read`. They are one 100 mm slab of
+grey concrete wearing 87 names. The distinction was never modelled — it lived in
+the string alone, and the rename would have erased the only record of it.
+
+**Refuse, never disambiguate.** Appending `-2`, `-3` ... was the obvious repair
+and is the wrong one: it manufactures a difference the build-ups do not contain
+and, unlike the collision, looks deliberate forever after. The refusal is worth
+more than the rename, because it names the real finding — those types are named,
+not modelled, and every quantity taken off them (area, volume, embodied carbon,
+cost) has been answering "100 mm of concrete" whatever the label promised.
+
+`TypeRenamePlanner.GateDuplicateNames` runs as a second pass in `PlanAll`. The
+claim set is `ProposedName ?? CurrentName` for every type, so a rename landing on
+a name another type is KEEPING is caught too — Revit sees no difference between
+that and two renames colliding. Scope is the category, because Revit scopes type
+names per category and gating wider would refuse correct renames for a clash that
+cannot happen.
+
+A second guard sits in the command, because a plan can be stale by the time it is
+applied: it refuses when the current name matches more than one type (no way to
+tell which the plan meant) and when the proposed name is already held.
+
+**RED before GREEN.** `TypeRenameUniquenessTests` drives
+`Fixtures/type_rename_20260909.csv` — all 168 proposals from that run, with the
+core material, thickness and finish the planner read. Against the pre-gate
+planner: 5 of 9 failing, reporting 19 collisions over 137 types, matching the
+model exactly. After: 9 of 9. `The_Fixture_Reproduces_The_Recorded_Run` asserts
+the reconstruction still composes the recorded name, so the fixture cannot
+quietly drift into describing a planner that no longer exists.
+
+**It immediately found the same defect in #892's own fixture.**
+`TypeRenameCodeGateTests.The_Summary_Separates_Cannot_Name_From_Held_Back`
+asserted "4 can be renamed". Two of those four — `Exterior_CreamWhite_230 2` and
+`Exterior_BrownWhite_230`, both `Brick, Common(1)` at 205 mm with a plaster
+finish — compose the same name. They are the pair that actually collided on the
+delivered model, carrying 6 and 5 live elements. The old number was not a
+stricter expectation; it was that fixture reproducing the defect with nothing
+checking for it.
+
+**A silent failure fixed alongside.** `Plan` wraps the caller's existing-code
+resolver in a bare `catch`, which is right — an unavailable resolver must not
+abort the plan — but a resolver that throws for every type disabled the
+product-code gate completely and reported a clean run. `ExistingLookupFailed` is
+now carried per proposal and counted in `Summary`, so a dead gate no longer reads
+identically to a gate that found nothing.
+
+The plan CSV gains a `WithheldName` column: a refusal with an empty
+`ProposedName` and no record of what was rejected tells the reader nothing about
+which gate fired or whether the name would have been reasonable.
+
+**Known and deliberately not fixed here.** `TypeRenamePlanner.Match` still uses
+`IndexOf`, the #863 shape removed from the class planner in Phase 256. The new
+corpus was used to test the switch rather than guess at it, and it breaks 7 rows:
+`Concrete Masonry Units` and `CLAY TILES PREMIUM` are plurals, and the needles
+are singular, so whole-word matching sends the CMU walls back to `WRC` and drops
+the clay-tile roofs entirely. The remedy is plural-tolerant stems, proven against
+this fixture, in its own change.
 
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
