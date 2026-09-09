@@ -1,6 +1,6 @@
 {
  "schemaVersion": "1.0",
- "note": "Corporate baseline. Project override: <project>/_data/coord/supplier_units.json (merged by commodityKey).",
+ "note": "Corporate baseline. Project override: <project>/_data/coord/supplier_units.json (merged by commodityKey). MATCHING IS SUBSTRING, AND SOME PATTERNS ARE DELIBERATE PREFIX STEMS - corrugat, galvanis, galvaniz, profil, stonecoat, clay. Do not \"tidy\" them into whole words: stonecoat and clay have to match PLNS_RTL_StoneCoatedTileRoof1 and PLNS_RTL_ClayTileRoof14, which this plugin generates itself in compacted ISO 22014 form and which contain no word boundaries at all. Measured 2026-09-09 over 1,810 real names: whole-word matching would lose 93 hits and fix nothing. See StingTools.Tags.Tests/MatcherSwapRefusalTests.cs.",
  "rules": [
   {
    "commodityKey": "cement",
