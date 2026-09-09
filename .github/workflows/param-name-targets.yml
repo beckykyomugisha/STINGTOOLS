@@ -13,8 +13,11 @@ name: Parameter Name Target Gate
 # must exist in MR_PARAMETERS.txt. A name that is not in the shared-parameter file
 # can never be written, whatever the writer does.
 #
-# Seventeen names are wrong today and are baselined in
+# The names that are wrong today are baselined in
 # tools/param_name_targets_baseline.txt with the candidate corrections for each.
+# The COUNT is deliberately not written here: it was "seventeen" in this comment
+# and in the tool's docstring while the baseline held sixteen. The gate prints it
+# at runtime and fails if either file states one again.
 # The baseline ONLY SHRINKS: the gate fails if a new bad name appears, if a
 # baselined name starts existing, or if a baselined name stops being referenced.
 #
