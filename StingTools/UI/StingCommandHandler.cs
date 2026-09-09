@@ -800,6 +800,9 @@ namespace StingTools.UI
                     // existing class - including one it wrote itself - so a bad write cannot
                     // be repaired by re-running it.
                     case "Materials_RevertClassPlan": RunCommand<Commands.Baseline.RevertMaterialClassCommand>(app); break;
+                    // Read-only. Compares what the model BUILT against what the register
+                    // DECLARES for the row the type is named after.
+                    case "Materials_RegisterAudit": RunCommand<Commands.Materials.RegisterAuditCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 

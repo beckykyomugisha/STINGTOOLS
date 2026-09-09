@@ -119,6 +119,12 @@
          Revit-free so its REFUSALS - not reverting a class a human changed since - are
          provable without a host. -->
     <Compile Include="..\StingTools\Core\Materials\MaterialClassRevertPlanner.cs" Link="Core\Materials\MaterialClassRevertPlanner.cs" />
+    <!-- The governed material register (1,279 rows) and the reconciliation that uses it
+         as a CHALLENGER. Both Revit-free: the reader takes CSV TEXT, so the shipped
+         register is asserted against the rules that read it rather than against a copy. -->
+    <Compile Include="..\StingTools\Core\Materials\MaterialRegistry.cs" Link="Core\Materials\MaterialRegistry.cs" />
+    <Compile Include="..\StingTools\Core\Materials\MaterialRegisterReconciliation.cs" Link="Core\Materials\MaterialRegisterReconciliation.cs" />
+    <Compile Include="..\StingTools\Core\Materials\HostTypeRegisterAudit.cs" Link="Core\Materials\HostTypeRegisterAudit.cs" />
     <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
          per-appointment override are provable without a Revit host. -->
     <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />

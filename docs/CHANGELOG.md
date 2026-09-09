@@ -2,6 +2,119 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 259 — the register is read as data, and refused as an oracle)
+
+StingTools ships a governed material register — `BLE_MATERIALS.csv` (815 rows)
+and `MEP_MATERIALS.csv` (464) — carrying per material a code, an ISO 19650 id, a
+category, a total thickness, **five layer slots**, a unit cost, a standard and an
+identity class, populated on **1,279 of 1,279** rows. Three parts of the plugin
+answer "what is this material" from hand-written word lists instead, and whatever
+seeded a project catalogue from this file read the NAME column and nothing else.
+
+Verified before building: 815 / 464 / 1,279 all classed · 253 BLE rows `Generic`
+· **31** GYPSUM-named rows classed `Generic` · 95 `FLR-*` rows of which **28**
+declare 2–3 layers and **all 95** declare a layer-1 material · **87** floor types
+proposed the identical name `PLNS_SLB_RC100` on 2026-09-09 · **no duplicate
+MAT_NAME anywhere**, within either file or across the two.
+
+**`MaterialRegistry` is the reader.** Revit-free (it takes CSV TEXT, like
+`ProdExclusionPolicy`), columns located by NAME so a 72nd column cannot shift
+them, RFC 4180 because these cells carry commas, and a duplicate `MAT_NAME` is
+**reported rather than resolved by last-wins** — two rows claiming one name is a
+data question, and a missing file is a reported warning rather than a silent zero.
+
+**The class column is NOT consumed as an answer, and that is the finding.** The
+brief asked for register-first. Measured over all 1,279 rows against the needle
+table: 348 agree, **85 conflict**, 342 the register answers alone, 352 the name
+says a substance and the class column names none, 152 neither. The 85 do not fall
+on one side:
+
+    the register is RIGHT   MASONRY PAINT WHITE → Paint          (needles: Masonry)
+                            26 × CEMENT PLASTER/RENDER → Concrete (needles: Gypsum)
+                            FIBERGLASS ACOUSTIC TILE → Insulation (needles: Ceramic)
+    the needles are RIGHT   GRANITE SKIRTING 100MM → Stone       (register: Wood)
+                            PVC SKIRTING 80MM → Plastic          (register: Wood)
+                            LIGHTWEIGHT SCREED 40MM → Concrete   (register: Metal)
+                            FLOOR MOUNTED CLOSE COUPLED WC       (register: Glass)
+
+**The class column classifies by TRADE.** A skirting is `Wood` whatever it is
+made of, a cladding is `Metal`, sanitaryware is `Glass`, a floor topping is
+`Concrete` even when it is epoxy resin. That is coherent for a procurement
+register and is not what `MaterialClass` means to the carbon and cost engines.
+
+**And agreement rate points the opposite way to correctness**, which is what kills
+every mechanical rule tried here: `Concrete` agrees **45%** and is mostly right
+where it differs; `Wood` agrees **84%** and is wrong where it differs. A whitelist
+keyed on agreement would be exactly backwards. Pinned by
+`Agreement_Rate_Does_Not_Identify_The_Trustworthy_Classes`, which fails if that
+stops being true — the point at which the refusal should be reconsidered.
+
+So the register CHALLENGES at the point of decision instead. `Plan` takes an
+optional registry and records `RegisterCode` and `RegisterClass` on the proposal —
+including on the already-classified early return, because a reviewer looking at a
+classified row is exactly who wants to know the register disagrees — and
+`RegisterDisagrees` says so. `With_No_Registry_The_Planner_Answers_Exactly_As_
+Before` keeps it additive. `Ceiling`, `Flooring`, `Lining` and `Generic` map to
+nothing at all: **504 of the 1,279 rows** carry one, and a mapping that guessed
+would import 504 shrugs into the one controlled field two engines trust.
+
+**`MaterialRegisterReconciliation` is the report a human acts on** — every row,
+including the agreements, so it cannot be read as 85 problems out of 85. Its gate
+is a **count ceiling, not a zero**: zero is not reachable, and a gate demanding it
+would be switched off within a week. 352 rows state a substance their class column
+does not, and the brief's 31 GYPSUM rows are the clearest of them.
+
+**`Materials_RegisterAudit` (read-only) is the W4 deliverable.** For every host
+type named after a register row it compares the modelled compound structure
+against the declared layers and reports, in the brief's own words:
+
+    STANDARD CEMENT SCREED 50MM: register says 1 × 50 mm CEMENT SCREED,
+    model has 1 × 100 mm Concrete, Cast-in-Place gray
+
+`Flattened` is its own verdict, separate from `Differs`, because it has one cause.
+Modelling all 95 `FLR-*` rows the way 2026-09-09 found them gives **28 Flattened
++ 67 Differs, 0 Matches**. A type NOT named after a register row is **not** a
+finding — an audit that flagged those would be right about the 86 and useless —
+and a model with nothing to compare says so rather than reporting a clean bill.
+**It writes nothing to the model.**
+
+**On W4's "find the writer": `Temp/FamilyCommands.cs` `CreateFloorsCommand` is the
+only shipped command that can produce the shape, and only through its failure
+path.** It DOES read the layer columns and set a compound structure — so on
+success it is not the culprit — but `CreateFloorType` (`:437-442`, and the same in
+the Wall/Ceiling/Roof twins) catches a `SetCompoundStructure` failure, logs a
+warning and **returns `true`**, leaving a type named from the CSV carrying the
+BASE type's build-up. The base type is picked as the first non-foundation
+`FloorType`, which on a stock template is a single ~100 mm layer of
+`Concrete, Cast-in-Place gray`. **Not established as what happened**: the ten logs
+on the live plugin path start 2026-08-17 and contain no type-creation line at all,
+and that path has moved. Recommended separately, not changed here: count and
+report those types instead of only logging them.
+
+**RED then GREEN, each by sabotage where the code is new.**
+`The_Disagreement_Count_Has_Not_Grown` — a needle contradicting the register
+(`ppr` → Metal, where it says Plastic) took conflicts **85 → 94**, 1 of 7 failed.
+Worth recording: a first sabotage adding `skirting` → Wood did **not** trip it,
+correctly — it AGREES with the register, and agreement is not a regression.
+`HostTypeRegisterAuditTests` — folding `Flattened` into `Differs` and swapping
+whole-word name agreement for substring failed **3 of 10**. Restored: 45 of 45
+register tests pass.
+
+**One of my own figures was wrong and the data corrected it.** The reconciliation
+constant for name-says-more-than-class was written as 156 and measured **352**;
+and a test named `SOLID BAMBOO 14MM` as a single-layer row when it declares
+`BAMBOO PLANK 14 mm` + `FINISH-SEAL 0.5 mm`. Both now select from the register
+rather than restating it.
+
+Tags 866 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors, workflow-wiring Tier 4 = 0.
+
+**Not verified in Revit.** `Materials_RegisterAudit` has never run in a Revit
+session: `ReadHostTypes`, `GetCompoundStructure`, the CSV write and the dialog are
+all unexercised, and the 28/67 split above is the audit applied to a
+RECONSTRUCTION of the 2026-09-09 model, not to the model. No compound structure
+was rewritten and no register row was edited.
+
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
 `prod_coverage_20260908_221546.csv` still carries
