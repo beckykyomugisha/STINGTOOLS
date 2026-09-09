@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 259 — two of the three IndexOf sites are refused, with the measurement that refuses them)
+
+The brief listed three `IndexOf` sites as the #863 shape and said to **construct
+the false positive first and prove it RED**. That instruction is what saved two
+of them. The third (`TypeRenamePlanner.Match`) had a real false positive and a
+real fix and is swapped elsewhere; these two do not, and are not.
+
+**W5a — `SupplierUnitConverter:191,228`. The patterns are deliberate PREFIX
+STEMS**, and two of them have to match names this plugin generates itself:
+
+    corrugat   catches corrugated / corrugation
+    galvanis   catches galvanised          galvaniz  catches galvanized
+    profil     catches profile / profiled
+    stonecoat  catches PLNS_RTL_StoneCoatedTileRoof1
+    clay       catches PLNS_RTL_ClayTileRoof14
+
+The last two settle it. `PatternMatch` treats letters and digits as word
+characters, so it can **never** match inside a compacted ISO 22014 name — and
+compacted ISO 22014 names are exactly what `TypeRenamePlanner` composes and what
+this converter is then asked about. Whole-word matching is structurally
+incompatible with the names the plugin makes.
+
+Measured over the 1,810 names this repository carries: **93 substring-only hits,
+and not one is a false positive the rules' own `matchCategories` gate does not
+already stop.** `GALVANIZED STEEL PIPE` matches the roof-sheet rule's material
+patterns and is a Pipe, not a Roof — the category gate is what does that work,
+not the matcher.
+
+**W5b — `ProductExclusion:148`. I got this wrong first, and the measurement
+corrected me.** Reading only the FAMILY name, `opening` is not a whole word in
+`M_GM_OpeningWall_Instance`, and the swap looked like it would return 1,187 wall
+voids to the PROD denominator. It does not: `Classify` matches
+`description + " " + typeName`, and the type name on all 1,187 is literally
+`Opening`. Replayed over the real 1,688-row audit, substring and whole-word give
+the **identical verdict on every row**.
+
+So the swap is measurably neutral today and strictly more fragile tomorrow: it
+makes the exclusion depend on a word boundary in a joined haystack nobody
+controls. The same family with a blank type name stops being excluded, and
+`Air Openings` — a real name in the shipped register — stops being excluded.
+Neither has an error state. A change with no measured benefit and an unmeasured
+downside is not a fix.
+
+**THE PART THAT MATTERED MOST: making both swaps broke NOTHING.** With both call
+sites converted, 827 Tags tests and 1,249 Boq tests all passed. A roof silently
+resolving to the wrong supplier unit — or to none, staying in m² on an order
+priced per tile — had nothing watching it.
+
+So what ships is the gate. `SupplierUnitStemTests` drives the real
+`SupplierUnitTable.Resolve` against the SHIPPED rules, and
+`MatcherSwapRefusalTests` drives the real `ProductExclusion.Classify` — both at
+the call site, not at the matcher, so that MAKING the swap fails.
+
+*RED, with both swaps applied:* **1 of 7** in Tags
+(`The_Real_Exclusion_Call_Site_Still_Catches_A_Plural_And_A_Blank_Type`) and
+**5 of 8** in Boq (both compacted ISO names, both galvanis/galvaniz stems, and
+the category-gate assertion). Reverted: 7 of 7 and 8 of 8.
+
+`STING_SUPPLIER_UNITS.json`'s own `note` now says the patterns are stems, why,
+and where the measurement lives — so the next person reads it in the data file
+rather than repeating the work.
+
+Tags 828 passed (baseline 821), Boq 1257 passed (baseline 1249), plugin builds
+0 warnings / 0 errors. **No production line was changed in this PR** — the two
+`IndexOf` sites are exactly as they were.
+
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
 `prod_coverage_20260908_221546.csv` still carries
