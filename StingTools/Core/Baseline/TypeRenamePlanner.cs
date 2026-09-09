@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using StingTools.Core.Materials;
 
 namespace StingTools.Core.Baseline
 {
@@ -157,8 +158,13 @@ namespace StingTools.Core.Baseline
         /// "Concrete". Keyed on the MATERIAL name, which is the deliberate half of the
         /// model — nobody renames a material to make a schedule work.
         /// </summary>
-        private static readonly (string Needle, string Word)[] Substance =
+        private static readonly (string Needle, string Word)[] Substance = BuildSubstance();
+
+        private static (string Needle, string Word)[] BuildSubstance()
         {
+            var m = new List<(string Needle, string Word)>();
+            m.AddRange(new (string, string)[]
+            {
             ("hollow concrete block", "Blockwork"), ("solid concrete block", "Blockwork"),
             ("concrete block", "Blockwork"), ("blockwork", "Blockwork"),
             // "Concrete Masonry Units" is the Revit library's name for a block, and it
@@ -167,30 +173,46 @@ namespace StingTools.Core.Baseline
             // M_Exterior - Brick on CMU — were proposed as PLNS_WRC_*: reinforced
             // concrete. The concrete in the name is what the BLOCK is made of, not what
             // the WALL is; same ordering rule as the class table next door.
-            ("concrete masonry unit", "Blockwork"), ("masonry unit", "Blockwork"),
+            ("concrete masonry units", "Blockwork"), ("concrete masonry unit", "Blockwork"),
+            ("masonry units", "Blockwork"), ("masonry unit", "Blockwork"),
             ("cmu", "Blockwork"),
             ("clay brick", "Clay Brick"), ("brick", "Clay Brick"),
             ("screen block", "Screen Block"),
             ("concrete", "RC"),
             ("reinforcement", "RC"),
-            ("timber", "Timber"), ("softwood", "Timber"), ("hardwood", "Timber"),
-            ("plywood", "Plywood"),
+            });
+
+            // ── The one wood list, shared with MaterialClassPlanner and BiogenicCarbon.
+            //    "plywood" keeps its own word because it routes to a different CodeFor key
+            //    than "Timber" does; everything else is Timber. Sharing the list added seven
+            //    proposals this table used to refuse — every one a "Structure, Wood
+            //    Joist/Rafter Layer" floor or roof, which is exactly what it says it is.
+            m.AddRange(SubstanceVocabulary.WoodRows("Timber", plywoodLabel: "Plywood"));
+
+            m.AddRange(new (string, string)[]
+            {
             ("galvanised sheet", "Corrugated Sheet"), ("galvanized sheet", "Corrugated Sheet"),
-            ("clay tile", "Clay Tile Roof"), ("stone coated", "Stone Coated Tile Roof"),
+            ("clay tiles", "Clay Tile Roof"), ("clay tile", "Clay Tile Roof"),
+            ("stone coated", "Stone Coated Tile Roof"),
             ("steel", "Steel"),
             ("gypsum", "Plasterboard"), ("plasterboard", "Plasterboard"),
+            ("cobblestone", "Stone"), ("bluestone", "Stone"), ("flagstone", "Stone"),
             ("stone", "Stone"),
-        };
+            });
+            return m.ToArray();
+        }
 
         /// <summary>Finish words, read off the FINISH layers the same way.</summary>
         private static readonly (string Needle, string Word)[] Finish =
         {
-            ("porcelain", "Porcelain Tiled"), ("ceramic", "Ceramic Tiled"), ("tile", "Tiled"),
+            ("porcelain", "Porcelain Tiled"), ("ceramic", "Ceramic Tiled"),
+            ("tiles", "Tiled"), ("tile", "Tiled"),
             ("terrazzo", "Terrazzo"),
-            ("plaster", "Plastered"), ("render", "Plastered"),
+            ("plastered", "Plastered"), ("plaster", "Plastered"),
+            ("rendered", "Plastered"), ("render", "Plastered"),
             ("gypsum", "Boarded"), ("plasterboard", "Boarded"),
             ("felt", "Felt"), ("bitumen", "Felt"),
-            ("paint", "Painted"), ("screed", "Screed Only"),
+            ("painted", "Painted"), ("paint", "Painted"), ("screed", "Screed Only"),
         };
 
         /// <summary>
@@ -330,11 +352,22 @@ namespace StingTools.Core.Baseline
             return s;
         }
 
+        /// <summary>
+        /// A needle matches a WORD, not a run of letters — the #863 shape, which this file
+        /// carried until 2026-09-09 and which reaches a PROD code from here.
+        ///
+        /// <para>Switching to whole-word matching alone BREAKS SEVEN ROWS on a delivered
+        /// model, because the data is plural and the needles were singular: five walls
+        /// cored with "Concrete Masonry Units" fall back from Blockwork to RC, and two
+        /// roofs cored with "CLAY TILES PREMIUM 15MM" get no name at all. The stems above
+        /// are what makes the swap safe; measured against
+        /// Fixtures/type_rename_core_materials_20260909.csv, 0 rows break.</para>
+        /// </summary>
         private static string Match(string text, (string Needle, string Word)[] table)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             foreach (var (needle, word) in table)
-                if (text.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0) return word;
+                if (MaterialSchedule.PatternMatch.Contains(text, needle)) return word;
             return null;
         }
     }

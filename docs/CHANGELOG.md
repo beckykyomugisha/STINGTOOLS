@@ -2,6 +2,86 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 259 — one timber vocabulary, and the matcher swap that needed stems)
+
+**Four word-lists answered "is this timber", and they disagreed both ways on a
+carbon figure.** `MaterialClassPlanner` knew fourteen words, `BiogenicCarbon`
+nine, `TypeRenamePlanner` four, and `UgCarbonFactors` read
+`Material.MaterialClass` — the controlled field, and therefore the only one that
+was right by construction. Measured over the **1,808 distinct names** in the
+shipped register plus the delivered-model corpus, the three word-lists gave
+different answers for **85** of them, including the two the brief named:
+
+    MDF CEILING PANEL 12MM   class Wood · biogenic credit YES · not timber to the renamer
+    SOLID BAMBOO 14MM        class Wood · biogenic credit NO  · not timber to the renamer
+
+`SubstanceVocabulary.Wood` is now the one list, and all three read it.
+
+**WHAT MOVED ON A CARBON NUMBER — three names lose a credit, fifteen gain one,
+and all eighteen are named in the tests rather than counted.**
+
+`BiogenicCarbon` matched by SUBSTRING and carried `"ply "` with a trailing space.
+Across all 1,808 names that needle matched **exactly three, and every one was
+wrong**:
+
+    PVC SINGLE PLY 1.5MM              a PVC roofing membrane
+    SUPPLY REGISTER 150X150MM 1-WAY   an air diffuser   (sup-PLY )
+    SUPPLY REGISTER 200X100MM 2-WAY   an air diffuser
+
+Two air diffusers and a plastic membrane were earning a biogenic carbon credit.
+`ply` is **dropped** rather than tightened: it has never once been right, and
+`plywood` covers what it was reaching for.
+
+Fifteen gain one — BAMBOO PLANK, CHEVRON PARQUET 15MM, CORK TILE, CORK TILE 6MM,
+Cork - Plastic, FLOOR LAMINATE OAK-DARK/-GREY/-LIGHT/-MEDIUM, HDF CORE,
+HERRINGBONE PARQUET 15MM, MAPLE FLOORING, Oak Flooring, Roca - TENET - 402 City
+Oak, SOLID BAMBOO 14MM. **Two of those fifteen are questionable and are asserted
+as such**: `Roca - TENET - 402 City Oak` is a sanitaryware colour and
+`Cork - Plastic` is a cork-look plastic. Both are the colour-word collision
+already documented in `MaterialClassPlanner`'s header, both are library
+appearances rather than modelled quantities, and both are said out loud.
+
+Whole-word matching also needed two suffix forms the data actually contains:
+`wooden` (WOODEN SPORTS FLOOR 22MM) and `barnwood` (BARNWOOD SIDING 22MM) both
+lost their credit without them, and both are real timber.
+
+**The consistency gate is a question about the NAME, not about the class table.**
+`A_Name_With_Two_Substances_Is_Still_Decided_By_ORDER_Not_By_This_List` pins that
+`VINYL LVT WOOD OAK-DARK` and `Cork - Plastic` are still Plastic: precedence
+belongs to the ordered table, and only the vocabulary is shared.
+
+**W5c — `TypeRenamePlanner.Match` was the third `IndexOf` site, and the swap needed
+STEMS.** Whole-word matching alone breaks **seven rows** of the 2026-09-09 plan,
+because the data is plural and the needles were singular: five walls cored with
+`Concrete Masonry Units` fall back Blockwork → RC (a block wall priced as in-situ
+reinforced concrete), and two roofs cored with `CLAY TILES PREMIUM 15MM` get no
+name at all. Shipped with `concrete masonry units`, `masonry units` and
+`clay tiles` beside their singulars — plus `cobblestone`, `bluestone`, `flagstone`
+for Stone, and `tiles` / `plastered` / `rendered` / `painted` for the Finish table.
+
+Sharing the wood list also makes the renamer name **seven** core materials it used
+to refuse — every one literally called a "Wood Joist/Rafter Layer". Named, not
+counted.
+
+**RED then GREEN.** `Timber_For_One_Is_Timber_For_All` failed on **85 of 1,808**
+names against the three unmodified consumers, and its failure list names both
+`MDF CEILING PANEL 12MM` and `SOLID BAMBOO 14MM`; 5 of 8 in the file. GREEN 0 of
+1,808, 8 of 8. `Not_One_Row_The_Run_Named_Loses_Its_Substance` failed on **7 of
+168** with the whole-word matcher and the stems removed — the brief's figure,
+reproduced exactly; 5 of 10 in that file. GREEN 0 and 10 of 10.
+
+**A probe defect was found and fixed rather than worked around.** The renamer
+probe first ran on Walls, where `CodeFor` has no `Plywood` key, so five plywood
+names read as "not timber" — a gap in the CODE table being reported as a gap in
+the vocabulary. It probes Floors now, which has both keys, and says why.
+
+Tags 839 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors, workflow-wiring Tier 4 = 0.
+
+**Not verified in Revit.** Nothing ran in a Revit session. The carbon figures
+above are the vocabulary's answers over material NAMES; no embodied-carbon report
+was regenerated, and `Baseline_RenameTypes` was not run.
+
 #### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
 
 `prod_coverage_20260908_221546.csv` still carries

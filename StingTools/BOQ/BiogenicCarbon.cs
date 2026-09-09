@@ -33,16 +33,20 @@ namespace StingTools.BOQ
         /// carbon-content method — species-independent, ≤ 0.</summary>
         public const double TimberBiogenicPerKg = -1.64;
 
-        /// <summary>True for carbon-sequestering (bio-based) materials —
-        /// timber / wood. These are the only rows that carry a biogenic term.</summary>
+        /// <summary>
+        /// True for carbon-sequestering (bio-based) materials. Delegates to
+        /// <see cref="SubstanceVocabulary.IsWood"/>, which is the ONE list — this used to
+        /// keep its own, and the three copies disagreed on 90 of 1,808 real material names.
+        ///
+        /// <para>Two things changed here, and both move a carbon number. The match is now
+        /// WHOLE-WORD, and the needle <c>"ply "</c> is gone: across every name available it
+        /// matched exactly three, and all three were wrong — <c>PVC SINGLE PLY 1.5MM</c> and
+        /// two <c>SUPPLY REGISTER</c> air diffusers were earning a biogenic credit.
+        /// Fifteen genuinely bio-based names gain one; they are listed by name in
+        /// SubstanceVocabularyTests rather than summarised as a count.</para>
+        /// </summary>
         public static bool IsBiogenic(string materialName)
-        {
-            string n = (materialName ?? "").ToLowerInvariant();
-            return n.Contains("timber") || n.Contains("wood")
-                || n.Contains("softwood") || n.Contains("hardwood")
-                || n.Contains("plywood") || n.Contains("ply ") || n.Contains("mdf")
-                || n.Contains("clt") || n.Contains("glulam");
-        }
+            => Core.Materials.SubstanceVocabulary.IsWood(materialName);
 
         /// <summary>
         /// A1-A3 FOSSIL factor (kgCO₂e/kg) — the HEADLINE basis. For bio-based

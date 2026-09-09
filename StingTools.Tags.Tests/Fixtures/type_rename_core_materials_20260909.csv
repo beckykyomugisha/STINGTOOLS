@@ -1,0 +1,295 @@
+Category,CurrentName,CoreMaterial,RecordedProposal,RecordedOutcome
+Ceilings,16mm GWB on Metal Stud,Metal Stud Layer,,cannot name
+Ceilings,16mm GWB on Wood Furring,"Softwood, Lumber",PLNS_CPB_Timber38-Boarded,rename
+Ceilings,600mm x 1200mm ACT System,Default,,cannot name
+Ceilings,600mm x 600mm ACT System,Default,,cannot name
+Floors,ANTI-SLIP EPOXY 5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,ANTI-STATIC FLOOR 5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,BLUESTONE PAVING 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,BROADLOOM CARPET 8MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CARPET TILE 6MM 500X500MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CAST IN-SITU TERRAZZO 30MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CERAMIC MOSAIC 6MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CERAMIC TILES 200X200MM 8MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CERAMIC TILES 300X300MM 10MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CHEVRON PARQUET 15MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CLAY BLOCK PAVING 60MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CLAY BRICK PAVER 50MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CLAY BRICK PAVER 65MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,Concrete 100mm,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,Concrete 100mm w VCT,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100-Tiled,rename
+Floors,Concrete 150mm,"Concrete, Cast-in-Place gray",PLNS_SLB_RC150,rename
+Floors,Concrete 250mm,"Concrete, Cast-in-Place gray",PLNS_SLB_RC250,rename
+Floors,CONCRETE PAVER 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CONCRETE PAVER 50MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CONCRETE PAVER 60MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CONCRETE PAVER 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CORK TILE 6MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,CRAZY PAVING 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,ENGINEERED WOOD 15MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,ENGINEERING BRICK PAVER 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,EPOXY TERRAZZO 12MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,EXPOSED AGGREGATE 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,EXPOSED AGGREGATE POLISHED 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,EXTRA LARGE COBBLESTONE 150MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GLASS MOSAIC 6MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRANITE COBBLESTONE 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRANITE PAVING 30MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRANITE PAVING 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRANITE PAVING 50MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRANITE TILES 20MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,GRASS GRID PAVER 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HARDWOOD DECKING 25MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HEAVY DUTY BLOCK PAVING 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HEAVY DUTY BRICK PAVER 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HEAVY DUTY INTERLOCKING 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HERRINGBONE BLOCK PAVING 65MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HERRINGBONE PARQUET 15MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,HOMOGENEOUS VINYL TILES 2MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,INDUSTRIAL BLOCK PAVING 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,Interior Tile Floor 7,"Concrete, Cast In Situ(1)",PLNS_SLB_RC750-CeramicTiled,rename
+Floors,IntFloor_tile_150,"Concrete, Cast In Situ(1)",PLNS_SLB_RC500-CeramicTiled,rename
+Floors,IntFloor_tile_200,Plaster brown,,cannot name
+Floors,IntFloor_tile_450,"Concrete, Cast In Situ(1)",PLNS_SLB_RC125-CeramicTiled,rename
+Floors,LAMINATE FLOORING 8MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LARGE COBBLESTONE 120MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LIMESTONE FLAGSTONE 50MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LIMESTONE PAVING 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LIMESTONE TILES 20MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LINOLEUM SHEET 2.5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LOOP PILE CARPET 7MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LOW PROFILE ACCESS FLOOR 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LUXURY CUT PILE 10MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,LUXURY VINYL TILE 5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,MARBLE TILES 20MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,MEDIUM COBBLESTONE 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,MICROCEMENT 3MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,MICROCEMENT HEAVY DUTY 5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,MMA RESIN 6MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PERMEABLE INTERLOCKING 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,POLISHED CONCRETE 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PORCELAIN SLABS 800X1600MM 15MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PORCELAIN TILES 600X1200MM 12MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PORCELAIN TILES 600X600MM 10MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PU RESIN FLOOR 4MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,PU SPORTS FLOOR 8MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,RECLAIMED GRANITE SETTS 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,RUBBER SHEET 3MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,RUBBER TILE 6MM 500X500MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SAFETY RUBBER 10MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SAFETY VINYL 3MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SANDSTONE FLAGSTONE 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SANDSTONE PAVING 40MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SELF LEVELING COMPOUND 5MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SELF-LEVELING EPOXY 3MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SHEET VINYL 2MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SLATE PAVING 25MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SLATE TILES 12MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SMALL COBBLESTONE 80MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SOLID BAMBOO 14MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,SOLID HARDWOOD 18MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,STAMPED CONCRETE 100MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,STANDARD ACCESS FLOOR 150MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,STANDARD INTERLOCKING PAVER 60MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,Steel Bar Joist 350mm - Concrete 75mm w VCT,"Structure, Steel Bar Joist Layer",,cannot name
+Floors,STUDDED RUBBER 8MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,TERRAZZO TILES 20MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,TRAVERTINE TILES 15MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,VITRIFIED TILES 600X600MM 10MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,Wood Joist 235mm - Ceramic Tile,"Structure, Wood Joist/Rafter Layer",,cannot name
+Floors,Wood Joist 235mm - Wood Finish,"Structure, Wood Joist/Rafter Layer",,cannot name
+Floors,Wood Truss  Joist 286mm - Carpet Finish,"Structure, Wood Joist/Rafter Layer",,cannot name
+Floors,WOODEN SPORTS FLOOR 22MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Floors,ZIG-ZAG INTERLOCKING PAVER 60MM,"Concrete, Cast-in-Place gray",PLNS_SLB_RC100,rename
+Roofs,ACOUSTIC CEILING TILE 15MM,ACOUSTIC CEILING TILE 15MM,,cannot name
+Roofs,ALUMINUM SHEET 0.7MM,ALUMINUM SHEET 0.7MM,,cannot name
+Roofs,APP MODIFIED BITUMEN 4MM,APP MODIFIED BITUMEN 4MM,,cannot name
+Roofs,BITUMEN MEMBRANE 4MM,BITUMEN MEMBRANE 4MM,,cannot name
+Roofs,BITUMEN MEMBRANE 5MM,BITUMEN MEMBRANE 5MM,,cannot name
+Roofs,BOX PROFILE 0.7MM,BOX PROFILE 0.7MM,,cannot name
+Roofs,BREATHABLE MEMBRANE 0.4MM,BREATHABLE MEMBRANE 0.4MM,,cannot name
+Roofs,CEMENT BOARD DECK 12MM,CEMENT BOARD DECK 12MM,,cannot name
+Roofs,CHIMNEY FLASHING 0.7MM,CHIMNEY FLASHING 0.7MM,,cannot name
+Roofs,CLAY ROOF TILES 12MM,CLAY ROOF TILES 12MM,,cannot name
+Roofs,CLAY TILES PREMIUM 15MM,CLAY TILES PREMIUM 15MM,PLNS_RTL_ClayTileRoof15,rename
+Roofs,COMPOSITE TILES 8MM,COMPOSITE TILES 8MM,,cannot name
+Roofs,CONCRETE ROOF TILES 10MM,CONCRETE ROOF TILES 10MM,PLNS_RCS_RC10,rename
+Roofs,CUSTOM ORB 0.5MM,CUSTOM ORB 0.5MM,,cannot name
+Roofs,DIRECT PLASTER CEILING 12MM,DIRECT PLASTER CEILING 12MM,,cannot name
+Roofs,EAVE DRIP EDGE 0.5MM,EAVE DRIP EDGE 0.5MM,,cannot name
+Roofs,EPDM RUBBER MEMBRANE 1.5MM,EPDM RUBBER MEMBRANE 1.5MM,,cannot name
+Roofs,EPS BOARD 50MM,EPS BOARD 50MM,,cannot name
+Roofs,FIBER CEMENT TILES 6MM,FIBER CEMENT TILES 6MM,,cannot name
+Roofs,FIRE-RATED GYPSUM 15MM,FIRE-RATED GYPSUM 15MM,,cannot name
+Roofs,Generic - 225mm 2,Asphalt Shingle,,cannot name
+Roofs,Generic - 225mm 3,Area Loads,,cannot name
+Roofs,GREEN ROOF MEMBRANE 6MM,GREEN ROOF MEMBRANE 6MM,,cannot name
+Roofs,GRP FIBERGLASS 3MM,GRP FIBERGLASS 3MM,,cannot name
+Roofs,GYPSUM BOARD 12.5MM,GYPSUM BOARD 12.5MM,,cannot name
+Roofs,GYPSUM BOARD 15MM,GYPSUM BOARD 15MM,,cannot name
+Roofs,HEAVY SLATE 10MM,HEAVY SLATE 10MM,,cannot name
+Roofs,ICE & WATER SHIELD 2MM,ICE & WATER SHIELD 2MM,,cannot name
+Roofs,IRON SHEET 26 GAUGE 1.2MM,IRON SHEET 26 GAUGE 1.2MM,,cannot name
+Roofs,IRON SHEET 28 GAUGE 0.9MM,IRON SHEET 28 GAUGE 0.9MM,,cannot name
+Roofs,IRON SHEET 30 GAUGE 0.7MM,IRON SHEET 30 GAUGE 0.7MM,,cannot name
+Roofs,KLIP-LOK PROFILE 0.7MM,KLIP-LOK PROFILE 0.7MM,,cannot name
+Roofs,LEAD SHEET FLASHING 4MM,LEAD SHEET FLASHING 4MM,,cannot name
+Roofs,LIQUID APPLIED MEMBRANE 2MM,LIQUID APPLIED MEMBRANE 2MM,,cannot name
+Roofs,LONGSPAN PROFILE 0.5MM,LONGSPAN PROFILE 0.5MM,,cannot name
+Roofs,M_Insulation on Metal Deck - EPDM,"Concrete, Cast-in-Place gray",PLNS_RCS_RC75,rename
+Roofs,M_Steel Truss - Insulation on Metal Deck - EPDM,"Structure, Steel Bar Joist Layer",,cannot name
+Roofs,METAL BATTEN BRACKET 20MM,METAL BATTEN BRACKET 20MM,,cannot name
+Roofs,METAL PAN CEILING 0.5MM,METAL PAN CEILING 0.5MM,,cannot name
+Roofs,MINERAL FIBER TILE 19MM,MINERAL FIBER TILE 19MM,,cannot name
+Roofs,MINERAL WOOL 100MM,MINERAL WOOL 100MM,,cannot name
+Roofs,MINERAL WOOL 150MM,MINERAL WOOL 150MM,,cannot name
+Roofs,MOISTURE RESISTANT BOARD 12.5MM,MOISTURE RESISTANT BOARD 12.5MM,,cannot name
+Roofs,NATURAL SLATE 8MM,NATURAL SLATE 8MM,,cannot name
+Roofs,OSB DECK 12MM,OSB DECK 12MM,,cannot name
+Roofs,OSB DECK 18MM,OSB DECK 18MM,,cannot name
+Roofs,PARAPET CAPPING 0.7MM,PARAPET CAPPING 0.7MM,,cannot name
+Roofs,PIPE FLASHING 0.5MM,PIPE FLASHING 0.5MM,,cannot name
+Roofs,PIR BOARD 100MM,PIR BOARD 100MM,,cannot name
+Roofs,PIR BOARD 50MM,PIR BOARD 50MM,,cannot name
+Roofs,PIR BOARD 75MM,PIR BOARD 75MM,,cannot name
+Roofs,PLYWOOD DECK 12MM,PLYWOOD DECK 12MM,,cannot name
+Roofs,PLYWOOD DECK 18MM,PLYWOOD DECK 18MM,,cannot name
+Roofs,PVC CEILING PANEL 8MM,PVC CEILING PANEL 8MM,,cannot name
+Roofs,PVC ROOF TILES 4MM,PVC ROOF TILES 4MM,,cannot name
+Roofs,PVC SINGLE PLY 1.5MM,PVC SINGLE PLY 1.5MM,,cannot name
+Roofs,REFLECTIVE FOIL 5MM,REFLECTIVE FOIL 5MM,,cannot name
+Roofs,REFLECTIVE UNDERLAY 5MM,REFLECTIVE UNDERLAY 5MM,,cannot name
+Roofs,RIDGE FLASHING 0.7MM,RIDGE FLASHING 0.7MM,,cannot name
+Roofs,ROOFING FELT 1MM,ROOFING FELT 1MM,,cannot name
+Roofs,SARKING FELT 0.2MM,SARKING FELT 0.2MM,,cannot name
+Roofs,SBS MODIFIED BITUMEN 4MM,SBS MODIFIED BITUMEN 4MM,,cannot name
+Roofs,SELF-ADHESIVE UNDERLAY 1MM,SELF-ADHESIVE UNDERLAY 1MM,,cannot name
+Roofs,SPANISH CLAY TILES 14MM,SPANISH CLAY TILES 14MM,PLNS_RTL_ClayTileRoof14,rename
+Roofs,SPRAY FOAM INSULATION 50MM,SPRAY FOAM INSULATION 50MM,,cannot name
+Roofs,STANDING SEAM 0.7MM,STANDING SEAM 0.7MM,,cannot name
+Roofs,STEEL C-SECTION PURLIN 75MM,STEEL C-SECTION PURLIN 75MM,,cannot name
+Roofs,STEEL ROOF TRUSS 100MM,STEEL ROOF TRUSS 100MM,,cannot name
+Roofs,STEEL ROOF TRUSS 150MM,STEEL ROOF TRUSS 150MM,,cannot name
+Roofs,STEEL Z-SECTION PURLIN 100MM,STEEL Z-SECTION PURLIN 100MM,,cannot name
+Roofs,STONE COATED STEEL 0.5MM,STONE COATED STEEL 0.5MM,PLNS_RTL_StoneCoatedTileRoof1,rename
+Roofs,SYNTHETIC UNDERLAY 0.5MM,SYNTHETIC UNDERLAY 0.5MM,,cannot name
+Roofs,TILE PROFILE METAL 0.5MM,TILE PROFILE METAL 0.5MM,,cannot name
+Roofs,TIMBER BATTEN 25X50MM,TIMBER BATTEN 25X50MM,PLNS_RSH_Timber50,rename
+Roofs,TIMBER BATTEN 38X50MM,TIMBER BATTEN 38X50MM,PLNS_RSH_Timber50,rename
+Roofs,TIMBER BATTEN 50X50MM,TIMBER BATTEN 50X50MM,PLNS_RSH_Timber50,rename
+Roofs,TIMBER BOARD DECK 25MM,TIMBER BOARD DECK 25MM,PLNS_RSH_Timber25,rename
+Roofs,TIMBER CEILING BOARD 12MM,TIMBER CEILING BOARD 12MM,PLNS_RSH_Timber12,rename
+Roofs,TIMBER PURLIN 50X100MM,TIMBER PURLIN 50X100MM,PLNS_RSH_Timber100,rename
+Roofs,TIMBER PURLIN 50X150MM,TIMBER PURLIN 50X150MM,PLNS_RSH_Timber150,rename
+Roofs,TIMBER RAFTER 100X50MM,TIMBER RAFTER 100X50MM,PLNS_RSH_Timber100,rename
+Roofs,TIMBER RAFTER 150X50MM,TIMBER RAFTER 150X50MM,PLNS_RSH_Timber150,rename
+Roofs,TIMBER TRUSS 100X50MM,TIMBER TRUSS 100X50MM,PLNS_RSH_Timber100,rename
+Roofs,TIMBER TRUSS 150X50MM,TIMBER TRUSS 150X50MM,PLNS_RSH_Timber150,rename
+Roofs,TORCH-ON MEMBRANE 3MM,TORCH-ON MEMBRANE 3MM,,cannot name
+Roofs,TORCH-ON MEMBRANE 4MM,TORCH-ON MEMBRANE 4MM,,cannot name
+Roofs,TPO MEMBRANE 1.2MM,TPO MEMBRANE 1.2MM,,cannot name
+Roofs,VALLEY FLASHING 0.7MM,VALLEY FLASHING 0.7MM,,cannot name
+Roofs,VAPOR BARRIER 0.15MM,VAPOR BARRIER 0.15MM,,cannot name
+Roofs,VERGE TRIM 0.5MM,VERGE TRIM 0.5MM,,cannot name
+Roofs,Wood Rafter 184mm - Asphalt Shingle,"Structure, Wood Joist/Rafter Layer, Batt Insulation",,cannot name
+Roofs,Wood Rafter 184mm - Asphalt Shingle - Insulated,"Structure, Wood Joist/Rafter Layer, Batt Insulation",,cannot name
+Roofs,Wood Rafter 235mm - Asphalt Shingle,"Structure, Wood Joist/Rafter Layer, Batt Insulation",,cannot name
+Roofs,Wood Rafter 286mm - Asphalt Shingle,"Structure, Wood Joist/Rafter Layer, Batt Insulation",,cannot name
+Roofs,XPS BOARD 50MM,XPS BOARD 50MM,,cannot name
+Roofs,ZINCALUME SHEET 0.8MM,ZINCALUME SHEET 0.8MM,,cannot name
+Walls,AAC BLOCK 10IN (600×200×250MM),AAC BLOCK 10IN (600×200×250MM),,cannot name
+Walls,AAC BLOCK 4IN (600×200×100MM),AAC BLOCK 4IN (600×200×100MM),,cannot name
+Walls,AAC BLOCK 6IN (600×200×150MM),AAC BLOCK 6IN (600×200×150MM),,cannot name
+Walls,AAC BLOCK 8IN (600×200×200MM),AAC BLOCK 8IN (600×200×200MM),,cannot name
+Walls,BRICK PILLAR UNIT (225×225×75MM),BRICK PILLAR UNIT (225×225×75MM),PLNS_WBK_ClayBrick225,rename
+Walls,CEMENT SAND PLASTER 1-2 (HIGH STRENGTH),CEMENT SAND PLASTER 1-2 (HIGH STRENGTH),,cannot name
+Walls,CEMENT SAND PLASTER 1-3 (STRONG),CEMENT SAND PLASTER 1-3 (STRONG),,cannot name
+Walls,CEMENT SAND PLASTER 1-4 (STANDARD),CEMENT SAND PLASTER 1-4 (STANDARD),,cannot name
+Walls,CEMENT SAND PLASTER 1-5 (ECONOMIC),CEMENT SAND PLASTER 1-5 (ECONOMIC),,cannot name
+Walls,CEMENT SAND PLASTER 1-6 (LIGHT),CEMENT SAND PLASTER 1-6 (LIGHT),,cannot name
+Walls,CEMENT SAND RENDER 1-2 (HEAVY DUTY),CEMENT SAND RENDER 1-2 (HEAVY DUTY),,cannot name
+Walls,CEMENT SAND RENDER 1-3 (EXTERNAL BASE),CEMENT SAND RENDER 1-3 (EXTERNAL BASE),,cannot name
+Walls,CEMENT SAND RENDER 1-4 (EXTERNAL STANDARD),CEMENT SAND RENDER 1-4 (EXTERNAL STANDARD),,cannot name
+Walls,CEMENT SAND RENDER 1-5 (PROTECTED EXTERNAL),CEMENT SAND RENDER 1-5 (PROTECTED EXTERNAL),,cannot name
+Walls,CEMENT SAND RENDER 1-6 (INTERNAL BACKING),CEMENT SAND RENDER 1-6 (INTERNAL BACKING),,cannot name
+Walls,CLAY BRICK ENGINEERING (225×112.5×75MM),CLAY BRICK ENGINEERING (225×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK FACING (225×112.5×75MM),CLAY BRICK FACING (225×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK FIRE-REFRACTORY (225×112.5×75MM),CLAY BRICK FIRE-REFRACTORY (225×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK HALF (112.5×112.5×75MM),CLAY BRICK HALF (112.5×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK PERFORATED (225×112.5×75MM),CLAY BRICK PERFORATED (225×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK STANDARD (225×112.5×75MM),CLAY BRICK STANDARD (225×112.5×75MM),PLNS_WBK_ClayBrick113,rename
+Walls,CLAY BRICK VILLAGE LARGE (295×150×130MM),CLAY BRICK VILLAGE LARGE (295×150×130MM),PLNS_WBK_ClayBrick150,rename
+Walls,CLAY BRICK VILLAGE-ARTISAN (220×110×65MM),CLAY BRICK VILLAGE-ARTISAN (220×110×65MM),PLNS_WBK_ClayBrick110,rename
+Walls,COMPRESSED EARTH BLOCK LARGE (300×150×100MM),COMPRESSED EARTH BLOCK LARGE (300×150×100MM),,cannot name
+Walls,COMPRESSED EARTH BLOCK SMALL (220×105×75MM),COMPRESSED EARTH BLOCK SMALL (220×105×75MM),,cannot name
+Walls,COMPRESSED EARTH BLOCK STANDARD (295×140×100MM),COMPRESSED EARTH BLOCK STANDARD (295×140×100MM),,cannot name
+Walls,Concrete 200mm,"Concrete, Cast-in-Place gray",PLNS_WRC_RC200,rename
+Walls,Concrete 250mm,"Concrete, Cast-in-Place gray",PLNS_WRC_RC250,rename
+Walls,Concrete 300mm,"Concrete, Cast-in-Place gray",PLNS_WRC_RC300,rename
+Walls,Concrete 450mm,"Concrete, Cast-in-Place gray",PLNS_WRC_RC450,rename
+Walls,Concrete 600mm,"Concrete, Cast-in-Place gray",PLNS_WRC_RC600,rename
+Walls,CONCRETE COLUMN BLOCK 12IN (300×300×200MM),CONCRETE COLUMN BLOCK 12IN (300×300×200MM),PLNS_WRC_RC300,rename
+Walls,CONCRETE COLUMN BLOCK 9IN (225×225×200MM),CONCRETE COLUMN BLOCK 9IN (225×225×200MM),PLNS_WRC_RC225,rename
+Walls,DPC POLYTHENE 1000 GAUGE,DPC POLYTHENE 1000 GAUGE,,cannot name
+Walls,DPC POLYTHENE 1200 GAUGE,DPC POLYTHENE 1200 GAUGE,,cannot name
+Walls,Exterior Wall 150,"Brick, Common",PLNS_WBK_ClayBrick125-Plastered,rename
+Walls,Exterior Wall 150 BROWN,"Brick, Common",PLNS_WBK_ClayBrick125-Plastered,rename
+Walls,Exterior_Brown,Plaster brown,,cannot name
+Walls,Exterior_BrownWhite_200,"Brick, Common(1)",PLNS_WBK_ClayBrick175-Plastered,rename
+Walls,Exterior_BrownWhite_230,"Brick, Common(1)",PLNS_WBK_ClayBrick205-Plastered,rename
+Walls,Exterior_CreamWhite_200,"Brick, Common(1)",PLNS_WBK_ClayBrick175-Plastered,rename
+Walls,Exterior_CreamWhite_230 2,"Brick, Common(1)",PLNS_WBK_ClayBrick205-Plastered,rename
+Walls,Exterior_Sone_Plain_200,"Brick, Common(1)",PLNS_WBK_ClayBrick125,rename
+Walls,Foundation - 250mm Concrete,"Concrete, Cast-in-Place gray",PLNS_WRC_RC250,rename
+Walls,Foundation - 300mm Concrete,"Concrete, Cast-in-Place gray",PLNS_WRC_RC300,rename
+Walls,Foundation - 600mm Concrete Footing,"Concrete, Cast-in-Place gray",PLNS_WRC_RC600,rename
+Walls,Foundation - 900mm Concrete Footing,"Concrete, Cast-in-Place gray",PLNS_WRC_RC900,rename
+Walls,Foundation wall,"Brick, Common(2)",PLNS_WBK_ClayBrick200,rename
+Walls,Generic - 100mm Brick,"Brick, Common",PLNS_WBK_ClayBrick100,rename
+Walls,Generic - 150mm Masonry,Concrete Masonry Units,PLNS_WBL_Blockwork150,rename
+Walls,Generic - 200mm Masonry,Concrete Masonry Units,PLNS_WBL_Blockwork200,rename
+Walls,Generic - 300mm Masonry,Concrete Masonry Units,PLNS_WBL_Blockwork300,rename
+Walls,GYPSUM PLASTER PREMIUM,GYPSUM PLASTER PREMIUM,PLNS_WPT_Plasterboard13,rename
+Walls,HOLLOW CONCRETE BLOCK 10IN (250MM),HOLLOW CONCRETE BLOCK 10IN (250MM),PLNS_WBL_Blockwork250,rename
+Walls,HOLLOW CONCRETE BLOCK 4IN (100MM),HOLLOW CONCRETE BLOCK 4IN (100MM),PLNS_WBL_Blockwork100,rename
+Walls,HOLLOW CONCRETE BLOCK 6IN (150MM),HOLLOW CONCRETE BLOCK 6IN (150MM),PLNS_WBL_Blockwork150,rename
+Walls,HOLLOW CONCRETE BLOCK 8IN (200MM),HOLLOW CONCRETE BLOCK 8IN (200MM),PLNS_WBL_Blockwork200,rename
+Walls,HOLLOW CONCRETE BLOCK 9IN (225MM),HOLLOW CONCRETE BLOCK 9IN (225MM),PLNS_WBL_Blockwork225,rename
+Walls,Interior - 114mm Partition,"Softwood, Lumber",PLNS_WPT_Timber89-Boarded,rename
+Walls,Interior - 121mm Partition (1-hr),"Softwood, Lumber",PLNS_WPT_Timber89-Boarded,rename
+Walls,Interior - 125mm Partition,Metal Stud Layer,,cannot name
+Walls,Interior - 125mm Partition (1-hr),Metal Stud Layer,,cannot name
+Walls,Interior - 128mm Partition (2-hr),Metal Stud Layer,,cannot name
+Walls,Interior - 141mm Partition (1-hr),Metal Stud Layer,,cannot name
+Walls,Interior - 157mm Partition (2-hr),Metal Stud Layer,,cannot name
+Walls,Interior - 182mm Partition (1-hr),Metal Stud Layer,,cannot name
+Walls,Interior - 97mm Partition (1-hr),Metal Stud Layer,,cannot name
+Walls,Interior 2 CREAM,"Brick, Common",PLNS_WBK_ClayBrick125-Plastered,rename
+Walls,Interior_cream_200,"Brick, Common",PLNS_WBK_ClayBrick175-Plastered,rename
+Walls,Interior_cream_230,"Brick, Common",PLNS_WBK_ClayBrick205-Plastered,rename
+Walls,INTERLOCKING BLOCK CLC (300×150×100MM),INTERLOCKING BLOCK CLC (300×150×100MM),,cannot name
+Walls,INTERLOCKING BLOCK HYDRAFORM (300×150×100MM),INTERLOCKING BLOCK HYDRAFORM (300×150×100MM),,cannot name
+Walls,INTERLOCKING BLOCK STANDARD (300×150×100MM),INTERLOCKING BLOCK STANDARD (300×150×100MM),,cannot name
+Walls,LIME PLASTER HERITAGE (1-3),LIME PLASTER HERITAGE (1-3),,cannot name
+Walls,M_Exterior - Brick on Mtl. Stud,Metal Stud Layer,,cannot name
+Walls,M_Exterior - CMU Insulated,Concrete Masonry Units,PLNS_WBL_Blockwork290-Boarded,rename
+Walls,M_Exterior - CMU on Mtl. Stud,Metal Stud Layer,,cannot name
+Walls,M_Exterior - EIFS on Mtl. Stud,Metal Stud Layer,,cannot name
+Walls,M_Exterior - Insulated Metal Panel,Metal Stud Layer,,cannot name
+Walls,M_Exterior - Split Face CMU,Concrete Masonry Units,PLNS_WBL_Blockwork190-Boarded,rename
+Walls,M_Exterior - Wood Shingle on Wood Stud,"Softwood, Lumber",PLNS_WPT_Timber140-Boarded,rename
+Walls,M_Exterior - Wood Shingle over Wood Siding on Wood Stud,"Softwood, Lumber",PLNS_WPT_Timber140-Boarded,rename
+Walls,M_Exterior - Wood Siding on Wood Stud,"Softwood, Lumber",PLNS_WPT_Timber140-Boarded,rename
+Walls,plinth copping,Cherry,,cannot name
+Walls,RingBeam,Concrete - Cast-in-Place Concrete,PLNS_WRC_RC205-Plastered,rename
+Walls,RingBeam_CreamWhite_230,"Concrete, Cast In Situ",PLNS_WRC_RC205-Plastered,rename
+Walls,Soffit - 12mm GWB & Metal Stud,Metal Furring,,cannot name
+Walls,SOLID CONCRETE BLOCK 10IN (250MM),SOLID CONCRETE BLOCK 10IN (250MM),PLNS_WBL_Blockwork250,rename
+Walls,SOLID CONCRETE BLOCK 4IN (100MM),SOLID CONCRETE BLOCK 4IN (100MM),PLNS_WBL_Blockwork100,rename
+Walls,SOLID CONCRETE BLOCK 6IN (150MM),SOLID CONCRETE BLOCK 6IN (150MM),PLNS_WBL_Blockwork150,rename
+Walls,SOLID CONCRETE BLOCK 8IN (200MM),SOLID CONCRETE BLOCK 8IN (200MM),PLNS_WBL_Blockwork200,rename
+Walls,SOLID CONCRETE BLOCK 9IN (225MM),SOLID CONCRETE BLOCK 9IN (225MM),PLNS_WBL_Blockwork225,rename
+Walls,STONE ASHLAR DRESSED (450×200×200MM),STONE ASHLAR DRESSED (450×200×200MM),PLNS_WSN_Stone200,rename
+Walls,STONE RUBBLE MASONRY (VARIABLE),STONE RUBBLE MASONRY (VARIABLE),PLNS_WSN_Stone300,rename
+Walls,STONE SLATE CLADDING (VARIABLE),STONE SLATE CLADDING (VARIABLE),PLNS_WSN_Stone25,rename
+Walls,TEXTURED-TYROLEAN RENDER,TEXTURED-TYROLEAN RENDER,,cannot name

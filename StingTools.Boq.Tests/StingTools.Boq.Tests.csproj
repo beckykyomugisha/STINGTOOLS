@@ -28,6 +28,10 @@
     <Compile Include="..\StingTools\BOQ\MeasuredAddition.cs" Link="MeasuredAddition.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
+    <!-- W3: BiogenicCarbon no longer keeps its own timber word-list; it reads the one
+         shared with MaterialClassPlanner and TypeRenamePlanner. Two copies of that list
+         disagreed on 85 of 1,808 real material names, on a carbon figure. -->
+    <Compile Include="..\StingTools\Core\Materials\SubstanceVocabulary.cs" Link="Core\Materials\SubstanceVocabulary.cs" />
     <!-- CA-1 — Document-free currency converter; pins the no-silent-mis-currency
          invariants headlessly (UGX base, default→UGX, single FX). -->
     <Compile Include="..\StingTools\BOQ\Rates\RateCurrency.cs" Link="Rates\RateCurrency.cs" />

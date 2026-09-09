@@ -112,8 +112,19 @@ namespace StingTools.Core.Materials
         };
 
         // Longest, most specific needle first: "stone coated" must not read as Stone.
-        private static readonly (string Needle, string Class)[] Map =
+        //
+        // W3: the WOOD rows are spliced in from SubstanceVocabulary rather than listed
+        // here, because three separate places used to keep their own copy and they
+        // disagreed on 90 of 1,808 real material names — on a carbon figure, since
+        // BiogenicCarbon was one of them. The ORDER is unchanged and still matters:
+        // wood sits after Plastic, so a vinyl printed with a wood grain is vinyl.
+        private static readonly (string Needle, string Class)[] Map = BuildMap();
+
+        private static (string Needle, string Class)[] BuildMap()
         {
+            var m = new List<(string Needle, string Class)>();
+            m.AddRange(new (string, string)[]
+            {
             ("stone coated", "Metal"), ("galvanised", "Metal"), ("galvanized", "Metal"),
             ("zincalume", "Metal"), ("reinforcement", "Metal"), ("rebar", "Metal"),
             ("steel", "Metal"), ("aluminium", "Metal"), ("aluminum", "Metal"),
@@ -157,11 +168,13 @@ namespace StingTools.Core.Materials
             ("polyvinyl", "Plastic"), ("vinyl", "Plastic"), ("lvt", "Plastic"),
             ("rubber", "Plastic"), ("linoleum", "Plastic"), ("plastic", "Plastic"),
 
-            ("timber", "Wood"), ("hardwood", "Wood"), ("softwood", "Wood"),
-            ("plywood", "Wood"), ("mvule", "Wood"), ("cypress", "Wood"),
-            ("mdf", "Wood"), ("hdf", "Wood"), ("parquet", "Wood"), ("bamboo", "Wood"),
-            ("cork", "Wood"), ("oak", "Wood"), ("maple", "Wood"), ("wood", "Wood"),
+            });
 
+            // ── The one wood list, shared with BiogenicCarbon and TypeRenamePlanner ──
+            m.AddRange(SubstanceVocabulary.WoodRows("Wood"));
+
+            m.AddRange(new (string, string)[]
+            {
             ("glass", "Glass"), ("glazing", "Glass"),
 
             // Textile before stone, or "Textile - Slate Blue" is a rock.
@@ -184,7 +197,9 @@ namespace StingTools.Core.Materials
             //    ceramic tile by convention — the one default this table makes, made
             //    last and in the open rather than by an accident of ordering.
             ("tile", "Ceramic"), ("tiles", "Ceramic"),
-        };
+            });
+            return m.ToArray();
+        }
 
         /// <param name="existingClass">What Revit already holds. Non-empty means leave it.</param>
         public static MaterialClassProposal Plan(string materialName, string existingClass)
