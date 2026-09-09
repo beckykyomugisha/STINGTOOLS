@@ -78,6 +78,29 @@ namespace StingTools.Core.Materials
         public string ProposedClass;
         public string Reason = "";
 
+        // ── The register, as a CHALLENGER ────────────────────────────────────
+        // Populated when a registry is passed to Plan. It does NOT change
+        // ProposedClass, on purpose: measured over all 1,279 register rows the
+        // BLE_APP-IDENTITY-CLASS column classifies by TRADE, so a skirting is
+        // "Wood" whatever it is made of and a floor topping is "Concrete" even
+        // when it is epoxy resin. It is right about cement plaster and masonry
+        // paint and wrong about skirtings and screed, and agreement rate does
+        // not separate the two — see MaterialRegistry's header for the numbers.
+        // So it is carried alongside the answer for a reviewer to see, and
+        // MaterialRegisterReconciliation is where the two get settled.
+
+        /// <summary>MAT_CODE of the register row for this name, or null when the register
+        /// does not contain it. Provenance: a reviewer can go and read the row.</summary>
+        public string RegisterCode;
+        /// <summary>What the register's class column says, translated to Revit's
+        /// vocabulary — or null when it names a role rather than a substance.</summary>
+        public string RegisterClass;
+        /// <summary>True when the register has a substance opinion and it differs from
+        /// <see cref="ProposedClass"/>. Not an error; a row for a human to look at.</summary>
+        public bool RegisterDisagrees =>
+            RegisterClass != null && ProposedClass != null
+            && !string.Equals(RegisterClass, ProposedClass, StringComparison.OrdinalIgnoreCase);
+
         public bool WillWrite => !string.IsNullOrEmpty(ProposedClass);
     }
 
@@ -187,13 +210,26 @@ namespace StingTools.Core.Materials
         };
 
         /// <param name="existingClass">What Revit already holds. Non-empty means leave it.</param>
-        public static MaterialClassProposal Plan(string materialName, string existingClass)
+        /// <param name="registry">
+        /// The corporate material register, or null. When given, the row for this material
+        /// is recorded on the proposal as PROVENANCE and as a CHALLENGE — it never becomes
+        /// the answer. See <see cref="MaterialClassProposal.RegisterClass"/>.
+        /// </param>
+        public static MaterialClassProposal Plan(
+            string materialName, string existingClass, MaterialRegistry registry = null)
         {
             var p = new MaterialClassProposal
             {
                 MaterialName = materialName ?? "",
                 ExistingClass = existingClass ?? "",
             };
+
+            var reg = registry?.ByName(materialName);
+            if (reg != null)
+            {
+                p.RegisterCode = reg.Code;
+                p.RegisterClass = MaterialRegistry.ToRevitClass(reg.IdentityClass);
+            }
 
             if (!string.IsNullOrWhiteSpace(existingClass)
                 && !string.Equals(existingClass.Trim(), "Unassigned", StringComparison.OrdinalIgnoreCase))
@@ -227,9 +263,10 @@ namespace StingTools.Core.Materials
         }
 
         public static List<MaterialClassProposal> PlanAll(
-            IEnumerable<(string Name, string ExistingClass)> materials)
+            IEnumerable<(string Name, string ExistingClass)> materials,
+            MaterialRegistry registry = null)
             => (materials ?? Enumerable.Empty<(string, string)>())
-               .Select(m => Plan(m.Name, m.ExistingClass)).ToList();
+               .Select(m => Plan(m.Name, m.ExistingClass, registry)).ToList();
 
         public static string Summary(IReadOnlyCollection<MaterialClassProposal> ps)
         {
