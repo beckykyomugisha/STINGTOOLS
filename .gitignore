@@ -146,3 +146,10 @@ niagara_connection.json
 # hand-back watcher runtime state (see the watcher script)
 .handback.lock
 .handback.log
+
+# The assembled shareable pack. Derived: PDFs are renders of .docx that are
+# themselves generated, so committing them would put a third copy of the same
+# content in the repo -- stale beside a regenerated document while looking
+# current. Assembled on demand; see KUT_DOCS_WORKING/to_send/README.md.
+KUT_DOCS_WORKING/to_send/*
+!KUT_DOCS_WORKING/to_send/README.md
