@@ -169,6 +169,10 @@ proven coordination cycle ·
 2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
 soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
 it; three third-party-blocked items are quarantined in their own section ·
+[`PROMPT_KUT_INTEGRATION_BUILD_2.md`](PROMPT_KUT_INTEGRATION_BUILD_2.md) (work prompt, written
+2026-09-10) — the second build pass, after PR #927. Finishes the defect class #927 half-closed:
+a failed ACC issue read still reads as "the issues are gone", and a malformed Niagara feed still
+reads as "live, nothing commissioned" while overwriting the cached fallback. Seven offline tasks ·
 [`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
 [`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
 
