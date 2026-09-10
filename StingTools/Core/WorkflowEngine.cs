@@ -2599,12 +2599,47 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "LoadParams", Label = "Load Shared Parameters (200+ params)" },
                             new WorkflowStep { CommandTag = "CreateBLEMaterials", Label = "Create BLE Materials (815)" },
                             new WorkflowStep { CommandTag = "CreateMEPMaterials", Label = "Create MEP Materials (464)" },
+
+                            // W2 -- the seam the register audit found. The two steps above
+                            // import 1,279 governed material rows; nothing then stamped the
+                            // MAT_CODE those rows carry or set a class, so the material a
+                            // type is built from could not be priced by material and could
+                            // not be answered by the carbon engine.
+                            //
+                            // NOT skipIfDataUnchanged: that compares a hash of the DEPLOYED
+                            // data folder against a sidecar (ComputeDataHash, :1321). It
+                            // says nothing about this model's materials, so a project that
+                            // gained 200 materials with the corporate CSVs untouched would
+                            // SKIP the stamp and report success. The conditions below ask
+                            // the model instead, and answer with a count.
+                            new WorkflowStep { CommandTag = "Materials_StampCodes",
+                                               Label = "Stamp material codes from the register",
+                                               Condition = "has_uncoded_materials" },
+                            new WorkflowStep { CommandTag = "Materials_SetClass",
+                                               Label = "Set material Class where the name says one",
+                                               Condition = "has_unclassed_materials" },
+
                             new WorkflowStep { CommandTag = "CreateWalls", Label = "Create Wall Types" },
                             new WorkflowStep { CommandTag = "CreateFloors", Label = "Create Floor Types" },
                             new WorkflowStep { CommandTag = "CreateCeilings", Label = "Create Ceiling Types" },
                             new WorkflowStep { CommandTag = "CreateRoofs", Label = "Create Roof Types" },
                             new WorkflowStep { CommandTag = "CreateDucts", Label = "Create Duct Types" },
                             new WorkflowStep { CommandTag = "CreatePipes", Label = "Create Pipe Types" },
+
+                            // W2 -- read-only, immediately after the host types are built,
+                            // which is the moment the 2026-09-10 audit found 28 Flattened,
+                            // 67 Differs and 81 with no compound structure at all. Catching
+                            // that at birth is the whole point: by the time elements are
+                            // hosted on those types, rebuilding one moves every element on
+                            // it.
+                            //
+                            // optional:true because it REPORTS. A read-only audit must never
+                            // abort a 28-step TransactionGroup that has already built a
+                            // project's entire catalogue.
+                            new WorkflowStep { CommandTag = "Materials_RegisterAudit",
+                                               Label = "Audit host types against the register (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "BatchSchedules", Label = "Batch Create Schedules (168)" },
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate Formulas (199)" },
                             new WorkflowStep { CommandTag = "CreateFilters", Label = "Create View Filters (28+)" },
@@ -2620,6 +2655,15 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "BatchFamilyParams", Label = "Batch Family Params (4,686)" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Auto-Assign Templates (5-layer)" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
+                            // W2 -- read-only, BEFORE tagging. An unruled family takes a
+                            // PROD code by category fallback, and a PROD code is what the
+                            // rate chain's most specific pass keys on: an unruled family is
+                            // a wrong rate long before anybody looks at a BOQ. Naming them
+                            // here costs nothing and is the last cheap moment.
+                            new WorkflowStep { CommandTag = "Prod_CoverageAudit",
+                                               Label = "Audit PROD rule coverage (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
                             new WorkflowStep { CommandTag = "TagSheets", Label = "Tag Sheets (ISO 19650 doc codes)" },
