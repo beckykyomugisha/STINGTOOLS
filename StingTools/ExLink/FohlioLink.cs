@@ -15,10 +15,18 @@ namespace StingTools.ExLink
     // this integration is a parameter-sync + reference-link layer, NOT a data
     // copy. FOHLIO_REF_TXT carries the Fohlio item URL/ID — the link key.
     //
-    // Tier 1 (shipped): CSV/XLSX exchange (Fohlio_Export / Fohlio_Import).
-    // Tier 2 (stub):    IFohlioTransport REST skeleton behind a "Test connection"
-    //                   gate; base URL + key from _BIM_COORD/fohlio_connection.json
-    //                   (never hardcoded, never committed).
+    // Tier 1 (shipped, and the CONTRACTED route): CSV/XLSX exchange
+    //                   (Fohlio_Export / Fohlio_Import). BEP risk row
+    //                   "Fohlio API delay -> use file/Add-in route now (Option A)".
+    // Tier 2 (UNIMPLEMENTED): IFohlioTransport is an interface declaration only.
+    //                   Every method throws NotImplementedException. There is NO
+    //                   "Test connection" gate anywhere in the UI - an earlier
+    //                   version of this comment described one, and TestConnection()
+    //                   returned true whenever BaseUrl and ApiKey were merely
+    //                   non-empty, i.e. it passed against a typo. Removed: a
+    //                   connection test that makes no connection is worse than none.
+    //                   Base URL + key would come from _BIM_COORD/fohlio_connection.json
+    //                   (never hardcoded, never committed) if this were ever wired.
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>One column in the Fohlio ↔ STING/Revit mapping.</summary>
@@ -178,9 +186,15 @@ namespace StingTools.ExLink
 
     /// <summary>
     /// REST implementation skeleton. Fohlio exposes a v2 REST API (API-key header).
-    /// Intentionally a clean stub — the CSV exchange is the contractual deliverable;
-    /// wire the HTTP calls here when the API docs + a key are available, gated behind
-    /// the "Test connection" button so CSV stays the default path.
+    /// Intentionally a clean stub — the CSV exchange is the contractual deliverable
+    /// (BEP: "use file/Add-in route now"), and this class has no callers.
+    ///
+    /// EVERY method throws. TestConnection() used to return true whenever BaseUrl and
+    /// ApiKey were non-empty, without making any network call — a green that a typo,
+    /// a revoked key or an unreachable host would all have passed. It was harmless only
+    /// because nothing called it; the first person to wire a "Test connection" button
+    /// would have inherited it. Wire the real HTTP calls here when the API docs and a
+    /// key are available, and make TestConnection() actually connect.
     /// </summary>
     public class FohlioRestTransport : IFohlioTransport
     {
@@ -188,11 +202,15 @@ namespace StingTools.ExLink
         public FohlioRestTransport(FohlioConnection conn) { _conn = conn; }
 
         public bool TestConnection()
-        {
             // TODO C1-T2: GET {BaseUrl}/ping (or /projects) with header
-            // "Authorization: Bearer {ApiKey}". Return true on 2xx.
-            return _conn != null && !string.IsNullOrEmpty(_conn.BaseUrl) && !string.IsNullOrEmpty(_conn.ApiKey);
-        }
+            // "Authorization: Bearer {ApiKey}". Return true on 2xx, false otherwise.
+            // Until then this must NOT return a value: a success that did no work is
+            // indistinguishable from a real one, and that is the whole failure mode.
+            => throw new NotImplementedException(
+                "Fohlio REST connection test — Tier 2, not yet wired" +
+                (string.IsNullOrEmpty(_conn?.BaseUrl) ? "" : $" (configured base URL: {_conn.BaseUrl})") +
+                ". The contracted route is the CSV/XLSX exchange (Fohlio_Export / Fohlio_Import); " +
+                "no API key is needed for it.");
 
         public List<FohlioItem> ListItems(string projectId)
             => throw new NotImplementedException("Fohlio REST list — Tier 2, not yet wired (use CSV import).");

@@ -2874,6 +2874,9 @@ namespace StingTools.UI
                     case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
                     case "AccSyncIssueStatus":
                     case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // The REAL upload (APS Data Management), as distinct from ACCPublish,
+                    // which only builds a local ACC-ready bundle for manual upload.
+                    case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {

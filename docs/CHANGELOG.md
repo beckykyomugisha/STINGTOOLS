@@ -2,6 +2,81 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 265 — the ACC coordination gate that could pass without checking)
+
+**On a wrong container id, the KUT fortnightly coordination cycle reported a
+clean federation.** `AccModelCoordSync` documented itself as failing soft — "logs
+the HTTP status, returns empty, never throws" — and `AccPullClashesCommand` then
+rendered zero clashes as *"either the model set is clash-clean, or a clash test
+has not completed in ACC yet"* and returned `Result.Succeeded`. It named two
+causes and not the third. A 404, a rejected token and a changed
+`bim360/clash/v3` sub-path all arrived as the same empty list.
+
+New `V6/AccFetchOutcome.cs` (Revit-free and log-free, so it links into tests)
+carries `Ok` / `EmptyOk` / `AuthFailed` / `NotFound` / `TransportFailed` alongside
+the data. `ListModelSetsAsync` and `GetClashesAsync` now return
+`AccFetchResult<T>`; the command branches on it and returns `Result.Failed` with
+the failure kind, the reason and **the container id it actually used**, opening
+with "NOTHING WAS CHECKED — this is not a clean result". A 200 carrying an
+unrecognised payload — what a moved APS sub-path looks like — is
+`TransportFailed`, not `EmptyOk`.
+
+**The 429 retry could not execute.** `PushIssueAsync` built its
+`HttpRequestMessage` once, outside the loop, and re-sent it; on .NET 8 the second
+send throws `InvalidOperationException: The request message was already sent`.
+The call site caught it, so a rate-limited issue was **dropped** while the log
+said `ACC 429 — retrying in 1s`. Bulk-escalating clashes to ACC Issues is exactly
+the workload that provokes 429s. The request is now built per attempt, matching
+`PullIssuesAsync`, which was always correct.
+
+**New `StingTools.Acc.Tests` — 38 tests where there were none.** The entire ACC
+surface had zero coverage. Pure mapping tests pin the classifier; **loopback tests
+against a real `HttpListener`** pin the clients, because a pure-function test alone
+would have passed against the broken code — the old client mapped 404 to empty
+without consulting any classifier. The retry tests **count requests server-side**
+(4 against a persistent 429; 3 for 429/429/201): "it didn't throw" would have
+passed too, since the throw was swallowed one frame up.
+
+Deliberate sabotage found a fault in the new gate itself. Swallowing an
+`HttpRequestException` as `EmptyOk` still passed, because a downstream payload-shape
+check turned it into `TransportFailed` by another route — an alternative-path escape.
+The transport-down tests now also assert `HttpStatus == 0`, i.e. no response arrived
+at all.
+
+**Four smaller closures.**
+
+- `WORKFLOW_KUT_CoordinationCycle.json` step 6 said *"Publish coordination data to
+  ACC"*; `ACCPublish` builds a **local** bundle. Relabelled to say so. The real
+  uploader is now dispatchable as `ACC_UploadModel` on all three layers
+  (`StingCommandHandler`, `WorkflowEngine.ResolveCommand`, `StingDockPanel.xaml`),
+  and is deliberately in **no** workflow: a step cannot answer "upload which file?"
+  and guessing would put an unintended file in an issued CDE container.
+- `Clash/AccIssuesClient.cs` deleted — 45 lines, zero callers, and an endpoint
+  (`bim360/docs/v1/.../issues/bulk`) disagreeing with the live client's
+  `construction/issues/v1`.
+- `FohlioRestTransport.TestConnection()` returned `true` whenever `BaseUrl` and
+  `ApiKey` were merely non-empty, with no network call — a green a typo would pass.
+  It now throws like its siblings. The comments describing a "Test connection" gate
+  that exists nowhere in the UI were corrected.
+- `docs/examples/KUT/niagara_connection.json.example` shipped at last; the field
+  names previously existed only in a code comment.
+  `NiagaraConnectionExampleTests` gates it against `NiagaraConnection.Load` **in
+  both directions**, scraping the key list from the real source rather than
+  restating it.
+
+New gate `tools/check_kut_workflow_tags.py` — 97/97 steps across 10 KUT workflows.
+It self-tests before reporting, refuses to run if its `ResolveCommand` window does
+not hold exactly one `switch (tag)` reaching `default: return null;`, and catches a
+step that spells `commandTag` as `command` (which parses and silently does nothing).
+
+New runbook `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` for the three items no
+developer can close alone: the ACC APS app (**Traditional Web App**, callback
+`http://localhost:8910/callback`), the Niagara station connection, and the Fohlio
+mapping sign-off. Per item: who must act, what they supply, the observable proof,
+and what the failure looks like.
+
+Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 1316 passing (was 1311).
+
 #### Completed (Phase 264 — one timber vocabulary, and the matcher swap that needed stems)
 
 **Four word-lists answered "is this timber", and they disagreed both ways on a

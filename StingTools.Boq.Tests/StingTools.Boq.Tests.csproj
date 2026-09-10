@@ -203,6 +203,18 @@
     <None Include="..\StingTools\Data\PARAMETER_REGISTRY.json" Link="Data\PARAMETER_REGISTRY.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- The Niagara station-connection example and the loader that reads it. The example
+         is the only written record of the field names; NiagaraConnectionExampleTests holds
+         the two together in both directions. Both are the REAL files (linked, not copied),
+         so they cannot drift apart. NiagaraJsonClient.cs ships as .txt because it cannot be
+         compiled here — it logs through StingLog — but the gate must read the real source,
+         not a restatement of it. -->
+    <None Include="..\docs\examples\KUT\niagara_connection.json.example" Link="Data\niagara_connection.json.example">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Core\Twin\NiagaraJsonClient.cs" Link="Data\NiagaraJsonClient.cs.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- The SHIPPED KUT classification overlay. Data-file JSON is not compile-checked:
          a mistyped field leaves the POCO at its default and goes runtime-dead. Parsing
          the real file with the real parser is what catches that. -->

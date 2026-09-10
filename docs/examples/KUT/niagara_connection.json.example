@@ -1,0 +1,8 @@
+{
+  "_comment": "Tridium Niagara station connection for the live BMS read (KUT Stage 3.1-3.3). Copy to <project>/_BIM_COORD/niagara_connection.json and fill in your values. NEVER commit the real file - niagara_connection.json is gitignored. The file-mediated path the delivery playbook actually promises (export a commissioning point list, then reconcile against a station export) needs NO connection file; this only enables the optional live HTTP read used by the BMS commissioning valuation. Every key below is read verbatim by NiagaraConnection.Load - the names are case-sensitive and a mistyped key is a silent default, not an error. Authenticate with EITHER apiKey (sent as a Bearer token) OR username+password (sent as HTTP Basic); leave the unused pair as empty strings. pointsPath defaults to /obix and is STATION-SPECIFIC - the /obix root is the oBIX lobby, not a points feed, so the real path is usually deeper (something like /obix/config/.../points). CONFIRM IT WITH THE CONTROLS CONTRACTOR; do not guess it. This transport has never been run against a live station, so treat the first fetch as a verification step, not a routine one - see docs/KUT_LIVE_VERIFICATION_RUNBOOK.md.",
+  "baseUrl": "REPLACE_WITH_STATION_BASE_URL",
+  "pointsPath": "REPLACE_WITH_STATION_POINTS_PATH",
+  "apiKey": "REPLACE_WITH_API_KEY_OR_LEAVE_EMPTY",
+  "username": "REPLACE_WITH_USERNAME_OR_LEAVE_EMPTY",
+  "password": "REPLACE_WITH_PASSWORD_OR_LEAVE_EMPTY"
+}

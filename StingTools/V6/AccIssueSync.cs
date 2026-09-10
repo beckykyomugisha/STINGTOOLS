@@ -73,8 +73,22 @@ namespace StingTools.V6
     public static class AccIssueSync
     {
         private static readonly HttpClient _http = new HttpClient();
-        private const string AuthUrl   = "https://developer.api.autodesk.com/authentication/v2/token";
-        private const string IssuesUrl = "https://developer.api.autodesk.com/construction/issues/v1";
+
+        internal const string DefaultHost = "https://developer.api.autodesk.com";
+        private static string _host = DefaultHost;
+
+        /// <summary>Test seam: point the client at a loopback listener. Production never
+        /// calls this. Pass null to restore the real APS host.</summary>
+        internal static void OverrideHostForTests(string host)
+            => _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
+
+        /// <summary>Test seam: the 429 back-off wait. Production waits the real interval;
+        /// tests replace it with a no-op so the suite does not sleep 7 seconds proving the
+        /// retry runs. Production timings are never altered to suit a test.</summary>
+        internal static Func<TimeSpan, Task> DelayHook = t => Task.Delay(t);
+
+        private static string AuthUrl   => _host + "/authentication/v2/token";
+        private static string IssuesUrl => _host + "/construction/issues/v1";
 
         /// <summary>
         /// Ensure the access token is fresh; refresh via
@@ -212,19 +226,26 @@ namespace StingTools.V6
             // issue's own, different type is an ACC rejection, so pair them or omit.
             if (!string.IsNullOrEmpty(creds.IssueSubtypeId) && issueType == creds.IssueTypeId)
                 body["issue_subtype_id"] = creds.IssueSubtypeId;
-            var req = new HttpRequestMessage(HttpMethod.Post,
-                $"{IssuesUrl}/containers/{creds.ProjectId}/issues")
-            { Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json") };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+            string url = $"{IssuesUrl}/containers/{creds.ProjectId}/issues";
+            string payload = body.ToString();
 
+            // The request MUST be built inside the loop. An HttpRequestMessage is
+            // single-use: re-sending one throws InvalidOperationException("The request
+            // message was already sent"), so the old shape logged "ACC 429 — retrying"
+            // and then dropped the issue at the call site's catch. PullIssuesAsync below
+            // already builds per attempt; this now matches it.
             for (int attempt = 0; attempt < 4; attempt++)
             {
-                var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                using var req = new HttpRequestMessage(HttpMethod.Post, url)
+                { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+
+                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
                 if ((int)resp.StatusCode == 429)
                 {
                     int wait = 1 << attempt;
                     StingLog.Warn($"ACC 429 — retrying in {wait}s");
-                    await Task.Delay(TimeSpan.FromSeconds(wait)).ConfigureAwait(false);
+                    await DelayHook(TimeSpan.FromSeconds(wait)).ConfigureAwait(false);
                     continue;
                 }
                 if (!resp.IsSuccessStatusCode)
@@ -235,6 +256,7 @@ namespace StingTools.V6
                 var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
                 return (string)j["id"];
             }
+            StingLog.Warn("AccIssueSync.PushIssue: ACC rate-limited all 4 attempts; issue not created.");
             return null;
         }
 

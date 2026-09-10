@@ -350,6 +350,7 @@ namespace StingTools.Core
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
             "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
+            "ACC_UploadModel",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
@@ -1989,6 +1990,9 @@ namespace StingTools.Core
                 case "AccPullClashes":          return new Core.Clash.AccPullClashesCommand();
                 case "ACC_SyncIssueStatus":
                 case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
+                // Resolvable so a PROJECT-authored workflow can use it; deliberately not
+                // in any shipped KUT workflow, because a step cannot answer "which file?".
+                case "ACC_UploadModel":         return new Core.Clash.AccUploadModelCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
