@@ -110,5 +110,23 @@ namespace StingTools.Core.Materials
             if (more > 0) sb.AppendLine($"  … and {more} more, in the log");
             return sb.ToString();
         }
+
+        /// <summary>
+        /// Which host kinds must NOT have <c>OpeningWrapping</c> cleared.
+        ///
+        /// <para>Lives here, Revit-free, only so it can be tested. The four separate
+        /// creator bodies this codebase used to carry set <c>OpeningWrapping = None</c> on
+        /// Floor, Ceiling and Roof and never on Wall — a deliberate exclusion whose reason
+        /// was written in the comment beside it: the setting is a workaround for end-cap
+        /// conditions Revit applies to non-wall types.</para>
+        ///
+        /// <para>On a wall it is not a workaround. It decides whether the layers wrap into
+        /// a door or window reveal, which is a drawing answer and a takeoff answer. When
+        /// the four bodies were consolidated into one helper the exclusion was lost and the
+        /// comment explaining it was deleted — the only line in that change that would have
+        /// altered model output. This is the exclusion, kept somewhere a test can hold it.</para>
+        /// </summary>
+        public static bool IsWallKind(string kind)
+            => string.Equals(kind, "Wall", StringComparison.OrdinalIgnoreCase);
     }
 }

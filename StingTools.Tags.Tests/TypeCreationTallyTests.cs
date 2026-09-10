@@ -14,6 +14,7 @@
 //  rule that follows. Both are Revit-free. What is NOT tested here is the Revit
 //  call itself or the delete — see the PR's unverified list.
 // ══════════════════════════════════════════════════════════════════════════
+using System;
 using System.Linq;
 using StingTools.Core.Materials;
 using Xunit;
@@ -141,5 +142,47 @@ namespace StingTools.Tags.Tests
             // fact and gets different words.
             Assert.Equal("No rows to create from.", new TypeCreationTally().Report());
         }
+        // ══════════════════════════════════════════════════════════════════════
+        //  The exclusion the consolidation lost
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Four separate creator bodies set <c>OpeningWrapping = None</c> on Floor, Ceiling
+        /// and Roof and never on Wall. The comment beside them said why — it is a workaround
+        /// for end-cap conditions Revit applies to NON-WALL types. Consolidating the four
+        /// into one helper dropped the exclusion and deleted the sentence explaining it, and
+        /// that was the only line in the change that would have altered model output.
+        ///
+        /// <para>On a wall the setting is not a workaround: it decides whether the layers
+        /// wrap into a door or window reveal, which is a drawing answer and a takeoff answer.
+        /// This test exists so the next deduplication cannot quietly re-merge them.</para>
+        /// </summary>
+        [Theory]
+        [InlineData("Wall", true)]
+        [InlineData("wall", true)]
+        [InlineData("Floor", false)]
+        [InlineData("Ceiling", false)]
+        [InlineData("Roof", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void Only_A_Wall_Keeps_Its_Opening_Wrapping(string kind, bool isWall)
+        {
+            Assert.Equal(isWall, TypeCreationTally.IsWallKind(kind));
+        }
+
+        /// <summary>
+        /// The four kind strings the creators actually pass. If a fifth host kind is added
+        /// and its literal does not appear here, the exclusion above has not been considered
+        /// for it — which is how the wall case was lost the first time.
+        /// </summary>
+        [Fact]
+        public void Every_Host_Kind_The_Creators_Pass_Has_A_Decided_Answer()
+        {
+            var kinds = new[] { "Wall", "Floor", "Ceiling", "Roof" };
+            var wrapped = kinds.Where(k => !TypeCreationTally.IsWallKind(k)).ToList();
+            Assert.Equal(new[] { "Ceiling", "Floor", "Roof" },
+                         wrapped.OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        }
+
     }
 }

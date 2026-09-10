@@ -424,9 +424,17 @@ namespace StingTools.Temp
             try
             {
                 CompoundStructure cs = CompoundStructure.CreateSimpleCompoundStructure(layers);
+
                 // Revit applies default end-cap / wrapping conditions that are invalid on
-                // non-wall types; clearing them is why this ever threw.
-                cs.OpeningWrapping = OpeningWrappingCondition.None;
+                // NON-WALL types; clearing them is why this ever threw. Walls are excluded
+                // deliberately, and this is the one line where consolidating the four
+                // bodies could have changed the model: on a wall, OpeningWrapping is not a
+                // workaround, it decides whether the layers wrap into a door or window
+                // reveal. That is a drawing answer and a takeoff answer, and none of the
+                // four bodies this helper replaced ever set it on a wall.
+                if (!TypeCreationTally.IsWallKind(kind))
+                    cs.OpeningWrapping = OpeningWrappingCondition.None;
+
                 newType.SetCompoundStructure(cs);
                 tally.Add(kind, typeName, TypeCreationOutcome.CreatedAsDeclared);
                 return true;
