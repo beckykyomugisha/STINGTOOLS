@@ -133,10 +133,13 @@ for line in [
 r += 1
 ws.cell(row=r, column=2, value='Before this plan is baselined').font = h_f
 r += 1
-note = ('The Originator column is deliberately empty. The originator code register has not been confirmed, '
-        'and the container naming rule requires a code of a fixed length that is still to be agreed. Complete '
-        'the Originator column only once the register is issued. Nothing on this project is to be numbered '
-        'before that point.')
+note = ('The Originator column is deliberately empty. The LENGTH is settled -- exactly three characters, '
+        'which the compliance check enforces -- but the register that ALLOCATES a code to each appointed '
+        'party has not been issued, so no row can state one. Complete this column only once the register '
+        'is issued. Nothing on this project is to be numbered before that point. Symbion’s own '
+        'containers already carry SMB in their document references, and the Information Manager rows could '
+        'be completed on that basis if the Lead Appointed Party confirms SMB is its allocated code rather '
+        'than a worked example.')
 c = ws.cell(row=r, column=2, value=note)
 c.font = Font(name='Calibri', size=9.5)
 c.alignment = Alignment(wrap_text=True, vertical='top')
@@ -418,6 +421,10 @@ for tidp_ref, scope, org, _role in D.TIDPS + [('TIDP-ALL', 'Every appointed part
                               blank_start + TIDP_BLANKS - 1))
 
     ts.freeze_panes = 'A%d' % (header_row + 1)
+    # The register carries a filter; the sheets drawn from it did not. A TIDP
+    # is a working sheet -- the appointed party filters it by stage and status
+    # to answer 'what do I owe this month', which is the question it exists for.
+    ts.auto_filter.ref = 'A%d:%s%d' % (header_row, L(COL_NAMES[-1]), n)
     ts.page_setup.orientation = 'landscape'
     ts.page_setup.fitToWidth = 1
     ts.sheet_properties.pageSetUpPr.fitToPage = True
@@ -731,6 +738,35 @@ wb.active = 0
 # active, single sheets get filtered, printed and forwarded, and a reader who
 # lands on a TIDP tab would see nothing saying this is unissued. Word carries its
 # status in a footer on every page; this is the same thing for every sheet.
+# ── navigation ───────────────────────────────────────────────────────────────
+# Twenty tabs of identical grey, and no index. Colour groups them by KIND so the
+# eye finds the register without reading every tab, and the Cover carries a
+# hyperlink to each sheet with a return link back.
+_TAB = {'Cover': '1F3654', 'Programme': '1F3654',
+        'MIDP': 'C00000', 'Summary': '2E7D32', 'Drawing schedule': '2E7D32',
+        'Change log': '7A7A7A', 'Lists': '7A7A7A'}
+for _ws in wb.worksheets:
+    _ws.sheet_properties.tabColor = _TAB.get(_ws.title, '444F5C')   # TIDPs = slate
+
+_cs = wb['Cover']
+_r = _cs.max_row + 2
+_cs.cell(row=_r, column=2, value='Sheets in this workbook').font = Font(bold=True, size=11, color='1F3654')
+_r += 1
+for _ws in wb.worksheets:
+    if _ws.title == 'Cover':
+        continue
+    _c = _cs.cell(row=_r, column=2, value=_ws.title)
+    _c.hyperlink = "#'%s'!A1" % _ws.title
+    _c.font = Font(color='0563C1', underline='single', size=10)
+    _r += 1
+    # A way back, so a reader who followed a link is not stranded -- but ONLY
+    # where A1 is free. Writing it unconditionally overwrote the register's own
+    # 'Ref' header, which the gate caught: a navigation aid is not worth a column.
+    if _ws.cell(row=1, column=1).value in (None, ''):
+        _b = _ws.cell(row=1, column=1, value='< Cover')
+        _b.hyperlink = "#'Cover'!A1"
+        _b.font = Font(color='0563C1', underline='single', size=8)
+
 for _ws in wb.worksheets:
     _ws.oddFooter.left.text = "DRAFT - not issued (S0, work in progress)"
     _ws.oddFooter.right.text = "Page &P of &N"

@@ -50,6 +50,8 @@ c.title_page(
 
 c.footer('KUT Document Control Standard   |   Rev P01 — DRAFT')
 
+c.toc()
+
 # ── document control ────────────────────────────────────────────────────────
 c.h1('Document control')
 

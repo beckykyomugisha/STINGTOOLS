@@ -128,6 +128,37 @@ class CorporateDoc:
             r._r.append(e)
 
     # ── content ──────────────────────────────────────────────────────────
+    def toc(self, title='Contents', levels='1-3'):
+        """A Word TOC field, populated by Word rather than by us.
+
+        These documents run to 33 pages with 21 top-level sections and 54 below
+        them, and had no contents page -- a reader looking for the suitability
+        codes had to scroll. The field approach is deliberate: writing the entries
+        ourselves would freeze page numbers that change the moment anything above
+        them is edited, which is the drift this pack exists to avoid.
+
+        A field is EMPTY until Word computes it. It fills on F9, on print preview,
+        and on the PDF export path here, which calls Fields.Update() first. A
+        reader who opens the .docx sees the prompt to update; a reader who gets
+        the PDF sees the finished table.
+        """
+        h = self.d.add_heading(title, level=1)
+        self._rule_below(h)
+        p = self.d.add_paragraph()
+        r = p.add_run()
+
+        begin = OxmlElement('w:fldChar'); begin.set(qn('w:fldCharType'), 'begin')
+        instr = OxmlElement('w:instrText'); instr.set(qn('xml:space'), 'preserve')
+        instr.text = r' TOC \o "%s" \h \z \u ' % levels
+        sep = OxmlElement('w:fldChar'); sep.set(qn('w:fldCharType'), 'separate')
+        end = OxmlElement('w:fldChar'); end.set(qn('w:fldCharType'), 'end')
+        for el in (begin, instr, sep):
+            r._r.append(el)
+        hint = p.add_run('Right-click and choose Update Field to build the contents.')
+        hint.font.size = Pt(9); hint.font.color.rgb = GREY; hint.italic = True
+        p.add_run()._r.append(end)
+        return p
+
     def h1(self, text, page_break=True):
         if page_break:
             self.d.add_paragraph().add_run().add_break(WD_BREAK.PAGE)

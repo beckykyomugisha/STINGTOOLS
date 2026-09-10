@@ -54,6 +54,8 @@ c.title_page(
 
 c.footer('KUT BIM Execution Plan   |   Rev P01 — DRAFT')
 
+c.toc()
+
 # ── document control ────────────────────────────────────────────────────────
 c.h1('Document control')
 

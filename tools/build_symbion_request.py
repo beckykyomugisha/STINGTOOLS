@@ -38,6 +38,8 @@ c.title_page(
 
 c.footer('KUT Mobilisation Information Request   |   Rev P01 — DRAFT')
 
+c.toc()
+
 # ── 1 ───────────────────────────────────────────────────────────────────────
 c.h1('1  Purpose', page_break=False)
 c.para('The mobilisation set is drafted and ready to issue: the BIM Execution Plan, the Project Delivery '

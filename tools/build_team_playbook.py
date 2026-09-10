@@ -41,6 +41,8 @@ c.title_page(
 
 c.footer('KUT Project Delivery Playbook   |   Rev P01 — DRAFT')
 
+c.toc()
+
 # ── document control ─────────────────────────────────────────────────────────
 h1('Document control')
 
