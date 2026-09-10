@@ -36,7 +36,11 @@ namespace StingTools.BOQ
         /// <summary>
         /// True for carbon-sequestering (bio-based) materials. Delegates to
         /// <see cref="SubstanceVocabulary.IsWood"/>, which is the ONE list — this used to
-        /// keep its own, and the three copies disagreed on 90 of 1,808 real material names.
+        /// keep its own, and the three copies disagreed on a large minority of real
+        /// material names. The names that MOVED are enumerated in
+        /// SubstanceVocabularyTests, which is reproducible; the disagreement COUNT
+        /// is not, because two of the three old lists are gone and one of them was
+        /// precedence-ordered. It was stated here as 90 and in the tests as 85.
         ///
         /// <para>Two things changed here, and both move a carbon number. The match is now
         /// WHOLE-WORD, and the needle <c>"ply "</c> is gone: across every name available it

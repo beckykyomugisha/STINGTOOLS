@@ -14,8 +14,10 @@
 //    BOQ/UgCarbonFactors                   reads Material.MaterialClass — the
 //                                          controlled field, and therefore right
 //
-//  Measured over the 1,808 distinct names in the register plus the delivered-model
-//  corpus, the three disagreed on 85 of them. Two examples:
+//  Measured over every distinct name the register and the delivered-model corpus
+//  hold between them -- SubstanceVocabularyTests.AllMaterialNames() pools them, and
+//  that helper is the ONE place the size is computed -- the three disagreed on a
+//  large minority. Two examples:
 //
 //    MDF CEILING PANEL 12MM   class Wood · biogenic credit YES · not timber to the renamer
 //    SOLID BAMBOO 14MM        class Wood · biogenic credit NO  · not timber to the renamer
@@ -23,7 +25,7 @@
 //  ── WHAT CHANGED ON A CARBON NUMBER, NAMED ─────────────────────────────────
 //
 //  `BiogenicCarbon` matched by SUBSTRING and carried `"ply "` with a trailing
-//  space. Across all 1,808 names that needle matched exactly three, and every one
+//  space. Across the whole pooled corpus that needle matched exactly three, and every one
 //  was wrong:
 //
 //      PVC SINGLE PLY 1.5MM              a PVC roofing membrane

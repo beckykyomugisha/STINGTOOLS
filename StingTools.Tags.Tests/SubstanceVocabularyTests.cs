@@ -2,7 +2,7 @@
 //  SubstanceVocabularyTests.cs — W3. Timber for one is timber for all.
 //
 //  Three places answered "is this a timber-family material" from three
-//  hand-written lists, and they disagreed on 85 of the 1,808 distinct names in
+//  hand-written lists, and they disagreed on a large minority of the distinct names in
 //  the register plus the delivered-model corpus. The disagreement lands on a
 //  CARBON figure, because BiogenicCarbon is one of the three.
 //
@@ -200,7 +200,7 @@ namespace StingTools.Tags.Tests
         public void The_Three_Names_That_LOSE_A_Biogenic_Credit_Are_Not_Timber()
         {
             // BiogenicCarbon matched by substring and carried "ply " with a trailing space.
-            // Across all 1,808 names it matched exactly three, and all three were wrong:
+            // Across the whole pooled corpus it matched exactly three, and all three were wrong:
             // two air diffusers (sup-PLY) and a PVC roofing membrane. A needle that has
             // never once been right is removed rather than made whole-word.
             foreach (string n in new[]
@@ -251,7 +251,7 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void No_Other_Name_In_The_Corpus_Changed_Its_Carbon_Answer()
         {
-            // The gains and losses above are exhaustive: 15 + 3 out of 1,808. Anything else
+            // The gains and losses above are exhaustive: 15 + 3 out of the pooled corpus. Anything else
             // moving means the vocabulary picked up a word nobody measured.
             var expectedWood = new HashSet<string>(
                 Names().Where(SubstanceVocabulary.IsWood), StringComparer.Ordinal);
