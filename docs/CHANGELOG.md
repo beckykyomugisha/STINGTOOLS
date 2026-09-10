@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 270 — W1: the seven become reachable from a workflow)
+
+**Seven commands built this month were button-only.** `Materials_SetClass`,
+`Materials_StampCodes`, `Materials_RegisterAudit`, `Baseline_Audit`,
+`Baseline_Apply`, `Baseline_RenameTypes` and `Prod_CoverageAudit` had a
+`Cmd_Click` button and a `StingCommandHandler` case, and **no `ResolveCommand`
+case and no appearance in any of the 48 presets**. Re-measured on `origin/main`
+@ `4b4ca588b`: `presets=0 engine=0` for all seven, and `0` hits across all 277
+shipped JSON files, not only the `WORKFLOW_*.json` ones.
+
+Three consequences, and the third is why this is the load-bearing step:
+
+1. They cannot be chained, scripted, or run unattended.
+2. `ProjectKickoff` imports the register, builds host types from it, and then
+   **never stamps a code, sets a class, or audits what it just built** — which is
+   the state the 2026-09-10 register audit found: 138 Matches against 67 Differs,
+   28 Flattened and 81 with no compound structure at all.
+3. `tools/check_workflow_wiring.ps1` gates **preset steps against
+   `ResolveCommand`**. A command in neither is invisible to it, so a chain stops
+   covering new work without anything being said.
+
+All seven now resolve. Class names were taken from `StingCommandHandler`, not
+guessed.
+
+**`Baseline_Apply` and `Baseline_RenameTypes` resolve but go in no preset.** Both
+are destructive and both ask first; a chained rename is what 2026-09-09 produced,
+when 87 floor types proposed the identical name. Resolving them lets a human
+write a deliberate one-step workflow; putting them inside the 26-step kickoff is
+a different act, and W2 does not.
+
+**RED then GREEN, on the gate that actually guards this.**
+
+    A preset step on Materials_StampCodes
+      RED   with the case removed — Tier 2, naming the tag and the file:
+            "WORKFLOW_ZZProbe.json step 1 : 'Materials_StampCodes' has no case
+             in WorkflowEngine.ResolveCommand"
+      GREEN Tier 2 = 0
+
+`ResolveCommand` case labels **663 → 670**.
+
+**A figure that differs from the brief.** It predicted both the case-label count
+and the dispatchable-name count would move. Only the first did: **dispatchable
+names stayed at 2,362**, because that set is registry + `Cmd_Click` runners +
+handler cases, and all seven already had buttons. Adding a `ResolveCommand` case
+makes a tag *chainable*; it does not make it a new *name*. Worth knowing, because
+it is exactly why the wiring gate could not see the gap — which is what W3
+addresses.
+
+Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
+`--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document, and `Materials_StampCodes` in particular has still never
+run against one.
+
 #### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
 
 `Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
