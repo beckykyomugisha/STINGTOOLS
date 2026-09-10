@@ -142,7 +142,16 @@ class CorporateDoc:
         reader who opens the .docx sees the prompt to update; a reader who gets
         the PDF sees the finished table.
         """
-        h = self.d.add_heading(title, level=1)
+        # NOT add_heading(level=1): a Heading 1 is picked up by the very field
+        # below it, so the contents page listed itself as its own first entry.
+        # Styled to match a level-1 heading instead, so it reads identically and
+        # the TOC cannot see it.
+        h = self.d.add_paragraph()
+        hr = h.add_run(title)
+        hr.font.size = Pt(16)
+        hr.font.bold = True
+        hr.font.color.rgb = NAVY
+        hr.font.name = 'Calibri'
         self._rule_below(h)
         p = self.d.add_paragraph()
         r = p.add_run()
