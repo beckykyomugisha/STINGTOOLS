@@ -434,13 +434,13 @@ Derived from ISO 19650 + the KUT scope documents. These live in your **KUT owner
 Fields separated by hyphens — **Project-Originator-Volume/System-Level-Type-Role-Number**:
 
 ```
-KUT - PLNS - ZZ - XX - M3 - A - 0001
+KUT - SMB - ZZ - XX - M3 - A - 0001
  │     │      │    │    │    │    └ number
  │     │      │    │    │    └ role/discipline (A=Arch, S=Struct, M=Mech…)
  │     │      │    │    └ type (M3=3D model, DR=drawing, SH=sheet…)
  │     │      │    └ level (GF, 01, ZZ=all)
  │     │      └ volume/zone (ZZ=whole)
- │     └ originator (PLNS = Planscape; each firm gets a code)
+ │     └ originator (SMB = Planscape; each firm gets a code)
  └ project code (KUT)
 ```
 
@@ -592,7 +592,7 @@ Most of these STINGTOOLS can **generate or export** — don't build from scratch
 ## 8.3 Transmittal — template
 | Field | Value |
 |---|---|
-| Transmittal no. | KUT-PLNS-TR-0001 |
+| Transmittal no. | KUT-SMB-TR-0001 |
 | Date | |
 | From / To | |
 | Purpose / suitability | S2 / A1 … |
@@ -733,7 +733,7 @@ You'll be judged on whether the **team** can follow the system, not just you. Ke
 `WIP → SHARED (S0–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Rev `P0x` (prelim) / `C0x` (contractual)
 
 ## 11.3 File name pattern
-`KUT-PLNS-ZZ-XX-M3-A-0001` = Project-Originator-Volume-Level-Type-Role-Number
+`KUT-SMB-ZZ-XX-M3-A-0001` = Project-Originator-Volume-Level-Type-Role-Number
 
 ## 11.4 The weekly loop
 `Share → Clash (ACC+STING) → Coordinate → Issue → Report`
