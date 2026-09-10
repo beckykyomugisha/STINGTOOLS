@@ -53,6 +53,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kut_docs_lib as K  # noqa: E402
+import kut_naming as N  # noqa: E402  -- the type/role vocabulary
 
 BEP = "KUT_BIM_Execution_Plan.docx"
 PLAYBOOK = "KUT_Project_Delivery_Playbook.docx"
@@ -550,6 +551,23 @@ def check_references(root: Path, f: Findings, verbose: bool):
         else:
             f.fail(name, "states no document reference of its own")
 
+    valid_types = {c for c, _ in N.TYPES}
+    valid_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    for name, ref in sorted(claimed.items()):
+        parts = ref.split("-")
+        if len(parts) != 7:
+            f.fail(name, "claims %s, which is not a seven-field container name" % ref)
+            continue
+        if parts[4] not in valid_types:
+            f.fail(name, "claims %s, whose type code %r is not in the adopted set. "
+                         "A withdrawn code resolves to nothing downstream and is "
+                         "invisible to a reference check that only matches names."
+                   % (ref, parts[4]))
+        if parts[5] not in valid_roles:
+            f.fail(name, "claims %s, whose role code %r is not in the adopted set."
+                   % (ref, parts[5]))
+        f.ok(2)   # type and role, per document -- counted so the headline moves
+
     for name in K.ISSUED:
         text = read_text(K.issued_path(root, name))
         for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
@@ -561,7 +579,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
                 # playbook cites container names as worked examples. Only a
                 # reference in the report/schedule series is expected to
                 # resolve; the rest are illustrations.
-                if re.search(r"-(RP|SC)-", ref):
+                if re.search(r"-(RP|SH)-", ref):
                     f.fail(name, "cites %s, which no document in the pack "
                                  "claims as its own reference" % ref)
                 continue
@@ -841,6 +859,9 @@ LEAKS = [
 CLIENT_FACING_SOURCES = (
     "GUIDES/KUT_BEP_TEMPLATE.md",
     "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+    # The playbook says this one is "issued at mobilisation" to every
+    # discipline. It was never scanned, and carried four product references.
+    "GUIDES/KUT_MIDP_TEMPLATE.csv",
 )
 
 # A maintainer note tells whoever edits the file which generator to run, so it
@@ -848,6 +869,191 @@ CLIENT_FACING_SOURCES = (
 # closed, so the exemption cannot silently widen to the rest of the document.
 _NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s*-->",
                       re.S | re.I)
+
+
+def _check_withdrawn(root: Path, f: Findings, verbose: bool):
+    """No client-facing source may name a withdrawn code or a wrong-length originator.
+
+    The table reader in check_source_code_tables walks rows. The BEP states its
+    role set as a prose list inside ONE cell, so a row-based reader cannot see it
+    -- which is exactly how `A, S, M, E, P, FP, G, Z` survived a migration that
+    removed FP and G and added six roles.
+
+    ORIGINATOR_LENGTH is read rather than hardcoded: the register is unissued, and
+    when it lands the length is the thing most likely to be revisited.
+    """
+    valid = ({c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+             | {c for c, _ in N.TYPES})
+    # Codes the NA withdrew that this project used to carry. Named explicitly
+    # rather than derived, because "not in the adopted set" also matches every
+    # ordinary English word in the prose around them.
+    withdrawn = {"FP": "fire protection -- now Y",
+                 "LV": "low voltage -- now Y",
+                 "G": "land surveyor in the standard -- civil is C",
+                 "SC": "schedule -- now SH",
+                 "CA": "calculation -- now RP",
+                 "MS": "method statement -- now RP"}
+    for rel in CLIENT_FACING_SOURCES:
+        p = root / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        # Blank the maintainer note IN PLACE. Removing it shifted every line
+        # number after it by the ten lines it occupies, so the first run of this
+        # check reported two innocent table rows.
+        text = _NOTE_RX.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+        for line_no, line in enumerate(text.splitlines(), 1):
+            # A blockquote is commentary, not a statement of the permitted set --
+            # and these documents now carry blockquotes that name the withdrawn
+            # codes precisely in order to explain them. The permitted set is
+            # always a table row.
+            if line.lstrip().startswith(">"):
+                continue
+            # Extract the codes the line STATES, then test membership. Matching
+            # each code as a pattern against free text instead makes "G" hit
+            # every stray capital in prose, and the first attempt at this
+            # excluded backticked spans -- `FP` -- which is the only form these
+            # tables actually use.
+            stated = set(re.findall(r"`([A-Z]{1,2})`", line))
+            if re.search(r"\|\s*(Role|Type|Discipline)\s*\|", line) or \
+                    re.search(r"^\s*\|\s*[A-Z][A-Za-z/ ]*\s*\|", line):
+                stated |= {t.strip() for t in re.split(r"[,|]", line)
+                           if re.fullmatch(r"[A-Z]{1,2}", t.strip())}
+            for code in sorted(stated & set(withdrawn)):
+                f.fail("%s:%d" % (Path(rel).name, line_no),
+                       "states the withdrawn code %s (%s)" % (code, withdrawn[code]))
+        # The MIDP template states its originator in a COLUMN, not in a
+        # container-name example, so the pattern below cannot see it. Sixteen
+        # rows of a four-character code passed this gate until this was added.
+        if rel.endswith(".csv"):
+            rows = [ln.split(",") for ln in text.splitlines() if ln.strip()]
+            if rows and "Originator" in rows[0]:
+                col = rows[0].index("Originator")
+                for i, r in enumerate(rows[1:], 2):
+                    if len(r) <= col:
+                        continue
+                    got = r[col].strip()
+                    # FILL is the appointed party's own entry, made on receipt.
+                    if not got or got in ("FILL", "[FILL]"):
+                        continue
+                    if len(got) != N.ORIGINATOR_LENGTH:
+                        f.fail("%s:%d" % (Path(rel).name, i),
+                               "Originator %r is %d characters; the convention is "
+                               "exactly %d." % (got, len(got), N.ORIGINATOR_LENGTH))
+                f.ok()
+
+        for m in re.finditer(r"KUT-([A-Z]{2,6})-", text):
+            got = m.group(1)
+            if len(got) != N.ORIGINATOR_LENGTH:
+                f.fail(Path(rel).name,
+                       "uses the originator %r in an example: %d characters, but the "
+                       "convention is exactly %d. A container built to it fails the "
+                       "compliance check." % (got, len(got), N.ORIGINATOR_LENGTH))
+        f.ok()
+        if verbose:
+            print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
+
+
+def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
+    """The workbook's status must appear on every sheet, not only the Cover.
+
+    A document is read front to back and carries its status in a page footer. A
+    workbook is not: it opens on whichever tab was last active, and single sheets
+    get filtered, printed and forwarded on their own. The DRAFT stamp reached the
+    Cover and nothing else, so a reader landing on a TIDP tab saw no indication
+    that the pack is unissued -- while the four Word documents said so 8 to 34
+    times each.
+    """
+    import zipfile
+    path = K.issued_path(root, MIDP)
+    if not path.exists():
+        return
+    try:
+        z = zipfile.ZipFile(path)
+        wb = z.read("xl/workbook.xml").decode("utf-8", "replace")
+        names = re.findall(r'name="([^"]+)"[^>]*sheetId', wb) or             re.findall(r'<sheet[^>]*name="([^"]+)"', wb)
+        sheets = sorted([n for n in z.namelist()
+                         if re.match(r"xl/worksheets/sheet\d+\.xml$", n)],
+                        key=lambda n: int(re.search(r"sheet(\d+)", n).group(1)))
+    except Exception as ex:
+        f.fail(MIDP, "could not be read as a workbook: %s" % ex)
+        return
+    if not sheets:
+        f.fail(MIDP, "parsed to zero sheets -- the reader is wrong, not the file")
+        return
+    missing = [names[i] if i < len(names) else p
+               for i, p in enumerate(sheets)
+               if "DRAFT" not in z.read(p).decode("utf-8", "replace")]
+    if missing:
+        f.fail(MIDP, "%d of %d sheets carry no status marking: %s. A sheet is "
+                     "forwarded on its own; the Cover does not travel with it."
+               % (len(missing), len(sheets), ", ".join(missing[:6])))
+    else:
+        f.ok()
+        if verbose:
+            print("  status on all %d sheets: %s" % (len(sheets), MIDP))
+
+
+def check_source_code_tables(root: Path, f: Findings, verbose: bool):
+    """The playbook markdown's role and type tables must be the adopted set.
+
+    Nothing regenerates GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md, and its own
+    header used to claim the .docx was built from it. It was not -- so the file
+    drifted a whole naming migration behind the pack it appears to describe,
+    still listing the withdrawn roles FP, LV and G, and the withdrawn types SC,
+    CA and MS with SH defined as "Sheet" where NA.2 makes it a Schedule.
+
+    A stale copy of a code table is worse than no copy: a reader who trusts it
+    names containers against a set the audit rejects, and the leakage check that
+    already scans this file had no view on whether its content was true.
+    """
+    # The BEP template shares this failure mode and was missed when the playbook
+    # was gated: it carried FP and G, and the four-character originator PLNS that
+    # the playbook's own 3.1 warns about by name. Both files are scanned.
+    _check_withdrawn(root, f, verbose)
+
+    path = root / "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md"
+    if not path.exists():
+        f.fail(str(path), "missing -- the leakage check and this one both read it")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    want_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    want_types = {c for c, _ in N.TYPES}
+
+    for label, want, header in (("role", want_roles, "## 3.3 Role"),
+                                ("type", want_types, "## 3.4 Type")):
+        i = text.find(header)
+        if i < 0:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "has no %s section (%r) for the code table check" % (label, header))
+            continue
+        # Bound at the NEXT heading. A fixed-width window spilled 3.3 into 3.4
+        # and 3.4 into the suitability codes, so the check reported every
+        # neighbouring table as withdrawn.
+        nxt = text.find("\n## ", i + 1)
+        block = text[i:nxt if nxt > 0 else len(text)]
+        got = set(re.findall(r"^\|\s*`([A-Z0-9]{1,2})`\s*\|", block, re.M))
+        if not got:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table parsed to nothing -- the reader is wrong, not the file"
+                   % label)
+            continue
+        withdrawn = got - want
+        missing = want - got
+        if withdrawn:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table lists %s, which tools/kut_naming.py does not define. "
+                   "A withdrawn code here is named on containers that then fail the "
+                   "audit." % (label, ", ".join(sorted(withdrawn))))
+        if missing:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table omits %s, which the adopted set defines."
+                   % (label, ", ".join(sorted(missing))))
+        if not withdrawn and not missing:
+            f.ok()
+            if verbose:
+                print("  %s codes agree with kut_naming.py (%d)" % (label, len(got)))
 
 
 def check_no_leakage(root: Path, f: Findings, verbose: bool):
@@ -1077,6 +1283,8 @@ def main() -> int:
     check_references(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
+    check_draft_on_every_sheet(root, f, args.verbose)
+    check_source_code_tables(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
 

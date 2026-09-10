@@ -128,6 +128,7 @@ namespace StingTools.Temp
         public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
+        private const int ColCode = 3;          // MAT_CODE — the register's key for this row
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
         private const int ColCategory = 5;      // MAT_CATEGORY
         private const int ColName = 6;          // MAT_NAME
@@ -257,7 +258,28 @@ namespace StingTools.Temp
                                 // Apply material appearance properties from CSV
                                 Material newMat = doc.GetElement(newMatId) as Material;
                                 if (newMat != null)
+                                {
                                     MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
+
+                                    // W1 — the register row that named this material also
+                                    // carries its CODE, and until now this path read the row
+                                    // and discarded it. MAT_CODE is what RateProviders Pass C
+                                    // keys on; a material born without one is invisible to the
+                                    // most specific rate lookup in the BOQ.
+                                    //
+                                    // SetIfEmpty, never Set: a code somebody already chose
+                                    // outranks the register, here as everywhere else.
+                                    //
+                                    // Only the PRIMARY material is stamped here. The layer
+                                    // materials minted below come from MAT_LAYER_n_MATERIAL,
+                                    // which names a material without naming its row — so they
+                                    // are left to Materials_StampCodes, which matches by name
+                                    // against the whole register rather than guessing from
+                                    // the row that happened to reference them.
+                                    string regCode = cols.Length > ColCode ? cols[ColCode].Trim() : "";
+                                    if (regCode.Length > 0)
+                                        ParameterHelpers.SetIfEmpty(newMat, "MAT_CODE", regCode);
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -489,7 +511,14 @@ namespace StingTools.Temp
             if (newType == null) return false;
 
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
-            return ApplyStructureOrFail(doc, newType, "Wall", typeName, layers, tally);
+            if (!ApplyStructureOrFail(doc, newType, "Wall", typeName, layers, tally))
+                return false;
+
+            // The register row this type was built from — recorded only once the
+            // structure actually landed. A refused type is deleted, so stamping one
+            // would be both a lie and a throw.
+            RecordRegisterRow(newType, cols);
+            return true;
         }
 
         private static bool CreateFloorType(Document doc, string typeName,
@@ -510,7 +539,14 @@ namespace StingTools.Temp
             if (newType == null) return false;
 
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
-            return ApplyStructureOrFail(doc, newType, "Floor", typeName, layers, tally);
+            if (!ApplyStructureOrFail(doc, newType, "Floor", typeName, layers, tally))
+                return false;
+
+            // The register row this type was built from — recorded only once the
+            // structure actually landed. A refused type is deleted, so stamping one
+            // would be both a lie and a throw.
+            RecordRegisterRow(newType, cols);
+            return true;
         }
 
         private static bool CreateCeilingType(Document doc, string typeName,
@@ -531,7 +567,14 @@ namespace StingTools.Temp
             if (newType == null) return false;
 
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
-            return ApplyStructureOrFail(doc, newType, "Ceiling", typeName, layers, tally);
+            if (!ApplyStructureOrFail(doc, newType, "Ceiling", typeName, layers, tally))
+                return false;
+
+            // The register row this type was built from — recorded only once the
+            // structure actually landed. A refused type is deleted, so stamping one
+            // would be both a lie and a throw.
+            RecordRegisterRow(newType, cols);
+            return true;
         }
 
         private static bool CreateRoofType(Document doc, string typeName,
@@ -552,7 +595,42 @@ namespace StingTools.Temp
             if (newType == null) return false;
 
             var layers = BuildLayers(cols, matId, thicknessMm, doc, materialCache, notes);
-            return ApplyStructureOrFail(doc, newType, "Roof", typeName, layers, tally);
+            if (!ApplyStructureOrFail(doc, newType, "Roof", typeName, layers, tally))
+                return false;
+
+            // The register row this type was built from — recorded only once the
+            // structure actually landed. A refused type is deleted, so stamping one
+            // would be both a lie and a throw.
+            RecordRegisterRow(newType, cols);
+            return true;
+        }
+
+        /// <summary>
+        /// W3 — record WHICH register row this type was built from, in ExtensibleStorage.
+        ///
+        /// Not a parameter: a parameter is hand-editable, and a hand-editable field is the
+        /// wrong home for an audit trail — the same mistake as letting the NAME be the
+        /// authority on identity, one column over. StingProvenanceSchema is invisible to
+        /// users and cannot be edited into disagreement.
+        ///
+        /// RuleId carries the MAT_CODE. HostTypeRegisterAudit prefers it over the name
+        /// match, and reports CodeSaysOtherwise when the layers refute it. THE LAYERS
+        /// STILL WIN for every quantity — this records a claim, it does not license one.
+        /// </summary>
+        private static void RecordRegisterRow(ElementType newType, string[] cols)
+        {
+            try
+            {
+                string code = cols != null && cols.Length > ColCode ? cols[ColCode].Trim() : "";
+                if (newType == null || code.Length == 0) return;
+                StingTools.Core.Storage.StingProvenanceSchema.Stamp(
+                    newType, "CompoundTypeCreator", code);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("CTC.Provenance",
+                    $"provenance stamp on '{newType?.Name}': {ex.Message}");
+            }
         }
 
         private static bool CreateMEPType(Document doc, string typeName,

@@ -160,12 +160,21 @@ on a row, and check `CHANGELOG.md` for what has since landed.
 2026-08-01; row L2 is marked closed in the document itself) ·
 [`ROLE_MODEL_MIGRATION_PROPOSAL.md`](ROLE_MODEL_MIGRATION_PROPOSAL.md), with the reconciliation
 query at `Planscape.Server/tools/role-reconciliation-sheet.sql` ·
+[`KUT_INTEGRATION_READINESS_2026-09.md`](KUT_INTEGRATION_READINESS_2026-09.md) (measured
+2026-09-10 @ `d318dcbee`) — per-integration verdicts for Fohlio / Niagara / ACC against what the
+issued KUT documents promise: ACC and Niagara **wired but unproven**, Fohlio's contracted CSV tier
+**works**. Names the one credential and the five offline fixes that stand between the pack and a
+proven coordination cycle ·
+[`PROMPT_KUT_INTEGRATION_BUILD.md`](PROMPT_KUT_INTEGRATION_BUILD.md) (work prompt, written
+2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
+soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
+it; three third-party-blocked items are quarantined in their own section ·
 [`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
 [`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
 
 ## Domain packs
 
-`HEALTHCARE_PACK_DESIGN.md` · `HEALTHCARE_*_PROMPT.md` (seven work prompts: accuracy, changelog/roadmap, completeness, deferred implementation, gap fixes, Phase 199 fixes and profile coverage — intent, check against `CHANGELOG.md`) · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
+`HEALTHCARE_PACK_DESIGN.md` · the seven healthcare work prompts — intent at the date each was written, check against `CHANGELOG.md` before assuming any of it shipped: `HEALTHCARE_ACCURACY_FIXES_PROMPT.md` · `HEALTHCARE_CHANGELOG_ROADMAP_FIX_PROMPT.md` · `HEALTHCARE_COMPLETENESS_FIXES_PROMPT.md` · `HEALTHCARE_DEFERRED_IMPLEMENTATION_PROMPT.md` · `HEALTHCARE_GAP_FIXES_PROMPT.md` · `HEALTHCARE_PHASE199_FIXES_PROMPT.md` · `HEALTHCARE_PROFILE_COVERAGE_PROMPT.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
 `HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`
 
 ## Tagging — current
@@ -175,3 +184,53 @@ query at `Planscape.Server/tools/role-reconciliation-sheet.sql` ·
 - [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied
 - [Tagging workflow analysis](TAGGING_WORKFLOW_ANALYSIS.md) ⛔ SUPERSEDED
 - [Universal tag badge/glyph guide](UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md) ⛔ SUPERSEDED
+
+## Unclassified — indexed, not yet triaged
+
+**These are listed so they are not invisible, not because anyone has read them.**
+Every other section marks a document ✅ current or ⛔ superseded. Nobody has made
+that call for the files below, and guessing would be worse than saying so: a wrong
+✅ sends a reader to act on a stale plan.
+
+They were named nowhere in this index until 2026-09-09, which meant a reader
+checking whether a document existed concluded it did not. `tools/check_docs_index.py`
+now fails when a `docs/*.md` is named nowhere here, so the list cannot grow silently.
+
+**This section should only shrink.** Moving a file out of it — into the section it
+belongs to, with a ✅ or ⛔ — is the work; it needs someone who knows whether the
+document still describes the code.
+
+- `BOQ_5D_ENHANCED_REBUILD_PROMPT.md`
+- `BOQ_5D_ENHANCEMENTS_PROMPT.md`
+- `BOQ_LOOKUP_FORMULA_AUDIT.md`
+- `CLIENT_SERVER_VOCABULARY_PROPOSALS.md`
+- `DOCUMENT_MANAGER_GAPS_RUNNER.md`
+- `HVAC_GAP_ANALYSIS.md`
+- `HVAC_GAP_REMEDIATION_PROMPT.md`
+- `KIBALE_REVIT_VERIFICATION.md`
+- `KNP26_READINESS.md`
+- `MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md`
+- `MATERIAL_SCHEDULE_GAPS_RUNNER_PROMPT.md`
+- `MATERIAL_SCHEDULE_T6_FAMILY_MATERIALS_PROPOSAL.md`
+- `NATIVE_TYPE_MIGRATION_ANALYSIS.md`
+- `OPERATOR_SESSION_KIBALE.md`
+- `PERFECT_PLACEMENT_PROMPT.md`
+- `PLACEMENT_CENTRE_REVIEW_AND_FIX_PROMPT.md`
+- `PLACEMENT_LIBRARY_TAB_AND_DWG_BRIDGE_PROMPT.md`
+- `PLACEMENT_SEEDS_SWAP_IMPLEMENTATION_PROMPT.md`
+- `PROMPT_BRANCH_AND_WORKSPACE_TRIAGE.md`
+- `PROMPT_KUT_LIFECYCLE_INTEGRATION.md`
+- `PROMPT_KUT_MOBILISATION_HARDENING.md`
+- `RESEARCH_PROMPT_livekit_and_corporate_ui.md`
+- `ROUND_TRIP_R1_R2_SPEC.md`
+- `UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`
+- `UNIVERSAL_TAG_FINALIZE_RUNNER.md`
+- `UNIVERSAL_TAG_INTEGRATION_RUNNER.md`
+- `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`
+- `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`
+- `UNIVERSAL_TAG_TEARDOWN_RUNNER.md`
+- `VERIFY_PHASE1.md`
+- `VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`
+- `VISIBILITY_CENTER_RUNNER.md`
+- `WIRE_ELEMENT_ANNOTATION_SCOPE.md`
+- `archicad-zone-mapping-guide.md`

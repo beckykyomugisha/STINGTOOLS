@@ -138,7 +138,8 @@ namespace StingTools.Core.Materials
         //
         // W3: the WOOD rows are spliced in from SubstanceVocabulary rather than listed
         // here, because three separate places used to keep their own copy and they
-        // disagreed on 90 of 1,808 real material names — on a carbon figure, since
+        // disagreed on a large minority of real material names (counted 90 here and 85
+        // in the tests, which is the point: it was never one fact) — on a carbon figure, since
         // BiogenicCarbon was one of them. The ORDER is unchanged and still matters:
         // wood sits after Plastic, so a vinyl printed with a wood grain is vinyl.
         private static readonly (string Needle, string Class)[] Map = BuildMap();

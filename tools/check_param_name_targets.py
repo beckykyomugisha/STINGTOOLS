@@ -29,7 +29,13 @@ declared in the baseline, so the narrow case is visible rather than silent -- bu
 widening a binding is a registry decision, not this gate's.
 
 THE BASELINE ONLY SHRINKS
-Seventeen names are wrong today. Most have several plausible corrections that
+The count is NOT written here. It was, as "seventeen", in this docstring and in
+.github/workflows/param-name-targets.yml, while the baseline held sixteen -- one
+fact in three places, two of them prose nothing could check. The number is now
+printed at runtime from the baseline itself, and _no_hardcoded_count() below
+fails this gate if either file starts stating one again.
+
+The baselined names mostly have several plausible corrections that
 differ by unit or by which element carries the value -- ELC_POWER could be
 ELC_PWR_KW or ELC_PWR_TXT; HVC_PRESSURE could be HVC_PRESSURE_DROP_PA or
 HVC_PIPE_PRESSURE_KPA. Choosing one is an authoring decision, and choosing wrong
@@ -173,6 +179,38 @@ def load_baseline():
     return out
 
 
+COUNT_IN_PROSE = re.compile(
+    r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+    r"thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|"
+    r"\d{1,3})\s+names?\s+(?:are|is)\s+(?:wrong|bad|baselined)",
+    re.IGNORECASE)
+
+
+def _no_hardcoded_count() -> list:
+    """Refuse a second copy of a number this gate already knows.
+
+    A spelled-out count of them sat in this file and in the workflow while
+    the baseline held sixteen. Prose cannot be gated, so the fix is not to correct
+    it to sixteen -- it is to stop writing it down anywhere but the baseline, and
+    to fail when someone writes it down again.
+    """
+    here = Path(__file__).resolve()
+    targets = [
+        here,
+        here.parent.parent / ".github" / "workflows" / "param-name-targets.yml",
+    ]
+    bad = []
+    for p in targets:
+        try:
+            text = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            if COUNT_IN_PROSE.search(line):
+                bad.append("%s:%d: %s" % (p.name, i, line.strip()))
+    return bad
+
+
 def main() -> int:
     txt = load_txt_params()
     bindings = load_bindings()
@@ -220,6 +258,20 @@ def main() -> int:
     print()
 
     rc = 0
+
+    restated = _no_hardcoded_count()
+    if restated:
+        rc = 1
+        print("FAIL: the baseline size is written in prose as well as in the baseline.")
+        for line in restated:
+            print("    " + line)
+        print()
+        print("  This gate already knows how many names are baselined and prints it")
+        print("  below. A second copy in a comment cannot be checked, and the last one")
+        print("  said seventeen while the file held sixteen. Delete the number; say")
+        print("  \"the names that are wrong today are baselined in ...\" instead.")
+        print()
+
     if unexpected:
         rc = 1
         print("FAIL: %d parameter name(s) do not exist in MR_PARAMETERS.txt and are not "
@@ -264,6 +316,7 @@ def main() -> int:
     if rc == 0:
         print("Parameter-name target gate OK.")
         print("  Every name in shipped configuration exists, or is baselined with a reason.")
+        print("  Baselined names awaiting a correction: %d" % len(baseline))
     return rc
 
 

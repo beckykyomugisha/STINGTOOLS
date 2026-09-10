@@ -290,4 +290,67 @@ public class Iso19650RoleValidationTests
 
         Assert.Equal(18, Iso19650Roles.All.Count);
     }
+
+    // ── Re-derived from claude/iso19650-role-vocabulary ─────────────────────
+    //
+    // That branch is 206 commits behind and its API is gone: it had AllCodes and
+    // All[].Label where main has All and Catalogue[].Label, so its tests could not
+    // be cherry-picked. Of its twelve assertions, nine are renamed equivalents of
+    // ones already here. These three had no counterpart, and are rewritten against
+    // what shipped.
+
+    /// <summary>
+    /// A duplicate or blank code would not throw anywhere. IsCanonical would still
+    /// answer true, the picker would show two identical rows or one empty one, and
+    /// the error payload would offer a code nobody can choose.
+    /// </summary>
+    [Fact]
+    public void Every_code_is_distinct_and_non_blank()
+    {
+        Assert.Equal(Iso19650Roles.All.Count, Iso19650Roles.All.Distinct(
+            StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(Iso19650Roles.All, c => Assert.False(string.IsNullOrWhiteSpace(c)));
+        Assert.All(Iso19650Roles.Catalogue,
+            r => Assert.False(string.IsNullOrWhiteSpace(r.Label)));
+    }
+
+    /// <summary>
+    /// IsCanonical(null) is false, and that is correct for a MEMBERSHIP test — null
+    /// is not a member of the vocabulary.
+    ///
+    /// <para>It must never be read as "reject". Every write site treats a null
+    /// Iso19650Role as "the caller did not supply this field, leave the stored value
+    /// alone"; a site that guarded with IsCanonical and rejected on false would make
+    /// every partial update fail for anyone whose row is already correct. The
+    /// behavioural half is covered by
+    /// An_edit_that_omits_the_field_leaves_a_stray_row_untouched_and_succeeds; this
+    /// pins the unit contract that sits under it.</para>
+    /// </summary>
+    [Fact]
+    public void Null_is_not_canonical_and_that_must_not_mean_rejected()
+    {
+        Assert.False(Iso19650Roles.IsCanonical(null));
+        Assert.False(Iso19650Roles.IsCanonical(""));
+        Assert.False(Iso19650Roles.IsCanonical("   "));
+    }
+
+    /// <summary>
+    /// The four values found in real ProjectMember rows that this vocabulary does
+    /// NOT contain. "K" and "C" came from a dead gate; "EL" and "S" are strays, "S"
+    /// having leaked from the AppUser role list, which is a different vocabulary.
+    ///
+    /// <para>Pinned because the tempting repair for a stray row is to widen the
+    /// vocabulary until it validates, which resolves the error by accepting the bad
+    /// data. Each of these is one character away from a real code — S/SE/SC, C/CE —
+    /// so widening looks reasonable at the moment somebody does it.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("K")]
+    [InlineData("C")]
+    [InlineData("EL")]
+    [InlineData("S")]
+    public void A_known_stray_is_not_in_the_vocabulary(string stray)
+    {
+        Assert.False(Iso19650Roles.IsCanonical(stray));
+    }
 }

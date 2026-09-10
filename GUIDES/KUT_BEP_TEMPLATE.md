@@ -135,15 +135,15 @@
 
 ### 4.2 File / container naming convention
 `[Project]-[Originator]-[Volume/System]-[Level]-[Type]-[Role]-[Number]`
-Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
+Example: `KUT-SMB-ZZ-XX-M3-A-0001`  *(the originator field is exactly 3 characters)*
 | Field | Codes |
 |---|---|
 | Project | `KUT` |
-| Originator | `[FILL: PLNS, SYM, …per firm]` |
-| Volume/System | `[FILL: ZZ, Z1…]` |
+| Originator | `[FILL: 3 characters, per firm, from the originator register]` |
+| Volume/System | `01`–`06` per building · `00` site-wide · `ZZ` all volumes · `XX` not applicable |
 | Level | `[FILL: GF, 01, ZZ]` |
 | Type | `[FILL: M3, DR, SH, SP…]` |
-| Role | A, S, M, E, P, FP, G, Z |
+| Role | `A`, `C`, `E`, `I`, `M`, `P`, `Q`, `S`, `W`, `X`, `Y`, `Z` |
 | Number | 0001… |
 
 ### 4.3 CDE states & suitability codes
