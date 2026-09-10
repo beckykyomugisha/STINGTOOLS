@@ -14,12 +14,13 @@ This is the house failure mode CLAUDE.md describes -- an absent side effect that
 exactly like a completed one -- in the place where it costs a delivery gate.
 
 WHAT IT CHECKS
-  1. The extraction window is sound. ``ResolveCommand`` lives at
-     WorkflowEngine.cs:1377-2257 and MUST contain exactly one ``switch``. If a future
-     edit moves or splits the method, the window would silently start scraping ``case``
-     labels from a neighbouring switch and report a HIGHER resolve rate than reality.
-     A checker that widens its own view rather than failing is worse than no checker,
-     so this aborts instead.
+  1. The extraction window is sound. ``ResolveCommand`` is located by its signature and
+     brace-matched to its end (string literals and comments are blanked first, so a brace
+     inside ``$"{x}"`` cannot end the method early), and the body MUST contain exactly one
+     ``switch (tag)`` reaching ``default: return null;``. If the dispatcher is restructured,
+     this aborts rather than scraping ``case`` labels from somewhere else and reporting a
+     HIGHER resolve rate than reality. A checker that widens its own view rather than
+     failing is worse than no checker.
   2. It discriminates. A known-good tag must be found and a nonsense tag must not.
      Every gate on this project was wrong on its first run; this one says so out loud
      before it reports anything.
@@ -39,10 +40,20 @@ import re
 import sys
 from pathlib import Path
 
-# ResolveCommand's body. Deliberately hard-coded and then VERIFIED (check 1 below)
-# rather than located by a regex that could drift onto another method.
-RESOLVE_START = 1377
-RESOLVE_END = 2257
+# ResolveCommand's body is LOCATED, not hard-coded.
+#
+# It used to be the literal line range 1395-2244, verified to hold exactly one switch.
+# That was safe but it cried wolf: adding a single `case` to ResolveCommand pushes its
+# closing `default: return null;` past the end of the window, and the checker then refused
+# to run - correctly, but on a change that was perfectly fine. A gate that goes red on
+# unrelated edits gets switched off, and this one now runs in CI
+# (.github/workflows/kut-workflow-tags.yml).
+#
+# So the window is derived: find the method by its SIGNATURE, brace-match to its end, and
+# then apply exactly the same three assertions to whatever that region turns out to be.
+# Anchoring on the signature is strictly stronger than a line range - a line range can
+# drift onto a neighbouring method, a signature cannot.
+RESOLVE_SIGNATURE = 'private static IExternalCommand ResolveCommand('
 
 WORKFLOW_GLOB = "StingTools/Data/WORKFLOW_KUT_*.json"
 ENGINE = "StingTools/Core/WorkflowEngine.cs"
@@ -61,40 +72,121 @@ def fail(msg: str) -> None:
     sys.exit(2)
 
 
-def extract_case_labels(engine_path: Path) -> set[str]:
-    lines = engine_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    if len(lines) < RESOLVE_END:
-        fail(
-            f"{engine_path} has only {len(lines)} lines; the ResolveCommand window "
-            f"{RESOLVE_START}-{RESOLVE_END} no longer exists. The method has moved -- "
-            "re-locate it and update RESOLVE_START/RESOLVE_END rather than widening the window."
-        )
-    window = "\n".join(lines[RESOLVE_START - 1 : RESOLVE_END])
+def strip_strings_and_comments(text: str) -> str:
+    """Blank out string/char literals and comments, keeping length and newlines.
 
-    # Check 1: exactly one switch in the window.
+    Brace-matching a C# method has to ignore braces inside `$"{x}"` and inside a comment,
+    or the method's end is found in the wrong place - and a window that ends in the wrong
+    place is exactly the silent mis-measurement this gate exists to prevent.
+    """
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if c == "/" and nxt == "/":
+            while i < n and text[i] != "\n":
+                out.append(" ")
+                i += 1
+            continue
+        if c == "/" and nxt == "*":
+            while i < n and not (text[i] == "*" and i + 1 < n and text[i + 1] == "/"):
+                out.append("\n" if text[i] == "\n" else " ")
+                i += 1
+            out.append("  ")
+            i += 2
+            continue
+        if c == "@" and nxt == '"':                       # verbatim string
+            out.append("  ")
+            i += 2
+            while i < n:
+                if text[i] == '"':
+                    if i + 1 < n and text[i + 1] == '"':   # "" escape
+                        out.append("  ")
+                        i += 2
+                        continue
+                    out.append(" ")
+                    i += 1
+                    break
+                out.append("\n" if text[i] == "\n" else " ")
+                i += 1
+            continue
+        if c in ('"', "'"):                                # regular string / char literal
+            quote = c
+            out.append(" ")
+            i += 1
+            while i < n:
+                if text[i] == "\\":
+                    out.append("  ")
+                    i += 2
+                    continue
+                if text[i] == quote:
+                    out.append(" ")
+                    i += 1
+                    break
+                out.append("\n" if text[i] == "\n" else " ")
+                i += 1
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def locate_resolve_command(text: str) -> tuple[int, int]:
+    """Character offsets of ResolveCommand's body, found by signature + brace match."""
+    blank = strip_strings_and_comments(text)
+    hits = blank.count(RESOLVE_SIGNATURE)
+    if hits != 1:
+        fail(
+            f"expected exactly 1 declaration of '{RESOLVE_SIGNATURE}...', found {hits}. "
+            "Refusing to guess which one is the dispatcher."
+        )
+    start = blank.index(RESOLVE_SIGNATURE)
+    brace = blank.index("{", start)
+    depth = 0
+    for i in range(brace, len(blank)):
+        if blank[i] == "{":
+            depth += 1
+        elif blank[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return brace, i + 1
+    fail("ResolveCommand's opening brace is never closed -- the file is truncated or unbalanced.")
+
+
+def extract_case_labels(engine_path: Path) -> set[str]:
+    text = engine_path.read_text(encoding="utf-8", errors="replace")
+    lo, hi = locate_resolve_command(text)
+    window = text[lo:hi]
+    first_line = text.count("\n", 0, lo) + 1
+    last_line = text.count("\n", 0, hi) + 1
+    print(f"ResolveCommand located at {engine_path.name}:{first_line}-{last_line} "
+          f"(by signature + brace match, not a hard-coded range)")
+
+    # Check 1: exactly one switch in the located body.
     switches = SWITCH_RE.findall(window)
     if len(switches) != 1:
         fail(
-            f"the window {engine_path}:{RESOLVE_START}-{RESOLVE_END} contains "
-            f"{len(switches)} 'switch(' statements, expected exactly 1. Either "
-            "ResolveCommand has moved, or a second switch is now inside the window and "
-            "its case labels would inflate the resolvable set. Refusing to report a "
-            "resolve rate from a window I cannot vouch for."
+            f"ResolveCommand's body ({engine_path.name}:{first_line}-{last_line}) contains "
+            f"{len(switches)} 'switch(' statements, expected exactly 1. A second switch "
+            "inside it would inflate the resolvable set with case labels that are not "
+            "command tags. Refusing to report a resolve rate from a body I cannot vouch for."
         )
-    # Check 1b: it is the RIGHT switch, and the window still reaches its end. A window
-    # that has drifted off the bottom would clip real cases and under-report; one that
-    # has drifted off the top would scrape a neighbouring method. Both must be loud.
+    # Check 1b: it is the RIGHT switch, and the body really is the whole dispatcher.
+    # Kept from the hard-coded-window version: locating by signature makes drift onto a
+    # neighbouring method impossible, but these still catch a dispatcher that has been
+    # restructured into a shape this checker no longer measures correctly.
     if "switch (tag)" not in window and "switch(tag)" not in window:
         fail(
-            f"the single switch in {engine_path}:{RESOLVE_START}-{RESOLVE_END} is not "
-            "'switch (tag)'. The window is no longer looking at ResolveCommand."
+            f"the single switch in ResolveCommand ({engine_path.name}:{first_line}-{last_line}) "
+            "is not 'switch (tag)'. The dispatcher has been restructured; re-read it before "
+            "trusting any resolve rate."
         )
     if "default: return null;" not in window:
         fail(
-            f"the window {engine_path}:{RESOLVE_START}-{RESOLVE_END} does not reach "
-            "ResolveCommand's 'default: return null;'. It has drifted and would clip real "
-            "case labels, reporting tags as unresolvable that in fact resolve -- or worse, "
-            "the reverse after a later edit. Re-locate the method."
+            f"ResolveCommand's body ({engine_path.name}:{first_line}-{last_line}) has no "
+            "'default: return null;'. Either the method has been restructured, or the brace "
+            "match ended early -- either way the case labels below may be incomplete."
         )
     return set(CASE_RE.findall(window))
 
@@ -122,7 +214,7 @@ def main() -> int:
         fail(f"{engine} not found (run from the repo root, or pass the root as argv[1])")
 
     labels = extract_case_labels(engine)
-    print(f"ResolveCommand case labels in {ENGINE}:{RESOLVE_START}-{RESOLVE_END}: {len(labels)}\n")
+    print(f"ResolveCommand case labels: {len(labels)}\n")
     selftest(labels)
 
     files = sorted((root / "StingTools" / "Data").glob("WORKFLOW_KUT_*.json"))

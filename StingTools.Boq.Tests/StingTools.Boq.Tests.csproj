@@ -117,8 +117,24 @@
          station, this only does the maths. -->
     <Compile Include="..\StingTools\Core\Twin\BmsValuation.cs" Link="Twin\BmsValuation.cs" />
     <!-- The oBIX/JSON shape handling under the certification decision. Extracted from
-         NiagaraJsonClient.cs, which logs through StingLog and so cannot be linked here. -->
+         NiagaraJsonClient.cs so it could be linked before this project carried a StingLog
+         shim; both are linked now. -->
     <Compile Include="..\StingTools\Core\Twin\NiagaraPointParser.cs" Link="Twin\NiagaraPointParser.cs" />
+    <!-- The rest of the Niagara live path. Both log through StingLog, so they ride the
+         TestHelpers/StingLogShim.cs no-op in the same namespace - the pattern
+         StingTools.Visibility.Tests and StingTools.Acc.Tests already use, because
+         StingTools/Core/StingLog.cs itself cannot be linked (it drags in
+         StingTools.Core.Drawing).
+
+         These are linked because the defect was NOT in the parser: the parser correctly
+         reported the failure, NiagaraJsonClient.ParsePoints threw the flag away, and
+         CommissioningSource then reported Live and overwrote the cached snapshot. A test
+         over the parser alone would have passed against every version of that bug. -->
+    <Compile Include="..\StingTools\Core\Twin\NiagaraJsonClient.cs" Link="Twin\NiagaraJsonClient.cs" />
+    <Compile Include="..\StingTools\Core\Twin\CommissioningSource.cs" Link="Twin\CommissioningSource.cs" />
+    <!-- One copy of the loopback listener, shared with StingTools.Acc.Tests rather than
+         duplicated. A second copy would drift, and this one is already proven. -->
+    <Compile Include="..\StingTools.Acc.Tests\TestHelpers\LoopbackServer.cs" Link="TestHelpers\LoopbackServer.cs" />
   </ItemGroup>
 
   <ItemGroup>

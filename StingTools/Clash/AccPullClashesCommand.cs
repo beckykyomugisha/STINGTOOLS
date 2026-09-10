@@ -172,38 +172,14 @@ namespace StingTools.Core.Clash
             return Result.Succeeded;
         }
 
-        /// <summary>Message for a read that did NOT succeed. It names the failure kind, the
-        /// container that was used, and what to check — deliberately never the words
-        /// "clash-clean" or "no clashes", because a failure that reads as an empty result is
-        /// how a coordination gate passes without having checked anything.</summary>
+        /// <summary>Message for a read that did NOT succeed. Delegates to
+        /// <see cref="AccCommandOutcome.FailureMessage"/> so this command and
+        /// AccSyncIssueStatusCommand cannot describe the same failure differently, and so
+        /// the wording is covered by a test — it lives in a Revit-free file precisely
+        /// because this one cannot be linked into a test project.</summary>
         internal static string FailureMessage(string what, AccFetchStatus status, int httpStatus,
             string detail, string containerId)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Could not read {what} from ACC. NOTHING WAS CHECKED — this is not a clean result.");
-            sb.AppendLine();
-            sb.AppendLine($"Failure: {status}");
-            sb.AppendLine($"Reason:  {(string.IsNullOrEmpty(detail) ? AccFetchOutcome.Describe(status, httpStatus) : detail)}");
-            sb.AppendLine($"Container id used: {(string.IsNullOrEmpty(containerId) ? "(none)" : containerId)}");
-            sb.AppendLine();
-            switch (status)
-            {
-                case AccFetchStatus.AuthFailed:
-                    sb.AppendLine("Sign in to Autodesk again (BIM Coordination Center → Platforms → ACC), " +
-                                  "then confirm the app's Client ID/Secret and that the account can see this project.");
-                    break;
-                case AccFetchStatus.NotFound:
-                    sb.AppendLine("Check the container id. ProjectId is the Issues container; set " +
-                                  "CoordContainerId when the Model Coordination container differs. If both are " +
-                                  "correct, the clash-service sub-path has changed and needs confirming against APS.");
-                    break;
-                default:
-                    sb.AppendLine("Check network access to developer.api.autodesk.com and retry. If the payload " +
-                                  "shape has changed, the clash-service sub-path needs confirming against APS.");
-                    break;
-            }
-            return sb.ToString();
-        }
+            => AccCommandOutcome.FailureMessage(what, status, httpStatus, detail, containerId);
 
         // Idempotent push: skip clashes already issued (by stable signature), record the
         // returned ACC issue id in the sidecar so re-runs don't create duplicate issues.

@@ -262,33 +262,94 @@ namespace StingTools.V6
 
         /// <summary>Pull the full issue set from ACC, following pagination (offset
         /// loop) so large projects aren't truncated at the first page. 429s retried
-        /// per page with back-off; stops at the first short page or maxPages cap.</summary>
-        public static async Task<List<AccIssue>> PullIssuesAsync(AccCredentials creds, int pageSize = 100, int maxPages = 200)
+        /// per page with back-off; stops at the first short page or maxPages cap.
+        ///
+        /// Returns an <see cref="AccFetchResult{T}"/>, not a bare list, because the three
+        /// old exits — auth failure, a mid-pagination HTTP error, and success — all
+        /// returned a <c>List&lt;AccIssue&gt;</c> that the caller could not tell apart.
+        /// AccSyncIssueStatusCommand then read "issue absent from the list" as
+        /// "ACC deleted our issue", so an expired token made every escalated clash look
+        /// deleted, and a page-2 failure produced a PARTIAL reconciliation presented as a
+        /// complete one — after which the escalation sidecar was written.
+        ///
+        /// A PARTIAL read is a FAILURE. Only a run that read every page it needed is
+        /// Ok/EmptyOk; the rows gathered before the break are still returned in Value for
+        /// diagnostics, and Detail names how many pages succeeded.</summary>
+        public static async Task<AccFetchResult<List<AccIssue>>> PullIssuesAsync(
+            AccCredentials creds, int pageSize = 100, int maxPages = 200)
         {
             var list = new List<AccIssue>();
-            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return list;
+            if (!await EnsureAuthAsync(creds).ConfigureAwait(false))
+            {
+                StingLog.Warn("AccIssueSync.PullIssues: no access token (refresh rejected or absent).");
+                return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.AuthFailed, list, 0,
+                    "no ACC access token could be obtained — the refresh token in acc_credentials.json " +
+                    "was rejected or is absent, so no issue was read at all");
+            }
 
             int offset = 0;
+            int pagesRead = 0;
             for (int page = 0; page < maxPages; page++)
             {
                 JObject j = null;
+                int lastStatus = 0;
                 for (int attempt = 0; attempt < 4 && j == null; attempt++)
                 {
-                    var req = new HttpRequestMessage(HttpMethod.Get,
-                        $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                    var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                    if ((int)resp.StatusCode == 429) { await Task.Delay(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
-                    if (!resp.IsSuccessStatusCode)
+                    try
                     {
-                        StingLog.Warn($"AccIssueSync.PullIssues {(int)resp.StatusCode} at offset {offset}");
-                        return list;
+                        using var req = new HttpRequestMessage(HttpMethod.Get,
+                            $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
+                        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                        using var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                        lastStatus = (int)resp.StatusCode;
+                        if (lastStatus == 429) { await DelayHook(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            StingLog.Warn($"AccIssueSync.PullIssues {lastStatus} at offset {offset}");
+                            var st = AccFetchOutcome.Classify(lastStatus, -1);
+                            return AccFetchResult<List<AccIssue>>.Failure(st, list, lastStatus,
+                                $"the issue list failed at page {pagesRead + 1} (offset {offset}) after " +
+                                $"{pagesRead} page(s) succeeded — {AccFetchOutcome.Describe(st, lastStatus)}. " +
+                                $"The {list.Count} issue(s) already read are an INCOMPLETE set and must not be " +
+                                "reconciled against.");
+                        }
+                        string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        try { j = JObject.Parse(body); }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn("AccIssueSync.PullIssues parse: " + ex.Message);
+                            return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                                $"page {pagesRead + 1} of the issue list was not valid JSON ({ex.Message}) after " +
+                                $"{pagesRead} page(s) succeeded");
+                        }
                     }
-                    j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                    catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is IOException)
+                    {
+                        // A network failure part-way through pagination is the shape that
+                        // produced a partial reconciliation. It is a failure, not a short read.
+                        StingLog.Warn("AccIssueSync.PullIssues transport: " + ex.Message);
+                        return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 0,
+                            $"the issue list request did not complete at page {pagesRead + 1} after " +
+                            $"{pagesRead} page(s) succeeded: {ex.Message}");
+                    }
                 }
-                if (j == null) break;
+                if (j == null)
+                {
+                    // Four consecutive 429s. Whatever we have is a partial set.
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                        $"Autodesk rate-limited page {pagesRead + 1} of the issue list on all 4 attempts " +
+                        $"(HTTP {lastStatus}) after {pagesRead} page(s) succeeded");
+                }
 
-                var results = j["results"] as JArray ?? new JArray();
+                var results = j["results"] as JArray;
+                if (results == null)
+                {
+                    // 200 with an unrecognised payload — a schema/sub-path change, never
+                    // "this container has no issues".
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                        $"page {pagesRead + 1} of the issue list carried no 'results' array — the " +
+                        "construction/issues/v1 payload shape has changed");
+                }
                 foreach (var t in results)
                 {
                     list.Add(new AccIssue
@@ -302,10 +363,16 @@ namespace StingTools.V6
                         LocationDescription = (string)t["location_description"] ?? string.Empty,
                     });
                 }
-                if (results.Count < pageSize) break;   // last page
+                pagesRead++;
+                if (results.Count < pageSize) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
                 offset += pageSize;
             }
-            return list;
+
+            // Ran out of maxPages without ever seeing a short page: there is more than we
+            // read, so this is also an incomplete set.
+            return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 200,
+                $"stopped at the {maxPages}-page cap with {pagesRead} page(s) read and no final short " +
+                "page — the container holds more issues than this read covered, so the set is INCOMPLETE");
         }
 
         /// <summary>True when an ACC issue status represents a closed/resolved state.</summary>

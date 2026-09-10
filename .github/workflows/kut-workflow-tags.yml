@@ -1,0 +1,65 @@
+name: KUT Workflow Tag Gate
+
+# Every step of every shipped KUT workflow must resolve to a real command.
+#
+# WHY THIS RUNS IN CI
+# A workflow step whose `commandTag` is not a `case` label in
+# WorkflowEngine.ResolveCommand parses perfectly, runs, and does NOTHING. So does a
+# step that spells its keys `command` / `name` instead of `commandTag` / `label`.
+# Neither produces an error, a warning or a log line: the run reports success having
+# skipped the step. On KUT those ten workflows are the fortnightly coordination
+# rhythm and the deliverable gates, so a silently-skipped step is a coordination
+# cycle nobody performed and a gate nobody ran.
+#
+# tools/check_kut_workflow_tags.py was written to catch exactly that, and it works —
+# but until this file, nothing ran it. A checker nobody runs rots: the first edit
+# that moves ResolveCommand or renames a tag would go unnoticed for as long as it
+# took someone to remember the script existed. That is the same failure shape as
+# issue #553, where two test projects stopped compiling and reported nothing for two
+# and a half months.
+#
+# WHAT THE CHECKER PROVES (see its docstring for the detail)
+#   * its own extraction window still holds exactly one `switch (tag)` reaching
+#     `default: return null;` — it aborts rather than silently widening or clipping;
+#   * it discriminates: a known-good tag is found and a nonsense tag is not, asserted
+#     before any resolve rate is reported;
+#   * every step uses `commandTag` + `label`;
+#   * every tag resolves. Baseline: 97/97 across 10 files.
+#
+# WHAT IT CANNOT PROVE: that a resolving command does the right thing, or anything
+# about a real Revit model. A green run means no step is silently dead.
+#
+# NO PYTHON DEPENDENCIES. The checker is stdlib-only so it runs on a bare runner —
+# the same constraint kut-document-gate.yml works under. Keep it that way.
+
+on:
+  push:
+    paths:
+      - 'StingTools/Data/WORKFLOW_KUT_*.json'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'tools/check_kut_workflow_tags.py'
+      - '.github/workflows/kut-workflow-tags.yml'
+  pull_request:
+    paths:
+      - 'StingTools/Data/WORKFLOW_KUT_*.json'
+      - 'StingTools/Core/WorkflowEngine.cs'
+      - 'tools/check_kut_workflow_tags.py'
+      - '.github/workflows/kut-workflow-tags.yml'
+  workflow_dispatch:
+
+jobs:
+  kut-workflow-tags:
+    name: Every KUT workflow step resolves to a real command
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Gate the KUT workflow command tags
+        run: python tools/check_kut_workflow_tags.py .

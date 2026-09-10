@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -2880,6 +2880,10 @@ namespace StingTools.UI
                     // The REAL upload (APS Data Management), as distinct from ACCPublish,
                     // which only builds a local ACC-ready bundle for manual upload.
                     case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;
+                    // Non-interactive twin: uploads the bundle ACCPublish recorded, so no
+                    // file picker is needed. Deliberately in no KUT workflow (see the
+                    // command's header) - the capability is wired, the decision is not made.
+                    case "ACC_UploadLastBundle": RunCommand<Core.Clash.AccUploadLastBundleCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {

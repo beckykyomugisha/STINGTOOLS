@@ -2,6 +2,86 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 275 — the two read paths #927 did not reach)
+
+Phase 265 gave ACC reads an outcome (`Ok` / `EmptyOk` / `AuthFailed` / `NotFound` /
+`TransportFailed`) and applied it to Model Coordination clashes. **The same defect was
+still live in two other read paths, and one was worse than the one that was fixed.**
+
+**A failed ACC issue read read as "the issues are gone".**
+`AccIssueSync.PullIssuesAsync` returned a bare `List<AccIssue>` from three exits — auth
+failure, a mid-pagination HTTP error, and success. `AccSyncIssueStatusCommand` reconciled
+the escalation sidecar against that list and reported every tracked clash whose issue was
+absent as `NOT_FOUND / keep`. So an expired token made **every escalated clash look deleted
+from ACC**, and a page-2 failure produced a **partial reconciliation presented as a
+complete one** — after which the sidecar was written, permanently un-tracking whatever
+happened to be on page 1.
+
+It now returns `AccFetchResult<List<AccIssue>>`. **A partial read is a failure**: only a run
+that saw a final short page is `Ok`/`EmptyOk`, and the `Detail` names how many pages
+succeeded before it broke. The command refuses to reconcile, returns `Result.Failed`, and
+says so — *"The escalation record was left untouched — nothing was un-tracked."*
+
+**A malformed Niagara feed read as "live, nothing commissioned" — and deleted the
+fallback.** Four steps compounded. `NiagaraPointParser.Parse` correctly flagged an
+unparseable body; `NiagaraJsonClient.ParsePoints` logged that and **returned the empty
+points anyway**, discarding the flag; the empty dictionary is not null, so
+`CommissioningSource.Resolve` took the *live* branch and reported `live (captured …)`; and
+`Persist` then wrote that empty result over `last_station_points.json`, **destroying the
+last good snapshot — the fallback that exists precisely for an unreachable station**.
+`KUT_ValuationFromBms` turns those points into a commissioning percentage the cost module
+carries toward payment certification.
+
+The worst input was `{"error":"unauthorized"}`: it *parses*, yields zero points and sets no
+error at all, so nothing anywhere reported a problem. The parser now separates "not a
+points feed I recognise" from "a points feed with nothing on it" — a JSON error envelope,
+an HTML error page, a bare scalar, and a feed whose entries all lack a readable id are each
+unusable; `[]`, `{"points":[]}` and `{}` remain a legitimately empty station. `ParsePoints`
+returns null for every unusable body, and `Persist` refuses to overwrite a usable snapshot
+with an empty read — `LoadCache` rejects a zero-point snapshot, so writing one does not
+update the cache, it removes it.
+
+**Not over-corrected.** A station with nothing commissioned yet still reports
+`live (captured …)` with zero points, an empty ACC container is still `EmptyOk`, and a
+clash-clean model set still passes. The bug was failures masquerading as empty, never
+emptiness itself.
+
+**The last mile is now tested.** The branch that decides `Result.Failed` lived inside two
+Revit-bound commands that no test project can link, so it was verified by reading — the same
+gap the whole exercise is about. `V6/AccCommandOutcome.cs` holds that decision, Revit-free,
+and both commands call it, so they cannot describe the same failure differently. Its table
+is driven by `Enum.GetValues<AccFetchStatus>()`, and its switches **throw** on an unhandled
+member rather than defaulting, so a status added without a decision goes red immediately.
+The phrase "404 Not Found" was dropped from the failure text: it is the HTTP reason phrase
+and it invites exactly the misreading — a test asserts "clash-clean", "no clashes" and
+"not found" cannot appear in any failure message.
+
+**Four smaller closures.**
+
+- `tools/check_kut_workflow_tags.py` now runs in CI (`.github/workflows/kut-workflow-tags.yml`).
+  Its extraction window also stopped being a hard-coded line range: adding one `case` to
+  `ResolveCommand` pushed `default: return null;` past the end and the checker refused to
+  run — correct, but on a perfectly fine change, and a gate that cries wolf gets switched
+  off. It now locates the method by signature and brace-matches to its end, keeping all
+  three assertions. 97/97 across 10 files.
+- `ACCPublish` records the ZIP it built (`_BIM_COORD/acc/last_bundle.json`), so
+  `ACC_UploadLastBundle` can upload it with no file picker. A record naming a file that is
+  no longer on disk is **not** a bundle — that rule is what keeps this a file *choice*
+  rather than the guess #927 refused to make. **Still in no KUT workflow**, deliberately.
+- `AccModelUpload.UploadResult` carries an `AccFetchStatus` and HTTP status beside
+  `Ok`/`Message`, so a 403 on storage creation reads as an auth problem rather than as
+  "it didn't work".
+- `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` updated: its expected-output sections described
+  failures that no longer look like that.
+
+`CLAUDE.md` corrections, each re-measured in the session that changed it: the Boq test row
+(121 declared / 196 cases → **956 / 1,335**), a new Acc row (**60 / 67** — that surface had
+none), and the healthcare Niagara caveat, which was true of `TwinReadback` and read as
+"Niagara is absent" when two of its three paths are built.
+
+Build 0 errors / 0 warnings. `StingTools.Acc.Tests` 67 passing (was 38);
+`StingTools.Boq.Tests` 1,335 passing (was 1,316).
+
 #### Completed (Phase 274 — the ACC coordination gate that could pass without checking)
 
 **On a wrong container id, the KUT fortnightly coordination cycle reported a

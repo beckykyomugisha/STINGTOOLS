@@ -31,11 +31,22 @@
          (HTTP status + parsed count -> Ok / EmptyOk / AuthFailed / NotFound /
          TransportFailed) is testable on its own. -->
     <Compile Include="..\StingTools\V6\AccFetchOutcome.cs" Link="V6\AccFetchOutcome.cs" />
+    <!-- The command DECISION, extracted out of the Revit-bound commands so the branch that
+         makes the whole outcome split matter (Result.Failed instead of Succeeded) is
+         covered by a test rather than by reading. -->
+    <Compile Include="..\StingTools\V6\AccCommandOutcome.cs" Link="V6\AccCommandOutcome.cs" />
     <!-- The real clients. A pure-function test alone would be an alternative-path escape:
          it would not catch the CLIENT mapping a 404 to an empty list, which is the actual
          defect. So the real transports are linked and driven over a loopback listener. -->
     <Compile Include="..\StingTools\V6\AccModelCoordSync.cs" Link="V6\AccModelCoordSync.cs" />
     <Compile Include="..\StingTools\V6\AccIssueSync.cs" Link="V6\AccIssueSync.cs" />
+    <!-- A5: the record ACCPublish writes so ACC_UploadLastBundle can upload the bundle it
+         built without a human picking a file. The "is the file still there?" rule is the
+         difference between a file choice and a guess, so it is tested. -->
+    <Compile Include="..\StingTools\V6\AccBundleRecord.cs" Link="V6\AccBundleRecord.cs" />
+    <!-- A6: the uploader, so a 403 on storage creation can be proved to surface as an
+         auth-kind failure rather than a bare Ok=false. -->
+    <Compile Include="..\StingTools\V6\AccModelUpload.cs" Link="V6\AccModelUpload.cs" />
     <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob;
          StingTools/Core/StingLog.cs cannot be linked (it drags in StingTools.Core.Drawing). -->
   </ItemGroup>
