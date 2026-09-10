@@ -40,15 +40,15 @@ c.title_page(
     control_rows=[
         ('Document reference', 'KUT-%s-ZZ-ZZ-RP-Z-0003' % ORIGINATOR),
         ('Revision', 'P01'),
-        ('Status / suitability', 'A1 — Authorised for use'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('Prepared by', 'Symbion Consulting Group Studios'),
         ('Role', 'Information Manager'),
         ('Date of issue', '[FILL]'),
     ],
     note='Supersedes the earlier Document Control Standard and Numbering Convention issued before the '
-         'numbering was settled. Issued through the Common Data Environment. Uncontrolled when printed.')
+         'numbering was settled. Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT Document Control Standard   |   Rev P01')
+c.footer('KUT Document Control Standard   |   Rev P01 — DRAFT')
 
 # ── document control ────────────────────────────────────────────────────────
 c.h1('Document control')
@@ -312,7 +312,7 @@ c.properties(
     title='KUT Document Control Standard',
     subject='Kampala Uganda Temple — numbering, revision, issue and retirement of project information',
     category='Project procedure',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.',
     author='Symbion Consulting Group Studios')
 
 c.save(OUT, generator='tools/build_document_control.py')

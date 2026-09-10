@@ -27,16 +27,16 @@ c.title_page(
     control_rows=[
         ('Document reference', 'KUT-%s-ZZ-ZZ-RP-Z-0004' % ORIGINATOR),
         ('Revision', 'P01'),
-        ('Status / suitability', 'S3 — for review and response'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('From', 'Mayanja Davis, Information Management'),
         ('To', '[FILL — name], Symbion Consulting Group Studios (Lead Appointed Party)'),
         ('Copied to', '[FILL]'),
         ('Date', '[FILL]'),
         ('Response requested by', '[FILL — suggest five working days]'),
     ],
-    note='Issued through the Common Data Environment. Uncontrolled when printed.')
+    note='Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT Mobilisation Information Request   |   Rev P01')
+c.footer('KUT Mobilisation Information Request   |   Rev P01 — DRAFT')
 
 # ── 1 ───────────────────────────────────────────────────────────────────────
 c.h1('1  Purpose', page_break=False)
@@ -224,7 +224,7 @@ c.properties(
     title='KUT Mobilisation Information Request',
     subject='Kampala Uganda Temple — information required to complete mobilisation',
     category='Project correspondence',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.',
     author='Symbion Consulting Group Studios')
 
 c.save(OUT, generator='tools/build_symbion_request.py')

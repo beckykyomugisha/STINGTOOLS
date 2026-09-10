@@ -94,7 +94,7 @@ ws.row_dimensions[7].height = 32
 meta = [
     ('Document reference', 'KUT-SMB-ZZ-ZZ-SC-Z-0001'),
     ('Revision', 'P01'),
-    ('Status / suitability', 'A1 — Authorised for use'),
+    ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
     ('Prepared by', 'Symbion Consulting Group Studios (Information Manager)'),
     ('Baselined', '[FILL — date]'),
     ('Last updated', '[FILL — date]'),
@@ -146,7 +146,7 @@ for rr in range(r, r + 3):
         ws.cell(row=rr, column=cc).fill = shade_fill
 r += 4
 
-ws.cell(row=r, column=2, value=('Issued through the Common Data Environment. Uncontrolled when printed.')).font = small_f
+ws.cell(row=r, column=2, value=('Not yet issued through the Common Data Environment. Uncontrolled when printed.')).font = small_f
 
 # ═══ 1b. Programme ══════════════════════════════════════════════════════════
 # ONE input: the appointment date. Every calendar date in this workbook derives
@@ -719,7 +719,7 @@ wb.properties.modified = _EPOCH
 # the gate can read it back with plain `zipfile` and stay stdlib-only.
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 wb.properties.description = K.with_provenance(
-    'Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
+    'Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.',
     # GENERATED is keyed by BASENAME, not by path: corporate_docx.save() looks
     # a document up by basename to decide whether to stamp provenance, and the
     # two must agree or the stamp is silently skipped.

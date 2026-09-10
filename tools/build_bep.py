@@ -44,15 +44,15 @@ c.title_page(
     control_rows=[
         ('Document reference', ref('RP-Z-0001')),
         ('Revision', 'P01'),
-        ('Status / suitability', '[FILL — S3 for review, or A1 on acceptance]'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('BEP type', '[FILL — pre-appointment / post-appointment]'),
         ('Owned by', 'Symbion Consulting Group Studios (Lead Appointed Party)'),
         ('Prepared and maintained by', '%s (%s)' % (IM_ORG, IM_NAME)),
         ('Date of issue', '[FILL]'),
     ],
-    note='Issued through the Common Data Environment. Uncontrolled when printed.')
+    note='Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT BIM Execution Plan   |   Rev P01')
+c.footer('KUT BIM Execution Plan   |   Rev P01 — DRAFT')
 
 # ── document control ────────────────────────────────────────────────────────
 c.h1('Document control')
@@ -1179,7 +1179,7 @@ c.properties(
     title='KUT BIM Execution Plan',
     subject='Kampala Uganda Temple — BIM Execution Plan in accordance with BS EN ISO 19650-2',
     category='Project procedure',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
 c.save(OUT, generator='tools/build_bep.py')
 print('saved:', OUT)

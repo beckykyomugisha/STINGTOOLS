@@ -31,15 +31,15 @@ c.title_page(
     control_rows=[
         ('Document reference', 'KUT-SMB-ZZ-ZZ-RP-Z-0002'),
         ('Revision', 'P01'),
-        ('Status / suitability', 'A1 — Authorised for use'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('Prepared by', 'Symbion Consulting Group Studios'),
         ('Role', 'Information Manager'),
         ('Date of issue', '[FILL]'),
     ],
     note='Prepared for the Kampala Uganda Temple project on behalf of the Lead Appointed Party. '
-         'Issued through the Common Data Environment. Uncontrolled when printed.')
+         'Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT Project Delivery Playbook   |   Rev P01')
+c.footer('KUT Project Delivery Playbook   |   Rev P01 — DRAFT')
 
 # ── document control ─────────────────────────────────────────────────────────
 h1('Document control')
@@ -902,7 +902,7 @@ c.properties(
     title='KUT Project Delivery Playbook',
     subject='Kampala Uganda Temple — information management, production and delivery procedures',
     category='Project procedure',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
 c.save(OUT, generator='tools/build_team_playbook.py')
 print('saved:', OUT)
