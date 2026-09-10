@@ -2,6 +2,68 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
+
+**Tier 2 proves preset steps resolve. Nothing proved a shipped command was
+reachable from a preset at all.** A command in neither `ResolveCommand` nor any
+preset is invisible to the gate — which is how seven commands sat outside both
+for a month while `ProjectKickoff` imported the register, built host types from
+it, and never stamped a code, set a class or audited what it built.
+
+**Tier 6 asks the other half of the question**: a `Cmd_Click` button tag with no
+`ResolveCommand` case is reported as **not reachable from a workflow**. It is not
+a claim the button is broken — Tier 4 already proves all 1,681 dispatch on a
+click. It is a claim that a chain cannot call them.
+
+**1,236 of 1,681 button tags** are in that state today, and they ship as
+`tools/workflow_reachability_baseline.txt`. Plenty are legitimately
+interactive-only — a modeless window, a picked element, a dialog with no headless
+meaning — so this is a baseline rather than a hard zero. The file **may shrink,
+never grow**: its entire value is that a *new* button now forces a decision
+instead of a silence.
+
+**A stale entry is REPORTED, not failed, and the asymmetry is deliberate.** A tag
+leaving the list means somebody made it chainable, which is the outcome the tier
+wants; failing for it would punish the fix, and would break whichever of two
+independent PRs merged second. Tier 5's baseline does the opposite — it fails on
+a stale entry — because there a stale line silently re-permits an unbound key.
+Both behaviours are now documented next to each other in the script.
+
+**It reuses Tier 2's `$resolvable` set on purpose.** That set is every `case`
+label in `WorkflowEngine.cs`, a superset of `ResolveCommand`'s own, so Tier 6
+under-reports rather than over-reports and the two tiers cannot disagree about
+what "resolvable" means.
+
+**No numbers are restated from `docs/UNREACHABLE_COMMANDS_TRIAGE.md`.** That file
+counts *command classes* reachable at all across six dispatch layers (1,722
+total, 1,691 reached, re-derived 2026-09-09). Tier 6 counts *button tags*
+reachable from a workflow. Different populations, different question; the two
+figures are not comparable and neither is copied into the other.
+
+**RED then GREEN, both directions, both counts.**
+
+    a NEW button with no ResolveCommand case
+      RED   baseline line for AddLeaders removed — Tier 6 FAILS, naming it:
+            "StingDockPanel.xaml button Tag=""AddLeaders"" has no case in
+             WorkflowEngine.ResolveCommand -- no preset can call it"     (1)
+      GREEN Tier 6 = 0, 1,236 baselined in use
+
+    a baselined tag that BECOMES reachable
+      RED   a ResolveCommand case added for AddLeaders — the gate prints
+            "1 Tier 6 baseline entry/ies are now reachable from a workflow",
+            baselined-in-use drops 1,236 -> 1,235, and EXITS 0
+      GREEN no stale entries
+
+The second RED is the one worth reading: it proves the tier does **not** fail
+when somebody fixes something, which is the property that makes it safe to merge
+independently of the PR that resolves the seven.
+
+Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
+`--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** This is a build-time gate; it never runs in Revit and
+nothing about the plugin's behaviour changed.
+
 #### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
 
 `Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
