@@ -3138,6 +3138,8 @@
                                             ToolTip="Pull clash results from ACC Model Coordination, rank them, write a CSV and escalate the top-ranked back to ACC Issues. Needs %APPDATA%\Planscape\acc_credentials.json."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="ACC Sync" Tag="ACC_SyncIssueStatus" Click="Cmd_Click"
                                             ToolTip="Reconcile ACC Issue status back onto the escalation sidecar, so a closed ACC issue lets a recurring clash re-raise. Needs %APPDATA%\Planscape\acc_credentials.json."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Upload" Tag="ACC_UploadModel" Click="Cmd_Click"
+                                            ToolTip="Pick a file and upload it to ACC Docs for real (APS Data Management). This is the actual upload — 'ACC Publish' only builds a local ACC-ready bundle you would upload by hand. Needs %APPDATA%\Planscape\acc_credentials.json and an APS app with data:read/write/create."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

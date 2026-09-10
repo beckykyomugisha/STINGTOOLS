@@ -951,8 +951,10 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 (Möller–Trumbore SAT triangle intersection), `ObbTree` (oriented bounding box),
 `ClashGrouper`, `ClashRuleEngine`, `ClashHistory`, `ClashPersistence`,
 `LiveClashHandler` + `LiveClashUpdater` (IUpdater-based live detection),
-`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`,
-`AccIssuesClient` (push to ACC Issues API).
+`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`.
+The push to ACC Issues is `StingTools/V6/AccIssueSync.cs` (`construction/issues/v1`).
+A second, orphaned `Clash/AccIssuesClient.cs` posting to `bim360/docs/v1/.../issues/bulk`
+had zero callers and disagreed with the live client's endpoint; it was deleted 2026-09-10.
 
 **Commands (6)**:
 

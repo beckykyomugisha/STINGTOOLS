@@ -60,16 +60,27 @@ namespace StingTools.Core.Clash
             string containerId = creds.CoordContainer;   // falls back to ProjectId
 
             // 1. List model sets and let the user pick.
-            List<AccModelSet> sets;
-            try { sets = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
+            AccFetchResult<List<AccModelSet>> setsResult;
+            try { setsResult = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); TaskDialog.Show("ACC", "Model-set request failed: " + ex.Message); return Result.Failed; }
 
-            if (sets == null || sets.Count == 0)
+            // A failed request is NOT "no model sets". Saying so let a wrong container id
+            // read as a clean federation and pass a coordination gate that checked nothing.
+            if (!setsResult.Succeeded)
+            {
+                TaskDialog.Show("ACC — Pull Clashes", FailureMessage("model sets", setsResult.Status,
+                    setsResult.HttpStatus, setsResult.Detail, containerId));
+                StingLog.Warn($"ACC_PullClashes FAILED ({setsResult.Status}) listing model sets on container '{containerId}': {setsResult.Detail}");
+                return Result.Failed;
+            }
+            var sets = setsResult.Value;
+            if (sets.Count == 0)
             {
                 TaskDialog.Show("ACC — Pull Clashes",
-                    "No coordination model sets returned for this container.\n\n" +
-                    "Confirm the container id (AccCredentials.ProjectId) and that Model " +
-                    "Coordination is enabled on the ACC project.");
+                    "Autodesk answered, and this container has no coordination model sets.\n\n" +
+                    $"Container queried: {containerId}\n\n" +
+                    "Confirm Model Coordination is enabled on the ACC project and that a " +
+                    "model set has been created.");
                 return Result.Succeeded;
             }
 
@@ -80,11 +91,23 @@ namespace StingTools.Core.Clash
             var chosen = sets.First(s => $"{s.Name}  [{s.Id}]" == pick);
 
             // 2. Pull clashes (latest test -> resources -> scope files -> join).
-            List<AccClashRecord> clashes;
-            try { clashes = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
+            AccFetchResult<List<AccClashRecord>> clashResult;
+            try { clashResult = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
 
-            if (clashes == null || clashes.Count == 0)
+            // The load-bearing branch. Only a request that ACTUALLY SUCCEEDED may be
+            // reported as "clash-clean"; every failure names itself and fails the step,
+            // so a workflow cannot record a coordination cycle it never ran.
+            if (!clashResult.Succeeded)
+            {
+                TaskDialog.Show("ACC — Pull Clashes", FailureMessage($"clashes for model set '{chosen.Name}'",
+                    clashResult.Status, clashResult.HttpStatus, clashResult.Detail, containerId));
+                StingLog.Warn($"ACC_PullClashes FAILED ({clashResult.Status}) pulling clashes for set '{chosen.Name}' " +
+                              $"on container '{containerId}': {clashResult.Detail}");
+                return Result.Failed;
+            }
+            var clashes = clashResult.Value;
+            if (clashes.Count == 0)
             {
                 TaskDialog.Show("ACC — Pull Clashes",
                     $"Model set '{chosen.Name}' returned no clashes.\n\n" +
@@ -147,6 +170,39 @@ namespace StingTools.Core.Clash
 
             StingLog.Info($"ACC_PullClashes: {clashes.Count} clashes, {scored.Count} triaged, set '{chosen.Name}'.");
             return Result.Succeeded;
+        }
+
+        /// <summary>Message for a read that did NOT succeed. It names the failure kind, the
+        /// container that was used, and what to check — deliberately never the words
+        /// "clash-clean" or "no clashes", because a failure that reads as an empty result is
+        /// how a coordination gate passes without having checked anything.</summary>
+        internal static string FailureMessage(string what, AccFetchStatus status, int httpStatus,
+            string detail, string containerId)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Could not read {what} from ACC. NOTHING WAS CHECKED — this is not a clean result.");
+            sb.AppendLine();
+            sb.AppendLine($"Failure: {status}");
+            sb.AppendLine($"Reason:  {(string.IsNullOrEmpty(detail) ? AccFetchOutcome.Describe(status, httpStatus) : detail)}");
+            sb.AppendLine($"Container id used: {(string.IsNullOrEmpty(containerId) ? "(none)" : containerId)}");
+            sb.AppendLine();
+            switch (status)
+            {
+                case AccFetchStatus.AuthFailed:
+                    sb.AppendLine("Sign in to Autodesk again (BIM Coordination Center → Platforms → ACC), " +
+                                  "then confirm the app's Client ID/Secret and that the account can see this project.");
+                    break;
+                case AccFetchStatus.NotFound:
+                    sb.AppendLine("Check the container id. ProjectId is the Issues container; set " +
+                                  "CoordContainerId when the Model Coordination container differs. If both are " +
+                                  "correct, the clash-service sub-path has changed and needs confirming against APS.");
+                    break;
+                default:
+                    sb.AppendLine("Check network access to developer.api.autodesk.com and retry. If the payload " +
+                                  "shape has changed, the clash-service sub-path needs confirming against APS.");
+                    break;
+            }
+            return sb.ToString();
         }
 
         // Idempotent push: skip clashes already issued (by stable signature), record the
