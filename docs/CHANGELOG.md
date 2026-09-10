@@ -2,6 +2,121 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
+
+`Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
+`168/168 renamed, 0 failed`. 137 landed on 19 names; 87 floor types — the whole
+finish catalogue — became `PLNS_SLB_RC100`, because all 87 are one ~100 mm layer
+of `Concrete, Cast-in-Place gray` wearing 87 names taken from the corporate
+register. #902 refused the collision. This is the mechanism behind it.
+
+**W3 — the measurement, first, because it changed what W2 should do.**
+
+Two denominators, and conflating them is how the old comment stayed wrong for so
+long. Across the FILES, 326 BLE rows and 120 MEP rows declare no layer at all —
+446 of 1,279. The comment being replaced said the homogeneous fallback "covers
+165+ BLE rows with no layer data"; it is **326**, out by nearly two-fold, and
+that comment was the only record anywhere.
+
+Across the rows a shipped command actually reads — the four host-type commands
+select **380** of the 815 BLE rows by `MAT_ELEMENT_TYPE` — 329 are built from
+their declared layers, 51 take the homogeneous path (all Walls), and **not one**
+trips an invented thickness, a dropped layer or an R-value in a material column.
+
+**And W3's central question is answered in the NEGATIVE.** All 95 `FLR-*` rows
+carry a valid layer 1, so the fallback fires for **none** of them. `BuildLayers`
+only ever uses a material named in the CSV or the row's own, never a Revit stock
+material. `ParseThickness` returns the row's declared thickness (50 / 75 / 40 mm)
+and its only fallback is 10 mm, never 100. The column constants were checked
+against both headers and are correct. **So neither path in this file produced the
+87.** One identical 100 mm layer across 87 differently-declared rows is the
+signature of a duplicated base type whose structure was never replaced — which is
+consistent with W1's catch path and is **not established** as what happened. The
+ten logs on the live plugin path start 2026-08-17 and hold no type-creation line.
+
+**W1 — four creators returned `true` after failing.** `CreateWallType`,
+`CreateFloorType`, `CreateCeilingType` and `CreateRoofType` each caught a
+`SetCompoundStructure` failure, logged a warning, and returned success. The
+comment said it honestly — *"type was created, just no layers"* — and the
+function then told its caller the whole operation had succeeded. `CreateMEPType`,
+eighty lines below, has always returned false on every failure path.
+
+They now return **false**, and the half-made type is **deleted inside the same
+transaction**. The choice is stated in the code rather than left implicit: a type
+carrying a build-up nobody asked for is a wrong quantity that looks like a right
+one, and it measures, prices and carbon-counts exactly like a real one. Deleting
+is safe here specifically because the type was duplicated microseconds earlier in
+the same transaction and this command places no instances. A delete that itself
+fails is its own louder outcome, `RefusedButLeftBehind`, with a WARNING in the
+report — never folded into an ordinary refusal.
+
+`TypeCreationTally` holds the decision and the counting rule, Revit-free.
+"Created N types" no longer means two different things.
+
+**W2 — `BuildLayers` invented, dropped and substituted in silence.** All four are
+now carried out of the function as issues the caller reports:
+
+    <=0 thickness silently became 10 mm    -> reported, and FATAL
+    <1 mm raised to 1 mm                   -> reported, NOT fatal (Revit's own minimum, 180 rows)
+    >500 mm layer silently dropped         -> reported, and FATAL
+    layer material create failed           -> reported; the substitution is named
+
+Making the first and third fatal costs **nothing today** — zero rows the commands
+read trip either — which is the whole argument for doing it now.
+
+**A fifth defect the brief did not list, found by reading:** `CountActualLayers`
+`continue`d past a blank slot and returned a COUNT, which the caller used as an
+INDEX BOUND. A row populating slots 2, 3, 4 was read as slots 1, 2, 3 — a blank
+material at slot 1 and slot 4 silently dropped. Both of the register's only two
+invented thicknesses came from exactly that. Slots are read by position now.
+
+**Two things measured that contradict the code they document.** The >500 mm rule
+cites "300.0 for a 300 mm² conductor" as its reason — 300 is below 500, so that
+conductor is built as a 300 mm layer. And the rule fires on **no row of either
+file**. Both pinned rather than tidied: changing the threshold would be a
+quantity change made on no evidence.
+
+**W4 — the sweep, done properly.** `tools/find_lying_catches.py` brace-matches
+method bodies instead of pattern-matching text, because a regex over a brace
+language cannot see "this catch block ends here and the next statement on this
+path is `return true`". **Its own first version had the same false negative**, by
+a different route: requiring the braces between the catch and the return to
+BALANCE made it miss all four confirmed cases, which sit inside an `if`. Closing
+braces are fine; an opening brace is not.
+
+It also does NOT count a catch that records the failure somewhere the caller or
+the user will see — the `foreach { try/catch { errors.Add } } … return Succeeded`
+shape is a command that succeeded and said what did not, and counting those is
+the trap CLAUDE.md's 683 empty catches already sets.
+
+    before this change   156 total   Tier 1: 25   Tier 2: 131
+    after                152 total   Tier 1: 21   Tier 2: 131
+
+Tier 1 is bool-returning helpers, where the return value IS the caller's only
+signal; all four confirmed cases were there. Tier 2 is `Execute` returning
+`Result.Succeeded`, and eight sampled at random were **all** optional
+side-effects after the real work — opening Explorer, copying to the clipboard,
+refreshing a panel. **152 is a triage list, not 152 defects**, and the only ones
+verified by reading are the four now fixed. Wired into CI as a ratchet that fails
+when the count rises.
+
+**RED then GREEN.** `CompoundLayerPlanTests` — 11 of 14 failed with the old
+`BuildLayers` semantics restored inside the planner; 14 of 14 after.
+`TypeCreationTallyTests` — 6 of 6, and it asserts that the OLD decision printed
+an identical report for a run that built everything and one that refused half.
+The sweep — 156/25 before, 152/21 after, and it finds exactly the four named
+functions when the old file is put back.
+
+Tags 939 passed (baseline 919), Boq 1311 passed, plugin builds 0 warnings /
+0 errors.
+
+**Not verified in Revit.** Nothing ran in a Revit session and `deploy.bat` was
+not run. Specifically unproven: that `doc.Delete` on a just-duplicated
+`HostObjAttributes` succeeds inside the same transaction; that
+`SetCompoundStructure` on the `HostObjAttributes` base behaves as it did on the
+four concrete subtypes; and the new report text, which no user has seen. No
+compound structure was rewritten on any model and no register row was edited.
+
 #### Completed (Phase 268 — W4: FLR-028, register to rate, in one test)
 
     register row FLR-028  ->  a material carrying MAT_CODE = FLR-028
