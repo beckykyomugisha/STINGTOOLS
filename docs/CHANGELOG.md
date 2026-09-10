@@ -109,14 +109,9 @@ addresses.
 Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
 `--check` agrees; 277 JSON files parse.
 
-<<<<<<< HEAD
-**Not verified in Revit.** This is a build-time gate; it never runs in Revit and
-nothing about the plugin's behaviour changed.
-=======
 **Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
 against a live document, and `Materials_StampCodes` in particular has still never
 run against one.
->>>>>>> origin/main
 
 #### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
 
