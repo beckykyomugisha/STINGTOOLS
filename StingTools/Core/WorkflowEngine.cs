@@ -46,7 +46,10 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var presets = WorkflowEngine.GetAvailablePresets();
+            // W4 — pass the document so this project's own workflows layer over the
+            // corporate ones. A project with none gets exactly the previous list.
+            var presets = WorkflowEngine.GetAvailablePresets(
+                ParameterHelpers.GetContext(commandData)?.Doc);
             if (presets.Count == 0)
             {
                 TaskDialog.Show("Workflow Presets", "No workflow presets found.\nUse 'Create Workflow Preset' to define one.");
@@ -135,7 +138,8 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var presets = WorkflowEngine.GetAvailablePresets();
+            var presets = WorkflowEngine.GetAvailablePresets(
+                ParameterHelpers.GetContext(commandData)?.Doc);
             var report = new StringBuilder();
             report.AppendLine("Available Workflow Presets");
             report.AppendLine(new string('═', 45));
@@ -214,113 +218,10 @@ namespace StingTools.Core
     //  WORKFLOW ENGINE — internal orchestration logic
     // ════════════════════════════════════════════════════════════════════════════
 
-    public class WorkflowPreset
-    {
-        [JsonProperty("name")]
-        public string Name { get; set; }
+    // WorkflowPreset and WorkflowStep moved to WorkflowPresetModel.cs so the
+    // preset SHAPE can be asserted without the Revit API. Same namespace; no
+    // call site changed.
 
-        [JsonProperty("description")]
-        public string Description { get; set; }
-
-        [JsonProperty("steps")]
-        public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
-
-        /// <summary>LOG-06: When true, wraps all steps in a TransactionGroup and
-        /// rolls back all changes if any non-optional step fails.</summary>
-        [JsonProperty("rollback_on_failure")]
-        public bool RollbackOnFailure { get; set; }
-
-        /// <summary>GAP-06: When true, rolls back ALL changes if ANY step fails (including optional steps).
-        /// Use for strict quality gates where partial results are unacceptable.</summary>
-        [JsonProperty("rollback_on_optional_failure")]
-        public bool RollbackOnOptionalFailure { get; set; }
-
-        [JsonIgnore]
-        public bool IsBuiltIn { get; set; }
-    }
-
-    public class WorkflowStep
-    {
-        [JsonProperty("commandTag")]
-        public string CommandTag { get; set; }
-
-        [JsonProperty("label")]
-        public string Label { get; set; }
-
-        [JsonProperty("optional")]
-        public bool Optional { get; set; }
-
-        [JsonProperty("condition")]
-        public string Condition { get; set; }
-
-        /// <summary>F2: Skip step if current compliance % exceeds this threshold.</summary>
-        [JsonProperty("maxCompliancePct")]
-        public int? MaxCompliancePct { get; set; }
-
-        /// <summary>F2: Skip step if current compliance % is below this threshold.</summary>
-        [JsonProperty("minCompliancePct")]
-        public int? MinCompliancePct { get; set; }
-
-        /// <summary>F2: Skip step if no elements have the STALE flag set.</summary>
-        [JsonProperty("requiresStaleElements")]
-        public bool RequiresStaleElements { get; set; }
-
-        /// <summary>AE-01: Number of retry attempts for transient failures (max 3).</summary>
-        [JsonProperty("retryCount")]
-        public int RetryCount { get; set; } = 0;
-
-        /// <summary>AE-01: Delay in milliseconds between retries.</summary>
-        [JsonProperty("retryDelayMs")]
-        public int RetryDelayMs { get; set; } = 500;
-
-        /// <summary>AE-05: Skip step if data files haven't changed since last run.</summary>
-        [JsonProperty("skipIfDataUnchanged")]
-        public bool SkipIfDataUnchanged { get; set; }
-
-        /// <summary>Phase 39: Skip step if model is not workshared.</summary>
-        [JsonProperty("requiresWorksharedModel")]
-        public bool RequiresWorksharedModel { get; set; }
-
-        /// <summary>Phase 39: Skip step if total element count is outside range [min, max].</summary>
-        [JsonProperty("minElementCount")]
-        public int? MinElementCount { get; set; }
-
-        /// <summary>Phase 39: Maximum element count for step applicability.</summary>
-        [JsonProperty("maxElementCount")]
-        public int? MaxElementCount { get; set; }
-
-        /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
-        [JsonProperty("timeoutSeconds")]
-        public int TimeoutSeconds { get; set; } = 300;
-
-        /// <summary>Phase 48: Skip step if the previous step was skipped.</summary>
-        [JsonProperty("skipIfPreviousSkipped")]
-        public bool SkipIfPreviousSkipped { get; set; }
-
-        /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
-        [JsonProperty("minWarningHealthScore")]
-        public int? MinWarningHealthScore { get; set; }
-
-        /// <summary>Phase 69: Fallback command if this step fails.</summary>
-        [JsonProperty("fallbackStep")]
-        public string FallbackStep { get; set; }
-
-        /// <summary>Phase 69: Condition logic for multiple conditions: "AND" (all must pass) or "OR" (any must pass).</summary>
-        [JsonProperty("conditionLogic")]
-        public string ConditionLogic { get; set; } = "AND";
-
-        /// <summary>Phase 69: Array of condition keys for compound condition evaluation.</summary>
-        [JsonProperty("conditions")]
-        public List<string> Conditions { get; set; }
-
-        /// <summary>Phase 69: Parallel execution group. Steps with same group number run concurrently.</summary>
-        [JsonProperty("parallelGroup")]
-        public int? ParallelGroup { get; set; }
-
-        /// <summary>Phase 69: Minimum data drop level required (1-4). Skip if current DD is below.</summary>
-        [JsonProperty("minDataDrop")]
-        public int? MinDataDrop { get; set; }
-    }
 
     internal static class WorkflowEngine
     {
@@ -2672,8 +2573,82 @@ namespace StingTools.Core
             };
         }
 
-        /// <summary>Get all available presets (built-in + user JSON files).</summary>
-        public static List<WorkflowPreset> GetAvailablePresets()
+        /// <summary>
+        /// Get all available presets: built-in, plus deployed-data JSON, plus — when a
+        /// document is given — this PROJECT's own workflows layered on top.
+        ///
+        /// The <paramref name="doc"/> parameter is optional so every existing caller keeps
+        /// its exact behaviour; passing null is "corporate only", which is what the three
+        /// pre-W4 call sites did. See WorkflowPresetOverride for why a project preset
+        /// replaces a corporate one whole rather than merging step by step.
+        /// </summary>
+        public static List<WorkflowPreset> GetAvailablePresets(Document doc = null)
+        {
+            var corporate = GetCorporatePresets();
+            if (doc == null) return corporate;
+
+            var result = WorkflowPresetOverride.Merge(
+                corporate, LoadProjectPresetFiles(doc), t => ResolveCommand(t) != null);
+
+            string note = WorkflowPresetOverride.Summary(result);
+            if (!string.IsNullOrEmpty(note))
+            {
+                StingLog.Info(note);
+                foreach (string n in result.Notes) StingLog.Info("  " + n);
+            }
+            return result.Presets;
+        }
+
+        /// <summary>
+        /// Read this project's workflow files. The folder is resolved through StingPaths —
+        /// never built by hand; tools/check_path_discipline.ps1 is a hard zero on that.
+        /// A missing folder is NOT an error: most projects have none, and the corporate
+        /// presets are the right answer for them.
+        /// </summary>
+        internal static List<ProjectPresetFile> LoadProjectPresetFiles(Document doc)
+        {
+            var found = new List<ProjectPresetFile>();
+            if (doc == null) return found;
+
+            string dir;
+            try { dir = StingPaths.Meta(doc, "_BIM_COORD", "workflows"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Project workflows folder could not be resolved: {ex.Message}");
+                return found;
+            }
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return found;
+
+            string[] files;
+            try { files = Directory.GetFiles(dir, "WORKFLOW_*.json"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Project workflows folder unreadable: {ex.Message}");
+                return found;
+            }
+
+            foreach (string f in files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                var pf = new ProjectPresetFile { FileName = Path.GetFileName(f) };
+                try
+                {
+                    pf.Preset = JsonConvert.DeserializeObject<WorkflowPreset>(File.ReadAllText(f));
+                    if (pf.Preset == null) pf.ParseError = "the file parsed to nothing";
+                }
+                catch (Exception ex)
+                {
+                    // Reported through the result, not swallowed: a project preset that
+                    // will not parse is exactly the thing a user needs told.
+                    pf.ParseError = ex.Message;
+                }
+                found.Add(pf);
+            }
+            return found;
+        }
+
+        /// <summary>The corporate list — built-ins plus the deployed data folder. Exactly
+        /// what GetAvailablePresets returned before W4.</summary>
+        private static List<WorkflowPreset> GetCorporatePresets()
         {
             string dataDir = StingToolsApp.DataPath;
 
@@ -2783,12 +2758,47 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "LoadParams", Label = "Load Shared Parameters (200+ params)" },
                             new WorkflowStep { CommandTag = "CreateBLEMaterials", Label = "Create BLE Materials (815)" },
                             new WorkflowStep { CommandTag = "CreateMEPMaterials", Label = "Create MEP Materials (464)" },
+
+                            // W2 -- the seam the register audit found. The two steps above
+                            // import 1,279 governed material rows; nothing then stamped the
+                            // MAT_CODE those rows carry or set a class, so the material a
+                            // type is built from could not be priced by material and could
+                            // not be answered by the carbon engine.
+                            //
+                            // NOT skipIfDataUnchanged: that compares a hash of the DEPLOYED
+                            // data folder against a sidecar (ComputeDataHash, :1321). It
+                            // says nothing about this model's materials, so a project that
+                            // gained 200 materials with the corporate CSVs untouched would
+                            // SKIP the stamp and report success. The conditions below ask
+                            // the model instead, and answer with a count.
+                            new WorkflowStep { CommandTag = "Materials_StampCodes",
+                                               Label = "Stamp material codes from the register",
+                                               Condition = "has_uncoded_materials" },
+                            new WorkflowStep { CommandTag = "Materials_SetClass",
+                                               Label = "Set material Class where the name says one",
+                                               Condition = "has_unclassed_materials" },
+
                             new WorkflowStep { CommandTag = "CreateWalls", Label = "Create Wall Types" },
                             new WorkflowStep { CommandTag = "CreateFloors", Label = "Create Floor Types" },
                             new WorkflowStep { CommandTag = "CreateCeilings", Label = "Create Ceiling Types" },
                             new WorkflowStep { CommandTag = "CreateRoofs", Label = "Create Roof Types" },
                             new WorkflowStep { CommandTag = "CreateDucts", Label = "Create Duct Types" },
                             new WorkflowStep { CommandTag = "CreatePipes", Label = "Create Pipe Types" },
+
+                            // W2 -- read-only, immediately after the host types are built,
+                            // which is the moment the 2026-09-10 audit found 28 Flattened,
+                            // 67 Differs and 81 with no compound structure at all. Catching
+                            // that at birth is the whole point: by the time elements are
+                            // hosted on those types, rebuilding one moves every element on
+                            // it.
+                            //
+                            // optional:true because it REPORTS. A read-only audit must never
+                            // abort a 28-step TransactionGroup that has already built a
+                            // project's entire catalogue.
+                            new WorkflowStep { CommandTag = "Materials_RegisterAudit",
+                                               Label = "Audit host types against the register (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "BatchSchedules", Label = "Batch Create Schedules (168)" },
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate Formulas (199)" },
                             new WorkflowStep { CommandTag = "CreateFilters", Label = "Create View Filters (28+)" },
@@ -2804,6 +2814,15 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "BatchFamilyParams", Label = "Batch Family Params (4,686)" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Auto-Assign Templates (5-layer)" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
+                            // W2 -- read-only, BEFORE tagging. An unruled family takes a
+                            // PROD code by category fallback, and a PROD code is what the
+                            // rate chain's most specific pass keys on: an unruled family is
+                            // a wrong rate long before anybody looks at a BOQ. Naming them
+                            // here costs nothing and is the last cheap moment.
+                            new WorkflowStep { CommandTag = "Prod_CoverageAudit",
+                                               Label = "Audit PROD rule coverage (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
                             new WorkflowStep { CommandTag = "TagSheets", Label = "Tag Sheets (ISO 19650 doc codes)" },
