@@ -43,6 +43,8 @@
     <Compile Include="..\StingTools\Core\Materials\MaterialKeyCanonicaliser.cs" Link="Materials\MaterialKeyCanonicaliser.cs" />
     <Compile Include="..\StingTools\Core\PrimaryMaterialSelector.cs" Link="Core\PrimaryMaterialSelector.cs" />
     <Compile Include="..\StingTools\Core\Materials\MaterialCodeResolution.cs" Link="Core\Materials\MaterialCodeResolution.cs" />
+    <Compile Include="..\StingTools\BOQ\Rates\RateResolutionLevel.cs" Link="BOQ\Rates\RateResolutionLevel.cs" />
+    <Compile Include="..\StingTools\BOQ\Rates\CsvRateLookup.cs" Link="BOQ\Rates\CsvRateLookup.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
     <!-- ROADMAP LIFE-3: the markup waterfall. Revit-free, but not previously
          compiled here, so the OH&amp;P base had no test. -->

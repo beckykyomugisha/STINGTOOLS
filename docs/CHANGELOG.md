@@ -106,6 +106,68 @@ document**. Every defect this area has produced has lived in the Revit-bound
 half, and this half is the Revit-bound half. Build 0/0; Boq 1,311 → 1,324; Tags
 919 unchanged.
 
+#### Completed (Phase 268 — W4: FLR-028, register to rate, in one test)
+
+    register row FLR-028  ->  a material carrying MAT_CODE = FLR-028
+                          ->  a floor type whose PRIMARY layer is that material
+                          ->  the BOQ resolves MatCode = "FLR-028"
+                          ->  CsvRateProvider Pass 3 matches
+                          ->  Provenance "<rate file> MAT_CODE match"
+
+**The assertion is the provenance STRING, not the number.** The rate card in the
+test keys the category and `FLR-028` at *different* rates, so a chain that failed
+would still return a plausible figure from Pass 4. Proven load-bearing: a
+sabotage that leaves Pass 3's rate at 612,500 and only mislabels its provenance
+as a category average fails exactly one test — this one — on the string.
+
+**What it would have caught.** Every link existed and was wired four phases ago.
+`MAT_CODE` was bound to `Materials` only, the BOQ read it off a wall, and Pass 3
+has never once fired. Nothing failed. This test fails: sabotaged back to the
+pre-W2 read, `FLR_028_Walks_From_The_Register_To_A_Rate` reports `""` where
+`FLR-028` was expected, and `The_Skin_Never_Prices_The_Floor` reports `WL-999` —
+the plasterboard finish pricing the floor slab.
+
+**`CsvRateProvider` is now a compute/present split**, which is what made the
+above assertable at all. The five passes moved to `BOQ/Rates/CsvRateLookup.cs` —
+Revit-free, one copy, called by the provider — and `RateResolutionLevel` moved to
+its own file because `IRateProvider.cs` imports the Revit API for
+`RateRequest.Element` and would otherwise drag a `Document` into any test that
+wanted to assert a pass order. Same namespace; **no call site changed**. This is
+CLAUDE.md P1 #4 proven on a second feature after the Visibility Center, and on
+the provider that prices most of a model.
+
+`The_Pass_Order_Is_Specificity_Order` asserts the order by stripping the winning
+key one at a time and requiring the next-most-specific to answer — five levels,
+five confidences, in one loop, so a reordering fails here rather than being
+noticed on a tender. That order has been wrong before: K-16b found category
+consulted first and returning, which priced a fire door and a cupboard door
+alike.
+
+**The rate card is synthetic, and that is stated rather than hidden.** The
+shipped `cost_rates_5d.csv` shares no key with the register, so the chain is
+proven here on the rate card a project would have to write, while the reason it
+does not fire on shipped data is proven next door in
+`The_Shipped_Rate_Table_Shares_No_Key_With_The_Register`. Both are true; they are
+different facts, and neither is allowed to stand in for the other.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    FLR_028_Walks_From_The_Register_To_A_Rate
+      RED   pre-W2 read restored (the element answers, and answers nothing)
+            expected "FLR-028", actual ""                      (2 of 7 fail)
+            and The_Skin_Never_Prices_The_Floor -> "WL-999"
+      GREEN "project_rate_card.csv MAT_CODE match" @ 612,500 UGX/m2
+
+    the provenance assertion itself
+      RED   Pass 3 keeps its rate and reports the category sentence
+            one test fails, on the string alone                (1 of 7)
+      GREEN "project_rate_card.csv MAT_CODE match"
+
+**Not verified in Revit.** `deploy.bat` was not run. The chain is proven over the
+Revit-free halves the plugin actually calls; the Revit-bound link between them —
+`ElementMatCodeReader` reading a compound structure and a material parameter — is
+still unexercised against a document. Build 0/0; Boq 1,311 → 1,331.
+
 #### Completed (Phase 264 — one timber vocabulary, and the matcher swap that needed stems)
 
 **Four word-lists answered "is this timber", and they disagreed both ways on a
