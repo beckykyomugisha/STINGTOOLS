@@ -146,6 +146,9 @@ class CorporateDoc:
         # below it, so the contents page listed itself as its own first entry.
         # Styled to match a level-1 heading instead, so it reads identically and
         # the TOC cannot see it.
+        # Its own page. It followed the cover on the same sheet, which reads as
+        # an afterthought and makes it useless as a jump-off point.
+        self.d.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         h = self.d.add_paragraph()
         hr = h.add_run(title)
         hr.font.size = Pt(16)
@@ -166,6 +169,11 @@ class CorporateDoc:
         hint = p.add_run('Right-click and choose Update Field to build the contents.')
         hint.font.size = Pt(9); hint.font.color.rgb = GREY; hint.italic = True
         p.add_run()._r.append(end)
+        # And a break AFTER, so the first section starts on a fresh page. The
+        # generators pass page_break=False to their first h1 -- otherwise the
+        # title page was followed by a blank one -- so without this the contents
+        # and the opening section share a sheet.
+        self.d.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         return p
 
     def h1(self, text, page_break=True):
@@ -290,14 +298,20 @@ class CorporateDoc:
 
     # ── document furniture ───────────────────────────────────────────────
     def title_page(self, title, eyebrow, control_rows, strapline, note):
-        for _ in range(4):
+        # A masthead band: the project name reversed out of navy, full text width.
+        # The page previously opened with four blank paragraphs.
+        band = self.d.add_table(rows=1, cols=1)
+        bc = band.rows[0].cells[0]
+        self._shade(bc, RULE)
+        bp = bc.paragraphs[0]
+        br = bp.add_run(eyebrow.upper())
+        br.font.size = Pt(12)
+        br.bold = True
+        br.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        br.font.name = 'Calibri'
+
+        for _ in range(3):
             self.d.add_paragraph()
-        p = self.d.add_paragraph()
-        r = p.add_run(eyebrow.upper())
-        r.font.size = Pt(11)
-        r.bold = True
-        r.font.color.rgb = SLATE
-        p.paragraph_format.space_after = Pt(2)
 
         p = self.d.add_paragraph()
         r = p.add_run(title)
@@ -316,15 +330,30 @@ class CorporateDoc:
         for _ in range(10):
             self.d.add_paragraph()
 
+        cap = self.d.add_paragraph()
+        cr = cap.add_run('DOCUMENT CONTROL')
+        cr.font.size = Pt(8.5)
+        cr.bold = True
+        cr.font.color.rgb = SLATE
+        cap.paragraph_format.space_after = Pt(3)
+
         t = self.d.add_table(rows=0, cols=2)
         for k, v in control_rows:
             cells = t.add_row().cells
+            # The status is the one thing a reader must not miss while the pack is
+            # unissued. Picked out rather than left as one grey row among seven.
+            is_status = 'status' in k.lower()
+            self._shade(cells[0], 'F6DBDB' if is_status else BAND)
+            self._shade(cells[1], 'FBEDED' if is_status else SHADE)
             kr = cells[0].paragraphs[0].add_run(k)
             kr.bold = True
             kr.font.size = Pt(9)
             kr.font.color.rgb = SLATE
             vr = cells[1].paragraphs[0].add_run(v)
             vr.font.size = Pt(9)
+            if is_status:
+                vr.bold = True
+                vr.font.color.rgb = RGBColor(0xA0, 0x00, 0x00)
             cells[0].width, cells[1].width = Cm(5.0), Cm(11.6)
 
         self.d.add_paragraph()
