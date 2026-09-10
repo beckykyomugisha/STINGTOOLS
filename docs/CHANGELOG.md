@@ -89,6 +89,61 @@ deserialisation — is unexercised against a live document, and no project has e
 had a `_BIM_COORD/workflows/` folder. What is proven is the merge decision, which
 is where a silent wrong answer would live.
 
+#### Completed (Phase 270 — W1: the seven become reachable from a workflow)
+
+**Seven commands built this month were button-only.** `Materials_SetClass`,
+`Materials_StampCodes`, `Materials_RegisterAudit`, `Baseline_Audit`,
+`Baseline_Apply`, `Baseline_RenameTypes` and `Prod_CoverageAudit` had a
+`Cmd_Click` button and a `StingCommandHandler` case, and **no `ResolveCommand`
+case and no appearance in any of the 48 presets**. Re-measured on `origin/main`
+@ `4b4ca588b`: `presets=0 engine=0` for all seven, and `0` hits across all 277
+shipped JSON files, not only the `WORKFLOW_*.json` ones.
+
+Three consequences, and the third is why this is the load-bearing step:
+
+1. They cannot be chained, scripted, or run unattended.
+2. `ProjectKickoff` imports the register, builds host types from it, and then
+   **never stamps a code, sets a class, or audits what it just built** — which is
+   the state the 2026-09-10 register audit found: 138 Matches against 67 Differs,
+   28 Flattened and 81 with no compound structure at all.
+3. `tools/check_workflow_wiring.ps1` gates **preset steps against
+   `ResolveCommand`**. A command in neither is invisible to it, so a chain stops
+   covering new work without anything being said.
+
+All seven now resolve. Class names were taken from `StingCommandHandler`, not
+guessed.
+
+**`Baseline_Apply` and `Baseline_RenameTypes` resolve but go in no preset.** Both
+are destructive and both ask first; a chained rename is what 2026-09-09 produced,
+when 87 floor types proposed the identical name. Resolving them lets a human
+write a deliberate one-step workflow; putting them inside the 26-step kickoff is
+a different act, and W2 does not.
+
+**RED then GREEN, on the gate that actually guards this.**
+
+    A preset step on Materials_StampCodes
+      RED   with the case removed — Tier 2, naming the tag and the file:
+            "WORKFLOW_ZZProbe.json step 1 : 'Materials_StampCodes' has no case
+             in WorkflowEngine.ResolveCommand"
+      GREEN Tier 2 = 0
+
+`ResolveCommand` case labels **663 → 670**.
+
+**A figure that differs from the brief.** It predicted both the case-label count
+and the dispatchable-name count would move. Only the first did: **dispatchable
+names stayed at 2,362**, because that set is registry + `Cmd_Click` runners +
+handler cases, and all seven already had buttons. Adding a `ResolveCommand` case
+makes a tag *chainable*; it does not make it a new *name*. Worth knowing, because
+it is exactly why the wiring gate could not see the gap — which is what W3
+addresses.
+
+Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
+`--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document, and `Materials_StampCodes` in particular has still never
+run against one.
+
 #### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
 
 `Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
@@ -4518,7 +4573,6 @@ marked.
 Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
 and dispatch-parity gates green.
 
-
 #### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
 
 - **The real defect was in production code, not the workflow.** The project-visibility
@@ -5817,7 +5871,6 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
 | Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
 | Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
-
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
@@ -7434,7 +7487,6 @@ so the engine picks one of two mechanisms per `(source → target)` pair:
   `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
   `SymbolLibraryCreator.ResolveTemplateFolder`.
 
-
 #### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
 
 Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
@@ -7493,7 +7545,6 @@ the addendum's `ConnectorElement.Create*` signature list is correct as written;
 `SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
 1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
 factories reject `UndefinedSystemType`).
-
 
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
@@ -17697,7 +17748,6 @@ Consolidates all remaining remote branches into `claude/merge-branches-resolve-c
 
 **Verification:** `git branch -r --no-merged HEAD` returns empty. `git grep -l '^<<<<<<< \|^=======$\|^>>>>>>> '` across `.md`/`.cs`/`.xaml`/`.json`/`.csproj` returns no hits. No build work lost; the only content dropped was the duplicated `StingBIM.Standards/` folder already superseded by `StingTools.Standards/`.
 
-
 #### Completed (Phase 111 — v6 residual gaps: N-G4 / N-G12 / N-G16 / N-G17)
 
 Closes the four "partial / missing" items identified in the 2026-04-22 v6
@@ -17761,7 +17811,6 @@ dialog in the dock panel is a follow-up).
 **Audit outcome**: 60 of 62 runner sections implemented (96 %);
 17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
 deferred, per the original v6 runner's Year-2 scope.
-
 
 #### Completed (Phase 112 — Planscape Template Engine v1.1: S01–S18 + visibility fix)
 
@@ -19003,7 +19052,6 @@ ThemeManager.
  9. Click "Undo last run" → deletes the last batch in one transaction;
     history grid refreshes.
 
-
 #### Completed (Phase 128 — Placement Centre PC-01..PC-25)
 
 Implements every gap from `docs/PLACEMENT_CENTRE_REVIEW.md` §9. Branch
@@ -19108,7 +19156,6 @@ Deferred (PC-24): embedding the Centre's full editor as a tab inside
 the WPF dockable panel needs the Centre's singleton Window →
 UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
 button continues to invoke the Centre as a modeless window.
-
 
 #### Completed (Phase 129 — Branch consolidation + parameter file alignment)
 

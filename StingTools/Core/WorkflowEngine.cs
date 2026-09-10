@@ -1307,6 +1307,35 @@ namespace StingTools.Core
                 case "CreateBLEMaterials": return new Temp.CreateBLEMaterialsCommand();
                 case "CreateMEPMaterials": return new Temp.CreateMEPMaterialsCommand();
 
+                // ── Post-import material hygiene ─────────────────────────────
+                // These seven were BUTTON-ONLY for a month. A tag with no case here
+                // cannot appear in a preset AND is invisible to
+                // tools/check_workflow_wiring.ps1, which gates preset steps against
+                // this switch — so a chain silently stopped covering new work.
+                // ProjectKickoff imported the register and built types from it and
+                // then never stamped a code, set a class, or audited what it built.
+                // Class names taken from StingCommandHandler, not guessed.
+                case "Materials_StampCodes": return new Commands.Materials.StampMaterialCodesCommand();
+                case "Materials_SetClass": return new Commands.Baseline.SetMaterialClassCommand();
+                // Read-only. Compares what the model BUILT against what the register
+                // DECLARES for the row each type is named after.
+                case "Materials_RegisterAudit": return new Commands.Materials.RegisterAuditCommand();
+
+                // ── Baseline ─────────────────────────────────────────────────
+                // Reachable from a workflow, but NOT placed in any preset:
+                // Baseline_Apply and Baseline_RenameTypes are destructive and both
+                // ask first. A chained rename is what 2026-09-09 produced — 87 floor
+                // types proposed the identical name. Resolving them is what lets a
+                // human write a deliberate one-step workflow; shipping them inside
+                // the 26-step kickoff is a different act entirely.
+                case "Baseline_Audit": return new Commands.Baseline.BaselineAuditCommand();
+                case "Baseline_Apply": return new Commands.Baseline.BaselineApplyCommand();
+                case "Baseline_RenameTypes": return new Commands.Baseline.RenameTypesToStandardCommand();
+
+                // Read-only. Names the families no PROD rule covers, before an
+                // unruled code becomes a wrong rate.
+                case "Prod_CoverageAudit": return new Commands.Classification.ProdCoverageAuditCommand();
+
                 // Families
                 case "CreateWalls": return new Temp.CreateWallsCommand();
                 case "CreateFloors": return new Temp.CreateFloorsCommand();
