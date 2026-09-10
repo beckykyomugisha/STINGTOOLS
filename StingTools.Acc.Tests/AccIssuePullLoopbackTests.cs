@@ -135,13 +135,13 @@ namespace StingTools.Acc.Tests
             // Page 1 succeeds, then the port closes. Attribution matters: HttpStatus 0
             // means no response arrived, which a downstream shape check could not have
             // inferred. #927 learned this the hard way.
-            LoopbackServer server = null;
-            server = new LoopbackServer((index, _) =>
-            {
-                if (index == 0) return new CannedResponse(200, Page(2, "p1-"));
-                server.Dispose();                                  // kill the listener mid-run
-                return new CannedResponse(200, Page(2, "p2-"));
-            });
+            // The connection for page 2 is dropped without a response. Disposing the
+            // server inside its own handler looked equivalent and was not: on Linux the
+            // status line still reached the client and only the body was truncated, so
+            // the failure was attributed to the payload (HttpStatus 200) rather than to
+            // the transport, and this test failed in CI while passing on Windows.
+            using var server = new LoopbackServer((index, _) =>
+                index == 0 ? new CannedResponse(200, Page(2, "p1-")) : CannedResponse.Abort);
             AccIssueSync.OverrideHostForTests(server.BaseUrl);
 
             var result = await AccIssueSync.PullIssuesAsync(FreshCreds(), pageSize: 2);
