@@ -2,6 +2,172 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 268 — W4: FLR-028, register to rate, in one test)
+
+    register row FLR-028  ->  a material carrying MAT_CODE = FLR-028
+                          ->  a floor type whose PRIMARY layer is that material
+                          ->  the BOQ resolves MatCode = "FLR-028"
+                          ->  CsvRateProvider Pass 3 matches
+                          ->  Provenance "<rate file> MAT_CODE match"
+
+**The assertion is the provenance STRING, not the number.** The rate card in the
+test keys the category and `FLR-028` at *different* rates, so a chain that failed
+would still return a plausible figure from Pass 4. Proven load-bearing: a
+sabotage that leaves Pass 3's rate at 612,500 and only mislabels its provenance
+as a category average fails exactly one test — this one — on the string.
+
+**What it would have caught.** Every link existed and was wired four phases ago.
+`MAT_CODE` was bound to `Materials` only, the BOQ read it off a wall, and Pass 3
+has never once fired. Nothing failed. This test fails: sabotaged back to the
+pre-W2 read, `FLR_028_Walks_From_The_Register_To_A_Rate` reports `""` where
+`FLR-028` was expected, and `The_Skin_Never_Prices_The_Floor` reports `WL-999` —
+the plasterboard finish pricing the floor slab.
+
+**`CsvRateProvider` is now a compute/present split**, which is what made the
+above assertable at all. The five passes moved to `BOQ/Rates/CsvRateLookup.cs` —
+Revit-free, one copy, called by the provider — and `RateResolutionLevel` moved to
+its own file because `IRateProvider.cs` imports the Revit API for
+`RateRequest.Element` and would otherwise drag a `Document` into any test that
+wanted to assert a pass order. Same namespace; **no call site changed**. This is
+CLAUDE.md P1 #4 proven on a second feature after the Visibility Center, and on
+the provider that prices most of a model.
+
+`The_Pass_Order_Is_Specificity_Order` asserts the order by stripping the winning
+key one at a time and requiring the next-most-specific to answer — five levels,
+five confidences, in one loop, so a reordering fails here rather than being
+noticed on a tender. That order has been wrong before: K-16b found category
+consulted first and returning, which priced a fire door and a cupboard door
+alike.
+
+**The rate card is synthetic, and that is stated rather than hidden.** The
+shipped `cost_rates_5d.csv` shares no key with the register, so the chain is
+proven here on the rate card a project would have to write, while the reason it
+does not fire on shipped data is proven next door in
+`The_Shipped_Rate_Table_Shares_No_Key_With_The_Register`. Both are true; they are
+different facts, and neither is allowed to stand in for the other.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    FLR_028_Walks_From_The_Register_To_A_Rate
+      RED   pre-W2 read restored (the element answers, and answers nothing)
+            expected "FLR-028", actual ""                      (2 of 7 fail)
+            and The_Skin_Never_Prices_The_Floor -> "WL-999"
+      GREEN "project_rate_card.csv MAT_CODE match" @ 612,500 UGX/m2
+
+    the provenance assertion itself
+      RED   Pass 3 keeps its rate and reports the category sentence
+            one test fails, on the string alone                (1 of 7)
+      GREEN "project_rate_card.csv MAT_CODE match"
+
+**Not verified in Revit.** `deploy.bat` was not run. The chain is proven over the
+Revit-free halves the plugin actually calls; the Revit-bound link between them —
+`ElementMatCodeReader` reading a compound structure and a material parameter — is
+still unexercised against a document. Build 0/0; Boq 1,311 → 1,331.
+
+#### Completed (Phase 266 — W2: an element's MAT_CODE, resolved through its material)
+
+**Four places asked a wall for a parameter bound to materials.**
+
+    MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+
+`BOQCostManager:1184` and `:2816` (the rate request), `CostStamp:152` (the rate
+request *and* the shared rate-cache key) and
+`MeasurementStandards:209` (the CESMM4 description). `MAT_CODE` binds to
+`Materials` and to nothing else — `CATEGORY_BINDINGS.csv:4693`, agreeing with
+`PARAMETER_CATEGORIES.csv:510`, `FAMILY_PARAMETER_BINDINGS.csv:4022`,
+`BINDING_COVERAGE_MATRIX.csv:611` and `PARAMETER_REGISTRY.json:9971` — so every
+one of those reads returned empty for every element ever costed, and
+`CsvRateProvider` **"Pass 3 — MATERIAL"** (`RateProviders.cs:323`, confidence
+85) has never fired.
+
+All four now go through **one** resolver. The decision is Revit-free:
+`MaterialCodeResolution` takes a layer list and a name→code map and answers
+**primary layer material → its code**, falling back to the element's single
+material only when the layers name none, then to the element's own `MAT_CODE`
+for the day somebody binds it there. `PrimaryMaterialSelector` picks the layer —
+**not a second definition of "primary"**; the fork #873 closed stays closed.
+
+**The one subtlety, and it is the whole risk.** When the layers DO name a core
+material and that material has no code, resolution **stops**. It does not then
+try the element's first material — that fall-through hands back the FINISH SKIN,
+a 230 mm rendered masonry wall answering "gypsum", which is #873 exactly. A
+layered element is answered by its core or by nothing, and empty stays empty: a
+guess would ride at confidence 85, above the category match.
+
+---
+
+### WHAT THIS MOVES ON MONEY — measured on the Herring model, not assumed
+
+Computed from the model's own exported artefacts (`register_audit_20260910_
+202805.csv`, `type_rename_core_materials_20260909.csv`) against the shipped
+register and `cost_rates_5d.csv`. No Revit.
+
+| Category | types | instances | gain a MAT_CODE | coded instances | Pass 3 matches | old rate UGX | **delta** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Floors   | 98 | 1 | **0** | 0 | 0 | 444,000 | **0** |
+| Roofs    | 96 | 11 | **88** | 0 | 0 | 555,000 | **0** |
+| Walls    | 96 | 61 | **49** | 48 | 0 | 315,000 | **0** |
+| Ceilings | 4 | 0 | **0** | 0 | 0 | 166,500 | **0** |
+| **Total**| **294** | **73** | **137** | **48** | **0** | | **0 UGX** |
+
+**137 host types gain a MAT_CODE. Zero rates change.** The reason is exact and
+is a second instance of the very defect this work was opened for:
+
+> **Not one of the register's 1,279 codes is a key in `cost_rates_5d.csv`.**
+> The register issues `FLR-028`, `CLG-052`, `WL-128`. The rate table has a column
+> **called** `MAT_CODE` holding 43 three-letter, PROD-shaped abbreviations —
+> `FLR`, `CLG`, `WAL`, `AHU`. The two files use one column name for two
+> vocabularies, and the intersection is empty.
+
+So Pass 3 *can* now fire and still *does* not. Those are different sentences and
+the difference is the point: before W2 the lookup was dead at the key; now it is
+dead at the table, which is a place a QS can fix by editing a rate card.
+
+**Floors gain nothing, and that is the 87-type finding again.** 90 of the 98
+floor types have the core material `Concrete, Cast-in-Place gray` — a Revit stock
+material, not a register `MAT_NAME` — so no code reaches them even after W1.
+
+**This is pinned, not fixed.** `The_Shipped_Rate_Table_Shares_No_Key_With_The_
+Register` asserts the empty intersection and fails loudly, naming the codes, the
+moment one appears. Changing 43 rate keys IS a cost change and needs its own
+evidence; what this guarantees is that nobody makes it by accident.
+
+**Two other behaviour changes, stated because they are not rate changes and
+would otherwise pass unremarked.** `CostStamp`'s shared rate cache is keyed on
+`{category}|{disc}|{prod}|{matCode}|{unit}`, so a previously-constant empty
+segment now varies — the cache partitions more finely and cannot merge two
+elements that differ only by material. And every CESMM4 description said
+"`{category}; as drawn`" with no material named; it will now name the code where
+one resolves.
+
+**One thing left alone, deliberately.** `UI/IfcMaterialPsetWriter.cs:69` carries
+a *second* `ReadPrimaryMaterialName` that skips the compound-structure step
+entirely and returns the first material — the #873 defect, still live, in a
+second place. Out of scope here; logged in `ROADMAP.md` rather than folded into
+a cost change.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Layered_Element_Answers_With_Its_CORE
+      RED   first layer instead of the selector    WL-SKIN  (4 of 13 fail)
+      GREEN                                        WL-CORE
+
+    A_Layered_Element_Whose_Core_Has_No_Code_Does_Not_Fall_Back_To_The_Skin
+      RED   fall-through restored                  WL-SKIN  (1 of 13 fails)
+      GREEN                                        ""
+
+    The_Shipped_Rate_Table_Shares_No_Key_With_The_Register
+      RED   one row keying FLR-028 added to cost_rates_5d.csv
+            fails, names FLR-028, demands the mover count what moved  (2 of 13)
+      GREEN 0 of 1,279
+
+**Not verified in Revit.** `deploy.bat` was not run. `ElementMatCodeReader` —
+the compound-structure read, the single-material read, the memoised name→code
+map and its 30-second stale window — is **entirely unexercised against a live
+document**. Every defect this area has produced has lived in the Revit-bound
+half, and this half is the Revit-bound half. Build 0/0; Boq 1,311 → 1,324; Tags
+919 unchanged.
+
 #### Completed (Phase 265 — W1: the register's CODE reaches the material)
 
 **`MAT_CODE` is the key `RateProviders` Pass C looks up, and one of the two paths
@@ -159,6 +325,7 @@ Tags 839 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
 **Not verified in Revit.** Nothing ran in a Revit session. The carbon figures
 above are the vocabulary's answers over material NAMES; no embodied-carbon report
 was regenerated, and `Baseline_RenameTypes` was not run.
+
 #### Completed (Phase 263 — the register is read as data, and refused as an oracle)
 
 StingTools ships a governed material register — `BLE_MATERIALS.csv` (815 rows)
@@ -271,6 +438,7 @@ session: `ReadHostTypes`, `GetCompoundStructure`, the CSV write and the dialog a
 all unexercised, and the 28/67 split above is the audit applied to a
 RECONSTRUCTION of the 2026-09-09 model, not to the model. No compound structure
 was rewritten and no register row was edited.
+
 #### Completed (Phase 262 — two of the three IndexOf sites are refused, with the measurement that refuses them)
 
 The brief listed three `IndexOf` sites as the #863 shape and said to **construct
@@ -336,6 +504,7 @@ rather than repeating the work.
 Tags 828 passed (baseline 821), Boq 1257 passed (baseline 1249), plugin builds
 0 warnings / 0 errors. **No production line was changed in this PR** — the two
 `IndexOf` sites are exactly as they were.
+
 #### Completed (Phase 261 — an exact family name is additive, because it cannot misfire)
 
 A project PROD-exclusion override REPLACED the list it declared. On 2026-09-09 a
@@ -389,6 +558,7 @@ countable rather than inferred.
 Tags 826 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
 0 errors. **Not verified in Revit** — `Prod_CoverageAudit` was not re-run, and the
 414 / 416 figures are read from the CSVs the user's own runs wrote.
+
 #### Completed (Phase 260 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
 
 Three small independent fixes, each proved RED before GREEN.
@@ -454,6 +624,7 @@ GREEN 16 of 16.
 Tags 835 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
 0 errors. **Nothing was run in Revit**; the 120-row figure is read from the CSV
 the user's own run wrote, not reproduced here.
+
 #### Completed (Phase 259 — a rename that would give two types one name is refused)
 
 `Baseline_RenameTypes` was applied to a delivered model on 2026-09-09. The log
