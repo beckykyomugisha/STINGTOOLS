@@ -68,6 +68,11 @@ namespace StingTools.Core.Twin
             // 1. Try live.
             if (conn != null && !string.IsNullOrEmpty(conn.BaseUrl))
             {
+                // FetchPoints returns null for EVERY unsuccessful read: a transport error,
+                // a body that is not JSON, a JSON error envelope, or a feed whose entries
+                // were all unreadable. A malformed feed used to arrive here as a non-null
+                // EMPTY dictionary, which took this branch, reported Live, and then wrote
+                // the empty result over the cached snapshot.
                 var live = NiagaraJsonClient.FetchPoints(conn);
                 if (live != null)
                 {
@@ -101,9 +106,23 @@ namespace StingTools.Core.Twin
             [JsonProperty("hasValue")] public bool HasValue { get; set; }
         }
 
+        /// <summary>Write the snapshot that a later outage will fall back to.
+        ///
+        /// Never trades a usable snapshot for an unusable one. <see cref="LoadCache"/>
+        /// rejects a snapshot holding zero points, so writing an empty read over a good one
+        /// does not "update" the cache — it DELETES the fallback that exists precisely for
+        /// the station being unreachable, turning a recoverable outage into data loss.
+        /// A genuinely empty live read is still reported as Live with zero points; it just
+        /// does not get to destroy the last good read on its way past.</summary>
         private static void Persist(string path, Dictionary<string, NiagaraPoint> pts, DateTime capturedUtc)
         {
             if (string.IsNullOrEmpty(path) || pts == null) return;
+            if (pts.Count == 0 && HasUsableSnapshot(path))
+            {
+                StingLog.Warn("CommissioningSource: the live read returned zero points; keeping the " +
+                              "existing snapshot rather than overwriting the last good read.");
+                return;
+            }
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -114,6 +133,11 @@ namespace StingTools.Core.Twin
             }
             catch (Exception ex) { StingLog.Warn($"CommissioningSource persist: {ex.Message}"); }
         }
+
+        /// <summary>Whether a snapshot exists that LoadCache would actually use. Asked
+        /// before overwriting, so "there is a file" is never mistaken for "there is a
+        /// fallback" — a zero-point snapshot is a file and not a fallback.</summary>
+        private static bool HasUsableSnapshot(string path) => LoadCache(path) != null;
 
         private static CommissioningSnapshot LoadCache(string path)
         {

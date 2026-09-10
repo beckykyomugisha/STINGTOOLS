@@ -124,10 +124,14 @@ Could not read clashes for model set '<name>' from ACC.
 NOTHING WAS CHECKED — this is not a clean result.
 
 Failure: NotFound
-Reason:  Autodesk returned HTTP 404 Not Found — the container id, model set or
-         clash-service sub-path is wrong
+Reason:  Autodesk returned HTTP 404 — the container id, model set or service
+         sub-path is wrong
 Container id used: b.<the id it actually used>
 ```
+
+The words "not found" were deliberately removed from that message: a coordinator reading
+"404 Not Found" concludes ACC lost the data, when what it means is that our request was
+wrong. A test asserts the phrase cannot come back.
 
 Read the **Failure** line and act on it:
 
@@ -137,18 +141,48 @@ Read the **Failure** line and act on it:
 | `NotFound` | Wrong container id, wrong model set, or a changed clash sub-path | Check `ProjectId` / `CoordContainerId` against what the ACC administrator gave you. **If both are confirmed correct, this is the residual** — the `bim360/clash/v3` sub-paths need re-confirming against current APS documentation. Record the exact URL from `StingTools_<date>.log` and file it |
 | `TransportFailed` | Network failure, or a 200 whose payload shape this client does not recognise | Check reachability of `developer.api.autodesk.com`. A 200 with an unrecognised payload also means a schema change — same action as `NotFound` |
 
+**`ACC_SyncIssueStatus` now fails the same way.** Before 2026-09-10 it reconciled the
+escalation record against whatever `PullIssuesAsync` returned — and that returned a bare list
+for an auth failure, for a partial read, and for success alike. An expired token therefore made
+every escalated clash report `NOT_FOUND / keep`, which reads as "ACC deleted our issues"; a
+failure part-way through pagination un-tracked whatever happened to be on page 1 and called it
+a complete sync. Both now show the same NOTHING WAS CHECKED dialog, return `Result.Failed`, and
+say plainly:
+
+```
+The escalation record was left untouched — nothing was un-tracked.
+```
+
+A partial read is treated as a failure, and its Reason names how far it got — e.g.
+*"the issue list failed at page 2 (offset 100) after 1 page(s) succeeded"*. If you see that,
+re-run it; do not act on the rows it did return.
+
 A dialog that says *"Either the model set is clash-clean, or a clash test has not completed in ACC
 yet"* now appears **only** after a request that genuinely succeeded. Before the fix it also appeared
 after a 404, and the step still returned success — a coordination cycle that passed without having
 checked anything.
 
+**An upload failure now names its kind too.** `ACC_UploadModel` / `ACC_UploadLastBundle`
+report `Failure: AuthFailed` / `NotFound` / `TransportFailed` with the HTTP status and the same
+remedy text as the read paths, instead of a bare "it didn't work". A 403 on storage creation is
+the one to expect if the APS app is missing `data:create`.
+
 **Two operational facts worth knowing before scheduling this.** `ACC_PullClashes` opens a model-set
 picker, so the Coordination Cycle **cannot run unattended**. And step 6 of that cycle, `ACCPublish`,
 builds a **local** ACC-ready bundle for manual upload — it is labelled accordingly and does not
-publish to the CDE. The real uploader is the separate `ACC_UploadModel` command (dock panel → BIM
-tab → **ACC Upload**), which asks which file to upload; it is deliberately in no workflow, because a
-workflow step cannot answer that question and guessing would put an unintended file in an issued
-container.
+publish to the CDE. The real uploader is separate, and there are now two ways in:
+
+- **ACC Upload** (`ACC_UploadModel`) — pick any file.
+- **ACC Upload Bundle** (`ACC_UploadLastBundle`) — upload the bundle `ACCPublish` last built,
+  with no file picker. `ACCPublish` records which ZIP it produced in
+  `<project>/_BIM_COORD/acc/last_bundle.json`, so this is a file *choice*, not a guess. If that
+  ZIP has since been deleted the command says so and uploads nothing, rather than uploading
+  whatever now sits at that path. It asks for confirmation, naming the bundle, because it writes
+  into the real CDE.
+
+**Neither is in any KUT workflow**, and that is a decision, not an oversight: whether the
+fortnightly cycle should push into an issued container is the Information Manager's call, and it
+should not be made before B1 below has proved one live round-trip.
 
 ---
 
@@ -219,10 +253,30 @@ absence of `live (captured …)` is a definite negative, not an ambiguity.
 
 ### When it does not work
 
-The client returns **null** on a transport failure and an **empty dictionary** for a station that
-answered with nothing, and the two are reported differently. A feed whose id field is named something
-unexpected is counted as `SkippedNoId` rather than passing as an empty station — so "the station is
-empty" and "we could not read the station" cannot be confused.
+The client returns **null** for every unsuccessful read and an **empty dictionary** only for a
+station that genuinely answered with nothing, and the two are reported differently.
+
+That distinction was **not** reliable before 2026-09-10, and this is the failure mode to know
+about. The parser correctly flagged an unparseable body — and the client then returned the empty
+result anyway, so a station returning garbage was reported as `live (captured …)` with nothing
+commissioned, **and the empty result was written over the cached snapshot**, destroying the very
+fallback that exists for an unreachable station. The worst input was a JSON error envelope such as
+`{"error":"unauthorized"}`: it parses, yields zero points, and set no error at all.
+
+All four now fall through to the cache and end as `Cached` (or `None` when there is no snapshot),
+never `Live`:
+
+| Body from the station | Why it is not a reading |
+|---|---|
+| Not JSON at all | The station returned something else — often an HTML error page |
+| `{"error":"..."}` | Valid JSON, but an error envelope, not a points feed |
+| A bare string / number | Valid JSON, not a points feed |
+| Entries present, none with a readable id | The station names its id field something this client does not read — check `pointsPath` and the feed's field names with the contractor |
+
+A station that genuinely has **no points yet** still reports `live (captured …)` with zero
+points — that is a real, expected state in early Stage 3 and is deliberately not an error. It
+also no longer overwrites a non-empty cached snapshot, because a zero-point snapshot is a file
+and not a fallback.
 
 Most likely causes, in order: wrong `pointsPath`; wrong auth pair (`apiKey` set *and* `username`
 set — use one); station not reachable from the machine. This transport **has never been run against a

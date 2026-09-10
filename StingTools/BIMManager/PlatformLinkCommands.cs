@@ -1201,6 +1201,27 @@ namespace StingTools.BIMManager
                 BIMManagerEngine.AutoRegisterExport(doc, zipPath, "CM",
                     $"ACC publish package — {suitability} — {deliverables.Count} deliverables");
 
+                // Record WHICH bundle this was, so ACC_UploadLastBundle can upload it
+                // without a human picking a file. This command still only builds a local
+                // ZIP — nothing here uploads anything — but the file choice a later step
+                // would otherwise have to guess is now written down.
+                // Best-effort: a failure to record must never fail the publish.
+                try
+                {
+                    string recDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
+                    Directory.CreateDirectory(recDir);
+                    string recPath = Path.Combine(recDir, V6.AccBundleRecord.FileName);
+                    var rec = V6.AccBundleRecord.ForFile(zipPath, suitability, deliverables.Count);
+                    if (rec == null)
+                        StingLog.Warn("ACC publish: could not record the bundle for later upload " +
+                                      "(the ZIP was not found on disk).");
+                    else if (!V6.AccBundleRecord.TryWrite(recPath, rec, out string recErr))
+                        StingLog.Warn("ACC publish: could not record the bundle for later upload: " + recErr);
+                    else
+                        StingLog.Info("ACC publish: recorded bundle at " + recPath);
+                }
+                catch (Exception ex) { StingLog.Warn("ACC publish: bundle record: " + ex.Message); }
+
                 // Record transmittal
                 string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
                 var transmittals = BIMManagerEngine.LoadJsonArray(txPath);

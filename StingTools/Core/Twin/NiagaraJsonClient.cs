@@ -64,16 +64,44 @@ namespace StingTools.Core.Twin
         /// <summary>Parse a Niagara/oBIX points feed into deviceId → point. The shape
         /// handling lives in <see cref="NiagaraPointParser"/>, which carries no logging so
         /// it can be linked into the Revit-free test projects; this wrapper adds the
-        /// logging and keeps the dictionary-returning signature its callers use.</summary>
+        /// logging and keeps the dictionary-returning signature its callers use.
+        ///
+        /// Returns NULL when the body cannot be trusted as a points feed — the same signal
+        /// <see cref="FetchPoints"/> already uses for a transport failure, so a caller
+        /// cannot mistake it for a successful empty read.
+        ///
+        /// This used to return <c>r.Points</c> unconditionally: it LOGGED the parse failure
+        /// and then handed back the empty dictionary anyway. That empty dictionary is not
+        /// null, so CommissioningSource took the live branch, reported "live (captured …)",
+        /// and wrote the empty result over the cached snapshot — a fabricated 0%
+        /// commissioned presented as a live reading, with the recovery cache destroyed.
+        /// KUT_ValuationFromBms carries that percentage toward payment certification.</summary>
         public static Dictionary<string, NiagaraPoint> ParsePoints(string json)
         {
             var r = NiagaraPointParser.Parse(json);
-            if (r.Failed) StingLog.Warn($"Niagara parse: {r.Error}");
+            if (r.Failed)
+            {
+                StingLog.Warn($"Niagara parse: {r.Error} — treating as a FAILED read, not an empty station.");
+                return null;
+            }
+            if (!r.RecognisedShape)
+            {
+                // A JSON error envelope, or a bare scalar. Valid JSON, not a points feed.
+                StingLog.Warn("Niagara parse: the body was valid JSON but not a points feed " +
+                              "(no array, no points wrapper, no id-keyed point objects) — treating as a FAILED read.");
+                return null;
+            }
             // A feed whose id field we do not read yields an EMPTY dictionary, which reads
             // downstream as "no asset is commissioned" — the same as a station with nothing
             // on it. Say which one it was.
             if (r.SkippedNoId > 0)
                 StingLog.Warn($"Niagara parse: {r.SkippedNoId} entr(ies) carried no deviceId/id/name and were skipped.");
+            if (r.Unusable)
+            {
+                StingLog.Warn($"Niagara parse: {r.CandidateEntries} entr(ies) were present and none was understood " +
+                              "— treating as a FAILED read rather than an empty station.");
+                return null;
+            }
             return r.Points;
         }
 

@@ -32,18 +32,45 @@ namespace StingTools.V6
     /// </summary>
     public static class AccModelUpload
     {
-        private const string DataBase    = "https://developer.api.autodesk.com/data/v1";
-        private const string ProjectBase = "https://developer.api.autodesk.com/project/v1";
-        private const string OssBase     = "https://developer.api.autodesk.com/oss/v2";
+        internal const string DefaultHost = "https://developer.api.autodesk.com";
+        private static string _host = DefaultHost;
+
+        /// <summary>Test seam: point the client at a loopback listener. Production never
+        /// calls this. Pass null to restore the real APS host.</summary>
+        internal static void OverrideHostForTests(string host)
+            => _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
+
+        private static string DataBase    => _host + "/data/v1";
+        private static string ProjectBase => _host + "/project/v1";
+        private static string OssBase     => _host + "/oss/v2";
         private const string JsonApi     = "application/vnd.api+json";
 
         private static readonly HttpClient _http = new HttpClient();
 
+        /// <summary>The outcome of an upload.
+        ///
+        /// <see cref="Ok"/> and <see cref="Message"/> are unchanged - the BIM Coordination
+        /// Center card reads them - but a bare bool could not tell an auth failure from a
+        /// wrong folder from a network drop, which is the same under-attribution the rest
+        /// of the ACC surface has now shed. <see cref="Status"/> and
+        /// <see cref="HttpStatus"/> reuse AccFetchStatus rather than inventing a parallel
+        /// vocabulary, so one remedy table serves every ACC path.</summary>
         public sealed class UploadResult
         {
             public bool Ok { get; set; }
             public string Message { get; set; } = "";
             public string ItemUrn { get; set; } = "";
+
+            /// <summary>Which KIND of failure. Ok on success; never EmptyOk - an upload
+            /// either happened or did not, there is no empty case.</summary>
+            public AccFetchStatus Status { get; set; } = AccFetchStatus.Ok;
+
+            /// <summary>HTTP status when one was received; 0 when the request never completed
+            /// or the failure was local (no file, no credentials).</summary>
+            public int HttpStatus { get; set; }
+
+            /// <summary>What to do about it, shared with every other ACC failure.</summary>
+            public string Remedy => Ok ? "" : AccCommandOutcome.Remedy(Status);
         }
 
         /// <summary>DM endpoints want the account/project id in 'b.{guid}' form.</summary>
@@ -66,7 +93,12 @@ namespace StingTools.V6
                     return Fail("Set the Issues Project ID (the ACC project) first.");
 
                 if (!await AccIssueSync.EnsureAuthAsync(creds).ConfigureAwait(false))
-                    return Fail("Not authenticated — Sign in with Autodesk (or Test/Refresh) first.");
+                    return new UploadResult
+                    {
+                        Ok = false,
+                        Message = "Not authenticated — Sign in with Autodesk (or Test/Refresh) first.",
+                        Status = AccFetchStatus.AuthFailed,
+                    };
 
                 string projectId = EnsureB(creds.ProjectId);
                 string fileName = Path.GetFileName(filePath);
@@ -96,7 +128,7 @@ namespace StingTools.V6
                 };
                 var storageResp = await SendAsync(HttpMethod.Post, $"{DataBase}/projects/{projectId}/storage",
                     creds.AccessToken, storageBody, JsonApi, ct).ConfigureAwait(false);
-                if (!storageResp.ok) return Fail($"Create storage failed (HTTP {storageResp.status}). {Trim(storageResp.body)}");
+                if (!storageResp.ok) return Fail($"Create storage failed (HTTP {storageResp.status}). {Trim(storageResp.body)}", storageResp.status);
                 string objectId = JObject.Parse(storageResp.body)["data"]?["id"]?.Value<string>() ?? "";
                 if (string.IsNullOrEmpty(objectId)) return Fail("Storage response had no object id.");
 
@@ -110,7 +142,7 @@ namespace StingTools.V6
 
                 // 3. Upload the bytes to OSS (single- or multi-part, signed S3).
                 var up = await UploadFileAsync(creds.AccessToken, bucketKey, objectKey, filePath, ct).ConfigureAwait(false);
-                if (!up.ok) return Fail(up.err);
+                if (!up.ok) return Fail(up.err, up.status);
 
                 // 4. Create the item + first version pointing at the storage object.
                 var itemBody = new JObject
@@ -159,7 +191,7 @@ namespace StingTools.V6
                     StingLog.Info($"AccModelUpload: new version of '{fileName}' → {ver.urn}");
                     return new UploadResult { Ok = true, ItemUrn = ver.urn, Message = $"Uploaded a new version of '{fileName}' to ACC." };
                 }
-                if (!itemResp.ok) return Fail($"Create item failed (HTTP {itemResp.status}). {Trim(itemResp.body)}");
+                if (!itemResp.ok) return Fail($"Create item failed (HTTP {itemResp.status}). {Trim(itemResp.body)}", itemResp.status);
 
                 string itemUrn = JObject.Parse(itemResp.body)["data"]?["id"]?.Value<string>() ?? "";
                 StingLog.Info($"AccModelUpload: uploaded '{fileName}' → {itemUrn}");
@@ -182,7 +214,7 @@ namespace StingTools.V6
         /// part (one part buffered at a time to bound memory). Finalises with the
         /// uploadKey either way.
         /// </summary>
-        private static async Task<(bool ok, string err)> UploadFileAsync(
+        private static async Task<(bool ok, string err, int status)> UploadFileAsync(
             string accessToken, string bucketKey, string objectKey, string filePath, CancellationToken ct)
         {
             long size = new FileInfo(filePath).Length;
@@ -191,13 +223,13 @@ namespace StingTools.V6
             string signUrl = $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload?minutesExpiration=60"
                              + (numParts > 1 ? $"&parts={numParts}" : "");
             var signResp = await SendAsync(HttpMethod.Get, signUrl, accessToken, null, null, ct).ConfigureAwait(false);
-            if (!signResp.ok) return (false, $"Signed-upload request failed (HTTP {signResp.status}). {Trim(signResp.body)}");
+            if (!signResp.ok) return (false, $"Signed-upload request failed (HTTP {signResp.status}). {Trim(signResp.body)}", signResp.status);
 
             var signJson = JObject.Parse(signResp.body);
             string uploadKey = signJson["uploadKey"]?.Value<string>() ?? "";
             var urls = signJson["urls"] as JArray;
             if (string.IsNullOrEmpty(uploadKey) || urls == null || urls.Count == 0)
-                return (false, "Signed-upload response missing uploadKey/urls.");
+                return (false, "Signed-upload response missing uploadKey/urls.", 0);
 
             if (numParts == 1)
             {
@@ -205,7 +237,7 @@ namespace StingTools.V6
                 using var fs = File.OpenRead(filePath);
                 using var put = new HttpRequestMessage(HttpMethod.Put, urls[0].Value<string>()) { Content = new StreamContent(fs) };
                 var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
-                if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload failed (HTTP {(int)putResp.StatusCode}).");
+                if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload failed (HTTP {(int)putResp.StatusCode}).", (int)putResp.StatusCode);
             }
             else
             {
@@ -224,15 +256,15 @@ namespace StingTools.V6
                     }
                     using var put = new HttpRequestMessage(HttpMethod.Put, urls[i].Value<string>()) { Content = new ByteArrayContent(buffer, 0, read) };
                     var putResp = await _http.SendAsync(put, ct).ConfigureAwait(false);
-                    if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload part {i + 1}/{urls.Count} failed (HTTP {(int)putResp.StatusCode}).");
+                    if (!putResp.IsSuccessStatusCode) return (false, $"S3 upload part {i + 1}/{urls.Count} failed (HTTP {(int)putResp.StatusCode}).", (int)putResp.StatusCode);
                 }
             }
 
             var finResp = await SendAsync(HttpMethod.Post,
                 $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload",
                 accessToken, new JObject { ["uploadKey"] = uploadKey }, "application/json", ct).ConfigureAwait(false);
-            if (!finResp.ok) return (false, $"Finalise upload failed (HTTP {finResp.status}). {Trim(finResp.body)}");
-            return (true, "");
+            if (!finResp.ok) return (false, $"Finalise upload failed (HTTP {finResp.status}). {Trim(finResp.body)}", finResp.status);
+            return (true, "", 200);
         }
 
         /// <summary>Add a new version to an existing item (the 409 path), pointing at the just-uploaded storage object.</summary>
@@ -327,6 +359,21 @@ namespace StingTools.V6
         }
 
         private static string Trim(string s) => string.IsNullOrEmpty(s) ? "" : (s.Length > 300 ? s.Substring(0, 300) : s);
-        private static UploadResult Fail(string msg) => new UploadResult { Ok = false, Message = msg };
+        /// <summary>A failure with no HTTP exchange behind it (no file, no credentials,
+        /// an unparseable id). TransportFailed is the honest classification: something went
+        /// wrong and Autodesk never said anything about it.</summary>
+        private static UploadResult Fail(string msg) =>
+            new UploadResult { Ok = false, Message = msg, Status = AccFetchStatus.TransportFailed, HttpStatus = 0 };
+
+        /// <summary>A failure Autodesk answered. Classified with the SAME mapping the read
+        /// paths use, so a 403 on storage creation reads as an auth problem here exactly as
+        /// it would on a clash pull.</summary>
+        private static UploadResult Fail(string msg, int httpStatus) => new UploadResult
+        {
+            Ok = false,
+            Message = msg,
+            Status = AccFetchOutcome.Classify(httpStatus, -1),
+            HttpStatus = httpStatus,
+        };
     }
 }

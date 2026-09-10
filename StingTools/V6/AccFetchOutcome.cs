@@ -139,7 +139,11 @@ namespace StingTools.V6
             AccFetchStatus.Ok => "request succeeded",
             AccFetchStatus.EmptyOk => "request succeeded and returned nothing",
             AccFetchStatus.AuthFailed => $"Autodesk rejected the token (HTTP {httpStatus}) - the sign-in or refresh token is not valid for this container",
-            AccFetchStatus.NotFound => $"Autodesk returned HTTP {httpStatus} Not Found - the container id, model set or clash-service sub-path is wrong",
+            // Deliberately NOT the phrase "404 Not Found". That reason phrase invites the
+            // exact misreading this whole split exists to prevent - a coordinator seeing
+            // "not found" concludes ACC lost the data, rather than that our request was
+            // wrong. AccCommandOutcomeTests asserts the words are absent.
+            AccFetchStatus.NotFound => $"Autodesk returned HTTP {httpStatus} - the container id, model set or service sub-path is wrong",
             _ => httpStatus > 0
                 ? $"the request failed (HTTP {httpStatus}) or returned a payload this client does not recognise"
                 : "the request did not complete (network error, or an unreadable payload)",
