@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
+
+**Tier 2 proves preset steps resolve. Nothing proved a shipped command was
+reachable from a preset at all.** A command in neither `ResolveCommand` nor any
+preset is invisible to the gate — which is how seven commands sat outside both
+for a month while `ProjectKickoff` imported the register, built host types from
+it, and never stamped a code, set a class or audited what it built.
+
+**Tier 6 asks the other half of the question**: a `Cmd_Click` button tag with no
+`ResolveCommand` case is reported as **not reachable from a workflow**. It is not
+a claim the button is broken — Tier 4 already proves all 1,681 dispatch on a
+click. It is a claim that a chain cannot call them.
+
+**1,236 of 1,681 button tags** are in that state today, and they ship as
+`tools/workflow_reachability_baseline.txt`. Plenty are legitimately
+interactive-only — a modeless window, a picked element, a dialog with no headless
+meaning — so this is a baseline rather than a hard zero. The file **may shrink,
+never grow**: its entire value is that a *new* button now forces a decision
+instead of a silence.
+
+**A stale entry is REPORTED, not failed, and the asymmetry is deliberate.** A tag
+leaving the list means somebody made it chainable, which is the outcome the tier
+wants; failing for it would punish the fix, and would break whichever of two
+independent PRs merged second. Tier 5's baseline does the opposite — it fails on
+a stale entry — because there a stale line silently re-permits an unbound key.
+Both behaviours are now documented next to each other in the script.
+
+**It reuses Tier 2's `$resolvable` set on purpose.** That set is every `case`
+label in `WorkflowEngine.cs`, a superset of `ResolveCommand`'s own, so Tier 6
+under-reports rather than over-reports and the two tiers cannot disagree about
+what "resolvable" means.
+
+**No numbers are restated from `docs/UNREACHABLE_COMMANDS_TRIAGE.md`.** That file
+counts *command classes* reachable at all across six dispatch layers (1,722
+total, 1,691 reached, re-derived 2026-09-09). Tier 6 counts *button tags*
+reachable from a workflow. Different populations, different question; the two
+figures are not comparable and neither is copied into the other.
+
+**RED then GREEN, both directions, both counts.**
+
+    a NEW button with no ResolveCommand case
+      RED   baseline line for AddLeaders removed — Tier 6 FAILS, naming it:
+            "StingDockPanel.xaml button Tag=""AddLeaders"" has no case in
+             WorkflowEngine.ResolveCommand -- no preset can call it"     (1)
+      GREEN Tier 6 = 0, 1,236 baselined in use
+
+    a baselined tag that BECOMES reachable
+      RED   a ResolveCommand case added for AddLeaders — the gate prints
+            "1 Tier 6 baseline entry/ies are now reachable from a workflow",
+            baselined-in-use drops 1,236 -> 1,235, and EXITS 0
+      GREEN no stale entries
+
+The second RED is the one worth reading: it proves the tier does **not** fail
+when somebody fixes something, which is the property that makes it safe to merge
+independently of the PR that resolves the seven.
+
 #### Completed (Phase 270 — W1: the seven become reachable from a workflow)
 
 **Seven commands built this month were button-only.** `Materials_SetClass`,
@@ -4486,7 +4542,6 @@ marked.
 Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
 and dispatch-parity gates green.
 
-
 #### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
 
 - **The real defect was in production code, not the workflow.** The project-visibility
@@ -5785,7 +5840,6 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
 | Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
 | Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
-
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
@@ -7402,7 +7456,6 @@ so the engine picks one of two mechanisms per `(source → target)` pair:
   `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
   `SymbolLibraryCreator.ResolveTemplateFolder`.
 
-
 #### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
 
 Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
@@ -7461,7 +7514,6 @@ the addendum's `ConnectorElement.Create*` signature list is correct as written;
 `SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
 1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
 factories reject `UndefinedSystemType`).
-
 
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
@@ -17665,7 +17717,6 @@ Consolidates all remaining remote branches into `claude/merge-branches-resolve-c
 
 **Verification:** `git branch -r --no-merged HEAD` returns empty. `git grep -l '^<<<<<<< \|^=======$\|^>>>>>>> '` across `.md`/`.cs`/`.xaml`/`.json`/`.csproj` returns no hits. No build work lost; the only content dropped was the duplicated `StingBIM.Standards/` folder already superseded by `StingTools.Standards/`.
 
-
 #### Completed (Phase 111 — v6 residual gaps: N-G4 / N-G12 / N-G16 / N-G17)
 
 Closes the four "partial / missing" items identified in the 2026-04-22 v6
@@ -17729,7 +17780,6 @@ dialog in the dock panel is a follow-up).
 **Audit outcome**: 60 of 62 runner sections implemented (96 %);
 17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
 deferred, per the original v6 runner's Year-2 scope.
-
 
 #### Completed (Phase 112 — Planscape Template Engine v1.1: S01–S18 + visibility fix)
 
@@ -18971,7 +19021,6 @@ ThemeManager.
  9. Click "Undo last run" → deletes the last batch in one transaction;
     history grid refreshes.
 
-
 #### Completed (Phase 128 — Placement Centre PC-01..PC-25)
 
 Implements every gap from `docs/PLACEMENT_CENTRE_REVIEW.md` §9. Branch
@@ -19076,7 +19125,6 @@ Deferred (PC-24): embedding the Centre's full editor as a tab inside
 the WPF dockable panel needs the Centre's singleton Window →
 UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
 button continues to invoke the Centre as a modeless window.
-
 
 #### Completed (Phase 129 — Branch consolidation + parameter file alignment)
 
