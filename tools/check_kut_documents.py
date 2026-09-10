@@ -859,6 +859,9 @@ LEAKS = [
 CLIENT_FACING_SOURCES = (
     "GUIDES/KUT_BEP_TEMPLATE.md",
     "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+    # The playbook says this one is "issued at mobilisation" to every
+    # discipline. It was never scanned, and carried four product references.
+    "GUIDES/KUT_MIDP_TEMPLATE.csv",
 )
 
 # A maintainer note tells whoever edits the file which generator to run, so it
@@ -919,6 +922,26 @@ def _check_withdrawn(root: Path, f: Findings, verbose: bool):
             for code in sorted(stated & set(withdrawn)):
                 f.fail("%s:%d" % (Path(rel).name, line_no),
                        "states the withdrawn code %s (%s)" % (code, withdrawn[code]))
+        # The MIDP template states its originator in a COLUMN, not in a
+        # container-name example, so the pattern below cannot see it. Sixteen
+        # rows of a four-character code passed this gate until this was added.
+        if rel.endswith(".csv"):
+            rows = [ln.split(",") for ln in text.splitlines() if ln.strip()]
+            if rows and "Originator" in rows[0]:
+                col = rows[0].index("Originator")
+                for i, r in enumerate(rows[1:], 2):
+                    if len(r) <= col:
+                        continue
+                    got = r[col].strip()
+                    # FILL is the appointed party's own entry, made on receipt.
+                    if not got or got in ("FILL", "[FILL]"):
+                        continue
+                    if len(got) != N.ORIGINATOR_LENGTH:
+                        f.fail("%s:%d" % (Path(rel).name, i),
+                               "Originator %r is %d characters; the convention is "
+                               "exactly %d." % (got, len(got), N.ORIGINATOR_LENGTH))
+                f.ok()
+
         for m in re.finditer(r"KUT-([A-Z]{2,6})-", text):
             got = m.group(1)
             if len(got) != N.ORIGINATOR_LENGTH:
