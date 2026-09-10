@@ -726,6 +726,16 @@ wb.properties.description = K.with_provenance(
     'tools/build_midp.py', K.inputs_digest(_ROOT, pathlib.Path(OUT).name))
 
 wb.active = 0
+# The DRAFT stamp reached the Cover sheet only -- 19 of the 20 had no marking at
+# all. A workbook is not read like a document: it opens on whichever tab was last
+# active, single sheets get filtered, printed and forwarded, and a reader who
+# lands on a TIDP tab would see nothing saying this is unissued. Word carries its
+# status in a footer on every page; this is the same thing for every sheet.
+for _ws in wb.worksheets:
+    _ws.oddFooter.left.text = "DRAFT - not issued (S0, work in progress)"
+    _ws.oddFooter.right.text = "Page &P of &N"
+    _ws.oddHeader.right.text = "DRAFT"
+
 wb.save(OUT)
 K.finalise(pathlib.Path(OUT))
 print('saved:', OUT, '|', len(R), 'deliverables')
