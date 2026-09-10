@@ -868,6 +868,69 @@ _NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s
                       re.S | re.I)
 
 
+def _check_withdrawn(root: Path, f: Findings, verbose: bool):
+    """No client-facing source may name a withdrawn code or a wrong-length originator.
+
+    The table reader in check_source_code_tables walks rows. The BEP states its
+    role set as a prose list inside ONE cell, so a row-based reader cannot see it
+    -- which is exactly how `A, S, M, E, P, FP, G, Z` survived a migration that
+    removed FP and G and added six roles.
+
+    ORIGINATOR_LENGTH is read rather than hardcoded: the register is unissued, and
+    when it lands the length is the thing most likely to be revisited.
+    """
+    valid = ({c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+             | {c for c, _ in N.TYPES})
+    # Codes the NA withdrew that this project used to carry. Named explicitly
+    # rather than derived, because "not in the adopted set" also matches every
+    # ordinary English word in the prose around them.
+    withdrawn = {"FP": "fire protection -- now Y",
+                 "LV": "low voltage -- now Y",
+                 "G": "land surveyor in the standard -- civil is C",
+                 "SC": "schedule -- now SH",
+                 "CA": "calculation -- now RP",
+                 "MS": "method statement -- now RP"}
+    for rel in CLIENT_FACING_SOURCES:
+        p = root / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        # Blank the maintainer note IN PLACE. Removing it shifted every line
+        # number after it by the ten lines it occupies, so the first run of this
+        # check reported two innocent table rows.
+        text = _NOTE_RX.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+        for line_no, line in enumerate(text.splitlines(), 1):
+            # A blockquote is commentary, not a statement of the permitted set --
+            # and these documents now carry blockquotes that name the withdrawn
+            # codes precisely in order to explain them. The permitted set is
+            # always a table row.
+            if line.lstrip().startswith(">"):
+                continue
+            # Extract the codes the line STATES, then test membership. Matching
+            # each code as a pattern against free text instead makes "G" hit
+            # every stray capital in prose, and the first attempt at this
+            # excluded backticked spans -- `FP` -- which is the only form these
+            # tables actually use.
+            stated = set(re.findall(r"`([A-Z]{1,2})`", line))
+            if re.search(r"\|\s*(Role|Type|Discipline)\s*\|", line) or \
+                    re.search(r"^\s*\|\s*[A-Z][A-Za-z/ ]*\s*\|", line):
+                stated |= {t.strip() for t in re.split(r"[,|]", line)
+                           if re.fullmatch(r"[A-Z]{1,2}", t.strip())}
+            for code in sorted(stated & set(withdrawn)):
+                f.fail("%s:%d" % (Path(rel).name, line_no),
+                       "states the withdrawn code %s (%s)" % (code, withdrawn[code]))
+        for m in re.finditer(r"KUT-([A-Z]{2,6})-", text):
+            got = m.group(1)
+            if len(got) != N.ORIGINATOR_LENGTH:
+                f.fail(Path(rel).name,
+                       "uses the originator %r in an example: %d characters, but the "
+                       "convention is exactly %d. A container built to it fails the "
+                       "compliance check." % (got, len(got), N.ORIGINATOR_LENGTH))
+        f.ok()
+        if verbose:
+            print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
+
+
 def check_source_code_tables(root: Path, f: Findings, verbose: bool):
     """The playbook markdown's role and type tables must be the adopted set.
 
@@ -881,6 +944,11 @@ def check_source_code_tables(root: Path, f: Findings, verbose: bool):
     names containers against a set the audit rejects, and the leakage check that
     already scans this file had no view on whether its content was true.
     """
+    # The BEP template shares this failure mode and was missed when the playbook
+    # was gated: it carried FP and G, and the four-character originator PLNS that
+    # the playbook's own 3.1 warns about by name. Both files are scanned.
+    _check_withdrawn(root, f, verbose)
+
     path = root / "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md"
     if not path.exists():
         f.fail(str(path), "missing -- the leakage check and this one both read it")
