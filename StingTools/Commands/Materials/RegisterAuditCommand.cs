@@ -134,6 +134,19 @@ namespace StingTools.Commands.Materials
                 counts.TryGetValue(t.Id.Value, out int used);
                 mt.InstanceCount = used;
 
+                // W3 — what the type RECORDS it was built from. Preferred over the name
+                // match, and only ever set by CompoundTypeCreator, so a type from any
+                // other source keeps auditing by name exactly as before.
+                try
+                {
+                    var prov = StingTools.Core.Storage.StingProvenanceSchema.Read(t);
+                    if (prov != null
+                        && string.Equals(prov.Engine, "CompoundTypeCreator", StringComparison.OrdinalIgnoreCase))
+                        mt.RecordedCode = prov.RuleId ?? "";
+                }
+                catch (Exception ex)
+                { StingLog.WarnRateLimited("RegAudit.Prov", $"provenance {t.Id}: {ex.Message}"); }
+
                 CompoundStructure cs = null;
                 try { cs = t.GetCompoundStructure(); }
                 catch (Exception ex)

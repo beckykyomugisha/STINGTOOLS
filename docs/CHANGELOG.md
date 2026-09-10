@@ -2,6 +2,65 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 267 — W3: a type records which register row it was built from)
+
+**`CompoundTypeCreator` now stamps `StingProvenanceSchema` on every host type it
+creates** — `Engine = "CompoundTypeCreator"`, `RuleId = MAT_CODE`,
+`CreatedUtcTicks`, `Operator`. Walls, Floors, Ceilings and Roofs; the MEP
+creators are left alone because the audit only reads `HostObjAttributes`.
+
+**Not a parameter, and that is the decision.** A parameter is hand-editable, and
+a hand-editable field is the wrong home for an audit trail — the same mistake as
+letting the NAME be the authority on identity, one column over. ExtensibleStorage
+is invisible to users and cannot be edited into disagreement.
+
+**`HostTypeRegisterAudit` now prefers the recorded code over the name match**,
+and reports a fourth verdict, **`CodeSaysOtherwise`**: the type records `FLR-028`
+and its layers build a different row, or none. The `Detail` names the recorded
+row, the modelled build-up, and — via `MatchByLayers` — the row the geometry
+actually is, so a swap is visible rather than merely wrong.
+
+**A recorded code is NEVER re-matched by name.** That is the whole point of the
+verdict: 86 of the 87 floor types carried a register `MAT_NAME` verbatim while
+building something else, so a name is a coincidence and a recorded code is a
+claim. Falling back would let a wrong code hide behind a right name. A recorded
+code the register does not issue is also a finding, not a shrug.
+
+**Layers still win every quantity.** This records a claim; it does not license
+one. `Layers_Win_The_Quantity_Question_And_This_Only_Reports` asserts that the
+audit leaves the modelled layers untouched and that its total thickness is still
+the model's, not the register's.
+
+**Nothing regresses for a type with no recorded code**, which is every type in
+every existing model. Pinned against the real 2026-09-10 Herring run — **138
+Matches · 67 Differs · 28 Flattened · 81 NoStructure · 157 NotInRegister across
+471 host types** — and asserted as an ENUMERATION of the five reachable verdicts
+rather than a list of cases, so a sixth is covered whether or not anybody
+remembers to come back.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Recorded_Code_Is_Never_Re_Matched_By_Name
+      RED   audit falls back to ByName when the code is contradicted
+            verdict Differs — the recorded claim swallowed into the old
+            vocabulary and never said                        (2 of 11 fail)
+      GREEN CodeSaysOtherwise
+
+    Types_With_No_Recorded_Code_Audit_Exactly_As_Before
+      RED   an empty recorded code takes the recorded branch
+            every existing type flips to CodeSaysOtherwise; the pre-existing
+            28-Flattened / 67-Differs assertion falls with it (13 of 21 fail)
+      GREEN 28 Flattened / 67 Differs, unchanged
+
+The second RED is the one worth reading: it broke **eight tests that already
+existed**, which is what a real regression surface looks like.
+
+**Not verified in Revit.** `deploy.bat` was not run. The `Stamp` call in the four
+creators and the `Read` in `RegisterAuditCommand` are unexercised against a live
+document — no type has ever carried this entity, so every `CodeSaysOtherwise`
+proven here is proven on constructed input. Build 0/0; Tags 919 → 930; Boq 1,311
+unchanged.
+
 #### Completed (Phase 264 — one timber vocabulary, and the matcher swap that needed stems)
 
 **Four word-lists answered "is this timber", and they disagreed both ways on a

@@ -127,6 +127,7 @@ namespace StingTools.Temp
         public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
+        private const int ColCode = 3;          // MAT_CODE — the register's key for this row
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
         private const int ColCategory = 5;      // MAT_CATEGORY
         private const int ColName = 6;          // MAT_NAME
@@ -405,6 +406,7 @@ namespace StingTools.Temp
                 }
             }
 
+            RecordRegisterRow(newType, cols);
             return true;
         }
 
@@ -442,6 +444,7 @@ namespace StingTools.Temp
                 }
             }
 
+            RecordRegisterRow(newType, cols);
             return true;
         }
 
@@ -477,6 +480,7 @@ namespace StingTools.Temp
                 }
             }
 
+            RecordRegisterRow(newType, cols);
             return true;
         }
 
@@ -512,7 +516,36 @@ namespace StingTools.Temp
                 }
             }
 
+            RecordRegisterRow(newType, cols);
             return true;
+        }
+
+        /// <summary>
+        /// W3 — record WHICH register row this type was built from, in ExtensibleStorage.
+        ///
+        /// Not a parameter: a parameter is hand-editable, and a hand-editable field is the
+        /// wrong home for an audit trail — the same mistake as letting the NAME be the
+        /// authority on identity, one column over. StingProvenanceSchema is invisible to
+        /// users and cannot be edited into disagreement.
+        ///
+        /// RuleId carries the MAT_CODE. HostTypeRegisterAudit prefers it over the name
+        /// match, and reports CodeSaysOtherwise when the layers refute it. THE LAYERS
+        /// STILL WIN for every quantity — this records a claim, it does not license one.
+        /// </summary>
+        private static void RecordRegisterRow(ElementType newType, string[] cols)
+        {
+            try
+            {
+                string code = cols != null && cols.Length > ColCode ? cols[ColCode].Trim() : "";
+                if (newType == null || code.Length == 0) return;
+                StingTools.Core.Storage.StingProvenanceSchema.Stamp(
+                    newType, "CompoundTypeCreator", code);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("CTC.Provenance",
+                    $"provenance stamp on '{newType?.Name}': {ex.Message}");
+            }
         }
 
         private static bool CreateMEPType(Document doc, string typeName,
