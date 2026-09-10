@@ -206,7 +206,10 @@ namespace StingTools.BOQ.MeasurementStandard
             // CESMM4 descriptions follow a strict feature ladder. Stub here
             // with first feature + material; project-override layer can
             // extend.
-            string material = ParameterHelpers.GetString(el, "MAT_CODE") ?? "";
+            // W2 — same wrong read as the rate chain had: MAT_CODE is bound to
+            // Materials, so this was empty for every element and every CESMM4
+            // description said "as drawn" with no material named.
+            string material = Core.Materials.ElementMatCodeReader.ResolveCode(el);
             string baseDesc = line?.Category ?? "item";
             return string.IsNullOrEmpty(material)
                 ? $"{baseDesc}; as drawn"
