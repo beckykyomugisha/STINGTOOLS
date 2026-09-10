@@ -2,6 +2,84 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 265 — W1: the register's CODE reaches the material)
+
+**`MAT_CODE` is the key `RateProviders` Pass C looks up, and one of the two paths
+that mint materials never wrote it.** The parameter is declared
+(`MR_PARAMETERS.txt:973`, `758ba3d0-ea41-51fc-8dbf-3bb444174385`, TEXT), bound to
+`Materials` and to nothing else (`CATEGORY_BINDINGS.csv:4693`, and agreeing in
+`PARAMETER_CATEGORIES.csv:510`, `FAMILY_PARAMETER_BINDINGS.csv:4022`,
+`BINDING_COVERAGE_MATRIX.csv:611`, `PARAMETER_REGISTRY.json:9971`), and the
+register that supplies the codes is **100% populated — 815 BLE + 464 MEP rows,
+1,279 unique codes, no blanks**.
+
+**Correction to the brief this work came from.** It reported *"anything writes it
+— nothing"*. That is wrong: `MaterialCommands.ApplySharedParamValues` (`:1121`)
+writes `MAT_CODE` onto every material `CreateBLEMaterials` /
+`CreateMEPMaterials` creates, through `LookupParameter(name).Set(value)` — which
+the brief's `SetString|SetIfEmpty` grep could not see. What was actually missing
+is narrower and still real:
+
+* `CompoundTypeCreator` — the path that builds a project's wall / floor /
+  ceiling / roof catalogue — called `ApplyMaterialProperties` and **not** the
+  shared-parameter writer, so every material it minted was born without a code.
+* `MaterialCommands.PopulateSharedParameters` (`:1269`) is a second, **uncalled**
+  copy of the same writer. Left alone here; noted so it is not mistaken for live
+  coverage.
+* Nothing at all backfilled a model whose materials predate any of it.
+
+**`CompoundTypeCreator` now stamps the row's own `MAT_CODE`** on the primary
+material it creates, via `SetIfEmpty` — never `Set`. Only the primary material:
+the layer materials minted alongside come from `MAT_LAYER_n_MATERIAL`, which
+names a material without naming its row, and stamping those from the referencing
+row would put a governed code on a material that row does not describe.
+
+**`Materials_StampCodes`** (SETUP tab, beside `Register audit (read-only)`)
+backfills the rest, in the shape `Materials_SetClass` uses — plan CSV written
+first, `TaskDialog` with `DefaultButton = No`. It matches on the **exact**
+`MAT_NAME` only. Revit renames a colliding material to `NAME 2`, and that may be
+a copy of the register row or somebody's variant; stamping a governed code on the
+strength of a prefix is the same guess the rename collision was made of.
+
+**Three counts, and the third is the one worth reading.** Measured over the
+1,815-name corpus in `Fixtures/material_names_20260908.csv`:
+
+    1,279  stamped        — the whole register appears in this model
+      536  no register row — the project's own vocabulary
+        0  already coded   — because nothing had ever written one
+
+536 is what the next register revision should absorb. It is reported separately
+from a `RegisterSilent` count that also includes already-coded materials the
+register cannot name, because the three headline verdicts describe the **write
+decision** and must partition, while the vocabulary question does not.
+
+**A code already there is never overwritten, and a disagreement is said rather
+than settled.** A material carrying `FLR-999` where the register says `FLR-028`
+is reported in the CSV, counted as a disagreement, and left exactly as it is. The
+register is a challenger, not an oracle — the same rule the material-class work
+settled on.
+
+**RED then GREEN, by sabotage, both counts recorded.**
+
+    Corpus_Resolves_The_Registers_Codes
+      RED    register lookup severed in the planner   0 stamped / 1,815 no-row
+             (7 of the 14 new tests fail)
+      GREEN  shipped register                     1,279 stamped /   536 no-row
+
+    A_Code_Already_There_Is_Never_Overwritten
+      RED    never-overwrite branch removed   verdict Stamp — FLR-999 → FLR-028
+      GREEN                                   verdict AlreadyCoded, no write
+
+The second matters more. **2,230 tests passed on this tree before any of this
+existed**, and a wrong write would not have moved one of them.
+
+**Not verified in Revit.** `deploy.bat` was not run and no Revit session
+exercised either the `CompoundTypeCreator` stamp or `Materials_StampCodes`. What
+is proven is the build (0 errors / 0 warnings), the Revit-free decision against
+the shipped register, and `check_workflow_wiring.ps1` Tier 4 = 0 for the new
+button. `check_dispatch_parity.ps1` fails on `Hvac_FanStaticReport`, which is
+pre-existing and untouched here.
+
 #### Completed (Phase 264 — one timber vocabulary, and the matcher swap that needed stems)
 
 **Four word-lists answered "is this timber", and they disagreed both ways on a
