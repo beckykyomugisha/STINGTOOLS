@@ -4,8 +4,12 @@
 <!-- maintainer-note -->
 > **The issued document is `KUT_Project_Delivery_Playbook.docx`** (repo root), built by
 > `tools/build_team_playbook.py`. This markdown is the working draft used to review content.
-> Edit content here, then regenerate the `.docx` — do not hand-edit the Word file, or the two
-> will drift apart. Everything outside this note is scanned for product, command and parameter
+> **This file is NOT read by the generator.** `tools/build_team_playbook.py` names it in a
+> comment as "source content" and never opens it — the issued text lives in the Python.
+> Editing here changes nothing in the `.docx`, and nothing warned about that until the
+> code tables in section 3 had drifted a whole naming migration behind it. To change the
+> issued playbook, edit `tools/build_team_playbook.py`. The code tables in 3.3 and 3.4 are
+> now derived from `tools/kut_naming.py` and gated by `tools/check_kut_documents.py`. Everything outside this note is scanned for product, command and parameter
 > names by `check_kut_documents.py`; this note is not.
 <!-- /maintainer-note -->
 
@@ -167,35 +171,63 @@ Separator is a hyphen. No spaces. Upper case throughout.
 
 ## 3.3 Role (discipline) codes — the permitted set
 
-Only these eight are valid on KUT. A model or sheet carrying anything else fails the standards audit.
+These 12 are valid on KUT, from **BS EN ISO 19650-2 UK National Annex, Table NA.3**.
+A container carrying anything else fails the standards audit.
 
 | Code | Discipline |
 |---|---|
-| `A` | Architecture / Interiors |
-| `S` | Structural |
-| `M` | Mechanical |
-| `E` | Electrical |
-| `P` | Plumbing / Public Health |
-| `FP` | Fire protection |
-| `LV` | Low voltage / communications |
-| `G` | Civil / site |
+| `A` | Architect |
+| `C` | Civil Engineer |
+| `E` | Electrical Engineer |
+| `I` | Interior Designer — including FF&E and finishes |
+| `M` | Mechanical Engineer |
+| `P` | Public Health Engineer — plumbing and drainage |
+| `Q` | Quantity Surveyor |
+| `S` | Structural Engineer |
+| `W` | Contractor |
+| `X` | Sub-contractor |
+| `Y` | Specialist Designer — fire protection, low voltage and communications |
+| `Z` | General — multi-discipline, federated and management containers |
+
+> **`FP`, `LV` and `G` were withdrawn.** Fire protection and low voltage both issue
+> under `Y` (Specialist Designer), distinguished by the Volume/System field — they were
+> never role codes in the standard. `G` is the Geographical/Land Surveyor; civil is `C`,
+> so a container issued as `-G-` claimed to come from a land surveyor.
+> Register references such as `FP-200` and `LV-200` deliberately keep the old letters:
+> they are internal ids, and renaming them collides (`FP-200` and `LV-200` would both
+> become `Y-200`).
+
 
 ## 3.4 Type codes
 
+From **BS EN ISO 19650-2 UK National Annex, Table NA.2**.
+
 | Code | Meaning |
 |---|---|
+| `CO` | Correspondence |
+| `CP` | Cost plan — including bills of quantities |
+| `CR` | Clash rendition |
+| `DR` | Drawing — including sheets |
+| `IE` | Information exchange — including transmittals |
+| `M2` | 2D model |
 | `M3` | 3D model |
-| `M2` | 2D model / drafting |
-| `DR` | Drawing |
-| `SH` | Sheet |
-| `SC` | Schedule |
-| `SP` | Specification |
-| `RP` | Report |
-| `CA` | Calculation |
-| `RD` | Room data sheet |
-| `MS` | Method statement |
+| `MI` | Minutes or action list |
 | `PP` | Presentation |
-| `CR` | Clash / coordination report |
+| `PR` | Programme |
+| `RD` | Room data sheet |
+| `RI` | Request for information |
+| `RP` | Report — including calculations and method statements |
+| `SH` | Schedule |
+| `SN` | Snagging list |
+| `SP` | Specification |
+| `SU` | Survey |
+| `VS` | Visualisation |
+
+> **`SH` is a Schedule, not a Sheet.** A sheet is a drawing — `DR`. This document
+> previously had it the other way round and invented `SC` for a schedule, so a name like
+> `KUT-SMB-01-GF-SH-A-0100` was valid under both readings and meant different things.
+> `CA` (calculation) and `MS` (method statement) were withdrawn; both are `RP`.
+
 
 ## 3.5 Level codes
 
@@ -259,7 +291,7 @@ Either way, **place rooms before the first coordination share.** Rooms are the s
 |---|---|
 | Temple architectural 3D model, all levels | `KUT-XXX-01-ZZ-M3-A-0001` |
 | Meetinghouse mechanical model | `KUT-XXX-02-ZZ-M3-M-0001` |
-| Temple ground-floor GA plan sheet | `KUT-XXX-01-GF-SH-A-0100` |
+| Temple ground-floor GA plan sheet | `KUT-XXX-01-GF-DR-A-0100` |
 | Site-wide drainage drawing | `KUT-XXX-00-ZZ-DR-P-0050` |
 | Federated coordination model | `KUT-PLN-ZZ-ZZ-M3-Z-0001` |
 | Clash report, cycle 07 | `KUT-PLN-ZZ-ZZ-CR-Z-0007` |
