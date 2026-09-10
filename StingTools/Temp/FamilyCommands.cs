@@ -127,6 +127,7 @@ namespace StingTools.Temp
         public enum ElementKind { Wall, Floor, Ceiling, Roof, Duct, Pipe, CableTray, Conduit }
 
         // CSV column indices (BLE_MATERIALS / MEP_MATERIALS)
+        private const int ColCode = 3;          // MAT_CODE — the register's key for this row
         private const int ColElementType = 4;   // MAT_ELEMENT_TYPE
         private const int ColCategory = 5;      // MAT_CATEGORY
         private const int ColName = 6;          // MAT_NAME
@@ -250,7 +251,28 @@ namespace StingTools.Temp
                                 // Apply material appearance properties from CSV
                                 Material newMat = doc.GetElement(newMatId) as Material;
                                 if (newMat != null)
+                                {
                                     MaterialPropertyHelper.ApplyMaterialProperties(newMat, cols);
+
+                                    // W1 — the register row that named this material also
+                                    // carries its CODE, and until now this path read the row
+                                    // and discarded it. MAT_CODE is what RateProviders Pass C
+                                    // keys on; a material born without one is invisible to the
+                                    // most specific rate lookup in the BOQ.
+                                    //
+                                    // SetIfEmpty, never Set: a code somebody already chose
+                                    // outranks the register, here as everywhere else.
+                                    //
+                                    // Only the PRIMARY material is stamped here. The layer
+                                    // materials minted below come from MAT_LAYER_n_MATERIAL,
+                                    // which names a material without naming its row — so they
+                                    // are left to Materials_StampCodes, which matches by name
+                                    // against the whole register rather than guessing from
+                                    // the row that happened to reference them.
+                                    string regCode = cols.Length > ColCode ? cols[ColCode].Trim() : "";
+                                    if (regCode.Length > 0)
+                                        ParameterHelpers.SetIfEmpty(newMat, "MAT_CODE", regCode);
+                                }
                             }
                         }
                         catch (Exception ex)
