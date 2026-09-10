@@ -91,9 +91,14 @@ ws['B7'].alignment = Alignment(wrap_text=True, vertical='top')
 ws.merge_cells('B7:C7')
 ws.row_dimensions[7].height = 32
 
+# The control banner on every sheet and the cover block must state the same
+# reference and revision. Naming them once is the only way that stays true.
+DOC_REF = 'KUT-SMB-ZZ-ZZ-SH-Z-0001'
+DOC_REV = 'P01'
+
 meta = [
-    ('Document reference', 'KUT-SMB-ZZ-ZZ-SH-Z-0001'),
-    ('Revision', 'P01'),
+    ('Document reference', DOC_REF),
+    ('Revision', DOC_REV),
     ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
     ('Prepared by', 'Symbion Consulting Group Studios (Information Manager)'),
     ('Baselined', '[FILL — date]'),
@@ -768,9 +773,22 @@ for _ws in wb.worksheets:
         _b.font = Font(color='0563C1', underline='single', size=8)
 
 for _ws in wb.worksheets:
-    _ws.oddFooter.left.text = "DRAFT - not issued (S0, work in progress)"
-    _ws.oddFooter.right.text = "Page &P of &N"
-    _ws.oddHeader.right.text = "DRAFT"
+    # A document-control banner on every sheet, after the pattern the Tilenga
+    # subcontract document list uses: reference, revision and status at the top,
+    # originator and page position at the foot, on every page of every sheet.
+    #
+    # It goes in the HEADER AND FOOTER rather than in cells. Tilenga puts its
+    # banner in rows 1-6 of each sheet, which is more visible -- but inserting six
+    # rows here would shift every freeze pane, every autofilter range and the
+    # register's own column headers, and this workbook is read through those. The
+    # banner appears on every printed page, in Page Layout view, and in the PDF,
+    # which is how the pack is circulated. No cell moves.
+    _ws.oddHeader.left.text = "&\"Calibri,Bold\"&9KAMPALA UGANDA TEMPLE"
+    _ws.oddHeader.center.text = "&\"Calibri,Bold\"&9&A"
+    _ws.oddHeader.right.text = "&9%s   Rev %s" % (DOC_REF, DOC_REV)
+    _ws.oddFooter.left.text = "&9&KC00000DRAFT - not issued (S0, work in progress)"
+    _ws.oddFooter.center.text = "&8Symbion Consulting Group Studios - Information Manager"
+    _ws.oddFooter.right.text = "&9&A   Page &P of &N"
 
 wb.save(OUT)
 K.finalise(pathlib.Path(OUT))
