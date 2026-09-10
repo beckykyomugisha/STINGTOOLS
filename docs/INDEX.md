@@ -169,6 +169,11 @@ proven coordination cycle ·
 2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
 soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
 it; three third-party-blocked items are quarantined in their own section ·
+[`PROMPT_ACC_UNATTENDED_OPERATION.md`](PROMPT_ACC_UNATTENDED_OPERATION.md) (work prompt,
+written 2026-09-10) — the third KUT/ACC pass, about operation rather than
+correctness: the fortnightly coordination cycle cannot run without a human clicking four
+dialogs, though the ACC clients are already Revit-free and three automation substrates are
+already wired. Six offline tasks, and an explicit list of what must stay manual ·
 [`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
 [`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
 
