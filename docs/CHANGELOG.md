@@ -2,6 +2,82 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 272 — W5: two conditions that ask what the command would do)
+
+`has_unclassed_materials` and `has_uncoded_materials` let `Materials_SetClass`
+and `Materials_StampCodes` skip cleanly on a re-run, cached the same way
+`has_stale` and the compliance checks are, and invalidated by the same post-step
+reset — both commands change the answer to their own condition.
+
+**The predicate is the part that could have gone wrong silently.** The obvious
+condition — any material whose class is blank — is TRUE FOREVER on this model,
+because `Materials_SetClass` deliberately refuses to guess a class for a name
+that says nothing. The step would never skip, the command would run on every
+kickoff, scan 1,815 materials, write nothing, and the report would say
+SUCCEEDED. Measured: **779 of the 1,815 would be re-processed on every run,
+forever.**
+
+So the condition asks what the COMMAND would do, by calling the planners the
+commands call. Over the real corpus and the real register:
+
+    1,815 materials  ->  NeedClass 1,036   NeedCode 1,279
+    after both commands have run  ->  0 and 0, and the SKIPPED line says so
+
+`MaterialWorkScan` is Revit-free and answers both in one pass, the shape
+`has_untagged` / `has_placeholders` already share. Planner failures are COUNTED
+(`Unreadable`) and logged rather than swallowed — a condition that answered
+"nothing to do" because the decision crashed is the silent no-op this codebase
+produces.
+
+### What this uncovered: 14 of 15 shipped conditions are inert
+
+`WorkflowEngine` has two condition paths and they do not agree. The compound one
+answers 27 names and **fails safe** on an unknown one. The single one is a run of
+independent name tests that **falls through** when nothing matches — so an
+unrecognised condition means no condition, and the step runs.
+
+Measured 2026-09-10 over the shipped presets: **15 distinct condition values in
+use, ONE honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets** — including `sld_view_exists` / `no_sld_view_exists`,
+whose whole purpose is "only on first generation", and `sustain_location_set`
+(x4), whose purpose is "do not assess without a location". Three of them
+(`handover_mode=...`) are not condition names at all; the engine has no
+key=value syntax.
+
+**W5's two are in BOTH paths for exactly this reason.** A condition added to the
+switch alone would have joined the 18.
+
+**Reported, not fixed.** The single path now warns and writes a "step ran
+UNGATED" line into the workflow report when it does not recognise a condition,
+so the 18 are visible on the next run — no change to which steps run. Closing
+WF-COND-1 means routing that path through `EvaluateSingleCondition`, which would
+make steps that run today start skipping in five shipped presets: its own PR,
+its own evidence. Logged in `docs/ROADMAP.md`.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Model_Whose_Work_Is_Done_Reports_Nothing_To_Do
+      RED   predicate relaxed to "class is blank"    NeedClass 779, not 0
+            (3 of 10 fail; the corpus test reports 1,815 instead of 1,036)
+      GREEN 0 and 0, reasons naming the numbers
+
+    The_Corpus_Needs_Exactly_What_The_Commands_Would_Write
+      RED   register lookup severed                  NeedCode 0, not 1,279
+      GREEN NeedCode 1,279 / NeedClass 1,036
+
+    The_Declared_Vocabulary_Is_Exactly_What_The_Block_Tests
+      RED   one name deleted from InlineConditionVocabulary
+            "implemented but not declared ... has_untagged"      (1 of 3)
+      GREEN 14 declared, 14 implemented, exact match
+
+Build 0/0; Tags 972 -> 985; Boq 1,331 unchanged; wiring, path-discipline,
+recount and the 277-file JSON parse all green.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document: collecting Materials, reading `MaterialClass` and
+`MAT_CODE`, and the cache's invalidation across steps are all unexercised.
+`Materials_StampCodes` has still never run against a document.
+
 #### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
 
 **Tier 2 proves preset steps resolve. Nothing proved a shipped command was
