@@ -516,6 +516,52 @@ namespace StingTools.Core
                 return _cachedHasStale.Value;
             }
 
+            // W5 — one pass over the document's materials answering BOTH
+            // has_unclassed_materials and has_uncoded_materials, cached exactly the way
+            // the stale and compliance checks are, and invalidated by the same
+            // post-step reset. The two questions share a pass because they read the same
+            // rows; the same shape has_untagged and has_placeholders already use.
+            //
+            // The DECISION is Core.Materials.MaterialWorkScan, which asks what the two
+            // commands would actually do rather than what is blank. A blank-count
+            // condition would be true forever: Materials_SetClass refuses to guess a
+            // class for a name that says nothing, and 536 of the Herring model's 1,815
+            // materials are not in the governed register at all.
+            Core.Materials.MaterialWorkTally _cachedMatWork = null;
+            Core.Materials.MaterialWorkTally cachedMatWork()
+            {
+                if (_cachedMatWork != null) return _cachedMatWork;
+                var states = new List<Core.Materials.MaterialWorkState>();
+                try
+                {
+                    var reg = Commands.Materials.RegisterAuditCommand.LoadRegistry(out string regNote);
+                    if (!string.IsNullOrEmpty(regNote)) StingLog.Info("Material work scan: " + regNote);
+                    foreach (Material m in new FilteredElementCollector(doc)
+                                           .OfClass(typeof(Material)).Cast<Material>())
+                    {
+                        string cls = "";
+                        try { cls = m.MaterialClass ?? ""; }
+                        catch (Exception ex3) { StingLog.WarnRateLimited("MatWork.Cls", $"MaterialClass: {ex3.Message}"); }
+                        states.Add(new Core.Materials.MaterialWorkState
+                        {
+                            Name = m.Name ?? "",
+                            MaterialClass = cls,
+                            MatCode = ParameterHelpers.GetString(m, "MAT_CODE") ?? "",
+                        });
+                    }
+                    _cachedMatWork = Core.Materials.MaterialWorkScan.Scan(states, reg);
+                }
+                catch (Exception ex2)
+                {
+                    StingLog.Warn($"Material work scan failed: {ex2.Message}");
+                    _cachedMatWork = new Core.Materials.MaterialWorkTally();
+                }
+                if (_cachedMatWork.Unreadable > 0)
+                    StingLog.Warn($"Material work scan: {_cachedMatWork.Unreadable} material(s) "
+                                + "could not be planned; the condition answers on the rest.");
+                return _cachedMatWork;
+            }
+
             // PERF-04: Cache compliance percentage — scan once, reuse across steps
             double? _cachedCompliancePct = complianceBefore;
             double cachedCompliancePct()
@@ -700,7 +746,7 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
+                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale, cachedMatWork);
                                 if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_overdue_issues check: {ex2.Message}"); }
@@ -729,6 +775,21 @@ namespace StingTools.Core
                             if (cond == "has_untagged" && !hasUntagged) { RecordSkip("no untagged elements"); continue; }
                             if (cond == "has_placeholders" && !hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
+                        // W5 — these two live in BOTH evaluation paths on purpose. An
+                        // unknown condition SKIPS in the compound path (fail-safe) but
+                        // RUNS here, because this block matches by name and falls through
+                        // when nothing matches. A condition added to only one of them is a
+                        // step that silently ignores its own gate.
+                        if (cond == "has_unclassed_materials")
+                        {
+                            var mw = cachedMatWork();
+                            if (!mw.HasUnclassed) { RecordSkip(mw.ClassReason); continue; }
+                        }
+                        if (cond == "has_uncoded_materials")
+                        {
+                            var mw = cachedMatWork();
+                            if (!mw.HasUncoded) { RecordSkip(mw.CodeReason); continue; }
+                        }
                         if (cond == "has_container_gaps")
                         {
                             try
@@ -752,6 +813,22 @@ namespace StingTools.Core
                             if (pct >= 50)
                             { RecordSkip($"compliance {pct:F0}% ≥ 50%"); continue; }
                         }
+
+                        // W5 -- a condition this block does not test is not a condition.
+                        // The block matches by name and falls through, so the step RUNS
+                        // with its gate ignored and nothing said. Reported here rather
+                        // than fixed: routing to EvaluateSingleCondition would change
+                        // which steps run in five shipped presets. See
+                        // InlineConditionVocabulary and ROADMAP WF-COND-1.
+                        if (Array.IndexOf(InlineConditionVocabulary, cond) < 0)
+                        {
+                            report.AppendLine($"       (condition '{step.Condition}' is not "
+                                            + "evaluated by this path -- step ran UNGATED)");
+                            StingLog.Warn($"Workflow step {stepNum}: condition "
+                                        + $"'{step.Condition}' is not tested by the single-"
+                                        + "condition path; the step ran ungated. "
+                                        + "See ROADMAP WF-COND-1.");
+                        }
                     }
 
                     // Phase 69: Compound condition evaluation (AND/OR logic)
@@ -761,7 +838,7 @@ namespace StingTools.Core
                         var results = new List<bool>();
                         foreach (var cond in step.Conditions)
                         {
-                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale));
+                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale, cachedMatWork));
                         }
 
                         bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
@@ -1012,6 +1089,10 @@ namespace StingTools.Core
                         {
                             _cachedCompliancePct = null;
                             _cachedHasStale = null; // Force re-check for stale elements
+                            // W5 — Materials_StampCodes and Materials_SetClass both change
+                            // the answer to their own condition, so a chain that runs one
+                            // and then re-asks must not read a pre-write tally.
+                            _cachedMatWork = null;
                         }
 
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
@@ -2283,9 +2364,72 @@ namespace StingTools.Core
 
         // ── Phase 69: Compound condition evaluation ─────────────────────
 
+        /// <summary>An uncached material work scan, for the compound-condition path when
+        /// no per-run cache was handed in. Slow and correct beats fast and wrong.</summary>
+        private static Core.Materials.MaterialWorkTally ScanMaterialWork(Document doc)
+        {
+            var states = new List<Core.Materials.MaterialWorkState>();
+            try
+            {
+                var reg = Commands.Materials.RegisterAuditCommand.LoadRegistry(out _);
+                foreach (Material m in new FilteredElementCollector(doc)
+                                       .OfClass(typeof(Material)).Cast<Material>())
+                {
+                    string cls = "";
+                    try { cls = m.MaterialClass ?? ""; }
+                    catch (Exception ex) { StingLog.WarnRateLimited("MatWork.Cls2", $"MaterialClass: {ex.Message}"); }
+                    states.Add(new Core.Materials.MaterialWorkState
+                    {
+                        Name = m.Name ?? "",
+                        MaterialClass = cls,
+                        MatCode = ParameterHelpers.GetString(m, "MAT_CODE") ?? "",
+                    });
+                }
+                return Core.Materials.MaterialWorkScan.Scan(states, reg);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScanMaterialWork: {ex.Message}");
+                return new Core.Materials.MaterialWorkTally();
+            }
+        }
+
+        /// <summary>
+        /// The condition names the SINGLE-`condition` path in RunWorkflow actually tests.
+        ///
+        /// It is NOT the same set EvaluateSingleCondition (the compound `conditions` path)
+        /// handles, and the difference is a live defect rather than a design: that switch
+        /// answers 27 names and fails safe on an unknown one, while the block below matches
+        /// by name and FALLS THROUGH when nothing matches, so an unrecognised single
+        /// condition means "no condition" and the step RUNS.
+        ///
+        /// Measured 2026-09-10 over the shipped presets: of the 15 distinct `condition`
+        /// values in use, ONE — has_untagged — is honoured here. The other 14, across 18
+        /// step instances in 5 presets, run ungated. Among them sld_view_exists /
+        /// no_sld_view_exists, whose entire purpose is "only on first generation", and
+        /// sustain_location_set, whose purpose is "do not assess without a location".
+        ///
+        /// This list exists so that situation is REPORTED rather than silent. Routing the
+        /// block through EvaluateSingleCondition would fix it and would change which steps
+        /// run in five shipped presets — a behaviour change that needs its own evidence and
+        /// its own PR. Logged in docs/ROADMAP.md as WF-COND-1.
+        ///
+        /// Kept in step with the block below by WorkflowConditionVocabularyTests, which
+        /// reads this file's `cond == "..."` comparisons and fails if the two disagree.
+        /// </summary>
+        internal static readonly string[] InlineConditionVocabulary =
+        {
+            "compliance_above_90", "compliance_below_50", "has_cad_imports",
+            "has_container_gaps", "has_critical_warnings", "has_links", "has_open_issues",
+            "has_overdue_issues", "has_placeholders", "has_stale",
+            "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
+            "has_warnings",
+        };
+
         /// <summary>Evaluate a single named condition against the current document state.</summary>
         private static bool EvaluateSingleCondition(Document doc, string condition,
-            Func<double> cachedCompliancePct, Func<bool> cachedHasStale)
+            Func<double> cachedCompliancePct, Func<bool> cachedHasStale,
+            Func<Core.Materials.MaterialWorkTally> cachedMatWork = null)
         {
             try
             {
@@ -2335,6 +2479,13 @@ namespace StingTools.Core
                         var coll2 = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                         if (cats2 != null && cats2.Length > 0) coll2.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats2)));
                         return coll2.Any(e => { string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1); return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t); });
+                    // W5 — the compound path. Falls back to an uncached scan when no
+                    // cache was supplied, so a caller that forgets one gets a slow right
+                    // answer rather than a fast wrong one.
+                    case "has_unclassed_materials":
+                        return (cachedMatWork != null ? cachedMatWork() : ScanMaterialWork(doc)).HasUnclassed;
+                    case "has_uncoded_materials":
+                        return (cachedMatWork != null ? cachedMatWork() : ScanMaterialWork(doc)).HasUncoded;
                     case "has_container_gaps":
                         var scan = ComplianceScan.Scan(doc);
                         return (scan?.ContainerCompletePct ?? 100) < 95;
