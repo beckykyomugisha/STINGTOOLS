@@ -2443,7 +2443,7 @@ namespace StingTools.UI
                         var fpDoc = app.ActiveUIDocument?.Document;
                         if (fpDoc != null)
                         {
-                            var presets = Core.WorkflowEngine.GetAvailablePresets();
+                            var presets = Core.WorkflowEngine.GetAvailablePresets(fpDoc);
                             var preset = presets.FirstOrDefault() ?? new Core.WorkflowPreset { Name = "Default", Steps = new() };
                             var (ok, issues) = Core.FederatedWorkflowSupport.PreFlightCheckFederated(fpDoc, preset);
                             var sb = new System.Text.StringBuilder();

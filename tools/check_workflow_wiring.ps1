@@ -203,21 +203,38 @@ $reachUsedBase = New-Object 'System.Collections.Generic.HashSet[string]' ([Strin
 $tierSix = @()
 
 # ── Tier 5 setup: the keys WorkflowStep actually binds, read from the class itself.
-#    Derived rather than listed so the gate cannot drift from WorkflowEngine.cs.
+#    Derived rather than listed so the gate cannot drift from the source.
 # A plain IndexOf('public class WorkflowStep') PREFIX-MATCHES "public class
-# WorkflowStepResult", which lives in this same file. Were it declared first, this
-# would silently parse the wrong class and read its keys as the step's. Anchor on a
-# non-identifier character after the name. (Found by sabotage-verifying this tier:
-# renaming the class to WorkflowStepRenamed did not trip the instrument check.)
-$stepMatch = [regex]::Match($engineText, 'public class WorkflowStep(?![A-Za-z0-9_])')
-if (-not $stepMatch.Success) {
-    Write-Host "Workflow-wiring FAILED -- WorkflowStep class not found in WorkflowEngine.cs." -ForegroundColor Red
+# WorkflowStepResult". Were it declared first, this would silently parse the wrong
+# class and read its keys as the step's. Anchor on a non-identifier character after
+# the name. (Found by sabotage-verifying this tier: renaming the class to
+# WorkflowStepRenamed did not trip the instrument check.)
+#
+# SEARCHED ACROSS FILES, not just WorkflowEngine.cs. W4 moved WorkflowPreset and
+# WorkflowStep to Core/WorkflowPresetModel.cs so the preset SHAPE could be asserted
+# without the Revit API, and this parse -- correctly -- failed loudly rather than
+# reporting every key in every preset as unbound. It should not fail again for a
+# move: WHERE the class lives is not this tier's business, only what it binds.
+$stepSources = @()
+foreach ($rel in @('StingTools/Core/WorkflowEngine.cs', 'StingTools/Core/WorkflowPresetModel.cs')) {
+    $sp = Join-Path $RepoRoot $rel
+    if (Test-Path $sp) { $stepSources += ,@($rel, (Get-Content -Raw -Path $sp)) }
+}
+$stepBody = $null
+foreach ($pair in $stepSources) {
+    $m = [regex]::Match($pair[1], 'public class WorkflowStep(?![A-Za-z0-9_])')
+    if (-not $m.Success) { continue }
+    $st = $m.Index
+    $en = $pair[1].IndexOf("`n    public class ", $st + 10)
+    if ($en -lt 0) { $en = $pair[1].Length }
+    $stepBody = $pair[1].Substring($st, $en - $st)
+    break
+}
+if ($null -eq $stepBody) {
+    Write-Host "Workflow-wiring FAILED -- WorkflowStep class not found in WorkflowEngine.cs or WorkflowPresetModel.cs." -ForegroundColor Red
+    Write-Host "It moved again, or was renamed. Point this parse at it -- do not delete the tier."
     exit 1
 }
-$stepStart = $stepMatch.Index
-$stepEnd = $engineText.IndexOf("`n    public class ", $stepStart + 10)
-if ($stepEnd -lt 0) { $stepEnd = $engineText.Length }
-$stepBody = $engineText.Substring($stepStart, $stepEnd - $stepStart)
 
 $boundKeys = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 foreach ($m in [regex]::Matches($stepBody, '\[JsonProperty\("([^"]+)"\)\]')) {

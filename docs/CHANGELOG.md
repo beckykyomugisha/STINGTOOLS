@@ -2,6 +2,93 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 273 — W4: a project's own workflows, layered over the corporate ones)
+
+**Workflows were the only layered config in this codebase without a project
+override.** Drawing types, view style packs, PROD rules, PROD exclusions, climate
+data, MEP sizing rules and material overrides all read `<project>/_BIM_COORD/…`
+on top of a corporate baseline. Presets read `StingToolsApp.DataPath` and nothing
+else, so every project got the corporate 26-step kickoff, in the corporate order,
+or nothing.
+
+`GetAvailablePresets(Document doc = null)` now layers
+`<project>/_BIM_COORD/workflows/WORKFLOW_*.json` on top. The parameter is optional
+so the three existing call sites keep their exact behaviour; all three now pass
+the document, and the path is resolved through `StingPaths.Meta` — never built by
+hand.
+
+**The brief's `extract_plugin.sh` claim, checked: it is right.** Lines 46 and 48
+use `cp -rf` onto `$DEPLOY_DIR/data/` — an overlay, not a wipe — so a preset
+written by `Workflow_CreatePreset` does survive a deploy. It is still global to
+every project, and still lost the moment the deploy target moves to another
+worktree.
+
+### The rules, and why each is the way it is
+
+**A project preset REPLACES the corporate one of the same name, whole.** Not
+merged step by step: a half-corporate half-project 26-step chain is a sequence
+nobody wrote and nobody can read, which is this codebase's signature failure —
+a thing that looks authored and is not. Same rule `DrawingTypeRegistry` uses.
+
+**A step whose tag resolves to nothing is REPORTED, not dropped.** Dropping it
+would let a project ship a 12-step workflow that runs 11 and says nothing — the
+same shape as a step keyed `tag` instead of `commandTag`, which Tier 1 of the
+wiring gate exists to catch. The preset still loads: a typo in step 7 is not a
+reason to withhold steps 1–6 from a user who can see the note.
+
+**A preset with no steps, no name, or that will not parse is refused and named.**
+An empty override replacing a working preset would remove a workflow and look
+like a rename.
+
+**A broken resolver does not manufacture findings.** If the tag check itself
+throws, the answer is "cannot say", not "every step in your file is broken".
+
+### The move that made this testable, and the gate it broke
+
+`WorkflowPreset` and `WorkflowStep` moved to `Core/WorkflowPresetModel.cs`. Both
+were always pure Newtonsoft POCOs — no Revit types — and the only reason a
+preset's SHAPE could not be asserted outside Revit was the Revit import in the
+file around them. Same namespace, same JSON names, same defaults, no call site
+changed.
+
+**Tier 5 of `check_workflow_wiring.ps1` failed immediately, and correctly.** It
+reads `WorkflowStep`'s `[JsonProperty]` names out of `WorkflowEngine.cs` to
+derive what the engine binds; with the class gone it reported
+`WorkflowStep class not found` and exited 1 rather than reading every key in
+every preset as unbound. Its own instrument check — written for exactly this —
+earned its place. The parse now searches both files, because WHERE the class
+lives is not that tier's business, only what it binds. Re-verified by renaming
+the class: it still fails loudly. **This is why the CI gates are run locally and
+not only the tests.**
+
+### RED then GREEN, by sabotage, both counts
+
+    A_Project_Preset_Replaces_The_Corporate_One_Of_The_Same_Name
+      RED   replacement disabled — the corporate 3-step preset survives and the
+            project's 2-step override is APPENDED: 3 presets, not 2, and the
+            user runs the corporate steps with a report saying SUCCEEDED
+            (8 of 14 fail)
+      GREEN 2 presets, "Project Kickoff" has the project's 2 steps
+
+    An_Unresolvable_Tag_Is_Reported_And_The_Preset_Still_Loads
+      RED   unresolvable steps filtered out — a 3-step preset silently becomes
+            2, UnresolvableSteps 0, no note                      (1 of 2)
+      GREEN 3 steps kept, UnresolvableSteps 1, the note names the tag
+
+    the repaired Tier 5 parse
+      RED   WorkflowStep renamed — "class not found in WorkflowEngine.cs or
+            WorkflowPresetModel.cs ... do not delete the tier"
+      GREEN 21 bound step keys, unchanged from before the move
+
+Build 0/0; Tags 972 → 986; Boq 1,331 unchanged; wiring OK (all tiers 0, 21 bound
+keys); path-discipline OK; recount `--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. `LoadProjectPresetFiles` —
+the `StingPaths.Meta` resolve, the directory read and the per-file
+deserialisation — is unexercised against a live document, and no project has ever
+had a `_BIM_COORD/workflows/` folder. What is proven is the merge decision, which
+is where a silent wrong answer would live.
+
 #### Completed (Phase 272 — W5: two conditions that ask what the command would do)
 
 `has_unclassed_materials` and `has_uncoded_materials` let `Materials_SetClass`
