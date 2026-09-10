@@ -868,6 +868,63 @@ _NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s
                       re.S | re.I)
 
 
+def check_source_code_tables(root: Path, f: Findings, verbose: bool):
+    """The playbook markdown's role and type tables must be the adopted set.
+
+    Nothing regenerates GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md, and its own
+    header used to claim the .docx was built from it. It was not -- so the file
+    drifted a whole naming migration behind the pack it appears to describe,
+    still listing the withdrawn roles FP, LV and G, and the withdrawn types SC,
+    CA and MS with SH defined as "Sheet" where NA.2 makes it a Schedule.
+
+    A stale copy of a code table is worse than no copy: a reader who trusts it
+    names containers against a set the audit rejects, and the leakage check that
+    already scans this file had no view on whether its content was true.
+    """
+    path = root / "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md"
+    if not path.exists():
+        f.fail(str(path), "missing -- the leakage check and this one both read it")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    want_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    want_types = {c for c, _ in N.TYPES}
+
+    for label, want, header in (("role", want_roles, "## 3.3 Role"),
+                                ("type", want_types, "## 3.4 Type")):
+        i = text.find(header)
+        if i < 0:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "has no %s section (%r) for the code table check" % (label, header))
+            continue
+        # Bound at the NEXT heading. A fixed-width window spilled 3.3 into 3.4
+        # and 3.4 into the suitability codes, so the check reported every
+        # neighbouring table as withdrawn.
+        nxt = text.find("\n## ", i + 1)
+        block = text[i:nxt if nxt > 0 else len(text)]
+        got = set(re.findall(r"^\|\s*`([A-Z0-9]{1,2})`\s*\|", block, re.M))
+        if not got:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table parsed to nothing -- the reader is wrong, not the file"
+                   % label)
+            continue
+        withdrawn = got - want
+        missing = want - got
+        if withdrawn:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table lists %s, which tools/kut_naming.py does not define. "
+                   "A withdrawn code here is named on containers that then fail the "
+                   "audit." % (label, ", ".join(sorted(withdrawn))))
+        if missing:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table omits %s, which the adopted set defines."
+                   % (label, ", ".join(sorted(missing))))
+        if not withdrawn and not missing:
+            f.ok()
+            if verbose:
+                print("  %s codes agree with kut_naming.py (%d)" % (label, len(got)))
+
+
 def check_no_leakage(root: Path, f: Findings, verbose: bool):
     for name in tuple(K.ISSUED) + CLIENT_FACING_SOURCES:
         # This loop mixes two kinds of path. The issued documents live in
@@ -1095,6 +1152,7 @@ def main() -> int:
     check_references(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
+    check_source_code_tables(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
 
