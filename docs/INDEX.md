@@ -160,6 +160,15 @@ on a row, and check `CHANGELOG.md` for what has since landed.
 2026-08-01; row L2 is marked closed in the document itself) ·
 [`ROLE_MODEL_MIGRATION_PROPOSAL.md`](ROLE_MODEL_MIGRATION_PROPOSAL.md), with the reconciliation
 query at `Planscape.Server/tools/role-reconciliation-sheet.sql` ·
+[`KUT_INTEGRATION_READINESS_2026-09.md`](KUT_INTEGRATION_READINESS_2026-09.md) (measured
+2026-09-10 @ `d318dcbee`) — per-integration verdicts for Fohlio / Niagara / ACC against what the
+issued KUT documents promise: ACC and Niagara **wired but unproven**, Fohlio's contracted CSV tier
+**works**. Names the one credential and the five offline fixes that stand between the pack and a
+proven coordination cycle ·
+[`PROMPT_KUT_INTEGRATION_BUILD.md`](PROMPT_KUT_INTEGRATION_BUILD.md) (work prompt, written
+2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
+soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
+it; three third-party-blocked items are quarantined in their own section ·
 [`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
 [`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
 
