@@ -48,8 +48,8 @@ function bullet(t) {
   return new Paragraph({ bullet: { level: 0 }, spacing: { after: 90, line: 276 },
     children: [new TextRun({ text: t, font: BF, size: 21, color: '2A2E34' })] });
 }
-function numbered(t) {
-  return new Paragraph({ numbering: { reference: 'nums', level: 0 },
+function numbered(t, inst) {
+  return new Paragraph({ numbering: { reference: 'nums', level: 0, instance: inst || 0 },
     spacing: { after: 90, line: 276 },
     children: [new TextRun({ text: t, font: BF, size: 21, color: '2A2E34' })] });
 }
@@ -566,12 +566,32 @@ A(
   ]),
   p('This answer is the whole presentation in four sentences. Have it ready, because someone will probably test it.', { bold: true }),
 
+  h3('"What about government funding \u2014 is there anything in the national budget?"'),
+  p('New as of 10 September 2026. The FY2026/27 budget strategy paper has a Science, Technology and Innovation section, and somebody in that room may well have read it.'),
+  say('ANSWER', [
+    '"There is a shift in the strategy paper that is genuinely relevant. Government is moving science and innovation financing away from isolated research projects and toward commercialising technologies that raise productivity, substitute imports or create high-value jobs. And it says innovation financing will be milestone-based, with further money tied to demonstrated technical progress, intellectual property, private-sector participation and market uptake.',
+    'That describes what I have rather than what I hope to have, which is the useful part.',
+    'But I want to be straight with you. The value chains it actually names are vaccines and diagnostics, e-mobility, electronics and industrial control. Architectural software is not on that list. The criteria fit; the named sectors do not.',
+    'The argument that does fit is import substitution. Every licence a Ugandan practice buys is paid in dollars to a foreign vendor \u2014 a service import nobody has counted. That is the line this sits under honestly.',
+    'I am not counting on any of it, and nothing I have proposed today depends on it."',
+  ]),
+  p('If somebody in the room offers to route it, that is a far better outcome than you raising it. Let them.', { italic: true, color: GREY }),
+
+  h3('"Then should we wait and see what next year\'s budget brings?"'),
+  p('This is the dangerous one, and it will be asked kindly. A future funding line is the most comfortable reason a committee ever finds to do nothing.'),
+  say('ANSWER', [
+    '"I would say no, and I would say that even if I were certain the money was coming.',
+    'Two of the three things I have put to you cost the Society nothing. The training programme and the CPD accreditation can start on their own, and they are the parts that reach members soonest.',
+    'And the strategy paper itself is the reason not to wait. It says financing follows demonstrated progress and market uptake \u2014 not proposals. A programme with cohorts already trained and a standard already drafted is a much stronger case in twelve months than a plan would be. If the window is real, the way to be ready for it is to have started."',
+  ]),
+  p('Never argue against the budget. Agree that it matters, then show that starting is what makes it winnable. That is a much harder position to say no to than "please do not wait".', { bold: true }),
+
   h2('Questions to ask them'),
-  numbered('Have I read the direction correctly, or am I missing something?'),
-  numbered('What would members actually use, out of everything I have shown you?'),
-  numbered('Would training be useful, and what shape should it take?'),
-  numbered('Who else should see this?'),
-  numbered('Is there anything here the Society would want to have a hand in shaping?')
+  numbered('Have I read the direction correctly, or am I missing something?', 1),
+  numbered('What would members actually use, out of everything I have shown you?', 1),
+  numbered('Would training be useful, and what shape should it take?', 1),
+  numbered('Who else should see this?', 1),
+  numbered('Is there anything here the Society would want to have a hand in shaping?', 1)
 );
 
 /* ============================================ PART 8 WORDING */
