@@ -1,0 +1,18 @@
+{
+  "_comment": "ACC operating settings for ONE PROJECT. Copy to <project>/_BIM_COORD/acc/acc_settings.json, or set the same values on the BIM Coordination Center ACC card, which writes this file for you and merges rather than overwrites. These are PROJECT settings, not credentials: a coordination model-set id belongs to a model, so the same coordinator on two jobs needs a different one for each. Credentials stay machine-scoped in %APPDATA%\\Planscape\\acc_credentials.json and are never committed. ABSENT OR UNREADABLE MEANS PROMPT: with no file, every ACC command asks exactly as it always has, which is the state of every project until somebody configures one. A file that will not parse, carries a key this build does not read, or carries a key of the wrong type is DISCARDED WHOLE and everything prompts - a half-applied configuration is a guess wearing a file's authority. Every key below is optional; delete the ones you do not want.",
+
+  "_unattended": "true stops ACC commands prompting for THIS project. They then use the values below, and FAIL with a named reason rather than assuming one - a command never picks a model set, a suitability or an escalation set on your behalf. Default false.",
+  "unattended": false,
+
+  "_coordModelSetId": "The ACC Model Coordination model set the fortnightly clash pull reads. Get it from the picker the first time you run ACC Pull Clashes - it offers to remember your choice - or paste it here. Matching is by ID, never by name, so a rename does not break the cycle and a different set taking the old name cannot capture it. If the container stops offering this id, the run reports it by name and id and stops; it never falls back to another set, because clashes from the wrong federation look exactly like a clean one.",
+  "coordModelSetId": "REPLACE_WITH_COORDINATION_MODEL_SET_ID",
+  "_coordModelSetName": "The set's name, recorded so the failure message above can name what went missing. Never used to match.",
+  "coordModelSetName": "REPLACE_WITH_COORDINATION_MODEL_SET_NAME",
+
+  "_escalation": "BOTH escalateMaxCount AND escalateMinScore, or neither. A count alone escalates trivia on a clean model; a score alone escalates hundreds on a bad one. Half a policy is refused and escalation stays OFF, with the reason named in the log. WITH NEITHER SET, AN UNATTENDED RUN ESCALATES NOTHING - it still pulls, triages and writes the CSV, which is a useful cycle that creates no work for anyone. Escalation creates ACC Issues assigned to real people, so it is opt-in on purpose. Clashes already recorded in _BIM_COORD/acc/pushed_clashes.json are excluded before the count is applied, so widening the policy never re-raises what is already tracked. THE 5 AND 0.8 BELOW ARE AN ILLUSTRATION OF THE SHAPE, NOT A RECOMMENDATION - how many issues a coordination session can absorb is a judgement about a team, not a default anyone can ship.",
+  "escalateMaxCount": 5,
+  "escalateMinScore": 0.8,
+
+  "_publishSuitability": "The suitability code an ACC Publish uses when it does not ask. Delete this key to keep today's prompt (which defaults to S3 on cancel - unchanged). An unrecognised code is refused and the run prompts rather than stamping a typo onto a bundle name. For a KUT fortnightly cycle the delivery playbook calls that state SHARED / coordination-ready, so S1 (Fit for Coordination) is the likely answer - but which code an issue carries is an Information-Manager decision, so nothing is set for you.",
+  "publishSuitability": "REPLACE_WITH_SUITABILITY_CODE_OR_DELETE_THIS_KEY"
+}

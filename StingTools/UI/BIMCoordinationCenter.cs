@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -5560,6 +5560,149 @@ namespace StingTools.UI
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
             AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
+
+            // ── Project operating settings (PROJECT-scoped, not machine-scoped) ──
+            //
+            // The credentials above live in %APPDATA% and follow the coordinator. These
+            // follow the MODEL: a coordination model-set id belongs to a project, and the
+            // same person on two jobs needs a different one for each. They are written
+            // through AccProjectSettingsFile, which resolves the path via StingPaths and
+            // merges rather than overwrites.
+            //
+            // This card is the answer to "how do I change the remembered model set without
+            // hand-editing JSON?". Absent settings mean every ACC command prompts, which is
+            // the state of every project until somebody uses these buttons.
+            detailStack.Children.Add(new TextBlock { Text = "PROJECT ACC SETTINGS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 8, 0, 4) });
+
+            var accDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var policyNow = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(accDoc));
+            var policyLbl = new TextBlock
+            {
+                Text = policyNow.DescribeSource(),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = Br(policyNow.Source == V6.AccPolicySource.Malformed
+                    ? Color.FromRgb(0xC6, 0x28, 0x28) : Color.FromRgb(0x60, 0x60, 0x60)),
+                Margin = new Thickness(0, 0, 0, 4),
+            };
+            detailStack.Children.Add(policyLbl);
+
+            var setRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var setIdBox = new TextBox
+            {
+                Text = policyNow.CoordModelSetId ?? "",
+                Width = 260, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "Coordination model-set id this project pulls clashes from. Leave empty to be asked every run.",
+            };
+            var setNameBox = new TextBox
+            {
+                Text = policyNow.CoordModelSetName ?? "",
+                Width = 180, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "The set's name. Recorded for the failure message only \u2014 matching is by id, so a rename cannot repoint the cycle.",
+            };
+            setRow.Children.Add(new TextBlock { Text = "Model set id / name:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6) });
+            setRow.Children.Add(setIdBox);
+            setRow.Children.Add(setNameBox);
+
+            void SaveSettings(Func<Autodesk.Revit.DB.Document, (bool ok, string err)> write, string okMsg)
+            {
+                var d = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (d == null) { ShowStatus("Open a project first."); return; }
+                var (ok, err) = write(d);
+                if (!ok) { ShowStatus("ACC settings NOT saved: " + err); return; }
+                var refreshed = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(d));
+                policyLbl.Text = refreshed.DescribeSource();
+                ShowStatus(okMsg);
+            }
+
+            var saveSetBtn = new Button { Content = "💾 Remember model set", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store this coordination model set with the PROJECT, so Pull Clashes stops asking. Merges into the existing settings; nothing else is changed." };
+            saveSetBtn.Click += (s, e) => SaveSettings(
+                d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveCoordModelSet(d, setIdBox.Text?.Trim(), setNameBox.Text?.Trim(), out string err); return (ok, err); },
+                "Coordination model set remembered for this project.");
+            setRow.Children.Add(saveSetBtn);
+
+            var clearSetBtn = new Button { Content = "✖ Forget", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0x75, 0x75, 0x75)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Forget the remembered model set \u2014 Pull Clashes goes back to asking every run." };
+            clearSetBtn.Click += (s, e) =>
+            {
+                setIdBox.Text = ""; setNameBox.Text = "";
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.ClearCoordModelSet(d, out string err); return (ok, err); },
+                    "Coordination model set forgotten \u2014 Pull Clashes will ask again.");
+            };
+            setRow.Children.Add(clearSetBtn);
+            detailStack.Children.Add(setRow);
+
+            var suitRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            suitRow.Children.Add(new TextBlock { Text = "Unattended publish suitability:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6) });
+            var suitCombo = new ComboBox { Width = 200, Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Suitability an unattended ACC Publish uses. \"(ask every time)\" keeps today's prompt, which is the default." };
+            suitCombo.Items.Add("(ask every time)");
+            foreach (var code in Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes) suitCombo.Items.Add(code);
+            suitCombo.SelectedIndex = 0;
+            if (!string.IsNullOrEmpty(policyNow.PublishSuitability))
+            {
+                int idx = suitCombo.Items.IndexOf(policyNow.PublishSuitability);
+                if (idx >= 0) suitCombo.SelectedIndex = idx;
+            }
+            suitRow.Children.Add(suitCombo);
+            var saveSuitBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the publish suitability with this project." };
+            saveSuitBtn.Click += (s, e) =>
+            {
+                string chosenSuit = suitCombo.SelectedIndex <= 0 ? "" : (suitCombo.SelectedItem as string ?? "");
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SavePublishSuitability(d, chosenSuit, out string err); return (ok, err); },
+                    string.IsNullOrEmpty(chosenSuit)
+                        ? "ACC Publish will ask for a suitability every time."
+                        : "ACC Publish will use " + chosenSuit + " when it does not ask.");
+            };
+            suitRow.Children.Add(saveSuitBtn);
+            detailStack.Children.Add(suitRow);
+
+            var unattRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var unattChk = new CheckBox
+            {
+                Content = "Run ACC commands without prompting (unattended)",
+                IsChecked = policyNow.IsUnattended,
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "Off by default, and off for every project that has never set it. When on, ACC commands use the settings above and FAIL with a named reason rather than asking \u2014 they never assume an answer.",
+            };
+            var saveUnattBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the unattended flag with this project." };
+            saveUnattBtn.Click += (s, e) => SaveSettings(
+                d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveUnattended(d, unattChk.IsChecked == true, out string err); return (ok, err); },
+                unattChk.IsChecked == true
+                    ? "ACC commands will not prompt for this project."
+                    : "ACC commands will prompt for this project.");
+            unattRow.Children.Add(unattChk);
+            unattRow.Children.Add(saveUnattBtn);
+            detailStack.Children.Add(unattRow);
+
+            var escRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            escRow.Children.Add(new TextBlock { Text = "Escalate at most", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
+            var escCountBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MaxCount.ToString() : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6), ToolTip = "Maximum ACC Issues one unattended run may create. Empty (with the score empty too) means escalate nothing." };
+            escRow.Children.Add(escCountBox);
+            escRow.Children.Add(new TextBlock { Text = "clash(es) scoring at least", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
+            var escScoreBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MinScore.ToString("0.##") : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Triage score threshold (0\u20131). Both fields are needed, or neither: a count alone escalates trivia, a score alone escalates hundreds." };
+            escRow.Children.Add(escScoreBox);
+            var saveEscBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the escalation policy with this project. Clearing both fields turns escalation off." };
+            saveEscBtn.Click += (s, e) =>
+            {
+                string ct = escCountBox.Text?.Trim() ?? "", st2 = escScoreBox.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(ct) && string.IsNullOrEmpty(st2))
+                {
+                    SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveEscalation(d, null, null, out string err); return (ok, err); },
+                        "Escalation is off \u2014 unattended runs will pull and triage but create no ACC Issues.");
+                    return;
+                }
+                if (!int.TryParse(ct, out int cnt) || !double.TryParse(st2, out double scr))
+                {
+                    ShowStatus("Escalation needs BOTH a whole-number count and a score, or both empty.");
+                    return;
+                }
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveEscalation(d, cnt, scr, out string err); return (ok, err); },
+                    "Unattended runs will escalate at most " + cnt + " clash(es) scoring " + scr.ToString("0.##") + " or higher.");
+            };
+            escRow.Children.Add(saveEscBtn);
+            detailStack.Children.Add(escRow);
+
 
             // Live upload to ACC Docs via the APS Data Management API (pure HTTP —
             // runs inline like Sign-in; no Revit transaction needed).

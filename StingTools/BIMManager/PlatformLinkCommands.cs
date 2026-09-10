@@ -1116,22 +1116,48 @@ namespace StingTools.BIMManager
 
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
 
-                // Ask for suitability code
-                var suitDlg = new TaskDialog("STING ACC Publish — Suitability");
-                suitDlg.MainInstruction = "Suitability code for this publish:";
-                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S1 — Fit for Coordination");
-                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
-                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
-                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
-                var suitResult = suitDlg.Show();
-                string suitability = suitResult switch
+                // Suitability code: from the project's ACC settings when one is configured,
+                // otherwise ask exactly as before. An unconfigured project is every project
+                // that exists today, so the prompt — and its S3-on-cancel default — is
+                // deliberately unchanged.
+                var accPolicy = Core.Clash.AccProjectSettingsFile.LoadFor(doc, "ACCPublish");
+                string suitability = accPolicy.ResolveSuitability(
+                    Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes, out string suitReason);
+
+                if (!string.IsNullOrEmpty(suitability))
                 {
-                    TaskDialogResult.CommandLink1 => "S1",
-                    TaskDialogResult.CommandLink2 => "S2",
-                    TaskDialogResult.CommandLink3 => "S3",
-                    TaskDialogResult.CommandLink4 => "S4",
-                    _ => "S3"
-                };
+                    StingLog.Info("PlatformLink: ACC publish — " + suitReason);
+                }
+                else
+                {
+                    StingLog.Info("PlatformLink: ACC publish suitability — " + suitReason);
+                    if (accPolicy.IsUnattended)
+                    {
+                        // Unattended with no configured suitability: stop rather than stamp a
+                        // code nobody chose onto a bundle name and a register row.
+                        TaskDialog.Show("STING ACC Publish",
+                            "This project is configured for unattended operation but names no publish " +
+                            "suitability, so there is nothing to use and nobody to ask.\n\n" + suitReason +
+                            "\n\nSet one on the BIM Coordination Center ACC card.");
+                        StingLog.Warn("ACCPublish FAILED (unattended, no publish suitability configured).");
+                        return Result.Failed;
+                    }
+                    var suitDlg = new TaskDialog("STING ACC Publish — Suitability");
+                    suitDlg.MainInstruction = "Suitability code for this publish:";
+                    suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S1 — Fit for Coordination");
+                    suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
+                    suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
+                    suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
+                    var suitResult = suitDlg.Show();
+                    suitability = suitResult switch
+                    {
+                        TaskDialogResult.CommandLink1 => "S1",
+                        TaskDialogResult.CommandLink2 => "S2",
+                        TaskDialogResult.CommandLink3 => "S3",
+                        TaskDialogResult.CommandLink4 => "S4",
+                        _ => "S3"
+                    };
+                }
 
                 // Collect deliverables
                 var deliverables = PlatformLinkEngine.CollectDeliverables(bimDir, doc);
