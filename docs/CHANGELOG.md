@@ -89,6 +89,138 @@ deserialisation — is unexercised against a live document, and no project has e
 had a `_BIM_COORD/workflows/` folder. What is proven is the merge decision, which
 is where a silent wrong answer would live.
 
+#### Completed (Phase 272 — W5: two conditions that ask what the command would do)
+
+`has_unclassed_materials` and `has_uncoded_materials` let `Materials_SetClass`
+and `Materials_StampCodes` skip cleanly on a re-run, cached the same way
+`has_stale` and the compliance checks are, and invalidated by the same post-step
+reset — both commands change the answer to their own condition.
+
+**The predicate is the part that could have gone wrong silently.** The obvious
+condition — any material whose class is blank — is TRUE FOREVER on this model,
+because `Materials_SetClass` deliberately refuses to guess a class for a name
+that says nothing. The step would never skip, the command would run on every
+kickoff, scan 1,815 materials, write nothing, and the report would say
+SUCCEEDED. Measured: **779 of the 1,815 would be re-processed on every run,
+forever.**
+
+So the condition asks what the COMMAND would do, by calling the planners the
+commands call. Over the real corpus and the real register:
+
+    1,815 materials  ->  NeedClass 1,036   NeedCode 1,279
+    after both commands have run  ->  0 and 0, and the SKIPPED line says so
+
+`MaterialWorkScan` is Revit-free and answers both in one pass, the shape
+`has_untagged` / `has_placeholders` already share. Planner failures are COUNTED
+(`Unreadable`) and logged rather than swallowed — a condition that answered
+"nothing to do" because the decision crashed is the silent no-op this codebase
+produces.
+
+### What this uncovered: 14 of 15 shipped conditions are inert
+
+`WorkflowEngine` has two condition paths and they do not agree. The compound one
+answers 27 names and **fails safe** on an unknown one. The single one is a run of
+independent name tests that **falls through** when nothing matches — so an
+unrecognised condition means no condition, and the step runs.
+
+Measured 2026-09-10 over the shipped presets: **15 distinct condition values in
+use, ONE honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets** — including `sld_view_exists` / `no_sld_view_exists`,
+whose whole purpose is "only on first generation", and `sustain_location_set`
+(x4), whose purpose is "do not assess without a location". Three of them
+(`handover_mode=...`) are not condition names at all; the engine has no
+key=value syntax.
+
+**W5's two are in BOTH paths for exactly this reason.** A condition added to the
+switch alone would have joined the 18.
+
+**Reported, not fixed.** The single path now warns and writes a "step ran
+UNGATED" line into the workflow report when it does not recognise a condition,
+so the 18 are visible on the next run — no change to which steps run. Closing
+WF-COND-1 means routing that path through `EvaluateSingleCondition`, which would
+make steps that run today start skipping in five shipped presets: its own PR,
+its own evidence. Logged in `docs/ROADMAP.md`.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Model_Whose_Work_Is_Done_Reports_Nothing_To_Do
+      RED   predicate relaxed to "class is blank"    NeedClass 779, not 0
+            (3 of 10 fail; the corpus test reports 1,815 instead of 1,036)
+      GREEN 0 and 0, reasons naming the numbers
+
+    The_Corpus_Needs_Exactly_What_The_Commands_Would_Write
+      RED   register lookup severed                  NeedCode 0, not 1,279
+      GREEN NeedCode 1,279 / NeedClass 1,036
+
+    The_Declared_Vocabulary_Is_Exactly_What_The_Block_Tests
+      RED   one name deleted from InlineConditionVocabulary
+            "implemented but not declared ... has_untagged"      (1 of 3)
+      GREEN 14 declared, 14 implemented, exact match
+
+Build 0/0; Tags 972 -> 985; Boq 1,331 unchanged; wiring, path-discipline,
+recount and the 277-file JSON parse all green.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document: collecting Materials, reading `MaterialClass` and
+`MAT_CODE`, and the cache's invalidation across steps are all unexercised.
+`Materials_StampCodes` has still never run against a document.
+
+#### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
+
+**Tier 2 proves preset steps resolve. Nothing proved a shipped command was
+reachable from a preset at all.** A command in neither `ResolveCommand` nor any
+preset is invisible to the gate — which is how seven commands sat outside both
+for a month while `ProjectKickoff` imported the register, built host types from
+it, and never stamped a code, set a class or audited what it built.
+
+**Tier 6 asks the other half of the question**: a `Cmd_Click` button tag with no
+`ResolveCommand` case is reported as **not reachable from a workflow**. It is not
+a claim the button is broken — Tier 4 already proves all 1,681 dispatch on a
+click. It is a claim that a chain cannot call them.
+
+**1,236 of 1,681 button tags** are in that state today, and they ship as
+`tools/workflow_reachability_baseline.txt`. Plenty are legitimately
+interactive-only — a modeless window, a picked element, a dialog with no headless
+meaning — so this is a baseline rather than a hard zero. The file **may shrink,
+never grow**: its entire value is that a *new* button now forces a decision
+instead of a silence.
+
+**A stale entry is REPORTED, not failed, and the asymmetry is deliberate.** A tag
+leaving the list means somebody made it chainable, which is the outcome the tier
+wants; failing for it would punish the fix, and would break whichever of two
+independent PRs merged second. Tier 5's baseline does the opposite — it fails on
+a stale entry — because there a stale line silently re-permits an unbound key.
+Both behaviours are now documented next to each other in the script.
+
+**It reuses Tier 2's `$resolvable` set on purpose.** That set is every `case`
+label in `WorkflowEngine.cs`, a superset of `ResolveCommand`'s own, so Tier 6
+under-reports rather than over-reports and the two tiers cannot disagree about
+what "resolvable" means.
+
+**No numbers are restated from `docs/UNREACHABLE_COMMANDS_TRIAGE.md`.** That file
+counts *command classes* reachable at all across six dispatch layers (1,722
+total, 1,691 reached, re-derived 2026-09-09). Tier 6 counts *button tags*
+reachable from a workflow. Different populations, different question; the two
+figures are not comparable and neither is copied into the other.
+
+**RED then GREEN, both directions, both counts.**
+
+    a NEW button with no ResolveCommand case
+      RED   baseline line for AddLeaders removed — Tier 6 FAILS, naming it:
+            "StingDockPanel.xaml button Tag=""AddLeaders"" has no case in
+             WorkflowEngine.ResolveCommand -- no preset can call it"     (1)
+      GREEN Tier 6 = 0, 1,236 baselined in use
+
+    a baselined tag that BECOMES reachable
+      RED   a ResolveCommand case added for AddLeaders — the gate prints
+            "1 Tier 6 baseline entry/ies are now reachable from a workflow",
+            baselined-in-use drops 1,236 -> 1,235, and EXITS 0
+      GREEN no stale entries
+
+The second RED is the one worth reading: it proves the tier does **not** fail
+when somebody fixes something, which is the property that makes it safe to merge
+independently of the PR that resolves the seven.
+
 #### Completed (Phase 270 — W1: the seven become reachable from a workflow)
 
 **Seven commands built this month were button-only.** `Materials_SetClass`,

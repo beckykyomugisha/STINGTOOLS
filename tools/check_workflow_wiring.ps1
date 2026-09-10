@@ -94,6 +94,41 @@
 
       tools/button_wiring_baseline.txt is EMPTY and should stay that way.
 
+    TIER 6 -- A BUTTON THE WORKFLOW ENGINE CANNOT CALL (explicit baseline).
+      Tier 2 proves PRESET STEPS RESOLVE. It cannot prove a shipped command is reachable
+      from a preset AT ALL, because a command in neither ResolveCommand nor any preset is
+      invisible to it. Seven commands built during 2026-09 -- Materials_SetClass,
+      Materials_StampCodes, Materials_RegisterAudit, Baseline_Audit, Baseline_Apply,
+      Baseline_RenameTypes, Prod_CoverageAudit -- sat in exactly that gap for a month, so
+      ProjectKickoff imported the material register, built host types from it, and never
+      stamped a code, set a class or audited what it built, with no gate saying a word.
+
+      This tier asks the other half: a Cmd_Click button tag with no ResolveCommand case is
+      reported as NOT REACHABLE FROM A WORKFLOW. It is emphatically NOT a claim the button
+      is broken -- Tier 4 already proves every one of them dispatches on a click.
+
+      NOT A FAILURE BY DEFAULT, which is why it carries a baseline. Plenty of commands are
+      legitimately interactive-only: they open a modeless window, they need a picked
+      element, they are a dialog with no headless meaning. The baseline file lists the
+      1,236 (of 1,681) that were already unreachable when this tier was written. It MAY
+      SHRINK, NEVER GROW -- the whole value is that a NEW button forces a decision instead
+      of a silence.
+
+      A STALE ENTRY IS REPORTED, NOT FAILED. A tag leaving the list means somebody made it
+      chainable, which is the outcome this tier wants; failing for it would punish the fix,
+      and would break whichever of two independent PRs merged second. Note the asymmetry
+      with Tier 5, whose baseline DOES fail on a stale entry -- there a stale line silently
+      re-permits an unbound key, which is the opposite situation.
+
+      IT USES THE SAME $resolvable SET AS TIER 2, deliberately: that set is every `case`
+      label in WorkflowEngine.cs, a superset of ResolveCommand's own. A superset makes this
+      tier UNDER-report rather than over-report, and the two tiers cannot disagree about
+      what "resolvable" means.
+
+      DOES NOT RESTATE docs/UNREACHABLE_COMMANDS_TRIAGE.md. That file asks whether a
+      command class is reachable at all, across six dispatch layers, and derives its own
+      counts; this asks the narrower question and the numbers are not comparable.
+
     WHY THIS PARSES C# SOURCE TEXT
       The natural implementation -- reflect over ResolveCommand -- is not available. The test
       projects cannot reference StingTools.csproj because it needs the Revit API, which is not
@@ -127,6 +162,7 @@ if ([string]::IsNullOrEmpty($RepoRoot)) { $RepoRoot = Split-Path -Parent $script
 $dataDir      = Join-Path $RepoRoot 'StingTools/Data'
 $engine       = Join-Path $RepoRoot 'StingTools/Core/WorkflowEngine.cs'
 $baselineFile = Join-Path $scriptDir 'workflow_wiring_baseline.txt'
+$reachBaseFile = Join-Path $scriptDir 'workflow_reachability_baseline.txt'
 
 if (-not (Test-Path $engine))  { Write-Host "Workflow-wiring FAILED -- WorkflowEngine.cs not found at $engine" -ForegroundColor Red; exit 1 }
 if (-not (Test-Path $dataDir)) { Write-Host "Workflow-wiring FAILED -- data directory not found at $dataDir" -ForegroundColor Red; exit 1 }
@@ -153,6 +189,18 @@ if (Test-Path $baselineFile) {
         [void]$baseline.Add(($t -split '\s')[0])
     }
 }
+
+# ── Tier 6 baseline: button tags accepted as not reachable from a workflow.
+$reachBaseline = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+if (Test-Path $reachBaseFile) {
+    foreach ($line in Get-Content $reachBaseFile) {
+        $t = $line.Trim()
+        if ($t.Length -eq 0 -or $t.StartsWith('#')) { continue }
+        [void]$reachBaseline.Add(($t -split '\s')[0])
+    }
+}
+$reachUsedBase = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+$tierSix = @()
 
 # ── Tier 5 setup: the keys WorkflowStep actually binds, read from the class itself.
 #    Derived rather than listed so the gate cannot drift from the source.
@@ -372,6 +420,13 @@ foreach ($t in $btnTags) {
     $tierFour += "$($btnOrigin[$t]) button Tag=""$t"" reaches no registry entry, no Cmd_Click runner and no handler case"
 }
 
+# TIER 6 -- reachable by a click, not by a workflow. See .DESCRIPTION.
+foreach ($t in $btnTags) {
+    if ($resolvable.Contains($t)) { continue }
+    if ($reachBaseline.Contains($t)) { [void]$reachUsedBase.Add($t); continue }
+    $tierSix += "$($btnOrigin[$t]) button Tag=""$t"" has no case in WorkflowEngine.ResolveCommand -- no preset can call it"
+}
+
 $failed = $false
 
 if ($tierOne.Count -gt 0) {
@@ -434,6 +489,22 @@ if ($tierFour.Count -gt 0) {
     Write-Host 'tools/button_wiring_baseline.txt unless review agrees the button should stay dead.'
 }
 
+if ($tierSix.Count -gt 0) {
+    $failed = $true
+    Write-Host ""
+    Write-Host "Workflow-wiring FAILED -- Tier 6: $($tierSix.Count) dock-panel button(s) no workflow can call:" -ForegroundColor Red
+    $tierSix | Sort-Object | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'The button works; a preset cannot reach it. Add a case to'
+    Write-Host 'WorkflowEngine.ResolveCommand returning the same command class'
+    Write-Host 'StingCommandHandler dispatches -- usually one line, and it is what makes the'
+    Write-Host 'command chainable, scriptable and visible to Tier 2. Only if the command is'
+    Write-Host 'genuinely interactive-only (a modeless window, a picked element, a dialog with'
+    Write-Host 'no headless meaning) add the tag to'
+    Write-Host 'tools/workflow_reachability_baseline.txt, with review. That file may shrink,'
+    Write-Host 'never grow: a line added to make this pass removes the only thing it does.'
+}
+
 $staleKeys = @($keyBaseline | Where-Object { -not $usedKeyBase.Contains($_) })
 if ($staleKeys.Count -gt 0) {
     $failed = $true
@@ -464,6 +535,8 @@ Write-Host "  Panel XAMLs scanned                             : $panelsScanned"
 Write-Host "  Cmd_Click buttons scanned                       : $($btnTags.Count)"
 Write-Host "  Dispatchable names (registry + runners + cases) : $($dispatch.Count)"
 Write-Host "  Tier 4 buttons dispatching to nothing           : 0"
+Write-Host "  Tier 6 buttons no workflow can call              : 0"
+Write-Host "  Baselined workflow-unreachable buttons in use    : $($reachUsedBase.Count)"
 if ($btnUsedBase.Count -gt 0) {
     Write-Host "  Baselined dead buttons in use                   : $($btnUsedBase.Count)"
 }
@@ -476,6 +549,16 @@ if ($stale.Count -gt 0) {
     $stale | Sort-Object | ForEach-Object { Write-Host "  $_" }
     Write-Host "Remove them from tools/workflow_wiring_baseline.txt -- the baseline may shrink, never grow."
 }
+$staleReach = @($reachBaseline | Where-Object { -not $reachUsedBase.Contains($_) })
+if ($staleReach.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Note: $($staleReach.Count) Tier 6 baseline entry/ies are now reachable from a workflow"
+    Write-Host "(or their button is gone). Good news either way -- remove them from"
+    Write-Host "tools/workflow_reachability_baseline.txt; that file may shrink, never grow."
+    $staleReach | Sort-Object | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
+    if ($staleReach.Count -gt 20) { Write-Host "  ... and $($staleReach.Count - 20) more" }
+}
+
 # NOTE the asymmetry with the Tier 2 baseline above, which only WARNS about a stale
 # entry. Tier 5's baseline FAILS on one, because "the baseline only shrinks" is not a
 # rule if nothing enforces it -- and because a stale entry here is the exact signal

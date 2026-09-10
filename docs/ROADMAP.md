@@ -2,6 +2,43 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Workflow conditions (2026-09-10)
+
+**WF-COND-1 — 14 of the 15 `condition` values shipped presets use are not
+evaluated by the path that reads them.** `WorkflowEngine` has two condition
+paths. The compound one (`conditions[]` -> `EvaluateSingleCondition`) answers 27
+names and **fails safe** on an unknown one, warning and skipping. The single one
+(`"condition": "..."` in `RunWorkflow`) is a run of independent `if (cond ==
+"...")` tests that **falls through** when nothing matches — so an unrecognised
+condition means *no condition* and the step runs.
+
+Measured over the shipped presets on 2026-09-10: **15 distinct `condition` values
+in use, 1 honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets**, including:
+
+    sld_view_exists / no_sld_view_exists  WORKFLOW_SLDProduction, WORKFLOW_ElectricalQA
+       — their entire purpose is "only on first generation"
+    sustain_location_set (x4)             WORKFLOW_SustainabilityAssessment
+       — its purpose is "do not assess without a location"
+    has_conduits, has_unassigned_circuits, load_summary_complete  WORKFLOW_ElectricalQA
+    has_down_conductors, has_earth_electrodes, has_spd_rows,
+    lps_class_undecided, spd_grid_empty, planscape_authenticated  WORKFLOW_LpsCommissioning
+    handover_mode=... (x3)                WORKFLOW_TierConversionHandover
+       — not a condition name at all; the engine has no `key=value` syntax
+
+**Reported, not fixed, as of Phase 272.** The single-condition path now warns and
+writes an "step ran UNGATED" line into the workflow report whenever it does not
+recognise a condition, so the 18 cases are visible on the next run.
+`WorkflowEngine.InlineConditionVocabulary` declares what that path tests and
+`WorkflowConditionVocabularyTests` fails if the declaration and the code drift.
+
+Closing it means routing the single path through `EvaluateSingleCondition`. That
+is a small change with a real consequence — **steps that run today would start
+skipping** in five shipped presets — so it needs its own PR and its own evidence
+about each of the 18, not a quiet fix inside an unrelated one. The three
+`handover_mode=...` values need a decision first: the engine has no comparison
+syntax, so they can only ever be unknown.
+
 ## MAT_CODE as a rate key — what W2 left open (2026-09-10)
 
 **MC-1 — the register and the rate table use one column name for two
