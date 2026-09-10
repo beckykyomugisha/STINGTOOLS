@@ -92,7 +92,7 @@ ws.merge_cells('B7:C7')
 ws.row_dimensions[7].height = 32
 
 meta = [
-    ('Document reference', 'KUT-SMB-ZZ-ZZ-SC-Z-0001'),
+    ('Document reference', 'KUT-SMB-ZZ-ZZ-SH-Z-0001'),
     ('Revision', 'P01'),
     ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
     ('Prepared by', 'Symbion Consulting Group Studios (Information Manager)'),

@@ -53,6 +53,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kut_docs_lib as K  # noqa: E402
+import kut_naming as N  # noqa: E402  -- the type/role vocabulary
 
 BEP = "KUT_BIM_Execution_Plan.docx"
 PLAYBOOK = "KUT_Project_Delivery_Playbook.docx"
@@ -550,6 +551,23 @@ def check_references(root: Path, f: Findings, verbose: bool):
         else:
             f.fail(name, "states no document reference of its own")
 
+    valid_types = {c for c, _ in N.TYPES}
+    valid_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    for name, ref in sorted(claimed.items()):
+        parts = ref.split("-")
+        if len(parts) != 7:
+            f.fail(name, "claims %s, which is not a seven-field container name" % ref)
+            continue
+        if parts[4] not in valid_types:
+            f.fail(name, "claims %s, whose type code %r is not in the adopted set. "
+                         "A withdrawn code resolves to nothing downstream and is "
+                         "invisible to a reference check that only matches names."
+                   % (ref, parts[4]))
+        if parts[5] not in valid_roles:
+            f.fail(name, "claims %s, whose role code %r is not in the adopted set."
+                   % (ref, parts[5]))
+        f.ok(2)   # type and role, per document -- counted so the headline moves
+
     for name in K.ISSUED:
         text = read_text(K.issued_path(root, name))
         for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
@@ -561,7 +579,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
                 # playbook cites container names as worked examples. Only a
                 # reference in the report/schedule series is expected to
                 # resolve; the rest are illustrations.
-                if re.search(r"-(RP|SC)-", ref):
+                if re.search(r"-(RP|SH)-", ref):
                     f.fail(name, "cites %s, which no document in the pack "
                                  "claims as its own reference" % ref)
                 continue
