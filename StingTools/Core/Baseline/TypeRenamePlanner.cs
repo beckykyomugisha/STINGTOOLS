@@ -389,7 +389,7 @@ namespace StingTools.Core.Baseline
             {
                 string held = p.IsProposal ? p.ProposedName : p.CurrentName;
                 if (string.IsNullOrWhiteSpace(held)) continue;
-                string key = (p.Category ?? "") + " " + held.Trim();
+                string key = (p.Category ?? "") + "\u0000" + held.Trim();
                 if (!claims.TryGetValue(key, out var l)) claims[key] = l = new List<TypeRenameProposal>();
                 l.Add(p);
             }
