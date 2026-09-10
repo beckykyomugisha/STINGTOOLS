@@ -31,6 +31,7 @@
          (HTTP status + parsed count -> Ok / EmptyOk / AuthFailed / NotFound /
          TransportFailed) is testable on its own. -->
     <Compile Include="..\StingTools\V6\AccFetchOutcome.cs" Link="V6\AccFetchOutcome.cs" />
+    <Compile Include="..\StingTools\V6\AccProjectDiscovery.cs" Link="V6\AccProjectDiscovery.cs" />
     <!-- The command DECISION, extracted out of the Revit-bound commands so the branch that
          makes the whole outcome split matter (Result.Failed instead of Succeeded) is
          covered by a test rather than by reading. -->

@@ -43,7 +43,7 @@ and the only one nobody on the delivery side can close alone.
 | Person | What only they can do |
 |---|---|
 | **Owner / Autodesk account holder** | Create the APS (Autodesk Platform Services) application and register its callback URL |
-| **ACC project administrator** | Read out the container ids for Issues and, if it differs, Model Coordination |
+| **ACC project administrator** | Confirm the container ids for Issues and, if it differs, Model Coordination. **Often no longer needed for the Issues id** — see *Finding the project id yourself* below |
 
 ### What they must supply
 
@@ -54,9 +54,27 @@ and the only one nobody on the delivery side can close alone.
 | `ProjectId` | The **Issues container** id, in `b.<guid>` form | same card |
 | `CoordContainerId` | The **Model Coordination** container id — set it **only if it differs** from `ProjectId`; left empty it falls back to `ProjectId` | same card |
 
-Both ids are `REPLACE_WITH_ACC_CONTAINER_ID` until the ACC project administrator supplies them.
+Both ids are `REPLACE_WITH_ACC_CONTAINER_ID` until they are supplied or discovered.
 Do not derive, guess or pattern-match them from a project name: a wrong container id is the exact
 input that used to make a coordination cycle report a clean federation (see *When it does not work*).
+
+### Finding the project id yourself
+
+**🔎 Find my ACC project** on the ACC card lists the hubs and projects the signed-in Autodesk
+account can already reach, and writes the id of the one you pick into **Issues Project ID**. It
+grants no access: a 3-legged token acts as its user, so it can only show what that user could
+already open in the ACC web app. It needs Client ID + Secret and a completed sign-in.
+
+**What it gives you is the Data Management project id, reported exactly as Autodesk returns it.**
+Nothing is reformatted — no prefix added, none stripped — because deciding what a container id
+"should" look like is how you end up with one nobody chose. On most ACC projects that id is also
+the Issues container, which is why this usually removes the wait. **If it is not**, the pull fails
+with `HTTP 404 — the container id, model set or service sub-path is wrong`, naming the id it used;
+that is the point to ask the administrator, with a concrete id to compare against rather than a
+blank field. The Model Coordination container, when it differs, still comes from them.
+
+An empty list is reported as an empty list ("this sign-in can see no ACC projects"), and a failed
+listing is reported as a failure naming the reason. The two are never the same message.
 
 The credentials are written to `%APPDATA%\Planscape\acc_credentials.json`. **That file is never
 committed and never leaves the machine it was created on.**

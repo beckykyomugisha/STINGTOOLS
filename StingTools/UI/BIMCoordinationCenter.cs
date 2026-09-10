@@ -5546,6 +5546,61 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"ACC test: {ex.Message}"); ShowStatus($"ACC test failed: {ex.Message}"); }
             };
             credBtnRow.Children.Add(testAccBtn);
+
+            // Discovery. The container ids used to arrive by asking an ACC project
+            // administrator to read a GUID out of a URL, which put a two-minute setup step
+            // behind someone else's calendar. A 3-legged token already acts as its user, so
+            // this shows the projects that user can ALREADY reach and writes the chosen id
+            // back verbatim — it grants nothing and normalises nothing.
+            var discoverBtn = new Button { Content = "🔎 Find my ACC project", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x00, 0x69, 0x5C)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "List the ACC hubs and projects this Autodesk sign-in can already see, and fill in the Issues Project ID from the one you pick. Needs Client ID + Secret and a completed sign-in." };
+            discoverBtn.Click += async (s2, e2) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
+                { ShowStatus("Enter Client ID and Client Secret, then sign in, before discovering projects."); return; }
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus("Asking Autodesk which projects you can see…");
+                    var found = await V6.AccProjectDiscovery.ListAllProjectsAsync(c).ConfigureAwait(true);
+
+                    // A failed listing is not an empty one, and must never read as
+                    // "you have no ACC projects".
+                    if (!found.Succeeded)
+                    {
+                        ShowStatus($"Could not list ACC projects ({found.Status}): {found.Detail}");
+                        return;
+                    }
+                    if (found.Value.Count == 0)
+                    {
+                        ShowStatus("Autodesk answered, and this sign-in can see no ACC projects. " +
+                                   "Confirm the account has been invited to the project.");
+                        return;
+                    }
+
+                    string pick = Select.StingListPicker.Show(
+                        "ACC — pick the project",
+                        "These are the projects this Autodesk sign-in can already reach. The id is written " +
+                        "back exactly as Autodesk reports it; nothing is reformatted. If a later pull returns " +
+                        "404 on the container, the Issues container id may differ from the Data Management " +
+                        "project id — confirm it rather than editing it by hand.",
+                        found.Value.Select(p => p.ToString()).ToList());
+                    if (string.IsNullOrEmpty(pick)) return;
+
+                    var chosen = found.Value.FirstOrDefault(p => p.ToString() == pick);
+                    if (chosen == null) { ShowStatus("That project could not be matched — nothing was changed."); return; }
+
+                    projectIdBox.Text = chosen.Id;
+                    var save = Gather();
+                    V6.AccIssueSync.SaveCredentials(save);
+                    ShowStatus($"Issues Project ID set to {chosen.Id} ({chosen.Name}). " +
+                               "Set Coord Container ID only if Model Coordination uses a different container.");
+                    ShowPlatformDetail("ACC");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC discover: {ex.Message}"); ShowStatus($"ACC discovery error: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(discoverBtn);
+
             detailStack.Children.Add(credBtnRow);
 
             // Buttons row 2 — coordination actions (run real IExternalCommands via dispatch)
