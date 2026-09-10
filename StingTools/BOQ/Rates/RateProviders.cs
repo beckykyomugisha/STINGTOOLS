@@ -241,122 +241,28 @@ namespace StingTools.BOQ.Rates
 
         public RateLookup Resolve(RateRequest req)
         {
-            if (req == null || _rates.Count == 0) return null;
+            if (req == null) return null;
 
-            // K-16b — PASS ORDER IS SPECIFICITY ORDER. It was not.
-            //
-            // Category used to be consulted FIRST and RETURN, so Pass B never saw a
-            // PROD code on any element whose category had a row. cost_rates_5d.csv has
-            // a row for every common category, so PROD was effectively dead: every door
-            // in KNP26 priced at "Doors,DOR,...,1665000,each" — fire door and cupboard
-            // door alike — and nothing said the rate was a category average.
-            //
-            // A category rate is the LEAST specific answer available, not the most
-            // confident one. Ordering now runs most-specific first:
-            //
-            //     product  →  category|system  →  material  →  category
-            //
-            // Confidence follows specificity for the same reason.
-            //
-            // Every branch reports HOW it resolved (2.3), reusing G-27's vocabulary
-            // rather than inventing a third one.
+            // The five passes live in CsvRateLookup — Revit-free, so the pass ORDER
+            // (the thing K-16b found wrong) is assertable without a Document. This is
+            // the present half: unpack the request, call the compute half, pack the
+            // answer. No decision is taken here.
+            var m = CsvRateLookup.Resolve(_rates, _sourceFile,
+                        req.CategoryName, req.Discipline, req.ProdCode,
+                        req.SystemType, req.MatCode);
+            if (m == null) return null;
 
-            // Pass 0 (D6) — DISCIPLINE + PRODUCT. The most specific key there is.
-            //
-            // PROD alone is not unique: Air Terminals carries a mechanical air terminal
-            // and a lightning air terminal, both GRL in ProdMap, at different rates.
-            // DISC (M vs E) separates them without inventing a PROD code or migrating
-            // ProdMap — which would have touched every tag in every existing model.
-            if (!string.IsNullOrEmpty(req.ProdCode) && !string.IsNullOrEmpty(req.Discipline) &&
-                _rates.TryGetValue($"{req.Discipline}|{req.ProdCode}", out var byDiscProd))
+            return new RateLookup
             {
-                return new RateLookup
-                {
-                    UnitRate = byDiscProd.rate,
-                    CurrencyCode = "UGX",
-                    Unit = byDiscProd.unit ?? "each",
-                    SourceId = Id,
-                    Confidence = 97,
-                    ResolutionLevel = RateResolutionLevel.Product,
-                    Provenance = $"{_sourceFile} product match ({req.Discipline}|{req.ProdCode})",
-                    MatchedKey = $"{req.Discipline}|{req.ProdCode}"
-                };
-            }
-
-            // Pass 1 — PRODUCT without discipline. Kept for rate cards that carry a
-            // globally-unique PROD code and no discipline column.
-            if (!string.IsNullOrEmpty(req.ProdCode) &&
-                _rates.TryGetValue(req.ProdCode, out var byProd))
-            {
-                return new RateLookup
-                {
-                    UnitRate = byProd.rate,
-                    CurrencyCode = "UGX",
-                    Unit = byProd.unit ?? "each",
-                    SourceId = Id,
-                    Confidence = 95,
-                    ResolutionLevel = RateResolutionLevel.Product,
-                    Provenance = $"{_sourceFile} PROD match ({req.ProdCode})",
-                    MatchedKey = req.ProdCode
-                };
-            }
-
-            // Pass 2 (RC-2) — CATEGORY|SYSTEM. Lets a project price otherwise-identical
-            // categories differently by ASS_SYSTEM_TYPE_TXT ("Pipes|MedicalGas").
-            if (!string.IsNullOrEmpty(req.CategoryName) && !string.IsNullOrEmpty(req.SystemType))
-            {
-                string sysKey = $"{req.CategoryName}|{req.SystemType}";
-                if (_rates.TryGetValue(sysKey, out var bySys))
-                    return new RateLookup
-                    {
-                        UnitRate = bySys.rate,
-                        CurrencyCode = "UGX",
-                        Unit = bySys.unit ?? "each",
-                        SourceId = Id,
-                        Confidence = 92,
-                        ResolutionLevel = RateResolutionLevel.System,
-                        Provenance = $"{_sourceFile} system match ({req.SystemType})",
-                        MatchedKey = sysKey
-                    };
-            }
-
-            // Pass 3 — MATERIAL.
-            if (!string.IsNullOrEmpty(req.MatCode) &&
-                _rates.TryGetValue(req.MatCode, out var byMat))
-            {
-                return new RateLookup
-                {
-                    UnitRate = byMat.rate,
-                    CurrencyCode = "UGX",
-                    Unit = byMat.unit ?? "each",
-                    SourceId = Id,
-                    Confidence = 85,
-                    ResolutionLevel = RateResolutionLevel.Material,
-                    Provenance = $"{_sourceFile} MAT_CODE match",
-                    MatchedKey = req.MatCode
-                };
-            }
-
-            // Pass 4 — CATEGORY. An average across every product in the category.
-            // Legitimate as a fallback, dishonest as a default: flagged so the QS can
-            // see how many lines were priced this way (2.4).
-            if (!string.IsNullOrEmpty(req.CategoryName) &&
-                _rates.TryGetValue(req.CategoryName, out var direct))
-            {
-                return new RateLookup
-                {
-                    UnitRate = direct.rate,
-                    CurrencyCode = "UGX",
-                    Unit = direct.unit ?? "each",
-                    SourceId = Id,
-                    Confidence = 70,
-                    ResolutionLevel = RateResolutionLevel.Category,
-                    Provenance = $"{_sourceFile} category average ({req.CategoryName})",
-                    MatchedKey = req.CategoryName
-                };
-            }
-
-            return null;
+                UnitRate = m.UnitRate,
+                CurrencyCode = "UGX",
+                Unit = m.Unit,
+                SourceId = Id,
+                Confidence = m.Confidence,
+                ResolutionLevel = m.Level,
+                Provenance = m.Provenance,
+                MatchedKey = m.MatchedKey,
+            };
         }
     }
 

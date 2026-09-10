@@ -15,7 +15,7 @@ exactly like a completed one -- in the place where it costs a delivery gate.
 
 WHAT IT CHECKS
   1. The extraction window is sound. ``ResolveCommand`` lives at
-     WorkflowEngine.cs:1395-2244 and MUST contain exactly one ``switch``. If a future
+     WorkflowEngine.cs:1476-2356 and MUST contain exactly one ``switch``. If a future
      edit moves or splits the method, the window would silently start scraping ``case``
      labels from a neighbouring switch and report a HIGHER resolve rate than reality.
      A checker that widens its own view rather than failing is worse than no checker,
@@ -41,8 +41,8 @@ from pathlib import Path
 
 # ResolveCommand's body. Deliberately hard-coded and then VERIFIED (check 1 below)
 # rather than located by a regex that could drift onto another method.
-RESOLVE_START = 1395
-RESOLVE_END = 2244
+RESOLVE_START = 1476
+RESOLVE_END = 2356
 
 WORKFLOW_GLOB = "StingTools/Data/WORKFLOW_KUT_*.json"
 ENGINE = "StingTools/Core/WorkflowEngine.cs"

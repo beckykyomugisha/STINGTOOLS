@@ -149,7 +149,11 @@ namespace StingTools.BOQ
                 // QS is using per-element overrides at scale, they
                 // should drive cost via the BOQ_Refresh path (which
                 // doesn't use this cache) rather than tag-time write-back.
-                string matCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "";
+                // W2 — resolved THROUGH the element's primary material. MAT_CODE is
+                // bound to Materials and to nothing else, so the old read off `el`
+                // returned empty for every element and kept it out of the cache key
+                // as well as out of the rate request.
+                string matCode = Core.Materials.ElementMatCodeReader.ResolveCode(el);
                 string cacheKey = $"{catName}|{disc}|{prod}|{matCode}|{rule.Unit ?? "each"}";
                 double ugxPerUsd = TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0);
 
