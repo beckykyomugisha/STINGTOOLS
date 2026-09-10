@@ -2,6 +2,39 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## MAT_CODE as a rate key — what W2 left open (2026-09-10)
+
+**MC-1 — the register and the rate table use one column name for two
+vocabularies.** `cost_rates_5d.csv` has a column called `MAT_CODE` holding 43
+PROD-shaped abbreviations (`FLR`, `CLG`, `WAL`, `AHU`); the governed register
+issues 1,279 codes shaped `FLR-028`, `CLG-052`, `WL-128`. **The intersection is
+empty**, so `CsvRateProvider` Pass 3 (MATERIAL, confidence 85) still matches
+nothing even now that `RateRequest.MatCode` carries a real value. Closing it
+means deciding which vocabulary that column speaks and repricing accordingly —
+a cost change needing its own evidence, not a rename. Pinned by
+`MaterialCodeResolutionTests.The_Shipped_Rate_Table_Shares_No_Key_With_The_
+Register`, which fails and names the codes the moment one crosses over.
+
+**MC-2 — `UI/IfcMaterialPsetWriter.cs:69` carries a second
+`ReadPrimaryMaterialName`** that reads the explicit Material parameter then the
+first material, **skipping the compound structure entirely**. On a rendered
+masonry wall it returns the gypsum skin — the defect #873 closed, still live in
+this one place, and it is what gets written into `Pset_StingMaterial`. Should
+call the single definition (`MaterialProdOverrideRegistry` / the layer read in
+`ElementMatCodeReader`) rather than keep a third copy.
+
+**MC-3 — 90 of the Herring model's 98 floor types have the core material
+`Concrete, Cast-in-Place gray`**, a Revit stock material absent from the
+register, so no `MAT_CODE` reaches them however the backfill is run. This is the
+87-type flattening finding seen from the cost side: until those types carry the
+build-up the register declares, floors cannot be priced by material at all.
+
+**MC-4 — `ElementMatCodeReader`'s memo is bounded by a 30-second TTL, not by a
+change hook.** Stamping codes onto existing materials changes no material count,
+so the count alone cannot invalidate. `Invalidate()` exists; once W1 and W2 are
+both on `main`, `Materials_StampCodes` should call it after its transaction
+commits rather than rely on the window.
+
 ## Shared-parameter data hygiene (2026-09-07)
 
 | ID | Item | Detail |
