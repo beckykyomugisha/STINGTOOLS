@@ -6,8 +6,8 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 
 **`MAT_CODE` is the key `RateProviders` Pass C looks up, and one of the two paths
 that mint materials never wrote it.** The parameter is declared
-(`MR_PARAMETERS.txt:879`, `758ba3d0-ea41-51fc-8dbf-3bb444174385`, TEXT), bound to
-`Materials` and to nothing else (`CATEGORY_BINDINGS.csv:4682`, and agreeing in
+(`MR_PARAMETERS.txt:973`, `758ba3d0-ea41-51fc-8dbf-3bb444174385`, TEXT), bound to
+`Materials` and to nothing else (`CATEGORY_BINDINGS.csv:4693`, and agreeing in
 `PARAMETER_CATEGORIES.csv:510`, `FAMILY_PARAMETER_BINDINGS.csv:4022`,
 `BINDING_COVERAGE_MATRIX.csv:611`, `PARAMETER_REGISTRY.json:9971`), and the
 register that supplies the codes is **100% populated — 815 BLE + 464 MEP rows,

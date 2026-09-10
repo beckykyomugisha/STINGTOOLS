@@ -2,7 +2,7 @@
 //  MaterialCodeStampPlanner.cs — put the register's CODE on the material, so
 //  that something other than a name can answer "what is this?".
 //
-//  WHY. MAT_CODE is a declared shared parameter (MR_PARAMETERS.txt:879,
+//  WHY. MAT_CODE is a declared shared parameter (MR_PARAMETERS.txt:973,
 //  758ba3d0-ea41-51fc-8dbf-3bb444174385), bound to `Materials` and to nothing
 //  else, and the BOQ rate chain keys on it: RateProviders "Pass C", confidence
 //  80, between the PROD match (85) and the COBie type map (75). The register
