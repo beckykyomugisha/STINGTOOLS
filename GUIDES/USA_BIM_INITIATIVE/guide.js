@@ -55,7 +55,7 @@ function numbered(t) {
 }
 function box(paras, fill) {
   return new Table({ width: { size: FULL, type: WidthType.DXA }, columnWidths: [FULL], borders: NB,
-    rows: [new TableRow({ children: [new TableCell({
+    rows: [new TableRow({ cantSplit: true, children: [new TableCell({
       width: { size: FULL, type: WidthType.DXA },
       shading: { type: ShadingType.CLEAR, fill: fill || TINT, color: 'auto' },
       margins: { top: 200, bottom: 200, left: 220, right: 220 },
@@ -232,8 +232,8 @@ A(
   note('Slide 5 is the hinge of the presentation',
     'It reframes everything that follows, and it flatters the room rather than lecturing it. Deliver it slowly. You are agreeing with them about the last fifteen years before you tell them anything has changed, and that is what makes the change believable.'),
 
-  h2('ACT TWO · What now exists (slides 6 to 16)'),
-  p('Two parts and the standards, eight things they may not have seen, the project lifecycle, the automation, the four modelling tools, meetings inside the model, the viewer, what a client sees, the demonstration, the assistant, and where it stands.'),
+  h2('ACT TWO · What now exists (slides 6 to 18)'),
+  p('Two parts and the standards, eight things they may not have seen, the project lifecycle, who does what on it, the weekly routine, the automation, the four modelling tools, meetings inside the model, the viewer, what a client sees, the demonstration, the assistant, and where it stands.'),
   say('THE SPINE OF IT', [
     '"There are two halves: a platform, and the standards to run it on. Most tools give you the first half; the second usually gets left to each practice to invent for itself, which is a fair part of why our drawings do not talk to each other.',
     'Let me show you eight things I think are new, and then take them one at a time.',
@@ -241,22 +241,23 @@ A(
     'And a fair question is which software it needs. The answer matters less than you would expect — Revit, ArchiCAD, Tekla, or a free open-source route, with every element keeping the same identity across all four."',
   ]),
   gap(140),
+  p('Slides 9 and 10 are the two this room will remember, because they are the two that answer "what would Monday look like". Who does what on a running project, and the routine that ships with it. Part 4 has both in full, and the wording there is what to use.', { bold: true }),
+  gap(140),
   note('Two moments in this act carry more than the rest',
     'The automation slide, where you tell one real story from your own projects about a specific evening — architects believe other architects about late nights. And the meetings slide, where the offer to be the second person on a camera test turns a Council member from an audience into a participant. If somebody takes it, fix a date before you leave the room.'),
   gap(140),
   p('Close the act on the honesty slide. Working now, being finished, not yet validated. "Ready for one practice to use today. Not yet ready to serve the whole profession at once."', { bold: true }),
 
-  h2('ACT THREE · Why it is now within reach (slides 17 to 19)'),
-  p('This act is the "cheap" half of your thesis. Roles first, because the prices make no sense without them.'),
+  h2('ACT THREE · Why it is now within reach (slides 19 to 20)'),
+  p('This act is the "cheap" half of your thesis. You have already explained who gets counted, back on slide 9, so do not explain it twice — go straight to the four principles and then the numbers.'),
   say('SAY', [
-    '"Before I show prices it is worth explaining who actually gets counted, because it is not what people expect. Authors need their own modelling software, which I do not sell. Coordinators are named seats, and that is what a practice pays for. And everyone else — client, contractor, quantity surveyor, other consultants — is unlimited and free.',
-    'So a four-person practice usually pays for two or three coordinators, and the rest of the project team costs nothing at all.',
+    '"And it has to work for a four-person practice, or none of the rest matters. Priced per practice rather than per person. Everyone outside your office joins free, which matters because the usual reason coordination software dies on a project is that nobody will pay for the other parties to be on it. Billed in shillings. And a free route for anyone with no software budget at all.',
     'Twenty-five dollars a month for the modelling tools on their own. Sixty for everything up to three people. A hundred and thirty for a practice of four to ten. Billed in shillings. And there is a free route for anyone with no software budget at all.',
     'I am not claiming it does everything the international products do. I am saying it does what a Ugandan practice needs every week, at a price that lets BIM be normal rather than exceptional."',
   ]),
   p('Then the differentiation slide, delivered generously: none of it is the big platforms being worse, it is that a market our size does not justify the work for them, and does for us.'),
 
-  h2('ACT FOUR · What it could mean for the Society (slides 20 to 22)'),
+  h2('ACT FOUR · What it could mean for the Society (slides 21 to 23)'),
   say('SAY', [
     '"If any of this is useful to the Society, the first place is not a favour I would be doing you. It is something you are already obliged to do. Every practising architect needs twenty CPD points a year to renew a licence, and this content is hard to source here.',
     'The second is the standards. Publishing a standard is the easy part; getting anyone to comply is where most of them quietly die. What is in here is a working draft with a check that runs against it. It is a draft I built because I needed one, not a proposal I am putting to you — but if the profession ever wanted a standard of its own, it is a starting point rather than a blank page.',
@@ -265,7 +266,7 @@ A(
   note('Do not push the standard',
     'Put it down and leave it. If the Council picks it up it becomes their idea, which is the only way it would ever actually happen. If they do not, nothing is lost and you have not asked for anything.'),
 
-  h2('23 to 24 · The limits, and what remains'),
+  h2('24 to 25 · The limits, and what remains'),
   say('SAY', [
     '"Three things I want you to hear from me rather than find out. The deepest automation is inside Revit, and there is no native ArchiCAD or Tekla plug-in. The engineering calculation engines have never been independently validated. And it is not finished.',
     'You would have found all three in about four minutes. I would rather you heard them from me.',
@@ -273,7 +274,7 @@ A(
   ]),
   p('Then stop. See Part 1 on letting them raise the funding question rather than raising it yourself.', { bold: true }),
 
-  h2('25 · The thing you came to say'),
+  h2('26 · The thing you came to say'),
   p('The payoff, and the sentence you want repeated to people who were not in the room. Slow right down and add nothing after it.'),
   say('SAY', [
     '"If there is one thing I would like to leave you with, it is this.',
@@ -283,7 +284,7 @@ A(
     'That is really the whole of what I came to say."',
   ]),
 
-  h2('26 to 27 · Where it could go, and the proposal'),
+  h2('27 to 28 · Where it could go, and the proposal'),
   say('SAY', [
     '"If something like this does work, I do not think it spreads by anybody announcing it. It starts with a handful of members putting it on real jobs. If that goes well, the naming and conventions gradually become how members deliver, and at that point the Council would want a hand in shaping them. Then clients start asking for what our members can already produce.',
     'And beyond that, honestly, the region. Kenya, Rwanda and Tanzania have the same conditions and the same gap. But that is a long way off and I would rather earn it here first.',
@@ -333,7 +334,7 @@ A(
 /* ============================================ PART 4 HOW IT IS USED */
 A(
   h1('Part 4 · How it is actually used'),
-  p('Three things worth being fluent on, because they are what turn a list of features into something a practice can picture itself doing.'),
+  p('Four things worth being fluent on, because they are what turn a list of features into something a practice can picture itself doing. The first two answer the question this room will actually ask: how would a project run, and who would have to do what.'),
 
   h2('A medium-sized project, start to finish'),
   tbl(['Stage', 'What happens'], [
@@ -347,14 +348,32 @@ A(
   gap(160),
   p('The line to underline is the last one. Handover is normally a miserable exercise done in the final fortnight by whoever is least busy. Here it is a by-product of having done the rest properly.', { bold: true }),
 
-  h2('Authors, coordinators, and everyone else'),
-  p('Explain this before showing prices, or the prices will not make sense. It is also the moment a room realises the economics are a different shape rather than merely cheaper.'),
-  tbl(['Who', 'What they do', 'What they cost'], [
-    ['Authors', 'Model the building', 'They need their own modelling software, which you do not sell and are not replacing. The tools sit inside whatever they already use.'],
-    ['Coordinators', 'Run the job: checking, issues, documents, meetings, quantities', 'Named seats. This is the part a practice pays for.'],
-    ['Everyone else', 'Client, contractor, quantity surveyor, other consultants', 'Unlimited and free. View, comment, raise issues, join meetings, with nobody buying them a licence.'],
-  ], [0.8, 1.7, 2.3]),
+  h2('The rhythm of a week'),
+  p('The lifecycle table above is the stages. This is the rhythm, and it is what a practice principal is really asking about when they ask how a project would run. The answer that surprises people is that nobody has to invent it. Forty-eight named routines ship with the platform, each one a single button with the steps already written, and a practice can write its own.'),
+  tbl(['When', 'The routine', 'What it actually does'], [
+    ['Every morning', 'Model health check\n12 steps', 'Re-tags whatever moved overnight, predicts where the gaps are, validates the codes, checks sheet naming, then opens the health, issues and revision dashboards. The first ten minutes of a coordinator\'s day, run while the kettle boils.'],
+    ['Through the week', 'Coordination as you go\ncontinuous', 'Issues raised on the element itself rather than in an email, and the coordination meeting held inside the model rather than over a screen share.'],
+    ['Every week', 'The data drop\n10 steps', 'Validates everything, resolves placeholder tags, then exports the tag audit, the handover data, the element schedule, the sheet register and the health report. This is the ISO 19650 information exchange, done properly, on a Friday afternoon.'],
+    ['At every issue', 'The revision chain\n5 steps', 'Creates the revision, clouds what changed, assigns it to the affected sheets, syncs the title blocks, exports the register.'],
+    ['Tender and handover', 'The packs\nready-made', 'The bill of quantities out of the model, and the asset register that has been accumulating since day one.'],
+  ], [0.85, 1.15, 2.6]),
   gap(160),
+  note('Why this is the part that convinces a principal',
+    'Every other slide answers "what can it do". This one answers "what would Monday look like", which is the question they are actually holding. Tell one true story here, from one of your own projects, about a specific evening the revision chain would have saved. Architects believe other architects about late nights.'),
+
+  h2('Who does what on a running project'),
+  p('The other half of the same question, and it has to come before any price is shown or the prices will not make sense. The slide names six roles. A small practice collapses several of them into one person, and that is the point rather than a caveat.'),
+  tbl(['Role', 'What they do', 'What it costs'], [
+    ['The project architect', 'Owns the deliverable. Approves what is issued, and sees the whole record.', 'A paid seat'],
+    ['Whoever runs coordination', 'Checks, clashes, the weekly routine. In a small practice this is the same person as the one above.', 'A paid seat'],
+    ['Technicians modelling', 'Work in Revit, ArchiCAD or the free route. Naming happens as they model rather than afterwards.', 'Their own modelling software, which you do not sell and are not replacing'],
+    ['Engineers and consultants', 'Model in their own tools. Their work arrives on the same project through IFC.', 'Free'],
+    ['The contractor and site', 'Records, photographs and issues from a phone, working offline.', 'Free'],
+    ['The client', 'Approves, sees status, watches the model. Never has to ring you for it.', 'Free'],
+  ], [0.9, 2.1, 1.0]),
+  gap(160),
+  p('In a four-person practice, one person wears two or three of these. The routine is exactly the same; it just takes less of the day. Say that sentence out loud rather than leaving it on the screen \u2014 it is what closes the quiet worry that this is only for big offices.', { bold: true }),
+  gap(60),
   say('THE LINE THAT LANDS IT', [
     '"A four-person practice usually pays for two or three coordinators, and the rest of the project team costs nothing at all.',
     'That is a different shape from paying per head, and it is the reason the whole team actually ends up on the platform rather than just the two people whose licences somebody could justify."',
@@ -424,15 +443,14 @@ A(
   p('Your multi-tool work already sits on this, which is what lets you talk about the tools belonging to the profession rather than to a company.'),
 
   h2('3 · From automation to assistance'),
-  p('The fastest-moving of the four. Research on large language models working directly with building models has expanded very quickly, across information retrieval, compliance checking, and construction information interaction. Studies report that people working with an assistant experience markedly lower mental and time pressure than working manually.'),
+  p('The fastest-moving of the four. Research on large language models working directly with building models has expanded very quickly, across retrieval, compliance checking and construction information. Studies report markedly lower mental and time pressure than working manually.'),
   p('The industry expectation for the period to 2030 is augmentation rather than replacement, with firms building and running their own assistants on their own projects.'),
   p('This is where your work is genuinely ahead rather than merely current, and it is worth knowing that when you present it.', { bold: true }),
 
   h2('4 · From project information to asset information'),
-  p('The value is moving past the handover moment into operation and maintenance, and in time into city-scale and sensor data. For a country where public asset registers are widely acknowledged to be poor, this is the layer with the most public value and the one most likely to interest government.'),
+  p('The value is moving past handover into operation and maintenance, and in time into city-scale and sensor data. Where public asset registers are widely acknowledged to be poor, this is the layer with the most public value, and the one most likely to interest government.'),
 
-  h2('Sources'),
-  p('Worth having read before the day, in case someone asks where the view comes from.', { italic: true, color: GREY }),
+  h2('Sources, worth reading before the day'),
   bullet('buildingSMART International, on IFC and the Information Delivery Specification.'),
   bullet('ISO 16739-1:2024, the IFC standard.'),
   bullet('AEC Magazine, on the agentic future of BIM.'),

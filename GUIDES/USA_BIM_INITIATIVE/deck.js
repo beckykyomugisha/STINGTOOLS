@@ -385,6 +385,102 @@ s.addNotes(
   'properly."'
 );
 
+/* ============================================== WHO DOES WHAT */
+s = pres.addSlide();
+kicker(s, TWO);
+title(s, 'Who does what on a running project');
+[
+  ['The project architect', 'Owns the deliverable. Approves what is issued, and sees the whole record.', 'a paid seat'],
+  ['Whoever runs coordination', 'Checks, clashes, the weekly routine. In a small practice this is the same person.', 'a paid seat'],
+  ['Technicians modelling', 'Work in Revit, ArchiCAD or the free route. Naming happens as they model.', 'modelling software'],
+  ['Engineers and consultants', 'Model in their own tools. Their work arrives on the same project through IFC.', 'free'],
+  ['The contractor and site', 'Records, photographs and issues from a phone, working offline.', 'free'],
+  ['The client', 'Approves, sees status, watches the model. Never has to ring you for it.', 'free'],
+].forEach(function (r, i) {
+  const x = M + (i % 3) * 4.0;
+  const y = 2.15 + Math.floor(i / 3) * 2.15;
+  card(s, x, y, 3.7, 1.9, i < 3 ? TINT2 : TINT);
+  sq(s, x + 0.32, y + 0.28, i < 3 ? ACC : SLATE, 0.18);
+  s.addText(r[0], { x: x + 0.32, y: y + 0.58, w: 3.1, h: 0.42, fontSize: 16, bold: true,
+    color: INK, fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(r[1], { x: x + 0.32, y: y + 1.02, w: 3.15, h: 0.62, fontSize: 12, color: INK2,
+    fontFace: B, lineSpacing: 16, isTextBox: true, margin: 0 });
+  s.addText(r[2], { x: x + 2.35, y: y + 0.26, w: 1.1, h: 0.28, fontSize: 10, bold: true,
+    charSpacing: 1, color: i < 3 ? ACC2 : MUTED, fontFace: B, align: 'right', isTextBox: true,
+    margin: 0 });
+});
+card(s, M, 6.55, CW, 0.7, INK);
+s.addText('In a four-person practice, one person wears two or three of these.',
+  { x: M + 0.45, y: 6.55, w: CW - 0.9, h: 0.7, fontSize: 16, bold: true, color: SALMON,
+    fontFace: H, valign: 'middle', isTextBox: true, margin: 0 });
+s.addNotes(
+  'This answers the question a practice principal is actually holding: who on my staff would have ' +
+  'to do what, and does it only work if I am a big office?\n\n' +
+  'SAY: "It is worth saying who does what on a job that is running.\n\n' +
+  'The project architect owns the deliverable, approves what goes out, and sees the whole record. ' +
+  'Somebody runs coordination — the checks, the clashes, the weekly routine. Technicians model, in ' +
+  'Revit or ArchiCAD or the free route, and the naming happens as they work rather than afterwards.\n\n' +
+  'Then everybody else. Engineers and consultants model in their own tools and their work arrives on ' +
+  'the same project. The contractor and the site team put records, photographs and issues in from a ' +
+  'phone. And the client approves things, sees status, and watches the model.\n\n' +
+  'Only the first three are paid seats. Everybody outside your office is free.\n\n' +
+  'And in a four-person practice, one person wears two or three of those hats. The routine is ' +
+  'exactly the same. It just takes less of the day."\n\n' +
+  'THAT LAST LINE IS THE ONE THAT MATTERS. It closes the "this is only for big offices" worry that ' +
+  'you named on the barrier slide.'
+);
+
+/* ============================================== THE ROUTINE */
+s = pres.addSlide();
+kicker(s, TWO);
+title(s, 'And the routine ships with it');
+s.addText('Nobody has to invent how the week runs. Each of these is one button, and the steps are ' +
+  'already written.', { x: M, y: 2.02, w: 11.7, h: 0.45, fontSize: 15.5, italic: true, color: ACC2,
+    fontFace: H, isTextBox: true, margin: 0 });
+[
+  ['Every morning', 'Model health check', '12 steps', 'Re-tag what moved overnight, predict the gaps, validate the codes, check sheet naming, then the health, issues and revision dashboards.'],
+  ['Through the week', 'Coordination as you go', 'continuous', 'Issues raised on the element itself. The coordination meeting held inside the model rather than over a screen share.'],
+  ['Every week', 'The data drop', '10 steps', 'Validate, resolve placeholders, export the tag audit, the handover data, the element schedule, the sheet register and the health report.'],
+  ['At every issue', 'The revision chain', '5 steps', 'Create the revision, cloud what changed, assign it to the affected sheets, sync the title blocks, export the register.'],
+  ['Tender and handover', 'The packs', 'ready-made', 'The bill of quantities pack out of the model, and the asset register that has been accumulating since day one.'],
+].forEach(function (r, i) {
+  const y = 2.58 + i * 0.85;
+  card(s, M, y, CW, 0.74, i % 2 ? TINT : TINT2);
+  s.addText(r[0], { x: M + 0.32, y: y + 0.2, w: 2.1, h: 0.38, fontSize: 13.5, bold: true,
+    color: ACC2, fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(r[1], { x: M + 2.5, y: y + 0.2, w: 2.5, h: 0.38, fontSize: 14, bold: true, color: INK,
+    fontFace: H, isTextBox: true, margin: 0 });
+  s.addText(r[2], { x: M + 5.05, y: y + 0.23, w: 0.95, h: 0.32, fontSize: 10.5, bold: true,
+    color: MUTED, fontFace: B, isTextBox: true, margin: 0 });
+  s.addText(r[3], { x: M + 6.1, y: y + 0.18, w: 5.85, h: 0.5, fontSize: 11.5, color: INK2,
+    fontFace: B, lineSpacing: 14, isTextBox: true, margin: 0 });
+});
+card(s, M, 6.88, CW, 0.52, INK);
+s.addText('Forty-eight of these ship with it, and a practice can write its own.',
+  { x: M + 0.45, y: 6.88, w: CW - 0.9, h: 0.52, fontSize: 14.5, bold: true, color: SALMON,
+    fontFace: H, valign: 'middle', isTextBox: true, margin: 0 });
+s.addNotes(
+  'The other half of "how would a project run". The lifecycle slide was the stages; this is the ' +
+  'rhythm, and it is what a practice principal is really asking about.\n\n' +
+  'SAY: "And the routine ships with it, which I think is the part people do not expect.\n\n' +
+  'Every morning there is a model health check. Twelve steps, one button: it re-tags whatever moved ' +
+  'overnight, predicts where the gaps are, validates the codes, checks sheet naming, and then gives ' +
+  'you the health, issues and revision dashboards. That is the first ten minutes of a coordinator\'s ' +
+  'day, and it runs while the kettle boils.\n\n' +
+  'Through the week, issues get raised on the element itself rather than in an email, and the ' +
+  'coordination meeting happens inside the model.\n\n' +
+  'Every week there is the data drop — ten steps that validate everything, resolve any placeholder ' +
+  'tags, and export the audit, the handover data, the schedules, the sheet register and the health ' +
+  'report. That is your ISO 19650 information exchange, done properly, on a Friday afternoon.\n\n' +
+  'And at every issue there is the revision chain. Five steps: create the revision, cloud what ' +
+  'changed, assign it to the affected sheets, sync the title blocks, export the register. That one ' +
+  'alone used to cost me an evening.\n\n' +
+  'Forty-eight of these ship with it, and a practice can write its own. Nobody has to invent how ' +
+  'the week runs."\n\n' +
+  'IF ASKED whether the routine can be changed: yes — they are plain files a practice can edit, and ' +
+  'a practice with its own way of working can write its own. Do not oversell that; say it once.'
+);
+
 /* ============================================== 9 AUTOMATION */
 s = pres.addSlide();
 kicker(s, TWO);
@@ -715,46 +811,6 @@ s.addNotes(
   'manual checks alongside. I would rather say that here than have an engineer discover it.\n\n' +
   'One line: ready for one practice today, not ready to serve the whole profession at once. That ' +
   'gap is the work that is left."'
-);
-
-/* ============================================== 17 ROLES */
-s = pres.addSlide();
-kicker(s, THREE);
-title(s, 'Who you pay for, and who is free');
-[
-  ['Authors', 'The people who model', 'They need their own modelling software, which I do not sell. The tools sit inside whatever they already use.', ACC],
-  ['Coordinators', 'The people who run the job', 'Named seats. Checking, issues, documents, meetings, quantities. This is the part a practice pays for.', ACC],
-  ['Everyone else', 'Client, contractor, QS, consultants', 'Unlimited, and free. View, comment, raise issues and join meetings, with nobody buying them a licence.', SLATE],
-].forEach(function (r, i) {
-  const x = M + i * 4.0;
-  card(s, x, 2.2, 3.7, 3.5, i === 2 ? TINT2 : TINT);
-  sq(s, x + 0.3, 2.5, r[3], 0.2);
-  s.addText(r[0], { x: x + 0.3, y: 2.85, w: 3.1, h: 0.45, fontSize: 21, bold: true, color: INK,
-    fontFace: H, isTextBox: true, margin: 0 });
-  s.addText(r[1], { x: x + 0.3, y: 3.32, w: 3.1, h: 0.4, fontSize: 12.5, color: ACC2, fontFace: B,
-    italic: true, isTextBox: true, margin: 0 });
-  s.addText(r[2], { x: x + 0.3, y: 3.85, w: 3.15, h: 1.7, fontSize: 12.5, color: INK2, fontFace: B,
-    lineSpacing: 17, isTextBox: true, margin: 0 });
-});
-card(s, M, 6.0, CW, 0.95, INK);
-s.addText('A four-person practice usually pays for two or three coordinators. The rest of the ' +
-  'project team costs nothing.', { x: M + 0.45, y: 6.0, w: CW - 0.9, h: 0.95, fontSize: 16.5,
-    bold: true, color: PAPER, fontFace: H, valign: 'middle', isTextBox: true, margin: 0 });
-s.addNotes(
-  'Put this before the prices or the prices will not make sense. It is also where the room realises ' +
-  'the economics are a different shape rather than merely cheaper.\n\n' +
-  'SAY: "Now the affordability half, and before I show prices it is worth explaining who actually ' +
-  'gets counted, because it is not what people expect.\n\n' +
-  'There are authors: the people who model. They need their own modelling software, which I do not ' +
-  'sell and am not trying to replace.\n\n' +
-  'There are coordinators: the people who run the job. Checking, issues, documents, meetings, ' +
-  'quantities. Those are named seats, and that is the part a practice pays for.\n\n' +
-  'And then everyone else. Client, contractor, quantity surveyor, other consultants. Unlimited, and ' +
-  'free.\n\n' +
-  'So a four-person practice usually pays for two or three coordinators, and the rest of the ' +
-  'project team costs nothing at all. That is a different shape from paying per head, and it is the ' +
-  'reason the whole team actually ends up on the platform rather than just the two people whose ' +
-  'licences somebody could justify."'
 );
 
 /* ============================================== 18 PRICE */

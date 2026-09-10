@@ -81,8 +81,8 @@ Both live beside the source documents in `C:\Dev\UGANDA SOCIETY OF ARCHITECHTS(U
 
 | File | What it is |
 |---|---|
-| `USA_BIM_Presentation_Guide_Sep2026.docx` | 25 pages. Everything to know and everything to say — the ask, the room, the full script, the demo gate, the value map, the funding routes, the hard questions, the fixed wording, the checklists. |
-| `USA_BIM_Presentation_Sep2026.pptx` | 17 slides, corporate, with the full spoken script in the speaker notes of every slide. |
+| `USA_BIM_Presentation_Guide_Sep2026.docx` | 27 pages. Everything to know and everything to say — the ask, the room, the full script, the demo gate, the value map, the funding routes, the hard questions, the fixed wording, the checklists. |
+| `USA_BIM_Presentation_Sep2026.pptx` | 29 slides in four acts, corporate, with the full spoken script in the speaker notes of every slide. |
 
 Regenerate with `node deck.js <out.pptx>` and `node guide.js <out.docx>` from this folder
 (needs `npm install pptxgenjs docx`). **MoWT is excluded from both** — Davis, 2026-09-08:
