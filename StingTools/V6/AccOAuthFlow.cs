@@ -41,8 +41,20 @@ namespace StingTools.V6
         /// <summary>Default loopback callback port. Must match the URL registered in the APS app.</summary>
         public const int DefaultCallbackPort = 8910;
 
-        /// <summary>Default scopes — enough for ACC Issues + Model Coordination.</summary>
-        public const string DefaultScope = "data:read data:write account:read";
+        /// <summary>
+        /// Default scopes. Derived from what the clients actually call, not from habit:
+        ///   data:read    GET issues, issue-types, model sets, clash tests, topFolders
+        ///   data:write   POST an issue
+        ///   data:create  POST data/v1 projects/{id}/storage, /items and /versions —
+        ///                the three calls AccModelUpload makes. WITHOUT THIS, EVERY
+        ///                UPLOAD 403s ON THE FIRST CALL. It was missing until 2026-09-10,
+        ///                so no token minted before then can upload: a user who signed in
+        ///                earlier must sign in again, because scopes are fixed at consent
+        ///                and a refresh token cannot widen them.
+        ///   account:read hubs / projects lookup
+        /// The OSS signed-S3 PUT needs no scope — the pre-signed URL carries its own auth.
+        /// </summary>
+        public const string DefaultScope = "data:read data:write data:create account:read";
 
         private static readonly HttpClient _http = new HttpClient();
 

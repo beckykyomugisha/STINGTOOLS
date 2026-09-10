@@ -1,0 +1,59 @@
+name: APS Scope Gate
+
+# The OAuth scopes we REQUEST must cover the APS calls we actually MAKE.
+#
+# WHY THIS RUNS IN CI
+# A scope mismatch is invisible everywhere a mismatch is normally caught. It compiles,
+# it types, the sign-in succeeds, the token is stored and the connection panel goes
+# green. The failure arrives later, as a 403 on the one call that needed the missing
+# scope -- in practice the first time anyone tries it against a real tenant, with the
+# client's credential, during a scheduled verification.
+#
+# That is not hypothetical here. Until 2026-09-10 `AccOAuthFlow.DefaultScope`
+# requested `data:read data:write account:read`, while `AccModelUpload` POSTs to three
+# data/v1 endpoints that create resources (/storage, /items, /versions) and therefore
+# need `data:create`. Every upload would have 403'd on its first call, and the cheapest
+# place to discover that would have been the live ACC verification -- the one test a
+# project gets exactly one cheap attempt at.
+#
+# WHAT THE CHECKER PROVES (see its docstring)
+#   * the requirement is derived FROM SOURCE: it finds resource-creating POSTs in the
+#     ACC clients and requires data:create only when such a call exists. Delete the
+#     upload code and the requirement relaxes on its own;
+#   * it self-tests -- a creating POST is recognised and the same URL via GET is not --
+#     and aborts if its extractor stops discriminating, rather than reporting a pass it
+#     did not earn.
+#
+# WHAT IT CANNOT PROVE: that our endpoint -> scope mapping matches Autodesk's actual
+# requirements. That mapping is our declared understanding and can be wrong or go
+# stale. Only a live call settles it. A green run means we are consistent with what we
+# believe, not that what we believe is correct.
+
+on:
+  pull_request:
+    paths:
+      - 'StingTools/V6/Acc*.cs'
+      - 'tools/check_aps_scopes.py'
+      - '.github/workflows/aps-scopes.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'StingTools/V6/Acc*.cs'
+      - 'tools/check_aps_scopes.py'
+      - '.github/workflows/aps-scopes.yml'
+  workflow_dispatch:
+
+jobs:
+  scopes:
+    name: Requested scopes cover the calls made
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # stdlib only, deliberately -- the gate must run on a bare runner.
+      - name: Check APS scopes
+        run: python tools/check_aps_scopes.py .

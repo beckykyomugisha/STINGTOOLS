@@ -1181,7 +1181,7 @@ namespace StingTools.BOQ
                 //
                 // MAT_CODE is Instance-bound and is correctly read from the instance.
                 ProdCode = ReadInstanceThenType(el, ParamRegistry.PROD),
-                MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                MatCode = Core.Materials.ElementMatCodeReader.ResolveCode(el),   // W2: through the material, not off the element
                 SystemType = ReadInstanceThenType(el, ParamRegistry.SYS),   // RC-2
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
                 CurrencyCode = "UGX",
@@ -2813,7 +2813,7 @@ namespace StingTools.BOQ
                         CategoryName = catName,
                         Discipline = DisciplineForCategory(catName),
                         ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
-                        MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                        MatCode = Core.Materials.ElementMatCodeReader.ResolveCode(el),   // W2: through the material, not off the element
                         Unit = csvRates != null && csvRates.TryGetValue(catName, out var hint) ? hint.unit : "",
                         CurrencyCode = "UGX",
                         AsOf = DateTime.UtcNow,
