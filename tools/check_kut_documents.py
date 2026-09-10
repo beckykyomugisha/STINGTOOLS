@@ -954,6 +954,46 @@ def _check_withdrawn(root: Path, f: Findings, verbose: bool):
             print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
 
 
+def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
+    """The workbook's status must appear on every sheet, not only the Cover.
+
+    A document is read front to back and carries its status in a page footer. A
+    workbook is not: it opens on whichever tab was last active, and single sheets
+    get filtered, printed and forwarded on their own. The DRAFT stamp reached the
+    Cover and nothing else, so a reader landing on a TIDP tab saw no indication
+    that the pack is unissued -- while the four Word documents said so 8 to 34
+    times each.
+    """
+    import zipfile
+    path = K.issued_path(root, MIDP)
+    if not path.exists():
+        return
+    try:
+        z = zipfile.ZipFile(path)
+        wb = z.read("xl/workbook.xml").decode("utf-8", "replace")
+        names = re.findall(r'name="([^"]+)"[^>]*sheetId', wb) or             re.findall(r'<sheet[^>]*name="([^"]+)"', wb)
+        sheets = sorted([n for n in z.namelist()
+                         if re.match(r"xl/worksheets/sheet\d+\.xml$", n)],
+                        key=lambda n: int(re.search(r"sheet(\d+)", n).group(1)))
+    except Exception as ex:
+        f.fail(MIDP, "could not be read as a workbook: %s" % ex)
+        return
+    if not sheets:
+        f.fail(MIDP, "parsed to zero sheets -- the reader is wrong, not the file")
+        return
+    missing = [names[i] if i < len(names) else p
+               for i, p in enumerate(sheets)
+               if "DRAFT" not in z.read(p).decode("utf-8", "replace")]
+    if missing:
+        f.fail(MIDP, "%d of %d sheets carry no status marking: %s. A sheet is "
+                     "forwarded on its own; the Cover does not travel with it."
+               % (len(missing), len(sheets), ", ".join(missing[:6])))
+    else:
+        f.ok()
+        if verbose:
+            print("  status on all %d sheets: %s" % (len(sheets), MIDP))
+
+
 def check_source_code_tables(root: Path, f: Findings, verbose: bool):
     """The playbook markdown's role and type tables must be the adopted set.
 
@@ -1243,6 +1283,7 @@ def main() -> int:
     check_references(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
+    check_draft_on_every_sheet(root, f, args.verbose)
     check_source_code_tables(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
