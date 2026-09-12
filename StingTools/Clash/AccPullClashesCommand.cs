@@ -60,16 +60,27 @@ namespace StingTools.Core.Clash
             string containerId = creds.CoordContainer;   // falls back to ProjectId
 
             // 1. List model sets and let the user pick.
-            List<AccModelSet> sets;
-            try { sets = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
+            AccFetchResult<List<AccModelSet>> setsResult;
+            try { setsResult = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); TaskDialog.Show("ACC", "Model-set request failed: " + ex.Message); return Result.Failed; }
 
-            if (sets == null || sets.Count == 0)
+            // A failed request is NOT "no model sets". Saying so let a wrong container id
+            // read as a clean federation and pass a coordination gate that checked nothing.
+            if (!setsResult.Succeeded)
+            {
+                TaskDialog.Show("ACC — Pull Clashes", FailureMessage("model sets", setsResult.Status,
+                    setsResult.HttpStatus, setsResult.Detail, containerId));
+                StingLog.Warn($"ACC_PullClashes FAILED ({setsResult.Status}) listing model sets on container '{containerId}': {setsResult.Detail}");
+                return Result.Failed;
+            }
+            var sets = setsResult.Value;
+            if (sets.Count == 0)
             {
                 TaskDialog.Show("ACC — Pull Clashes",
-                    "No coordination model sets returned for this container.\n\n" +
-                    "Confirm the container id (AccCredentials.ProjectId) and that Model " +
-                    "Coordination is enabled on the ACC project.");
+                    "Autodesk answered, and this container has no coordination model sets.\n\n" +
+                    $"Container queried: {containerId}\n\n" +
+                    "Confirm Model Coordination is enabled on the ACC project and that a " +
+                    "model set has been created.");
                 return Result.Succeeded;
             }
 
@@ -80,11 +91,23 @@ namespace StingTools.Core.Clash
             var chosen = sets.First(s => $"{s.Name}  [{s.Id}]" == pick);
 
             // 2. Pull clashes (latest test -> resources -> scope files -> join).
-            List<AccClashRecord> clashes;
-            try { clashes = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
+            AccFetchResult<List<AccClashRecord>> clashResult;
+            try { clashResult = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
 
-            if (clashes == null || clashes.Count == 0)
+            // The load-bearing branch. Only a request that ACTUALLY SUCCEEDED may be
+            // reported as "clash-clean"; every failure names itself and fails the step,
+            // so a workflow cannot record a coordination cycle it never ran.
+            if (!clashResult.Succeeded)
+            {
+                TaskDialog.Show("ACC — Pull Clashes", FailureMessage($"clashes for model set '{chosen.Name}'",
+                    clashResult.Status, clashResult.HttpStatus, clashResult.Detail, containerId));
+                StingLog.Warn($"ACC_PullClashes FAILED ({clashResult.Status}) pulling clashes for set '{chosen.Name}' " +
+                              $"on container '{containerId}': {clashResult.Detail}");
+                return Result.Failed;
+            }
+            var clashes = clashResult.Value;
+            if (clashes.Count == 0)
             {
                 TaskDialog.Show("ACC — Pull Clashes",
                     $"Model set '{chosen.Name}' returned no clashes.\n\n" +
@@ -148,6 +171,15 @@ namespace StingTools.Core.Clash
             StingLog.Info($"ACC_PullClashes: {clashes.Count} clashes, {scored.Count} triaged, set '{chosen.Name}'.");
             return Result.Succeeded;
         }
+
+        /// <summary>Message for a read that did NOT succeed. Delegates to
+        /// <see cref="AccCommandOutcome.FailureMessage"/> so this command and
+        /// AccSyncIssueStatusCommand cannot describe the same failure differently, and so
+        /// the wording is covered by a test — it lives in a Revit-free file precisely
+        /// because this one cannot be linked into a test project.</summary>
+        internal static string FailureMessage(string what, AccFetchStatus status, int httpStatus,
+            string detail, string containerId)
+            => AccCommandOutcome.FailureMessage(what, status, httpStatus, detail, containerId);
 
         // Idempotent push: skip clashes already issued (by stable signature), record the
         // returned ACC issue id in the sidecar so re-runs don't create duplicate issues.

@@ -129,7 +129,7 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   |---|---|---|
   | Sustainability | 365 | ✅ 438 cases, 0 failing |
   | Tags | 158 | ✅ 241 cases, **2 failing** (#554) |
-  | Boq | 121 | ✅ 196 cases, 0 failing |
+  | Boq | **956** | ✅ **1,335 cases, 0 failing** (re-measured 2026-09-10; the 121/196 was a month-stale count) |
   | Cost | 63 | ✅ 90 cases, 0 failing |
   | Clash | 56 | ✅ 64 cases, **1 failing** (#596) |
   | Routing | 41 | ✅ 45 cases, **1 failing** (#597) |
@@ -137,6 +137,11 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   | Licensing | 14 | ✅ 14 cases, 0 failing |
   | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
   | Connectivity | 0 | empty project |
+  | **Acc** (new 2026-09-10) | **60** | ✅ **67 cases, 0 failing** — the ACC surface had zero coverage until then |
+
+  Only the **Boq** and **Acc** rows were re-measured on 2026-09-10 (declared via the same
+  `[Fact]`/`[Theory]` census `.github/workflows/stingtools-unit-tests.yml` runs; cases via
+  `dotnet test`). Every other row is still the 2026-08-06 figure and should be assumed stale.
 
   Declared methods and *executed cases* are different metrics and get conflated: one `[Theory]`
   with `InlineData` expands into many cases, which is why the totals above do not match.
@@ -769,7 +774,12 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 
 1. `healthcare_rds.docx` template ships only as a README authoring guide
 2. MGS family stubs ship parameter specs only — real `.rfa` files come from manufacturers
-3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs
+3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs. That is true of
+   `Core/Twin/TwinReadback.cs:39,46` and is the whole of what it says — it is **not** the
+   Niagara story: the file-mediated path the KUT playbook actually promises
+   (`Commands/Twin/NiagaraCommands.cs` — export a point list, reconcile against a station
+   export) and a real oBIX/JSON HTTP client (`Core/Twin/NiagaraJsonClient.cs`) are both
+   built. Two of the three paths exist; only BACnet/OPC-UA is a shell.
 4. `RAD_QE_NAME_TXT` sign-off remains mandatory before radiation calculators are treated as authoritative
 5. EF migration not run yet — `dotnet ef migrations add HealthcarePack` is required
 6. No dedicated Healthcare tab in the dock panel — commands dispatch via `WorkflowEngine.ResolveCommand` and `StingCommandHandler` button tags
@@ -951,8 +961,10 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 (Möller–Trumbore SAT triangle intersection), `ObbTree` (oriented bounding box),
 `ClashGrouper`, `ClashRuleEngine`, `ClashHistory`, `ClashPersistence`,
 `LiveClashHandler` + `LiveClashUpdater` (IUpdater-based live detection),
-`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`,
-`AccIssuesClient` (push to ACC Issues API).
+`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`.
+The push to ACC Issues is `StingTools/V6/AccIssueSync.cs` (`construction/issues/v1`).
+A second, orphaned `Clash/AccIssuesClient.cs` posting to `bim360/docs/v1/.../issues/bulk`
+had zero callers and disagreed with the live client's endpoint; it was deleted 2026-09-10.
 
 **Commands (6)**:
 

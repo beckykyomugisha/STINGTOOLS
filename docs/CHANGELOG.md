@@ -2,6 +2,435 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 275 — the two read paths #927 did not reach)
+
+Phase 265 gave ACC reads an outcome (`Ok` / `EmptyOk` / `AuthFailed` / `NotFound` /
+`TransportFailed`) and applied it to Model Coordination clashes. **The same defect was
+still live in two other read paths, and one was worse than the one that was fixed.**
+
+**A failed ACC issue read read as "the issues are gone".**
+`AccIssueSync.PullIssuesAsync` returned a bare `List<AccIssue>` from three exits — auth
+failure, a mid-pagination HTTP error, and success. `AccSyncIssueStatusCommand` reconciled
+the escalation sidecar against that list and reported every tracked clash whose issue was
+absent as `NOT_FOUND / keep`. So an expired token made **every escalated clash look deleted
+from ACC**, and a page-2 failure produced a **partial reconciliation presented as a
+complete one** — after which the sidecar was written, permanently un-tracking whatever
+happened to be on page 1.
+
+It now returns `AccFetchResult<List<AccIssue>>`. **A partial read is a failure**: only a run
+that saw a final short page is `Ok`/`EmptyOk`, and the `Detail` names how many pages
+succeeded before it broke. The command refuses to reconcile, returns `Result.Failed`, and
+says so — *"The escalation record was left untouched — nothing was un-tracked."*
+
+**A malformed Niagara feed read as "live, nothing commissioned" — and deleted the
+fallback.** Four steps compounded. `NiagaraPointParser.Parse` correctly flagged an
+unparseable body; `NiagaraJsonClient.ParsePoints` logged that and **returned the empty
+points anyway**, discarding the flag; the empty dictionary is not null, so
+`CommissioningSource.Resolve` took the *live* branch and reported `live (captured …)`; and
+`Persist` then wrote that empty result over `last_station_points.json`, **destroying the
+last good snapshot — the fallback that exists precisely for an unreachable station**.
+`KUT_ValuationFromBms` turns those points into a commissioning percentage the cost module
+carries toward payment certification.
+
+The worst input was `{"error":"unauthorized"}`: it *parses*, yields zero points and sets no
+error at all, so nothing anywhere reported a problem. The parser now separates "not a
+points feed I recognise" from "a points feed with nothing on it" — a JSON error envelope,
+an HTML error page, a bare scalar, and a feed whose entries all lack a readable id are each
+unusable; `[]`, `{"points":[]}` and `{}` remain a legitimately empty station. `ParsePoints`
+returns null for every unusable body, and `Persist` refuses to overwrite a usable snapshot
+with an empty read — `LoadCache` rejects a zero-point snapshot, so writing one does not
+update the cache, it removes it.
+
+**Not over-corrected.** A station with nothing commissioned yet still reports
+`live (captured …)` with zero points, an empty ACC container is still `EmptyOk`, and a
+clash-clean model set still passes. The bug was failures masquerading as empty, never
+emptiness itself.
+
+**The last mile is now tested.** The branch that decides `Result.Failed` lived inside two
+Revit-bound commands that no test project can link, so it was verified by reading — the same
+gap the whole exercise is about. `V6/AccCommandOutcome.cs` holds that decision, Revit-free,
+and both commands call it, so they cannot describe the same failure differently. Its table
+is driven by `Enum.GetValues<AccFetchStatus>()`, and its switches **throw** on an unhandled
+member rather than defaulting, so a status added without a decision goes red immediately.
+The phrase "404 Not Found" was dropped from the failure text: it is the HTTP reason phrase
+and it invites exactly the misreading — a test asserts "clash-clean", "no clashes" and
+"not found" cannot appear in any failure message.
+
+**Four smaller closures.**
+
+- `tools/check_kut_workflow_tags.py` now runs in CI (`.github/workflows/kut-workflow-tags.yml`).
+  Its extraction window also stopped being a hard-coded line range: adding one `case` to
+  `ResolveCommand` pushed `default: return null;` past the end and the checker refused to
+  run — correct, but on a perfectly fine change, and a gate that cries wolf gets switched
+  off. It now locates the method by signature and brace-matches to its end, keeping all
+  three assertions. 97/97 across 10 files.
+- `ACCPublish` records the ZIP it built (`_BIM_COORD/acc/last_bundle.json`), so
+  `ACC_UploadLastBundle` can upload it with no file picker. A record naming a file that is
+  no longer on disk is **not** a bundle — that rule is what keeps this a file *choice*
+  rather than the guess #927 refused to make. **Still in no KUT workflow**, deliberately.
+- `AccModelUpload.UploadResult` carries an `AccFetchStatus` and HTTP status beside
+  `Ok`/`Message`, so a 403 on storage creation reads as an auth problem rather than as
+  "it didn't work".
+- `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` updated: its expected-output sections described
+  failures that no longer look like that.
+
+`CLAUDE.md` corrections, each re-measured in the session that changed it: the Boq test row
+(121 declared / 196 cases → **956 / 1,335**), a new Acc row (**60 / 67** — that surface had
+none), and the healthcare Niagara caveat, which was true of `TwinReadback` and read as
+"Niagara is absent" when two of its three paths are built.
+
+Build 0 errors / 0 warnings. `StingTools.Acc.Tests` 67 passing (was 38);
+`StingTools.Boq.Tests` 1,335 passing (was 1,316).
+
+#### Completed (Phase 274 — the ACC coordination gate that could pass without checking)
+
+**On a wrong container id, the KUT fortnightly coordination cycle reported a
+clean federation.** `AccModelCoordSync` documented itself as failing soft — "logs
+the HTTP status, returns empty, never throws" — and `AccPullClashesCommand` then
+rendered zero clashes as *"either the model set is clash-clean, or a clash test
+has not completed in ACC yet"* and returned `Result.Succeeded`. It named two
+causes and not the third. A 404, a rejected token and a changed
+`bim360/clash/v3` sub-path all arrived as the same empty list.
+
+New `V6/AccFetchOutcome.cs` (Revit-free and log-free, so it links into tests)
+carries `Ok` / `EmptyOk` / `AuthFailed` / `NotFound` / `TransportFailed` alongside
+the data. `ListModelSetsAsync` and `GetClashesAsync` now return
+`AccFetchResult<T>`; the command branches on it and returns `Result.Failed` with
+the failure kind, the reason and **the container id it actually used**, opening
+with "NOTHING WAS CHECKED — this is not a clean result". A 200 carrying an
+unrecognised payload — what a moved APS sub-path looks like — is
+`TransportFailed`, not `EmptyOk`.
+
+**The 429 retry could not execute.** `PushIssueAsync` built its
+`HttpRequestMessage` once, outside the loop, and re-sent it; on .NET 8 the second
+send throws `InvalidOperationException: The request message was already sent`.
+The call site caught it, so a rate-limited issue was **dropped** while the log
+said `ACC 429 — retrying in 1s`. Bulk-escalating clashes to ACC Issues is exactly
+the workload that provokes 429s. The request is now built per attempt, matching
+`PullIssuesAsync`, which was always correct.
+
+**New `StingTools.Acc.Tests` — 38 tests where there were none.** The entire ACC
+surface had zero coverage. Pure mapping tests pin the classifier; **loopback tests
+against a real `HttpListener`** pin the clients, because a pure-function test alone
+would have passed against the broken code — the old client mapped 404 to empty
+without consulting any classifier. The retry tests **count requests server-side**
+(4 against a persistent 429; 3 for 429/429/201): "it didn't throw" would have
+passed too, since the throw was swallowed one frame up.
+
+Deliberate sabotage found a fault in the new gate itself. Swallowing an
+`HttpRequestException` as `EmptyOk` still passed, because a downstream payload-shape
+check turned it into `TransportFailed` by another route — an alternative-path escape.
+The transport-down tests now also assert `HttpStatus == 0`, i.e. no response arrived
+at all.
+
+**Four smaller closures.**
+
+- `WORKFLOW_KUT_CoordinationCycle.json` step 6 said *"Publish coordination data to
+  ACC"*; `ACCPublish` builds a **local** bundle. Relabelled to say so. The real
+  uploader is now dispatchable as `ACC_UploadModel` on all three layers
+  (`StingCommandHandler`, `WorkflowEngine.ResolveCommand`, `StingDockPanel.xaml`),
+  and is deliberately in **no** workflow: a step cannot answer "upload which file?"
+  and guessing would put an unintended file in an issued CDE container.
+- `Clash/AccIssuesClient.cs` deleted — 45 lines, zero callers, and an endpoint
+  (`bim360/docs/v1/.../issues/bulk`) disagreeing with the live client's
+  `construction/issues/v1`.
+- `FohlioRestTransport.TestConnection()` returned `true` whenever `BaseUrl` and
+  `ApiKey` were merely non-empty, with no network call — a green a typo would pass.
+  It now throws like its siblings. The comments describing a "Test connection" gate
+  that exists nowhere in the UI were corrected.
+- `docs/examples/KUT/niagara_connection.json.example` shipped at last; the field
+  names previously existed only in a code comment.
+  `NiagaraConnectionExampleTests` gates it against `NiagaraConnection.Load` **in
+  both directions**, scraping the key list from the real source rather than
+  restating it.
+
+New gate `tools/check_kut_workflow_tags.py` — 97/97 steps across 10 KUT workflows.
+It self-tests before reporting, refuses to run if its `ResolveCommand` window does
+not hold exactly one `switch (tag)` reaching `default: return null;`, and catches a
+step that spells `commandTag` as `command` (which parses and silently does nothing).
+
+New runbook `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` for the three items no
+developer can close alone: the ACC APS app (**Traditional Web App**, callback
+`http://localhost:8910/callback`), the Niagara station connection, and the Fohlio
+mapping sign-off. Per item: who must act, what they supply, the observable proof,
+and what the failure looks like.
+
+Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 1316 passing (was 1311).
+
+#### Completed (Phase 273 — W4: a project's own workflows, layered over the corporate ones)
+
+**Workflows were the only layered config in this codebase without a project
+override.** Drawing types, view style packs, PROD rules, PROD exclusions, climate
+data, MEP sizing rules and material overrides all read `<project>/_BIM_COORD/…`
+on top of a corporate baseline. Presets read `StingToolsApp.DataPath` and nothing
+else, so every project got the corporate 26-step kickoff, in the corporate order,
+or nothing.
+
+`GetAvailablePresets(Document doc = null)` now layers
+`<project>/_BIM_COORD/workflows/WORKFLOW_*.json` on top. The parameter is optional
+so the three existing call sites keep their exact behaviour; all three now pass
+the document, and the path is resolved through `StingPaths.Meta` — never built by
+hand.
+
+**The brief's `extract_plugin.sh` claim, checked: it is right.** Lines 46 and 48
+use `cp -rf` onto `$DEPLOY_DIR/data/` — an overlay, not a wipe — so a preset
+written by `Workflow_CreatePreset` does survive a deploy. It is still global to
+every project, and still lost the moment the deploy target moves to another
+worktree.
+
+### The rules, and why each is the way it is
+
+**A project preset REPLACES the corporate one of the same name, whole.** Not
+merged step by step: a half-corporate half-project 26-step chain is a sequence
+nobody wrote and nobody can read, which is this codebase's signature failure —
+a thing that looks authored and is not. Same rule `DrawingTypeRegistry` uses.
+
+**A step whose tag resolves to nothing is REPORTED, not dropped.** Dropping it
+would let a project ship a 12-step workflow that runs 11 and says nothing — the
+same shape as a step keyed `tag` instead of `commandTag`, which Tier 1 of the
+wiring gate exists to catch. The preset still loads: a typo in step 7 is not a
+reason to withhold steps 1–6 from a user who can see the note.
+
+**A preset with no steps, no name, or that will not parse is refused and named.**
+An empty override replacing a working preset would remove a workflow and look
+like a rename.
+
+**A broken resolver does not manufacture findings.** If the tag check itself
+throws, the answer is "cannot say", not "every step in your file is broken".
+
+### The move that made this testable, and the gate it broke
+
+`WorkflowPreset` and `WorkflowStep` moved to `Core/WorkflowPresetModel.cs`. Both
+were always pure Newtonsoft POCOs — no Revit types — and the only reason a
+preset's SHAPE could not be asserted outside Revit was the Revit import in the
+file around them. Same namespace, same JSON names, same defaults, no call site
+changed.
+
+**Tier 5 of `check_workflow_wiring.ps1` failed immediately, and correctly.** It
+reads `WorkflowStep`'s `[JsonProperty]` names out of `WorkflowEngine.cs` to
+derive what the engine binds; with the class gone it reported
+`WorkflowStep class not found` and exited 1 rather than reading every key in
+every preset as unbound. Its own instrument check — written for exactly this —
+earned its place. The parse now searches both files, because WHERE the class
+lives is not that tier's business, only what it binds. Re-verified by renaming
+the class: it still fails loudly. **This is why the CI gates are run locally and
+not only the tests.**
+
+### RED then GREEN, by sabotage, both counts
+
+    A_Project_Preset_Replaces_The_Corporate_One_Of_The_Same_Name
+      RED   replacement disabled — the corporate 3-step preset survives and the
+            project's 2-step override is APPENDED: 3 presets, not 2, and the
+            user runs the corporate steps with a report saying SUCCEEDED
+            (8 of 14 fail)
+      GREEN 2 presets, "Project Kickoff" has the project's 2 steps
+
+    An_Unresolvable_Tag_Is_Reported_And_The_Preset_Still_Loads
+      RED   unresolvable steps filtered out — a 3-step preset silently becomes
+            2, UnresolvableSteps 0, no note                      (1 of 2)
+      GREEN 3 steps kept, UnresolvableSteps 1, the note names the tag
+
+    the repaired Tier 5 parse
+      RED   WorkflowStep renamed — "class not found in WorkflowEngine.cs or
+            WorkflowPresetModel.cs ... do not delete the tier"
+      GREEN 21 bound step keys, unchanged from before the move
+
+Build 0/0; Tags 972 → 986; Boq 1,331 unchanged; wiring OK (all tiers 0, 21 bound
+keys); path-discipline OK; recount `--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. `LoadProjectPresetFiles` —
+the `StingPaths.Meta` resolve, the directory read and the per-file
+deserialisation — is unexercised against a live document, and no project has ever
+had a `_BIM_COORD/workflows/` folder. What is proven is the merge decision, which
+is where a silent wrong answer would live.
+
+#### Completed (Phase 272 — W5: two conditions that ask what the command would do)
+
+`has_unclassed_materials` and `has_uncoded_materials` let `Materials_SetClass`
+and `Materials_StampCodes` skip cleanly on a re-run, cached the same way
+`has_stale` and the compliance checks are, and invalidated by the same post-step
+reset — both commands change the answer to their own condition.
+
+**The predicate is the part that could have gone wrong silently.** The obvious
+condition — any material whose class is blank — is TRUE FOREVER on this model,
+because `Materials_SetClass` deliberately refuses to guess a class for a name
+that says nothing. The step would never skip, the command would run on every
+kickoff, scan 1,815 materials, write nothing, and the report would say
+SUCCEEDED. Measured: **779 of the 1,815 would be re-processed on every run,
+forever.**
+
+So the condition asks what the COMMAND would do, by calling the planners the
+commands call. Over the real corpus and the real register:
+
+    1,815 materials  ->  NeedClass 1,036   NeedCode 1,279
+    after both commands have run  ->  0 and 0, and the SKIPPED line says so
+
+`MaterialWorkScan` is Revit-free and answers both in one pass, the shape
+`has_untagged` / `has_placeholders` already share. Planner failures are COUNTED
+(`Unreadable`) and logged rather than swallowed — a condition that answered
+"nothing to do" because the decision crashed is the silent no-op this codebase
+produces.
+
+### What this uncovered: 14 of 15 shipped conditions are inert
+
+`WorkflowEngine` has two condition paths and they do not agree. The compound one
+answers 27 names and **fails safe** on an unknown one. The single one is a run of
+independent name tests that **falls through** when nothing matches — so an
+unrecognised condition means no condition, and the step runs.
+
+Measured 2026-09-10 over the shipped presets: **15 distinct condition values in
+use, ONE honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets** — including `sld_view_exists` / `no_sld_view_exists`,
+whose whole purpose is "only on first generation", and `sustain_location_set`
+(x4), whose purpose is "do not assess without a location". Three of them
+(`handover_mode=...`) are not condition names at all; the engine has no
+key=value syntax.
+
+**W5's two are in BOTH paths for exactly this reason.** A condition added to the
+switch alone would have joined the 18.
+
+**Reported, not fixed.** The single path now warns and writes a "step ran
+UNGATED" line into the workflow report when it does not recognise a condition,
+so the 18 are visible on the next run — no change to which steps run. Closing
+WF-COND-1 means routing that path through `EvaluateSingleCondition`, which would
+make steps that run today start skipping in five shipped presets: its own PR,
+its own evidence. Logged in `docs/ROADMAP.md`.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Model_Whose_Work_Is_Done_Reports_Nothing_To_Do
+      RED   predicate relaxed to "class is blank"    NeedClass 779, not 0
+            (3 of 10 fail; the corpus test reports 1,815 instead of 1,036)
+      GREEN 0 and 0, reasons naming the numbers
+
+    The_Corpus_Needs_Exactly_What_The_Commands_Would_Write
+      RED   register lookup severed                  NeedCode 0, not 1,279
+      GREEN NeedCode 1,279 / NeedClass 1,036
+
+    The_Declared_Vocabulary_Is_Exactly_What_The_Block_Tests
+      RED   one name deleted from InlineConditionVocabulary
+            "implemented but not declared ... has_untagged"      (1 of 3)
+      GREEN 14 declared, 14 implemented, exact match
+
+Build 0/0; Tags 972 -> 985; Boq 1,331 unchanged; wiring, path-discipline,
+recount and the 277-file JSON parse all green.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document: collecting Materials, reading `MaterialClass` and
+`MAT_CODE`, and the cache's invalidation across steps are all unexercised.
+`Materials_StampCodes` has still never run against a document.
+
+#### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
+
+**Tier 2 proves preset steps resolve. Nothing proved a shipped command was
+reachable from a preset at all.** A command in neither `ResolveCommand` nor any
+preset is invisible to the gate — which is how seven commands sat outside both
+for a month while `ProjectKickoff` imported the register, built host types from
+it, and never stamped a code, set a class or audited what it built.
+
+**Tier 6 asks the other half of the question**: a `Cmd_Click` button tag with no
+`ResolveCommand` case is reported as **not reachable from a workflow**. It is not
+a claim the button is broken — Tier 4 already proves all 1,681 dispatch on a
+click. It is a claim that a chain cannot call them.
+
+**1,236 of 1,681 button tags** are in that state today, and they ship as
+`tools/workflow_reachability_baseline.txt`. Plenty are legitimately
+interactive-only — a modeless window, a picked element, a dialog with no headless
+meaning — so this is a baseline rather than a hard zero. The file **may shrink,
+never grow**: its entire value is that a *new* button now forces a decision
+instead of a silence.
+
+**A stale entry is REPORTED, not failed, and the asymmetry is deliberate.** A tag
+leaving the list means somebody made it chainable, which is the outcome the tier
+wants; failing for it would punish the fix, and would break whichever of two
+independent PRs merged second. Tier 5's baseline does the opposite — it fails on
+a stale entry — because there a stale line silently re-permits an unbound key.
+Both behaviours are now documented next to each other in the script.
+
+**It reuses Tier 2's `$resolvable` set on purpose.** That set is every `case`
+label in `WorkflowEngine.cs`, a superset of `ResolveCommand`'s own, so Tier 6
+under-reports rather than over-reports and the two tiers cannot disagree about
+what "resolvable" means.
+
+**No numbers are restated from `docs/UNREACHABLE_COMMANDS_TRIAGE.md`.** That file
+counts *command classes* reachable at all across six dispatch layers (1,722
+total, 1,691 reached, re-derived 2026-09-09). Tier 6 counts *button tags*
+reachable from a workflow. Different populations, different question; the two
+figures are not comparable and neither is copied into the other.
+
+**RED then GREEN, both directions, both counts.**
+
+    a NEW button with no ResolveCommand case
+      RED   baseline line for AddLeaders removed — Tier 6 FAILS, naming it:
+            "StingDockPanel.xaml button Tag=""AddLeaders"" has no case in
+             WorkflowEngine.ResolveCommand -- no preset can call it"     (1)
+      GREEN Tier 6 = 0, 1,236 baselined in use
+
+    a baselined tag that BECOMES reachable
+      RED   a ResolveCommand case added for AddLeaders — the gate prints
+            "1 Tier 6 baseline entry/ies are now reachable from a workflow",
+            baselined-in-use drops 1,236 -> 1,235, and EXITS 0
+      GREEN no stale entries
+
+The second RED is the one worth reading: it proves the tier does **not** fail
+when somebody fixes something, which is the property that makes it safe to merge
+independently of the PR that resolves the seven.
+
+#### Completed (Phase 270 — W1: the seven become reachable from a workflow)
+
+**Seven commands built this month were button-only.** `Materials_SetClass`,
+`Materials_StampCodes`, `Materials_RegisterAudit`, `Baseline_Audit`,
+`Baseline_Apply`, `Baseline_RenameTypes` and `Prod_CoverageAudit` had a
+`Cmd_Click` button and a `StingCommandHandler` case, and **no `ResolveCommand`
+case and no appearance in any of the 48 presets**. Re-measured on `origin/main`
+@ `4b4ca588b`: `presets=0 engine=0` for all seven, and `0` hits across all 277
+shipped JSON files, not only the `WORKFLOW_*.json` ones.
+
+Three consequences, and the third is why this is the load-bearing step:
+
+1. They cannot be chained, scripted, or run unattended.
+2. `ProjectKickoff` imports the register, builds host types from it, and then
+   **never stamps a code, sets a class, or audits what it just built** — which is
+   the state the 2026-09-10 register audit found: 138 Matches against 67 Differs,
+   28 Flattened and 81 with no compound structure at all.
+3. `tools/check_workflow_wiring.ps1` gates **preset steps against
+   `ResolveCommand`**. A command in neither is invisible to it, so a chain stops
+   covering new work without anything being said.
+
+All seven now resolve. Class names were taken from `StingCommandHandler`, not
+guessed.
+
+**`Baseline_Apply` and `Baseline_RenameTypes` resolve but go in no preset.** Both
+are destructive and both ask first; a chained rename is what 2026-09-09 produced,
+when 87 floor types proposed the identical name. Resolving them lets a human
+write a deliberate one-step workflow; putting them inside the 26-step kickoff is
+a different act, and W2 does not.
+
+**RED then GREEN, on the gate that actually guards this.**
+
+    A preset step on Materials_StampCodes
+      RED   with the case removed — Tier 2, naming the tag and the file:
+            "WORKFLOW_ZZProbe.json step 1 : 'Materials_StampCodes' has no case
+             in WorkflowEngine.ResolveCommand"
+      GREEN Tier 2 = 0
+
+`ResolveCommand` case labels **663 → 670**.
+
+**A figure that differs from the brief.** It predicted both the case-label count
+and the dispatchable-name count would move. Only the first did: **dispatchable
+names stayed at 2,362**, because that set is registry + `Cmd_Click` runners +
+handler cases, and all seven already had buttons. Adding a `ResolveCommand` case
+makes a tag *chainable*; it does not make it a new *name*. Worth knowing, because
+it is exactly why the wiring gate could not see the gap — which is what W3
+addresses.
+
+Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
+`--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document, and `Materials_StampCodes` in particular has still never
+run against one.
+
 #### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
 
 `Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
@@ -4431,7 +4860,6 @@ marked.
 Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
 and dispatch-parity gates green.
 
-
 #### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
 
 - **The real defect was in production code, not the workflow.** The project-visibility
@@ -5730,7 +6158,6 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
 | Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
 | Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
-
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
@@ -7347,7 +7774,6 @@ so the engine picks one of two mechanisms per `(source → target)` pair:
   `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
   `SymbolLibraryCreator.ResolveTemplateFolder`.
 
-
 #### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
 
 Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
@@ -7406,7 +7832,6 @@ the addendum's `ConnectorElement.Create*` signature list is correct as written;
 `SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
 1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
 factories reject `UndefinedSystemType`).
-
 
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
@@ -17610,7 +18035,6 @@ Consolidates all remaining remote branches into `claude/merge-branches-resolve-c
 
 **Verification:** `git branch -r --no-merged HEAD` returns empty. `git grep -l '^<<<<<<< \|^=======$\|^>>>>>>> '` across `.md`/`.cs`/`.xaml`/`.json`/`.csproj` returns no hits. No build work lost; the only content dropped was the duplicated `StingBIM.Standards/` folder already superseded by `StingTools.Standards/`.
 
-
 #### Completed (Phase 111 — v6 residual gaps: N-G4 / N-G12 / N-G16 / N-G17)
 
 Closes the four "partial / missing" items identified in the 2026-04-22 v6
@@ -17674,7 +18098,6 @@ dialog in the dock panel is a follow-up).
 **Audit outcome**: 60 of 62 runner sections implemented (96 %);
 17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
 deferred, per the original v6 runner's Year-2 scope.
-
 
 #### Completed (Phase 112 — Planscape Template Engine v1.1: S01–S18 + visibility fix)
 
@@ -18916,7 +19339,6 @@ ThemeManager.
  9. Click "Undo last run" → deletes the last batch in one transaction;
     history grid refreshes.
 
-
 #### Completed (Phase 128 — Placement Centre PC-01..PC-25)
 
 Implements every gap from `docs/PLACEMENT_CENTRE_REVIEW.md` §9. Branch
@@ -19021,7 +19443,6 @@ Deferred (PC-24): embedding the Centre's full editor as a tab inside
 the WPF dockable panel needs the Centre's singleton Window →
 UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
 button continues to invoke the Centre as a modeless window.
-
 
 #### Completed (Phase 129 — Branch consolidation + parameter file alignment)
 

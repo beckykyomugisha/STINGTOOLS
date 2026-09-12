@@ -169,6 +169,15 @@ proven coordination cycle ·
 2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
 soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
 it; three third-party-blocked items are quarantined in their own section ·
+[`PROMPT_KUT_INTEGRATION_BUILD_2.md`](PROMPT_KUT_INTEGRATION_BUILD_2.md) (work prompt, written
+2026-09-10) — the second build pass, after PR #927. Finishes the defect class #927 half-closed:
+a failed ACC issue read still reads as "the issues are gone", and a malformed Niagara feed still
+reads as "live, nothing commissioned" while overwriting the cached fallback. Seven offline tasks ·
+[`KUT_LIVE_VERIFICATION_RUNBOOK.md`](KUT_LIVE_VERIFICATION_RUNBOOK.md) (written 2026-09-10) — how to
+prove ACC, Niagara and Fohlio against the real tenant / station / designer, for the three items no
+developer can close alone. Per item: who must act first, what they must supply, the steps, the
+**observable** proof, and what the failure actually looks like. The ACC section is overdue —
+mobilisation began the week of 25 August 2026 ·
 [`PROMPT_ACC_UNATTENDED_OPERATION.md`](PROMPT_ACC_UNATTENDED_OPERATION.md) (work prompt,
 written 2026-09-10) — the third KUT/ACC pass, about operation rather than
 correctness: the fortnightly coordination cycle cannot run without a human clicking four

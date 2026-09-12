@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -46,7 +46,10 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var presets = WorkflowEngine.GetAvailablePresets();
+            // W4 — pass the document so this project's own workflows layer over the
+            // corporate ones. A project with none gets exactly the previous list.
+            var presets = WorkflowEngine.GetAvailablePresets(
+                ParameterHelpers.GetContext(commandData)?.Doc);
             if (presets.Count == 0)
             {
                 TaskDialog.Show("Workflow Presets", "No workflow presets found.\nUse 'Create Workflow Preset' to define one.");
@@ -135,7 +138,8 @@ namespace StingTools.Core
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
-            var presets = WorkflowEngine.GetAvailablePresets();
+            var presets = WorkflowEngine.GetAvailablePresets(
+                ParameterHelpers.GetContext(commandData)?.Doc);
             var report = new StringBuilder();
             report.AppendLine("Available Workflow Presets");
             report.AppendLine(new string('═', 45));
@@ -214,113 +218,10 @@ namespace StingTools.Core
     //  WORKFLOW ENGINE — internal orchestration logic
     // ════════════════════════════════════════════════════════════════════════════
 
-    public class WorkflowPreset
-    {
-        [JsonProperty("name")]
-        public string Name { get; set; }
+    // WorkflowPreset and WorkflowStep moved to WorkflowPresetModel.cs so the
+    // preset SHAPE can be asserted without the Revit API. Same namespace; no
+    // call site changed.
 
-        [JsonProperty("description")]
-        public string Description { get; set; }
-
-        [JsonProperty("steps")]
-        public List<WorkflowStep> Steps { get; set; } = new List<WorkflowStep>();
-
-        /// <summary>LOG-06: When true, wraps all steps in a TransactionGroup and
-        /// rolls back all changes if any non-optional step fails.</summary>
-        [JsonProperty("rollback_on_failure")]
-        public bool RollbackOnFailure { get; set; }
-
-        /// <summary>GAP-06: When true, rolls back ALL changes if ANY step fails (including optional steps).
-        /// Use for strict quality gates where partial results are unacceptable.</summary>
-        [JsonProperty("rollback_on_optional_failure")]
-        public bool RollbackOnOptionalFailure { get; set; }
-
-        [JsonIgnore]
-        public bool IsBuiltIn { get; set; }
-    }
-
-    public class WorkflowStep
-    {
-        [JsonProperty("commandTag")]
-        public string CommandTag { get; set; }
-
-        [JsonProperty("label")]
-        public string Label { get; set; }
-
-        [JsonProperty("optional")]
-        public bool Optional { get; set; }
-
-        [JsonProperty("condition")]
-        public string Condition { get; set; }
-
-        /// <summary>F2: Skip step if current compliance % exceeds this threshold.</summary>
-        [JsonProperty("maxCompliancePct")]
-        public int? MaxCompliancePct { get; set; }
-
-        /// <summary>F2: Skip step if current compliance % is below this threshold.</summary>
-        [JsonProperty("minCompliancePct")]
-        public int? MinCompliancePct { get; set; }
-
-        /// <summary>F2: Skip step if no elements have the STALE flag set.</summary>
-        [JsonProperty("requiresStaleElements")]
-        public bool RequiresStaleElements { get; set; }
-
-        /// <summary>AE-01: Number of retry attempts for transient failures (max 3).</summary>
-        [JsonProperty("retryCount")]
-        public int RetryCount { get; set; } = 0;
-
-        /// <summary>AE-01: Delay in milliseconds between retries.</summary>
-        [JsonProperty("retryDelayMs")]
-        public int RetryDelayMs { get; set; } = 500;
-
-        /// <summary>AE-05: Skip step if data files haven't changed since last run.</summary>
-        [JsonProperty("skipIfDataUnchanged")]
-        public bool SkipIfDataUnchanged { get; set; }
-
-        /// <summary>Phase 39: Skip step if model is not workshared.</summary>
-        [JsonProperty("requiresWorksharedModel")]
-        public bool RequiresWorksharedModel { get; set; }
-
-        /// <summary>Phase 39: Skip step if total element count is outside range [min, max].</summary>
-        [JsonProperty("minElementCount")]
-        public int? MinElementCount { get; set; }
-
-        /// <summary>Phase 39: Maximum element count for step applicability.</summary>
-        [JsonProperty("maxElementCount")]
-        public int? MaxElementCount { get; set; }
-
-        /// <summary>Phase 39: Timeout in seconds for this step (default 300 = 5 min).</summary>
-        [JsonProperty("timeoutSeconds")]
-        public int TimeoutSeconds { get; set; } = 300;
-
-        /// <summary>Phase 48: Skip step if the previous step was skipped.</summary>
-        [JsonProperty("skipIfPreviousSkipped")]
-        public bool SkipIfPreviousSkipped { get; set; }
-
-        /// <summary>Phase 48: Skip step if warning health score is above this threshold.</summary>
-        [JsonProperty("minWarningHealthScore")]
-        public int? MinWarningHealthScore { get; set; }
-
-        /// <summary>Phase 69: Fallback command if this step fails.</summary>
-        [JsonProperty("fallbackStep")]
-        public string FallbackStep { get; set; }
-
-        /// <summary>Phase 69: Condition logic for multiple conditions: "AND" (all must pass) or "OR" (any must pass).</summary>
-        [JsonProperty("conditionLogic")]
-        public string ConditionLogic { get; set; } = "AND";
-
-        /// <summary>Phase 69: Array of condition keys for compound condition evaluation.</summary>
-        [JsonProperty("conditions")]
-        public List<string> Conditions { get; set; }
-
-        /// <summary>Phase 69: Parallel execution group. Steps with same group number run concurrently.</summary>
-        [JsonProperty("parallelGroup")]
-        public int? ParallelGroup { get; set; }
-
-        /// <summary>Phase 69: Minimum data drop level required (1-4). Skip if current DD is below.</summary>
-        [JsonProperty("minDataDrop")]
-        public int? MinDataDrop { get; set; }
-    }
 
     internal static class WorkflowEngine
     {
@@ -350,6 +251,7 @@ namespace StingTools.Core
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
             "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
+            "ACC_UploadModel", "ACC_UploadLastBundle",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
@@ -514,6 +416,52 @@ namespace StingTools.Core
                 }
                 catch (Exception ex2) { StingLog.Warn($"Stale element check failed: {ex2.Message}"); _cachedHasStale = false; }
                 return _cachedHasStale.Value;
+            }
+
+            // W5 — one pass over the document's materials answering BOTH
+            // has_unclassed_materials and has_uncoded_materials, cached exactly the way
+            // the stale and compliance checks are, and invalidated by the same
+            // post-step reset. The two questions share a pass because they read the same
+            // rows; the same shape has_untagged and has_placeholders already use.
+            //
+            // The DECISION is Core.Materials.MaterialWorkScan, which asks what the two
+            // commands would actually do rather than what is blank. A blank-count
+            // condition would be true forever: Materials_SetClass refuses to guess a
+            // class for a name that says nothing, and 536 of the Herring model's 1,815
+            // materials are not in the governed register at all.
+            Core.Materials.MaterialWorkTally _cachedMatWork = null;
+            Core.Materials.MaterialWorkTally cachedMatWork()
+            {
+                if (_cachedMatWork != null) return _cachedMatWork;
+                var states = new List<Core.Materials.MaterialWorkState>();
+                try
+                {
+                    var reg = Commands.Materials.RegisterAuditCommand.LoadRegistry(out string regNote);
+                    if (!string.IsNullOrEmpty(regNote)) StingLog.Info("Material work scan: " + regNote);
+                    foreach (Material m in new FilteredElementCollector(doc)
+                                           .OfClass(typeof(Material)).Cast<Material>())
+                    {
+                        string cls = "";
+                        try { cls = m.MaterialClass ?? ""; }
+                        catch (Exception ex3) { StingLog.WarnRateLimited("MatWork.Cls", $"MaterialClass: {ex3.Message}"); }
+                        states.Add(new Core.Materials.MaterialWorkState
+                        {
+                            Name = m.Name ?? "",
+                            MaterialClass = cls,
+                            MatCode = ParameterHelpers.GetString(m, "MAT_CODE") ?? "",
+                        });
+                    }
+                    _cachedMatWork = Core.Materials.MaterialWorkScan.Scan(states, reg);
+                }
+                catch (Exception ex2)
+                {
+                    StingLog.Warn($"Material work scan failed: {ex2.Message}");
+                    _cachedMatWork = new Core.Materials.MaterialWorkTally();
+                }
+                if (_cachedMatWork.Unreadable > 0)
+                    StingLog.Warn($"Material work scan: {_cachedMatWork.Unreadable} material(s) "
+                                + "could not be planned; the condition answers on the rest.");
+                return _cachedMatWork;
             }
 
             // PERF-04: Cache compliance percentage — scan once, reuse across steps
@@ -700,7 +648,7 @@ namespace StingTools.Core
                         {
                             try
                             {
-                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale);
+                                bool hasOverdue = EvaluateSingleCondition(doc, "has_overdue_issues", cachedCompliancePct, cachedHasStale, cachedMatWork);
                                 if (!hasOverdue) { RecordSkip("no overdue issues"); continue; }
                             }
                             catch (Exception ex2) { StingLog.Warn($"has_overdue_issues check: {ex2.Message}"); }
@@ -729,6 +677,21 @@ namespace StingTools.Core
                             if (cond == "has_untagged" && !hasUntagged) { RecordSkip("no untagged elements"); continue; }
                             if (cond == "has_placeholders" && !hasPlaceholders) { RecordSkip("no placeholder tokens"); continue; }
                         }
+                        // W5 — these two live in BOTH evaluation paths on purpose. An
+                        // unknown condition SKIPS in the compound path (fail-safe) but
+                        // RUNS here, because this block matches by name and falls through
+                        // when nothing matches. A condition added to only one of them is a
+                        // step that silently ignores its own gate.
+                        if (cond == "has_unclassed_materials")
+                        {
+                            var mw = cachedMatWork();
+                            if (!mw.HasUnclassed) { RecordSkip(mw.ClassReason); continue; }
+                        }
+                        if (cond == "has_uncoded_materials")
+                        {
+                            var mw = cachedMatWork();
+                            if (!mw.HasUncoded) { RecordSkip(mw.CodeReason); continue; }
+                        }
                         if (cond == "has_container_gaps")
                         {
                             try
@@ -752,6 +715,22 @@ namespace StingTools.Core
                             if (pct >= 50)
                             { RecordSkip($"compliance {pct:F0}% ≥ 50%"); continue; }
                         }
+
+                        // W5 -- a condition this block does not test is not a condition.
+                        // The block matches by name and falls through, so the step RUNS
+                        // with its gate ignored and nothing said. Reported here rather
+                        // than fixed: routing to EvaluateSingleCondition would change
+                        // which steps run in five shipped presets. See
+                        // InlineConditionVocabulary and ROADMAP WF-COND-1.
+                        if (Array.IndexOf(InlineConditionVocabulary, cond) < 0)
+                        {
+                            report.AppendLine($"       (condition '{step.Condition}' is not "
+                                            + "evaluated by this path -- step ran UNGATED)");
+                            StingLog.Warn($"Workflow step {stepNum}: condition "
+                                        + $"'{step.Condition}' is not tested by the single-"
+                                        + "condition path; the step ran ungated. "
+                                        + "See ROADMAP WF-COND-1.");
+                        }
                     }
 
                     // Phase 69: Compound condition evaluation (AND/OR logic)
@@ -761,7 +740,7 @@ namespace StingTools.Core
                         var results = new List<bool>();
                         foreach (var cond in step.Conditions)
                         {
-                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale));
+                            results.Add(EvaluateSingleCondition(doc, cond, cachedCompliancePct, cachedHasStale, cachedMatWork));
                         }
 
                         bool compoundResult = isOr ? results.Any(r => r) : results.All(r => r);
@@ -1012,6 +991,10 @@ namespace StingTools.Core
                         {
                             _cachedCompliancePct = null;
                             _cachedHasStale = null; // Force re-check for stale elements
+                            // W5 — Materials_StampCodes and Materials_SetClass both change
+                            // the answer to their own condition, so a chain that runs one
+                            // and then re-asks must not read a pre-write tally.
+                            _cachedMatWork = null;
                         }
 
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
@@ -1405,6 +1388,35 @@ namespace StingTools.Core
                 // Materials
                 case "CreateBLEMaterials": return new Temp.CreateBLEMaterialsCommand();
                 case "CreateMEPMaterials": return new Temp.CreateMEPMaterialsCommand();
+
+                // ── Post-import material hygiene ─────────────────────────────
+                // These seven were BUTTON-ONLY for a month. A tag with no case here
+                // cannot appear in a preset AND is invisible to
+                // tools/check_workflow_wiring.ps1, which gates preset steps against
+                // this switch — so a chain silently stopped covering new work.
+                // ProjectKickoff imported the register and built types from it and
+                // then never stamped a code, set a class, or audited what it built.
+                // Class names taken from StingCommandHandler, not guessed.
+                case "Materials_StampCodes": return new Commands.Materials.StampMaterialCodesCommand();
+                case "Materials_SetClass": return new Commands.Baseline.SetMaterialClassCommand();
+                // Read-only. Compares what the model BUILT against what the register
+                // DECLARES for the row each type is named after.
+                case "Materials_RegisterAudit": return new Commands.Materials.RegisterAuditCommand();
+
+                // ── Baseline ─────────────────────────────────────────────────
+                // Reachable from a workflow, but NOT placed in any preset:
+                // Baseline_Apply and Baseline_RenameTypes are destructive and both
+                // ask first. A chained rename is what 2026-09-09 produced — 87 floor
+                // types proposed the identical name. Resolving them is what lets a
+                // human write a deliberate one-step workflow; shipping them inside
+                // the 26-step kickoff is a different act entirely.
+                case "Baseline_Audit": return new Commands.Baseline.BaselineAuditCommand();
+                case "Baseline_Apply": return new Commands.Baseline.BaselineApplyCommand();
+                case "Baseline_RenameTypes": return new Commands.Baseline.RenameTypesToStandardCommand();
+
+                // Read-only. Names the families no PROD rule covers, before an
+                // unruled code becomes a wrong rate.
+                case "Prod_CoverageAudit": return new Commands.Classification.ProdCoverageAuditCommand();
 
                 // Families
                 case "CreateWalls": return new Temp.CreateWallsCommand();
@@ -1989,6 +2001,10 @@ namespace StingTools.Core
                 case "AccPullClashes":          return new Core.Clash.AccPullClashesCommand();
                 case "ACC_SyncIssueStatus":
                 case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
+                // Resolvable so a PROJECT-authored workflow can use it; deliberately not
+                // in any shipped KUT workflow, because a step cannot answer "which file?".
+                case "ACC_UploadModel":         return new Core.Clash.AccUploadModelCommand();
+                case "ACC_UploadLastBundle":    return new Core.Clash.AccUploadLastBundleCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();
@@ -2283,9 +2299,72 @@ namespace StingTools.Core
 
         // ── Phase 69: Compound condition evaluation ─────────────────────
 
+        /// <summary>An uncached material work scan, for the compound-condition path when
+        /// no per-run cache was handed in. Slow and correct beats fast and wrong.</summary>
+        private static Core.Materials.MaterialWorkTally ScanMaterialWork(Document doc)
+        {
+            var states = new List<Core.Materials.MaterialWorkState>();
+            try
+            {
+                var reg = Commands.Materials.RegisterAuditCommand.LoadRegistry(out _);
+                foreach (Material m in new FilteredElementCollector(doc)
+                                       .OfClass(typeof(Material)).Cast<Material>())
+                {
+                    string cls = "";
+                    try { cls = m.MaterialClass ?? ""; }
+                    catch (Exception ex) { StingLog.WarnRateLimited("MatWork.Cls2", $"MaterialClass: {ex.Message}"); }
+                    states.Add(new Core.Materials.MaterialWorkState
+                    {
+                        Name = m.Name ?? "",
+                        MaterialClass = cls,
+                        MatCode = ParameterHelpers.GetString(m, "MAT_CODE") ?? "",
+                    });
+                }
+                return Core.Materials.MaterialWorkScan.Scan(states, reg);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScanMaterialWork: {ex.Message}");
+                return new Core.Materials.MaterialWorkTally();
+            }
+        }
+
+        /// <summary>
+        /// The condition names the SINGLE-`condition` path in RunWorkflow actually tests.
+        ///
+        /// It is NOT the same set EvaluateSingleCondition (the compound `conditions` path)
+        /// handles, and the difference is a live defect rather than a design: that switch
+        /// answers 27 names and fails safe on an unknown one, while the block below matches
+        /// by name and FALLS THROUGH when nothing matches, so an unrecognised single
+        /// condition means "no condition" and the step RUNS.
+        ///
+        /// Measured 2026-09-10 over the shipped presets: of the 15 distinct `condition`
+        /// values in use, ONE — has_untagged — is honoured here. The other 14, across 18
+        /// step instances in 5 presets, run ungated. Among them sld_view_exists /
+        /// no_sld_view_exists, whose entire purpose is "only on first generation", and
+        /// sustain_location_set, whose purpose is "do not assess without a location".
+        ///
+        /// This list exists so that situation is REPORTED rather than silent. Routing the
+        /// block through EvaluateSingleCondition would fix it and would change which steps
+        /// run in five shipped presets — a behaviour change that needs its own evidence and
+        /// its own PR. Logged in docs/ROADMAP.md as WF-COND-1.
+        ///
+        /// Kept in step with the block below by WorkflowConditionVocabularyTests, which
+        /// reads this file's `cond == "..."` comparisons and fails if the two disagree.
+        /// </summary>
+        internal static readonly string[] InlineConditionVocabulary =
+        {
+            "compliance_above_90", "compliance_below_50", "has_cad_imports",
+            "has_container_gaps", "has_critical_warnings", "has_links", "has_open_issues",
+            "has_overdue_issues", "has_placeholders", "has_stale",
+            "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
+            "has_warnings",
+        };
+
         /// <summary>Evaluate a single named condition against the current document state.</summary>
         private static bool EvaluateSingleCondition(Document doc, string condition,
-            Func<double> cachedCompliancePct, Func<bool> cachedHasStale)
+            Func<double> cachedCompliancePct, Func<bool> cachedHasStale,
+            Func<Core.Materials.MaterialWorkTally> cachedMatWork = null)
         {
             try
             {
@@ -2335,6 +2414,13 @@ namespace StingTools.Core
                         var coll2 = new FilteredElementCollector(doc).WhereElementIsNotElementType();
                         if (cats2 != null && cats2.Length > 0) coll2.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(cats2)));
                         return coll2.Any(e => { string t = ParameterHelpers.GetString(e, ParamRegistry.TAG1); return !string.IsNullOrEmpty(t) && TagConfig.TagHasPlaceholders(t); });
+                    // W5 — the compound path. Falls back to an uncached scan when no
+                    // cache was supplied, so a caller that forgets one gets a slow right
+                    // answer rather than a fast wrong one.
+                    case "has_unclassed_materials":
+                        return (cachedMatWork != null ? cachedMatWork() : ScanMaterialWork(doc)).HasUnclassed;
+                    case "has_uncoded_materials":
+                        return (cachedMatWork != null ? cachedMatWork() : ScanMaterialWork(doc)).HasUncoded;
                     case "has_container_gaps":
                         var scan = ComplianceScan.Scan(doc);
                         return (scan?.ContainerCompletePct ?? 100) < 95;
@@ -2488,8 +2574,82 @@ namespace StingTools.Core
             };
         }
 
-        /// <summary>Get all available presets (built-in + user JSON files).</summary>
-        public static List<WorkflowPreset> GetAvailablePresets()
+        /// <summary>
+        /// Get all available presets: built-in, plus deployed-data JSON, plus — when a
+        /// document is given — this PROJECT's own workflows layered on top.
+        ///
+        /// The <paramref name="doc"/> parameter is optional so every existing caller keeps
+        /// its exact behaviour; passing null is "corporate only", which is what the three
+        /// pre-W4 call sites did. See WorkflowPresetOverride for why a project preset
+        /// replaces a corporate one whole rather than merging step by step.
+        /// </summary>
+        public static List<WorkflowPreset> GetAvailablePresets(Document doc = null)
+        {
+            var corporate = GetCorporatePresets();
+            if (doc == null) return corporate;
+
+            var result = WorkflowPresetOverride.Merge(
+                corporate, LoadProjectPresetFiles(doc), t => ResolveCommand(t) != null);
+
+            string note = WorkflowPresetOverride.Summary(result);
+            if (!string.IsNullOrEmpty(note))
+            {
+                StingLog.Info(note);
+                foreach (string n in result.Notes) StingLog.Info("  " + n);
+            }
+            return result.Presets;
+        }
+
+        /// <summary>
+        /// Read this project's workflow files. The folder is resolved through StingPaths —
+        /// never built by hand; tools/check_path_discipline.ps1 is a hard zero on that.
+        /// A missing folder is NOT an error: most projects have none, and the corporate
+        /// presets are the right answer for them.
+        /// </summary>
+        internal static List<ProjectPresetFile> LoadProjectPresetFiles(Document doc)
+        {
+            var found = new List<ProjectPresetFile>();
+            if (doc == null) return found;
+
+            string dir;
+            try { dir = StingPaths.Meta(doc, "_BIM_COORD", "workflows"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Project workflows folder could not be resolved: {ex.Message}");
+                return found;
+            }
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return found;
+
+            string[] files;
+            try { files = Directory.GetFiles(dir, "WORKFLOW_*.json"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Project workflows folder unreadable: {ex.Message}");
+                return found;
+            }
+
+            foreach (string f in files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                var pf = new ProjectPresetFile { FileName = Path.GetFileName(f) };
+                try
+                {
+                    pf.Preset = JsonConvert.DeserializeObject<WorkflowPreset>(File.ReadAllText(f));
+                    if (pf.Preset == null) pf.ParseError = "the file parsed to nothing";
+                }
+                catch (Exception ex)
+                {
+                    // Reported through the result, not swallowed: a project preset that
+                    // will not parse is exactly the thing a user needs told.
+                    pf.ParseError = ex.Message;
+                }
+                found.Add(pf);
+            }
+            return found;
+        }
+
+        /// <summary>The corporate list — built-ins plus the deployed data folder. Exactly
+        /// what GetAvailablePresets returned before W4.</summary>
+        private static List<WorkflowPreset> GetCorporatePresets()
         {
             string dataDir = StingToolsApp.DataPath;
 
@@ -2599,12 +2759,47 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "LoadParams", Label = "Load Shared Parameters (200+ params)" },
                             new WorkflowStep { CommandTag = "CreateBLEMaterials", Label = "Create BLE Materials (815)" },
                             new WorkflowStep { CommandTag = "CreateMEPMaterials", Label = "Create MEP Materials (464)" },
+
+                            // W2 -- the seam the register audit found. The two steps above
+                            // import 1,279 governed material rows; nothing then stamped the
+                            // MAT_CODE those rows carry or set a class, so the material a
+                            // type is built from could not be priced by material and could
+                            // not be answered by the carbon engine.
+                            //
+                            // NOT skipIfDataUnchanged: that compares a hash of the DEPLOYED
+                            // data folder against a sidecar (ComputeDataHash, :1321). It
+                            // says nothing about this model's materials, so a project that
+                            // gained 200 materials with the corporate CSVs untouched would
+                            // SKIP the stamp and report success. The conditions below ask
+                            // the model instead, and answer with a count.
+                            new WorkflowStep { CommandTag = "Materials_StampCodes",
+                                               Label = "Stamp material codes from the register",
+                                               Condition = "has_uncoded_materials" },
+                            new WorkflowStep { CommandTag = "Materials_SetClass",
+                                               Label = "Set material Class where the name says one",
+                                               Condition = "has_unclassed_materials" },
+
                             new WorkflowStep { CommandTag = "CreateWalls", Label = "Create Wall Types" },
                             new WorkflowStep { CommandTag = "CreateFloors", Label = "Create Floor Types" },
                             new WorkflowStep { CommandTag = "CreateCeilings", Label = "Create Ceiling Types" },
                             new WorkflowStep { CommandTag = "CreateRoofs", Label = "Create Roof Types" },
                             new WorkflowStep { CommandTag = "CreateDucts", Label = "Create Duct Types" },
                             new WorkflowStep { CommandTag = "CreatePipes", Label = "Create Pipe Types" },
+
+                            // W2 -- read-only, immediately after the host types are built,
+                            // which is the moment the 2026-09-10 audit found 28 Flattened,
+                            // 67 Differs and 81 with no compound structure at all. Catching
+                            // that at birth is the whole point: by the time elements are
+                            // hosted on those types, rebuilding one moves every element on
+                            // it.
+                            //
+                            // optional:true because it REPORTS. A read-only audit must never
+                            // abort a 28-step TransactionGroup that has already built a
+                            // project's entire catalogue.
+                            new WorkflowStep { CommandTag = "Materials_RegisterAudit",
+                                               Label = "Audit host types against the register (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "BatchSchedules", Label = "Batch Create Schedules (168)" },
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate Formulas (199)" },
                             new WorkflowStep { CommandTag = "CreateFilters", Label = "Create View Filters (28+)" },
@@ -2620,6 +2815,15 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "BatchFamilyParams", Label = "Batch Family Params (4,686)" },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Auto-Assign Templates (5-layer)" },
                             new WorkflowStep { CommandTag = "AutoFixTemplate", Label = "Auto-Fix Template Health" },
+                            // W2 -- read-only, BEFORE tagging. An unruled family takes a
+                            // PROD code by category fallback, and a PROD code is what the
+                            // rate chain's most specific pass keys on: an unruled family is
+                            // a wrong rate long before anybody looks at a BOQ. Naming them
+                            // here costs nothing and is the last cheap moment.
+                            new WorkflowStep { CommandTag = "Prod_CoverageAudit",
+                                               Label = "Audit PROD rule coverage (read-only)",
+                                               Optional = true },
+
                             new WorkflowStep { CommandTag = "TagAndCombine", Label = "Tag & Combine (full pipeline)" },
                             new WorkflowStep { CommandTag = "AutoCreateLegends", Label = "Auto-Create Legends" },
                             new WorkflowStep { CommandTag = "TagSheets", Label = "Tag Sheets (ISO 19650 doc codes)" },

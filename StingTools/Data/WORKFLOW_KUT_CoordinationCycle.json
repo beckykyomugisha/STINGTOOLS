@@ -9,7 +9,7 @@
     { "commandTag": "ACC_PullClashes", "label": "3. Pull + triage ACC Model Coordination clashes", "optional": true },
     { "commandTag": "ClashRun", "label": "4. Run STING rule-based clash (hard + discipline tolerance matrix)" },
     { "commandTag": "ClashBcfExport", "label": "5. Export grouped clashes to BCF 2.1 (import as ACC Issues)" },
-    { "commandTag": "ACCPublish", "label": "6. Publish coordination data to ACC", "optional": true },
+    { "commandTag": "ACCPublish", "label": "6. Package coordination data into a local ACC-ready bundle (you upload it to the CDE yourself)", "optional": true },
     { "commandTag": "ExportModelHealth", "label": "7. Model-health snapshot (open clash count, warnings, file-size trend)", "optional": true },
     { "commandTag": "CompletenessDashboard", "label": "8. Per-discipline completeness RAG" }
   ]

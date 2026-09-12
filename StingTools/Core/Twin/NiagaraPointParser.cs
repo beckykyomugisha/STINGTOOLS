@@ -18,6 +18,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 
 namespace StingTools.Core.Twin
@@ -34,7 +35,13 @@ namespace StingTools.Core.Twin
     /// <summary>What a parse understood, and what it did not. <see cref="Error"/> is
     /// non-null only when the payload was not JSON at all; a shape we simply did not
     /// recognise yields zero points and no error, because "the feed parsed but held
-    /// nothing we know how to read" is a different fact from "the feed is corrupt".</summary>
+    /// nothing we know how to read" is a different fact from "the feed is corrupt".
+    ///
+    /// Both of those are different again from "a points feed with nothing on it", and
+    /// until <see cref="RecognisedShape"/> existed they were the SAME VALUE downstream:
+    /// a JSON error envelope such as <c>{"error":"unauthorized"}</c> parses, yields zero
+    /// points and sets no error, so a rejected station read arrived at the commissioning
+    /// valuation as a successful live reading in which nothing is commissioned.</summary>
     public sealed class NiagaraPointParseResult
     {
         public Dictionary<string, NiagaraPoint> Points =
@@ -48,7 +55,32 @@ namespace StingTools.Core.Twin
         /// an EMPTY result that is otherwise indistinguishable from an empty station.</summary>
         public int SkippedNoId;
 
+        /// <summary>True when the payload was a shape this parser recognises AS A POINTS
+        /// FEED: a bare array, <c>{ "points": [...] }</c>, an object whose values are point
+        /// objects, or an empty object. FALSE for a JSON error envelope, and false for a
+        /// bare string / number / bool.
+        ///
+        /// An empty array or an empty object IS recognised — a station with nothing
+        /// commissioned yet is a real and expected state early in Stage 3, and turning it
+        /// into an error would make a legitimately empty station unreportable.</summary>
+        public bool RecognisedShape;
+
+        /// <summary>How many entries looked like point candidates (array elements that are
+        /// objects, or object properties whose value is an object). Zero on a genuinely
+        /// empty feed; non-zero with zero <see cref="Points"/> means entries were present
+        /// and NONE of them was understood.</summary>
+        public int CandidateEntries;
+
         public bool Failed => Error != null;
+
+        /// <summary>True when this body cannot be trusted as a points feed, and so must not
+        /// reach a consumer as a successful empty read. Three ways:
+        ///   - it was not JSON at all (an HTML error page),
+        ///   - it was JSON but not a points-feed shape (an error envelope),
+        ///   - it WAS a feed, entries were present, and not one of them was understood
+        ///     (a station naming its id field something we do not read).
+        /// A feed with zero candidate entries is NOT unusable: that is the empty station.</summary>
+        public bool Unusable => Failed || !RecognisedShape || (CandidateEntries > 0 && Points.Count == 0);
     }
 
     public static class NiagaraPointParser
@@ -66,14 +98,29 @@ namespace StingTools.Core.Twin
                 JArray arr = tok as JArray ?? (tok as JObject)?["points"] as JArray;
                 if (arr != null)
                 {
-                    foreach (var t in arr) Add(r, t as JObject);
+                    // A bare array or a {points:[...]} wrapper IS a feed, empty or not.
+                    r.RecognisedShape = true;
+                    foreach (var t in arr)
+                    {
+                        if (t is JObject) r.CandidateEntries++;
+                        Add(r, t as JObject);
+                    }
                 }
                 else if (tok is JObject obj)
                 {
-                    foreach (var pr in obj.Properties()) Add(r, pr.Value as JObject, pr.Name);
+                    // An object keyed by point id. Every value should be a point object.
+                    // An error envelope ({"error":"unauthorized"}) has scalar values only,
+                    // and is NOT a points feed - that is the case that used to arrive
+                    // downstream as "live, nothing commissioned".
+                    var props = obj.Properties().ToList();
+                    r.CandidateEntries = props.Count(pr => pr.Value is JObject);
+                    r.RecognisedShape = props.Count == 0 || r.CandidateEntries > 0;
+                    foreach (var pr in props) Add(r, pr.Value as JObject, pr.Name);
                 }
                 // Anything else (a bare string, number or bool) is valid JSON that holds no
-                // points. Zero points, no error — the caller reports "no live data".
+                // points. Deliberately NOT an Error - Error means "not JSON at all" - but
+                // RecognisedShape stays false, so the caller treats it as a failed read
+                // rather than as an empty station.
             }
             catch (Exception ex)
             {

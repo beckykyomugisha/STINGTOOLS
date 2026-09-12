@@ -21,13 +21,23 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-09
 
-- **Total IExternalCommand classes**: **1722**
+- **Total IExternalCommand classes**: **1723**
 - **Reached by a dispatch layer**: **1691**
 - **Referenced only from non-dispatch code**: **0**
-- **Named nowhere outside their own file**: **9**
+- **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1722; the script fails if they stop adding up.
+The four buckets partition all 1723; the script fails if they stop adding up.
+
+**One of the ten is an abstract base class and MUST NOT be deleted.**
+`Clash/AccUploadModelCommand.cs` declares `public abstract class
+AccUploadCommandBase : IExternalCommand`, the shared body of the two concrete
+upload commands. An abstract class cannot be instantiated, so it can never be
+dispatched and is correctly counted as unreached — but it is live code, not
+a stray. `recount_unreachable_commands.py` does not exclude abstract
+declarations, so it will keep appearing here. That matters because of this
+file's own rule: a count here drives deletions, and an abstract base listed as
+ORPHANED is an invitation to delete the base two working commands inherit from.
 
 *+1 on both totals since the 2026-09-08 (WF-7) derivation:*
 `Commands/Materials/RegisterAuditCommand` (`Materials_RegisterAudit`), which is

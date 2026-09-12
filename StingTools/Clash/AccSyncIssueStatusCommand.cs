@@ -55,9 +55,26 @@ namespace StingTools.Core.Clash
                 return Result.Succeeded;
             }
 
-            List<AccIssue> issues;
-            try { issues = AccIssueSync.PullIssuesAsync(creds).GetAwaiter().GetResult(); }
+            AccFetchResult<List<AccIssue>> pull;
+            try { pull = AccIssueSync.PullIssuesAsync(creds).GetAwaiter().GetResult(); }
             catch (Exception ex) { StingLog.Error("ACC SyncIssueStatus pull", ex); TaskDialog.Show("ACC", "Issue pull failed: " + ex.Message); return Result.Failed; }
+
+            // The load-bearing branch. Reconciling against a failed or PARTIAL read marks
+            // every unseen escalation NOT_FOUND, which reads as "ACC deleted our issues",
+            // and then writes the sidecar — so an expired token silently un-tracked nothing
+            // while a page-2 failure un-tracked a subset and called it a full sync.
+            // Nothing below this point may run unless the whole list was read.
+            if (!pull.Succeeded)
+            {
+                TaskDialog.Show("ACC — Sync Issue Status",
+                    AccCommandOutcome.FailureMessage("the ACC issue list", pull.Status, pull.HttpStatus,
+                        pull.Detail, creds.ProjectId) +
+                    "\nThe escalation record was left untouched — nothing was un-tracked.");
+                StingLog.Warn($"ACC_SyncIssueStatus FAILED ({pull.Status}) reading issues on container " +
+                              $"'{creds.ProjectId}': {pull.Detail}");
+                return Result.Failed;
+            }
+            var issues = pull.Value;
 
             var statusById = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var i in issues)

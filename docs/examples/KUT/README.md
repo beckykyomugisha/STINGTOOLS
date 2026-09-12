@@ -32,6 +32,7 @@ documentation, not a deployable pack.
 | `REVIT_SMOKE_TEST.md` | **Generated.** `python tools/build_smoke_test.py` |
 | `KUT_Revit_Smoke_Test_Checklist.docx` | **Generated.** Same generator — the printable session sheet |
 | `fohlio_connection.json.example` | Credential stub for the (optional, stubbed) Fohlio REST tier. Copy to `<project>/_BIM_COORD/fohlio_connection.json` and fill in. The real file is gitignored; the CSV Fohlio path needs no connection file. |
+| `niagara_connection.json.example` | Credential stub for the **optional live** Tridium Niagara BMS read (Stage 3.1–3.3). Copy to `<project>/_BIM_COORD/niagara_connection.json` and fill in. The real file is gitignored. The file-mediated point-list/reconcile path the playbook promises needs no connection file. `pointsPath` is station-specific — confirm it with the controls contractor rather than accepting the `/obix` default. `NiagaraConnectionExampleTests` (in `StingTools.Boq.Tests`) gates this file's keys against the loader in both directions, so the example cannot drift from the code. |
 
 **Do not hand-edit `REVIT_SMOKE_TEST.md` or the `.docx`.** They are outputs.
 `tools/check_smoke_test.py` fails CI if the markdown is not a fresh
