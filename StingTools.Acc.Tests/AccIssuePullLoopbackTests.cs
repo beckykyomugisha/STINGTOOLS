@@ -130,26 +130,53 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
-        public async Task FullPageThenTransportDown_IsTransportFailed_WithNoHttpStatus()
+        public async Task FullPageThenTheConnectionBreaks_IsAFailure_NotAPartialSuccess()
         {
-            // Page 1 succeeds, then the port closes. Attribution matters: HttpStatus 0
-            // means no response arrived, which a downstream shape check could not have
-            // inferred. #927 learned this the hard way.
-            LoopbackServer server = null;
-            server = new LoopbackServer((index, _) =>
-            {
-                if (index == 0) return new CannedResponse(200, Page(2, "p1-"));
-                server.Dispose();                                  // kill the listener mid-run
-                return new CannedResponse(200, Page(2, "p2-"));
-            });
+            // Page 1 succeeds, then page 2's connection is dropped without a response.
+            //
+            // What this asserts, and what it deliberately does NOT. The load-bearing claim
+            // is that a half-read list is never handed back as a success: the caller is
+            // reconciling issue status, so a silently short list reads as "these issues no
+            // longer exist in ACC". That holds on every platform.
+            //
+            // It does NOT assert HttpStatus. How far a broken exchange gets before it dies
+            // is environment-specific, and pinning it made this test lie: on Windows
+            // nothing reached the client (status 0), while on Linux the status line arrived
+            // and only the body was lost (status 200, attributed to the payload). Two
+            // earlier attempts to force one answer -- disposing the listener inside its own
+            // handler, then HttpListenerResponse.Abort() -- both passed locally and failed
+            // in CI, because the difference is in the platform's listener, not in us.
+            // TransportDown_CarriesNoHttpStatus below covers the attribution claim with a
+            // scenario that IS deterministic: a port where nothing is listening at all.
+            using var server = new LoopbackServer((index, _) =>
+                index == 0 ? new CannedResponse(200, Page(2, "p1-")) : CannedResponse.Abort);
             AccIssueSync.OverrideHostForTests(server.BaseUrl);
 
             var result = await AccIssueSync.PullIssuesAsync(FreshCreds(), pageSize: 2);
 
             Assert.False(result.Succeeded);
             Assert.Equal(AccFetchStatus.TransportFailed, result.Status);
+            Assert.NotEmpty(result.Detail);
+            // Page 1's two issues were read and are NOT presented as the whole list.
+            Assert.True(result.Value.Count <= 2,
+                $"a partial list of {result.Value.Count} was returned as though complete");
+        }
+
+        [Fact]
+        public async Task TransportDown_CarriesNoHttpStatus()
+        {
+            // Nothing is listening on port 1, on any platform, so the request cannot start.
+            // HttpStatus 0 then means exactly one thing -- no response ever arrived -- which
+            // is the attribution a downstream payload check could not have inferred. That is
+            // the lesson #927 paid for, asserted where it can actually be guaranteed.
+            AccIssueSync.OverrideHostForTests("http://127.0.0.1:1");
+
+            var result = await AccIssueSync.PullIssuesAsync(FreshCreds(), pageSize: 2);
+
+            Assert.False(result.Succeeded);
+            Assert.Equal(AccFetchStatus.TransportFailed, result.Status);
             Assert.Equal(0, result.HttpStatus);
-            Assert.Contains("did not complete", result.Detail, StringComparison.Ordinal);
+            Assert.Empty(result.Value);
         }
 
         [Fact]

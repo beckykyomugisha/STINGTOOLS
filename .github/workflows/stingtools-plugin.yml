@@ -72,6 +72,13 @@ jobs:
       - name: Unreachable-commands count is current
         run: python3 tools/recount_unreachable_commands.py --check
 
+      # A method that catches an exception, abandons the work and then tells its
+      # caller it succeeded. Four of those built a project's whole finish catalogue
+      # out of one default layer and reported '168/168 renamed, 0 failed'. This is
+      # a ratchet, not a zero: it fails when the count RISES.
+      - name: No new catch that lies about the outcome
+        run: python3 tools/find_lying_catches.py --check
+
       - name: Command doc-acquisition discipline
         shell: pwsh
         run: ./tools/check_command_doc_acquisition.ps1

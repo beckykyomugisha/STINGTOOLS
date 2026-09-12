@@ -803,6 +803,9 @@ namespace StingTools.UI
                     // Read-only. Compares what the model BUILT against what the register
                     // DECLARES for the row the type is named after.
                     case "Materials_RegisterAudit": RunCommand<Commands.Materials.RegisterAuditCommand>(app); break;
+                    // Writes MAT_CODE where a material has none, from the register row of
+                    // the same MAT_NAME. MAT_CODE is what RateProviders Pass C keys on.
+                    case "Materials_StampCodes": RunCommand<Commands.Materials.StampMaterialCodesCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 
@@ -2440,7 +2443,7 @@ namespace StingTools.UI
                         var fpDoc = app.ActiveUIDocument?.Document;
                         if (fpDoc != null)
                         {
-                            var presets = Core.WorkflowEngine.GetAvailablePresets();
+                            var presets = Core.WorkflowEngine.GetAvailablePresets(fpDoc);
                             var preset = presets.FirstOrDefault() ?? new Core.WorkflowPreset { Name = "Default", Steps = new() };
                             var (ok, issues) = Core.FederatedWorkflowSupport.PreFlightCheckFederated(fpDoc, preset);
                             var sb = new System.Text.StringBuilder();

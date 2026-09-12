@@ -178,6 +178,11 @@ prove ACC, Niagara and Fohlio against the real tenant / station / designer, for 
 developer can close alone. Per item: who must act first, what they must supply, the steps, the
 **observable** proof, and what the failure actually looks like. The ACC section is overdue —
 mobilisation began the week of 25 August 2026 ·
+[`PROMPT_ACC_UNATTENDED_OPERATION.md`](PROMPT_ACC_UNATTENDED_OPERATION.md) (work prompt,
+written 2026-09-10) — the third KUT/ACC pass, about operation rather than
+correctness: the fortnightly coordination cycle cannot run without a human clicking four
+dialogs, though the ACC clients are already Revit-free and three automation substrates are
+already wired. Six offline tasks, and an explicit list of what must stay manual ·
 [`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
 [`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
 

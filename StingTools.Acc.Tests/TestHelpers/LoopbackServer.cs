@@ -27,12 +27,29 @@ namespace StingTools.Acc.Tests.TestHelpers
         public string Body { get; }
         public string ContentType { get; }
 
+        /// <summary>True for the sentinel below: close the connection without answering.</summary>
+        public bool IsAbort { get; private set; }
+
         public CannedResponse(int status, string body, string contentType = "application/json")
         {
             Status = status;
             Body = body ?? string.Empty;
             ContentType = contentType;
         }
+
+        /// <summary>
+        /// Drop the connection without sending a response, so the client raises a genuine
+        /// transport error.
+        ///
+        /// Tests used to simulate this by disposing the server inside its own handler and
+        /// relying on the race between shutdown and the response write. That is
+        /// platform-dependent: on Windows nothing reached the client and the read failed
+        /// (HttpStatus 0), while on Linux the status line arrived and the body was
+        /// truncated, so the client saw 200 with unparseable JSON and attributed the
+        /// failure to the payload instead of the transport. Both are "the transport
+        /// broke", but only one is what a transport-attribution test means to assert.
+        /// </summary>
+        public static CannedResponse Abort => new CannedResponse(0, string.Empty) { IsAbort = true };
     }
 
     public sealed class LoopbackServer : IDisposable
@@ -85,6 +102,12 @@ namespace StingTools.Acc.Tests.TestHelpers
                 CannedResponse canned;
                 try { canned = _handler(index, ctx.Request) ?? new CannedResponse(500, "{}"); }
                 catch (Exception ex) { canned = new CannedResponse(500, "{\"handlerThrew\":\"" + ex.Message + "\"}"); }
+
+                if (canned.IsAbort)
+                {
+                    try { ctx.Response.Abort(); } catch (Exception) { /* already gone */ }
+                    continue;
+                }
 
                 try
                 {

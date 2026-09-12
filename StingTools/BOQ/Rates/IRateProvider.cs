@@ -70,20 +70,8 @@ namespace StingTools.BOQ.Rates
     /// the good one, and everything below it is an ASSUMPTION that must be visible.
     /// </para>
     /// </summary>
-    public enum RateResolutionLevel
-    {
-        /// <summary>No rate at all. The item is not priced.</summary>
-        None = 0,
-        /// <summary>Category average — every product in the category shares one rate.</summary>
-        Category = 1,
-        /// <summary>Material-level.</summary>
-        Material = 2,
-        /// <summary>Category refined by MEP system.</summary>
-        System = 3,
-        /// <summary>The actual product. The only level that prices a fire door
-        /// differently from a cupboard door.</summary>
-        Product = 4,
-    }
+    // RateResolutionLevel moved to RateResolutionLevel.cs so the CSV rate passes
+    // can be compiled without the Revit API. Same namespace; no call site changed.
 
     public class RateLookup
     {
