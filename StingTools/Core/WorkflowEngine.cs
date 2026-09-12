@@ -1741,6 +1741,9 @@ namespace StingTools.Core
                 case "BatchCreateSheets": return new Docs.BatchCreateSheetsCommand();
                 case "DrawingRegister": return new Docs.DrawingRegisterCommand();
                 case "AutoNumberSheets": return new Docs.AutoNumberSheetsCommand();
+                // Same class StingCommandHandler dispatches for the "Swap TBs" button.
+                // Without this, the button works but no preset can reach it (Tier 6).
+                case "TitleBlock_Swap": return new Docs.TitleBlockSwapCommand();
 
                 // Phase 63: New command resolutions
                 case "SpatialConnectivityAudit": return new Temp.SpatialConnectivityAuditCommand();
