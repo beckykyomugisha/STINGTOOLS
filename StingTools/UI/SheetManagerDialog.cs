@@ -567,7 +567,14 @@ namespace StingTools.UI
 
             // ── TITLE BLOCKS section ──
             wrap.Children.Add(MakeRibbonLabel("TITLE BLOCKS"));
-            wrap.Children.Add(MakeToolBtn("Swap", "SM_SwapTitleBlock", BrAccent, "Swap title block on sheet(s)"));
+            // Phase 244 — the toolbar button now routes to the scope-aware swap
+            // (active sheet / selection / all sheets / all sheets on one family).
+            // The per-sheet swap is still on the sheet's right-click menu, where a
+            // single sheet is genuinely the subject. The toolbar button used to hit
+            // the per-sheet path with no sheet selected, so it silently fell back to
+            // whatever view happened to be active.
+            wrap.Children.Add(MakeToolBtn("Swap", "TitleBlock_Swap", BrAccent,
+                "Swap the title block on the active sheet, the selected sheets, every sheet, or every sheet currently using one family. Placed views are never moved or deleted."));
             wrap.Children.Add(MakeToolBtn("Reset", "TitleBlockReset", BrFgSubtle, "Reset title block to origin"));
             wrap.Children.Add(MakeToolBtn("Rescue", "TitleBlockRescue", BrRed, "Find sheets missing title blocks"));
             wrap.Children.Add(MakeRibbonSep());

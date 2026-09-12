@@ -19,15 +19,15 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-09
+## Counts — re-derived 2026-09-12
 
-- **Total IExternalCommand classes**: **1723**
-- **Reached by a dispatch layer**: **1691**
+- **Total IExternalCommand classes**: **1724**
+- **Reached by a dispatch layer**: **1692**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1723; the script fails if they stop adding up.
+The four buckets partition all 1724; the script fails if they stop adding up.
 
 **One of the ten is an abstract base class and MUST NOT be deleted.**
 `Clash/AccUploadModelCommand.cs` declares `public abstract class
