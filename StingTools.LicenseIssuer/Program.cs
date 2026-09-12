@@ -9,7 +9,7 @@ switch (args[0].ToLowerInvariant())
 {
     case "keygen": KeyGen(); break;
     case "issue":  Issue(args); break;
-    case "selfcode": Console.WriteLine(MachineFingerprint.Current); break;
+    case "selfcode": SelfCode(); break;
     default: Help(); break;
 }
 
@@ -18,6 +18,27 @@ static void Help()
     Console.WriteLine("StingLicenseIssuer keygen");
     Console.WriteLine("StingLicenseIssuer selfcode");
     Console.WriteLine("StingLicenseIssuer issue --code <machineCode> --name \"<licensee>\" --days 365 [--out StingTools.lic]");
+    Console.WriteLine();
+    Console.WriteLine("Sign the code the user copies from the Activate STING dialog.");
+    Console.WriteLine("That dialog shows the MachineGuid-only 'Stable' code, which is what");
+    Console.WriteLine("'selfcode' prints on stdout.");
+}
+
+/// <summary>
+/// Prints THE CODE TO SIGN on stdout — the MachineGuid-only <see cref="MachineFingerprint.Stable"/>
+/// code, which is exactly what ActivationDialog shows the user.
+///
+/// This used to print <see cref="MachineFingerprint.Current"/>, the WMI composite of
+/// MachineGuid + CPU/board/BIOS serials. A transient WMI miss flips Current, so a licence
+/// signed against it verifies until the next hiccup and then silently stops — the machine
+/// falls back to the activation modal and reads as a frozen plugin. Stable cannot flip.
+/// The diagnostic Current value goes to stderr so `selfcode > code.txt` captures only the
+/// signable one.
+/// </summary>
+static void SelfCode()
+{
+    Console.WriteLine(MachineFingerprint.Stable);
+    Console.Error.WriteLine($"(diagnostic only — do NOT sign this: Current = {MachineFingerprint.Current})");
 }
 
 static void KeyGen()
@@ -42,13 +63,39 @@ static void Issue(string[] args)
     string code = Arg(args, "--code"), name = Arg(args, "--name") ?? "Unnamed",
            daysS = Arg(args, "--days") ?? "365", outPath = Arg(args, "--out") ?? "StingTools.lic";
     if (string.IsNullOrWhiteSpace(code)) { Console.WriteLine("--code is required."); return; }
+
+    code = code.Trim().ToUpperInvariant();
+
+    // A machine code that is not in the exact XXXX-XXXX-XXXX-XXXX-XXXX hex shape can
+    // never match a fingerprint, so a licence signed against it is dead on arrival and
+    // the user is the one who finds out. Refuse it here instead.
+    if (!IsWellFormedCode(code))
+    {
+        Console.WriteLine($"--code '{code}' is not a valid machine code.");
+        Console.WriteLine("Expected 20 hex characters as XXXX-XXXX-XXXX-XXXX-XXXX,");
+        Console.WriteLine("exactly as shown in the Activate STING dialog. Nothing was written.");
+        return;
+    }
+
+    // The classic mistake: signing this machine's WMI-composite Current code (what
+    // `selfcode` used to print) instead of the Stable code the dialog shows. Such a
+    // licence works until the next transient WMI miss and then silently stops.
+    if (code == MachineFingerprint.Current && code != MachineFingerprint.Stable)
+    {
+        Console.WriteLine("REFUSED: that is this machine's unstable 'Current' fingerprint,");
+        Console.WriteLine("not the 'Stable' code the Activate STING dialog shows.");
+        Console.WriteLine($"A licence signed against it dies at the next WMI hiccup. Use: {MachineFingerprint.Stable}");
+        Console.WriteLine("Nothing was written.");
+        return;
+    }
+
     int days = int.Parse(daysS);
 
     long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     var payload = new LicensePayload
     {
         LicenseId = Guid.NewGuid().ToString("N"),
-        MachineCode = code.Trim().ToUpperInvariant(),
+        MachineCode = code,   // already trimmed + upper-cased and validated above
         Licensee = name,
         IssuedUnix = now,
         ExpiryUnix = now + (long)days * 86400,
@@ -67,6 +114,24 @@ static void Issue(string[] args)
     }
     Console.WriteLine($"Wrote {outPath} for {payload.MachineCode}, expires " +
         $"{DateTimeOffset.FromUnixTimeSeconds(payload.ExpiryUnix).UtcDateTime:yyyy-MM-dd}.");
+}
+
+/// <summary>
+/// True for the exact shape FingerprintComposer.Compute emits: 20 upper-case hex
+/// characters in five '-'-separated groups of four. Input is assumed already
+/// trimmed and upper-cased.
+/// </summary>
+static bool IsWellFormedCode(string code)
+{
+    var groups = code.Split('-');
+    if (groups.Length != 5) return false;
+    foreach (var g in groups)
+    {
+        if (g.Length != 4) return false;
+        foreach (var ch in g)
+            if (!((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F'))) return false;
+    }
+    return true;
 }
 
 static string Arg(string[] a, string key)
