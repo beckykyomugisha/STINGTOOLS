@@ -107,7 +107,7 @@ types, prefers a Clash/Coordination type, caches the choice and persists it. Lea
 | Step | What you must see |
 |---|---|
 | Sign in | The browser returns to a success page, and **Test / Refresh** then succeeds |
-| Model sets | The picker lists **at least one named model set**. An empty picker is now reported as "Autodesk answered, and this container has no coordination model sets", naming the container — which is a real answer, not a silent pass |
+| Model sets | The picker lists **at least one named model set**. An empty picker is now reported as "Autodesk answered, and this container has no coordination model sets", naming the container — which is a real answer, not a silent pass. After you pick one, it offers to **remember it for this project** — say yes, and later runs skip the picker entirely |
 | Clash pull | A **non-zero clash count** in the dialog, a top-10 triage list with real document names on both sides, and a written CSV whose path the dialog prints. Open the CSV and confirm the row count matches the reported count |
 | Issue push (optional) | Choose "Push top N clashes to ACC Issues", then **open ACC in a browser** and see the issues there. The dialog's own count is not the proof; the issues in ACC are |
 
@@ -138,6 +138,7 @@ Read the **Failure** line and act on it:
 | Failure | What it means | What to do |
 |---|---|---|
 | `AuthFailed` | Autodesk rejected the token | Sign in again. If that fails, the app type is probably wrong (see "Traditional Web App") or the account cannot see this project |
+| a remembered model set that ACC no longer offers | The set was renamed, archived or replaced. The run names it **by name and id** and stops — it never falls back to another set, because clashes from the wrong federation look exactly like a clean federation. Interactively it re-opens the picker; unattended it returns `Result.Failed`. Fix it on the ACC card |
 | `NotFound` | Wrong container id, wrong model set, or a changed clash sub-path | Check `ProjectId` / `CoordContainerId` against what the ACC administrator gave you. **If both are confirmed correct, this is the residual** — the `bim360/clash/v3` sub-paths need re-confirming against current APS documentation. Record the exact URL from `StingTools_<date>.log` and file it |
 | `TransportFailed` | Network failure, or a 200 whose payload shape this client does not recognise | Check reachability of `developer.api.autodesk.com`. A 200 with an unrecognised payload also means a schema change — same action as `NotFound` |
 
@@ -167,8 +168,37 @@ report `Failure: AuthFailed` / `NotFound` / `TransportFailed` with the HTTP stat
 remedy text as the read paths, instead of a bare "it didn't work". A 403 on storage creation is
 the one to expect if the APS app is missing `data:create`.
 
-**Two operational facts worth knowing before scheduling this.** `ACC_PullClashes` opens a model-set
-picker, so the Coordination Cycle **cannot run unattended**. And step 6 of that cycle, `ACCPublish`,
+### After the first successful pull: stop it asking
+
+The fortnightly cycle is meant to run without anyone clicking through it. Once one live pull
+has worked, three settings turn the remaining questions off — all on the BIM Coordination
+Center **ACC** card, under **PROJECT ACC SETTINGS**, and all stored **with the project**
+(`<project>/_BIM_COORD/acc/acc_settings.json`), not with your credentials:
+
+| Setting | What it removes | Leave it alone if |
+|---|---|---|
+| **Model set id / name** → *Remember model set* | The coordination model-set picker | you work across several federations and want to choose each time |
+| **Unattended publish suitability** | The S1/S2/S3/S4 question in ACC Publish | the suitability genuinely varies by drop |
+| **Escalate at most N clash(es) scoring S or higher** | The "push top N to ACC Issues" offer | you want a person to approve every ACC Issue — which is the default, and a reasonable one |
+| **Run ACC commands without prompting** | Everything above, in one switch | anything above is still unset — the run will then fail rather than guess |
+
+**Nothing here has a default.** An unconfigured project behaves exactly as it did before, and
+an unattended run that is missing a setting **fails with a named reason instead of assuming
+one**. In particular an unattended run **escalates nothing at all** unless a count *and* a
+score are both configured: a pull, a triage and a CSV is a complete cycle that creates no work
+for anyone.
+
+`ACC_SyncIssueStatus` is now step 4 of the cycle and needs no settings — it has never had a
+dialog. It reads ACC Issues and un-tracks clashes whose issue has closed, so a recurrence is
+raised again. It writes nothing to ACC.
+
+For a KUT fortnightly drop the delivery playbook calls the state SHARED / coordination-ready,
+so **S1 (Fit for Coordination)** is the likely publish suitability — but which code an issue
+carries is an Information-Manager decision, so no settings file was written for you.
+
+**Two operational facts worth knowing before scheduling this.** `ACC_PullClashes` opened a model-set
+picker on every run, which is why the Coordination Cycle could not run unattended; with a
+model set remembered (see above) it no longer does. And step 6 of that cycle, `ACCPublish`,
 builds a **local** ACC-ready bundle for manual upload — it is labelled accordingly and does not
 publish to the CDE. The real uploader is separate, and there are now two ways in:
 

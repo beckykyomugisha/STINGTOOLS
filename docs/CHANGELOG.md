@@ -2,6 +2,81 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 276 — the coordination cycle stops asking, without ever assuming)
+
+Phases 265 and 266 made a failed ACC read impossible to mistake for an empty one. This one
+is about operation: **the fortnightly KUT cycle could not run without a human clicking four
+dialogs** — a coordination model-set picker, an escalate-to-ACC-Issues confirmation with a
+hardcoded cap of 10, a suitability picker, and a file picker (already solved in 266).
+
+Nothing architectural was in the way. The four ACC clients carry **0** `Autodesk.Revit`
+references; only the dialogs were.
+
+**One decision, not four.** There was no unattended / no-prompt concept anywhere in the
+codebase, so whichever command implemented one first would have become the convention by
+accident and the other three would have grown their own keys — the drift ROADMAP IM-14
+records for suitability codes and IM-17 for transmittal status. `V6/AccOperatingPolicy.cs`
+answers all four questions in one place: may this run prompt, is a model set configured,
+what is the escalation policy, what suitability should an unattended publish use.
+
+**Absent configuration means PROMPT, never "assume".** A missing settings file is the normal
+state of every project that exists today, so a default that quietly picked a model set or a
+suitability code would make all of them act on a guess. Interactive is the safe default;
+unattended is opt-in, per project, in writing. A **malformed** file answers the same and is a
+*different state* — it is discarded whole, never half-applied, and says why. It is parsed
+with `JObject` and explicit presence checks rather than `DeserializeObject`, because
+Newtonsoft would make "escalateMinScore is not set" and "escalateMinScore is 0.0" the same
+value, and 0.0 as a threshold escalates everything. An unknown key, or a key of the wrong
+type, makes the file malformed and names the offender — a typo'd `coordModelSet` that is
+merely ignored leaves an Information Manager believing the project is configured when the
+only symptom is a picker that keeps appearing.
+
+**Project-scoped, not machine-scoped.** The settings live at
+`<project>/_BIM_COORD/acc/acc_settings.json`, resolved through `StingPaths`, beside
+`pushed_clashes.json`. A coordination model-set id belongs to a *model*: the same coordinator
+on KUT and on another job needs a different one for each. Credentials stay in `%APPDATA%`.
+`AccCredentials` still carries `ProjectId` and `CoordContainerId`, which are project values
+in a machine-scoped file — **recorded as ROADMAP IM-18, deliberately not migrated here**.
+
+**A remembered model set that ACC no longer offers is named, never guessed past.** It
+resolves to `RememberedMissing` with the set's name and id, and **never** to `available[0]` —
+not even when exactly one set is offered. Clashes pulled from the wrong federation look
+exactly like a clean federation, which is the defect PR #927 closed; falling back would have
+undone two passes in one line.
+
+**Escalation became a policy, not a magic 10.** `Math.Min(10, scored.Count)` is gone.
+A policy needs **both** a count and a score — a count alone escalates trivia on a clean
+model, a score alone escalates hundreds on a bad one — and half a policy is refused with its
+reason named. **An unattended run with no policy escalates nothing**: it pulls, triages and
+writes the CSV, which is a complete cycle that creates work for nobody. Escalation creates
+ACC Issues assigned to real people, so it is the one seam where automation is opt-in twice
+over. Interactive runs are unchanged: a person clicking the button still gets the top 10
+offered, and now sees the rule that would apply. Already-tracked clashes are excluded
+*before* the count is applied, so widening a policy never re-raises what is already tracked.
+
+**`ACC_SyncIssueStatus` joined the cycle** as step 4. It has never had a dialog, writes
+nothing to ACC and only un-tracks clashes whose ACC issue has closed so a recurrence is
+raised again — which is exactly why it is safe to schedule and the upload is not. The cycle
+is 9 steps; the workflow gate reads 98/98 across 10 files.
+
+**A gate for the claim itself.** `tools/check_unattended_cycle.py` walks every step of the
+cycle, resolves each tag to its command class through `ResolveCommand` (importing the
+extraction from `check_kut_workflow_tags.py` rather than copying it), and inventories every
+construct that asks for a *decision* — a result message is not a prompt and is deliberately
+not counted. It scans the **class body**, not the file: three of these commands live in
+god-files, and a file-wide count would have blamed this cycle for 108 `TaskDialogResult` uses
+in `TagOperationCommands.cs` that belong to other commands.
+
+It is a source-level smoke check and says so: it cannot follow a call into a helper and
+cannot tell a gated prompt from an ungated one. So it produces a **reviewed inventory** with
+a baseline that only shrinks, and each of the eight entries is marked GATED or **UNGATED**.
+Two are ungated and are written down as real remaining blockers rather than quietly counted:
+`RetagStaleCommand`'s scope picker (step 1 — not ACC work, and choosing a scope for an
+operator is a decision, not a default) and `CompletenessDashboardCommand`'s offer to build a
+legend (step 9, after the work is done).
+
+Build 0 errors / 0 warnings. `StingTools.Acc.Tests` 116 passing (was 67).
+
 #### Completed (Phase 275 — the two read paths #927 did not reach)
 
 Phase 265 gave ACC reads an outcome (`Ok` / `EmptyOk` / `AuthFailed` / `NotFound` /

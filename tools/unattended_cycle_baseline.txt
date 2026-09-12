@@ -1,0 +1,48 @@
+# Interactive constructs reachable in the KUT coordination cycle, as of 2026-09-10.
+#
+# THIS LIST ONLY SHRINKS. tools/check_unattended_cycle.py fails if a NEW construct appears,
+# if a baselined count RISES, if it FALLS (so a fix has to lower the line in the same
+# commit), and if a baselined entry stops matching anything at all -- a baseline that
+# describes code that is gone claims health it has not checked.
+#
+# READ THE REASONS, NOT THE COUNT. Two kinds of entry live here and they are not the same:
+#
+#   GATED   -- the construct exists but AccOperatingPolicy decides whether it runs. In
+#              unattended mode the branch is not taken, and the command either uses the
+#              configured answer or fails with a named reason. These are done.
+#
+#   UNGATED -- the construct always runs. It is a REAL remaining blocker to unattended
+#              operation and it is written down as one, not quietly counted. Do not read a
+#              green run as "the cycle is unattended" while an UNGATED line is present.
+#
+# The checker cannot tell those two apart -- it reads source text, not control flow -- which
+# is exactly why each line carries a reason a person had to type.
+#
+# Format:  <relative path>::<Class>|<construct>|<count><TAB>GATED|UNGATED - reason
+
+# ── ACC_PullClashes (step 3) — every construct is gated ─────────────────────
+StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|StingListPicker.Show|1	GATED - the model-set picker; reached only when policy.MayPrompt AND the project remembers no usable set. Unattended returns Result.Failed naming the reason, and never picks one.
+StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|AddCommandLink|1	GATED - the escalate-to-ACC-Issues offer, inside the policy.MayPrompt branch. Unattended escalates exactly what the policy names, and nothing without one.
+StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|TaskDialogResult|3	GATED - reading the escalation offer (1) and the "remember this model set?" confirm (2). Both live inside policy.MayPrompt branches; OfferToRemember additionally returns early when !MayPrompt.
+
+# ── ACCPublish (step 7) — gated ─────────────────────────────────────────────
+StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|AddCommandLink|4	GATED - the S1/S2/S3/S4 suitability picker, built only when the policy names no suitability. Unattended with none configured returns Result.Failed rather than stamping a code nobody chose.
+StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|TaskDialogResult|4	GATED - reading that same suitability picker. Same branch, same gate.
+
+# ── RetagStale (step 1) — NOT gated. The one real blocker left. ─────────────
+# This is a scope question ("Active view only" / "Entire project") asked before any work is
+# done, and nothing gates it. A scheduled cycle stops here on a modal window. It is NOT ACC
+# work and it was NOT touched by the pass that wrote this file: applying an ACC policy type
+# to a tagging command would spread the vocabulary in the wrong direction, and choosing a
+# scope on an operator's behalf is a decision, not a default. The step is optional:true and
+# requiresStaleElements:true, so it is skipped when nothing is stale - which is why the
+# cycle has been runnable in practice and why this went unnoticed.
+StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|AddCommandLink|2	UNGATED - scope picker (active view / entire project), always shown. A real blocker; see the note above.
+StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|TaskDialogResult|2	UNGATED - reading that scope picker. Same construct.
+
+# ── CompletenessDashboard (step 9) — NOT gated, but it blocks nothing ───────
+# A Yes/No offer to build a discipline compliance legend, shown AFTER the dashboard has been
+# computed and reported. DefaultButton is No, and declining changes nothing about the step's
+# result. It still blocks a scheduled run on a modal window, so it is recorded as ungated
+# rather than excused - but it is the mildest case here: the cycle's work is already done.
+StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|TaskDialogResult|2	UNGATED - "create a discipline compliance legend?" offered after the dashboard is reported; declining loses nothing, but it is still a modal wait.

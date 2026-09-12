@@ -35,6 +35,13 @@
          makes the whole outcome split matter (Result.Failed instead of Succeeded) is
          covered by a test rather than by reading. -->
     <Compile Include="..\StingTools\V6\AccCommandOutcome.cs" Link="V6\AccCommandOutcome.cs" />
+    <!-- The prompt/no-prompt decision for the whole ACC cycle, plus the two pure
+         resolutions that used to be dialogs (which model set, which clashes to escalate).
+         These are Revit UI seams, and you cannot assert "no TaskDialog appeared" in a
+         headless test - so the DECISION is extracted and the command only shows UI when
+         the decision says to. ClashTriageEngine is linked for ScoredClash. -->
+    <Compile Include="..\StingTools\V6\AccOperatingPolicy.cs" Link="V6\AccOperatingPolicy.cs" />
+    <Compile Include="..\StingTools\V6\ClashTriageEngine.cs" Link="V6\ClashTriageEngine.cs" />
     <!-- The real clients. A pure-function test alone would be an alternative-path escape:
          it would not catch the CLIENT mapping a 404 to an empty list, which is the actual
          defect. So the real transports are linked and driven over a loopback listener. -->
