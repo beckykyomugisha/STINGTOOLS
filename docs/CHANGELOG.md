@@ -2,6 +2,34 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 279 — every parameter role decided, and the cost block measured instead of asserted)
+
+#953 landed the contract gate with 226 of 253 entries `unresolved`. All 253 now
+carry a role.
+
+**59 name a consumer found in data.** 58 appear in the `Fields` column of
+`MR_SCHEDULES.csv` (1,609 schedule fields indexed) and 1 in
+`Data/IFC/STING_IFC_PSET_MAPPING.json`. A Revit schedule and an IFC property set
+are real readers that a C# scan cannot see, which is why the gate was built to
+hold a role rather than derive a count. `COBIE_ATTRIBUTE_TEMPLATES.csv` yielded
+none — its 12 `StingParamKey` values are HVC_* keys that are not bound parameters.
+
+**194 are REASONED DEFAULTS, and the file says so.** Read-with-no-writer was
+called `input` (63) on the grounds that a person fills it; written-with-no-reader
+was called `reference` (129). Every one of those reasons states the ground it
+stands on. **A `reference` entry is data produced for nobody — that list is a
+backlog, not a clean bill of health.**
+
+**The cost block is now a measurement, not an assertion.** `MAT_COST_UGX/USD` was
+recorded as BLOCKED because neither register file has a unit-of-measure column and
+the values span 857,000x — 0.14 for a clay brick paver, 120,000 for a 500TR
+water-cooled chiller. The size of that gap is now known:
+`STING_SUPPLIER_UNITS.json`, the one place in this repository that states a unit,
+matches **229 of the 1,279 register rows (18%)** — and **224 of those 229 are
+roofing**. The other 1,050 have no unit from any source here. So the route to the
+BOQ is priced: a unit per register row first, then SupplierUnitConverter, which
+already does the rest.
+
 #### Completed (Phase 278 — a parameter that nothing reads is a defect, and now it is a red build)
 
 The same defect has been found by hand, on a delivered model, months late, six

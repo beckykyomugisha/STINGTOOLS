@@ -14,138 +14,145 @@
     "  unresolved- nobody has decided yet. Allowed in the baseline, never for a",
     "              parameter added after this gate landed.",
     "",
-    "Adding a parameter to this file is not a fix. It is a decision, recorded."
+    "Adding a parameter to this file is not a fix. It is a decision, recorded.",
+    "",
+    "ROLE PROVENANCE. 59 of these entries name a consumer found in data — 58 in",
+    "MR_SCHEDULES.csv Fields, 1 in the IFC pset map. The other 194 are REASONED",
+    "DEFAULTS, not discovered consumers: read-with-no-writer was called `input` on the",
+    "grounds that a person fills it, and written-with-no-reader was called `reference`.",
+    "Each of those reasons says so. A `reference` entry is data produced for nobody —",
+    "that list is the backlog, not a clean bill of health."
   ],
   "params": {
     "ACO_RW_DB": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ASS_CST_AS_OF_DT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ASS_CST_FX_TO_BASE_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_CST_STALE_BOOL": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_CST_STALE_REASON_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_CST_TOTAL_UGX_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 9 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cost Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_CST_UNIT_PRICE_UGX_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 36 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-ARCH-Ceilings\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_CST_UNIT_RATE_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_DESCRIPTION_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 52 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_EXPECTED_LIFE_YEARS_YRS": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_ID_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 81 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Accessibility Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_ITEM_CODE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_LVL_COD_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 22 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_PMT_INV_UNIT_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 13 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Concrete - Material Takeoff\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_PMT_PCT_COMPLETE_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_ROOM_AREA_SQ_M": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"COBie Space Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_STATUS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 8 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_SYSTEMS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_SYSTEM_TYPE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 9 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_TAG_1_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 64 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Accessibility Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_TAG_2_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_TERM_CAPPED_BOOL": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_TERM_REASON_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_TRACE_SEQ_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ASS_WARRANTY_DURATION_PARTS_YRS": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ASS_ZONE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_APP-BACKGROUND_PATTERN": {
       "state": "write_only",
@@ -264,808 +271,808 @@
     },
     "BLE_FLR_LD_CAP_KPA": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "BLE_LIVE_LOAD_KPA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_APPLICATION_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_CATEGORY_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_DISCIPLINE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_DURABILITY_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_ELEM_TYPE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_ID_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L1_FUNC_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L1_MAT_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L1_THK_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L2_FUNC_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L2_MAT_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_L2_THK_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_LAYER_CNT_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_NAME_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_SPEC_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_STANDARD_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_TEXTURE_URL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_MAT_THICK_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "BLE_ROOM_FINISH_BASE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_ROOM_FINISH_CEILING_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_ROOM_FINISH_FLOOR_COD_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_ROOM_FINISH_FLOOR_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_ROOM_FINISH_WALL_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_STRUCT_CONCRETE_GRADE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-STR-Foundations\". A schedule is a real reader; this scan only sees C#."
     },
     "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "BLE_WINDOW_U_VALUE_W_M_2K_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_ADB_CODE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_DESIGN_ACH_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "CLN_DESIGN_PRESSURE_DELTA_PA_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "CLN_DESIGN_RH_PCT_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "CLN_HTM_REF_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_INFECT_CLASS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_MRI_ZONE_INT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_NOISE_NR_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "CLN_PRESS_REGIME_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_RF_SHIELD_BOOL": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "CLN_ROOM_CLASS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "COLOR_B_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Color Palette Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "COLOR_G_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Color Palette Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "COLOR_R_INT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Color Palette Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "CST_TOTAL_MATERIAL_COST": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cost Summary - Material Takeoff\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_ARC_FLASH_WORK_DIST_MM": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_CBL_AMPACITY_A": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CBL_INSTALL_METHOD_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable List\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CBL_NUM_OF_CORES_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable List\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CDT_BEND_ANGLE_DEG": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_CDT_BEND_COUNT_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_CDT_CABLE_COUNT_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_CDT_MAT_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_CDT_RUN_LENGTH_M": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_CDT_SZ_MM": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-ELC-Conduits\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_BRK_RATING_A": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_CUR_A": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_LENGTH_M": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_PHASE_COUNT_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 4 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_PWR_KW": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_VLT_V": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_FEEDER_CSA_MM2": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_IP_RATING_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 4 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Devices Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_JB_AUTO_PLACED_BOOL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_JB_REASON_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_JB_SIZE_MM": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_JB_TYPE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_AIRTERM_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_BOND_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_BOND_TYPE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_CONDUCTOR_MATERIAL_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_DOWNCOND_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_EARTH_RESISTANCE_OHM": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_EARTH_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_ELEMENT_TYPE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Mapped to an IFC property set in Data/IFC/STING_IFC_PSET_MAPPING.json."
     },
     "ELC_LPS_INSPECTION_INTERVAL_MONTHS": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_RISK_ASSESSMENT_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_LPS_SPD_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_TESTCLAMP_TAG_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_LPS_TEST_DATE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_PHOTO_FILE_PATH_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_PHOTO_LUMENS_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_PNL_CIRCUIT_GROUP_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "ELC_WIRE_BEND_COUNT_INT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "FLS_SFTY_COVERAGE_AREA_SQ_M": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Fire Detection\". A schedule is a real reader; this scan only sees C#."
     },
     "FLT_RULES_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 4 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Filter Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "HVC_DCT_MAT_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Duct Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "HVC_DCT_SOUNDLVL_DB": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Terminal Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "HVC_DUCT_FLOWRATE_M3H": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Duct Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "HVC_EFF_RATIO_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Equipment\". A schedule is a real reader; this scan only sees C#."
     },
     "HVC_PIPE_FLOWRATE_LPS": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Pipe Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "IFC_GLOBAL_ID_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "LTG_CTRL_TYPE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lighting Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "LTG_FIX_TYPE_CLASSIFICATION_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lighting Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "MAT_APPLICATION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_CATEGORY": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_COST_INSTALL_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MAT_COST_SUPPLY_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MAT_COST_UGX": {
       "state": "write_only",
       "role": "reference",
-      "reason": "Supplier unit price from the register, written by MaterialCommands. BLOCKED as a rate source: there is no unit-of-measure column in BLE_MATERIALS.csv or MEP_MATERIALS.csv, and the values span 857,000x (0.14 per clay brick to 120,000 per 500TR chiller). Routing it to the BOQ requires a unit per row, then SupplierUnitConverter - not a direct rate provider."
+      "reason": "Supplier unit price from the register, written by MaterialCommands. NOT a rate source, and the gap is now measured rather than asserted: neither register file has a unit-of-measure column, the values span 857,000x (0.14 per clay brick paver to 120,000 per 500TR chiller), and STING_SUPPLIER_UNITS.json - the one place in this repository that states a unit - can give one to only 229 of the 1,279 rows (18%), of which 224 are roofing. The remaining 1,050 have no unit from any source here. Routing this to the BOQ needs a unit per register row first; then SupplierUnitConverter already does the rest."
     },
     "MAT_COST_USD": {
       "state": "write_only",
       "role": "reference",
-      "reason": "Supplier unit price from the register, written by MaterialCommands. BLOCKED as a rate source: there is no unit-of-measure column in BLE_MATERIALS.csv or MEP_MATERIALS.csv, and the values span 857,000x (0.14 per clay brick to 120,000 per 500TR chiller). Routing it to the BOQ requires a unit per row, then SupplierUnitConverter - not a direct rate provider."
+      "reason": "Supplier unit price from the register, written by MaterialCommands. NOT a rate source, and the gap is now measured rather than asserted: neither register file has a unit-of-measure column, the values span 857,000x (0.14 per clay brick paver to 120,000 per 500TR chiller), and STING_SUPPLIER_UNITS.json - the one place in this repository that states a unit - can give one to only 229 of the 1,279 rows (18%), of which 224 are roofing. The remaining 1,050 have no unit from any source here. Routing this to the BOQ needs a unit per register row first; then SupplierUnitConverter already does the rest."
     },
     "MAT_DISCIPLINE": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_DURABILITY": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_ELEMENT_TYPE": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_FEATURES": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_ISO_19650_ID": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_1_FUNCTION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_1_MATERIAL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_1_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_2_FUNCTION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_2_MATERIAL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_2_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_3_FUNCTION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_3_MATERIAL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_3_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_4_FUNCTION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_4_MATERIAL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_4_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_5_FUNCTION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_5_MATERIAL": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_5_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LAYER_COUNT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_LOCATION": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_MANUFACTURER": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_NAME": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_SPECIFICATIONS": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 7 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Doors Windows - Material Takeoff\". A schedule is a real reader; this scan only sees C#."
     },
     "MAT_STANDARD": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_THICKNESS_INCH": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_THICKNESS_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MAT_VAT_PCT_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MEC_SYS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MGS_DESIGN_FLOW_LPM_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MGS_OUTLET_ZONE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MGS_WORKING_PRESSURE_KPA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "MNT_HGT_MM": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Devices Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "PER_SUST_CARBON_FOOTPRINT_KG": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PER_THERM_U_VALUE_W_M2K": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-ARCH-Roofing\". A schedule is a real reader; this scan only sees C#."
     },
     "PLM_PPE_MAT_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Pipe Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "PLM_RECIRC_DRV_KV": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PLM_RECIRC_PUMP_DUTY_LPM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PLM_STACK_CAP_DU": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PLM_STACK_UTIL_PCT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PLM_SYS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_COMMENTS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 81 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Accessibility Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "PRJ_DWG_SUITABILITY_COD_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_GRID_REF_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "export",
+      "reason": "Consumed by 4 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Concrete Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "PRJ_ORG_CLIENT_NAME_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_COMPANY_NAME_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_HEALTH_BEDS_INT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_HEALTH_CODE_BASE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_HEALTH_FACILITY_TYPE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_PRESSURE_PROFILE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_PROJECT_CODE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_SECURITY_CLASS_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_SHEET_BIM_MODE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_SHEET_OF_TOTAL_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_DELIVERABLE_CDE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_DELIVERABLE_DATADROP_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_DELIVERABLE_DUE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_DELIVERABLE_STATUS_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_LAST_SYNC_BY_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_TB_LAST_TRANSMITTAL_TXT": {
       "state": "write_only",
@@ -1074,8 +1081,8 @@
     },
     "PRJ_TB_LOCK_BOOL": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_TB_TOTAL_NO_SHEETS_TXT": {
       "state": "write_only",
@@ -1084,203 +1091,203 @@
     },
     "PROP_ACOUSTIC_ABS": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_CARBON_KG_M3": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_COMP_STRENGTH_MPA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_DENSITY_KG_M3": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_FIRE_RATING": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_SOUND_RED_DB": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_SPECIFIC_HEAT_J_KGK": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_TENS_STRENGTH_MPA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_THERMAL_COND_W_MK": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PROP_THERMAL_RES_M2K_W": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "RAD_LEAD_MM_NR": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "RAD_QE_NAME_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_COMPOUND_PARENT_ID": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_CONDUIT_FILL_SUMMARY_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_FIRE_RATING_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_MAT_EPD_DATE_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_MAT_EPD_SRC_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STING_NOGGIN_REQUIRED": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STR_BEAM_TORSION_KNM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_BLACK_COTTON_RISK_BOOL": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STR_CONN_DETAIL_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_CONN_RATING_KN": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_ECC_CONN_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_FAB_TOLERANCE_MM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_FRAME_M_KNM": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_GROUND_TYPE_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_IMPORTANCE_CLASS_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_PUNCH_UTIL_PCT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_Q_FACTOR_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_REBAR_DETAIL_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_ROBUST_STATUS_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_SEISMIC_AGR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_SOIL_BEARING_KPA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_SYSTEM_CLASS_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_WIND_BASIC_MPS": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_WIND_DIRECTIONAL_NR": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_WIND_PRESSURE_PA": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_WIND_TERRAIN_CAT_TXT": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "SUS_EPD_REF_TXT": {
       "state": "read_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "WARN_STR_FND_BLACK_COTTON": {
       "state": "write_only",
-      "role": "unresolved",
-      "reason": ""
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     }
   }
 }
