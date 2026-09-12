@@ -72,6 +72,20 @@ jobs:
       - name: Unreachable-commands count is current
         run: python3 tools/recount_unreachable_commands.py --check
 
+      # Parameter contract: a bound shared parameter that is written and never read,
+      # or read and never written, is a producer and a consumer that were never
+      # introduced. That defect has been found by hand, on a delivered model, months
+      # late, six times this quarter — MAT_CODE, MAT_COST_UGX/USD, the 24 BLE_APP-*
+      # appearance columns, RateProviders' unreachable "Pass C".
+      #
+      # The gate is DECLARATION-driven, not derived: three successive scans tried to
+      # count the orphans and all three were wrong, because ParamRegistry.WriteContainers
+      # resolves its targets from an array of values and no parameter name appears at
+      # the call site. So this fails when the SET changes without anyone recording why,
+      # never on a count.
+      - name: Parameter contract is current
+        run: python3 tools/check_param_contract.py --check
+
       # A method that catches an exception, abandons the work and then tells its
       # caller it succeeded. Four of those built a project's whole finish catalogue
       # out of one default layer and reported '168/168 renamed, 0 failed'. This is

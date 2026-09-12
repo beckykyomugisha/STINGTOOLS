@@ -2,6 +2,65 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 278 — a parameter that nothing reads is a defect, and now it is a red build)
+
+The same defect has been found by hand, on a delivered model, months late, six
+times this quarter. A producer and a consumer that were never introduced:
+
+    MAT_CODE          written from a column->parameter table in MaterialCommands,
+                      read nowhere until #930. On the Herring model it was live on
+                      1,279 materials, matching the register exactly, the whole time.
+    MAT_COST_UGX/USD  written from the same table, read NOWHERE - 1,279 supplier unit
+                      prices sitting on materials while the BOQ priced from the 43
+                      category rates in cost_rates_5d.csv.
+    BLE_APP-*         24 register appearance columns, written, read by no code.
+    RateProviders     "Pass C" wired end to end at confidence 80, sharing Pass B's
+                      keyspace, unable ever to return a distinct answer.
+
+`tools/check_param_contract.py` is the gate, wired into "Validate data files".
+
+**Why it is declaration-driven and not derived.** Three successive scans tried to
+COUNT the orphans and all three were wrong:
+
+    string literals only            35 both / 140 write-only /  92 read-only
+    + 470 ParamRegistry constants   41 both / 148 write-only / 100 read-only
+    ...and ASS_TAG_1_TXT STILL reported 13 reads and 0 writes
+
+It is written by `ParamRegistry.WriteContainers(el, tokenValues, categoryName)`,
+which takes an array of VALUES and resolves the targets internally - no parameter
+name appears at the call site in any form a scan can follow. A census will always
+be wrong here in both directions, and a gate built on a wrong census either blocks
+good work or waves bad work through. So the tool publishes no count as truth: it
+compares the SET against `docs/PARAM_CONTRACT_BASELINE.json` and fails only when a
+parameter's situation changes without anyone recording why.
+
+It also cannot see the readers that matter most. A Revit schedule, an IFC property
+set, a COBie sheet and a person with the properties palette open are all real
+consumers, and none of them is C#. That is exactly why each baseline entry carries a
+ROLE and a REASON rather than a number: pipeline (we write it, we read it), export
+(a pset or schedule consumes it - name it), input (a human fills it, we read it),
+reference (carried for a reader outside this codebase).
+
+**RED before GREEN.** Adding `SetString(el, "ASS_CAT_TXT", ...)` - a parameter with
+no C# site at all - makes the gate exit 1 naming it. An earlier sabotage attempt
+chose `ASS_CST_CURRENCY_TXT` and the gate stayed green, correctly: that parameter
+already had a reader, so adding a writer made it healthy rather than orphaned. The
+first sabotage proved nothing and is recorded because it is the easier mistake.
+
+**Two roles settled, not guessed.** `MAT_COST_UGX/USD` is BLOCKED as a rate source:
+there is no unit-of-measure column in either register file, and the values span
+857,000x - 0.14 for a clay brick paver, 120,000 for a 500TR water-cooled chiller.
+It is a supplier unit price whose unit is implicit in the material and recorded
+nowhere. Routing it to the BOQ needs a unit per row and then SupplierUnitConverter,
+which already exists to answer "how many of these per m2". Not a direct provider.
+The 24 `BLE_APP-*` columns are `reference`: the consumer is the model author with
+the properties palette open.
+
+226 of the 253 entries are still `unresolved`, which is honest - nobody has decided
+what they are for. The gate lands green and tightens, the way check_path_discipline
+reached a hard zero.
+
+
 #### Completed (Phase 277 — swapping a title block was blocked in four separate places)
 
 The report was "I have views on sheets and I cannot change the title block". Four
