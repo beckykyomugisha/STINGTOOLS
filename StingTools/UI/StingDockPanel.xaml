@@ -1443,12 +1443,16 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Edit Types" Tag="DrawingTypes_Editor" Click="Cmd_Click" ToolTip="Open the Drawing Type editor — corporate baseline + project overrides, 15 built-in types, 6 tabs (Drawing Types / View Style Packs / Viewport Tools / Sheet Tools / Title Block / Sheet Manager)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Inspect" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Read-only catalogue + routing table + validator report"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Type Marks (preview)" Tag="TypeMark_Preview" Click="Cmd_Click" ToolTip="G-20: report the DR-/WIN- type marks that WOULD be assigned. Writes nothing."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Type Marks (assign)" Tag="TypeMark_Assign" Click="Cmd_Click" ToolTip="G-20: assign door/window TYPE marks. Never overwrites an existing mark; marks are monotonic and never reused."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Type Schedules" Tag="TypeSchedule_Create" Click="Cmd_Click" ToolTip="Collapsed door/window TYPE schedules (one row per product + count). Your itemised schedules are untouched."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Reload JSON" Tag="DrawingTypes_Reload" Click="Cmd_Click" ToolTip="Clear registry cache so on-disk edits to STING_DRAWING_TYPES.json or _BIM_COORD/drawing_types.json take effect"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Pres Setup" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Create the custom fill patterns (STING-Pres-Herringbone / HorizontalCladding / RoofHatch) and entourage / Generic Models subcategories (STING-LargeTree / STING-SmallShrub / STING-PresGround) required by the pres-* presentation style packs. Idempotent — safe to re-run."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Group Browser" Tag="DrawingTypes_GroupBrowser" Click="Cmd_Click" ToolTip="Pivot the registry by discipline — quick overview of every drawing type that exists per discipline"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Audit Style Refs" Tag="DrawingTypes_AuditStyleRefs" Click="Cmd_Click" ToolTip="Read-only — reload registry then report which view templates and viewport types referenced by drawing types are missing in the active project. Does not modify views."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Sync Styles" Tag="DrawingTypes_SyncStyles" Click="Cmd_Click" ToolTip="WRITES — re-apply every stamped view's profile (scale / detail / template / style pack / annotation) so views snap back into line after editing a Drawing Type or View Style Pack. Views flagged STING_STYLE_LOCKED_BOOL are skipped."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Suggest From Scope Boxes" Tag="DrawingTypes_SuggestFromScopeBoxes" Click="Cmd_Click" ToolTip="Read-only — scan scope boxes in the active project and suggest drawing-type stub ids (with auto-discipline detection from the scope box name). Creates nothing."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Box Manager" Tag="ScopeBoxManager" Click="Cmd_Click" ToolTip="Rename scope boxes to the STING:: grammar with a drawing-type dropdown — no typos, live four-state validation, click a row to select the box in the model. Two-pass rename survives A→B/B→A swaps. Also carries the old Scope Box Manager's audit / auto-assign / clear actions."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Generate From Scope Boxes" Tag="DrawingTypes_FromScopeBoxes" Click="Cmd_Click" ToolTip="WRITES — create a view per scope box named STING::&lt;drawing-type&gt;::&lt;level&gt;, cropped to that box, with the profile's scale / template / style pack applied. Idempotent per (drawing type, scope box)."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↓ Export to Excel" Tag="DrawingTypes_ExportExcel" Click="Cmd_Click" ToolTip="Export all Drawing Types and Style Packs to an editable Excel workbook (8 sheets, colour swatches, validation dropdowns)"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="↑ Import from Excel" Tag="DrawingTypes_ImportExcel" Click="Cmd_Click" ToolTip="Import Drawing Types and Style Packs from an edited Excel workbook (validation pre-flight, change preview, applies to project _BIM_COORD/ overrides)"/>
@@ -1943,6 +1947,37 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Check" Tag="CheckData" Click="Cmd_Click" ToolTip="Check Data — verify referenced CSV / JSON / TXT data files are present"/>
                                     </WrapPanel>
                                 </Expander>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- MODEL-AUTHORING BASELINE -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="&#x1F3D7; MODEL BASELINE"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#6A1B9A">
+                            <StackPanel>
+                                <Button Style="{StaticResource ActionBtn}" Content="Audit model baseline" Tag="Baseline_Audit" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. Compares this project to the STING model-authoring baseline: which materials and wall/floor/roof/ceiling types are missing, which exist but differ, and which need families loaded by hand. Writes nothing."
+                                        HorizontalAlignment="Stretch"/>
+                                <Button Style="{StaticResource ActionBtn}" Content="Harvest types from this model" Tag="Baseline_HarvestTypes" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. Records the door / window / structural types actually PLACED in this model as a catalogue pack, written to _BIM_COORD/harvested_catalogue.json for review. A type nobody placed is not harvested. Nothing is adopted by writing it."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Apply baseline (asks first)" Tag="Baseline_Apply" Click="Cmd_Click"
+                                        ToolTip="Shows the full list of what it would create, then writes only after you confirm. Creates ONLY what is missing — an existing type is never edited, even when its build-up differs from the baseline. A material schedule can only measure finishes the model actually describes; this is what gives it something to read."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Rename types to standard (asks first)" Tag="Baseline_RenameTypes" Click="Cmd_Click"
+                                        ToolTip="Proposes house-standard names for the host types this model already has, reading the substance off each type's own CORE MATERIAL rather than guessing from its name. Writes the full plan to CSV and renames only after you confirm. A type whose materials do not say what it is gets NO proposal — a rename that guessed would replace a name you can see is empty with one you cannot."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Set material Class (asks first)" Tag="Materials_SetClass" Click="Cmd_Click"
+                                        ToolTip="Fills Revit's Material Class from the material name where it is blank. Class is the controlled field the embodied-carbon and BOQ cost engines read, so a material with none is answered by nothing at all. Never overwrites a class somebody chose, and never invents one for a name that says nothing."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Undo a material Class plan (asks first)" Tag="Materials_RevertClassPlan" Click="Cmd_Click"
+                                        ToolTip="Puts back the classes a material_class_plan CSV set. Pick the plan file; it reverts ONLY where the material still carries what that plan proposed, so anything you have changed since is reported and left alone. Needed because Set material Class never overwrites an existing class - including one it set itself, which is why re-running it cannot repair a bad write."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource BlueBtn}" Content="Register audit (read-only)" Tag="Materials_RegisterAudit" Click="Cmd_Click"
+                                        ToolTip="READ-ONLY. For every host type whose NAME is a row of BLE_MATERIALS.csv / MEP_MATERIALS.csv, compares the modelled compound structure against the layers, materials and thicknesses that register row declares, and writes the mismatches to CSV. Written after 87 floor types named after register rows turned out to be one 100mm layer of concrete each - the register was read for its NAME column and nothing else. Changes NOTHING: rebuilding a compound structure moves every element hosted on the type."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stamp material Codes (asks first)" Tag="Materials_StampCodes" Click="Cmd_Click"
+                                        ToolTip="Writes each material's MAT_CODE from the register row of the same MAT_NAME, where the material has none. MAT_CODE is the key the BOQ's most specific rate lookup uses - a material without one is priced by category and name instead, which is where vocabulary drift turns into a wrong rate. Matches on the EXACT name only, never overwrites a code somebody set, and writes the full plan to CSV before asking. Reports three counts: stamped, already coded, and NOT IN THE REGISTER - the third is this project's own vocabulary and the number the next register revision should absorb."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -2816,7 +2851,11 @@
                                     <Button Style="{StaticResource OrangeBtn}" Content="★ Batch All" Tag="CoveringBatchApply" Click="Cmd_Click" FontWeight="Bold"
                                             ToolTip="Batch plaster ALL walls + beams + columns in project"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Room Finishes" Tag="CoveringRoomSchedule" Click="Cmd_Click"
-                                            ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms"/>
+                                            ToolTip="Generate room finish schedule (wall/floor/ceiling) from placed rooms. Writes BOTH the Revit built-in finish parameters and the STING BLE_ROOM_FINISH_* params, so the ISB room finish schedule and IFC export can see them."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Finish Floors" Tag="Finish_CreateFloorsFromRooms" Click="Cmd_Click"
+                                            ToolTip="Create one floor-finish element per room from its floor finish code: sketched on the room boundary, offset 0 from level so the top sits at FFL, Room Bounding off. Re-runnable — rooms that already have a finish floor are skipped."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Finish Codes" Tag="Finish_ReloadCodes" Click="Cmd_Click"
+                                            ToolTip="Reload and list the finish code legend (STING_FINISH_CODES.csv + project override at _BIM_COORD/finish_codes.csv)"/>
                                 </WrapPanel>
                                 <Expander Header="Advanced covering ops" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
@@ -3100,6 +3139,10 @@
                                             ToolTip="Pull clash results from ACC Model Coordination, rank them, write a CSV and escalate the top-ranked back to ACC Issues. Needs %APPDATA%\Planscape\acc_credentials.json."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="ACC Sync" Tag="ACC_SyncIssueStatus" Click="Cmd_Click"
                                             ToolTip="Reconcile ACC Issue status back onto the escalation sidecar, so a closed ACC issue lets a recurring clash re-raise. Needs %APPDATA%\Planscape\acc_credentials.json."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Upload" Tag="ACC_UploadModel" Click="Cmd_Click"
+                                            ToolTip="Pick a file and upload it to ACC Docs for real (APS Data Management). This is the actual upload — 'ACC Publish' only builds a local ACC-ready bundle you would upload by hand. Needs %APPDATA%\Planscape\acc_credentials.json and an APS app with data:read/write/create."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="ACC Upload Bundle" Tag="ACC_UploadLastBundle" Click="Cmd_Click"
+                                            ToolTip="Upload the bundle ACC Publish last built, with no file picker. Needs an ACC Publish run first; it uploads that exact ZIP and nothing else, and asks for confirmation because it writes into the real CDE."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
@@ -3244,6 +3287,8 @@
                                                 ToolTip="Export an 8-sheet BOQ data workbook (Summary, Items, Materials, PS, NRM2, Carbon, Audit, Snapshot) for QS round-tripping"/>
                                         <Button Style="{StaticResource BlueBtn}" Content="Material Schedule" Tag="MaterialSchedule_Export" Click="Cmd_Click"
                                                 ToolTip="Export a stage-sectioned material schedule in supplier units (Bags / Trips / No.) as XLSX, with an include/exclude prices toggle"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Price Commodities" Tag="MaterialSchedule_PriceCommodities" Click="Cmd_Click"
+                                                ToolTip="Price the material schedule in a grid. Rows are seeded from the schedule so no commodity key is ever retyped; saves to the project commodity_rates.csv and never touches the corporate baseline."/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Import" Tag="BOQImport" Click="Cmd_Click"
                                                 ToolTip="Import a previously exported BOQ spreadsheet and apply rate overrides"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Snap Diff" Tag="BOQSnapshotCompare" Click="Cmd_Click"
@@ -3727,12 +3772,38 @@
                         <TextBlock Style="{StaticResource SectionLabel}" Text="CSI / SPECLINK"/>
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
                             <StackPanel>
-                                <TextBlock Text="CSI MasterFormat classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <TextBlock Text="MasterFormat (work results) + OmniClass (elements) classification + RIB SpecLink TOC reconciliation" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="CSI Assign" Tag="CSI_Assign" Click="Cmd_Click"
-                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                            ToolTip="Resolve + write CSI_SECTION_TXT / CSI_TITLE_TXT (MasterFormat) from STING_CSI_MASTERFORMAT_MAP.csv (category → family → SYS)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="OmniClass Table…" Tag="OmniClass_SetTable" Click="Cmd_Click"
+                                            ToolTip="Pick the active OmniClass table (21 Elements / 23 Products / 41 Materials / 13 Spaces ship maps; the other 11 tables resolve via _BIM_COORD/omniclass_map.csv). Sets classification_policy.json — drives OmniClass Assign / Audit"/>
+                                    <Button Style="{StaticResource GreenBtn}" Content="OmniClass Assign" Tag="OmniClass_Assign" Click="Cmd_Click"
+                                            ToolTip="Resolve + write ASS_OMNICLASS_TXT for the active OmniClass table (per classification_policy.json). A native-authored OmniClass Number on the type wins; the map is the bootstrap"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="OmniClass Audit" Tag="OmniClass_Audit" Click="Cmd_Click"
+                                            ToolTip="Read-only dry-run: % classified, unmapped keys, and ambiguous (tied-rule) elements for the active OmniClass table — CSV + summary. Run before Assign to see the holes"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Classification on Tags…" Tag="ClassificationTags_Set" Click="Cmd_Click"
+                                            ToolTip="Optionally stamp a classification code (MasterFormat / OmniClass / both / none) into each element's rich TAG7 narrative so it shows on drawings. Per-project, data-driven (classification_policy.json), off by default. Re-run Auto Tag / Build Tags to refresh"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="SpecLink Import" Tag="SpecLink_ImportFolder" Click="Cmd_Click"
+                                            ToolTip="Read the SpecLink project-manual CSV(s) dropped in _BIM_COORD/speclink/ into sections.json. The issued clause text then writes the BOQ line descriptions instead of a generated NRM2 template. Newest export wins on a section collision"/>
                                     <Button Style="{StaticResource BlueBtn}" Content="SpecLink Reconcile" Tag="SpecLink_Reconcile" Click="Cmd_Click"
                                             ToolTip="Compare model CSI sections against the SpecLink spec TOC — spec gaps / over-spec / title mismatches; XLSX report"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- LIFECYCLE JOIN (spec -> cost -> procurement -> commissioning) -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="LIFECYCLE JOIN"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#00897B">
+                            <StackPanel>
+                                <TextBlock Text="Joins the four ledgers keyed off the same element: SpecLink (specified) → BOQ (priced) → Fohlio (procured) → Niagara (commissioned)" FontSize="9" Foreground="#888" Margin="0,0,0,4"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource BlueBtn}" Content="Lifecycle Reconcile" Tag="KUT_LifecycleReconcile" Click="Cmd_Click"
+                                            ToolTip="Read-only four-ledger join into one asset register (XLSX), surfacing the two gaps a single-ledger reconcile cannot see: priced assets with no BMS point, and station points with no priced line"/>
+                                    <Button Style="{StaticResource BlueBtn}" Content="BMS Valuation" Tag="KUT_ValuationFromBms" Click="Cmd_Click"
+                                            ToolTip="Read the Niagara station and report what share of the priced monitorable scope is live and therefore certifiable as commissioned. Falls back to the last cached read when the station is down, and says so"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Push Gaps to ACC" Tag="KUT_PushLifecycleGapsToAcc" Click="Cmd_Click"
+                                            ToolTip="Push the model-derivable lifecycle gaps (priced-unspecified, priced-no-BMS-point) to ACC Issues. Idempotent — re-runs skip anything already pushed"/>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>

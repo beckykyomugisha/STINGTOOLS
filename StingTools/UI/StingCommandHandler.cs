@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -253,7 +253,12 @@ namespace StingTools.UI
 
                     // ── Phase 192 (C2): CSI MasterFormat / SpecLink ──
                     case "CSI_Assign":               RunCommand<Commands.Classification.CsiAssignCommand>(app); break;
+                    case "OmniClass_Assign":         RunCommand<Commands.Classification.OmniClassAssignCommand>(app); break;
+                    case "OmniClass_Audit":          RunCommand<Commands.Classification.OmniClassAuditCommand>(app); break;
+                    case "OmniClass_SetTable":       RunCommand<Commands.Classification.OmniClassSetTableCommand>(app); break;
+                    case "ClassificationTags_Set":   RunCommand<Commands.Classification.ClassificationTagsSetCommand>(app); break;
                     case "SpecLink_Reconcile":       RunCommand<Commands.Classification.SpecLinkReconcileCommand>(app); break;
+                    case "SpecLink_ImportFolder":    RunCommand<Commands.Classification.SpecLinkImportCommand>(app); break;
                     case "Prod_GenerateRules":       RunCommand<Commands.Classification.GenerateProdCodeRulesCommand>(app); break;
                     case "Prod_CoverageAudit":       RunCommand<Commands.Classification.ProdCoverageAuditCommand>(app); break;
 
@@ -700,6 +705,13 @@ namespace StingTools.UI
                     case "DrawingTypes_Renumber":      RunCommand<Commands.Drawing.DrawingRenumberCommand>(app); break;
                     case "DrawingTypes_HealTitleBlocks": RunCommand<Commands.Drawing.DrawingHealTitleBlocksCommand>(app); break;
                     case "DrawingTypes_Doctor":        RunCommand<Commands.Drawing.DrawingDoctorCommand>(app); break;
+                    // G-20 — door/window TYPE marks. Preview is a separate tag, not a
+                    // flag, so the read-only path cannot be skipped by muscle memory.
+                    case "TypeMark_Preview":           RunCommand<Commands.Drawing.TypeMarkPreviewCommand>(app); break;
+                    case "TypeMark_Assign":            RunCommand<Commands.Drawing.TypeMarkAssignCommand>(app); break;
+                    // 3B — the specification half of the door/window pair. IsItemized=false
+                    // was never set anywhere in the plugin, so no collapsed schedule existed.
+                    case "TypeSchedule_Create":        RunCommand<Commands.Drawing.CreateTypeScheduleCommand>(app); break;
                     case "DrawingTypes_MigrateCsv":    RunCommand<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app); break;
                     case "DrawingTypes_MigrateParams":     RunCommand<Commands.Drawing.TitleBlockParamMigrateCommand>(app); break;
                     case "DrawingTypes_AuditLegacyParams": RunCommand<Commands.Drawing.TitleBlockParamMigrateAuditCommand>(app); break;
@@ -777,6 +789,26 @@ namespace StingTools.UI
                     // the dock panel even when the panel is open.
                     case "Vis_OpenFloating": RunCommand<Commands.Visibility.OpenVisibilityDropdownFloatingCommand>(app); break;
                     case "Vis_Apply": RunCommand<Commands.Visibility.ApplyVisibilityCommand>(app); break;
+                    // STING project baseline — the model-authoring standard.
+                    // Audit is read-only; Apply shows the full list of what it
+                    // would create and writes nothing until that is confirmed.
+                    case "Baseline_Audit": RunCommand<Commands.Baseline.BaselineAuditCommand>(app); break;
+                    case "Baseline_Apply": RunCommand<Commands.Baseline.BaselineApplyCommand>(app); break;
+                    case "Baseline_RenameTypes": RunCommand<Commands.Baseline.RenameTypesToStandardCommand>(app); break;
+                    case "Materials_SetClass":   RunCommand<Commands.Baseline.SetMaterialClassCommand>(app); break;
+                    // The undo for the one above. Set material Class will not overwrite an
+                    // existing class - including one it wrote itself - so a bad write cannot
+                    // be repaired by re-running it.
+                    case "Materials_RevertClassPlan": RunCommand<Commands.Baseline.RevertMaterialClassCommand>(app); break;
+                    // Read-only. Compares what the model BUILT against what the register
+                    // DECLARES for the row the type is named after.
+                    case "Materials_RegisterAudit": RunCommand<Commands.Materials.RegisterAuditCommand>(app); break;
+                    // Writes MAT_CODE where a material has none, from the register row of
+                    // the same MAT_NAME. MAT_CODE is what RateProviders Pass C keys on.
+                    case "Materials_StampCodes": RunCommand<Commands.Materials.StampMaterialCodesCommand>(app); break;
+                    // Read-only: writes a catalogue pack JSON, never the model.
+                    case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
+
                     // Live tick apply — same path, no report dialog.
                     case "Vis_ApplyLive": RunCommand<Commands.Visibility.ApplyVisibilityLiveCommand>(app); break;
                     case "Vis_Isolate": RunCommand<Commands.Visibility.IsolateVisibilityCommand>(app); break;
@@ -2003,6 +2035,8 @@ namespace StingTools.UI
                     case "CoveringSmartApply": RunCommand<Model.CoveringSmartApplyCommand>(app); break;
                     case "CoveringBatchApply": RunCommand<Model.CoveringBatchApplyCommand>(app); break;
                     case "CoveringRoomSchedule": RunCommand<Model.CoveringRoomScheduleCommand>(app); break;
+                    case "Finish_CreateFloorsFromRooms": RunCommand<Model.CreateFinishFloorsFromRoomsCommand>(app); break;
+                    case "Finish_ReloadCodes": RunCommand<Model.ReloadFinishCodesCommand>(app); break;
                     case "CoveringQualityCheck": RunCommand<Model.CoveringQualityCheckCommand>(app); break;
                     case "CoveringScheduleExport": RunCommand<Model.CoveringScheduleExportCommand>(app); break;
                     case "CoveringFireRating": RunCommand<Model.CoveringFireRatingCommand>(app); break;
@@ -2413,7 +2447,7 @@ namespace StingTools.UI
                         var fpDoc = app.ActiveUIDocument?.Document;
                         if (fpDoc != null)
                         {
-                            var presets = Core.WorkflowEngine.GetAvailablePresets();
+                            var presets = Core.WorkflowEngine.GetAvailablePresets(fpDoc);
                             var preset = presets.FirstOrDefault() ?? new Core.WorkflowPreset { Name = "Default", Steps = new() };
                             var (ok, issues) = Core.FederatedWorkflowSupport.PreFlightCheckFederated(fpDoc, preset);
                             var sb = new System.Text.StringBuilder();
@@ -2847,6 +2881,13 @@ namespace StingTools.UI
                     case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
                     case "AccSyncIssueStatus":
                     case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // The REAL upload (APS Data Management), as distinct from ACCPublish,
+                    // which only builds a local ACC-ready bundle for manual upload.
+                    case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;
+                    // Non-interactive twin: uploads the bundle ACCPublish recorded, so no
+                    // file picker is needed. Deliberately in no KUT workflow (see the
+                    // command's header) - the capability is wired, the decision is not made.
+                    case "ACC_UploadLastBundle": RunCommand<Core.Clash.AccUploadLastBundleCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {
@@ -3594,6 +3635,12 @@ namespace StingTools.UI
                     case "BOQQsExport":             RunCommand<BOQ.BOQQsExportCommand>(app); break;
                     case "BOQQsImport":             RunCommand<BOQ.BOQQsImportCommand>(app); break;
                     case "BOQ_RateGapReport":       RunCommand<BOQ.BOQRateGapReportCommand>(app); break;
+                    // G-14 trap 2 — per-element pre-flight: which of the six
+                    // required fields each billable element is missing.
+                    case "BOQ_ReadinessByElement":  RunCommand<BOQ.BOQReadinessByElementCommand>(app); break;
+                    // B-2 — the earthwork path: reads Revit cut/fill off graded
+                    // toposolids and emits the four measured earthworks bill rows.
+                    case "Site_CutFillTakeoff":     RunCommand<Commands.Site.SiteCutFillTakeoffCommand>(app); break;
                     case "BOQ_SignOff":             RunCommand<BOQ.BOQSignOffCommand>(app); break;
                     case "BOQSnapshotCompare":      RunCommand<BOQ.BOQSnapshotCompareCommand>(app); break;
                     case "ReconcileProvisionals":   RunCommand<BOQ.BOQReconcileProvisionalsCommand>(app); break;
@@ -3662,6 +3709,12 @@ namespace StingTools.UI
                     case "LossExpense_Value":           RunCommand<Commands.Cost.LossExpenseValueCommand>(app); break;
                     case "CostToComplete_Lines":        RunCommand<Commands.Cost.CostToCompleteLinesCommand>(app); break;
                     case "Commitments_Report":          RunCommand<Commands.Cost.CommitmentsReportCommand>(app); break;
+
+                    // PM-3 — instructed dayworks (capture → price → final account).
+                    case "Daywork_Capture":             RunCommand<Commands.Cost.DayworkCaptureCommand>(app); break;
+                    case "Daywork_Register":            RunCommand<Commands.Cost.DayworkRegisterCommand>(app); break;
+                    case "Daywork_Price":               RunCommand<Commands.Cost.DayworkPriceCommand>(app); break;
+                    case "Daywork_Attach":              RunCommand<Commands.Cost.DayworkAttachCommand>(app); break;
 
                     // PM-8 — delivery layer (risk register, MIDP/TIDP drift).
                     case "Risk_Raise":                  RunCommand<Commands.Delivery.RiskRaiseCommand>(app); break;
@@ -3805,6 +3858,9 @@ namespace StingTools.UI
                     case "Fohlio_ImportFinishes": RunCommand<ExLink.FohlioImportFinishesCommand>(app); break;
                     case "Niagara_ExportPoints": RunCommand<Commands.Twin.NiagaraPointListExportCommand>(app); break;
                     case "Niagara_Reconcile": RunCommand<Commands.Twin.NiagaraReconcileCommand>(app); break;
+                    case "KUT_ValuationFromBms": RunCommand<Commands.Twin.KutValuationFromBmsCommand>(app); break;
+                    case "KUT_LifecycleReconcile": RunCommand<Commands.Twin.KutLifecycleReconcileCommand>(app); break;
+                    case "KUT_PushLifecycleGapsToAcc": RunCommand<Commands.Twin.KutPushLifecycleGapsToAccCommand>(app); break;
                     // Owner_KpiDashboard is the name; KUT_KpiDashboard is kept as an
                     // alias so the existing button, WORKFLOW_KUT_MonthlyReport and any
                     // muscle memory keep working. The command derives its code from

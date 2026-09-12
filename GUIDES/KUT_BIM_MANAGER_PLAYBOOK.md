@@ -1,9 +1,21 @@
 # KUT BIM Manager Playbook
 ### Your personal, step-by-step guide to delivering the LDS Kampala Uganda Temple (KUT) project
 
-> **Who this is for:** Mayanja Davis (Planscape Consulting Engineers Ltd), appointed BIM / Information Manager on the Kampala Uganda Temple, sub-consultant to **Symbion Consulting**.
+> **Who this is for:** Mayanja Davis, Information Manager on the Kampala Uganda Temple, working within **Symbion Consulting Group Studios** as Lead Appointed Party.
 > **What this is:** A plain-English, end-to-end manual you can follow from interview → mobilisation → design → construction → handover. It explains *what* to do, *which tool* to use, *how* to use it, and *when* — mapped to the revised 49-month work programme.
-> **Status:** Living document. Update it as the project evolves.
+> **Status:** Personal working reference. **It is not a project document and is not issued.**
+>
+> ⚠ **Where this guide and the issued pack differ, the issued pack is right.** The BIM Execution
+> Plan, the Project Delivery Playbook, the Document Control Standard and the Master Information
+> Delivery Plan are generated, gated and current; this guide is not. Parts 1–3 were written for
+> the interview and are kept for reference only. Specifically superseded here:
+>
+> - the **fortnightly** coordination cycle, not weekly — corrected below, and stated with its
+>   day-by-day deadlines in the plan;
+> - the **Fohlio Option A / Option B** comparison — settled: the file round-trip is used, and a
+>   live interface is not a project dependency;
+> - every **calendar date** — the delivery plan now derives all of them from a single appointment
+>   date on its Programme sheet. Enter it there, not here.
 
 ---
 
@@ -174,7 +186,7 @@ The work programme uses **LOD (Level of Development / Detail)**. It tells everyo
 
 ## 2.2 The revised work programme with timing
 
-Durations are from your revised work plan. Months are **relative** (M1 = first month after appointment); the illustrative calendar assumes appointment ≈ **Sept 2026** — adjust to the real award date.
+Durations are the Appointing Party Work Program. Months are **relative** (M1 = the first month after appointment). The calendar column below is illustrative only, assuming an appointment in **August 2026**; the delivery plan calculates the real dates from the appointment date entered on its Programme sheet, and that is the one to trust.
 
 | Stage | Activity / Deliverable | LOD | Duration | Relative months | Illustrative dates |
 |---|---|---|---|---|---|
@@ -186,11 +198,13 @@ Durations are from your revised work plan. Months are **relative** (M1 = first m
 | 2.5 | Conformed Set / Construction Documentation | — | (within above) | M11 | Jul 2027 |
 | **PHASE 3 — Construction Administration** | | | **38 mo** | | |
 | 3.1 | Supervise the Building Construction Contract | LOD 400 | 32 | M12–M43 | Aug 2027 – Mar 2030 |
-| 3.2 | Supervise Furniture, Fittings & Equipment (FF&E) | LOD 400 | 4 | M40–M43* | Dec 2029 – Mar 2030 |
-| 3.3 | Provide Close-Out Documents / **Deliverable D** | LOD 500 | 2 | M44–M45 | Apr 2030 – May 2030 |
-| | **TOTAL** | | **49 mo** | | ≈ Sep 2026 – ~mid 2030 |
+| 3.2 | Supervise Furniture, Fittings & Equipment (FF&E) | LOD 400 | 4 | M44–M47 | Apr 2030 – Jul 2030 |
+| 3.3 | Provide Close-Out Documents / **Deliverable D** | LOD 500 | 2 | M48–M49 | Aug 2030 – Sep 2030 |
+| | **TOTAL** | | **49 mo** | | ≈ Sep 2026 – Sep 2030 |
 
-\* 3.2 FF&E overlaps the tail of 3.1 (fit-out happens near completion).
+> Calendar dates are illustrative, assuming an appointment in August 2026 (M0). They are fixed once the
+> appointment date is confirmed. Month offsets are the controlling figures: the stages run in sequence,
+> which is what makes the 11 + 38 subtotals reach the stated 49.
 
 ## 2.3 The repeating "coordination cycle" (your weekly rhythm)
 
@@ -209,7 +223,7 @@ During the long middle, you run the **same loop** continuously. This is 80% of y
 | Cadence | What happens | Tool |
 |---|---|---|
 | **Daily** | Auto-tagging, model authoring, WIP saves | Revit + STINGTOOLS |
-| **Weekly** | Share models, run clash, coordination meeting, issue tracking | ACC + STINGTOOLS |
+| **Fortnightly** | Share (Tue 16:00), federate + clash (Wed), report (Thu), coordination session (Fri) | ACC + STINGTOOLS |
 | **Monthly** | Model-health + KPI report, data-quality audit, MIDP review | STINGTOOLS KPI dashboard |
 | **Per stage (B/C/D)** | Formal data drop, transmittal, client review | ACC + STINGTOOLS templates |
 
@@ -420,13 +434,13 @@ Derived from ISO 19650 + the KUT scope documents. These live in your **KUT owner
 Fields separated by hyphens — **Project-Originator-Volume/System-Level-Type-Role-Number**:
 
 ```
-KUT - PLNS - ZZ - XX - M3 - A - 0001
+KUT - SMB - ZZ - XX - M3 - A - 0001
  │     │      │    │    │    │    └ number
  │     │      │    │    │    └ role/discipline (A=Arch, S=Struct, M=Mech…)
  │     │      │    │    └ type (M3=3D model, DR=drawing, SH=sheet…)
  │     │      │    └ level (GF, 01, ZZ=all)
  │     │      └ volume/zone (ZZ=whole)
- │     └ originator (PLNS = Planscape; each firm gets a code)
+ │     └ originator (SMB = Planscape; each firm gets a code)
  └ project code (KUT)
 ```
 
@@ -502,7 +516,7 @@ This is the working manual. For each step: **what to do · which tool · how · 
 |---|---|---|
 | Develop real geometry (LOD 300) | Revit | All disciplines |
 | Auto-tag + populate data | STINGTOOLS | Tag & Combine / Batch Tag (use `TAG1_ONLY` if tiering later) |
-| Weekly clash + coordination | ACC + STINGTOOLS | Run loop from Part 2.3 |
+| Fortnightly clash + coordination | ACC + STINGTOOLS | Run loop from Part 2.3 |
 | Push/triage clashes → issues | STINGTOOLS → ACC | `ACC_PullClashes` + push BCF; assign owners |
 | Produce 50% drawings | STINGTOOLS Drawing Manager | Drawing types/sheets |
 | Start BOQ | STINGTOOLS BOQ | NRM2 export |
@@ -578,7 +592,7 @@ Most of these STINGTOOLS can **generate or export** — don't build from scratch
 ## 8.3 Transmittal — template
 | Field | Value |
 |---|---|
-| Transmittal no. | KUT-PLNS-TR-0001 |
+| Transmittal no. | KUT-SMB-TR-0001 |
 | Date | |
 | From / To | |
 | Purpose / suitability | S2 / A1 … |
@@ -719,13 +733,13 @@ You'll be judged on whether the **team** can follow the system, not just you. Ke
 `WIP → SHARED (S0–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Rev `P0x` (prelim) / `C0x` (contractual)
 
 ## 11.3 File name pattern
-`KUT-PLNS-ZZ-XX-M3-A-0001` = Project-Originator-Volume-Level-Type-Role-Number
+`KUT-SMB-ZZ-XX-M3-A-0001` = Project-Originator-Volume-Level-Type-Role-Number
 
 ## 11.4 The weekly loop
 `Share → Clash (ACC+STING) → Coordinate → Issue → Report`
 
 ## 11.5 The data drops
-`B = Dev Design (M4) · C = Tech Design (M8) · D = Close-out (M45)`
+`B = Dev Design (M4) · C = Tech Design (M8) · D = Close-out (M49)`
 
 ## 11.6 Tool → job
 `Revit=author · ACC=CDE+clash · STINGTOOLS=automate/QA · Speckle=share/view · Fohlio=FF&E/O&M · Niagara=operate/twin`

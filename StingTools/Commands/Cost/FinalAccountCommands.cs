@@ -8,6 +8,7 @@
 //      + reconciled provisional / PC-sum actuals      (BoqProvisional trail)
 //      ± agreed variations (Approved + Incorporated)  (VariationEngine)
 //      ± fluctuations (COST_FLUCTUATIONS_UGX, 0 if none)
+//      + priced dayworks not attached to a VO         (DayworkEngine, PM-3)
 //      = Final Account
 //
 //  Also reports the AS-BUILT remeasure (the live canonical GrandTotal) and its
@@ -57,6 +58,11 @@ namespace StingTools.Commands.Cost
         public int    AgreedVariationCount;
 
         public double FluctuationsUGX;
+
+        /// <summary>PM-3 — priced daywork sheets NOT attached to a variation.
+        /// Attached sheets are already carried by their VO in AgreedVariationsUGX,
+        /// so only unattached ones are added here (no double-count).</summary>
+        public double DayworksUGX;
 
         public double FinalAccountUGX;            // the signed bottom line
 
@@ -210,8 +216,13 @@ namespace StingTools.Commands.Cost
                 // 4. Fluctuations (index-linked / price-rise recovery total; 0 if none).
                 double fluctuations = TagConfig.GetConfigDouble("COST_FLUCTUATIONS_UGX", 0.0);
 
+                // 4b. PM-3 — priced dayworks. ONLY sheets not attached to a
+                // variation: an attached sheet's value is already inside agreedVo
+                // via its VariationItem, so adding it here would double-count it.
+                double dayworks = DayworkEngine.UnattachedPricedTotal(doc);
+
                 // 5. The waterfall.
-                double finalAccount = Math.Round(contractSum + psMovement + agreedVo + fluctuations, 0);
+                double finalAccount = Math.Round(contractSum + psMovement + agreedVo + fluctuations + dayworks, 0);
 
                 // PM-2 — reconcile against the payment-cert series (certified-to-date),
                 // so the Final Account no longer ignores what has actually been paid.
@@ -237,6 +248,7 @@ namespace StingTools.Commands.Cost
                     AgreedVariationsUGX = Math.Round(agreedVo, 0),
                     AgreedVariationCount = agreed.Count,
                     FluctuationsUGX = Math.Round(fluctuations, 0),
+                    DayworksUGX = Math.Round(dayworks, 0),
                     FinalAccountUGX = finalAccount,
                     AsBuiltRemeasureUGX = Math.Round(asBuilt, 0),
                     AsBuiltVarianceUGX = Math.Round(asBuilt - contractSum, 0),
@@ -272,6 +284,7 @@ namespace StingTools.Commands.Cost
                     .Metric("± Provisional/PC movement", $"{Sign(psMovement)}{ccy} {Math.Abs(psMovement):N0}")
                     .Metric($"± Agreed variations ({agreed.Count})", $"{Sign(agreedVo)}{ccy} {Math.Abs(agreedVo):N0}")
                     .Metric("± Fluctuations", $"{Sign(fluctuations)}{ccy} {Math.Abs(fluctuations):N0}")
+                    .Metric("+ Priced dayworks (unattached)", $"{ccy} {dayworks:N0}")
                     .Metric("= FINAL ACCOUNT", $"{ccy} {finalAccount:N0}")
                     .AddSection("CERTIFIED TO DATE")
                     .Metric("Certified to date (gross)", $"{ccy} {stmt.CertifiedToDateUGX:N0}")
@@ -358,6 +371,7 @@ namespace StingTools.Commands.Cost
                     Line("Add: reconciled provisional / PC-sum actuals", s.ProvisionalActualsUGX);
                     Line($"Add/Less: agreed variations ({s.AgreedVariationCount})", s.AgreedVariationsUGX);
                     Line("Add/Less: fluctuations", s.FluctuationsUGX);
+                    Line("Add: priced dayworks (not attached to a variation)", s.DayworksUGX);
                     r++;
                     Line("FINAL ACCOUNT", s.FinalAccountUGX, true);
                     r += 2;

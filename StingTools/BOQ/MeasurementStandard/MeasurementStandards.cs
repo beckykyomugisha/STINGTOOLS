@@ -32,6 +32,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Nrm2Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => true;
+
         public string Id => "nrm2";
         public string Version => "NRM2 (2nd ed., 2012, reprint 2021)";
         public string DisplayName => "RICS NRM2";
@@ -81,10 +84,46 @@ namespace StingTools.BOQ.MeasurementStandard
     }
 
     // ──────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────
+    //  CrossWalk — section code → another standard's class.
+    // ──────────────────────────────────────────────────────────────────
+    internal static class CrossWalk
+    {
+        /// <summary>
+        /// Look a section code up in a cross-walk, and SAY SO when it is not there.
+        ///
+        /// <para>Both cross-walks used a `_ => "Z"` default, so a section code the map
+        /// did not know became Miscellaneous with nothing logged. An unmapped code and a
+        /// deliberately-miscellaneous one produced byte-identical output, which is why
+        /// nine unmapped sections went unnoticed: the bill looked complete. The fallback
+        /// still returns the miscellaneous class — refusing to classify would fail a bill
+        /// that is merely imprecise — but it now names the code once per session, so the
+        /// gap is visible to whoever issues under that standard.</para>
+        /// </summary>
+        internal static string Classify(string code, IReadOnlyDictionary<string, string> map,
+                                        string standard, string fallback)
+        {
+            string c = (code ?? "").Trim();
+            if (c.Length == 0) return fallback;
+            if (map.TryGetValue(c, out string cls)) return cls;
+
+            StingLog.WarnRateLimited(
+                "CrossWalk_" + standard + "_" + c,
+                $"{standard}: work section '{c}' has no class in the cross-walk — billed as " +
+                $"'{fallback}'. Add it to the map in MeasurementStandards.cs; a section that " +
+                "falls through collapses a whole trade into miscellaneous.");
+            return fallback;
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────
     //  Cesmm4Standard — civil engineering. Section/group/sub-group lattice.
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Cesmm4Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => true;
+
         public string Id => "cesmm4";
         public string Version => "CESMM4 (2012)";
         public string DisplayName => "CESMM4";
@@ -106,29 +145,71 @@ namespace StingTools.BOQ.MeasurementStandard
 
         public string ClassifyRow(BOQLineItem line, Element el)
         {
-            // CESMM4 classes A-Z. Map NRM2 section to closest CESMM4 class.
-            string nrm2 = line?.NRM2Section ?? "";
-            return nrm2 switch
-            {
-                "4"  => "E",      // Earthworks
-                "5"  => "F",      // In-situ concrete
-                "14" => "U",      // Brickwork, blockwork and masonry
-                "15" => "M",      // Structural metalwork
-                "17" => "U",      // External walls / cladding
-                "20" => "Z",      // Misc work
-                "32" => "I",      // Pipework — pipes
-                "33" => "I",      // Pipework — pipes
-                "34" => "X",      // Miscellaneous (electrical not directly in CESMM4)
-                _    => "Z"
-            };
+            return CrossWalk.Classify(line?.NRM2Section, Cesmm4ByCode, "CESMM4", "Z");
         }
+
+        /// <summary>
+        /// Section code → CESMM4 class. EVERY code the section vocabulary defines must
+        /// appear here, including the ones whose honest answer is Z — otherwise a section
+        /// added to the vocabulary falls through the old `_ => "Z"` default and a whole
+        /// trade collapses into Miscellaneous with nothing said. That had already
+        /// happened: nine defined sections were unmapped, so a bill issued under CESMM4
+        /// billed groundworks, both drainage sections, carpentry, finishes and fittings
+        /// as one undifferentiated Z. `Z` written deliberately is a classification;
+        /// `Z` reached by omission is a silent failure that looks identical.
+        /// </summary>
+        private static readonly Dictionary<string, string> Cesmm4ByCode =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["1"]  = "D",   // Demolition and site clearance
+            ["2"]  = "E",   // Earthworks
+            ["3"]  = "E",   // Earthworks
+            ["4"]  = "E",   // Earthworks — see the piling caveat below
+            ["5"]  = "F",   // In-situ concrete
+            ["14"] = "U",   // Brickwork, blockwork and masonry
+            ["15"] = "M",   // Structural metalwork
+            ["16"] = "O",   // Timber
+            ["17"] = "U",   // External walls / cladding
+            ["18"] = "W",   // Waterproofing
+            ["19"] = "Z",   // Simple building works incidental to civil engineering
+            ["20"] = "Z",   // ditto
+            ["21"] = "Z",   // ditto
+            ["22"] = "Z",   // ditto
+            ["23"] = "Z",   // ditto
+            ["30"] = "I",   // Pipework — pipes
+            ["31"] = "I",   // Pipework — pipes (manholes are Class K; see caveat)
+            ["32"] = "I",   // Pipework — pipes
+            ["33"] = "I",   // Pipework — pipes
+            ["34"] = "X",   // Miscellaneous work (electrical has no CESMM4 class)
+            ["35"] = "X",   // ditto
+            ["36"] = "X",   // ditto
+            ["40"] = "R",   // Roads and pavings
+            ["41"] = "X",   // Miscellaneous work — fences, gates and stiles
+            ["42"] = "E",   // Earthworks — topsoiling, seeding and turfing
+        };
+
+        // Two caveats a bill issued under CESMM4 must carry, because they cannot be
+        // resolved by a per-SECTION map:
+        //
+        //   * Piling. Section 4 holds piled and non-piled foundations alike, and CESMM4
+        //     separates them — Classes P and Q are Piles and Piling ancillaries, while
+        //     pad and strip footings are Earthworks/In-situ concrete. Distinguishing
+        //     them needs the row's CSI section, not its work section.
+        //   * Manholes and drainage structures are CESMM4 Class K, not I. Section 31
+        //     holds both the runs and the structures.
+        //
+        // Both are under-classification (a defensible parent class), not misdirection,
+        // and neither existed before this map used sections 4 and 31 at all.
 
         public string BuildDescription(BOQLineItem line, Element el)
         {
             // CESMM4 descriptions follow a strict feature ladder. Stub here
             // with first feature + material; project-override layer can
             // extend.
-            string material = ParameterHelpers.GetString(el, "MAT_CODE") ?? "";
+            // W2 — same wrong read as the rate chain had: MAT_CODE is bound to
+            // Materials, so this was empty for every element and every CESMM4
+            // description said "as drawn" with no material named.
+            string material = Core.Materials.ElementMatCodeReader.ResolveCode(el);
             string baseDesc = line?.Category ?? "item";
             return string.IsNullOrEmpty(material)
                 ? $"{baseDesc}; as drawn"
@@ -165,6 +246,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class PomiStandard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "pomi";
         public string Version => "RICS POMI (2014)";
         public string DisplayName => "POMI (International)";
@@ -174,24 +258,53 @@ namespace StingTools.BOQ.MeasurementStandard
 
         public string ClassifyRow(BOQLineItem line, Element el)
         {
-            // POMI works at the trade level — simpler 1-letter classes.
-            string nrm2 = line?.NRM2Section ?? "";
-            return nrm2 switch
-            {
-                "4" or "5"        => "A",      // Substructure
-                "14" or "15"      => "B",      // Frame / walls
-                "17"              => "C",      // Roof / external envelope
-                "20"              => "D",      // Doors / windows / stairs
-                "32" or "33"      => "E",      // Mechanical / plumbing
-                "34" or "35"      => "F",      // Electrical
-                "36"              => "G",      // Fire / life safety
-                _                 => "Z"
-            };
+            return CrossWalk.Classify(line?.NRM2Section, PomiByCode, "POMI", "Z");
         }
+
+        /// <summary>
+        /// Section code → POMI trade class. Same completeness rule as the CESMM4 map:
+        /// every defined section appears, so a new one cannot fall through unnoticed.
+        /// Class H is an addition — the lettering had no external-works class at all,
+        /// which is why roads, fencing and landscaping had nowhere to go but Z.
+        /// </summary>
+        private static readonly Dictionary<string, string> PomiByCode =
+            new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["1"]  = "Z",   // Demolition — no POMI class in this lettering
+            ["2"]  = "A",   // Substructure
+            ["3"]  = "A",   // Groundworks are substructure works
+            ["4"]  = "A",   // Substructure
+            ["5"]  = "A",   // Substructure
+            ["14"] = "B",   // Frame / walls
+            ["15"] = "B",   // Frame / walls
+            ["16"] = "B",   // Carpentry — frame
+            ["17"] = "C",   // Roof / external envelope
+            ["18"] = "C",   // Waterproofing — envelope
+            ["19"] = "B",   // Linings and partitions
+            ["20"] = "D",   // Doors / windows / stairs
+            ["21"] = "Z",   // Surface finishes — no class in this lettering
+            ["22"] = "Z",   // Furniture, fittings and equipment — ditto
+            ["23"] = "Z",   // Building fabric sundries — ditto
+            ["30"] = "E",   // Drainage above ground — plumbing
+            ["31"] = "E",   // Drainage below ground — plumbing
+            ["32"] = "E",   // Mechanical / plumbing
+            ["33"] = "E",   // Mechanical / plumbing
+            ["34"] = "F",   // Electrical
+            ["35"] = "F",   // Electrical
+            ["36"] = "G",   // Fire / life safety
+            ["40"] = "H",   // External works
+            ["41"] = "H",   // External works
+            ["42"] = "H",   // External works
+        };
 
         public string BuildDescription(BOQLineItem line, Element el)
             => $"{line?.Category ?? "item"}, complete";
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }
@@ -201,6 +314,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class Icms3Standard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "icms3";
         public string Version => "ICMS 3rd ed. (2021)";
         public string DisplayName => "ICMS 3 (cost + carbon)";
@@ -254,6 +370,11 @@ namespace StingTools.BOQ.MeasurementStandard
             return $"{line?.Category ?? "item"}, ICMS3 group 02{co2}";
         }
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }
@@ -263,6 +384,9 @@ namespace StingTools.BOQ.MeasurementStandard
     // ──────────────────────────────────────────────────────────────────
     internal sealed class MmhwStandard : IMeasurementStandard
     {
+        /// <inheritdoc/>
+        public bool AppliesDeductions => false;
+
         public string Id => "mmhw";
         public string Version => "MMHW (DMRB Vol 4, 2021)";
         public string DisplayName => "MMHW (Highway works)";
@@ -294,6 +418,11 @@ namespace StingTools.BOQ.MeasurementStandard
         public string BuildDescription(BOQLineItem line, Element el)
             => $"{line?.Category ?? "item"}, in accordance with the Specification";
 
+        /// <summary>Returns the quantity UNCHANGED — this standard re-classifies and
+        /// re-describes rows, it does not re-measure them. See
+        /// <see cref="IMeasurementStandard.ApplyDeductions"/>: only NRM2 and CESMM4
+        /// currently deduct. Selecting this standard does not apply its deduction rules
+        /// to the areas and volumes in the bill.</summary>
         public double ApplyDeductions(BOQLineItem line, Element el)
             => line?.Quantity ?? 0;
     }

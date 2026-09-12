@@ -22,6 +22,7 @@ using StingTools.BOQ.Rates;
 using StingTools.BOQ.Sync;
 using StingTools.BOQ.Takeoff;
 using StingTools.Core;
+using StingTools.Core.Classification;
 using StingTools.Core.Storage;
 using StingTools.Temp;
 
@@ -175,7 +176,8 @@ namespace StingTools.BOQ
         private static List<BOQLineItem> BuildHostRawItems(Document doc, HashSet<string> knownCats,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
-            IMeasurementStandard measStd, bool allowIncremental)
+            IMeasurementStandard measStd, bool allowIncremental,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null)
         {
             string key = doc?.PathName ?? "default";
             var st = IncrementalState(doc);
@@ -187,7 +189,8 @@ namespace StingTools.BOQ
 
             // The element collection (cheap iteration) runs in both paths; the
             // expensive BuildLineItemFromElement is what incremental skips.
-            var currentElements = CollectCandidateElements(doc, knownCats);
+            var currentElements = CollectCandidateElements(doc, knownCats, exclusions, excludedOut,
+                                                           doc?.Title ?? "");
 
             if (!incremental)
             {
@@ -250,11 +253,49 @@ namespace StingTools.BOQ
         {
             if (Takeoff.CompoundTakeoffBuilder.Enabled())
             {
-                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(doc, el, csvRates, cobieCostCodes, measStd);
-                if (compound != null && compound.Count > 0) return compound;
+                var compound = Takeoff.CompoundTakeoffBuilder.TryBuild(
+                    doc, el, csvRates, cobieCostCodes, measStd, out bool hostMeasured);
+                if (compound != null && compound.Count > 0)
+                {
+                    if (hostMeasured) return compound;
+
+                    // The decomposition produced accessories only — a fascia along
+                    // a roof's eaves, nothing describing the roof. A non-empty
+                    // decomposition normally REPLACES the composite row, and that
+                    // deleted 856 m² of roof covering from an issued schedule
+                    // without a warning of any kind: the row vanished, its two
+                    // unpriced-item flags vanished with it, and the consumable
+                    // driver it fed read zero, which printed as a considered
+                    // refusal rather than a missing measurement.
+                    //
+                    // So both rows stand. The composite carries the element's own
+                    // quantity and its writeback; the accessory rows must not also
+                    // claim the element, or the CST_* stamp becomes last-one-wins
+                    // between two rows describing different things.
+                    var host = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
+                    if (host == null) return compound;
+                    foreach (var c in compound) { c.RevitElementId = -1; c.UniqueId = ""; }
+                    compound.Insert(0, host);
+                    return compound;
+                }
             }
             var single = BuildLineItemFromElement(doc, el, csvRates, cobieCostCodes, measStd);
             return single != null ? new List<BOQLineItem> { single } : new List<BOQLineItem>();
+        }
+
+        /// <summary>First material on the element, or "". Never throws.</summary>
+        private static string SafePrimaryMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                var ids = el?.GetMaterialIds(false);
+                if (ids != null)
+                    foreach (var id in ids)
+                        if (id != null && id.Value > 0)
+                            return doc.GetElement(id)?.Name ?? "";
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("BoqMat", "SafePrimaryMaterialName: " + ex.Message); }
+            return "";
         }
 
         private static void StoreHostCache(string key, List<BOQLineItem> items, HostIncrementalState st)
@@ -518,6 +559,11 @@ namespace StingTools.BOQ
             boq.PrelimsItemised = prelims.Enabled;
             boq.PrelimLines = prelims.Lines ?? new List<BoqPrelimLine>();
 
+            // E-6 — clear the material-rate miss tally so it describes THIS build
+            // and not an accumulation across two different bills. Reset here, at
+            // the top of the only method that runs the provider chain.
+            StingTools.BOQ.Rates.MaterialRateMissLog.Reset();
+
             // ── STEP 2: Load rate tables (3-source merge) ────────────────
             //   (a) project cost_rates_5d.csv  — highest priority
             //   (b) COBie type map             — category → cost-rate code
@@ -537,7 +583,16 @@ namespace StingTools.BOQ
             // host item set a full walk would produce (correct by construction);
             // STEP 6 onward runs identically either way.
             var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
-            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental);
+
+            // K-4 — user exclusions. Built once and reused for the linked-model
+            // walk below, so an exclusion keyed on UniqueId holds wherever that
+            // element appears. The excluded rows are collected, not discarded:
+            // they land on boq.UserExclusions and print on the Audit Trail sheet.
+            var exclusions = BuildExclusionIndex(doc);
+            var excludedRows = exclusions != null ? new List<BOQExcludedRow>() : null;
+
+            var items = BuildHostRawItems(doc, knownCats, csvRates, cobieCostCodes, measStd, allowIncremental,
+                                          exclusions, excludedRows);
 
             // ── STEP 6: Merge manual + PS rows ───────────────────────────
             var manualStore = LoadManualStore(doc);
@@ -566,7 +621,8 @@ namespace StingTools.BOQ
             {
                 try
                 {
-                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes, grouping, includedLinks, measStd);
+                    var linkItems = CollectLinkedItems(doc, knownCats, csvRates, cobieCostCodes,
+                        grouping, includedLinks, measStd, boq.LinkUnderCounts, exclusions, excludedRows);
                     if (linkItems.Count > 0) items.AddRange(linkItems);
                 }
                 catch (Exception ex) { StingLog.Warn($"BOQ linked-model takeoff: {ex.Message}"); }
@@ -587,6 +643,18 @@ namespace StingTools.BOQ
             // description + note survive BuildBOQDocument rebuilds regardless
             // of whether the background CST_RATE_SOURCE write completed.
             ApplyModelOverrides(doc, boq);
+
+            // ── STEP 7c (K-4): carry the user exclusions onto the document ──
+            // These rows are deliberately NOT in AllItems and add nothing to any
+            // total. They ride along so the Audit Trail sheet can state what the
+            // bill is missing on purpose and why — a quantity that disappears
+            // with no trace is indistinguishable from a takeoff bug.
+            if (excludedRows != null && excludedRows.Count > 0)
+            {
+                boq.UserExclusions = excludedRows;
+                StingLog.Info($"BOQ: {excludedRows.Count} element(s) excluded by the user; "
+                            + "listed on the Audit Trail sheet.");
+            }
 
             // ── STEP 8: Assign BOQ line refs across the whole document ───
             AssignBoqLineRefs(boq);
@@ -664,12 +732,31 @@ namespace StingTools.BOQ
             // Skip phase-demolished or temporary elements — they don't belong in the cost plan.
             if (IsPhaseDemolished(doc, el)) return null;
 
+            // FF&E treatment. Fohlio-mapped categories are Owner procurement, not
+            // contractor-supplied work, and how they appear in the bill is a project
+            // decision (_BIM_COORD/fohlio_map.json). Resolved ONCE, up front, so exactly
+            // one treatment applies per element and nothing is double-counted.
+            string ffeTreatment = null;   // null => not an FF&E (Fohlio-mapped) category
+            try
+            {
+                var fmap = StingTools.ExLink.FohlioMap.Cached(doc);
+                if (fmap != null && fmap.IsFfeCategory(catName))
+                {
+                    ffeTreatment = fmap.TreatmentFor(catName);
+                    // Owner-supplied and outside this bill: leave the row out entirely
+                    // rather than pricing it at zero, which would read as free work.
+                    if (ffeTreatment == StingTools.BOQ.FfeTreatment.Excluded) return null;
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("FfeTreatment", $"FF&E treatment: {ex.Message}"); }
+
             // (a) Rate lookup — CSV by category → CSV by PROD code → COBie type map → default
             string rateSource;
             int rateConfidence;
             (double rate, string unit, string description) picked = ResolveRate(
                 doc, el, catName, csvRates, cobieCostCodes, out rateSource, out rateConfidence,
-                out double? splitLabour, out double? splitPlant, out double? splitMaterial);
+                out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+                out string rateSourceCurrency);
             if (picked.rate <= 0) rateConfidence = Math.Max(20, rateConfidence); // confidence floor for zero-rate rows
 
             string unit = string.IsNullOrEmpty(picked.unit) ? "each" : picked.unit;
@@ -683,6 +770,7 @@ namespace StingTools.BOQ
             double quantity;
             double grossQty = 0, deductQty = 0, wasteQty = 0;
             string measNote = null;
+            bool qtyUnresolved = false;
             if (std != null)
             {
                 quantity = MeasureQuantity(el, unit, catName, std,
@@ -690,7 +778,7 @@ namespace StingTools.BOQ
             }
             else
             {
-                quantity = DeriveQuantity(el, unit);
+                quantity = DeriveQuantity(el, unit, out qtyUnresolved);
                 grossQty = quantity;
             }
 
@@ -725,6 +813,58 @@ namespace StingTools.BOQ
 
             string disc = ResolveDiscipline(el, catName);
             string nrm2Section = DeriveNrm2Section(doc, el, catName, disc);
+
+            // (f) Spec reference + CSI -> NRM2 bridge.
+            //
+            // The element carries CSI_SECTION_TXT once CSI_Assign has run. When it has
+            // not, resolve the section straight from the shipped map so the bill's
+            // MasterFormat column is populated for the WHOLE model rather than only for
+            // elements that happened to be pre-stamped - the stamp still wins when
+            // present, so an assign pass is an override, not a prerequisite.
+            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION) ?? "";
+            string csiTitle = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE) ?? "";
+            CsiRule csiRule = null;
+            try
+            {
+                var rules = StingTools.Commands.Classification.CsiMap.Rules(doc);
+                if (rules != null && rules.Count > 0)
+                    // KUT-11 — ParameterHelpers.GetFamilyName, not the local one. The local
+                    // helper falls back to the element TYPE's name, so for a system element it
+                    // put the type name in BOTH the family and the type slot: a FamilyRegex row
+                    // on a system category would have matched a TYPE name here while the same
+                    // map, resolved through CsiAssign, was matching "" and skipping. Two paths,
+                    // two answers, one map. Both now answer with the system FAMILY name.
+                    csiRule = CsiMasterFormat.Resolve(rules, catName, ParameterHelpers.GetFamilyName(el), el.Name ?? "",
+                        ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",
+                        // KUT-10 - the bill must classify on the same key the assign pass
+                        // does, or a beam is stamped Division 03 and billed under Division 05.
+                        StingTools.Commands.Classification.CsiMap.StructuralMaterialName(doc, el),
+                        // KUT-5 — the bill must classify on the same key the assign pass
+                        // does, or a demolished wall is stamped 02 41 19 and billed as
+                        // masonry. The NRM2 bridge below then bills it under Demolitions.
+                        StingTools.Commands.Classification.CsiMap.PhaseState(doc, el));
+                if (csiRule != null)
+                {
+                    if (string.IsNullOrEmpty(csiSection)) csiSection = csiRule.Section ?? "";
+                    if (string.IsNullOrEmpty(csiTitle)) csiTitle = csiRule.Title ?? "";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiResolve", $"CSI map resolve: {ex.Message}"); }
+
+            // A rule that names its NRM2 work section overrides the category derivation,
+            // so a SYS-specific row (Pipes+SAN -> 32, Pipes+CHW -> 33) bills under the
+            // section its specification sits in instead of one bucket for every pipe.
+            // Nrm2For reads the MATCHED RULE first - six shipped rows share section
+            // 03 30 00 with two different answers, and a section-keyed lookup alone would
+            // bill every concrete slab and foundation under masonry.
+            try
+            {
+                string bridged = CsiMasterFormat.Nrm2For(csiRule,
+                    StingTools.Commands.Classification.CsiMap.SectionToNrm2(doc), csiSection);
+                if (!string.IsNullOrEmpty(bridged)) nrm2Section = bridged;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("CsiNrm2", $"CSI-NRM2 bridge: {ex.Message}"); }
+
             string sectionName = picked.description;
             if (string.IsNullOrEmpty(sectionName)) sectionName = catName;
 
@@ -736,12 +876,23 @@ namespace StingTools.BOQ
                 ItemName = GetElementDisplayName(el),
                 FamilyName = GetFamilyName(el),
                 TypeName = el.Name ?? "",
+                // The material, for supplier-unit matching. This is the row that
+                // produced "Generic - 225mm" for a roof whose material said
+                // "Asphalt Shingle" — the type name was wrong by a factor of
+                // ten and the material was exactly right.
+                MaterialName = SafePrimaryMaterialName(doc, el),
                 Quantity = quantity,
                 Unit = unit,
                 GrossQuantity = grossQty,
                 DeductionQuantity = deductQty,
                 WastageQuantity = wasteQty,
-                MeasurementNote = measNote,
+                // A-1 — a measured line whose quantity source never resolved. The
+                // quantity reads 0; without this flag it is indistinguishable from
+                // a genuine zero and prices as a real, cheap item.
+                QuantityResolved = !qtyUnresolved,
+                MeasurementNote = qtyUnresolved
+                    ? (string.IsNullOrEmpty(measNote) ? "" : measNote + " ") + "[QUANTITY NOT RESOLVED]"
+                    : measNote,
                 RateUGX = rateUgx,
                 RateUSD = rateUsd,
                 EmbodiedCarbonKg = carbonKg,
@@ -761,6 +912,9 @@ namespace StingTools.BOQ
                 LastCosted = DateTime.UtcNow,
                 RateSource = rateSource,
                 RateConfidence = rateConfidence,
+                CsiSection = csiSection,
+                CsiTitle = csiTitle,
+                RateSourceCurrency = rateSourceCurrency,
                 LabourUGX = splitLabour,     // G4 — L/P/M split (null when source gives none)
                 PlantUGX = splitPlant,
                 MaterialUGX = splitMaterial,
@@ -768,6 +922,105 @@ namespace StingTools.BOQ
                 CarbonQuality = carbonQuality,
                 CarbonMaterial = carbonMaterial
             };
+
+            // The SPEC writes the bill. When the element's CSI section is described by an
+            // issued SpecLink store, that text becomes the line description - one source
+            // of truth instead of a generated NRM2 template that drifts from what was
+            // actually specified. A no-op for every project that has not run
+            // SpecLink_ImportFolder, which is the dominant case.
+            //
+            // The Unit is deliberately NOT overridden. The rate's unit and the quantity's
+            // unit must agree, so a spec that measures a section differently from the way
+            // it is priced is surfaced as a QA note for the QS, never silently re-measured.
+            if (!string.IsNullOrEmpty(csiSection))
+            {
+                try
+                {
+                    var spec = SpecStore.Get(
+                        StingTools.Commands.Classification.CsiMap.SpecSections(doc), csiSection);
+                    if (spec != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(spec.Description))
+                        {
+                            line.ResolvedNRM2Paragraph = spec.Description;
+                            line.SpecSourced = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(spec.Unit)) line.CsiUnit = spec.Unit;
+                    }
+                    // No spec opinion? the map's own Unit column is the advisory fallback.
+                    if (string.IsNullOrWhiteSpace(line.CsiUnit))
+                    {
+                        if (csiRule != null && !string.IsNullOrWhiteSpace(csiRule.Unit)) line.CsiUnit = csiRule.Unit;
+                        else
+                        {
+                            var unitMap = StingTools.Commands.Classification.CsiMap.SectionToUnit(doc);
+                            if (unitMap != null && unitMap.TryGetValue(
+                                    CsiMasterFormat.NormalizeSection(csiSection), out string cu) &&
+                                !string.IsNullOrWhiteSpace(cu))
+                                line.CsiUnit = cu;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(line.CsiUnit) && !string.IsNullOrWhiteSpace(line.Unit) &&
+                        !BoqUnits.Align(line.CsiUnit, line.Unit))
+                    {
+                        string m = $"Measurement-vs-spec: priced per {line.Unit}, specified per {line.CsiUnit}";
+                        line.Note = string.IsNullOrEmpty(line.Note) ? m : line.Note + "; " + m;
+                    }
+                }
+                catch (Exception ex) { StingLog.WarnRateLimited("SpecText", $"Spec-text bridge: {ex.Message}"); }
+            }
+
+            // A stamped rate override that declares overhead or profit IS a loaded rate —
+            // a subcontractor quote already carrying the contractor's margin. Derived from
+            // the percentages the schema already stores rather than a new ES field:
+            // ExtensibleStorage schemas are immutable once registered, so adding a field
+            // would mean a new GUID and a migration for every stamped element.
+            try
+            {
+                var ovr = StingCostRateOverrideSchema.Read(el);
+                if (ovr != null && (ovr.OverheadPercent > 0 || ovr.ProfitPercent > 0))
+                {
+                    line.RateIncludesOhp = true;
+                    string ohpNote = $"Rate loaded (OH {ovr.OverheadPercent:0.##}% + profit " +
+                                     $"{ovr.ProfitPercent:0.##}%) — excluded from the document OH&P base";
+                    line.Note = string.IsNullOrEmpty(line.Note) ? ohpNote : $"{line.Note}; {ohpNote}";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("Boq.LoadedRate", $"loaded-rate read: {ex.Message}"); }
+
+            // Apply the FF&E treatment resolved above. "measured" needs nothing — it is
+            // a normal model line that happens to be priced from the Fohlio rate.
+            if (ffeTreatment == StingTools.BOQ.FfeTreatment.Ffe)
+            {
+                line.FfeOwnerProcured = true;
+                string note = "FF&E — Owner-procured via the Fohlio register (at cost; excl. OH&P + contingency)" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? note : $"{line.Note}; {note}";
+            }
+            else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
+            {
+                line.Source = BOQRowSource.ProvisionalSum;
+                string pcNote = "PC sum — Fohlio FF&E register" +
+                    (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
+                line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
+            }
+
+            // FX provenance. ASS_CST_FX_DATE_DT records WHEN the exchange rate behind a
+            // foreign-currency rate was fixed — the fact a QS is asked to defend at
+            // valuation, and until now written by Fohlio_Import, CostStamp and
+            // Cost_MigrateCurrencyParams and read by nothing.
+            //
+            // Only carried when an FX conversion actually happened. Stamping a fixing date
+            // on a line whose rate was already in the document currency would imply a
+            // conversion that did not occur, which is worse than showing nothing.
+            if (BoqFxProvenance.WasConverted(rateSourceCurrency))
+            {
+                string stamped = ParameterHelpers.GetString(el, ParamRegistry.CST_FX_DATE_DT);
+                line.RateFxDate = BoqFxProvenance.FxDateFor(rateSourceCurrency, stamped);
+                string fxNote = BoqFxProvenance.MissingFixingDateNote(rateSourceCurrency, stamped);
+                if (fxNote != null)
+                    line.Note = string.IsNullOrEmpty(line.Note) ? fxNote : line.Note + "; " + fxNote;
+            }
 
             // Mark provisional sums on the element if configured via existing parameter.
             bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
@@ -856,14 +1109,50 @@ namespace StingTools.BOQ
 
         // ── Rate resolution ────────────────────────────────────────────────
 
+        /// <summary>
+        /// Read a parameter from the instance, falling back to its TYPE.
+        /// <para>
+        /// Element.LookupParameter is instance-scoped, so a Type-bound parameter is
+        /// invisible from an instance and returns null with no error. Several of the
+        /// STING classification tokens (PROD, SYS) are Type-bound by design — they
+        /// describe the product, not the placement — so any code keying a lookup on
+        /// them must go through the type.
+        /// </para>
+        /// <para>
+        /// Instance first, so a per-placement override still wins where one exists.
+        /// </para>
+        /// </summary>
+        private static string ReadInstanceThenType(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return "";
+            try
+            {
+                string v = ParameterHelpers.GetString(el, paramName);
+                if (!string.IsNullOrWhiteSpace(v)) return v;
+
+                var tid = el.GetTypeId();
+                if (tid == null || tid == ElementId.InvalidElementId) return "";
+                var t = el.Document?.GetElement(tid);
+                if (t == null) return "";
+                return ParameterHelpers.GetString(t, paramName) ?? "";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadInstanceThenType('{paramName}'): {ex.Message}");
+                return "";
+            }
+        }
+
         private static (double rate, string unit, string description) ResolveRate(
             Document doc, Element el, string catName,
             Dictionary<string, (double rate, string unit)> csvRates,
             Dictionary<string, string> cobieCostCodes,
             out string rateSource, out int rateConfidence,
-            out double? splitLabour, out double? splitPlant, out double? splitMaterial)
+            out double? splitLabour, out double? splitPlant, out double? splitMaterial,
+            out string rateSourceCurrency)
         {
             splitLabour = splitPlant = splitMaterial = null;
+            rateSourceCurrency = "";
             // P0 refactor — delegate to the pluggable rate-provider chain.
             // The 5 legacy passes are now individual providers registered
             // with RateProviderRegistry; behaviour is preserved while
@@ -877,9 +1166,23 @@ namespace StingTools.BOQ
             {
                 CategoryName = catName ?? "",
                 Discipline = ResolveDiscipline(el, catName),
-                ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
-                MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
-                SystemType = ParameterHelpers.GetString(el, ParamRegistry.SYS) ?? "",   // RC-2
+                // 3B.3 / K-16 — read these THROUGH THE TYPE.
+                //
+                // ASS_PRODCT_COD_TXT and ASS_SYSTEM_TYPE_TXT are bound as TYPE
+                // parameters (CATEGORY_BINDINGS.csv: 19 rows each, all "Type"), but this
+                // was reading them off the INSTANCE via ParameterHelpers.GetString ->
+                // CachedLookup -> Element.LookupParameter, which cannot see a type
+                // parameter from an instance. Both were therefore ALWAYS EMPTY, so the
+                // PROD-code and system-type rate passes never matched and every element
+                // in a category fell through to the single category-level rate.
+                //
+                // On a door schedule that means a fire door and a cupboard door price
+                // identically — plausible on the page, wrong in the tender.
+                //
+                // MAT_CODE is Instance-bound and is correctly read from the instance.
+                ProdCode = ReadInstanceThenType(el, ParamRegistry.PROD),
+                MatCode = Core.Materials.ElementMatCodeReader.ResolveCode(el),   // W2: through the material, not off the element
+                SystemType = ReadInstanceThenType(el, ParamRegistry.SYS),   // RC-2
                 Unit = csvRates != null && csvRates.TryGetValue(catName ?? "", out var hint) ? hint.unit : "",
                 CurrencyCode = "UGX",
                 AsOf = DateTime.UtcNow,
@@ -899,6 +1202,7 @@ namespace StingTools.BOQ
             // working without changes.
             rateSource = MapProviderIdToLegacySource(lookup.SourceId);
             rateConfidence = lookup.Confidence;
+            rateSourceCurrency = lookup.SourceCurrencyCode ?? "";
             splitLabour = lookup.LabourRate;     // G4 — propagate optional L/P/M split
             splitPlant = lookup.PlantRate;
             splitMaterial = lookup.MaterialRate;
@@ -930,8 +1234,14 @@ namespace StingTools.BOQ
         // Adapted from SchedulingCommands.ElementCostTraceCommand.DeriveQuantity
         // so cost totals exactly match the existing 5D Cost Trace output.
 
-        private static double DeriveQuantity(Element el, string unit)
+        /// <param name="unresolved">
+        /// A-1 — true when a take-off rule matched but its MEASURED quantity source
+        /// did not resolve. The returned quantity is 0 in that case, and the caller
+        /// must flag the line rather than bill it.
+        /// </param>
+        private static double DeriveQuantity(Element el, string unit, out bool unresolved)
         {
+            unresolved = false;
             // P0 refactor — first consult the data-driven TakeoffRuleRegistry.
             // When a rule matches AND its declared unit aligns with the
             // caller's requested unit, the rule's quantitySource +
@@ -949,7 +1259,21 @@ namespace StingTools.BOQ
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
                     {
-                        double q = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        double? qOpt = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        // A-1 — a measured unit whose source did not resolve. Do NOT
+                        // fall through to the legacy geometry path: the rule matched,
+                        // so this element's measurement is governed by it, and a
+                        // legacy guess would bury the failure under a plausible
+                        // number. Record it and let the caller gate on it.
+                        if (!qOpt.HasValue)
+                        {
+                            unresolved = true;
+                            StingLog.WarnRateLimited("BOQ.QtyUnresolved",
+                                $"BOQ quantity unresolved: element {el?.Id} under rule '{rule.Id}' " +
+                                $"(unit {rule.Unit}, source {rule.QuantitySource}) — line marked, not billed at zero.");
+                            return 0.0;
+                        }
+                        double q = qOpt.Value;
                         // Apply rule-level wastage (P0 reserves; full waste
                         // pipeline lands in P5.2 once star-rates use it).
                         if (rule.WastePercent > 0)
@@ -980,11 +1304,16 @@ namespace StingTools.BOQ
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("DeriveQuantity.OvrWaste", $"override waste read: {exr.Message}"); }
                 // PM-5 — per-material/category waste table: override wins, else the
-                // NRM2-typical allowance for this category (rebar 2.5 / timber 10 /
-                // tiling 10 …), else the project default knob. Same table the carbon
-                // path resolves through, so quantity is grossed up identically.
+                // NRM2-typical allowance for this material, else this category,
+                // else the project default knob.
+                //
+                // E-4: the material argument was `null` here. WasteTable resolves
+                // Lookup(material) ?? Lookup(category), so passing null skipped the
+                // material tier entirely and every cost site fell straight to the
+                // category — while the carbon path passed the real name. A tiled
+                // floor was carbon-counted at 10 % and priced at 5 %.
                 double wastePct = WasteTable.ResolveWastePercent(
-                    null, el.Category?.Name, overrideWaste,
+                    GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
                     TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
@@ -1125,7 +1454,14 @@ namespace StingTools.BOQ
                     string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "";
                     var rule = TakeoffRuleRegistry.Get(doc).Match(catName, disc, prod);
                     if (rule != null && UnitsAlign(rule.Unit, unit))
-                        return TakeoffRuleRegistry.EvaluateQuantity(el, rule) * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
+                    {
+                        // A-1 — gross measure. An unresolved measured source yields 0
+                        // here; the net path (DeriveQuantity) is what flags the line,
+                        // so this stays a plain number and does not double-report.
+                        double? gq = TakeoffRuleRegistry.EvaluateQuantity(el, rule);
+                        if (gq.HasValue) return gq.Value * MassFactor(rule.Unit, unit); // RC-2 tonne↔kg
+                        return 0.0;
+                    }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"DeriveGrossQuantity rule lookup: {ex.Message}"); }
@@ -1200,8 +1536,9 @@ namespace StingTools.BOQ
                 try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
                 catch (Exception exr) { StingLog.WarnRateLimited("EffWaste.Ovr", $"override waste: {exr.Message}"); }
                 // PM-5 — per-material/category waste table (catName is in scope).
+                // E-4: material was null; the material tier could never fire.
                 double wastePct = WasteTable.ResolveWastePercent(
-                    null, catName, overrideWaste,
+                    GetPrimaryMaterialName(el), catName, overrideWaste,
                     TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 string nu = (unit ?? "").ToLowerInvariant();
@@ -1579,7 +1916,9 @@ namespace StingTools.BOQ
             try { overrideWaste = StingCostRateOverrideSchema.Read(el)?.WastePercent ?? 0; }
             catch (Exception ex) { StingLog.WarnRateLimited("Carbon.OvrWaste", $"override waste read: {ex.Message}"); }
             // PM-5 — carbon path resolves the SAME per-material/category waste table.
-            return WasteTable.ResolveWastePercent(null, el.Category?.Name, overrideWaste,
+            // E-4: material was null here too, so "the SAME" was not true — the two
+            // Sustainability call sites pass the material name and this one did not.
+            return WasteTable.ResolveWastePercent(GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
                 TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
@@ -2474,7 +2813,7 @@ namespace StingTools.BOQ
                         CategoryName = catName,
                         Discipline = DisciplineForCategory(catName),
                         ProdCode = ParameterHelpers.GetString(el, ParamRegistry.PROD) ?? "",
-                        MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+                        MatCode = Core.Materials.ElementMatCodeReader.ResolveCode(el),   // W2: through the material, not off the element
                         Unit = csvRates != null && csvRates.TryGetValue(catName, out var hint) ? hint.unit : "",
                         CurrencyCode = "UGX",
                         AsOf = DateTime.UtcNow,
@@ -2679,6 +3018,22 @@ namespace StingTools.BOQ
                     if (ov.NRM2Paragraph != null) existing.NRM2Paragraph = ov.NRM2Paragraph;
                     if (ov.Note != null) existing.Note = ov.Note;
                     if (ov.RateSource != null) existing.RateSource = ov.RateSource;
+
+                    // K-4 — exclusion is a tri-state over two non-nullable fields.
+                    // Copying ov.Excluded unconditionally would silently clear an
+                    // exclusion every time the user edited a rate on the same row,
+                    // because every other caller constructs the override with
+                    // Excluded defaulting to false. So the incoming override only
+                    // touches exclusion when it actually says something about it:
+                    //   Excluded = true                  → exclude (with reason)
+                    //   Excluded = false + reason non-null → explicit un-exclude
+                    //   Excluded = false + reason null     → silent on exclusion
+                    if (ov.Excluded || ov.ExcludeReason != null)
+                    {
+                        existing.Excluded = ov.Excluded;
+                        existing.ExcludeReason = ov.Excluded ? ov.ExcludeReason : null;
+                    }
+
                     existing.Modified = DateTime.UtcNow;
                     existing.ModifiedBy = Environment.UserName ?? "";
                     if (ov.ElementId > 0) existing.ElementId = ov.ElementId; // refresh the current-session id
@@ -2691,6 +3046,40 @@ namespace StingTools.BOQ
                 }
                 SaveModelOverrides(doc, store);
             }
+        }
+
+        /// <summary>
+        /// K-4 — exclude an element from the takeoff, or restore it.
+        /// Unambiguous entry point for the tri-state described in
+        /// <see cref="UpsertModelOverride"/>: callers do not have to know the
+        /// Excluded/ExcludeReason convention.
+        ///
+        /// Refuses to record an exclusion with no reason. The reason is what
+        /// makes the audit-sheet row answerable at tender; an exclusion without
+        /// one is the defect this feature exists to prevent, not a shortcut.
+        /// </summary>
+        /// <returns>false when the exclusion was rejected for want of a reason.</returns>
+        internal static bool SetModelExclusion(Document doc, string uniqueId, long elementId,
+                                               bool excluded, string reason)
+        {
+            if (doc == null) return false;
+            if (string.IsNullOrEmpty(uniqueId) && elementId <= 0) return false;
+            if (excluded && string.IsNullOrWhiteSpace(reason))
+            {
+                StingLog.Warn($"SetModelExclusion({uniqueId}/{elementId}): refused — an exclusion needs a reason.");
+                return false;
+            }
+
+            UpsertModelOverride(doc, new BOQModelOverride
+            {
+                UniqueId      = uniqueId,
+                ElementId     = elementId,
+                Excluded      = excluded,
+                // Non-null on the un-exclude path too — that is the signal that
+                // this upsert is speaking about exclusion at all.
+                ExcludeReason = excluded ? reason.Trim() : ""
+            });
+            return true;
         }
 
         /// <summary>
@@ -2895,6 +3284,11 @@ namespace StingTools.BOQ
                 if (IsFreeCategoryForCost(i.Category)) continue;
                 bool measured = IsMeasuredUnit(i.Unit);
                 if (measured && i.Quantity <= 0.0001) r.CouldNotMeasureCount++;
+                // A-1 — the EXPLICIT count. CouldNotMeasureCount above INFERS the
+                // problem from a zero quantity, which cannot separate "never
+                // measured" from "measured, and genuinely zero". QuantityResolved
+                // is set by the take-off itself, so this counts only real failures.
+                if (measured && !i.QuantityResolved) r.QuantityUnresolvedCount++;
 
                 bool zeroRate = i.RateUGX <= 0 ||
                     string.Equals(i.RateSource, "None", StringComparison.OrdinalIgnoreCase);
@@ -3063,6 +3457,12 @@ namespace StingTools.BOQ
                 if (lines.Length < 2) return rates;
                 string header = lines[0].ToLowerInvariant();
                 bool is7Col = header.Contains("mat_code");
+                // D6 — the 8-column schema adds a PROD column and keys the product
+                // tier on DISC|PROD. Two rows can now share a PROD code and stay
+                // distinct: Air Terminals ATU (M|GRL) and LAT (E|GRL) are different
+                // products in one Revit category, and keying on PROD alone would have
+                // collapsed them into one rate.
+                bool hasProd = header.Contains(",prod,") || header.StartsWith("category,prod");
 
                 // CA-1 — explicit one-wins de-duplication. The first row for a key
                 // wins (top of file is authoritative); a later duplicate is skipped
@@ -3087,9 +3487,25 @@ namespace StingTools.BOQ
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
                     if (cols.Length < 3) continue;
-                    if (is7Col && cols.Length >= 7)
+                    if (hasProd && cols.Length >= 8)
                     {
-                        // Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
+                        // Category, PROD, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
+                        if (double.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
+                        {
+                            string unit = cols[6].Trim();
+                            string prodCode = cols[1].Trim();
+                            string disc = cols[3].Trim();
+                            // D6: the product key. Registered FIRST so it wins the
+                            // one-wins de-dup against the coarser keys below.
+                            if (!string.IsNullOrEmpty(prodCode) && !string.IsNullOrEmpty(disc))
+                                Put($"{disc}|{prodCode}", rateUgx, unit);
+                            Put(cols[0], rateUgx, unit);   // category
+                            Put(cols[2], rateUgx, unit);   // MAT_CODE
+                        }
+                    }
+                    else if (is7Col && cols.Length >= 7)
+                    {
+                        // Legacy 7-column: Category, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
                         if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
                         {
                             Put(cols[0], rateUgx, cols[5].Trim());
@@ -3165,6 +3581,13 @@ namespace StingTools.BOQ
             BuiltInCategory.OST_Dimensions,
             BuiltInCategory.OST_RvtLinks,
             BuiltInCategory.OST_RasterImages,
+            // Entourage is Revit's presentation context — the cars, people and trees
+            // placed to make a render read as a place. It is not part of the works and
+            // nobody buys it, but it is 3D model geometry, so unlike the 2D content
+            // above it does not look like noise: it arrives as plausible "each" rows
+            // and prices. It was classified in the CSI map as Site Improvements, which
+            // is how it survived this long.
+            BuiltInCategory.OST_Entourage,
         };
 
         /// <summary>
@@ -3222,7 +3645,9 @@ namespace StingTools.BOQ
             Dictionary<string, string> cobieCostCodes,
             BoqGroupingMode grouping,
             HashSet<string> includedTitles,
-            IMeasurementStandard measStd)
+            IMeasurementStandard measStd,
+            List<LinkUnderCount> underCounts = null,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null)
         {
             var result = new List<BOQLineItem>();
             var seenTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -3290,6 +3715,43 @@ namespace StingTools.BOQ
                         + $"{rawItems.Count} raw row(s) from '{linkName}'.");
                 }
 
+                // K-4 — apply user exclusions to the LINK rows here, at item
+                // level, not inside CollectCandidateElements. The link takeoff is
+                // cached by link path and the cache is not invalidated when an
+                // override is saved, so an element-level filter would be skipped
+                // entirely on a cache hit and the exclusion would silently not
+                // apply. Filtering rawItems covers both paths, and must run
+                // BEFORE AggregateLineItems collapses rows and clears UniqueId.
+                if (exclusions != null && rawItems != null && rawItems.Count > 0)
+                {
+                    var kept = new List<BOQLineItem>(rawItems.Count);
+                    foreach (var li in rawItems)
+                    {
+                        BOQModelOverride ov = null;
+                        if (!string.IsNullOrEmpty(li.UniqueId)) exclusions.ByUid.TryGetValue(li.UniqueId, out ov);
+                        if (ov == null && li.RevitElementId > 0) exclusions.ByEid.TryGetValue(li.RevitElementId, out ov);
+                        if (ov == null) { kept.Add(li); continue; }
+
+                        excludedOut?.Add(new BOQExcludedRow
+                        {
+                            ElementId   = li.RevitElementId,
+                            UniqueId    = li.UniqueId ?? "",
+                            Category    = li.Category ?? "",
+                            FamilyName  = li.FamilyName ?? "",
+                            TypeName    = li.TypeName ?? "",
+                            Reason      = string.IsNullOrWhiteSpace(ov.ExcludeReason)
+                                              ? "(no reason given)" : ov.ExcludeReason.Trim(),
+                            ExcludedBy  = ov.ModifiedBy ?? "",
+                            ExcludedAt  = ov.Modified,
+                            SourceModel = linkName
+                        });
+                    }
+                    if (kept.Count != rawItems.Count)
+                        StingLog.Info($"BOQ linked-model takeoff: {rawItems.Count - kept.Count} row(s) "
+                            + $"dropped by user exclusion from '{linkName}'.");
+                    rawItems = kept;
+                }
+
                 // Aggregate + neutralise on the (cloned) raw rows every time so
                 // grouping changes stay correct without invalidating the cache.
                 var linkItems = AggregateLineItems(rawItems, grouping);
@@ -3317,16 +3779,107 @@ namespace StingTools.BOQ
                 }
                 if (multiply)
                     StingLog.Info($"BOQ linked-model multiplier: '{linkName}' taken off ×{instCount} ({linkItems.Count} row(s)).");
+
+                // A-3 — included, placed more than once, multiplier OFF. The link is
+                // de-duplicated by title at the top of this loop, so it is quantified
+                // exactly once no matter how many instances exist, and the ×N flag lives
+                // behind a second picker that only appears AFTER the link has been ticked
+                // for inclusion. Miss that checkbox on a cottage placed 7× and six
+                // cottages are free, with nothing anywhere saying so.
+                //
+                // Placing a shared reference model twice is legitimate, so this reports
+                // rather than blocks — a warning row in the audit sheet and a confirmable
+                // gate in BOQPrepForExport.
+                else if (instCount > 1 && underCounts != null)
+                {
+                    underCounts.Add(new LinkUnderCount
+                    {
+                        LinkName      = linkName,
+                        InstanceCount = instCount,
+                        RowCount      = linkItems.Count,
+                        BilledUGX     = linkItems.Sum(x => x.TotalUGX),
+                    });
+                    StingLog.Warn($"BOQ link under-count: '{linkName}' is placed ×{instCount} " +
+                                  $"but is taken off ×1 ({linkItems.Count} row(s)). Enable the per-link " +
+                                  "multiplier if these are distinct buildings.");
+                }
                 result.AddRange(linkItems);
             }
             return result;
         }
 
-        private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories)
+        /// <summary>
+        /// K-4 — the user exclusions in force for a document, indexed for the
+        /// takeoff walk. Built once per build; null when nothing is excluded so
+        /// the common case costs nothing.
+        /// </summary>
+        internal class BoqExclusionIndex
+        {
+            public readonly Dictionary<string, BOQModelOverride> ByUid =
+                new Dictionary<string, BOQModelOverride>(StringComparer.Ordinal);
+            public readonly Dictionary<long, BOQModelOverride> ByEid =
+                new Dictionary<long, BOQModelOverride>();
+
+            public bool IsEmpty => ByUid.Count == 0 && ByEid.Count == 0;
+
+            public BOQModelOverride Match(Element el)
+            {
+                if (el == null) return null;
+                BOQModelOverride ov = null;
+                string uid = null;
+                try { uid = el.UniqueId; } catch { }
+                if (!string.IsNullOrEmpty(uid)) ByUid.TryGetValue(uid, out ov);
+                if (ov == null)
+                {
+                    long id = el.Id?.Value ?? -1;
+                    if (id > 0) ByEid.TryGetValue(id, out ov);
+                }
+                return ov;
+            }
+        }
+
+        /// <summary>
+        /// Build the exclusion index from the persisted model-override sidecar.
+        /// Returns null when no element is excluded.
+        /// </summary>
+        private static BoqExclusionIndex BuildExclusionIndex(Document doc)
+        {
+            if (doc == null) return null;
+            BOQModelOverridesStore store;
+            try { store = LoadModelOverrides(doc); }
+            catch (Exception ex) { StingLog.Warn($"BuildExclusionIndex load: {ex.Message}"); return null; }
+            if (store?.Overrides == null || store.Overrides.Count == 0) return null;
+
+            var idx = new BoqExclusionIndex();
+            foreach (var ov in store.Overrides)
+            {
+                if (ov == null || !ov.Excluded) continue;
+                if (!string.IsNullOrEmpty(ov.UniqueId)) idx.ByUid[ov.UniqueId] = ov;
+                if (ov.ElementId > 0) idx.ByEid[ov.ElementId] = ov;
+            }
+            return idx.IsEmpty ? null : idx;
+        }
+
+        /// <summary>
+        /// G-14 trap 2 — the exact element set BuildBOQDocument will turn into
+        /// rows, exposed so the readiness pre-flight walks the SAME collection
+        /// rather than re-deriving it. A pre-flight that walks a different set
+        /// than the builder is worse than none: it would clear elements the bill
+        /// never sees and miss the ones it does.
+        /// </summary>
+        internal static List<Element> CandidatesForReadiness(Document doc)
+        {
+            var knownCats = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
+            return CollectCandidateElements(doc, knownCats, BuildExclusionIndex(doc), null, doc?.Title ?? "");
+        }
+
+        private static List<Element> CollectCandidateElements(Document doc, HashSet<string> knownCategories,
+            BoqExclusionIndex exclusions = null, List<BOQExcludedRow> excludedOut = null,
+            string sourceModel = null)
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0, optionAlternates = 0;
+            int excluded = 0, optionAlternates = 0, userExcluded = 0;
             // WP2 — bill the MAIN model + each set's PRIMARY design option only;
             // never the alternates (which multiply quantities by the option count).
             // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
@@ -3368,6 +3921,22 @@ namespace StingTools.BOQ
                     || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
                     || cat.Equals("Areas", StringComparison.OrdinalIgnoreCase))
                     continue;
+
+                // K-4 — user exclusion. Tested LAST, on an element that would
+                // otherwise have been billed, so the audit list is exactly "rows
+                // a human removed from this bill" and not a dump of every
+                // annotation the walk already rejects.
+                if (exclusions != null)
+                {
+                    var ov = exclusions.Match(el);
+                    if (ov != null)
+                    {
+                        userExcluded++;
+                        excludedOut?.Add(BuildExcludedRow(el, cat, ov, sourceModel));
+                        continue;
+                    }
+                }
+
                 list.Add(el);
             }
             if (excluded > 0)
@@ -3376,7 +3945,37 @@ namespace StingTools.BOQ
             if (optionAlternates > 0)
                 StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
                               "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");
+            if (userExcluded > 0)
+                StingLog.Info($"BOQ takeoff: {userExcluded} element(s) dropped by user exclusion " +
+                              "(listed with reasons on the Audit Trail sheet).");
             return list;
+        }
+
+        /// <summary>K-4 — capture what an exclusion removed, for the audit sheet.</summary>
+        private static BOQExcludedRow BuildExcludedRow(Element el, string cat, BOQModelOverride ov, string sourceModel)
+        {
+            string fam = "", typeName = "", uid = "";
+            try { fam = ParameterHelpers.GetFamilyName(el) ?? ""; } catch { }
+            try { typeName = ParameterHelpers.GetFamilySymbolName(el) ?? ""; } catch { }
+            try { uid = el.UniqueId ?? ""; } catch { }
+
+            return new BOQExcludedRow
+            {
+                ElementId   = el.Id?.Value ?? 0,
+                UniqueId    = uid,
+                Category    = cat ?? "",
+                FamilyName  = fam,
+                TypeName    = typeName,
+                // An exclusion with no reason is still shown, labelled as such —
+                // hiding it would defeat the point, and a blank cell reads as a
+                // rendering bug rather than a missing justification.
+                Reason      = string.IsNullOrWhiteSpace(ov.ExcludeReason)
+                                  ? "(no reason given)"
+                                  : ov.ExcludeReason.Trim(),
+                ExcludedBy  = ov.ModifiedBy ?? "",
+                ExcludedAt  = ov.Modified,
+                SourceModel = sourceModel ?? ""
+            };
         }
 
         private static bool IsPhaseDemolished(Document doc, Element el)
@@ -3701,6 +4300,19 @@ namespace StingTools.BOQ
                 case "34": return "Electrical services";
                 case "35": return "Lighting and small power";
                 case "36": return "Security and fire alarm";
+                // External works. The scheme had no section for them at all: roads,
+                // paving, kerbs, fencing and soft landscaping all carried 4, so they
+                // printed under a heading reading "Foundations". NRM2's own external
+                // works numbers (35 Site works, 36 Fencing, 37 Soft landscaping,
+                // 38 External fixtures) were not available -- 35 and 36 are taken here
+                // by services -- and reusing 37/38 at their NRM2 values would have
+                // deepened the trap this vocabulary already sets: it agrees with NRM2
+                // at 14/15/16 and diverges elsewhere, so a reader who spot-checks it
+                // concludes it IS NRM2. A fresh block above the existing range cannot
+                // be misread as alignment.
+                case "40": return "External works — roads, paving and kerbs";
+                case "41": return "Fencing, gates and barriers";
+                case "42": return "Soft landscaping";
                 default: return string.IsNullOrEmpty(firstCategory) ? "General" : firstCategory;
             }
         }
@@ -3824,6 +4436,12 @@ namespace StingTools.BOQ
             return !string.IsNullOrEmpty(typ) ? typ : fam;
         }
 
+        /// <summary>Family name for DISPLAY and for the bill's FamilyName column, which is
+        /// deliberately NOT <see cref="ParameterHelpers.GetFamilyName"/>: this one falls back to
+        /// the element TYPE's name ("Generic - 200mm"), which is what a reader of a bill wants to
+        /// see, where the shared helper answers the system FAMILY name ("Basic Wall"), which is
+        /// what a rule wants to match. Classification goes through the shared helper (KUT-11);
+        /// this stays as it is so issued bill text does not move.</summary>
         private static string GetFamilyName(Element el)
         {
             try
@@ -3879,31 +4497,12 @@ namespace StingTools.BOQ
             return string.IsNullOrEmpty(zone) ? "" : zone;
         }
 
-        private static string GetPrimaryMaterialName(Element el)
-        {
-            try
-            {
-                var ids = el.GetMaterialIds(false);
-                if (ids != null && ids.Count > 0)
-                {
-                    // WP2 — deterministic: the DOMINANT material by volume, not the
-                    // non-deterministic .First(), so a compound assembly's density /
-                    // carbon / description don't flip between sessions.
-                    ElementId best = ids.First();
-                    double bestVol = -1;
-                    foreach (var id in ids)
-                    {
-                        double v;
-                        try { v = el.GetMaterialVolume(id); } catch { v = 0; }
-                        if (v > bestVol) { bestVol = v; best = id; }
-                    }
-                    Material m = el.Document.GetElement(best) as Material;
-                    if (m != null) return m.Name ?? "";
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"GetPrimaryMaterialName: {ex.Message}"); }
-            return "";
-        }
+        // E-5 — delegates to the single shared resolver. Was one of three
+        // implementations; this was the correct one (dominant by volume) and is
+        // now the only one. It additionally gains the Material /
+        // STRUCTURAL_MATERIAL_PARAM fallbacks it previously lacked, so elements
+        // that used to resolve to "" here can now resolve to a real name.
+        private static string GetPrimaryMaterialName(Element el) => PrimaryMaterial.Resolve(el);
 
         // Z-23b — discipline detection for the opt-in measured additions.
         // Only consulted when the knobs are enabled (default 0 → never fires).

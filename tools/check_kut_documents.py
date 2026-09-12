@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate the three issued KUT documents against each other and against the data.
+"""Gate the issued KUT documents against each other and against the data.
 
     python tools/check_kut_documents.py            # exits 0 or 1
     python tools/check_kut_documents.py --verbose  # also print what passed
@@ -10,13 +10,14 @@ describes. The issued pack had no equivalent. Its cross-document consistency was
 verified exactly once, by an ad-hoc script that was never committed, and those
 checks would rot the moment somebody edited one generator and not the others.
 
-The pack is three documents that restate the same facts for three audiences:
+The pack restates the same facts for different audiences:
 
-    KUT_BIM_Execution_Plan.docx              what the project requires
-    KUT_Project_Delivery_Playbook.docx       how a task team satisfies it
+    KUT_BIM_Execution_Plan.docx                what the project requires
+    KUT_Project_Delivery_Playbook.docx         how a task team satisfies it
+    KUT_Document_Control_Standard.docx         how a container is named and issued
     KUT_Master_Information_Delivery_Plan.xlsx  when each deliverable lands
 
-Restating a fact three times is a drift generator. A stage LOD corrected in the
+Restating a fact four times is a drift generator. A stage LOD corrected in the
 BEP and not the playbook leaves two documents both claiming to be authoritative,
 and the consultant reads whichever they were sent.
 
@@ -26,7 +27,7 @@ CONFIGURATION the gate actually enforces:
 
   1. every document is a current regeneration and has not been hand-edited;
   2. stages, LODs, suitability codes, volumes, roles and document references
-     agree across all three;
+     agree across every document that states them;
   3. the asset tier tables agree with project-templates/KUT/_BIM_COORD/
      lod_matrix.json, which is what the LOD gate runs against;
   4. no tooling is named in a document a client or consultant reads;
@@ -52,10 +53,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kut_docs_lib as K  # noqa: E402
+import kut_naming as N  # noqa: E402  -- the type/role vocabulary
 
 BEP = "KUT_BIM_Execution_Plan.docx"
 PLAYBOOK = "KUT_Project_Delivery_Playbook.docx"
 MIDP = "KUT_Master_Information_Delivery_Plan.xlsx"
+STANDARD = "KUT_Document_Control_Standard.docx"
 
 OVERLAY = "project-templates/KUT/_BIM_COORD/lod_matrix.json"
 BASELINE = "docs/examples/KUT/placeholder_baseline.json"
@@ -129,9 +132,9 @@ def cell(row, i):
 
 def check_freshness(root: Path, f: Findings, verbose: bool):
     for name in K.ISSUED:
-        path = root / name
+        path = K.issued_path(root, name)
         if not path.exists():
-            f.fail(name, "missing from the repository root")
+            f.fail(name, "missing from KUT_DOCS_WORKING/issued/")
             continue
 
         want = K.inputs_digest(root, name)
@@ -165,7 +168,232 @@ def check_freshness(root: Path, f: Findings, verbose: bool):
             print("  fresh + unedited: %s" % name)
 
 
-# -- 2. the three documents agree with each other ----------------------------
+# -- 2. the documents agree with each other ----------------------------
+
+OVERLAY_DIR = "project-templates/KUT/_BIM_COORD"
+
+
+def check_naming_config(root: Path, bep_t, f: Findings, verbose: bool):
+    """The machine config must accept the naming the BEP declares.
+
+    WHY. owner_standards.json listed FP and LV as valid discipline codes and,
+    four lines above, used a sheet-number pattern whose role field was a single
+    [A-Z]. Every fire-protection and low-voltage sheet would have been reported
+    non-compliant against a standard that expressly permits them -- and no check
+    noticed, because no such sheet exists yet. The contradiction was sitting in
+    one file, between two rules, waiting for the first FP sheet to be drawn.
+
+    A rule that cannot accept the values its own document authorises is a
+    defect whether or not anything has tripped over it yet, so the BEP's
+    container-naming table is now the thing the config is measured against.
+    """
+    path = root / OVERLAY_DIR / "owner_standards.json"
+    if not path.exists():
+        f.fail(str(path), "missing -- the BEP's naming convention has no machine counterpart")
+        return
+    try:
+        rules = json.loads(path.read_text(encoding="utf-8")).get("rules", [])
+    except (OSError, ValueError) as exc:
+        f.fail(str(path), "unreadable: %s" % exc)
+        return
+
+    t = find_table(bep_t, "Field", "Length", "Permitted values")
+    if t is None:
+        f.fail(BEP, 'no "Field / Length / Permitted values" table -- container naming is '
+                    "the one convention every other document depends on")
+        return
+
+    declared = {}
+    for row in t[1:]:
+        declared[cell(row, 0).strip().lower()] = cell(row, 2)
+
+    # Role codes as the BEP states them: standalone one- or two-letter tokens.
+    roles = set(re.findall(r"\b([A-Z]{1,2})\b", declared.get("role", "")))
+    if not roles:
+        f.fail(BEP, "the Role row of the container-naming table lists no codes")
+        return
+
+    pattern = next((r.get("pattern") for r in rules
+                    if r.get("type") == "sheetNumberPattern" and r.get("enabled")), None)
+    if pattern is None:
+        f.note("no enabled sheetNumberPattern in owner_standards.json; "
+               "container names are not machine-checked at all")
+    else:
+        rejected = sorted(c for c in roles
+                          if not re.match(pattern, "KUT-SMB-01-GF-M3-%s-0001" % c))
+        if rejected:
+            f.fail(str(path),
+                   "sheetNumberPattern rejects role code(s) %s that BEP 4.2 authorises. "
+                   "The pattern and the BEP must permit the same set."
+                   % ", ".join(rejected))
+        f.ok()
+
+        # KUT-9. The pattern is DERIVED from tools/kut_naming.py, which is also
+        # what the BEP and the Document Control Standard render their naming
+        # sections from. Checking that it still matches the derivation is what
+        # keeps "generated" true: without this, the first hand-edit silently
+        # forks the rule from the documents that publish the same lists, and the
+        # role check above would not notice -- it only tests role codes.
+        try:
+            import build_kut_owner_standards as OS
+            derived = OS.build_pattern()
+        except Exception as exc:                     # pragma: no cover - import guard
+            f.note("could not derive the sheet pattern (%s); it is unverified against "
+                   "tools/kut_naming.py" % exc)
+        else:
+            if pattern != derived:
+                f.fail(str(path),
+                       "sheetNumberPattern has drifted from tools/kut_naming.py.\n"
+                       "      on disk: %s\n"
+                       "      derived: %s\n"
+                       "      Run: python tools/build_kut_owner_standards.py"
+                       % (pattern, derived))
+            f.ok()
+
+            # And the derived pattern must accept what the convention authorises.
+            # The generator asserts this too; asserting it HERE means the shipped
+            # gate proves it, not only the tool that happened to write the file.
+            for bad in OS.verify(derived):
+                f.fail(str(path), "generated sheet pattern: %s" % bad)
+            f.ok()
+
+    # Asset discipline codes are a SUBSET of container role codes: BEP 4.2.2
+    # keeps them distinct, and Z is deliberately a container role only.
+    values = next((set(r.get("values", [])) for r in rules
+                   if r.get("id") == "discipline-code-valid"), None)
+    if values is not None:
+        stray = sorted(values - roles)
+        if stray:
+            f.fail(str(path), "discipline-code-valid allows %s, which BEP 4.2 does not list"
+                              % ", ".join(stray))
+        f.ok()
+
+    # The Document Control Standard states the same convention as a procedure.
+    # Both render from tools/kut_naming.py, so they cannot differ today -- this
+    # check exists so that stops being true loudly rather than quietly if
+    # somebody writes a table back out by hand in either document.
+    std_path = K.issued_path(root, STANDARD)
+    if std_path.exists():
+        std_t = K.docx_tables(std_path)
+        st = find_table(std_t, "Field", "Length", "Permitted values")
+        if st is None:
+            f.fail(STANDARD, 'no "Field / Length / Permitted values" table -- the '
+                             "standard exists to state the container naming convention")
+        else:
+            bep_rows = {cell(r, 0): cell(r, 2) for r in t[1:]}
+            std_rows = {cell(r, 0): cell(r, 2) for r in st[1:]}
+            for field in sorted(set(bep_rows) | set(std_rows)):
+                a, b = bep_rows.get(field), std_rows.get(field)
+                if a is None or b is None:
+                    f.fail(STANDARD, "field %r appears in only one of the plan and the "
+                                     "standard" % field)
+                elif a != b and "FILL" not in a and "FILL" not in b:
+                    f.fail(STANDARD, "field %r reads %r here and %r in the plan"
+                                     % (field, b, a))
+            f.ok()
+
+    if verbose:
+        print("  naming: BEP roles %s; pattern %s" % (",".join(sorted(roles)), pattern))
+
+
+def check_type_codes(bep_t, pb_t, f: Findings, verbose: bool):
+    """The BEP's type-code list and the playbook's type-code table are one set.
+
+    The BEP states the codes as a bare list inside the container-naming table;
+    the playbook expands them with meanings, because that is the document a
+    task team actually works from. Two hand-maintained copies of the same
+    vocabulary, which is the drift this gate exists to stop.
+    """
+    t = find_table(bep_t, "Field", "Length", "Permitted values")
+    if t is None:
+        return                                # already reported by check_naming_config
+    bep_codes = set()
+    for row in t[1:]:
+        if cell(row, 0).strip().lower() == "type":
+            bep_codes = {c.strip() for c in cell(row, 2).split(",") if c.strip()}
+    t = find_table(pb_t, "Code", "Type", "Code", "Type")
+    if t is None:
+        f.fail(PLAYBOOK, 'no "Code / Type" table -- the type codes the BEP lists are '
+                         "not explained anywhere a task team reads")
+        return
+    pb_codes = {cell(row, i) for row in t[1:] for i in (0, 2) if cell(row, i)}
+
+    missing = sorted(bep_codes - pb_codes)
+    extra = sorted(pb_codes - bep_codes)
+    if missing:
+        f.fail(PLAYBOOK, "type code(s) %s are permitted by BEP 4.2 but carry no "
+                         "definition here" % ", ".join(missing))
+    if extra:
+        f.fail(BEP, "type code(s) %s are defined in the playbook but not permitted "
+                    "by BEP 4.2" % ", ".join(extra))
+    f.ok()
+    if verbose:
+        print("  type codes: %d, agreed across both documents" % len(bep_codes))
+
+
+def check_programme(bep_t, pb_t, f: Findings, verbose: bool):
+    """Stage months in the issued documents must match the Owner's durations.
+
+    WHY THIS EXISTS. Every other check in this file compares the documents to
+    EACH OTHER. That is exactly what let the programme break: the BEP, the
+    playbook and the MIDP all agreed that FF&E ran M40-M43 and close-out ended
+    at M45, so a consistency check passed -- while all three contradicted the
+    49-month total printed on their own front pages. Agreement between three
+    copies of a wrong number is not correctness.
+
+    So this check compares against something OUTSIDE the documents:
+    kut_docs_lib.WORK_PROGRAMME, which holds the Owner's stage durations as
+    transcribed from the Work Program, and computes the months sequentially.
+    """
+    want = K.stage_months()
+
+    t = find_table(bep_t, "Milestone", "Stage", "LOD")
+    if t is None:
+        f.fail(BEP, 'no "Milestone / Stage / LOD" table to check the programme against')
+    else:
+        seen = 0
+        for row in t[1:]:
+            key = stage_key(cell(row, 1))
+            if key not in want:
+                continue
+            got, expect = cell(row, 3).strip(), want[key][2]
+            seen += 1
+            if got != expect:
+                f.fail(BEP, "stage %s is stated as %r; the Owner's durations put it at %r"
+                            % (key, got, expect))
+        if seen != len(want):
+            f.fail(BEP, "programme table covers %d of the %d stages in the Work Program"
+                        % (seen, len(want)))
+        f.ok()
+
+    t = find_table(pb_t, "Stage", "Name", "Months", "LOD")
+    if t is not None:
+        for row in t[1:]:
+            key = stage_key(cell(row, 0))
+            if key not in want:
+                continue                      # Mobilisation is not an Owner stage
+            start, end, _ = want[key]
+            expect = "M%d" % end if start == end else "M%d to M%d" % (start, end)
+            got = cell(row, 2).strip()
+            if got != expect:
+                f.fail(PLAYBOOK, "stage %s months stated as %r; expected %r"
+                                 % (key, got, expect))
+        f.ok()
+
+    # The totals printed in prose must equal the totals the durations produce.
+    for doc, tables in ((BEP, bep_t), (PLAYBOOK, pb_t)):
+        blob = " ".join(cell(r, i) for t2 in tables for r in t2 for i in range(len(r)))
+        for label, value in (("total", K.TOTAL_MONTHS),
+                             ("Phase 2", K.PHASE_SUBTOTALS["2"]),
+                             ("Phase 3", K.PHASE_SUBTOTALS["3"])):
+            if "%d months" % value not in blob and "%d month" % value not in blob:
+                f.fail(doc, "does not state the %s of %d months anywhere in its tables"
+                            % (label, value))
+        f.ok()
+
+    if verbose:
+        print("  programme: %s" % ", ".join("%s=%s" % (k, v[2]) for k, v in want.items()))
+
 
 def check_stages(bep_t, pb_t, midp, f: Findings, verbose: bool):
     """Stage -> LOD must be one answer across BEP, playbook and MIDP."""
@@ -313,7 +541,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
     claims it."""
     claimed = {}
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         t = re.search(r"Document reference\s*(KUT-[A-Z0-9\-]+)", text)
         if not t:
             # The .docx tables put the label and value in separate cells.
@@ -323,8 +551,25 @@ def check_references(root: Path, f: Findings, verbose: bool):
         else:
             f.fail(name, "states no document reference of its own")
 
+    valid_types = {c for c, _ in N.TYPES}
+    valid_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    for name, ref in sorted(claimed.items()):
+        parts = ref.split("-")
+        if len(parts) != 7:
+            f.fail(name, "claims %s, which is not a seven-field container name" % ref)
+            continue
+        if parts[4] not in valid_types:
+            f.fail(name, "claims %s, whose type code %r is not in the adopted set. "
+                         "A withdrawn code resolves to nothing downstream and is "
+                         "invisible to a reference check that only matches names."
+                   % (ref, parts[4]))
+        if parts[5] not in valid_roles:
+            f.fail(name, "claims %s, whose role code %r is not in the adopted set."
+                   % (ref, parts[5]))
+        f.ok(2)   # type and role, per document -- counted so the headline moves
+
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         for ref in set(re.findall(r"KUT-PLN-[A-Z0-9\-]{10,}", text)):
             owners = [n for n, c in claimed.items() if c == ref]
             if ref == claimed.get(name):
@@ -334,7 +579,7 @@ def check_references(root: Path, f: Findings, verbose: bool):
                 # playbook cites container names as worked examples. Only a
                 # reference in the report/schedule series is expected to
                 # resolve; the rest are illustrations.
-                if re.search(r"-(RP|SC)-", ref):
+                if re.search(r"-(RP|SH)-", ref):
                     f.fail(name, "cites %s, which no document in the pack "
                                  "claims as its own reference" % ref)
                 continue
@@ -427,6 +672,10 @@ TIER_OF_LABEL = {"a": "A", "b": "B", "c": "C", "ff&e": "FF&E", "d": "D"}
 
 ALL_TRACKED = {p for ps in DATA_ROW_TO_PARAM.values() for p in ps}
 
+# Every category the overlay pins, filled in by overlay_tiers(). names_category()
+# uses it to decide whether a head noun is unique enough to match on.
+ALL_CATEGORIES: set[str] = set()
+
 
 def overlay_tiers(root: Path, f: Findings):
     """category -> set of parameters required at rung 500, from the overlay.
@@ -446,6 +695,8 @@ def overlay_tiers(root: Path, f: Findings):
     for rule in doc.get("categoryRules") or []:
         c500 = (rule.get("checks") or {}).get("500") or {}
         out[rule.get("category")] = {p.lstrip("+") for p in c500.get("requiredParams") or []}
+    ALL_CATEGORIES.clear()
+    ALL_CATEGORIES.update(c for c in out if c)
     return out
 
 
@@ -464,7 +715,16 @@ def names_category(prose: str, category: str) -> bool:
     if cat in prose:
         return True
     tail = cat.split()[-1]
-    return len(tail) > 4 and tail in prose
+    if len(tail) <= 4 or tail not in prose:
+        return False
+    # The head-noun fallback is only safe where the head noun belongs to one
+    # category. "mullions" identifies Curtain Wall Mullions; "fixtures" does
+    # not identify anything, and would quietly pull Electrical Fixtures into
+    # any cell reading "lighting and plumbing fixtures only". Where the noun is
+    # shared, the full name is required.
+    if sum(1 for other in ALL_CATEGORIES if other.lower().split()[-1] == tail) > 1:
+        return False
+    return True
 
 
 def document_tiers(tier_tbl, f: Findings, doc_name: str, per_cat):
@@ -591,9 +851,227 @@ LEAKS = [
 ]
 
 
+# Markdown that is not issued but reads as though it could be: the working
+# outline the plan grew from, and the draft the playbook is built from. Neither
+# is a deliverable, and that is exactly the risk -- a file that looks issue-ready
+# is one somebody eventually sends. The template carried 25 product references
+# and an obsolete Information Manager until it was scanned.
+CLIENT_FACING_SOURCES = (
+    "GUIDES/KUT_BEP_TEMPLATE.md",
+    "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+    # The playbook says this one is "issued at mobilisation" to every
+    # discipline. It was never scanned, and carried four product references.
+    "GUIDES/KUT_MIDP_TEMPLATE.csv",
+)
+
+# A maintainer note tells whoever edits the file which generator to run, so it
+# names one on purpose. It is delimited rather than guessed at, and it must be
+# closed, so the exemption cannot silently widen to the rest of the document.
+_NOTE_RX = re.compile(r"<!--\s*maintainer-note\s*-->.*?<!--\s*/maintainer-note\s*-->",
+                      re.S | re.I)
+
+
+def _check_withdrawn(root: Path, f: Findings, verbose: bool):
+    """No client-facing source may name a withdrawn code or a wrong-length originator.
+
+    The table reader in check_source_code_tables walks rows. The BEP states its
+    role set as a prose list inside ONE cell, so a row-based reader cannot see it
+    -- which is exactly how `A, S, M, E, P, FP, G, Z` survived a migration that
+    removed FP and G and added six roles.
+
+    ORIGINATOR_LENGTH is read rather than hardcoded: the register is unissued, and
+    when it lands the length is the thing most likely to be revisited.
+    """
+    valid = ({c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+             | {c for c, _ in N.TYPES})
+    # Codes the NA withdrew that this project used to carry. Named explicitly
+    # rather than derived, because "not in the adopted set" also matches every
+    # ordinary English word in the prose around them.
+    withdrawn = {"FP": "fire protection -- now Y",
+                 "LV": "low voltage -- now Y",
+                 "G": "land surveyor in the standard -- civil is C",
+                 "SC": "schedule -- now SH",
+                 "CA": "calculation -- now RP",
+                 "MS": "method statement -- now RP"}
+    for rel in CLIENT_FACING_SOURCES:
+        p = root / rel
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        # Blank the maintainer note IN PLACE. Removing it shifted every line
+        # number after it by the ten lines it occupies, so the first run of this
+        # check reported two innocent table rows.
+        text = _NOTE_RX.sub(lambda m: "\n" * m.group(0).count("\n"), text)
+        for line_no, line in enumerate(text.splitlines(), 1):
+            # A blockquote is commentary, not a statement of the permitted set --
+            # and these documents now carry blockquotes that name the withdrawn
+            # codes precisely in order to explain them. The permitted set is
+            # always a table row.
+            if line.lstrip().startswith(">"):
+                continue
+            # Extract the codes the line STATES, then test membership. Matching
+            # each code as a pattern against free text instead makes "G" hit
+            # every stray capital in prose, and the first attempt at this
+            # excluded backticked spans -- `FP` -- which is the only form these
+            # tables actually use.
+            stated = set(re.findall(r"`([A-Z]{1,2})`", line))
+            if re.search(r"\|\s*(Role|Type|Discipline)\s*\|", line) or \
+                    re.search(r"^\s*\|\s*[A-Z][A-Za-z/ ]*\s*\|", line):
+                stated |= {t.strip() for t in re.split(r"[,|]", line)
+                           if re.fullmatch(r"[A-Z]{1,2}", t.strip())}
+            for code in sorted(stated & set(withdrawn)):
+                f.fail("%s:%d" % (Path(rel).name, line_no),
+                       "states the withdrawn code %s (%s)" % (code, withdrawn[code]))
+        # The MIDP template states its originator in a COLUMN, not in a
+        # container-name example, so the pattern below cannot see it. Sixteen
+        # rows of a four-character code passed this gate until this was added.
+        if rel.endswith(".csv"):
+            rows = [ln.split(",") for ln in text.splitlines() if ln.strip()]
+            if rows and "Originator" in rows[0]:
+                col = rows[0].index("Originator")
+                for i, r in enumerate(rows[1:], 2):
+                    if len(r) <= col:
+                        continue
+                    got = r[col].strip()
+                    # FILL is the appointed party's own entry, made on receipt.
+                    if not got or got in ("FILL", "[FILL]"):
+                        continue
+                    if len(got) != N.ORIGINATOR_LENGTH:
+                        f.fail("%s:%d" % (Path(rel).name, i),
+                               "Originator %r is %d characters; the convention is "
+                               "exactly %d." % (got, len(got), N.ORIGINATOR_LENGTH))
+                f.ok()
+
+        for m in re.finditer(r"KUT-([A-Z]{2,6})-", text):
+            got = m.group(1)
+            if len(got) != N.ORIGINATOR_LENGTH:
+                f.fail(Path(rel).name,
+                       "uses the originator %r in an example: %d characters, but the "
+                       "convention is exactly %d. A container built to it fails the "
+                       "compliance check." % (got, len(got), N.ORIGINATOR_LENGTH))
+        f.ok()
+        if verbose:
+            print("  no withdrawn codes / bad originators in %s" % Path(rel).name)
+
+
+def check_draft_on_every_sheet(root: Path, f: Findings, verbose: bool):
+    """The workbook's status must appear on every sheet, not only the Cover.
+
+    A document is read front to back and carries its status in a page footer. A
+    workbook is not: it opens on whichever tab was last active, and single sheets
+    get filtered, printed and forwarded on their own. The DRAFT stamp reached the
+    Cover and nothing else, so a reader landing on a TIDP tab saw no indication
+    that the pack is unissued -- while the four Word documents said so 8 to 34
+    times each.
+    """
+    import zipfile
+    path = K.issued_path(root, MIDP)
+    if not path.exists():
+        return
+    try:
+        z = zipfile.ZipFile(path)
+        wb = z.read("xl/workbook.xml").decode("utf-8", "replace")
+        names = re.findall(r'name="([^"]+)"[^>]*sheetId', wb) or             re.findall(r'<sheet[^>]*name="([^"]+)"', wb)
+        sheets = sorted([n for n in z.namelist()
+                         if re.match(r"xl/worksheets/sheet\d+\.xml$", n)],
+                        key=lambda n: int(re.search(r"sheet(\d+)", n).group(1)))
+    except Exception as ex:
+        f.fail(MIDP, "could not be read as a workbook: %s" % ex)
+        return
+    if not sheets:
+        f.fail(MIDP, "parsed to zero sheets -- the reader is wrong, not the file")
+        return
+    missing = [names[i] if i < len(names) else p
+               for i, p in enumerate(sheets)
+               if "DRAFT" not in z.read(p).decode("utf-8", "replace")]
+    if missing:
+        f.fail(MIDP, "%d of %d sheets carry no status marking: %s. A sheet is "
+                     "forwarded on its own; the Cover does not travel with it."
+               % (len(missing), len(sheets), ", ".join(missing[:6])))
+    else:
+        f.ok()
+        if verbose:
+            print("  status on all %d sheets: %s" % (len(sheets), MIDP))
+
+
+def check_source_code_tables(root: Path, f: Findings, verbose: bool):
+    """The playbook markdown's role and type tables must be the adopted set.
+
+    Nothing regenerates GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md, and its own
+    header used to claim the .docx was built from it. It was not -- so the file
+    drifted a whole naming migration behind the pack it appears to describe,
+    still listing the withdrawn roles FP, LV and G, and the withdrawn types SC,
+    CA and MS with SH defined as "Sheet" where NA.2 makes it a Schedule.
+
+    A stale copy of a code table is worse than no copy: a reader who trusts it
+    names containers against a set the audit rejects, and the leakage check that
+    already scans this file had no view on whether its content was true.
+    """
+    # The BEP template shares this failure mode and was missed when the playbook
+    # was gated: it carried FP and G, and the four-character originator PLNS that
+    # the playbook's own 3.1 warns about by name. Both files are scanned.
+    _check_withdrawn(root, f, verbose)
+
+    path = root / "GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md"
+    if not path.exists():
+        f.fail(str(path), "missing -- the leakage check and this one both read it")
+        return
+    text = path.read_text(encoding="utf-8", errors="replace")
+
+    want_roles = {c for c, _ in N.ROLES} | {c for c, _ in N.CONTAINER_ONLY_ROLES}
+    want_types = {c for c, _ in N.TYPES}
+
+    for label, want, header in (("role", want_roles, "## 3.3 Role"),
+                                ("type", want_types, "## 3.4 Type")):
+        i = text.find(header)
+        if i < 0:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "has no %s section (%r) for the code table check" % (label, header))
+            continue
+        # Bound at the NEXT heading. A fixed-width window spilled 3.3 into 3.4
+        # and 3.4 into the suitability codes, so the check reported every
+        # neighbouring table as withdrawn.
+        nxt = text.find("\n## ", i + 1)
+        block = text[i:nxt if nxt > 0 else len(text)]
+        got = set(re.findall(r"^\|\s*`([A-Z0-9]{1,2})`\s*\|", block, re.M))
+        if not got:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table parsed to nothing -- the reader is wrong, not the file"
+                   % label)
+            continue
+        withdrawn = got - want
+        missing = want - got
+        if withdrawn:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table lists %s, which tools/kut_naming.py does not define. "
+                   "A withdrawn code here is named on containers that then fail the "
+                   "audit." % (label, ", ".join(sorted(withdrawn))))
+        if missing:
+            f.fail("KUT_PROJECT_DELIVERY_PLAYBOOK.md",
+                   "%s table omits %s, which the adopted set defines."
+                   % (label, ", ".join(sorted(missing))))
+        if not withdrawn and not missing:
+            f.ok()
+            if verbose:
+                print("  %s codes agree with kut_naming.py (%d)" % (label, len(got)))
+
+
 def check_no_leakage(root: Path, f: Findings, verbose: bool):
-    for name in K.ISSUED:
-        text = read_text(root / name)
+    for name in tuple(K.ISSUED) + CLIENT_FACING_SOURCES:
+        # This loop mixes two kinds of path. The issued documents live in
+        # ISSUED_DIR and are addressed by basename; CLIENT_FACING_SOURCES are
+        # repo-relative paths under GUIDES/. Resolving both the same way sends
+        # the GUIDES files to a directory that does not exist, and a missing
+        # file here is SKIPPED rather than failed -- so the leakage scan would
+        # go quietly blind on the two hand-edited sources most likely to name a
+        # tool.
+        path = K.issued_path(root, name) if name in K.ISSUED else root / name
+        if not path.exists():
+            if name in CLIENT_FACING_SOURCES:
+                continue              # the guides are optional; the pack is not
+            f.fail(name, "missing from KUT_DOCS_WORKING/issued/")
+            continue
+        text = _NOTE_RX.sub(" ", read_text(path))
         hits = []
         for rx, what in LEAKS:
             for m in rx.finditer(text):
@@ -618,8 +1096,9 @@ def check_no_leakage(root: Path, f: Findings, verbose: bool):
         else:
             f.ok()
     if verbose:
-        print("  tooling leakage: none in %d issued documents (%s exempt)"
-              % (len(K.ISSUED), K.INTERNAL_DOC))
+        print("  tooling leakage: none in %d issued documents + %d client-facing "
+              "sources (%s exempt)"
+              % (len(K.ISSUED), len(CLIENT_FACING_SOURCES), K.INTERNAL_DOC))
 
 
 # -- 5. placeholders are counted, not forbidden ------------------------------
@@ -634,7 +1113,7 @@ def check_placeholders(root: Path, f: Findings, verbose: bool):
     """
     counts = {}
     for name in K.ISSUED:
-        text = read_text(root / name)
+        text = read_text(K.issued_path(root, name))
         counts[name] = len(re.findall(r"\[FILL", text))
 
     path = root / BASELINE
@@ -680,9 +1159,70 @@ def read_text(path: Path) -> str:
     if key not in _TEXT_CACHE:
         if path.suffix == ".xlsx":
             _TEXT_CACHE[key] = K.xlsx_text(path)
-        else:
+        elif path.suffix == ".docx":
             _TEXT_CACHE[key] = K.docx_text(path)
+        else:
+            # Plain text -- the markdown sources the leakage check also scans.
+            _TEXT_CACHE[key] = path.read_text(encoding="utf-8", errors="replace")
     return _TEXT_CACHE[key]
+
+
+def check_midp_plans(midp_path: Path, f: Findings, verbose: bool):
+    """Every delivery plan the register points at must exist, and match it.
+
+    The register assigns each deliverable to a Task Information Delivery Plan,
+    and the workbook carries one sheet per plan. Two ways for that to go wrong
+    and neither shows up as an error in Excel: a deliverable assigned to a plan
+    that was never created, so nobody is ever sent it; and a row on a plan sheet
+    that is not in the register, so it is tracked by one party and by no gate.
+    """
+    rows, idx = midp_register(midp_path, f)
+    if rows is None:
+        return
+    sheets = K.xlsx_sheets(midp_path)
+    plan_sheets = {n for n in sheets if n.upper().startswith("TIDP")}
+
+    assigned = {r[idx["TIDP ref"]].strip() for r in rows if idx.get("TIDP ref") is not None
+                and r[idx["TIDP ref"]].strip()} if "TIDP ref" in idx else set()
+    if not assigned:
+        f.fail(MIDP, "no 'TIDP ref' column, or every row is unassigned -- the "
+                     "register cannot say who owes what")
+        return
+
+    missing = sorted(assigned - plan_sheets)
+    if missing:
+        f.fail(MIDP, "assigns deliverables to %s, which has no sheet in the "
+                     "workbook. Nobody is ever issued that plan."
+                     % ", ".join(missing))
+    f.ok()
+
+    empty = sorted(s for s in plan_sheets if s not in assigned)
+    if empty:
+        f.note("delivery plan sheet(s) %s carry no deliverables in the register"
+               % ", ".join(empty))
+
+    # Every reference on a plan sheet must be in the register.
+    known = {r[idx["Ref"]].strip() for r in rows}
+    strays = []
+    for name in sorted(plan_sheets):
+        srows = sheets[name]
+        hdr = next((i for i, r in enumerate(srows)
+                    if "Ref" in [c.strip() for c in r]), None)
+        if hdr is None:
+            f.fail(MIDP, "sheet %r has no 'Ref' header row" % name)
+            continue
+        col = [c.strip() for c in srows[hdr]].index("Ref")
+        for r in srows[hdr + 1:]:
+            ref = r[col].strip() if col < len(r) else ""
+            if ref and ref not in known:
+                strays.append("%s on %s" % (ref, name))
+    if strays:
+        f.fail(MIDP, "delivery plan row(s) not in the register: %s"
+                     % ", ".join(strays[:6]))
+    f.ok()
+    if verbose:
+        print("  delivery plans: %d sheets, %d assigned refs"
+              % (len(plan_sheets), len(assigned)))
 
 
 def midp_register(midp_path: Path, f: Findings):
@@ -720,25 +1260,31 @@ def main() -> int:
     root = Path(args.repo_root) if args.repo_root else Path(__file__).resolve().parent.parent
     f = Findings()
 
-    missing = [n for n in K.ISSUED if not (root / n).exists()]
+    missing = [n for n in K.ISSUED if not K.issued_path(root, n).exists()]
     if missing:
         print("KUT document gate FAILED.\n")
         for n in missing:
-            print("  %s: missing from the repository root" % n)
+            print("  %s: missing from %s/" % (n, K.ISSUED_DIR))
         return 1
 
     check_freshness(root, f, args.verbose)
 
-    bep_t = K.docx_tables(root / BEP)
-    pb_t = K.docx_tables(root / PLAYBOOK)
-    midp_path = root / MIDP
+    bep_t = K.docx_tables(K.issued_path(root, BEP))
+    pb_t = K.docx_tables(K.issued_path(root, PLAYBOOK))
+    midp_path = K.issued_path(root, MIDP)
 
+    check_naming_config(root, bep_t, f, args.verbose)
+    check_midp_plans(midp_path, f, args.verbose)
+    check_type_codes(bep_t, pb_t, f, args.verbose)
+    check_programme(bep_t, pb_t, f, args.verbose)
     check_stages(bep_t, pb_t, midp_path, f, args.verbose)
     check_suitability(bep_t, pb_t, midp_path, f, args.verbose)
     check_volumes(bep_t, pb_t, f, args.verbose)
     check_references(root, f, args.verbose)
     check_roles(bep_t, pb_t, midp_path, f, args.verbose)
     check_tiers(root, bep_t, pb_t, f, args.verbose)
+    check_draft_on_every_sheet(root, f, args.verbose)
+    check_source_code_tables(root, f, args.verbose)
     check_no_leakage(root, f, args.verbose)
     counts = check_placeholders(root, f, args.verbose)
 
@@ -753,7 +1299,7 @@ def main() -> int:
     print("KUT document gate OK.")
     print("  Issued documents gated              : %d" % len(K.ISSUED))
     print("  Assertions passed                   : %d" % f.checked)
-    print("  Provenance + content stamps         : both match on all three")
+    print("  Provenance + content stamps         : both match on all %d" % len(K.ISSUED))
     print("  Placeholders (legitimate at P01)    : %s"
           % ", ".join("%s=%d" % (n.split("_")[1], c) for n, c in sorted(counts.items())))
     for n in f.notes:

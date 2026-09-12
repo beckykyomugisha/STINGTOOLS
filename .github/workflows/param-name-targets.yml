@@ -1,0 +1,63 @@
+name: Parameter Name Target Gate
+
+# MOB-11. Code names a parameter as a string literal; ParameterHelpers.SetString
+# returns false when the parameter is absent, unbound for the category, or not TEXT;
+# the caller does not check the return; the value is discarded with no log line.
+#
+# Every symptom is an ABSENCE, which is why this survives review: a missing value
+# looks exactly like a value nobody supplied, so it gets blamed on incomplete source
+# data rather than on the writer. It also survives a round-trip test, because a map
+# compared only against itself is consistent whether or not either side exists.
+#
+# This gate is the cheap static half: every parameter NAMED in shipped configuration
+# must exist in MR_PARAMETERS.txt. A name that is not in the shared-parameter file
+# can never be written, whatever the writer does.
+#
+# The names that are wrong today are baselined in
+# tools/param_name_targets_baseline.txt with the candidate corrections for each.
+# The COUNT is deliberately not written here: it was "seventeen" in this comment
+# and in the tool's docstring while the baseline held sixteen. The gate prints it
+# at runtime and fails if either file states one again.
+# The baseline ONLY SHRINKS: the gate fails if a new bad name appears, if a
+# baselined name starts existing, or if a baselined name stops being referenced.
+#
+# It is a python gate rather than a unit test because the sources are mixed - two
+# CSV/JSON data files and two C# files - and no test project links all four.
+
+on:
+  push:
+    paths:
+      - 'tools/check_param_name_targets.py'
+      - 'tools/param_name_targets_baseline.txt'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/RESOLVED_BINDINGS.csv'
+      - 'StingTools/Data/COBIE_ATTRIBUTE_TEMPLATES.csv'
+      - 'StingTools/ExLink/ExLinkDefaultLinks.cs'
+      - 'StingTools/Core/ParameterHelpers.cs'
+      - 'project-templates/KUT/_BIM_COORD/fohlio_map.json'
+      - '.github/workflows/param-name-targets.yml'
+  pull_request:
+    paths:
+      - 'tools/check_param_name_targets.py'
+      - 'tools/param_name_targets_baseline.txt'
+      - 'StingTools/Data/MR_PARAMETERS.txt'
+      - 'StingTools/Data/RESOLVED_BINDINGS.csv'
+      - 'StingTools/Data/COBIE_ATTRIBUTE_TEMPLATES.csv'
+      - 'StingTools/ExLink/ExLinkDefaultLinks.cs'
+      - 'StingTools/Core/ParameterHelpers.cs'
+      - 'project-templates/KUT/_BIM_COORD/fohlio_map.json'
+      - '.github/workflows/param-name-targets.yml'
+  workflow_dispatch:
+
+jobs:
+  every-named-parameter-exists:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Every parameter named in shipped configuration exists
+        run: python tools/check_param_name_targets.py

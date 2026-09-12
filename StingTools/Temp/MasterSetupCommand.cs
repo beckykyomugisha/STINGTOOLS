@@ -273,7 +273,10 @@ namespace StingTools.Temp
             // Step 20: Healthcare Pack setup (HC-09) — only runs if facility type profile is set.
             try
             {
-                var hcDoc = commandData?.Application?.ActiveUIDocument?.Document;
+                // Was commandData?.Application?...: null from the panel, so the
+                // profile read returned null and Step 20 skipped ITSELF on every
+                // panel-run Master Setup. A skipped step logs nothing.
+                var hcDoc = ParameterHelpers.GetDoc(commandData);
                 var pi = hcDoc?.ProjectInformation;
                 var healthProfile = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
                 if (!string.IsNullOrEmpty(healthProfile))

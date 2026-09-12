@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Merge returned Task Information Delivery Plans into the project MIDP.
 
-    python tools/merge_tidp.py returns/*.xlsx              # preview only
-    python tools/merge_tidp.py returns/TIDP-A.xlsx --apply # write the additions
-    python tools/merge_tidp.py returns/*.xlsx --apply --overwrite-conflicts
+    python tools/merge_tidp.py returns/*.xlsx                # preview only
+    python tools/merge_tidp.py returns/TIDP-A.xlsx --apply   # write the additions
+    python tools/merge_tidp.py returns/*.xlsx --emit-python  # rows for midp_rows.py
 
 WHY THIS EXISTS
 Each appointed party completes the TIDP sheet and returns it; the Information
@@ -28,6 +28,20 @@ Validation uses tools/midp_schema.py, the same definitions build_midp.py wrote
 the drop-downs from. Restating them here would let the merge reject a value the
 workbook itself had just offered the consultant -- or, worse, accept one it had
 not.
+
+--APPLY IS A WORKING COPY; --EMIT-PYTHON IS THE CLEAN PATH
+The register is a GENERATED workbook. --apply edits the generated artefact, so
+check_kut_documents.py immediately and correctly reports it as hand-edited since
+generation, and the next regeneration silently drops the merged rows. That is
+right for the Information Manager's working copy between issues and wrong before
+an issue.
+
+--emit-python closes the loop: it prints each accepted row as the row(...) call
+that tools/midp_rows.py is made of, ready to paste in. Regenerate afterwards and
+the register is generated, gate-clean, and carries the deliverable. The rows are
+NOT written into midp_rows.py automatically -- placing a deliverable in the right
+section of that file, next to the ones it belongs with, is an editorial judgement,
+and a tool appending to the end of a curated file would degrade it every run.
 """
 from __future__ import annotations
 
@@ -80,16 +94,41 @@ def find_header(rows):
 
 
 def read_register(path: Path, sheet_name: str, source: str):
-    """Every non-empty deliverable row on one sheet."""
+    """Every non-empty deliverable row on one sheet.
+
+    The fallback used to take the FIRST sheet carrying a 'Ref' column. Once the
+    workbook grew one Task Information Delivery Plan sheet per appointed party,
+    the first such sheet became 'MIDP' -- so a consultant returning the whole
+    workbook had their entire register read back as their own return, silently,
+    and every row compared against itself. The fallback now looks only at plan
+    sheets, and refuses to guess between two of them.
+    """
     sheets = K.xlsx_sheets(path)
     rows = sheets.get(sheet_name)
     if rows is None:
-        # A consultant may return only their own sheet, or rename the tab.
+        candidates = []
         for name, candidate in sheets.items():
+            if name == S.MIDP_SHEET:
+                continue                  # never mistake the register for a return
             idx, _cols = find_header(candidate)
-            if idx is not None:
-                rows, sheet_name = candidate, name
-                break
+            if idx is None:
+                continue
+            # A plan sheet with nothing under its header has not been filled in.
+            if any(any((c or "").strip() for c in row) for row in candidate[idx + 1:]):
+                candidates.append((name, candidate))
+        # Prefer sheets named as delivery plans. Other sheets can carry a
+        # 'Ref' / 'Deliverable' header without being one -- the change log does
+        # -- so they are considered only when no plan sheet is present, which is
+        # what happens when a consultant renames their tab.
+        named = [c for c in candidates if c[0].upper().startswith(S.TIDP_SHEET)]
+        if named:
+            candidates = named
+        if len(candidates) > 1:
+            return None, ("contains %d delivery plan sheets (%s). Name the one to "
+                          "merge with --sheet." % (len(candidates),
+                                                   ", ".join(n for n, _ in candidates)))
+        if candidates:
+            sheet_name, rows = candidates[0][0], candidates[0][1]
     if rows is None:
         return None, "no sheet with a '%s' column" % S.KEY_COL
 
@@ -215,6 +254,114 @@ def apply_merge(midp: Path, rows, verbose: bool):
     return 0
 
 
+# The row() signature in tools/midp_rows.py, in order. Stated once here because
+# the emitted call is positional up to `tidp`; a mismatch would produce a call
+# that runs and puts every value in the wrong field.
+#
+# Left of the mapping: the register COLUMN name a returned TIDP uses.
+# Right: the row() parameter it feeds. Columns absent from row() are absent on
+# purpose -- 'Originator' is written blank by the builder, 'RAG' is left for the
+# Information Manager, and the three date columns are formulas derived from the
+# one appointment date, so a literal from a return would replace a calculation
+# with a number that stops updating.
+_EMIT_ORDER = [
+    ("Ref", "ref"), ("Discipline", "disc"), ("Volume", "vol"),
+    ("Deliverable", "deliv"), ("Type", "typ"), ("Type code", "iso"),
+    ("Stage", "stage"), ("LOD", "lod"), ("Format", "fmt"),
+    ("Suitability", "suit"), ("CDE State", "state"),
+    ("Month from", "mf"), ("Month to", "mt"),
+    ("Responsible", "resp"), ("TIDP ref", "tidp"),
+]
+
+_INT_FIELDS = {"mf", "mt"}
+
+
+def _constant_names():
+    """{value: CONSTANT_NAME} for the module-level strings in midp_rows.
+
+    So a Stage emits as `DA` rather than `'2.1 Deliverable A'`, matching the 122
+    rows already in that file. Read from the module rather than restated: a
+    second copy of the stage names is a second thing to drift, and this file
+    already refuses to restate the validation lists for the same reason.
+    """
+    import midp_rows as D
+    out = {}
+    for name, value in vars(D).items():
+        if name.startswith("_") or not isinstance(value, str):
+            continue
+        if not name.isupper() and name not in ("IM",):
+            continue
+        out.setdefault(value, name)
+    return out
+
+
+def _new_source():
+    """The `source` value a newly merged row should carry.
+
+    NOT the literal "New". build_midp.py maps every source through SRC_LABEL to
+    a Change-log heading, and an unmapped value is a KeyError that stops the
+    build -- so an invented source emits rows that look right and break the next
+    regeneration. Derived from the rows already in midp_rows.py: the newest
+    "New ..." source in the file, which is the issue this merge belongs to.
+    """
+    import midp_rows as D
+    news = sorted({r["source"] for r in D.R
+                   if str(r.get("source", "")).startswith("New ")})
+    if not news:
+        raise RuntimeError(
+            'no "New ..." source found in tools/midp_rows.py, so there is nothing '
+            'to copy. build_midp.py rejects a source SRC_LABEL does not map, so '
+            'this cannot be guessed.')
+    return news[-1]
+
+
+def emit_python(rows, verbose: bool) -> int:
+    """Print each accepted row as a midp_rows.row(...) call."""
+    try:
+        consts = _constant_names()
+        source = _new_source()
+    except Exception as exc:
+        print("cannot read tools/midp_rows.py: %s" % exc, file=sys.stderr)
+        return 1
+
+    def lit(field, value):
+        text = (value or "").strip()
+        if field in _INT_FIELDS:
+            try:
+                return str(int(float(text)))
+            except (TypeError, ValueError):
+                # A month that is not a number is a data fault, not something to
+                # paper over with 0 -- 0 means "mobilisation" and would read as a
+                # real answer. Emit it as a string so Python refuses it loudly if
+                # anyone pastes the line unedited.
+                return repr(text)
+        if text in consts:
+            return consts[text]
+        return repr(text)
+
+    print("")
+    print("# " + "-" * 68)
+    print("# Paste into tools/midp_rows.py, in the section these deliverables")
+    print("# belong to, then regenerate:  python tools/build_midp.py")
+    print("#")
+    print("# Placement is deliberately yours: appending to the end of a curated")
+    print("# file would work and would degrade it a little every time.")
+    print("# " + "-" * 68)
+    for r in rows:
+        args = ", ".join(lit(field, r.get(col)) for col, field in _EMIT_ORDER)
+        change = "Merged from %s line %d" % (r.source, r.line)
+        notes = (r.get("Notes") or "").strip()
+        print("row(%s, 2, %r, %r, %r, %r, %r, %r)"
+              % (args, "N", "N", "N", source, change, notes))
+    print("")
+    print("# %d row(s), sourced %r to match the current issue. The defaults after"
+          % (len(rows), source))
+    print("# `tidp` are revclass=2 and N/N/N for critical / as-built / O&M: a")
+    print("# returned TIDP does not carry those, so they are the conservative")
+    print("# choice and want a look before you paste.")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -222,8 +369,14 @@ def main() -> int:
     ap.add_argument("--midp", default=None, help="the register to merge into")
     ap.add_argument("--apply", action="store_true",
                     help="write the additions (default is preview only)")
+    ap.add_argument("--emit-python", action="store_true",
+                    help="print the new rows as midp_rows.py row(...) calls, so the "
+                         "register can be REGENERATED with them rather than hand-edited")
     ap.add_argument("--overwrite-conflicts", action="store_true",
                     help="also replace register rows whose content differs")
+    ap.add_argument("--sheet", default=None,
+                    help="the delivery plan sheet to read, e.g. TIDP-M. Needed only "
+                         "when a returned workbook carries more than one.")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -248,7 +401,7 @@ def main() -> int:
 
     incoming, failed = [], []
     for p in paths:
-        rows, err = read_register(p, S.TIDP_SHEET, p.name)
+        rows, err = read_register(p, args.sheet or S.TIDP_SHEET, p.name)
         if err:
             failed.append((p, err))
             continue
@@ -297,8 +450,18 @@ def main() -> int:
             for p in problems:
                 print("      %s" % p)
 
+    if args.emit_python:
+        if not new:
+            print("\nNothing new to emit.")
+        else:
+            emit_python(new, args.verbose)
+
     if not args.apply:
+        if args.emit_python:
+            return 1 if (invalid or failed) else 0
         print("\nNothing was written. Re-run with --apply to add the %d new row(s)." % len(new))
+        print("Or --emit-python to print them as midp_rows.py rows, which is the path")
+        print("that survives regeneration.")
         if conflicts:
             print("Conflicts stay refused unless --overwrite-conflicts is also given: two")
             print("parties disagreeing about one deliverable is a question for a person.")
@@ -321,7 +484,9 @@ def main() -> int:
     print("\nAdded %d deliverable(s) to %s." % (len(to_write), midp.name))
     print("The register is a generated document: this edit is a MANUAL change to it,")
     print("so tools/check_kut_documents.py will now report it as edited since generation.")
-    print("Fold the rows into tools/build_midp.py and regenerate before issuing.")
+    print("Re-run with --emit-python to get these rows as midp_rows.py row(...) calls,")
+    print("paste them in, and regenerate: that register is gate-clean and survives the")
+    print("next build. This edited copy does not.")
     return 1 if (invalid or failed) else 0
 
 

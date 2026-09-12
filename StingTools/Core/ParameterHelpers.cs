@@ -147,6 +147,37 @@ namespace StingTools.Core
         /// Falls back to LookupParameter on first access per type, then O(1) thereafter.
         /// Exposed as `internal` so sibling classes in this file (NativeParamMapper,
         /// TagPipelineHelper, SpatialAutoDetect, ...) can share the same cache.</summary>
+        /// <summary>
+        /// D10 — render a Double parameter in PROJECT units when AsValueString() is
+        /// unavailable (it returns null for parameters with no unit symbol, and for
+        /// some computed/read-only parameters).
+        /// <para>
+        /// Falls back to the raw internal value ONLY when the parameter declares no
+        /// unit type — an unitless double is already its own value. Anything else is
+        /// converted, because emitting internal feet/ft3-per-second onto a drawing is
+        /// the defect this exists to stop.
+        /// </para>
+        /// </summary>
+        internal static string FormatInternalDouble(Parameter p)
+        {
+            double raw = 0;
+            try { raw = p.AsDouble(); }
+            catch (Exception ex) { StingLog.Warn($"FormatInternalDouble AsDouble: {ex.Message}"); return string.Empty; }
+            try
+            {
+                var spec = p.Definition?.GetDataType();
+                if (spec != null && UnitUtils.IsMeasurableSpec(spec))
+                {
+                    var unit = p.GetUnitTypeId();
+                    if (unit != null)
+                        return UnitUtils.ConvertFromInternalUnits(raw, unit).ToString("0.###");
+                }
+            }
+            catch (Exception ex)
+            { StingLog.WarnRateLimited("FormatInternalDouble", $"unit conversion for '{p.Definition?.Name}': {ex.Message}"); }
+            return raw.ToString("0.###");
+        }
+
         internal static Parameter CachedLookup(Element el, string paramName)
         {
             string docKey = GetStableDocKey(el.Document);
@@ -231,7 +262,17 @@ namespace StingTools.Core
                 case StorageType.String:
                     return p.AsString() ?? string.Empty;
                 case StorageType.Double:
-                    return p.AsValueString() ?? p.AsDouble().ToString("0.###");
+                    // D10 — AsValueString() is PROJECT units ("25.00 L/s"). AsDouble()
+                    // is Revit INTERNAL units, and using it as the fallback leaked them
+                    // straight onto a drawing: a tag rendered Flow:0.882867 for an
+                    // element whose Air Flow is 25.00 L/s — 25 / 28.3168, i.e. ft3/s.
+                    //
+                    // Convert through the parameter's OWN unit type rather than a
+                    // hardcoded factor. Parameter.AsDouble() is always internal for a
+                    // Revit parameter, so this is the inverse of the ThermalConductivity
+                    // trap (where the value was already SI and converting corrupted it).
+                    // Here the value is genuinely internal and NOT converting corrupts it.
+                    return p.AsValueString() ?? FormatInternalDouble(p);
                 case StorageType.Integer:
                     return p.AsInteger().ToString();
                 case StorageType.ElementId:
@@ -269,7 +310,7 @@ namespace StingTools.Core
             if (p.StorageType == StorageType.Integer)
             {
                 if (!overwrite && p.AsInteger() != 0) return false;
-                try { p.Set(value); return true; }
+                try { p.Set(value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }
             if (p.StorageType == StorageType.String)
@@ -471,12 +512,120 @@ namespace StingTools.Core
             if (p == null || p.IsReadOnly) return false;
             try
             {
-                if (p.StorageType == StorageType.Integer) { p.Set(value); return true; }
-                if (p.StorageType == StorageType.Double) { p.Set((double)value); return true; }
+                if (p.StorageType == StorageType.Integer) { p.Set(value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
+                if (p.StorageType == StorageType.Double) { p.Set((double)value); WriteTxtMirror(el, paramName, value.ToString()); return true; }
                 if (p.StorageType == StorageType.String) { p.Set(value.ToString()); return true; }
             }
             catch (Exception ex) { StingLog.Warn($"SetInt({paramName}): {ex.Message}"); }
             return false;
+        }
+
+        // ── _TXT Mirror Write-back ─────────────────────────────────────────────────
+        // When writing a native-typed param (NUMBER/LENGTH/AREA/CURRENCY/INTEGER),
+        // also write its string representation to the corresponding _TXT mirror param
+        // so tag label formulas (which must reference TEXT params) always stay current.
+        // Mirror name is derived by the same suffix-replacement table used by
+        // tools/transform_mr_params.py and tools/fix_label_definitions.py.
+
+        private static readonly (string Suffix, string Repl)[] _suffixReplacements =
+        {
+            ("_LM_W",    "_TXT"), ("_SQ_M",   "_TXT"), ("_CU_M",   "_TXT"),
+            ("_MM2",     "_TXT"), ("_M2K_W",  "_TXT"), ("_W_M2K",  "_TXT"),
+            ("_KN_M2",   "_TXT"), ("_INT",    "_TXT"), ("_NR",     "_TXT"),
+            ("_MM",      "_TXT"), ("_M2",     "_TXT"), ("_KW",     "_TXT"),
+            ("_KPA",     "_TXT"), ("_KNM",    "_TXT"), ("_KA",     "_TXT"),
+            ("_KN",      "_TXT"), ("_LPS",    "_TXT"), ("_LPM",    "_TXT"),
+            ("_LPM_NR",  "_TXT"), ("_MPS",    "_TXT"), ("_LUX",    "_TXT"),
+            ("_OHM",     "_TXT"), ("_DEG",    "_TXT"), ("_YRS",    "_TXT"),
+            ("_USD",     "_TXT"), ("_UGX",    "_TXT"), ("_LM",     "_TXT"),
+            ("_MJ",      "_TXT"), ("_DB",     "_TXT"), ("_CFM",    "_TXT"),
+            ("_PCT",     "_TXT"), ("_KG",     "_TXT"), ("_BAR",    "_TXT"),
+            ("_HR",      "_TXT"), ("_CO2E",   "_TXT"), ("_CO2E_YR","_TXT"),
+            ("_W",       "_TXT"), ("_V",      "_TXT"), ("_A",      "_TXT"),
+            ("_M3H",     "_TXT"), ("_M",      "_TXT"), ("_K",      "_TXT"),
+            ("_LS",      "_TXT"), ("_C",      "_TXT"),
+        };
+
+        /// <summary>
+        /// Returns the _TXT mirror param name for a native-typed param
+        /// (e.g. MNT_HGT_MM → MNT_HGT_TXT), or null when no suffix matches
+        /// or the param is already TEXT/BOOL/DT.
+        /// </summary>
+        private static string TxtMirrorName(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return null;
+            if (paramName.EndsWith("_TXT",  StringComparison.Ordinal)) return null;
+            if (paramName.EndsWith("_BOOL", StringComparison.Ordinal)) return null;
+            if (paramName.EndsWith("_DT",   StringComparison.Ordinal)) return null;
+            foreach (var (suffix, _) in _suffixReplacements)
+                if (paramName.EndsWith(suffix, StringComparison.Ordinal))
+                    return paramName.Substring(0, paramName.Length - suffix.Length) + "_TXT";
+            return null;
+        }
+
+        /// <summary>
+        /// Best-effort write of the _TXT display mirror for a native-typed param.
+        /// Silently skips when the mirror param is not bound on this element.
+        /// </summary>
+        private static void WriteTxtMirror(Element el, string paramName, string displayValue)
+        {
+            string mirror = TxtMirrorName(paramName);
+            if (mirror == null) return;
+            Parameter mp = CachedLookup(el, mirror);
+            if (mp == null || mp.IsReadOnly || mp.StorageType != StorageType.String) return;
+            try { mp.Set(displayValue ?? string.Empty); }
+            catch (Exception ex) { StingLog.Warn($"WriteTxtMirror '{mirror}' on {el.Id}: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Set a native-typed DOUBLE parameter (NUMBER, LENGTH, AREA, CURRENCY).
+        /// Also writes the formatted string to the corresponding _TXT mirror param when bound.
+        /// </summary>
+        /// <param name="displayFormat">Format string for the _TXT mirror value. Defaults to "G".</param>
+        /// <summary>Read a numeric parameter as a double, with a fallback. Handles Double,
+        /// Integer and String storage; a String is parsed culture-invariantly, because a
+        /// value that round-tripped through a text mirror must not read differently on a
+        /// machine with a comma decimal separator.</summary>
+        public static double GetDouble(Element el, string paramName, double defaultValue = 0)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return defaultValue;
+                switch (p.StorageType)
+                {
+                    case StorageType.Double: return p.AsDouble();
+                    case StorageType.Integer: return p.AsInteger();
+                    case StorageType.String:
+                        string s = p.AsString();
+                        return double.TryParse(s, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : defaultValue;
+                    default: return defaultValue;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"GetDouble({paramName}): {ex.Message}"); return defaultValue; }
+        }
+
+        public static bool SetDouble(Element el, string paramName, double value,
+            bool overwrite = false, string displayFormat = null)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            if (p.StorageType != StorageType.Double) return false;
+            double existing = p.AsDouble();
+            if (!overwrite && Math.Abs(existing) > 1e-12) return false;
+            try
+            {
+                p.Set(value);
+                WriteTxtMirror(el, paramName, value.ToString(displayFormat ?? "G"));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetDouble '{paramName}' on {el.Id} failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Return a short level code from the element's host level.</summary>
@@ -585,10 +734,58 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Get the family name of an element (from its FamilySymbol).
-        /// Returns empty string if not a FamilyInstance or if family name unavailable.
+        /// The family name of an element — the LOADABLE family name for a
+        /// <see cref="FamilyInstance"/>, and the SYSTEM family name for everything else
+        /// ("Basic Wall", "Rectangular Duct", "Pipe Types", "Wall Foundation").
+        ///
+        /// <para>KUT-11. Before the fallback this answered <c>""</c> for every system
+        /// element, and every consumer keyed on a family name silently skipped them.
+        /// That was not a cosmetic gap: <see cref="ProdResolver.Resolve"/> gates its
+        /// whole project/corporate rule lookup on a non-empty family name, so the
+        /// eleven corporate PROD rules shipped on Ducts, Floors and Structural
+        /// Foundations could never fire and those categories always fell through to
+        /// the generic category default. Same shape as the seam
+        /// <c>CsiMap.TypeName</c> closed on the type side.</para>
+        ///
+        /// <para><see cref="ElementType.FamilyName"/> is the right API for this: for a
+        /// <c>FamilySymbol</c> it returns the loadable family's own name, so the two
+        /// branches agree and nothing changes for loadable families.</para>
+        ///
+        /// <para>Callers that need "" to keep meaning "not a loadable family" must say
+        /// so by calling <see cref="GetLoadableFamilyName"/> instead.</para>
         /// </summary>
         public static string GetFamilyName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi && fi.Symbol?.Family != null)
+                    return fi.Symbol.Family.Name;
+
+                // System element: ask its type for the system-family name.
+                var typeId = el?.GetTypeId();
+                if (typeId != null && typeId.Value > 0 &&
+                    el.Document?.GetElement(typeId) is ElementType et)
+                    return et.FamilyName ?? string.Empty;
+
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetFamilyName failed for {el?.Id}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The LOADABLE family name only — <c>""</c> for anything that is not a
+        /// <see cref="FamilyInstance"/>.
+        ///
+        /// <para>This is what <see cref="GetFamilyName"/> used to do, kept under a name
+        /// that says what it means. Use it where the empty string is load-bearing —
+        /// where "" is read as "this element has no loadable family, skip it" rather
+        /// than as "we could not determine a name".</para>
+        /// </summary>
+        public static string GetLoadableFamilyName(Element el)
         {
             try
             {
@@ -598,7 +795,7 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"GetFamilyName failed for {el?.Id}: {ex.Message}");
+                StingLog.Warn($"GetLoadableFamilyName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -618,6 +815,35 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"GetFamilySymbolName failed for {el?.Id}: {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// The type name of ANY element: the symbol name for a
+        /// <see cref="FamilyInstance"/>, the element type's own name for a system
+        /// element ("Generic - 200mm", "Concrete Slab 200").
+        ///
+        /// <para>The always-answers counterpart to <see cref="GetFamilySymbolName"/>,
+        /// promoted here from <c>CsiMap.TypeName</c> — which was carrying the only copy
+        /// of this fallback, and only the CSI resolver benefited. It is additive:
+        /// <see cref="GetFamilySymbolName"/> is unchanged, so its ~55 callers are
+        /// untouched and each can opt in on its own evidence.</para>
+        /// </summary>
+        public static string GetElementTypeName(Element el)
+        {
+            try
+            {
+                if (el is FamilyInstance fi && fi.Symbol != null)
+                    return fi.Symbol.Name ?? string.Empty;
+                var typeId = el?.GetTypeId();
+                if (typeId != null && typeId.Value > 0)
+                    return el.Document?.GetElement(typeId)?.Name ?? string.Empty;
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetElementTypeName failed for {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -885,17 +1111,17 @@ namespace StingTools.Core
 
                 // Check BuildingName parameter first
                 string buildingName = info.BuildingName ?? "";
-                string locFromName = ParseLocCode(buildingName);
+                string locFromName = ParseLocCode(buildingName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check project name
                 string projName = info.Name ?? "";
-                locFromName = ParseLocCode(projName);
+                locFromName = ParseLocCode(projName, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
                 // Check address
                 string address = info.Address ?? "";
-                locFromName = ParseLocCode(address);
+                locFromName = ParseLocCode(address, doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
             }
             catch (Exception ex)
@@ -920,12 +1146,12 @@ namespace StingTools.Core
                 {
                     // Check room name for building/location patterns
                     string roomName = room.Name ?? "";
-                    string loc = ParseLocCode(roomName);
+                    string loc = ParseLocCode(roomName, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
 
                     // Check room number prefix (e.g., "B1-101" → BLD1)
                     string roomNum = room.Number ?? "";
-                    loc = ParseLocCode(roomNum);
+                    loc = ParseLocCode(roomNum, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
 
@@ -1078,10 +1304,37 @@ namespace StingTools.Core
 
         /// <summary>
         /// Parse a string for LOC code patterns.
-        /// Recognizes: BLD1/BLD2/BLD3, Building 1/2/3, Block A/B/C, EXT, External.
+        ///
+        /// F-9 / gap F-1: this used to recognise ONLY BLD1/BLD2/BLD3/EXT, hard-coded,
+        /// and never consulted the configured vocabulary. On a project declaring its
+        /// own codes that meant NO LOC auto-detection at all, silently — Kibale
+        /// declares COT01-COT08, STF, KDR, POOL, EXT, XX and not one of the first
+        /// eleven was reachable, so every element fell to XX.
+        ///
+        /// Now: the SpatialCodeRegistry vocabulary first (corporate baseline +
+        /// project override, honouring each code's wordBoundary guard), then the
+        /// original hard-coded aliases as a fallback so existing projects behave
+        /// exactly as before. Registry misses cost nothing — the fallback is the
+        /// old body, unchanged.
         /// </summary>
-        private static string ParseLocCode(string text)
+        private static string ParseLocCode(string text) => ParseLocCode(text, null);
+
+        private static string ParseLocCode(string text, Document doc)
         {
+            // Registry first. A project-declared code must win over a corporate
+            // alias, which is the whole point of the override tier.
+            try
+            {
+                var hit = SpatialCodeRegistry.MatchLoc(doc, text);
+                if (hit != null && !string.IsNullOrEmpty(hit.Code) &&
+                    !string.Equals(hit.Code, "XX", StringComparison.OrdinalIgnoreCase))
+                    return hit.Code;
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ParseLocCode.Registry", $"registry lookup: {ex.Message}");
+            }
+
             if (string.IsNullOrWhiteSpace(text)) return null;
             string upper = text.ToUpperInvariant();
 
@@ -4063,6 +4316,19 @@ namespace StingTools.Core
             // Reset read-only skip counter at batch boundary so each operation
             // gets fresh diagnostic logging (first 5 warnings + every 100th).
             ParameterHelpers.ResetReadOnlySkipCount();
+            // G-5: same reasoning for the formula-failure warn budget. Session-wide
+            // it would be spent on the first messy model and every later run would
+            // log nothing — silence being the exact failure mode G-5 removed.
+            Temp.FormulaEngine.ResetWarnBudget();
+            // F-2: report, then reset, the count of elements whose LOC could not be
+            // derived. These now carry XX instead of being absorbed into the first
+            // building code — the count is the only visible trace, so it must be said.
+            int unresolvedLoc = TagConfig.UnresolvedLocCount;
+            if (unresolvedLoc > 0)
+                StingLog.Warn($"{commandName}: {unresolvedLoc} element(s) had no derivable LOC and were "
+                            + "tagged XX. Previously these were filed under the first building code, "
+                            + "inflating it. Set ASS_LOC_TXT, or accept XX as 'location not established'.");
+            TagConfig.ResetUnresolvedLocCount();
             TagConfig.CheckComplianceGate(doc, commandName);
         }
 

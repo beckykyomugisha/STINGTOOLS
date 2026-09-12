@@ -91,14 +91,47 @@ _PARTS_RX = re.compile(re.escape(PARTS_PREFIX) + r"([0-9a-f]{64})")
 
 # The generated pack. Keyed by the committed filename; the value is every source
 # file whose content determines that document's bytes.
+# tools/kut_naming.py is an input to all three: the BEP renders the container
+# fields from it directly, and the playbook and the register reach it through
+# midp_schema. A file that changes a document's bytes must be listed, or the
+# staleness stamp says "current" about a document built from something else.
+# The issued pack lives in one folder. GENERATED stays keyed by BASENAME:
+# corporate_docx.save() looks the name up to decide whether to stamp
+# provenance, and a prefixed key makes every document look like it was
+# written somewhere else -- which silently skips the stamp.
+ISSUED_DIR = "KUT_DOCS_WORKING/issued"
+
+
+def issued_path(root, name):
+    """Filesystem path of an issued document, from its GENERATED key."""
+    return root / ISSUED_DIR / name
+
+
 GENERATED = {
     "KUT_BIM_Execution_Plan.docx": ("tools/build_bep.py", "tools/corporate_docx.py",
+                                    "tools/kut_naming.py",
                                     "tools/kut_docs_lib.py"),
+    # The playbook renders the delivery-plan field list from midp_schema, so a
+    # column added there changes the playbook's bytes.
     "KUT_Project_Delivery_Playbook.docx": ("tools/build_team_playbook.py",
                                            "tools/corporate_docx.py",
+                                           "tools/midp_schema.py",
+                                           "tools/kut_naming.py",
                                            "tools/kut_docs_lib.py"),
+    "KUT_Document_Control_Standard.docx": ("tools/build_document_control.py",
+                                           "tools/corporate_docx.py",
+                                           "tools/kut_naming.py",
+                                           "tools/kut_docs_lib.py"),
+    # Correspondence rather than a procedure, but it is client-facing and it
+    # quotes the plan's own open items, so it is gated like the rest.
+    "KUT_Mobilisation_Information_Request.docx": ("tools/build_symbion_request.py",
+                                                  "tools/corporate_docx.py",
+                                                  "tools/kut_naming.py",
+                                                  "tools/kut_docs_lib.py"),
     "KUT_Master_Information_Delivery_Plan.xlsx": ("tools/build_midp.py",
+                                                  "tools/midp_rows.py",
                                                   "tools/midp_schema.py",
+                                                  "tools/kut_naming.py",
                                                   "tools/kut_docs_lib.py"),
 }
 
@@ -106,6 +139,107 @@ GENERATED = {
 # by name on purpose -- it is ours, and it is allowed to name the tooling.
 ISSUED = tuple(GENERATED)
 INTERNAL_DOC = "KUT_BIM_MANAGER_PLAYBOOK_INTERNAL_STINGTOOLS.docx"
+
+
+# ── The programme ───────────────────────────────────────────────────────────
+# ONE source for the stage calendar, because three hand-maintained copies of it
+# drifted. The August pack put FF&E at M40-M43 and close-out at M44-M45 -- an
+# overlap that ends the job at month 45 while the same documents state 49. The
+# error survived because each generator carried its own literal table and
+# nothing compared them to the durations they are derived from.
+#
+# These durations are the Owner's, transcribed from "Work Program - Kampala
+# Uganda Temple Project.pdf" and nothing else:
+#
+#   2.1  1    2.2  3    2.3  4    2.4  3    2.5  -     subtotal 11
+#   3.1  32   3.2  4    3.3  2                          subtotal 38
+#                                                       total    49
+#
+# Months run sequentially, which is what makes the subtotals add up. Stage 2.5
+# (conformed set) carries no duration of its own in the Owner's table: it is
+# issued at the close of the tender stage, so it lands on the same month 2.4
+# ends. Anything derived from this -- ranges, milestone months, phase
+# subtotals -- is computed by stage_months() below, never written out by hand.
+#
+# `kind` is how the row is stated to a reader, not a property of the stage:
+#   "point"  a deliverable, named by the month it lands        -> "M8"
+#   "span"   a period of work, named by its extent             -> "M12 to M43"
+WORK_PROGRAMME = (
+    # stage, title,                                 LOD,   months, kind
+    ("2.1", "Basis of Design (Deliverable A)",      "200",  1, "point"),
+    ("2.2", "Developed Design (Deliverable B)",     "300",  3, "point"),
+    ("2.3", "Technical Design (Deliverable C)",     "350",  4, "point"),
+    ("2.4", "Tender action, negotiation and award", None,   3, "span"),
+    ("2.5", "Conformed set",                        "350",  0, "point"),
+    ("3.1", "Construction administration",          "400", 32, "span"),
+    ("3.2", "FF&E installation",                    "400",  4, "span"),
+    ("3.3", "Close-out (Deliverable D)",            "500",  2, "span"),
+)
+
+# Stated on the Owner's Work Program. Asserted against WORK_PROGRAMME on import,
+# so a duration edited without the subtotal fails loudly here rather than
+# quietly shipping a document whose own arithmetic disagrees.
+PHASE_SUBTOTALS = {"2": 11, "3": 38}
+TOTAL_MONTHS = 49
+
+
+def stage_months():
+    """Sequential month numbering for every stage.
+
+    Returns an ordered dict of stage -> (start, end, label), where the label is
+    the form the documents quote. Months are 1-based and inclusive, so a stage
+    of n months starting at s ends at s + n - 1.
+    """
+    out, cursor = {}, 1
+    for stage, _title, _lod, months, kind in WORK_PROGRAMME:
+        if months == 0:
+            # No duration of its own: lands on the month the previous stage
+            # closed, and does not advance the cursor.
+            start = end = cursor - 1
+        else:
+            start, end = cursor, cursor + months - 1
+            cursor = end + 1
+        out[stage] = (start, end, "M%d" % end if kind == "point" or start == end
+                      else "M%d to M%d" % (start, end))
+    return out
+
+
+def programme_label(stage):
+    """The month label for one stage, e.g. "M44 to M47"."""
+    return stage_months()[stage][2]
+
+
+def span_label(stage, dash=" to "):
+    """The full extent of a stage, e.g. "M44 to M47".
+
+    Unlike programme_label this never collapses a deliverable to its landing
+    month, so it suits tables that state every row as a period. `dash` is the
+    separator, so the markdown guides can ask for an en dash.
+    """
+    start, end, _ = stage_months()[stage]
+    return "M%d" % end if start == end else "M%d%sM%d" % (start, dash, end)
+
+
+def _check_programme():
+    """Fail on import if the durations no longer produce the stated totals."""
+    by_phase = {}
+    for stage, _t, _l, months, _k in WORK_PROGRAMME:
+        by_phase[stage.split(".")[0]] = by_phase.get(stage.split(".")[0], 0) + months
+    for phase, stated in PHASE_SUBTOTALS.items():
+        if by_phase.get(phase) != stated:
+            raise AssertionError(
+                "Phase %s durations sum to %s, but the Work Program states %s"
+                % (phase, by_phase.get(phase), stated))
+    if sum(by_phase.values()) != TOTAL_MONTHS:
+        raise AssertionError("Durations sum to %s months, stated total is %s"
+                             % (sum(by_phase.values()), TOTAL_MONTHS))
+    if stage_months()["3.3"][1] != TOTAL_MONTHS:
+        raise AssertionError(
+            "Read sequentially the programme ends at M%s, stated total is %s"
+            % (stage_months()["3.3"][1], TOTAL_MONTHS))
+
+
+_check_programme()
 
 
 def inputs_digest(root: Path, name: str) -> str:

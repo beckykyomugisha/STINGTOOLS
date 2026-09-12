@@ -296,14 +296,22 @@ namespace StingTools.UI
             }
         }
 
-        /// <summary>Canonical issue statuses, spelled the way IssueStore persists them. The
-        /// dialog used to offer RESPONDED / ACCEPTED / REJECTED, none of which the normalizer
-        /// emits — so those filter nodes could never match a stored row. Unknown is omitted: it
-        /// is a parse outcome, not a status anyone files under.</summary>
+        /// <summary>Canonical issue statuses, spelled the way IssueStore persists them.
+        ///
+        /// <para>The dialog used to offer RESPONDED / ACCEPTED / REJECTED, none of which the
+        /// normalizer emitted — so those filter nodes could never match a stored row. IM-9
+        /// gave RESPONDED and ACCEPTED their own kinds, so they are offered again and now
+        /// match. REJECTED stays out: it normalises to VOID, which is already listed, and
+        /// offering both would put the same rows under two nodes.</para>
+        ///
+        /// <para>Unknown is omitted: it is a parse outcome, not a status anyone files
+        /// under.</para></summary>
         private static readonly string[] IssueStatusList =
         {
             IssueStatusNormalizer.Canonical(IssueStatusKind.Open),
             IssueStatusNormalizer.Canonical(IssueStatusKind.InProgress),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Responded),
+            IssueStatusNormalizer.Canonical(IssueStatusKind.Accepted),
             IssueStatusNormalizer.Canonical(IssueStatusKind.Resolved),
             IssueStatusNormalizer.Canonical(IssueStatusKind.Closed),
             IssueStatusNormalizer.Canonical(IssueStatusKind.Void),

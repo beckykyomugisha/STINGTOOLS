@@ -99,6 +99,17 @@ namespace StingTools.UI
             try { ResidualGrid.ItemsSource       = ResidualRiskRows; }   catch (Exception ex) { StingLog.Warn($"ResidualGrid bind: {ex.Message}"); }
             try { LossTypeGrid.ItemsSource       = LossTypeRows; }       catch (Exception ex) { StingLog.Warn($"LossTypeGrid bind: {ex.Message}"); }
 
+            // KUT-8 — the LPS region selects a ground-flash-density band, so it is a
+            // calculation INPUT, not a label. Seed it from the project preset instead of
+            // leaving every project on the UK band (Ng 0.5-1.0).
+            try
+            {
+                StingTools.Core.EngineRegionSync.Attach();
+                ApplyProjectRegion(StingTools.Standards.EngineRegionMap.ToLpsRegion(
+                    StingTools.Standards.ProjectStandardsManager.Instance.Region));
+            }
+            catch (Exception ex) { StingLog.Warn($"LPS project-region seed: {ex.Message}"); }
+
             // Wave 1 — populate the RISK-tab catalogue combos from
             // STING_LPS_RISK_FACTORS.json so labels match the data the
             // engine actually consumes (closes the "Cb metal/concrete"
@@ -365,6 +376,46 @@ namespace StingTools.UI
         {
             if (cmbRegion?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
                 SelectedRegion = tag;
+        }
+
+        /// <summary>
+        /// KUT-8 — select the region the PROJECT is in, rather than staying on the
+        /// combo's hardcoded default. Called by <c>EngineRegionSync</c> at startup and
+        /// whenever the project preset changes.
+        ///
+        /// <para>Moves the combo, not just the backing field, because the combo is what
+        /// the engineer reads: a header saying "UK (Ng 0.5-1.0)" while the engine sizes to
+        /// something else is a worse failure than the one this closes. Marshals to the
+        /// UI thread — the caller is the standards singleton, not the dispatcher.</para>
+        ///
+        /// <para>A tag the combo does not offer is IGNORED, not forced: the region list
+        /// here is the set the rules file carries, and selecting nothing would leave the
+        /// header blank while the engine used a value no item names.</para>
+        /// </summary>
+        public void ApplyProjectRegion(string engineRegionTag)
+        {
+            if (string.IsNullOrWhiteSpace(engineRegionTag)) return;
+            try
+            {
+                Action apply = () =>
+                {
+                    if (cmbRegion?.Items == null) return;
+                    foreach (var obj in cmbRegion.Items)
+                    {
+                        if (obj is ComboBoxItem ci && ci.Tag is string t &&
+                            string.Equals(t, engineRegionTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cmbRegion.SelectedItem = ci;   // raises cmbRegion_SelectionChanged, which sets SelectedRegion
+                            return;
+                        }
+                    }
+                    StingLog.Warn($"StingLpsPanel.ApplyProjectRegion: no combo item tagged '{engineRegionTag}'; " +
+                                  $"leaving the header on '{SelectedRegion}'.");
+                };
+                if (Dispatcher.CheckAccess()) apply();
+                else Dispatcher.BeginInvoke(apply);
+            }
+            catch (Exception ex) { StingLog.Warn($"StingLpsPanel.ApplyProjectRegion: {ex.Message}"); }
         }
 
         private void cmbUw_SelectionChanged(object sender, SelectionChangedEventArgs e)

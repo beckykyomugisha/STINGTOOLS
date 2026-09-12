@@ -196,7 +196,8 @@
             "+ASS_EXPECTED_LIFE_YEARS_YRS",
             "+ASS_MAINTENANCE_FREQUENCY_MONTHS",
             "+MNT_SPARE_PARTS_TXT",
-            "+COMM_DATE_TXT"
+            "+COMM_DATE_TXT",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }
@@ -243,7 +244,8 @@
             "+ASS_INSTALLATION_DATE_TXT",
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+ASS_EXPECTED_LIFE_YEARS_YRS"
+            "+ASS_EXPECTED_LIFE_YEARS_YRS",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }
@@ -291,7 +293,8 @@
             "+ASS_INSTALLATION_DATE_TXT",
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+ASS_EXPECTED_LIFE_YEARS_YRS"
+            "+ASS_EXPECTED_LIFE_YEARS_YRS",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }
@@ -758,7 +761,8 @@
             "+ASS_SUPPLIER_TXT",
             "+ASS_WARRANTY_PARTS_TXT",
             "+ASS_WARRANTY_DURATION_PARTS_YRS",
-            "+MNT_WARRANTY_EXPIRY_TXT"
+            "+MNT_WARRANTY_EXPIRY_TXT",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }
@@ -802,9 +806,9 @@
           "inherit": "400",
           "requiredParams": [
             "+ASS_INSTALLATION_DATE_TXT",
-            "+FOHLIO_REF_TXT",
             "+ASS_SUPPLIER_TXT",
-            "+ASS_WARRANTY_DURATION_PARTS_YRS"
+            "+ASS_WARRANTY_DURATION_PARTS_YRS",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }
@@ -848,9 +852,9 @@
           "inherit": "400",
           "requiredParams": [
             "+ASS_INSTALLATION_DATE_TXT",
-            "+FOHLIO_REF_TXT",
             "+ASS_SUPPLIER_TXT",
-            "+ASS_WARRANTY_DURATION_PARTS_YRS"
+            "+ASS_WARRANTY_DURATION_PARTS_YRS",
+            "+FOHLIO_REF_TXT"
           ]
         }
       }

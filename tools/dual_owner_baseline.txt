@@ -1,0 +1,5 @@
+# D.2 dual-owner ceilings, one per check. RATCHET: may fall, never rise.
+# a = two formulas computing one output parameter
+# b = one parameter written from two or more C# files
+# c = a formula output that a C# path also writes
+0 34 5

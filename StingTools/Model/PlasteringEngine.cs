@@ -938,9 +938,19 @@ namespace StingTools.Model
         /// <summary>
         /// Generates room finish schedule for all placed rooms.
         /// </summary>
+        /// <summary>
+        /// A-4 — count of rooms left with an unset finish by the most recent
+        /// <see cref="GenerateSchedule"/> call, per surface. Reported rather than
+        /// defaulted; callers surface these so an unspecified room is visible.
+        /// </summary>
+        public static int LastUnsetWallFinishes { get; private set; }
+        public static int LastUnsetFloorFinishes { get; private set; }
+        public static int LastUnsetCeilingFinishes { get; private set; }
+
         public static List<RoomFinish> GenerateSchedule(Document doc)
         {
             var result = new List<RoomFinish>();
+            int unsetWall = 0, unsetFloor = 0, unsetCeiling = 0;
 
             var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
@@ -976,41 +986,155 @@ namespace StingTools.Model
                 entry.CeilingFinish = ParameterHelpers.GetString(room, "BLE_ROOM_FINISH_CEILING_TXT");
                 entry.BaseFinish = ParameterHelpers.GetString(room, "BLE_ROOM_FINISH_BASE_TXT");
 
-                // Auto-populate defaults if empty
-                if (string.IsNullOrEmpty(entry.WallFinish))
-                    entry.WallFinish = "2 coat gypsum plaster + vinyl matt emulsion";
-                if (string.IsNullOrEmpty(entry.FloorFinish))
-                    entry.FloorFinish = "Power-floated concrete + carpet/vinyl";
-                if (string.IsNullOrEmpty(entry.CeilingFinish))
-                    entry.CeilingFinish = "Plasterboard + skim coat + vinyl matt emulsion";
+                // A-4 — the three "auto-populate defaults if empty" substitutions that
+                // stood here have been REMOVED. They invented a specification:
+                //
+                //   wall    "2 coat gypsum plaster + vinyl matt emulsion"
+                //   floor   "Power-floated concrete + carpet/vinyl"
+                //   ceiling "Plasterboard + skim coat + vinyl matt emulsion"
+                //
+                // A UK office spec, asserted for any room whose finish nobody had set —
+                // and asserted indistinguishably from a finish someone had chosen. It
+                // then flowed into the finish schedule, the covering engine and the BOQ
+                // description tokens as if it were a decision. A lodge in Kibale does not
+                // have carpet, and nothing downstream could tell that this was a guess.
+                //
+                // Leave it empty and COUNT it. An empty finish is a question; a plausible
+                // default is a wrong answer that nobody asks about. Same failure class as
+                // A-1, G-5 and K-1 — the register's whole subject.
+                if (string.IsNullOrWhiteSpace(entry.WallFinish))    unsetWall++;
+                if (string.IsNullOrWhiteSpace(entry.FloorFinish))   unsetFloor++;
+                if (string.IsNullOrWhiteSpace(entry.CeilingFinish)) unsetCeiling++;
 
                 result.Add(entry);
             }
+
+            LastUnsetWallFinishes    = unsetWall;
+            LastUnsetFloorFinishes   = unsetFloor;
+            LastUnsetCeilingFinishes = unsetCeiling;
+            if (unsetWall + unsetFloor + unsetCeiling > 0)
+                StingLog.Info($"Room finishes: {result.Count} room(s) scheduled; unset finishes — "
+                            + $"wall {unsetWall}, floor {unsetFloor}, ceiling {unsetCeiling}. "
+                            + "Left blank rather than defaulted (A-4); specify them or accept the gap.");
 
             return result;
         }
 
         /// <summary>
-        /// Writes finish specifications back to Room parameters.
+        /// Outcome of a <see cref="WriteToRooms"/> pass. <see cref="Modified"/> counts
+        /// rooms where at least one finish parameter actually changed — not rooms visited.
         /// </summary>
-        public static int WriteToRooms(Document doc, List<RoomFinish> schedule)
+        public class WriteResult
         {
-            int written = 0;
+            /// <summary>Rooms where at least one finish parameter was actually written.</summary>
+            public int Modified { get; set; }
+            /// <summary>Rooms whose finish parameters were all already populated — nothing written.</summary>
+            public int AlreadyPopulated { get; set; }
+            /// <summary>Rooms skipped because the element was gone or every write threw.</summary>
+            public int Failed { get; set; }
+            /// <summary>Individual parameter writes that landed, across both families.</summary>
+            public int BuiltInParamsWritten { get; set; }
+            /// <summary>Individual STING shared-parameter writes that landed.</summary>
+            public int StingParamsWritten { get; set; }
+        }
+
+        // The four Revit built-in room finish parameters, paired with their STING
+        // shared-parameter twins. Both families are written: the built-ins are what a
+        // native Revit schedule, an IFC export and ISBRoomFinishCommand can see
+        // (its fields are literally "Floor Finish", "Wall Finish", …), while the STING
+        // params are what the covering engine and the BOQ description tokens read.
+        // Before this, only the Fohlio importer ever wrote the built-ins, so running
+        // "Room Finishes" and then building the ISB schedule produced an empty schedule.
+        private static readonly (BuiltInParameter BuiltIn, string Sting)[] FinishParamPairs =
+        {
+            (BuiltInParameter.ROOM_FINISH_WALL,    "BLE_ROOM_FINISH_WALL_TXT"),
+            (BuiltInParameter.ROOM_FINISH_FLOOR,   "BLE_ROOM_FINISH_FLOOR_TXT"),
+            (BuiltInParameter.ROOM_FINISH_CEILING, "BLE_ROOM_FINISH_CEILING_TXT"),
+            (BuiltInParameter.ROOM_FINISH_BASE,    "BLE_ROOM_FINISH_BASE_TXT"),
+        };
+
+        /// <summary>
+        /// Writes a built-in room parameter only when it is currently empty.
+        /// Mirrors <see cref="ParameterHelpers.SetIfEmpty"/> semantics — never overwrites
+        /// a value the user typed — and returns true only when a write actually landed.
+        /// </summary>
+        private static bool SetBuiltInIfEmpty(Element room, BuiltInParameter bip, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            Parameter p = room.get_Parameter(bip);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return false;
+
+            string existing = p.AsString() ?? string.Empty;
+            if (existing.Length > 0) return false;
+
+            try
+            {
+                p.Set(value);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Room finish built-in {bip} on {room.Id} failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Writes a STING shared parameter only when it is currently empty, returning true
+        /// only when a write actually landed. Guards the empty-value case explicitly:
+        /// SetString reports success when the stored value already equals the new one, so
+        /// writing "" onto an empty parameter would otherwise be counted as a change.
+        /// </summary>
+        private static bool SetStingIfEmpty(Element room, string paramName, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            if (!string.IsNullOrEmpty(ParameterHelpers.GetString(room, paramName))) return false;
+            return ParameterHelpers.SetIfEmpty(room, paramName, value);
+        }
+
+        /// <summary>
+        /// Writes finish specifications back to Room parameters — to BOTH the Revit
+        /// built-in finish parameters and the STING shared parameters, so the value is
+        /// visible to native schedules / IFC / the ISB schedule as well as to the
+        /// covering engine and the BOQ. Existing values are never overwritten.
+        /// </summary>
+        public static WriteResult WriteToRooms(Document doc, List<RoomFinish> schedule)
+        {
+            var result = new WriteResult();
+
             foreach (var entry in schedule)
             {
                 var room = doc.GetElement(entry.RoomId);
-                if (room == null) continue;
+                if (room == null) { result.Failed++; continue; }
+
+                string[] values = { entry.WallFinish, entry.FloorFinish, entry.CeilingFinish, entry.BaseFinish };
+                int builtInHits = 0, stingHits = 0;
+
                 try
                 {
-                    ParameterHelpers.SetIfEmpty(room, "BLE_ROOM_FINISH_WALL_TXT", entry.WallFinish);
-                    ParameterHelpers.SetIfEmpty(room, "BLE_ROOM_FINISH_FLOOR_TXT", entry.FloorFinish);
-                    ParameterHelpers.SetIfEmpty(room, "BLE_ROOM_FINISH_CEILING_TXT", entry.CeilingFinish);
-                    ParameterHelpers.SetIfEmpty(room, "BLE_ROOM_FINISH_BASE_TXT", entry.BaseFinish);
-                    written++;
+                    for (int i = 0; i < FinishParamPairs.Length; i++)
+                    {
+                        string value = values[i];
+                        if (SetBuiltInIfEmpty(room, FinishParamPairs[i].BuiltIn, value)) builtInHits++;
+                        if (SetStingIfEmpty(room, FinishParamPairs[i].Sting, value)) stingHits++;
+                    }
                 }
-                catch (Exception ex) { StingLog.Warn($"Param not bound: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Room finish write on {room.Id}: {ex.Message}");
+                    result.Failed++;
+                    continue;
+                }
+
+                result.BuiltInParamsWritten += builtInHits;
+                result.StingParamsWritten += stingHits;
+
+                if (builtInHits + stingHits > 0) result.Modified++;
+                else result.AlreadyPopulated++;
             }
-            return written;
+
+            return result;
         }
     }
 

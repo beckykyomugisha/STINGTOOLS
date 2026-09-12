@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1002,52 +1002,281 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Search for a pre-configured seed family (.rfa) with labels already bound.
-        /// Seed families are the gold standard — they have Label → ASS_TAG_1_TXT
-        /// already configured, so they work immediately without manual Family Editor steps.
+        /// Find an existing tag family (.rfa) with labels already bound, so Create
+        /// loads it instead of minting one the Revit API cannot give labels to.
         ///
-        /// Search order:
-        ///   1. Data/TagFamilies/Seeds/  (distributed seed files)
-        ///   2. Data/TagFamilies/        (user-configured files from previous Configure Labels run)
-        /// Seed files are identified by having a "_seed" suffix or being in the Seeds/ subdirectory.
+        /// Search order — one flat folder per root, no sub-folders:
+        ///   1. &lt;shared content library&gt;/Tags/   (firm-wide; see GetTagLibraryRoots)
+        ///   2. Data/TagFamilies/                 (plugin-local baseline)
+        ///
+        /// A "_seed"-suffixed variant of the expected file name is still accepted in
+        /// either folder. The former Data/TagFamilies/Seeds/ sub-folder is GONE —
+        /// its 137 files were the pre-tier-change tags and they shadowed the live
+        /// set for 88 categories.
         /// </summary>
-        public static string FindSeedFamily(BuiltInCategory bic)
+        public static string FindSeedFamily(BuiltInCategory bic) => FindSeedFamily(bic, null);
+
+        /// <summary>
+        /// Manifest-directed resolution, falling back to the name-derived search.
+        ///
+        /// STING_CONTENT_MANIFEST.json already carries all 206 tag families with a
+        /// familyFile and a SHA-256 of the .rfa bytes, merged corporate-baseline +
+        /// project-override by ContentManifestRegistry — and had ZERO callers. This
+        /// is that machinery switched on: the manifest decides WHICH file serves a
+        /// category (so a project override can retarget one without touching code)
+        /// and the checksum says whether the file on disk is still the one the
+        /// manifest describes.
+        ///
+        /// A mismatch is a WARNING naming the family, never a skip and never a hard
+        /// failure. A project that has deliberately customised a tag must still
+        /// load it — refusing would make drift detection worse than useless, since
+        /// the only way to silence it would be to abandon the customisation.
+        /// </summary>
+        public static string FindSeedFamily(BuiltInCategory bic, Document doc)
         {
             string baseName = GetFamilyFileName(bic);
             string nameNoExt = GetFamilyName(bic);
-            string dataPath = StingToolsApp.DataPath;
-            if (string.IsNullOrEmpty(dataPath)) return null;
 
-            // Check Seeds/ subdirectory first (distributed with the plugin)
-            string seedDir = Path.Combine(dataPath, "TagFamilies", "Seeds");
-            if (Directory.Exists(seedDir))
+            try
             {
-                string seedPath = Path.Combine(seedDir, baseName);
-                if (File.Exists(seedPath)) return seedPath;
-
-                // Also check for _seed suffix variant
-                string seedSuffix = Path.Combine(seedDir, nameNoExt + "_seed.rfa");
-                if (File.Exists(seedSuffix)) return seedSuffix;
+                var entry = ResolveManifestEntry(doc, bic, baseName);
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.FamilyFile))
+                {
+                    string hit = ProbeRoots(entry.FamilyFile, null);
+                    if (!string.IsNullOrEmpty(hit))
+                    {
+                        VerifyArtefactChecksum(entry, hit);
+                        return hit;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Manifest trouble must not cost us the family — fall through to the
+                // name-derived search below, which is what shipped before.
+                StingLog.WarnRateLimited("FindSeedFamily.Manifest", $"manifest lookup: {ex.Message}");
             }
 
-            return null;
+            return ProbeRoots(baseName, nameNoExt + "_seed.rfa");
+        }
+
+        /// <summary>Manifest entry for a category: by Revit display name first (so a
+        /// project override keyed on the category wins), else by the file name this
+        /// category would produce — which covers the ~85 variant / healthcare
+        /// families that carry no BuiltInCategory display-name mapping.</summary>
+        private static StingTools.Core.Content.ContentEntry ResolveManifestEntry(
+            Document doc, BuiltInCategory bic, string baseName)
+        {
+            if (CategoryDisplayName.TryGetValue(bic, out string cat) && !string.IsNullOrWhiteSpace(cat))
+            {
+                var byCat = StingTools.Core.Content.ContentManifestRegistry.TagFor(doc, cat);
+                if (byCat != null) return byCat;
+            }
+            var all = StingTools.Core.Content.ContentManifestRegistry.Get(doc)?.TagFamilies;
+            return all?.FirstOrDefault(e =>
+                string.Equals(e.FamilyFile, baseName, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
-        /// Get the output directory for tag families.
-        /// Creates a TagFamilies/ subdirectory alongside the plugin data.
+        /// Search every root for the first of the given file names that exists.
+        ///
+        /// A "Seeds/" sub-folder is deliberately NOT probed. It used to be, and it
+        /// took precedence over the root — so the 137 obsolete families in
+        /// Data/TagFamilies/Seeds shadowed the live set for the 88 categories whose
+        /// names they shared, and the manifest checksum then mismatched on every one
+        /// of them because the manifest describes the flat file. Those 137 are
+        /// deleted; the probe is removed with them rather than left as an empty
+        /// slot, because a directory that outranks the corporate set is a trap:
+        /// anything dropped there later silently shadows a category, which is
+        /// exactly the defect being removed.
         /// </summary>
-        public static string GetOutputDirectory()
+        private static string ProbeRoots(string primary, string alternate)
+        {
+            foreach (var dir in GetTagLibraryRoots())
+            {
+                if (string.IsNullOrEmpty(dir)) continue;
+                try
+                {
+                    if (!Directory.Exists(dir)) continue;
+                    if (!string.IsNullOrEmpty(primary))
+                    {
+                        string p = Path.Combine(dir, primary);
+                        if (File.Exists(p)) return p;
+                    }
+                    if (!string.IsNullOrEmpty(alternate))
+                    {
+                        string a = Path.Combine(dir, alternate);
+                        if (File.Exists(a)) return a;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.WarnRateLimited("FindSeedFamily", $"probing '{dir}': {ex.Message}");
+                }
+            }
+            return null;
+        }
+
+        /// <summary>SHA-256 the .rfa and compare against the manifest's artefact
+        /// checksum. Warns on mismatch; always lets the load proceed.</summary>
+        private static void VerifyArtefactChecksum(
+            StingTools.Core.Content.ContentEntry entry, string path)
+        {
+            try
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.Checksum) || entry.Checksum.Length != 64)
+                    return;   // nothing declared — silence is correct, not a finding
+
+                string actual;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var fs = File.OpenRead(path))
+                {
+                    var hash = sha.ComputeHash(fs);
+                    var sb = new StringBuilder(hash.Length * 2);
+                    foreach (var b in hash) sb.Append(b.ToString("x2"));
+                    actual = sb.ToString();
+                }
+
+                if (string.Equals(actual, entry.Checksum, StringComparison.OrdinalIgnoreCase)) return;
+
+                StingLog.Warn($"Tag family drift: '{entry.FamilyFile}' at '{path}' does not match the "
+                            + $"checksum in STING_CONTENT_MANIFEST.json "
+                            + $"(manifest {entry.Checksum.Substring(0, 12)}…, on disk {actual.Substring(0, 12)}…). "
+                            + "Loading it anyway — a deliberately customised tag is legitimate. "
+                            + "Re-stamp the manifest if this file is the new baseline.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("TagChecksum", $"verifying '{path}': {ex.Message}");
+            }
+        }
+
+
+        /// <summary>
+        /// The legacy, plugin-local tag library: &lt;DataPath&gt;/TagFamilies.
+        /// This is what the plugin read exclusively before the content library was
+        /// wired in, and it stays in the READ list forever so an existing
+        /// deployment never loses sight of its families.
+        /// </summary>
+        public static string LegacyTagDirectory()
         {
             string baseDir = StingToolsApp.DataPath;
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "";
+            return Path.Combine(baseDir, "TagFamilies");
+        }
 
-            string tagFamilyDir = Path.Combine(baseDir, "TagFamilies");
-            if (!Directory.Exists(tagFamilyDir))
-                Directory.CreateDirectory(tagFamilyDir);
+        /// <summary>
+        /// The firm-wide tag library — &lt;ContentRoots.ResolveSharedRoot()&gt;/Tags —
+        /// or null when no shared root resolves. Resolution (env → %APPDATA%
+        /// sting_content.json → %PROGRAMDATA%/STING/ContentLibrary) is owned by
+        /// ContentRoots so tags and symbols cannot drift apart.
+        /// </summary>
+        public static string SharedTagDirectory()
+        {
+            try
+            {
+                string root = StingTools.Core.Content.ContentRoots.ResolveSharedRoot();
+                return string.IsNullOrWhiteSpace(root) ? null : Path.Combine(root, "Tags");
+            }
+            catch (Exception ex) { StingLog.Warn($"SharedTagDirectory: {ex.Message}"); return null; }
+        }
 
-            return tagFamilyDir;
+        /// <summary>
+        /// Ordered READ list for tag families: shared library first, then the
+        /// legacy plugin-local folder. First root that holds a given family wins.
+        ///
+        /// Split from <see cref="GetOutputDirectory"/> deliberately. Reading and
+        /// writing are different questions — a machine with an unwritable
+        /// ProgramData must still be able to READ the firm library — and conflating
+        /// them is what made the two libraries diverge unnoticed in the first place.
+        /// </summary>
+        public static IReadOnlyList<string> GetTagLibraryRoots()
+        {
+            var roots = new List<string>();
+            string shared = SharedTagDirectory();
+            if (!string.IsNullOrEmpty(shared)) roots.Add(shared);
+            string legacy = LegacyTagDirectory();
+            if (!string.IsNullOrEmpty(legacy)) roots.Add(legacy);
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var outList = new List<string>();
+            foreach (var r in roots) if (seen.Add(r)) outList.Add(r);
+            return outList;
+        }
+
+        /// <summary>Count of .rfa files directly in a folder; 0 when absent.</summary>
+        private static int RfaCount(string dir)
+        {
+            try
+            {
+                return string.IsNullOrEmpty(dir) || !Directory.Exists(dir)
+                    ? 0 : Directory.GetFiles(dir, "*.rfa", SearchOption.TopDirectoryOnly).Length;
+            }
+            catch { return 0; }
+        }
+
+        /// <summary>
+        /// Get the output directory for tag families. Name and signature unchanged —
+        /// all six existing callers keep working untouched.
+        ///
+        /// Resolution mirrors SymbolLibraryCommands.ResolveOutputRoot, including its
+        /// "don't strand an existing library" guard:
+        ///
+        ///   1. If the LEGACY folder holds families and the SHARED one holds none,
+        ///      keep writing to legacy. Otherwise a build would move to the shared
+        ///      root while every read still found the older local copies first, the
+        ///      stale families would keep winning, and the move would silently
+        ///      accomplish nothing. Migration is a deliberate act, not a side effect
+        ///      of an upgrade.
+        ///   2. Otherwise the shared library, write-probed — an unwritable
+        ///      ProgramData must DEGRADE to local, not fail the command.
+        ///   3. Otherwise legacy.
+        /// </summary>
+        public static string GetOutputDirectory()
+        {
+            string legacy = LegacyTagDirectory();
+            string shared = SharedTagDirectory();
+
+            if (!string.IsNullOrEmpty(shared))
+            {
+                int legacyCount = RfaCount(legacy);
+                int sharedCount = RfaCount(shared);
+
+                if (legacyCount > 0 && sharedCount == 0)
+                {
+                    StingLog.Info($"Tag output stays local: {legacyCount} family/families in "
+                                + $"'{legacy}' and none in the shared library '{shared}'. "
+                                + "Move them deliberately to migrate.");
+                }
+                else if (TryPrepareWritable(shared))
+                {
+                    return shared;
+                }
+            }
+
+            try { if (!Directory.Exists(legacy)) Directory.CreateDirectory(legacy); }
+            catch (Exception ex) { StingLog.Warn($"GetOutputDirectory: cannot create '{legacy}': {ex.Message}"); }
+            return legacy;
+        }
+
+        /// <summary>Create + write-probe a folder. Same shape as
+        /// MepSymbolEngine.ProbeDefaultSharedRoot, which is private to that class.</summary>
+        private static bool TryPrepareWritable(string dir)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string probe = Path.Combine(dir, ".sting_write_probe");
+                File.WriteAllText(probe, "");
+                File.Delete(probe);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Shared tag library '{dir}' is not writable, using the local folder: {ex.Message}");
+                return false;
+            }
         }
     }
 
@@ -1099,14 +1328,13 @@ namespace StingTools.Tags
             // dead-end. TagConfigPlanResolver / FamilyLabelAuthor / HandoverModeHelper mode
             // loading are gone from here.
 
-            // ── Pre-check: Auto-fix any numeric label params to TEXT ──
+            // ── Pre-check: Validate label param types (informational only — do NOT auto-fix MR_PARAMETERS.txt) ──
+            // AutoFixSourceFile() removed: it re-manufactured type conflicts by rewriting MR_PARAMETERS.txt
+            // to TEXT on every CreateTagFamilies run. Correct architecture uses _TXT mirror params.
             var typeMismatches = LabelParamTypeValidator.ValidateSourceFile();
             if (typeMismatches.Count > 0)
-            {
-                int autoFixed = LabelParamTypeValidator.AutoFixSourceFile();
-                if (autoFixed > 0)
-                    StingLog.Info($"Auto-fixed {autoFixed} label params to TEXT before family creation");
-            }
+                StingLog.Warn($"Label param type check: {typeMismatches.Count} non-TXT params referenced in label " +
+                    "tiers. These should reference _TXT mirror params instead. No auto-fix applied.");
 
             // ── Step 1: Locate annotation templates ──
             string templateDir = TagFamilyConfig.FindTemplateDirectory(app);
@@ -1255,16 +1483,41 @@ namespace StingTools.Tags
                 $"Templates: {templateDir}\n" +
                 $"Tag .rft files found: {tagRftCount} of {availableRft.Length} total\n" +
                 $"Output: {TagFamilyConfig.GetOutputDirectory()}\n\n" +
+                (onDisk > 0
+                    ? $"⚠ {onDisk} family/families already exist on disk and will be LEFT ALONE.\n" +
+                      "  Tick the box below to re-create them instead — that DELETES and re-mints\n" +
+                      "  the .rfa, and label rows cannot be re-authored by this plugin. Any label\n" +
+                      "  work done by hand in the Family Editor is lost and must be redone by hand.\n\n"
+                    : "") +
                 "Each family is created from a Revit annotation template, loaded with STING\n" +
                 "shared parameters, and given the standard depth/style type variants.\n\n" +
                 "NEXT: run 'Propagate Universal' to clone the universal label onto every\n" +
                 "family, then 'Set depth' to choose the visible tier count. Label rows are\n" +
                 "NOT authored here — the Revit API cannot author label rows.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+
+            // P0 — re-creation is now OPT-IN.
+            //
+            // skipExistingOnDisk was hard-coded false, so every run deleted and
+            // re-minted any existing .rfa that failed VerifyFamilyHasParams. Label
+            // rows cannot be authored through the Revit API — this file says so at
+            // :33-34, :1078 and :1261-1262 — so a re-mint destroys work that can
+            // only be redone by hand in the Family Editor. A destructive default on
+            // a command called "Create" is the wrong way round: creating what is
+            // missing is the safe reading of the name, and overwriting is the
+            // exceptional act that should have to be asked for.
+            if (onDisk > 0)
+                confirm.VerificationText =
+                    $"Re-create the {onDisk} existing family/families — DESTROYS hand-authored label rows";
+
             var choice = confirm.Show();
             if (choice == TaskDialogResult.Cancel)
                 return Result.Cancelled;
-            bool skipExistingOnDisk = false; // default: recreate all families
+
+            bool skipExistingOnDisk = onDisk == 0 || !confirm.WasVerificationChecked();
+            if (!skipExistingOnDisk)
+                StingLog.Warn($"CreateTagFamilies: user opted IN to re-creating {onDisk} existing "
+                            + "tag family/families — hand-authored label rows in those files are lost.");
 
             string outputDir = outputDirEarly;
             report.AppendLine($"STING Tag Family Creation Report");
@@ -1305,12 +1558,20 @@ namespace StingTools.Tags
                     // These are .rfa files manually configured via the Family Editor and
                     // placed in Data/TagFamilies/ for distribution. They take priority
                     // because they have labels already pointing to ASS_TAG_1_TXT.
-                    string seedPath = TagFamilyConfig.FindSeedFamily(bic);
+                    // doc is passed so ContentManifestRegistry can merge this
+                    // project's _BIM_COORD/content_manifest.json over the corporate
+                    // baseline — without it the override tier is unreachable.
+                    string seedPath = TagFamilyConfig.FindSeedFamily(bic, doc);
                     if (!string.IsNullOrEmpty(seedPath))
                     {
                         if (LoadFamilyIntoProject(doc, seedPath, famName))
                         {
-                            report.AppendLine($"  [SEED] {catDisplay} — loaded pre-configured seed family");
+                            // Name the folder it came from. With multiple roots in
+                            // play "loaded pre-configured seed family" no longer
+                            // identifies which library actually supplied it, and
+                            // that is the question a diverged library raises.
+                            report.AppendLine($"  [SEED] {catDisplay} — loaded existing family from "
+                                            + $"{Path.GetDirectoryName(seedPath)}");
                             loaded++;
                         }
                         else
@@ -2001,7 +2262,7 @@ namespace StingTools.Tags
                 report.AppendLine("author label rows; they come from the universal master.");
                 report.AppendLine();
                 report.AppendLine("TIP: after propagating, copy finished .rfa files to");
-                report.AppendLine("Data/TagFamilies/Seeds/ to skip creation next time.");
+                report.AppendLine("Data/TagFamilies/ to skip creation next time.");
             }
 
             TaskDialog td = new TaskDialog("Create Tag Families");
@@ -2165,7 +2426,7 @@ namespace StingTools.Tags
                             // Attempt to set the FamilyLabel to our tag parameter.
                             // This works for dimension labels in families but may not
                             // work for annotation text labels (which is the Revit limitation).
-                            if (dim.FamilyLabel != null || dim.FamilyLabel == null)
+                            if (dim.FamilyLabel == null)
                             {
                                 dim.FamilyLabel = tagParam;
                                 StingLog.Info("Successfully rebound dimension label to ASS_TAG_1_TXT");
@@ -2281,6 +2542,89 @@ namespace StingTools.Tags
         /// </summary>
         private bool LoadFamilyIntoProject(Document doc, string familyPath, string expectedName)
         {
+            // ── GUID/type pre-screen ──
+            // doc.LoadFamily() raises an unrecoverable Error-severity modal when the family
+            // carries a shared param whose GUID already exists in the project with a different
+            // data type (e.g. family has BLE_WALL_THICKNESS_MM as Text, project has it as Length).
+            // Build a project-side GUID→typeId index and warn before calling LoadFamily.
+            var projectSpecByGuid = new Dictionary<Guid, (string name, string typeId)>();
+            try
+            {
+                var spes = new FilteredElementCollector(doc)
+                    .OfClass(typeof(SharedParameterElement))
+                    .Cast<SharedParameterElement>();
+                foreach (var spe in spes)
+                {
+                    try
+                    {
+                        Guid g = spe.GuidValue;
+                        var intDef = spe.GetDefinition();
+                        string name = intDef?.Name ?? "";
+                        string typeId = null;
+                        try { typeId = intDef?.GetDataType()?.TypeId; } catch { }
+                        projectSpecByGuid[g] = (name, typeId);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LoadFamilyIntoProject: could not pre-scan project SharedParameterElements: {ex.Message}");
+            }
+
+            // Open the family's shared-param definitions and check for type conflicts.
+            // We cannot open the .rfa here without a Transaction, so we read the family's
+            // ExternalDefinitionCreationOptions from the shared param file it was built with.
+            // The conservative approach: if we cannot verify, proceed and catch the exception.
+            int conflictCount = 0;
+            if (projectSpecByGuid.Count > 0)
+            {
+                try
+                {
+                    string spFilePath = doc.Application.SharedParametersFilename;
+                    if (!string.IsNullOrEmpty(spFilePath) && System.IO.File.Exists(spFilePath))
+                    {
+                        var app = doc.Application;
+                        string prevPath = app.SharedParametersFilename;
+                        DefinitionFile defFile = app.OpenSharedParameterFile();
+                        app.SharedParametersFilename = prevPath;
+                        if (defFile != null)
+                        {
+                            foreach (DefinitionGroup grp in defFile.Groups)
+                            {
+                                foreach (Definition d in grp.Definitions)
+                                {
+                                    if (d is ExternalDefinition ed)
+                                    {
+                                        if (projectSpecByGuid.TryGetValue(ed.GUID, out var proj))
+                                        {
+                                            string newTypeId = null;
+                                            try { newTypeId = ed.GetDataType()?.TypeId; } catch { }
+                                            if (newTypeId != null && proj.typeId != null &&
+                                                newTypeId != proj.typeId)
+                                            {
+                                                StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': " +
+                                                    $"GUID {ed.GUID} param '{ed.Name}' type mismatch — " +
+                                                    $"family={newTypeId} project={proj.typeId}. " +
+                                                    "Family may cause Error modal. Proceeding with load.");
+                                                conflictCount++;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': pre-screen error (non-fatal): {ex.Message}");
+                }
+                if (conflictCount > 0)
+                    StingLog.Warn($"LoadFamilyIntoProject '{expectedName}': {conflictCount} GUID/type conflict(s) detected. " +
+                        "Fix _TXT mirror params in MR_PARAMETERS.txt before loading families.");
+            }
+
             try
             {
                 using (Transaction tx = new Transaction(doc, $"STING Load Tag Family"))
@@ -2349,23 +2693,55 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string tagFamilyDir = TagFamilyConfig.GetOutputDirectory();
-            if (!Directory.Exists(tagFamilyDir))
+            // Read across every library root, shared first, de-duplicating by family
+            // NAME with first-root-wins — so a firm-authored family shadows the
+            // plugin-local copy of the same name rather than both being offered.
+            var roots = TagFamilyConfig.GetTagLibraryRoots();
+            var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var perRoot = new List<string>();
+            foreach (var root in roots)
             {
+                int added = 0, shadowed = 0;
+                try
+                {
+                    if (Directory.Exists(root))
+                    {
+                        foreach (var f in Directory.GetFiles(root, "STING - *.rfa"))
+                        {
+                            string n = Path.GetFileNameWithoutExtension(f);
+                            if (byName.ContainsKey(n)) { shadowed++; continue; }
+                            byName[n] = f; added++;
+                        }
+                        perRoot.Add($"  {root}\n      {added} used"
+                                  + (shadowed > 0 ? $", {shadowed} shadowed by a higher root" : ""));
+                    }
+                    else perRoot.Add($"  {root}\n      (does not exist)");
+                }
+                catch (Exception ex)
+                {
+                    perRoot.Add($"  {root}\n      unreadable: {ex.Message}");
+                    StingLog.Warn($"LoadTagFamilies: root '{root}': {ex.Message}");
+                }
+            }
+
+            string[] rfaFiles = byName.Values.ToArray();
+            if (rfaFiles.Length == 0)
+            {
+                // The old message here was "Run 'Create Tag Families' first" — which
+                // is precisely the instruction that trains a user to re-author the
+                // library per project, and on a machine whose families live in the
+                // shared root it was simply wrong. Say where we looked instead.
                 TaskDialog.Show("Load Tag Families",
-                    "Tag families directory not found.\n" +
-                    "Run 'Create Tag Families' first to generate the .rfa files.");
+                    "No STING tag family .rfa files were found.\n\n"
+                  + "Roots searched, in order:\n" + string.Join("\n", perRoot) + "\n\n"
+                  + "If the firm library is elsewhere, point STING_CONTENT_LIB at it, or set\n"
+                  + "\"content_root\" in %APPDATA%\\STING\\sting_content.json.\n\n"
+                  + "Only run 'Create Tag Families' if this machine genuinely has no library —\n"
+                  + "it mints families that still need their label rows authored by hand.");
                 return Result.Failed;
             }
 
-            string[] rfaFiles = Directory.GetFiles(tagFamilyDir, "STING - *.rfa");
-            if (rfaFiles.Length == 0)
-            {
-                TaskDialog.Show("Load Tag Families",
-                    $"No STING tag family .rfa files found in:\n{tagFamilyDir}\n\n" +
-                    "Run 'Create Tag Families' first.");
-                return Result.Failed;
-            }
+            StingLog.Info($"LoadTagFamilies: {rfaFiles.Length} family/families across {roots.Count} root(s).");
 
             // Check which are already loaded
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2724,7 +3100,7 @@ namespace StingTools.Tags
                     ? "Run this command again to configure remaining families."
                     : "All tag families have been opened for configuration.\n\n" +
                       "TIP: Copy finished .rfa files from Data/TagFamilies/ to\n" +
-                      "Data/TagFamilies/Seeds/ so they auto-load next time.");
+                      "Data/TagFamilies/ so they auto-load next time.");
             summary.Show();
 
             StingLog.Info($"ConfigureTagLabels: configured={configured}, skipped={skipped}");

@@ -40,8 +40,12 @@ namespace StingTools.V6
         public string ProjectId { get; set; } = string.Empty;
         /// <summary>ACC Model-Coordination container id. Often differs from the Issues/ProjectId container. Falls back to ProjectId when empty.</summary>
         public string CoordContainerId { get; set; } = string.Empty;
-        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.</summary>
+        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.
+        /// Left empty, <see cref="AccIssueSync.EnsureIssueTypeAsync"/> resolves one from the container and caches it here.</summary>
         public string IssueTypeId { get; set; } = string.Empty;
+        /// <summary>Subtype of <see cref="IssueTypeId"/>, cached alongside it. Only ever sent with that type —
+        /// a subtype id belongs to one type, so pairing it with a different type is rejected.</summary>
+        public string IssueSubtypeId { get; set; } = string.Empty;
         /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres). Set per the model's clash-result units.</summary>
         public double DistToMm { get; set; } = 1000.0;
 
@@ -69,8 +73,22 @@ namespace StingTools.V6
     public static class AccIssueSync
     {
         private static readonly HttpClient _http = new HttpClient();
-        private const string AuthUrl   = "https://developer.api.autodesk.com/authentication/v2/token";
-        private const string IssuesUrl = "https://developer.api.autodesk.com/construction/issues/v1";
+
+        internal const string DefaultHost = "https://developer.api.autodesk.com";
+        private static string _host = DefaultHost;
+
+        /// <summary>Test seam: point the client at a loopback listener. Production never
+        /// calls this. Pass null to restore the real APS host.</summary>
+        internal static void OverrideHostForTests(string host)
+            => _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
+
+        /// <summary>Test seam: the 429 back-off wait. Production waits the real interval;
+        /// tests replace it with a no-op so the suite does not sleep 7 seconds proving the
+        /// retry runs. Production timings are never altered to suit a test.</summary>
+        internal static Func<TimeSpan, Task> DelayHook = t => Task.Delay(t);
+
+        private static string AuthUrl   => _host + "/authentication/v2/token";
+        private static string IssuesUrl => _host + "/construction/issues/v1";
 
         /// <summary>
         /// Ensure the access token is fresh; refresh via
@@ -115,11 +133,83 @@ namespace StingTools.V6
             finally { _tokenLock.Release(); }
         }
 
+        /// <summary>
+        /// Resolve a usable issue_type_id for the container, so a push does not
+        /// depend on someone having hand-entered a GUID in acc_credentials.json.
+        ///
+        /// Order: an already-cached <see cref="AccCredentials.IssueTypeId"/> wins and
+        /// costs nothing; otherwise the container's issue types are fetched once and a
+        /// Clash/Coordination type is preferred, falling back to the first offered.
+        /// The chosen id (and its first subtype) is cached on the credentials and
+        /// persisted, so the fetch happens once per machine rather than per issue.
+        ///
+        /// Returns false — and logs why — rather than throwing: a push with no type
+        /// still runs and ACC reports the rejection, which is more informative than a
+        /// pre-emptive exception here.
+        /// </summary>
+        public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
+        {
+            if (creds == null) return false;
+            if (!string.IsNullOrEmpty(creds.IssueTypeId)) return true;
+            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return false;
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get,
+                    $"{IssuesUrl}/containers/{creds.ProjectId}/issue-types?include=subtypes&limit=200");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    StingLog.Warn($"AccIssueSync.EnsureIssueType: issue-types returned {(int)resp.StatusCode}");
+                    return false;
+                }
+                var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                var results = j["results"] as JArray;
+                if (results == null || results.Count == 0)
+                {
+                    StingLog.Warn("AccIssueSync.EnsureIssueType: container exposes no issue types.");
+                    return false;
+                }
+
+                JToken chosen = null;
+                foreach (var t in results)
+                {
+                    string title = ((string)t["title"] ?? string.Empty).ToLowerInvariant();
+                    if (title.Contains("clash") || title.Contains("coordination")) { chosen = t; break; }
+                }
+                if (chosen == null) chosen = results[0];
+
+                string id = (string)chosen["id"] ?? string.Empty;
+                if (string.IsNullOrEmpty(id))
+                {
+                    StingLog.Warn("AccIssueSync.EnsureIssueType: chosen issue type carries no id.");
+                    return false;
+                }
+                creds.IssueTypeId = id;
+                var subs = chosen["subtypes"] as JArray;
+                creds.IssueSubtypeId = (subs != null && subs.Count > 0)
+                    ? ((string)subs[0]["id"] ?? string.Empty) : string.Empty;
+                SaveCredentials(creds);
+                StingLog.Info($"AccIssueSync: resolved issue type '{(string)chosen["title"]}' ({id}).");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("AccIssueSync.EnsureIssueType failed", ex);
+                return false;
+            }
+        }
+
         /// <summary>Push a STING-originated issue to ACC.</summary>
         public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
         {
             if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
             string issueType = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
+            if (string.IsNullOrEmpty(issueType))
+            {
+                await EnsureIssueTypeAsync(creds).ConfigureAwait(false);
+                issueType = creds.IssueTypeId;
+            }
             var body = new JObject
             {
                 ["title"]               = issue.Title,
@@ -130,20 +220,32 @@ namespace StingTools.V6
             // ACC requires a valid issue_type_id. Only send it when we have one;
             // omitting an empty value is safer than posting "" (which ACC rejects).
             if (!string.IsNullOrEmpty(issueType)) body["issue_type_id"] = issueType;
-            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — set IssueTypeId in acc_credentials.json; ACC may reject.");
-            var req = new HttpRequestMessage(HttpMethod.Post,
-                $"{IssuesUrl}/containers/{creds.ProjectId}/issues")
-            { Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json") };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — none configured and none resolvable " +
+                               "from the container; set IssueTypeId in acc_credentials.json. ACC may reject.");
+            // The cached subtype belongs to the cached type. Sending it beside an
+            // issue's own, different type is an ACC rejection, so pair them or omit.
+            if (!string.IsNullOrEmpty(creds.IssueSubtypeId) && issueType == creds.IssueTypeId)
+                body["issue_subtype_id"] = creds.IssueSubtypeId;
+            string url = $"{IssuesUrl}/containers/{creds.ProjectId}/issues";
+            string payload = body.ToString();
 
+            // The request MUST be built inside the loop. An HttpRequestMessage is
+            // single-use: re-sending one throws InvalidOperationException("The request
+            // message was already sent"), so the old shape logged "ACC 429 — retrying"
+            // and then dropped the issue at the call site's catch. PullIssuesAsync below
+            // already builds per attempt; this now matches it.
             for (int attempt = 0; attempt < 4; attempt++)
             {
-                var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                using var req = new HttpRequestMessage(HttpMethod.Post, url)
+                { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+
+                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
                 if ((int)resp.StatusCode == 429)
                 {
                     int wait = 1 << attempt;
                     StingLog.Warn($"ACC 429 — retrying in {wait}s");
-                    await Task.Delay(TimeSpan.FromSeconds(wait)).ConfigureAwait(false);
+                    await DelayHook(TimeSpan.FromSeconds(wait)).ConfigureAwait(false);
                     continue;
                 }
                 if (!resp.IsSuccessStatusCode)
@@ -154,38 +256,100 @@ namespace StingTools.V6
                 var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
                 return (string)j["id"];
             }
+            StingLog.Warn("AccIssueSync.PushIssue: ACC rate-limited all 4 attempts; issue not created.");
             return null;
         }
 
         /// <summary>Pull the full issue set from ACC, following pagination (offset
         /// loop) so large projects aren't truncated at the first page. 429s retried
-        /// per page with back-off; stops at the first short page or maxPages cap.</summary>
-        public static async Task<List<AccIssue>> PullIssuesAsync(AccCredentials creds, int pageSize = 100, int maxPages = 200)
+        /// per page with back-off; stops at the first short page or maxPages cap.
+        ///
+        /// Returns an <see cref="AccFetchResult{T}"/>, not a bare list, because the three
+        /// old exits — auth failure, a mid-pagination HTTP error, and success — all
+        /// returned a <c>List&lt;AccIssue&gt;</c> that the caller could not tell apart.
+        /// AccSyncIssueStatusCommand then read "issue absent from the list" as
+        /// "ACC deleted our issue", so an expired token made every escalated clash look
+        /// deleted, and a page-2 failure produced a PARTIAL reconciliation presented as a
+        /// complete one — after which the escalation sidecar was written.
+        ///
+        /// A PARTIAL read is a FAILURE. Only a run that read every page it needed is
+        /// Ok/EmptyOk; the rows gathered before the break are still returned in Value for
+        /// diagnostics, and Detail names how many pages succeeded.</summary>
+        public static async Task<AccFetchResult<List<AccIssue>>> PullIssuesAsync(
+            AccCredentials creds, int pageSize = 100, int maxPages = 200)
         {
             var list = new List<AccIssue>();
-            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return list;
+            if (!await EnsureAuthAsync(creds).ConfigureAwait(false))
+            {
+                StingLog.Warn("AccIssueSync.PullIssues: no access token (refresh rejected or absent).");
+                return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.AuthFailed, list, 0,
+                    "no ACC access token could be obtained — the refresh token in acc_credentials.json " +
+                    "was rejected or is absent, so no issue was read at all");
+            }
 
             int offset = 0;
+            int pagesRead = 0;
             for (int page = 0; page < maxPages; page++)
             {
                 JObject j = null;
+                int lastStatus = 0;
                 for (int attempt = 0; attempt < 4 && j == null; attempt++)
                 {
-                    var req = new HttpRequestMessage(HttpMethod.Get,
-                        $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                    var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                    if ((int)resp.StatusCode == 429) { await Task.Delay(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
-                    if (!resp.IsSuccessStatusCode)
+                    try
                     {
-                        StingLog.Warn($"AccIssueSync.PullIssues {(int)resp.StatusCode} at offset {offset}");
-                        return list;
+                        using var req = new HttpRequestMessage(HttpMethod.Get,
+                            $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
+                        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
+                        using var resp = await _http.SendAsync(req).ConfigureAwait(false);
+                        lastStatus = (int)resp.StatusCode;
+                        if (lastStatus == 429) { await DelayHook(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            StingLog.Warn($"AccIssueSync.PullIssues {lastStatus} at offset {offset}");
+                            var st = AccFetchOutcome.Classify(lastStatus, -1);
+                            return AccFetchResult<List<AccIssue>>.Failure(st, list, lastStatus,
+                                $"the issue list failed at page {pagesRead + 1} (offset {offset}) after " +
+                                $"{pagesRead} page(s) succeeded — {AccFetchOutcome.Describe(st, lastStatus)}. " +
+                                $"The {list.Count} issue(s) already read are an INCOMPLETE set and must not be " +
+                                "reconciled against.");
+                        }
+                        string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        try { j = JObject.Parse(body); }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn("AccIssueSync.PullIssues parse: " + ex.Message);
+                            return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                                $"page {pagesRead + 1} of the issue list was not valid JSON ({ex.Message}) after " +
+                                $"{pagesRead} page(s) succeeded");
+                        }
                     }
-                    j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
+                    catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is IOException)
+                    {
+                        // A network failure part-way through pagination is the shape that
+                        // produced a partial reconciliation. It is a failure, not a short read.
+                        StingLog.Warn("AccIssueSync.PullIssues transport: " + ex.Message);
+                        return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 0,
+                            $"the issue list request did not complete at page {pagesRead + 1} after " +
+                            $"{pagesRead} page(s) succeeded: {ex.Message}");
+                    }
                 }
-                if (j == null) break;
+                if (j == null)
+                {
+                    // Four consecutive 429s. Whatever we have is a partial set.
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                        $"Autodesk rate-limited page {pagesRead + 1} of the issue list on all 4 attempts " +
+                        $"(HTTP {lastStatus}) after {pagesRead} page(s) succeeded");
+                }
 
-                var results = j["results"] as JArray ?? new JArray();
+                var results = j["results"] as JArray;
+                if (results == null)
+                {
+                    // 200 with an unrecognised payload — a schema/sub-path change, never
+                    // "this container has no issues".
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                        $"page {pagesRead + 1} of the issue list carried no 'results' array — the " +
+                        "construction/issues/v1 payload shape has changed");
+                }
                 foreach (var t in results)
                 {
                     list.Add(new AccIssue
@@ -199,10 +363,16 @@ namespace StingTools.V6
                         LocationDescription = (string)t["location_description"] ?? string.Empty,
                     });
                 }
-                if (results.Count < pageSize) break;   // last page
+                pagesRead++;
+                if (results.Count < pageSize) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
                 offset += pageSize;
             }
-            return list;
+
+            // Ran out of maxPages without ever seeing a short page: there is more than we
+            // read, so this is also an incomplete set.
+            return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 200,
+                $"stopped at the {maxPages}-page cap with {pagesRead} page(s) read and no final short " +
+                "page — the container holds more issues than this read covered, so the set is INCOMPLETE");
         }
 
         /// <summary>True when an ACC issue status represents a closed/resolved state.</summary>

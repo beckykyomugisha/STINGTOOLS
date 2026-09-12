@@ -20,6 +20,20 @@ namespace Planscape.Tests;
 /// </summary>
 public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
 {
+    /// <summary>
+    /// The handoff-ticket signing secret injected into the test host's configuration.
+    /// Tests mint tickets with this instead of setting a process-global
+    /// <c>PLANSCAPE_HANDOFF_SECRET</c> environment variable, which leaks across the
+    /// parallel suite. Test-only; never leaves the in-process host.
+    /// </summary>
+    public const string HandoffSecret = "test-handoff-secret-not-a-real-one-0123456789";
+
+    /// <summary>
+    /// In-memory stand-in for the Redis replay guard. Tests drive single-use
+    /// behaviour through this — including simulating the store being down.
+    /// </summary>
+    public TestReplayGuard ReplayGuard { get; } = new();
+
     private readonly string _dbName = $"PlanscapeTest_{Guid.NewGuid():N}";
 
 
@@ -179,6 +193,12 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         // got 429 instead of 401 depending on how many logins ran before it.
         builder.UseSetting("RateLimiting:Enabled", "false");
 
+        // Handoff-ticket secret, injected rather than set as a process-global
+        // environment variable so it cannot leak into other test classes running
+        // in parallel. See HandoffSecret.
+        builder.UseSetting("PLANSCAPE_HANDOFF_SECRET", HandoffSecret);
+
+
         builder.ConfigureServices(services =>
         {
             // Remove the real DbContext registration
@@ -284,6 +304,14 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
                 .ToList();
             foreach (var d in cacheDescriptors) services.Remove(d);
             services.AddDistributedMemoryCache();
+
+            // Replay guard: the production implementation is a Redis SET NX, and
+            // its fail-open branch swallowed a store outage — substituting the
+            // blocking half here makes both halves drivable (see ReplayGuard).
+            var rgDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(Planscape.Core.Interfaces.IReplayGuard));
+            if (rgDescriptor != null) services.Remove(rgDescriptor);
+            services.AddSingleton<Planscape.Core.Interfaces.IReplayGuard>(ReplayGuard);
 
             // Build the service provider and seed test data
             var sp = services.BuildServiceProvider();

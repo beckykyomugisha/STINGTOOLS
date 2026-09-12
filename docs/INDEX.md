@@ -61,6 +61,13 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `BOQ_5D_*.md` / `BOQ_COST_MANAGER_5D_WORKSPACE_PROMPT.md` / `BOQ_INLINE_ACTIONS_SLICE3_PROMPT.md` /
 `BOQ_REVIEW_AND_HARDENING_PROMPT.md` (work prompts — intent, check against `CHANGELOG.md`)
 
+Also `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` · `BOQ_QS_IMPLEMENTATION_PROMPT_P1-P4.md` ·
+`PROJECT_MANAGEMENT_COST_CONTROL_PROMPT.md` (work prompts) and
+[`guides/SUSTAINABILITY_CARBON_COSTING_LAYMANS_GUIDE.md`](guides/SUSTAINABILITY_CARBON_COSTING_LAYMANS_GUIDE.md),
+a plain-English guide to the carbon and costing workflow. **Note:** `BOQ_5D_PHASE2_PROMPT.md` and
+`BOQ_5D_P2_PROMPT.md` are different documents with confusingly similar names — the first covers the
+five enhanced-rebuild items, the second the 4D tab, inline forms and link multiplier.
+
 ## Placement, symbols & families
 
 `PLACEMENT_CENTRE_REVIEW.md` · `PLACEMENT_FAMILY_AUTHORING.md` · `PLACEMENT_SEED_VARIANT_COVERAGE.md` ·
@@ -73,7 +80,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `MULTI_HOST_INTEGRATION_PLAN.md` · `CROSS_HOST_ROUND_TRIP_RUNBOOK.md` ·
 `CROSS_HOST_VALIDATION_CHECKLIST.md` · `PHASE_186_BONSAI_INTEGRATION.md` ·
 `PHASE_186_VERIFICATION_CHECKLIST.md` · `MVP_SCOPE_BONSAI.md` · `EXPORTER_TEXTURES.md` ·
-`MCP_V2_CAPABILITY_EXPOSURE.md`
+`MCP_V2_CAPABILITY_EXPOSURE.md` · `MCP_V2_AGENT_BRIEF.md` (work prompt)
 
 ## Parameters & tagging internals
 
@@ -144,6 +151,100 @@ CI rather than reaching an issue.
 | `tools/check_kut_documents.py` | ✅ **The gate.** Proves the pack is internally consistent, matches the LOD overlay, names no tooling, and is a current un-edited regeneration. Run by `.github/workflows/kut-document-gate.yml`. It proves nothing about whether the requirements are *right*, and nothing about a real Revit model. |
 | `tools/merge_tidp.py` | Merges returned TIDP workbooks into the register. **Preview by default**; writes only on `--apply`; refuses a conflicting `Ref` unless told otherwise. |
 
+## Audits, proposals and role model
+
+Dated reports and proposals. Each states the commit it was measured on; read the date before acting
+on a row, and check `CHANGELOG.md` for what has since landed.
+
+[`DOCUMENT_LIFECYCLE_ALIGNMENT_AUDIT.md`](DOCUMENT_LIFECYCLE_ALIGNMENT_AUDIT.md) (measured
+2026-08-01; row L2 is marked closed in the document itself) ·
+[`ROLE_MODEL_MIGRATION_PROPOSAL.md`](ROLE_MODEL_MIGRATION_PROPOSAL.md), with the reconciliation
+query at `Planscape.Server/tools/role-reconciliation-sheet.sql` ·
+[`KUT_INTEGRATION_READINESS_2026-09.md`](KUT_INTEGRATION_READINESS_2026-09.md) (measured
+2026-09-10 @ `d318dcbee`) — per-integration verdicts for Fohlio / Niagara / ACC against what the
+issued KUT documents promise: ACC and Niagara **wired but unproven**, Fohlio's contracted CSV tier
+**works**. Names the one credential and the five offline fixes that stand between the pack and a
+proven coordination cycle ·
+[`PROMPT_KUT_INTEGRATION_BUILD.md`](PROMPT_KUT_INTEGRATION_BUILD.md) (work prompt, written
+2026-09-10) — the build that closes what the readiness report found, ordered by what unblocks KUT
+soonest. Eight offline tasks, each with the command that proves it and the sabotage that must break
+it; three third-party-blocked items are quarantined in their own section ·
+[`PROMPT_KUT_INTEGRATION_BUILD_2.md`](PROMPT_KUT_INTEGRATION_BUILD_2.md) (work prompt, written
+2026-09-10) — the second build pass, after PR #927. Finishes the defect class #927 half-closed:
+a failed ACC issue read still reads as "the issues are gone", and a malformed Niagara feed still
+reads as "live, nothing commissioned" while overwriting the cached fallback. Seven offline tasks ·
+[`KUT_LIVE_VERIFICATION_RUNBOOK.md`](KUT_LIVE_VERIFICATION_RUNBOOK.md) (written 2026-09-10) — how to
+prove ACC, Niagara and Fohlio against the real tenant / station / designer, for the three items no
+developer can close alone. Per item: who must act first, what they must supply, the steps, the
+**observable** proof, and what the failure actually looks like. The ACC section is overdue —
+mobilisation began the week of 25 August 2026 ·
+[`PROMPT_ACC_UNATTENDED_OPERATION.md`](PROMPT_ACC_UNATTENDED_OPERATION.md) (work prompt,
+written 2026-09-10) — the third KUT/ACC pass, about operation rather than
+correctness: the fortnightly coordination cycle cannot run without a human clicking four
+dialogs, though the ACC clients are already Revit-free and three automation substrates are
+already wired. Six offline tasks, and an explicit list of what must stay manual ·
+[`PHASE6B_CAPABILITY_VERIFICATION.md`](PHASE6B_CAPABILITY_VERIFICATION.md) ·
+[`MEP_PRINT_READY_PUNCHLIST_RUNNER.md`](MEP_PRINT_READY_PUNCHLIST_RUNNER.md) (work prompt)
+
 ## Domain packs
 
-`HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
+`HEALTHCARE_PACK_DESIGN.md` · the seven healthcare work prompts — intent at the date each was written, check against `CHANGELOG.md` before assuming any of it shipped: `HEALTHCARE_ACCURACY_FIXES_PROMPT.md` · `HEALTHCARE_CHANGELOG_ROADMAP_FIX_PROMPT.md` · `HEALTHCARE_COMPLETENESS_FIXES_PROMPT.md` · `HEALTHCARE_DEFERRED_IMPLEMENTATION_PROMPT.md` · `HEALTHCARE_GAP_FIXES_PROMPT.md` · `HEALTHCARE_PHASE199_FIXES_PROMPT.md` · `HEALTHCARE_PROFILE_COVERAGE_PROMPT.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
+`HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`
+
+## Tagging — current
+
+- [Universal tag conformance](UNIVERSAL_TAG_CONFORMANCE.md) ✅ — the four code contracts the universal tag does not yet meet
+- [F-9 spatial code reconciliation](F9_SPATIAL_CODE_RECONCILIATION.md) ✅ — five level + three LOC vocabularies, measured
+- [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied
+- [Tagging workflow analysis](TAGGING_WORKFLOW_ANALYSIS.md) ⛔ SUPERSEDED
+- [Universal tag badge/glyph guide](UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md) ⛔ SUPERSEDED
+
+## Unclassified — indexed, not yet triaged
+
+**These are listed so they are not invisible, not because anyone has read them.**
+Every other section marks a document ✅ current or ⛔ superseded. Nobody has made
+that call for the files below, and guessing would be worse than saying so: a wrong
+✅ sends a reader to act on a stale plan.
+
+They were named nowhere in this index until 2026-09-09, which meant a reader
+checking whether a document existed concluded it did not. `tools/check_docs_index.py`
+now fails when a `docs/*.md` is named nowhere here, so the list cannot grow silently.
+
+**This section should only shrink.** Moving a file out of it — into the section it
+belongs to, with a ✅ or ⛔ — is the work; it needs someone who knows whether the
+document still describes the code.
+
+- `BOQ_5D_ENHANCED_REBUILD_PROMPT.md`
+- `BOQ_5D_ENHANCEMENTS_PROMPT.md`
+- `BOQ_LOOKUP_FORMULA_AUDIT.md`
+- `CLIENT_SERVER_VOCABULARY_PROPOSALS.md`
+- `DOCUMENT_MANAGER_GAPS_RUNNER.md`
+- `HVAC_GAP_ANALYSIS.md`
+- `HVAC_GAP_REMEDIATION_PROMPT.md`
+- `KIBALE_REVIT_VERIFICATION.md`
+- `KNP26_READINESS.md`
+- `MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md`
+- `MATERIAL_SCHEDULE_GAPS_RUNNER_PROMPT.md`
+- `MATERIAL_SCHEDULE_T6_FAMILY_MATERIALS_PROPOSAL.md`
+- `NATIVE_TYPE_MIGRATION_ANALYSIS.md`
+- `OPERATOR_SESSION_KIBALE.md`
+- `PERFECT_PLACEMENT_PROMPT.md`
+- `PLACEMENT_CENTRE_REVIEW_AND_FIX_PROMPT.md`
+- `PLACEMENT_LIBRARY_TAB_AND_DWG_BRIDGE_PROMPT.md`
+- `PLACEMENT_SEEDS_SWAP_IMPLEMENTATION_PROMPT.md`
+- `PROMPT_BRANCH_AND_WORKSPACE_TRIAGE.md`
+- `PROMPT_KUT_LIFECYCLE_INTEGRATION.md`
+- `PROMPT_KUT_MOBILISATION_HARDENING.md`
+- `RESEARCH_PROMPT_livekit_and_corporate_ui.md`
+- `ROUND_TRIP_R1_R2_SPEC.md`
+- `UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`
+- `UNIVERSAL_TAG_FINALIZE_RUNNER.md`
+- `UNIVERSAL_TAG_INTEGRATION_RUNNER.md`
+- `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`
+- `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`
+- `UNIVERSAL_TAG_TEARDOWN_RUNNER.md`
+- `VERIFY_PHASE1.md`
+- `VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`
+- `VISIBILITY_CENTER_RUNNER.md`
+- `WIRE_ELEMENT_ANNOTATION_SCOPE.md`
+- `archicad-zone-mapping-guide.md`

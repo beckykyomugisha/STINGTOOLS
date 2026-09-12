@@ -38,6 +38,18 @@ namespace StingTools.Core
     /// </summary>
     public static partial class TagConfig
     {
+        // F-2 — elements whose LOC could not be derived and were assigned XX.
+        // Previously these were absorbed into the first building code, which made a
+        // multi-building project's first building silently over-counted.
+        private static int _unresolvedLocCount;
+
+        /// <summary>F-2: count of elements assigned LOC "XX" because it could not be derived.</summary>
+        public static int UnresolvedLocCount => System.Threading.Volatile.Read(ref _unresolvedLocCount);
+
+        /// <summary>F-2: reset at a batch boundary, alongside the other per-batch counters.</summary>
+        public static void ResetUnresolvedLocCount()
+            => System.Threading.Interlocked.Exchange(ref _unresolvedLocCount, 0);
+
         public static int NumPad => ParamRegistry.NumPad;
         public static string Separator => ParamRegistry.Separator;
         public static string[] SegmentOrder => ParamRegistry.SegmentOrder;
@@ -2077,8 +2089,14 @@ namespace StingTools.Core
 
         private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
         {
+            // KUT-11 — both names must answer for system elements or the rule lookup
+            // below is unreachable for them. GetFamilyName now returns the SYSTEM family
+            // ("Floor", "Rectangular Duct", "Wall Foundation") and GetElementTypeName the
+            // type ("Concrete Slab 200"). Together they are what the eleven corporate
+            // rules shipped on Ducts / Floors / Structural Foundations match against;
+            // with either half empty those rows had never once fired.
             string familyName = ParameterHelpers.GetFamilyName(el);
-            string symbolName = ParameterHelpers.GetFamilySymbolName(el);
+            string symbolName = ParameterHelpers.GetElementTypeName(el);
 
             // Data-driven, single-source PROD resolution. The per-category rule
             // lists are fetched from Revit here (project overlay + corporate CSV);
@@ -2095,6 +2113,36 @@ namespace StingTools.Core
                 _csvProdRules?.TryGetValue(categoryName, out corpForCat);
             }
             return ProdResolver.Resolve(familyName, symbolName, categoryName,
+                                        projForCat, corpForCat, ProdMap, out source);
+        }
+
+        /// <summary>
+        /// What a TYPE would resolve to, from names alone and with no element in hand.
+        ///
+        /// <para>The rename planner has to ask this before anything is placed, and it must
+        /// get the same answer the element path gives — same rule lists, same precedence,
+        /// same source tier. So it goes through the same <see cref="ProdResolver.Resolve"/>
+        /// call rather than a second copy of the chain: a rename that consults a private
+        /// re-implementation of the resolver would be protecting a code nothing else
+        /// computes.</para>
+        ///
+        /// <para>Returns the BASE code. The material suffix (<c>-CON</c>, <c>-MAS</c>) is
+        /// added by <see cref="GetFamilyAwareProdCode(Element, string)"/> from an element's
+        /// materials and has no meaning for a type.</para>
+        /// </summary>
+        public static string ResolveProdForNames(
+            Document doc, string familyName, string typeName, string categoryName, out string source)
+        {
+            EnsureProdRulesLoaded();
+            List<(string Pattern, string ProdCode)> projForCat = null;
+            List<(string Pattern, string ProdCode)> corpForCat = null;
+            if (!string.IsNullOrEmpty(familyName))
+            {
+                var projRules = GetProjectProdRules(doc);
+                projRules?.TryGetValue(categoryName ?? "", out projForCat);
+                _csvProdRules?.TryGetValue(categoryName ?? "", out corpForCat);
+            }
+            return ProdResolver.Resolve(familyName, typeName, categoryName,
                                         projForCat, corpForCat, ProdMap, out source);
         }
 
@@ -2295,8 +2343,21 @@ namespace StingTools.Core
             string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
             {
-                // First valid non-placeholder code from LocCodes, else hardcoded default
-                loc = LocCodes.FirstOrDefault(c => c != "XX" && !string.IsNullOrEmpty(c)) ?? "BLD1";
+                // F-2 — was: first non-placeholder code from LocCodes, else "BLD1".
+                //
+                // That silently filed every element whose LOC could not be derived under
+                // whichever building sorts first. On a single-building project it is
+                // invisible and harmless. On a multi-building one — eight cottages, say —
+                // the first building absorbs every unplaceable element in the model, and
+                // its cost and quantities are wrong while reading entirely plausibly. A
+                // building that is over-counted because it is alphabetically first is not
+                // a defect anyone goes looking for.
+                //
+                // XX is already a legal LOC that ISO19650Validator accepts, and it says
+                // the true thing: location not established. Count them so the number is
+                // visible rather than absorbed.
+                loc = "XX";
+                System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
             }
             string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
             // M-04 FIX: Also normalize "ZZ" placeholder (matching BuildTagIndexAndCounters
@@ -2364,15 +2425,25 @@ namespace StingTools.Core
                 if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
-            // Validate-before-write — guarantee all 7 tokens are non-empty
-            // before building the tag string. Applies hardcoded defaults as a safety net.
-            if (string.IsNullOrEmpty(disc)) disc = "A";
-            if (string.IsNullOrEmpty(loc))  loc  = "BLD1";
-            if (string.IsNullOrEmpty(zone)) zone = "Z01";
-            if (string.IsNullOrEmpty(lvl))  lvl  = "L00";
-            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
-            if (string.IsNullOrEmpty(func)) func = "GEN";
-            if (string.IsNullOrEmpty(prod)) prod = "GEN";
+            // Validate-before-write. This block GUARANTEES non-empty by substituting
+            // a hardcoded default — which is precisely the behaviour A-1/K-13/G-27
+            // forbid elsewhere: it makes an unresolved token indistinguishable from a
+            // resolved one. It is kept (removing it would emit doubled separators),
+            // but every substitution is now RECORDED so the tag can report that it was
+            // completed by assumption rather than by measurement.
+            //
+            // Which tokens may legitimately fall back, and which must never, is
+            // corporate-baseline DATA — Data/STING_TAG_TOKEN_POLICY.json, overridable
+            // per project — because sectors disagree (a hospital treats ZONE as
+            // mandatory, a single-building lodge does not).
+            bool anyFallback = false;
+            if (string.IsNullOrEmpty(disc)) { disc = "A";    anyFallback = true; }
+            if (string.IsNullOrEmpty(loc))  { loc  = "BLD1"; anyFallback = true; }
+            if (string.IsNullOrEmpty(zone)) { zone = "Z01";  anyFallback = true; }
+            if (string.IsNullOrEmpty(lvl))  { lvl  = "L00";  anyFallback = true; }
+            if (string.IsNullOrEmpty(sys))  { sys  = "GEN";  anyFallback = true; }
+            if (string.IsNullOrEmpty(func)) { func = "GEN";  anyFallback = true; }
+            if (string.IsNullOrEmpty(prod)) { prod = "GEN";  anyFallback = true; }
 
             // Always use DERIVED token values for seqKey, not stored values.
             // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
@@ -2549,6 +2620,31 @@ namespace StingTools.Core
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
             }
+
+            // G-42 — completeness at WRITE time.
+            //
+            // TagIsComplete already existed and was called from eight sites
+            // (ComplianceScan:690/842/843/1013, BOQSupportCommands:135,
+            // BIMManagerCommands:4068/4909/8950). EVERY ONE IS A READER. Nothing
+            // checked at the moment of writing, which is why a tag with two blank
+            // segments reached a drawing without a word. Reusing the existing check
+            // rather than writing a second one — a parallel notion of "complete" is
+            // how the two take-off paths diverged.
+            //
+            // anyFallback carries G-27's distinction through: a tag completed by
+            // substituting GEN is complete-but-ASSUMED, which is not the same as
+            // complete, and counting them together would hide exactly what this is
+            // meant to surface.
+            try
+            {
+                bool complete = TagIsComplete(tag);
+                stats?.RecordTagCompleteness(complete, anyFallback, tag, el.Id?.Value ?? -1);
+                if (!complete)
+                    StingLog.WarnRateLimited("IncompleteTag",
+                        $"Incomplete tag written on {el.Id}: '{tag}'. A mandatory segment is blank — "
+                      + "see Data/STING_TAG_TOKEN_POLICY.json for which tokens may fall back.");
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag completeness check on {el.Id}: {ex.Message}"); }
 
             // ASS_DISPLAY_TXT is the ON-DRAWING tag: the display-mode + segment-mask
             // resolved rendering of the canonical ASS_TAG_1_TXT. Let BuildDisplayTag
@@ -2731,14 +2827,26 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    // TAG_PARA_STATE_1_BOOL = Yes (compact mode default — ensures at least
-                    // Tier 1 content is visible in tag families after tagging)
+                    // D11 — shipped tier-gate defaults: tiers 1 and 2 ON, 3..10 OFF.
+                    // Tier 1 alone renders an identity code with no context; tier 2 adds
+                    // the material/system line a reviewer needs to recognise what the
+                    // tag is on. Tiers 3+ stay off so a stock tag is readable.
                     ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_1, true);
+                    ParameterHelpers.SetYesNo(el, ParamRegistry.PARA_STATE_2, true);
                 }
 
-                // TAG_WARN_VISIBLE_BOOL = No (default off — prevents expensive per-element
-                // warning evaluation on every WriteTag7All call for large models)
-                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, false);
+                // D11 — TAG_WARN_VISIBLE_BOOL = Yes.
+                //
+                // It shipped OFF "to avoid expensive per-element warning evaluation",
+                // which silently disabled the warning surface entirely: the tag
+                // completeness enforcement added under G-42 counts and reports incomplete
+                // tags, and the operator could never SEE any of it on the drawing because
+                // the family's warning row was gated off by default.
+                //
+                // A check whose output is invisible is the same defect as a check nobody
+                // calls (G-48). Cost is a per-element evaluation on WriteTag7All; the
+                // alternative was silence.
+                ParameterHelpers.SetYesNo(el, ParamRegistry.WARN_VISIBLE, true);
 
                 // TAG_7_SECTION_VISIBLE_A-F and default tag style: resolve the active
                 // ViewStylePack once so both features share the same lookup overhead.

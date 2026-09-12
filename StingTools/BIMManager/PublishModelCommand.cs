@@ -263,6 +263,10 @@ namespace StingTools.BIMManager
                 elementCount: elementCount,
                 bounds: bounds,
                 force: force,
+                // Same string GeometrySyncHandler sends with every delta — it is
+                // what lets a later delete of this model retire the federated
+                // elements this document pushed.
+                sourceDocGuid: StingTools.Core.SourceDocumentId.For(doc),
                 georefEastingM:     hasGeoref ? georef!.EastingM     : (double?)null,
                 georefNorthingM:    hasGeoref ? georef!.NorthingM    : (double?)null,
                 georefElevationM:   hasGeoref ? georef!.ElevationM   : (double?)null,

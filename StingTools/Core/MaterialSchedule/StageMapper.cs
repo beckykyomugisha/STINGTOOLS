@@ -24,6 +24,18 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> ConstituentKinds = new List<string>();
         /// <summary>Revit category display names routed here.</summary>
         public List<string> Categories = new List<string>();
+
+        /// <summary>
+        /// Type-name / description substrings routed here, checked AFTER the
+        /// constituent kind and BEFORE the category.
+        ///
+        /// Category alone routes the element, and an element's category often
+        /// says nothing about the work it belongs to: the first real export put
+        /// `2022_RoofCap_Eagle_HighProfileTiles` and a gate in SUPERSTRUCTURE
+        /// because that is where their categories point. A kind still wins —
+        /// a roof-shaped name must not drag real concrete out of the frame.
+        /// </summary>
+        public List<string> TypePatterns = new List<string>();
         /// <summary>When set, only rows on these level codes route here.</summary>
         public List<string> LevelCodes = new List<string>();
     }
@@ -56,6 +68,21 @@ namespace StingTools.Core.MaterialSchedule
         /// A blank pattern is inert, never a wildcard.
         /// </summary>
         public List<string> ExcludedDescriptionPatterns = new List<string>();
+
+        /// <summary>
+        /// Categories a description pattern may NEVER exclude. The first real
+        /// export dropped one Windows row as not-a-material while keeping twelve
+        /// others: some pattern written for Generic Models voids matched a real
+        /// window type. A door or a window is always bought, whatever it is
+        /// called, so the category outranks the pattern.
+        /// </summary>
+        public List<string> ExclusionProtectedCategories = new List<string>();
+
+        /// <summary>
+        /// Intermediate measures and the constituents bought in their place.
+        /// See <see cref="IntermediateMeasureMarker"/>.
+        /// </summary>
+        public List<IntermediateMeasureRule> IntermediateMeasures = new List<IntermediateMeasureRule>();
     }
 
     /// <summary>
@@ -77,6 +104,10 @@ namespace StingTools.Core.MaterialSchedule
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _byLevel =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Ordered, not a dictionary: these are substring tests, and first-wins
+        // in stage Order is the same precedence every other lookup here uses.
+        private readonly List<KeyValuePair<string, string>> _byTypePattern =
+            new List<KeyValuePair<string, string>>();
         private readonly string _default;
 
         private StageIndex(string defaultStageId) { _default = defaultStageId ?? ""; }
@@ -95,6 +126,9 @@ namespace StingTools.Core.MaterialSchedule
                 Seed(ix._byKind, d.ConstituentKinds, d.StageId);
                 Seed(ix._byCategory, d.Categories, d.StageId);
                 Seed(ix._byLevel, d.LevelCodes, d.StageId);
+                foreach (string p in d.TypePatterns ?? new List<string>())
+                    if (!string.IsNullOrWhiteSpace(p))
+                        ix._byTypePattern.Add(new KeyValuePair<string, string>(p.Trim(), d.StageId));
             }
             return ix;
         }
@@ -110,9 +144,25 @@ namespace StingTools.Core.MaterialSchedule
         /// <summary>Kind → category → level → the caller's default. An unmatched
         /// row is never dropped; it lands in the default so it stays countable.</summary>
         public string Resolve(string constituentKind, string category, string levelCode)
+            => Resolve(constituentKind, category, levelCode, null);
+
+        /// <summary>
+        /// Kind → type pattern → category → level → the caller's default.
+        /// <paramref name="typeText"/> is the type name and description joined;
+        /// pass null and this behaves exactly as the three-argument overload.
+        /// </summary>
+        public string Resolve(string constituentKind, string category, string levelCode, string typeText)
         {
             if (!string.IsNullOrWhiteSpace(constituentKind)
                 && _byKind.TryGetValue(constituentKind.Trim(), out string s)) return s;
+
+            if (!string.IsNullOrWhiteSpace(typeText) && _byTypePattern.Count > 0)
+            {
+                foreach (var kv in _byTypePattern)
+                    if (PatternMatch.Contains(typeText, kv.Key))
+                        return kv.Value;
+            }
+
             if (!string.IsNullOrWhiteSpace(category)
                 && _byCategory.TryGetValue(category.Trim(), out s)) return s;
             if (!string.IsNullOrWhiteSpace(levelCode)

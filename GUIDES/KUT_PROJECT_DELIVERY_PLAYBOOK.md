@@ -1,12 +1,19 @@
 # KUT Project Delivery Playbook
 ### Kampala Uganda Temple — how the whole team delivers information, stage by stage
 
+<!-- maintainer-note -->
 > **The issued document is `KUT_Project_Delivery_Playbook.docx`** (repo root), built by
 > `tools/build_team_playbook.py`. This markdown is the working draft used to review content.
-> Edit content here, then regenerate the `.docx` — do not hand-edit the Word file, or the two
-> will drift apart.
+> **This file is NOT read by the generator.** `tools/build_team_playbook.py` names it in a
+> comment as "source content" and never opens it — the issued text lives in the Python.
+> Editing here changes nothing in the `.docx`, and nothing warned about that until the
+> code tables in section 3 had drifted a whole naming migration behind it. To change the
+> issued playbook, edit `tools/build_team_playbook.py`. The code tables in 3.3 and 3.4 are
+> now derived from `tools/kut_naming.py` and gated by `tools/check_kut_documents.py`. Everything outside this note is scanned for product, command and parameter
+> names by `check_kut_documents.py`; this note is not.
+<!-- /maintainer-note -->
 
-**Issued by:** Planscape Consulting Engineers Ltd — Information Manager
+**Issued by:** Symbion Consulting Group Studios — Information Manager
 **Audience:** every organisation and every person producing information on KUT — Architecture, Interiors, Structure, Mechanical, Electrical, Plumbing, Fire, Low-Voltage, Civil/Site, QS/Cost, and the Contractor and specialist subcontractors when they join.
 **Status:** `[FILL: P01 — for issue at mobilisation]`
 **Companion documents:** the BIM Execution Plan (`KUT_BEP_TEMPLATE.md`) is the contractual statement of *what* we do; this playbook is the working statement of *how* and *when* we do it. Where they disagree, the BEP wins and this playbook gets corrected.
@@ -38,7 +45,7 @@
 | **Project** | Kampala Uganda Temple (KUT) |
 | **Appointing Party (Client)** | The Church — Special Projects Department |
 | **Lead Appointed Party** | Symbion Consulting Group Studios |
-| **Information Manager** | Planscape Consulting Engineers Ltd — Mayanja Davis |
+| **Information Manager** | Symbion Consulting Group Studios — Mayanja Davis |
 | **Scope** | Temple + ancillary buildings, six volumes plus site |
 | **Programme** | 49 months — Phase 2 (design) 11 months · Phase 3 (construction + close-out) 38 months |
 | **CDE** | Autodesk Construction Cloud (ACC) — the single authoritative environment |
@@ -73,10 +80,10 @@
 | 2.4 | Tender issue | M9–M10 | 350 | Tender set issued from the CDE |
 | 2.5 | **Conformed set** | M11 | 350 | Addenda incorporated, set reissued |
 | 3.1 | Construction administration | M12–M43 | 400 | Fabrication/installation-ready information |
-| 3.2 | FF&E installation | M40–M43 | 400 | FF&E installed and reconciled to Fohlio |
-| 3.3 | Close-out — **Deliverable D** | M44–M45 | 500 | Verified record model + handover data |
+| 3.2 | FF&E installation | M44–M47 | 400 | FF&E installed and reconciled to Fohlio |
+| 3.3 | Close-out — **Deliverable D** | M48–M49 | 500 | Verified record model + handover data |
 
-> **LOD 500 at Deliverable D.** This was previously stated as 400. It is now 500, with LOD 400 sitting at the construction stage. LOD 500 means *verified as-built* — the element matches what was actually installed, and carries its asset data (serial number, installation date). Plan for it from Stage 3.1, not from M44.
+> **LOD 500 at Deliverable D.** This was previously stated as 400. It is now 500, with LOD 400 sitting at the construction stage. LOD 500 means *verified as-built* — the element matches what was actually installed, and carries its asset data (serial number, installation date). Plan for it from Stage 3.1, not from M48.
 
 ---
 
@@ -88,7 +95,7 @@
 |---|---|---|
 | **Appointing Party** | The Church | The Exchange Information Requirements; acceptance of each deliverable |
 | **Lead Appointed Party** | Symbion | The overall appointment; design leadership; chairs the design meetings |
-| **Information Manager** | Planscape — Mayanja Davis | The CDE, the BEP, the MIDP, the standards, the QA gate, federation, clash management, registers, transmittals, handover data. **Coordinates and verifies — does not author design** |
+| **Information Manager** | Symbion Consulting Group Studios — Mayanja Davis | The CDE, the BEP, the MIDP, the standards, the QA gate, federation, clash management, registers, transmittals, handover data. **Coordinates and verifies — does not author design** |
 | **Task Team Manager** (one per discipline) | Each consultant | Their model, their TIDP, their data quality, their sign-off before every share |
 | **Modellers / technicians** | Each consultant | Day-to-day authoring to the standards in §3 and §5 |
 | **QS / Cost** | `[FILL]` | Quantities and cost derived from the model |
@@ -122,7 +129,7 @@
 | Commissioning point list | **R** | A | I | I | **C** | I | **R** |
 | Handover data (COBie / O&M) | **A/R** | A | C | C | C | I | **R** |
 
-**Read the Information Manager column carefully.** Planscape is accountable for *information*, not for design. If a clash needs a beam moved, the structural engineer moves it — the Information Manager only makes sure the clash is visible, tracked, and closed before the gate.
+**Read the Information Manager column carefully.** The Information Manager is accountable for *information*, not for design. If a clash needs a beam moved, the structural engineer moves it — the Information Manager only makes sure the clash is visible, tracked, and closed before the gate.
 
 ---
 
@@ -145,16 +152,14 @@ KUT - PLN - 01 - GF - M3 - A - 0001
 
 Separator is a hyphen. No spaces. Upper case throughout.
 
-> **⚠ Decide this in Week 1: originator code length.** The automated check enforces **exactly 3 characters**, but Planscape's default code is the 4-character `PLNS`, and earlier draft guidance used `PLNS` in its examples. `KUT-PLNS-…` therefore fails the check today. Two options, and the Owner's register decides:
-> **(a)** issue 3-character codes to every organisation (`PLN`, `SYM`, …) — cleaner, matches the check as written; or
-> **(b)** widen the check to 3–6 characters, which is closer to normal ISO 19650 practice and lets firms keep recognisable codes.
-> **Do not start numbering anything until this is settled.** Renumbering after Deliverable A is expensive and visible.
+> **⚠ Settle this before any container is numbered: the originator register.** The compliance check enforces **exactly three characters**, which is the convention this project uses. Earlier draft guidance used a four-character example, and any container built to it fails the check.
+> The register is issued by the Lead Appointed Party and allocates a three-character code to every appointed party, including sub-consultants, with a block reserved for the contractor and specialists so Stage 3.1 does not reopen the numbering.
+> **Do not start numbering anything until the register is issued.** Renumbering after Deliverable A is expensive and visible in every document already sent.
 
 ## 3.2 Originator codes
 
 | Organisation | Code |
 |---|---|
-| Planscape Consulting Engineers | `[FILL: PLN or PLNS per the decision above]` |
 | Symbion Consulting Group Studios | `[FILL]` |
 | Architecture | `[FILL]` |
 | Structure | `[FILL]` |
@@ -166,35 +171,63 @@ Separator is a hyphen. No spaces. Upper case throughout.
 
 ## 3.3 Role (discipline) codes — the permitted set
 
-Only these eight are valid on KUT. A model or sheet carrying anything else fails the standards audit.
+These 12 are valid on KUT, from **BS EN ISO 19650-2 UK National Annex, Table NA.3**.
+A container carrying anything else fails the standards audit.
 
 | Code | Discipline |
 |---|---|
-| `A` | Architecture / Interiors |
-| `S` | Structural |
-| `M` | Mechanical |
-| `E` | Electrical |
-| `P` | Plumbing / Public Health |
-| `FP` | Fire protection |
-| `LV` | Low voltage / communications |
-| `G` | Civil / site |
+| `A` | Architect |
+| `C` | Civil Engineer |
+| `E` | Electrical Engineer |
+| `I` | Interior Designer — including FF&E and finishes |
+| `M` | Mechanical Engineer |
+| `P` | Public Health Engineer — plumbing and drainage |
+| `Q` | Quantity Surveyor |
+| `S` | Structural Engineer |
+| `W` | Contractor |
+| `X` | Sub-contractor |
+| `Y` | Specialist Designer — fire protection, low voltage and communications |
+| `Z` | General — multi-discipline, federated and management containers |
+
+> **`FP`, `LV` and `G` were withdrawn.** Fire protection and low voltage both issue
+> under `Y` (Specialist Designer), distinguished by the Volume/System field — they were
+> never role codes in the standard. `G` is the Geographical/Land Surveyor; civil is `C`,
+> so a container issued as `-G-` claimed to come from a land surveyor.
+> Register references such as `FP-200` and `LV-200` deliberately keep the old letters:
+> they are internal ids, and renaming them collides (`FP-200` and `LV-200` would both
+> become `Y-200`).
+
 
 ## 3.4 Type codes
 
+From **BS EN ISO 19650-2 UK National Annex, Table NA.2**.
+
 | Code | Meaning |
 |---|---|
+| `CO` | Correspondence |
+| `CP` | Cost plan — including bills of quantities |
+| `CR` | Clash rendition |
+| `DR` | Drawing — including sheets |
+| `IE` | Information exchange — including transmittals |
+| `M2` | 2D model |
 | `M3` | 3D model |
-| `M2` | 2D model / drafting |
-| `DR` | Drawing |
-| `SH` | Sheet |
-| `SC` | Schedule |
-| `SP` | Specification |
-| `RP` | Report |
-| `CA` | Calculation |
-| `RD` | Room data sheet |
-| `MS` | Method statement |
+| `MI` | Minutes or action list |
 | `PP` | Presentation |
-| `CR` | Clash / coordination report |
+| `PR` | Programme |
+| `RD` | Room data sheet |
+| `RI` | Request for information |
+| `RP` | Report — including calculations and method statements |
+| `SH` | Schedule |
+| `SN` | Snagging list |
+| `SP` | Specification |
+| `SU` | Survey |
+| `VS` | Visualisation |
+
+> **`SH` is a Schedule, not a Sheet.** A sheet is a drawing — `DR`. This document
+> previously had it the other way round and invented `SC` for a schedule, so a name like
+> `KUT-SMB-01-GF-SH-A-0100` was valid under both readings and meant different things.
+> `CA` (calculation) and `MS` (method statement) were withdrawn; both are `RP`.
+
 
 ## 3.5 Level codes
 
@@ -258,7 +291,7 @@ Either way, **place rooms before the first coordination share.** Rooms are the s
 |---|---|
 | Temple architectural 3D model, all levels | `KUT-XXX-01-ZZ-M3-A-0001` |
 | Meetinghouse mechanical model | `KUT-XXX-02-ZZ-M3-M-0001` |
-| Temple ground-floor GA plan sheet | `KUT-XXX-01-GF-SH-A-0100` |
+| Temple ground-floor GA plan sheet | `KUT-XXX-01-GF-DR-A-0100` |
 | Site-wide drainage drawing | `KUT-XXX-00-ZZ-DR-P-0050` |
 | Federated coordination model | `KUT-PLN-ZZ-ZZ-M3-Z-0001` |
 | Clash report, cycle 07 | `KUT-PLN-ZZ-ZZ-CR-Z-0007` |
@@ -520,13 +553,13 @@ Addenda and tender-stage changes incorporated; the set is regenerated and reissu
 
 **Exit:** construction information complete; as-built capture current to within one month.
 
-## 6.7 STAGE 3.2 — FF&E installation · M40–M43
+## 6.7 STAGE 3.2 — FF&E installation · M44–M47
 
 FF&E installed; the model and the Fohlio record reconciled item by item; finishes verified against the installed condition.
 
 **Exit:** FF&E schedule reconciled; no unlinked FF&E items; O&M data collected in Fohlio.
 
-## 6.8 STAGE 3.3 — Close-out · Deliverable D · LOD 500 · M44–M45
+## 6.8 STAGE 3.3 — Close-out · Deliverable D · LOD 500 · M48–M49
 
 Within 60 days of furniture installation.
 
@@ -831,4 +864,4 @@ Before moving anything from WIP to Shared:
 
 ---
 
-*Issued by Planscape Consulting Engineers Ltd as Information Manager for the Kampala Uganda Temple project. Questions to the Information Manager. Where this playbook and the BEP disagree, the BEP prevails and this document is corrected.*
+*Issued by Symbion Consulting Group Studios as Information Manager for the Kampala Uganda Temple project. Questions to the Information Manager. Where this playbook and the BEP disagree, the BEP prevails and this document is corrected.*

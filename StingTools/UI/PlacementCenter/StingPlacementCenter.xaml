@@ -904,43 +904,59 @@
                                 </WrapPanel>
                             </Grid>
 
-                            <!-- Phase 139.8 - explicit category checklist for what to auto-place.
+                            <!-- Auto-place category checklist. Generated from
+                                 PlacementCategoryRegistry (STING_CATEGORY_TO_SEED_MAP.json +
+                                 the loaded rule set) rather than hand-declared, so the UI cannot
+                                 drift from what the engine can actually point-place.
                                  When ALL boxes are off, every category in the active rule pack is allowed.
-                                 When ANY box is ticked, only those categories are placed. -->
+                                 When ANY box is ticked, only those categories are placed.
+                                 Non-placeable categories (routing outputs, host elements) render
+                                 disabled with the registry's own reason as their tooltip. -->
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="120"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource LabelStyle}" Text="Auto-place"
-                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Ticking a category with no matching rule places nothing. Conduits / Pipes / Cable Trays are routing outputs (see Integrated Routing), not point-placement targets."/>
-                                <WrapPanel Grid.Column="1">
-                                    <CheckBox x:Name="cbCatElec"   Content="Electrical Fixtures"  Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatLtgDev" Content="Lighting Devices"     Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatLtgFix" Content="Lighting Fixtures"    Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatComm"   Content="Communication Devices" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatData"   Content="Data Devices"         Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSec"    Content="Security Devices"     Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatFire"   Content="Fire Alarm Devices"   Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPlm"    Content="Plumbing Fixtures"    Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatHvac"   Content="Air Terminals"        Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatSpr"    Content="Sprinklers"           Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatMech"   Content="Mechanical Equipment" Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatCond"   Content="Conduits"             Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - conduit is created by Integrated Routing (AUTO_CONDUIT), not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatJBox"   Content="Junction Boxes"       Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatPipe"   Content="Pipes"                Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - pipe is created by Integrated Routing (AUTO_PIPE), not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatTray"   Content="Cable Trays"          Margin="0,0,8,2"
-                                              ToolTip="Routing output, not a point-placement target - cable tray is created by Integrated Routing, not placed here. Used only as an obstruction during placement."/>
-                                    <CheckBox x:Name="cbCatSpec"   Content="Specialty Equipment"  Margin="0,0,8,2"
-                                              ToolTip="No baseline rules ship for this category - only places when a project / specialty rule pack covers it."/>
-                                    <CheckBox x:Name="cbCatFurn"   Content="Furniture"            Margin="0,0,8,2"/>
-                                    <CheckBox x:Name="cbCatNurse"  Content="Nurse Call Devices"   Margin="0,0,8,2"
-                                              ToolTip="Requires the healthcare rule pack - no baseline rules or anchor support ship for this category."/>
-                                    <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="6,0,4,2"/>
-                                    <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
-                                </WrapPanel>
+                                           ToolTip="Tick the categories the run should auto-place. Empty = every category in the active rule pack. Greyed-out entries are categories the placement engine cannot point-place (routing outputs and host elements) - hover one for the reason. Muted entries are placeable but have no rule in the active pack, so ticking them places nothing."/>
+                                <StackPanel Grid.Column="1">
+                                    <ItemsControl x:Name="icCategoryChecklist"
+                                                  ItemsSource="{Binding VM.CategoryChecklist, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox Content="{Binding Display}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                          IsEnabled="{Binding IsPlaceable}"
+                                                          ToolTip="{Binding Reason}"
+                                                          ToolTipService.ShowOnDisabled="True"
+                                                          Margin="0,0,8,2">
+                                                    <CheckBox.Style>
+                                                        <Style TargetType="CheckBox">
+                                                            <Style.Triggers>
+                                                                <!-- Placeable, but no rule in the active pack: legal to
+                                                                     tick, places nothing. Muted rather than disabled. -->
+                                                                <DataTrigger Binding="{Binding IsInert}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#999"/>
+                                                                    <Setter Property="FontStyle"  Value="Italic"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </CheckBox.Style>
+                                                </CheckBox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <WrapPanel Margin="0,2,0,0">
+                                        <Button x:Name="btnCatAll"  Content="All"  Padding="8,2" Margin="0,0,4,2"
+                                                ToolTip="Tick every placeable category. Non-placeable categories stay off."/>
+                                        <Button x:Name="btnCatNone" Content="None" Padding="8,2" Margin="0,0,4,2"/>
+                                    </WrapPanel>
+                                </StackPanel>
                             </Grid>
                         </StackPanel>
                     </GroupBox>
@@ -1315,6 +1331,87 @@
                                 Click="OnMatrixPlace_Click"
                                 Content="Matrix Place..."
                                 ToolTip="Open the room x element-type grid. Reads the drawing's rooms (grouped by type), lets you declare counts per room-type (area auto-suggested), then places exactly N per room (even ceiling grid / wall spacing), hosted + tagged. Round-trips to Excel, repeats on typical floors, circuits from the grid, updates lighting from DIALux, and estimates load. Persists to _BIM_COORD/placement_matrix.json. Model-modifying."/>
+                    </WrapPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="Family Converter">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
+            <StackPanel>
+
+                <TextBlock Margin="0,4,0,10" TextWrapping="Wrap"
+                           Foreground="#888" FontStyle="Italic" FontSize="11"
+                           Text="Change a family's host / placement type and keep it working across the project. Pick a Target Host per row; the Path column shows whether it converts losslessly (P1 - Unhosted to Face-based checkbox toggle) or needs a template rebuild (P2 - lossy, review needed). Everything renders in the Report panel - no pop-ups except the OS file/folder picker."/>
+
+                <GroupBox Header="1. Load families into the grid" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="180" Height="30" Margin="4,3"
+                                Click="OnFcScan_Click"
+                                Content="&#x27F3; Scan Project Families"
+                                ToolTip="List all loaded model families with their current host / placement type and instance count. Read-only."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="150" Height="30" Margin="4,3"
+                                Click="OnFcImportFolder_Click"
+                                Content="&#x1F4C1; Import Folder..."
+                                ToolTip="Load every .rfa under a chosen folder (recursive) into the project, then rescan. Non-destructive (overwrite load)."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="130" Height="30" Margin="4,3"
+                                Click="OnFcLoadRfa_Click"
+                                Content="&#x1F4C4; Load .rfa..."
+                                ToolTip="Load a single vendor .rfa into the project, then rescan."/>
+                        <CheckBox x:Name="chkFcRehost" Content="Rehost instances" IsChecked="True"
+                                  VerticalAlignment="Center" Margin="14,3,4,3" FontSize="11"
+                                  ToolTip="After a rebuild (P2), attempt to re-place existing instances at their original location. Hosted targets may still need a manual host pick."/>
+                        <CheckBox x:Name="chkFcAllowLossy" Content="&#x26A0; Allow lossy rebuild (P2)" IsChecked="False"
+                                  VerticalAlignment="Center" Margin="10,3,4,3" FontSize="11"
+                                  ToolTip="Required to run any template rebuild (P2). Off = P2 rows report as Skipped. P2 is NOT byte-identical: connectors drop, host-relative geometry re-anchors to the template default - review after."/>
+                    </WrapPanel>
+                </GroupBox>
+
+                <GroupBox Header="2. Families - pick a Target Host per row" Style="{StaticResource GroupBoxStyle}">
+                    <DataGrid x:Name="gridConverter" AutoGenerateColumns="False" CanUserAddRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              SelectionMode="Extended" Height="340" FontSize="11" Margin="2">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Family" Binding="{Binding Name}" IsReadOnly="True" Width="*"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" IsReadOnly="True" Width="130"/>
+                            <DataGridTextColumn Header="Current Host" Binding="{Binding CurrentHostDisplay}" IsReadOnly="True" Width="170"/>
+                            <DataGridTextColumn Header="Inst" Binding="{Binding InstanceCount}" IsReadOnly="True" Width="44"/>
+                            <DataGridTemplateColumn Header="&#x2192; Target Host" Width="160">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding AllowedTargets}"
+                                                  SelectedItem="{Binding TargetLabel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding Convertible}" Margin="1" FontSize="11"
+                                                  ToolTip="{Binding BlockReason}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Path" Binding="{Binding PathHint}" IsReadOnly="True" Width="90"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" IsReadOnly="True" Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </GroupBox>
+
+                <GroupBox Header="3. Apply" Style="{StaticResource GroupBoxStyle}">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolBtn}" Width="130" Height="30" Margin="4,3"
+                                Click="OnFcApplySelected_Click"
+                                Content="Apply Selected"
+                                ToolTip="Convert the highlighted row(s) whose Target Host differs from the current placement."/>
+                        <Button Style="{StaticResource ToolBtn}" Width="140" Height="30" Margin="4,3"
+                                Click="OnFcApplyAll_Click"
+                                Content="Apply All Pending"
+                                ToolTip="Convert every row that has a pending Target Host. Per-family failures are isolated - the batch never aborts on one bad family."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="120" Height="30" Margin="4,3"
+                                Click="OnFcSaveReload_Click"
+                                Content="Save / Reload"
+                                ToolTip="Belt-and-braces: reload converted families from _BIM_COORD/Families/Converted and report. P1/P2 already load on apply."/>
+                        <Button Style="{StaticResource ToolBtnSecondary}" Width="110" Height="30" Margin="4,3"
+                                Click="OnFcAudit_Click"
+                                Content="Audit Only"
+                                ToolTip="Dry run: report the conversion path (P1 lossless / P2 rebuild) and fidelity risk per pending row. No model changes."/>
                     </WrapPanel>
                 </GroupBox>
 

@@ -186,10 +186,23 @@ namespace StingTools.Commands.Validation
             // A run over zero elements is NOT 100%. OverallPct returns 100.0 when
             // Total == 0, so state the empty case explicitly instead of printing a
             // percentage that reads as a green gate.
-            if (r.NoElementsInScope)
+            if (r.RungAssertsNothing)
+                sb.AppendLine($"NOT ASSESSED — LOD {r.Lod} states no requirement any element could fail, " +
+                              $"so none of the {r.NotAssessed} element(s) in scope was verified. This is not a pass.");
+            else if (r.NoElementsInScope)
                 sb.AppendLine("NO ELEMENTS IN SCOPE — nothing was verified. This is not a pass.");
             else
                 sb.AppendLine($"PASS {r.Passed} / {r.Total}  ({r.OverallPct:F1}%)   FAIL {r.Failed}");
+            // KUT-4 — a MIXED run: some categories carry a real check at this rung and others
+            // do not. Those elements are outside the denominator, so without this line the
+            // percentage silently describes a subset.
+            if (r.NotAssessed > 0 && !r.RungAssertsNothing)
+            {
+                sb.AppendLine($"NOT ASSESSED {r.NotAssessed} element(s): their category states no requirement at LOD {r.Lod}.");
+                foreach (var kv in r.NotAssessedByCategory.OrderByDescending(k => k.Value).Take(10))
+                    sb.AppendLine($"   {kv.Value,6}  {kv.Key}");
+                sb.AppendLine("   Not-assessed elements are outside the denominator — the percentage above covers the rest.");
+            }
             if (r.SkippedNoRule > 0)
             {
                 sb.AppendLine($"SKIPPED {r.SkippedNoRule} element(s): their category has no rule and the matrix has no \"*\" fallback.");
@@ -241,9 +254,11 @@ namespace StingTools.Commands.Validation
                 var rows = new List<string>
                 {
                     $"# STING LOD audit — {r.MilestoneName} (LOD {r.Lod})",
-                    r.NoElementsInScope
-                        ? "# NO ELEMENTS IN SCOPE — nothing was verified. This is not a pass."
-                        : $"# PASS {r.Passed}/{r.Total} ({r.OverallPct:F1}%)",
+                    r.RungAssertsNothing
+                        ? $"# NOT ASSESSED — LOD {r.Lod} states no requirement any element could fail. This is not a pass."
+                        : r.NoElementsInScope
+                            ? "# NO ELEMENTS IN SCOPE — nothing was verified. This is not a pass."
+                            : $"# PASS {r.Passed}/{r.Total} ({r.OverallPct:F1}%)",
                 };
                 if (r.SkippedNoRule > 0)
                 {
@@ -288,7 +303,14 @@ namespace StingTools.Commands.Validation
                     // as 100%. noElementsInScope is the flag to branch on; overallPct is
                     // null when there is nothing to average.
                     noElementsInScope = r.NoElementsInScope,
-                    overallPct = r.NoElementsInScope ? (double?)null : Math.Round(r.OverallPct, 2),
+                    // KUT-4 — a rung stating no requirement is NOT a pass. overallPct is null
+                    // in that case too, so a consumer reading the number cannot mistake a rung
+                    // that asserts nothing for a model that satisfies everything.
+                    rungAssertsNothing = r.RungAssertsNothing,
+                    notAssessed = r.NotAssessed,
+                    notAssessedByCategory = r.NotAssessedByCategory
+                        .OrderByDescending(k => k.Value).ToDictionary(k => k.Key, v => v.Value),
+                    overallPct = r.HasMeaningfulResult ? Math.Round(r.OverallPct, 2) : (double?)null,
                     // Elements dropped because their category resolved to no check and the
                     // matrix has no "*" fallback. These are outside `total`.
                     skippedNoRule = r.SkippedNoRule,
@@ -360,9 +382,11 @@ namespace StingTools.Commands.Validation
             new TaskDialog("LOD Verify")
             {
                 // The headline must not say "100.0% mature (0/0)".
-                MainInstruction = r.NoElementsInScope
-                    ? $"{r.MilestoneName}: NO ELEMENTS IN SCOPE — nothing verified"
-                    : $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})",
+                MainInstruction = r.RungAssertsNothing
+                    ? $"{r.MilestoneName}: NOT ASSESSED — LOD {r.Lod} asserts nothing"
+                    : r.NoElementsInScope
+                        ? $"{r.MilestoneName}: NO ELEMENTS IN SCOPE — nothing verified"
+                        : $"{r.MilestoneName}: {r.OverallPct:F1}% mature ({r.Passed}/{r.Total})",
                 MainContent = report.ToString()
             }.Show();
             StingLog.Info($"LOD_Verify: {r.MilestoneId} {r.Passed}/{r.Total} pass ({scopeReport.Label}), " +
@@ -393,6 +417,22 @@ namespace StingTools.Commands.Validation
 
             var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
             var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
+
+            // KUT-4 - refuse rather than stamp nothing and call it a run. A rung that
+            // states no requirement cannot certify anything, and "Stamped 0 passing
+            // element(s)" reads like a model that failed rather than like a milestone
+            // that asks nothing. ASS_LOD_VERIFIED_TXT is a claim that an element MET a
+            // standard; writing it off an unassessable rung would make that claim false.
+            if (r.RungAssertsNothing)
+            {
+                TaskDialog.Show("LOD Stamp",
+                    $"{ms.Name} (LOD {ms.Lod}) states no requirement any element could fail, so " +
+                    $"nothing was verified and nothing was stamped.\n\n" +
+                    $"{r.NotAssessed} element(s) were in scope. Give LOD {ms.Lod} a check in " +
+                    "STING_LOD_MATRIX.json before binding a milestone to it.");
+                StingLog.Warn($"LOD_Stamp refused: milestone '{ms.Id}' (LOD {ms.Lod}) asserts nothing.");
+                return Result.Succeeded;
+            }
 
             var passIds = new HashSet<long>(r.Elements.Where(e => e.Pass).Select(e => e.ElementId.Value));
             int stamped = 0, locked = 0;

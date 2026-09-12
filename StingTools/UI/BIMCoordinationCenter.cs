@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -4856,74 +4856,15 @@ namespace StingTools.UI
                 // The deprecated team_members.json write path is no longer used.
                 savePlBtn.Click += async (s, e) =>
                 {
-                    var client = BIMManager.PlanscapeServerClient.Instance;
-                    if (client == null || !client.IsConnected)
+                    // Shared with the Member Directory tab's Save button \u2014 see
+                    // SaveRosterToServerAsync. Both write to the server; neither
+                    // writes team_members.json.
+                    bool reloaded = await SaveRosterToServerAsync().ConfigureAwait(true);
+                    if (reloaded)
                     {
-                        ShowStatus("Not connected to Planscape Server \u2014 connect below to manage access.");
-                        return;
-                    }
-
-                    Guid projectGuid = client.CurrentProjectId;
-                    if (projectGuid == Guid.Empty)
-                    {
-                        var link = BIMManager.PlanscapeProjectLink.Load(
-                            BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
-                        if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
-                    }
-                    if (projectGuid == Guid.Empty)
-                    {
-                        ShowStatus("No Planscape project linked \u2014 link this model on the PLATFORM tab to manage server access.");
-                        return;
-                    }
-
-                    // Map a grid Role -> (projectRole, iso19650Role), same convention as Invite Selected.
-                    (string projectRole, string isoRole) MapRole(string role)
-                    {
-                        role = (role ?? "").Trim();
-                        var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
-                        if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) return (role, null);
-                        var firstToken = role.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-                        if (firstToken.Length > 0 && firstToken.Length <= 4 && firstToken.All(char.IsLetter)) return (null, firstToken);
-                        return (null, null);
-                    }
-
-                    var toInvite = _data.TeamMembers
-                        .Where(m => !m.ServerUserId.HasValue && !string.IsNullOrWhiteSpace(m.Email))
-                        .ToList();
-
-                    int invited = 0, failed = 0;
-                    foreach (var tm in toInvite)
-                    {
-                        try
-                        {
-                            var (pr, iso) = MapRole(tm.Role);
-                            ShowStatus($"Inviting {tm.Email} to the project\u2026");
-                            var res = await client.InviteMemberAsync(projectGuid, tm.Email.Trim(), tm.Name, pr, iso).ConfigureAwait(true);
-                            if (res.Reachable && res.Ok) invited++;
-                            else { failed++; StingLog.Warn($"[access] invite failed for {tm.Email}: {res.Message}"); }
-                        }
-                        catch (Exception iex) { failed++; StingLog.Warn($"[access] invite error for {tm.Email}: {iex.Message}"); }
-                    }
-
-                    // Reload the canonical roster from the server so the grid reflects server truth.
-                    var fresh = await client.GetProjectMembersAsync(projectGuid).ConfigureAwait(true);
-                    if (fresh != null && fresh.Count > 0)
-                    {
-                        _data.TeamMembers = fresh.Select(m => new TeamMemberRow
-                        {
-                            Name = m.DisplayName ?? m.Email ?? "Member",
-                            Email = m.Email,
-                            Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
-                            Active = true,
-                            ServerUserId = m.UserId,
-                            ServerMemberId = m.Id,
-                        }).ToList();
                         accessGrid.ItemsSource = null;
                         accessGrid.ItemsSource = _data.TeamMembers;
                     }
-                    ShowStatus(invited > 0
-                        ? $"Saved to server \u2014 invited {invited} new member(s){(failed > 0 ? $", {failed} failed" : "")}. Roster reloaded from server."
-                        : (failed > 0 ? $"{failed} invite(s) failed \u2014 see log." : "Roster is in sync with the server."));
                 };
                 accessToolbar.Children.Add(savePlBtn);
                 detailStack.Children.Add(accessToolbar);
@@ -5605,6 +5546,61 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"ACC test: {ex.Message}"); ShowStatus($"ACC test failed: {ex.Message}"); }
             };
             credBtnRow.Children.Add(testAccBtn);
+
+            // Discovery. The container ids used to arrive by asking an ACC project
+            // administrator to read a GUID out of a URL, which put a two-minute setup step
+            // behind someone else's calendar. A 3-legged token already acts as its user, so
+            // this shows the projects that user can ALREADY reach and writes the chosen id
+            // back verbatim — it grants nothing and normalises nothing.
+            var discoverBtn = new Button { Content = "🔎 Find my ACC project", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x00, 0x69, 0x5C)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "List the ACC hubs and projects this Autodesk sign-in can already see, and fill in the Issues Project ID from the one you pick. Needs Client ID + Secret and a completed sign-in." };
+            discoverBtn.Click += async (s2, e2) =>
+            {
+                var c = Gather();
+                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
+                { ShowStatus("Enter Client ID and Client Secret, then sign in, before discovering projects."); return; }
+                try
+                {
+                    V6.AccIssueSync.SaveCredentials(c);
+                    ShowStatus("Asking Autodesk which projects you can see…");
+                    var found = await V6.AccProjectDiscovery.ListAllProjectsAsync(c).ConfigureAwait(true);
+
+                    // A failed listing is not an empty one, and must never read as
+                    // "you have no ACC projects".
+                    if (!found.Succeeded)
+                    {
+                        ShowStatus($"Could not list ACC projects ({found.Status}): {found.Detail}");
+                        return;
+                    }
+                    if (found.Value.Count == 0)
+                    {
+                        ShowStatus("Autodesk answered, and this sign-in can see no ACC projects. " +
+                                   "Confirm the account has been invited to the project.");
+                        return;
+                    }
+
+                    string pick = Select.StingListPicker.Show(
+                        "ACC — pick the project",
+                        "These are the projects this Autodesk sign-in can already reach. The id is written " +
+                        "back exactly as Autodesk reports it; nothing is reformatted. If a later pull returns " +
+                        "404 on the container, the Issues container id may differ from the Data Management " +
+                        "project id — confirm it rather than editing it by hand.",
+                        found.Value.Select(p => p.ToString()).ToList());
+                    if (string.IsNullOrEmpty(pick)) return;
+
+                    var chosen = found.Value.FirstOrDefault(p => p.ToString() == pick);
+                    if (chosen == null) { ShowStatus("That project could not be matched — nothing was changed."); return; }
+
+                    projectIdBox.Text = chosen.Id;
+                    var save = Gather();
+                    V6.AccIssueSync.SaveCredentials(save);
+                    ShowStatus($"Issues Project ID set to {chosen.Id} ({chosen.Name}). " +
+                               "Set Coord Container ID only if Model Coordination uses a different container.");
+                    ShowPlatformDetail("ACC");
+                }
+                catch (Exception ex) { StingLog.Warn($"ACC discover: {ex.Message}"); ShowStatus($"ACC discovery error: {ex.Message}"); }
+            };
+            credBtnRow.Children.Add(discoverBtn);
+
             detailStack.Children.Add(credBtnRow);
 
             // Buttons row 2 — coordination actions (run real IExternalCommands via dispatch)
@@ -5619,6 +5615,149 @@ namespace StingTools.UI
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
             AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
+
+            // ── Project operating settings (PROJECT-scoped, not machine-scoped) ──
+            //
+            // The credentials above live in %APPDATA% and follow the coordinator. These
+            // follow the MODEL: a coordination model-set id belongs to a project, and the
+            // same person on two jobs needs a different one for each. They are written
+            // through AccProjectSettingsFile, which resolves the path via StingPaths and
+            // merges rather than overwrites.
+            //
+            // This card is the answer to "how do I change the remembered model set without
+            // hand-editing JSON?". Absent settings mean every ACC command prompts, which is
+            // the state of every project until somebody uses these buttons.
+            detailStack.Children.Add(new TextBlock { Text = "PROJECT ACC SETTINGS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 8, 0, 4) });
+
+            var accDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            var policyNow = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(accDoc));
+            var policyLbl = new TextBlock
+            {
+                Text = policyNow.DescribeSource(),
+                FontSize = 10,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = Br(policyNow.Source == V6.AccPolicySource.Malformed
+                    ? Color.FromRgb(0xC6, 0x28, 0x28) : Color.FromRgb(0x60, 0x60, 0x60)),
+                Margin = new Thickness(0, 0, 0, 4),
+            };
+            detailStack.Children.Add(policyLbl);
+
+            var setRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var setIdBox = new TextBox
+            {
+                Text = policyNow.CoordModelSetId ?? "",
+                Width = 260, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "Coordination model-set id this project pulls clashes from. Leave empty to be asked every run.",
+            };
+            var setNameBox = new TextBox
+            {
+                Text = policyNow.CoordModelSetName ?? "",
+                Width = 180, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "The set's name. Recorded for the failure message only \u2014 matching is by id, so a rename cannot repoint the cycle.",
+            };
+            setRow.Children.Add(new TextBlock { Text = "Model set id / name:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6) });
+            setRow.Children.Add(setIdBox);
+            setRow.Children.Add(setNameBox);
+
+            void SaveSettings(Func<Autodesk.Revit.DB.Document, (bool ok, string err)> write, string okMsg)
+            {
+                var d = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                if (d == null) { ShowStatus("Open a project first."); return; }
+                var (ok, err) = write(d);
+                if (!ok) { ShowStatus("ACC settings NOT saved: " + err); return; }
+                var refreshed = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(d));
+                policyLbl.Text = refreshed.DescribeSource();
+                ShowStatus(okMsg);
+            }
+
+            var saveSetBtn = new Button { Content = "💾 Remember model set", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store this coordination model set with the PROJECT, so Pull Clashes stops asking. Merges into the existing settings; nothing else is changed." };
+            saveSetBtn.Click += (s, e) => SaveSettings(
+                d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveCoordModelSet(d, setIdBox.Text?.Trim(), setNameBox.Text?.Trim(), out string err); return (ok, err); },
+                "Coordination model set remembered for this project.");
+            setRow.Children.Add(saveSetBtn);
+
+            var clearSetBtn = new Button { Content = "✖ Forget", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0x75, 0x75, 0x75)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Forget the remembered model set \u2014 Pull Clashes goes back to asking every run." };
+            clearSetBtn.Click += (s, e) =>
+            {
+                setIdBox.Text = ""; setNameBox.Text = "";
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.ClearCoordModelSet(d, out string err); return (ok, err); },
+                    "Coordination model set forgotten \u2014 Pull Clashes will ask again.");
+            };
+            setRow.Children.Add(clearSetBtn);
+            detailStack.Children.Add(setRow);
+
+            var suitRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            suitRow.Children.Add(new TextBlock { Text = "Unattended publish suitability:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6) });
+            var suitCombo = new ComboBox { Width = 200, Height = 24, FontSize = 11, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Suitability an unattended ACC Publish uses. \"(ask every time)\" keeps today's prompt, which is the default." };
+            suitCombo.Items.Add("(ask every time)");
+            foreach (var code in Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes) suitCombo.Items.Add(code);
+            suitCombo.SelectedIndex = 0;
+            if (!string.IsNullOrEmpty(policyNow.PublishSuitability))
+            {
+                int idx = suitCombo.Items.IndexOf(policyNow.PublishSuitability);
+                if (idx >= 0) suitCombo.SelectedIndex = idx;
+            }
+            suitRow.Children.Add(suitCombo);
+            var saveSuitBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the publish suitability with this project." };
+            saveSuitBtn.Click += (s, e) =>
+            {
+                string chosenSuit = suitCombo.SelectedIndex <= 0 ? "" : (suitCombo.SelectedItem as string ?? "");
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SavePublishSuitability(d, chosenSuit, out string err); return (ok, err); },
+                    string.IsNullOrEmpty(chosenSuit)
+                        ? "ACC Publish will ask for a suitability every time."
+                        : "ACC Publish will use " + chosenSuit + " when it does not ask.");
+            };
+            suitRow.Children.Add(saveSuitBtn);
+            detailStack.Children.Add(suitRow);
+
+            var unattRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            var unattChk = new CheckBox
+            {
+                Content = "Run ACC commands without prompting (unattended)",
+                IsChecked = policyNow.IsUnattended,
+                FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6),
+                ToolTip = "Off by default, and off for every project that has never set it. When on, ACC commands use the settings above and FAIL with a named reason rather than asking \u2014 they never assume an answer.",
+            };
+            var saveUnattBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the unattended flag with this project." };
+            saveUnattBtn.Click += (s, e) => SaveSettings(
+                d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveUnattended(d, unattChk.IsChecked == true, out string err); return (ok, err); },
+                unattChk.IsChecked == true
+                    ? "ACC commands will not prompt for this project."
+                    : "ACC commands will prompt for this project.");
+            unattRow.Children.Add(unattChk);
+            unattRow.Children.Add(saveUnattBtn);
+            detailStack.Children.Add(unattRow);
+
+            var escRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            escRow.Children.Add(new TextBlock { Text = "Escalate at most", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
+            var escCountBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MaxCount.ToString() : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6), ToolTip = "Maximum ACC Issues one unattended run may create. Empty (with the score empty too) means escalate nothing." };
+            escRow.Children.Add(escCountBox);
+            escRow.Children.Add(new TextBlock { Text = "clash(es) scoring at least", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
+            var escScoreBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MinScore.ToString("0.##") : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Triage score threshold (0\u20131). Both fields are needed, or neither: a count alone escalates trivia, a score alone escalates hundreds." };
+            escRow.Children.Add(escScoreBox);
+            var saveEscBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the escalation policy with this project. Clearing both fields turns escalation off." };
+            saveEscBtn.Click += (s, e) =>
+            {
+                string ct = escCountBox.Text?.Trim() ?? "", st2 = escScoreBox.Text?.Trim() ?? "";
+                if (string.IsNullOrEmpty(ct) && string.IsNullOrEmpty(st2))
+                {
+                    SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveEscalation(d, null, null, out string err); return (ok, err); },
+                        "Escalation is off \u2014 unattended runs will pull and triage but create no ACC Issues.");
+                    return;
+                }
+                if (!int.TryParse(ct, out int cnt) || !double.TryParse(st2, out double scr))
+                {
+                    ShowStatus("Escalation needs BOTH a whole-number count and a score, or both empty.");
+                    return;
+                }
+                SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveEscalation(d, cnt, scr, out string err); return (ok, err); },
+                    "Unattended runs will escalate at most " + cnt + " clash(es) scoring " + scr.ToString("0.##") + " or higher.");
+            };
+            escRow.Children.Add(saveEscBtn);
+            detailStack.Children.Add(escRow);
+
 
             // Live upload to ACC Docs via the APS Data Management API (pure HTTP —
             // runs inline like Sign-in; no Revit transaction needed).
@@ -11424,6 +11563,180 @@ namespace StingTools.UI
         //  STATIC SHOW METHOD
         // ════════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Map a grid Role cell onto the server's (projectRole, iso19650Role) pair.
+        ///
+        /// Two different grids feed this. The ACCESS grid carries platform roles
+        /// (Admin/Coordinator/Viewer/External); the MEMBER DIRECTORY grid carries
+        /// ISO 19650 role *display names* ("BIM Coordinator", "Structural Engineer").
+        /// The previous version took the first whitespace token when it was 4 chars
+        /// or shorter, which turned "BIM Coordinator" into the ISO role "BIM" (the
+        /// code for BIM *Manager*) and silently dropped every longer name — "Project
+        /// Manager", "Architect (Lead Designer)" and "Author" all resolved to
+        /// (null, null). Resolve against the canonical catalogue instead.
+        /// </summary>
+        internal static (string projectRole, string isoRole) MapRoleToServer(string role)
+        {
+            role = (role ?? "").Trim();
+            if (role.Length == 0) return (null, null);
+
+            var platformRoles = new[] { "Admin", "Coordinator", "Viewer", "External" };
+            if (platformRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) return (role, null);
+
+            var catalogue = GetDefaultRoles();
+
+            // Exact code match ("BC", "PM", "SE") — the Permission Groups grid.
+            var byCode = catalogue.FirstOrDefault(r =>
+                string.Equals(r.Code, role, StringComparison.OrdinalIgnoreCase));
+            if (byCode != null) return (null, byCode.Code);
+
+            // Exact display-name match against the catalogue.
+            var byName = catalogue.FirstOrDefault(r =>
+                string.Equals(r.Name, role, StringComparison.OrdinalIgnoreCase));
+            if (byName != null) return (null, byName.Code);
+
+            // Member Directory offers a longer ISO 19650 role list whose wording
+            // differs from the catalogue's. Map the ones that genuinely
+            // correspond; anything unmapped falls through to the server default
+            // rather than being guessed at.
+            var aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Client / Employer"]                  = "CL",
+                ["Appointing Party Representative"]    = "CL",
+                ["Project Manager"]                    = "PM",
+                ["BIM Manager"]                        = "BIM",
+                ["BIM Coordinator"]                    = "BC",
+                ["BIM Technician"]                     = "BT",
+                ["Information Manager"]                = "BIM",
+                ["CDE Administrator"]                  = "BIM",
+                ["Architect (Lead Designer)"]          = "AR",
+                ["Structural Engineer"]                = "SE",
+                ["Building Services / MEP Engineer"]   = "ME",
+                ["Civil Engineer"]                     = "CV",
+                ["Landscape Architect"]                = "LA",
+                ["Interior Designer"]                  = "ID",
+                ["Fire Engineer"]                      = "FP",
+                ["Cost Manager / QS"]                  = "QS",
+                ["Principal Contractor"]               = "CT",
+                ["Subcontractor Manager"]              = "SC",
+                ["FM Manager"]                         = "FM",
+                ["Asset Manager"]                      = "FM",
+                ["Document Controller"]                = "BIM",
+            };
+            if (aliases.TryGetValue(role, out var code)) return (null, code);
+
+            return (null, null);
+        }
+
+        /// <summary>
+        /// The single server-canonical roster save. Invites every row that has an
+        /// email but no ServerUserId, then reloads the roster from the server so
+        /// the grids show server truth rather than local edits.
+        ///
+        /// Both Save buttons (ACCESS → "Save Access" and MEMBER DIRECTORY → "Save")
+        /// route here. There is deliberately no local-file write path: a member
+        /// saved only to team_members.json never reached the web app, the access
+        /// dropdowns, or anyone else on the project, and vanished on the next
+        /// server reload.
+        /// </summary>
+        /// <returns>true when <c>_data.TeamMembers</c> was replaced with the server roster.</returns>
+        private async System.Threading.Tasks.Task<bool> SaveRosterToServerAsync()
+        {
+            var client = BIMManager.PlanscapeServerClient.Instance;
+            if (client == null || !client.IsConnected)
+            {
+                ShowStatus("Not connected to Planscape Server — connect on the ACCESS tab to manage members.");
+                return false;
+            }
+
+            Guid projectGuid = client.CurrentProjectId;
+            if (projectGuid == Guid.Empty)
+            {
+                var link = BIMManager.PlanscapeProjectLink.Load(
+                    BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
+            }
+            if (projectGuid == Guid.Empty)
+            {
+                ShowStatus("No Planscape project linked — link this model on the PLATFORM tab to manage members.");
+                return false;
+            }
+
+            var rows = _data.TeamMembers ?? new List<TeamMemberRow>();
+
+            // A row with no email cannot be invited — there is nothing to
+            // identify the person by. Say so rather than dropping it silently,
+            // which is exactly what the old local-file path did.
+            var noEmail = rows.Count(m => !m.ServerUserId.HasValue && string.IsNullOrWhiteSpace(m.Email));
+
+            var toInvite = rows
+                .Where(m => !m.ServerUserId.HasValue && !string.IsNullOrWhiteSpace(m.Email))
+                .ToList();
+
+            int invited = 0, failed = 0;
+            foreach (var tm in toInvite)
+            {
+                try
+                {
+                    var (pr, iso) = MapRoleToServer(tm.Role);
+                    ShowStatus($"Inviting {tm.Email} to the project…");
+                    var res = await client.InviteMemberAsync(projectGuid, tm.Email.Trim(), tm.Name, pr, iso).ConfigureAwait(true);
+                    if (res.Reachable && res.Ok) invited++;
+                    else { failed++; StingLog.Warn($"[access] invite failed for {tm.Email}: {res.Message}"); }
+                }
+                catch (Exception iex) { failed++; StingLog.Warn($"[access] invite error for {tm.Email}: {iex.Message}"); }
+            }
+
+            // Reload the canonical roster so the grids reflect server truth.
+            bool reloaded = false;
+            var fresh = await client.GetProjectMembersAsync(projectGuid).ConfigureAwait(true);
+            if (fresh != null && fresh.Count > 0)
+            {
+                _data.TeamMembers = fresh.Select(m => new TeamMemberRow
+                {
+                    Name = m.DisplayName ?? m.Email ?? "Member",
+                    Email = m.Email,
+                    Role = string.IsNullOrWhiteSpace(m.ProjectRole) ? m.Iso19650Role : m.ProjectRole,
+                    Active = true,
+                    ServerUserId = m.UserId,
+                    ServerMemberId = m.Id,
+                }).ToList();
+                reloaded = true;
+            }
+
+            var msg = invited > 0
+                ? $"Saved to server — invited {invited} new member(s){(failed > 0 ? $", {failed} failed" : "")}. Roster reloaded from server."
+                : (failed > 0 ? $"{failed} invite(s) failed — see log." : "Roster is in sync with the server.");
+            if (noEmail > 0)
+                msg += $" {noEmail} row(s) skipped — an email address is required to invite someone.";
+            ShowStatus(msg);
+            return reloaded;
+        }
+
+        /// <summary>
+        /// Member Directory → Save. Pushes the roster to the server, then rebuilds
+        /// the tab so the grid shows what the server actually holds (including the
+        /// ServerUserId the invite minted). Exceptions are surfaced in the status
+        /// bar — a fire-and-forget task that threw silently would look like a save.
+        /// </summary>
+        private async System.Threading.Tasks.Task SaveProjectMembersAsync()
+        {
+            try
+            {
+                bool reloaded = await SaveRosterToServerAsync().ConfigureAwait(true);
+                if (reloaded)
+                {
+                    if (_tabCache.ContainsKey(TabProjectMembers)) _tabCache.Remove(TabProjectMembers);
+                    NavigateTo(TabProjectMembers);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("[members] save failed", ex);
+                ShowStatus($"Save failed: {ex.Message}");
+            }
+        }
+
         /// <summary>Phase 77 Item 10: Handle project members actions dispatched from StingCommandHandler.</summary>
         public void HandleProjectMembersAction(string action)
         {
@@ -11436,14 +11749,12 @@ namespace StingTools.UI
                     {
                         case "SaveProjectMembers":
                         {
-                            if (doc != null)
-                            {
-                                string path = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "team_members.json");
-                                var arr = Newtonsoft.Json.Linq.JArray.FromObject(_data.TeamMembers);
-                                System.IO.File.WriteAllText(path, arr.ToString(Newtonsoft.Json.Formatting.Indented));
-                                ShowStatus($"Saved {_data.TeamMembers.Count} team members.");
-                            }
-                            else ShowStatus("No active document — cannot save team members.");
+                            // Was: a write to team_members.json that never reached the
+                            // server. The grid reloads from the server, so a member added
+                            // here vanished on refresh and never appeared in the web app
+                            // or the access dropdowns. Now the same server-canonical path
+                            // as "Save Access".
+                            _ = SaveProjectMembersAsync();
                             break;
                         }
                         case "AddTeamMember":

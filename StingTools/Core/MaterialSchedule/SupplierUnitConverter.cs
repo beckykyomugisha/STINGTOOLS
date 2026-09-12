@@ -45,6 +45,79 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> MatchTypePatterns = new List<string>();
 
         /// <summary>
+        /// Substrings matched against the element's MATERIAL name.
+        ///
+        /// Added because type names lie and material names mostly do not. A real
+        /// roof in a delivered model was typed "Generic - 225mm", was 25 mm
+        /// thick, and carried the material "Asphalt Shingle" — the name was
+        /// wrong by a factor of ten and the material was exactly right.
+        ///
+        /// Material also survives the thing that defeated every type pattern
+        /// here: nobody renames a material to make a schedule work, whereas
+        /// type names are whatever somebody typed at 5pm.
+        ///
+        /// Checked BEFORE type patterns, and on its own — a material match does
+        /// not also require a type match, or a correctly-materialled roof with a
+        /// nonsense name would still fail.
+        /// </summary>
+        public List<string> MatchMaterialPatterns = new List<string>();
+
+        /// <summary>
+        /// Where the conversion factor came from, and what to check before
+        /// trusting it.
+        ///
+        /// A cover figure multiplies the WHOLE roof area, so one that cannot say
+        /// where it came from is a guess wearing a standard's clothes. Nominal
+        /// cover varies by profile, pitch and lap, and the difference between
+        /// 0.47 and 0.42 m² per sheet is 12% of the order.
+        /// </summary>
+        public string SourceNote = "";
+
+        /// <summary>
+        /// The consumable driver this commodity contributes to, e.g.
+        /// "roof_covering_m2". Empty for most commodities.
+        ///
+        /// This used to be a hardcoded pair of keys inside ConsumableDrivers:
+        ///
+        ///     commodityKey == "roof-sheet" || commodityKey == "roof-tile"
+        ///
+        /// Five roofing commodities were then added to the DATA file, none of
+        /// them fed the fastener driver, and a real export reported the driver
+        /// as zero for a shingle roof that was measured, converted and priced
+        /// three rows above. Two lists of roofing commodities — one in code,
+        /// one in data — drift the moment either is edited, and only the data
+        /// one is ever edited.
+        ///
+        /// Declaring it here means adding a sixth roofing type needs no code
+        /// change, and a commodity that feeds nothing simply says nothing.
+        /// </summary>
+        public string FeedsDriver = "";
+
+        /// <summary>
+        /// Fasteners per m2 of THIS covering. -1 means not stated.
+        ///
+        /// STING_CONSUMABLES applied a flat 11/m2 to every roof covering. For
+        /// tiles that is wrong by KIND rather than by degree, and
+        /// MATERIAL_LOOKUP.csv has said so since long before the material
+        /// schedule existed:
+        ///
+        ///     CLAY_TILE      0     CORRUGATED     8
+        ///     CONCRETE_TILE  0     BOX_PROFILE    6
+        ///                          STANDING_SEAM  4
+        ///                          FIBRE_CEMENT  10
+        ///
+        /// Tiles are nailed every other course, not screwed, so a tiled roof
+        /// was being quoted a pack count for fixings it does not use. Four
+        /// profiles with four densities also means one flat number cannot be
+        /// right for all of them.
+        ///
+        /// Unlike the COVERAGE figures (see PhysicalConstantDriftTests) this
+        /// needed no supplier to settle: the data was already in the repository
+        /// stating the opposite, and unread.
+        /// </summary>
+        public double FastenersPerM2 = -1;
+
+        /// <summary>
         /// The construction stage this commodity belongs to, overriding whatever
         /// stage the ELEMENT's category routes to. Required on any category rule.
         ///
@@ -62,6 +135,7 @@ namespace StingTools.Core.MaterialSchedule
         None,                   // nothing matched — row keeps its measured unit, silently
         ByKind,                 // matched a CompoundTakeoff constituent kind
         ByCategory,             // matched a category (and its type pattern, if any)
+        ByMaterial,             // matched the element's MATERIAL name
         CategoryTypeMismatch    // category matched but the type did not — DO NOT convert
     }
 
@@ -84,6 +158,18 @@ namespace StingTools.Core.MaterialSchedule
         /// converted on a guess and never dropped.
         /// </summary>
         public SupplierUnitResolution Resolve(string constituentKind, string category, string typeName)
+            => Resolve(constituentKind, category, typeName, null);
+
+        /// <summary>
+        /// As above, with the element's material name.
+        ///
+        /// Order is kind → material → type, because that is decreasing
+        /// reliability: a constituent kind is emitted by our own take-off, a
+        /// material is chosen deliberately by whoever built the model, and a
+        /// type name is free text.
+        /// </summary>
+        public SupplierUnitResolution Resolve(string constituentKind, string category,
+                                              string typeName, string materialName)
         {
             var byKind = ResolveByKind(constituentKind);
             if (byKind != null)
@@ -91,6 +177,20 @@ namespace StingTools.Core.MaterialSchedule
 
             if (string.IsNullOrWhiteSpace(category))
                 return new SupplierUnitResolution { Match = SupplierUnitMatch.None };
+
+            // Material first among the category-scoped tests. A roof whose
+            // material says "Asphalt Shingle" is a shingle roof whatever its
+            // type is called.
+            string mat = (materialName ?? "").Trim();
+            if (mat.Length > 0)
+                foreach (var r in Rules)
+                {
+                    if (r?.MatchMaterialPatterns == null || r.MatchMaterialPatterns.Count == 0) continue;
+                    if (!CategoryAllows(r, category)) continue;
+                    if (r.MatchMaterialPatterns.Any(p => !string.IsNullOrWhiteSpace(p)
+                            && mat.IndexOf(p.Trim(), StringComparison.OrdinalIgnoreCase) >= 0))
+                        return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByMaterial };
+                }
 
             // PERF: single pass, no LINQ closure and no candidates List per row.
             string cat = category.Trim();
@@ -106,8 +206,18 @@ namespace StingTools.Core.MaterialSchedule
                 if (firstCategoryHit == null) firstCategoryHit = r;
 
                 // No patterns ⇒ the whole category converts.
+                //
+                // UNLESS the rule discriminates by MATERIAL. A material-matched
+                // rule that also swallowed its whole category would claim every
+                // roof in the model the moment it was added — the material
+                // patterns are its discriminator, and having them means the
+                // category alone is not enough. Without this, adding one
+                // shingle rule silently re-routes every roof.
                 if (r.MatchTypePatterns == null || r.MatchTypePatterns.Count == 0)
+                {
+                    if (r.MatchMaterialPatterns != null && r.MatchMaterialPatterns.Count > 0) continue;
                     return new SupplierUnitResolution { Rule = r, Match = SupplierUnitMatch.ByCategory };
+                }
 
                 // A blank type name can never satisfy a pattern. Guarding this
                 // explicitly because "".IndexOf(p) is -1 but p.IndexOf("") is 0 —
@@ -127,6 +237,20 @@ namespace StingTools.Core.MaterialSchedule
                 Match = SupplierUnitMatch.CategoryTypeMismatch,
                 CandidateCommodityKey = firstCategoryHit.CommodityKey
             };
+        }
+
+        /// <summary>
+        /// True when the rule's categories permit this one. An EMPTY category
+        /// list means the material pattern stands on its own — some materials
+        /// (a specific shingle, a named tile) identify a commodity wherever
+        /// they appear.
+        /// </summary>
+        private static bool CategoryAllows(SupplierUnitRule r, string category)
+        {
+            if (r.MatchCategories == null || r.MatchCategories.Count == 0) return true;
+            if (string.IsNullOrWhiteSpace(category)) return false;
+            return r.MatchCategories.Any(c =>
+                string.Equals(c, category.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>First rule listing this constituent kind, or null.</summary>
@@ -156,13 +280,35 @@ namespace StingTools.Core.MaterialSchedule
     public static class SupplierUnitConverter
     {
         /// <summary>
-        /// 2 dp, away from zero — so a divisible order never rounds DOWN below
-        /// what was measured and quietly under-orders.
+        /// 2 dp, rounded UP.
+        ///
+        /// This used to be Math.Round(v, 2, MidpointRounding.AwayFromZero) with a
+        /// comment claiming a divisible order could never fall below what was
+        /// measured. That was wrong, and the first real export proved it:
+        /// AwayFromZero only decides TIES, so 174.6044 became 174.60 and rule R4
+        /// fired with "order quantity 174.60 is below the net measured 174.60" —
+        /// true, unreadable at 2 dp, and a genuine under-order.
+        ///
+        /// Ceiling makes the documented contract hold for every value, not only
+        /// for ties: order >= net, always. The 1e-9 nudge keeps a value already
+        /// at 2 dp from being pushed a cent higher by binary representation.
         /// </summary>
         private static double RoundDivisible(double v)
-            => Math.Round(v, 2, MidpointRounding.AwayFromZero);
+            => Math.Ceiling(v * 100.0 - 1e-9) / 100.0;
 
         public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity)
+            => Convert(rule, sourceQuantity, -1);
+
+        /// <summary>
+        /// As above, with the wastage the row's own variant implies.
+        ///
+        /// A NEGATIVE override means "use the rule's default" — not "no waste".
+        /// Those are different, and conflating them would silently drop the
+        /// allowance on every row that has no variant to speak of, which is
+        /// most of them.
+        /// </summary>
+        public static SupplierUnitResult Convert(SupplierUnitRule rule, double sourceQuantity,
+                                                 double wastePctOverride)
         {
             if (rule == null)
                 return new SupplierUnitResult
@@ -177,13 +323,16 @@ namespace StingTools.Core.MaterialSchedule
             if (factor <= 0 || double.IsNaN(factor) || double.IsInfinity(factor)) factor = 1.0;
 
             double net = sourceQuantity / factor;
-            double waste = Math.Max(0, rule.DefaultWastagePct);
+            double waste = wastePctOverride >= 0
+                ? wastePctOverride
+                : Math.Max(0, rule.DefaultWastagePct);
             double order = net * (1.0 + waste / 100.0);
             // Countable units round UP — you cannot buy 2.08 truck trips.
-            // Divisible units round to 2 dp: order quantity is what someone
+            // Divisible units round UP to 2 dp: order quantity is what someone
             // purchases and what the amount is computed from, so raw binary
             // floats would otherwise print as "164.48145 m³" and drag fractions
-            // of a shilling into the money column.
+            // of a shilling into the money column. Both directions round UP, so
+            // an order can never sit below the measured net.
             order = rule.RoundUpToWhole ? Math.Ceiling(order - 1e-9) : RoundDivisible(order);
 
             return new SupplierUnitResult

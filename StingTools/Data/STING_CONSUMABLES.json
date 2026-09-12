@@ -1,0 +1,39 @@
+{
+ "schemaVersion": "1.0",
+ "note": "PRACTICE HEURISTICS, NOT A STANDARD. Nothing in a Revit model states how much hoop iron a wall carries, how much wire ties a tonne of steel, how many nails a square metre of formwork takes or how many screws fix a square metre of sheeting. No measurement standard publishes any of these either — NRM2 treats them as part of the item they serve. Every figure below is contractor practice, is stated with its derivation in sourceNote, and is emitted only when its measured driver is non-zero. With no driver, NOTHING is emitted: a default quantity would be a fabricated number wearing the costume of a calculation. Project override: <project>/_data/coord/consumables.json (merged by constituentKind).",
+ "drivers": "walled_area_m2 | rebar_kg | formwork_m2 | roof_covering_m2 — all taken from the constituent rows the bill itself is built from, NET of wastage.",
+ "rules": [
+  {
+   "constituentKind": "hoop_iron",
+   "description": "Hoop iron (masonry reinforcement)",
+   "driver": "walled_area_m2",
+   "perDriver": 1.2,
+   "unit": "m",
+   "sourceNote": "ONE strip laid in every 4th course of 200 mm blockwork. A course is 200 mm block + 10 mm bed = 210 mm, so every 4th course is one 1 m run per 0.84 m of wall height = 1.19 m per m2 of wall face, taken as 1.2. DOUBLE IT if the specification calls for a strip near each face, and scale it if the course interval differs. East African contractor practice; no measurement standard publishes it."
+  },
+  {
+   "constituentKind": "binding_wire",
+   "description": "Binding wire (rebar tying)",
+   "driver": "rebar_kg",
+   "perDriver": 0.0125,
+   "unit": "kg",
+   "sourceNote": "1.25% of reinforcement mass — the midpoint of the 1.0-1.5% range used in East African and Indian practice for tying bars at every intersection. Heavily congested sections and small-diameter mesh-like cages run higher. No measurement standard publishes it."
+  },
+  {
+   "constituentKind": "formwork_nails",
+   "description": "Nails (formwork)",
+   "driver": "formwork_m2",
+   "perDriver": 0.2,
+   "unit": "kg",
+   "sourceNote": "0.20 kg of nails per m2 of formwork CONTACT AREA, mid-range of the 0.15-0.25 kg/m2 commonly allowed for sawn-timber formwork taken through three to four reuses. A single-use shutter or a heavily propped soffit runs higher. No measurement standard publishes it."
+  },
+  {
+   "constituentKind": "roof_fastener",
+   "description": "Roofing screws / nails",
+   "driver": "roof_fastener_nr",
+   "perDriver": 1.0,
+   "unit": "nr",
+   "sourceNote": "Counted per covering from MATERIAL_LOOKUP's FASTENERS_PER_M2, not from one flat ratio over the whole roof: corrugated 8/m2, box profile 6, standing seam 4, fibre cement 10, and ZERO for tiles and shingles, which are nailed rather than screwed. The previous flat 11/m2 quoted a tiled roof a pack count for fixings it does not use. Count the SPECIFIED fixing pattern for a firm figure; these are starting points."
+  }
+ ]
+}

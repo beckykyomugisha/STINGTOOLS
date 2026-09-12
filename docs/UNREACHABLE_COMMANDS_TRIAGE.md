@@ -1,284 +1,163 @@
 # Unreachable Commands Triage
 
-Triage of `IExternalCommand` classes that are not referenced from the dock-panel
-button-tag dispatcher in `StingTools/UI/StingCommandHandler.cs`.
+Which `IExternalCommand` classes no dispatch layer can reach.
 
 > **Companion doc — the other direction.** This file asks "which *commands* have no
 > button?". For "which *buttons* reach no command?", see
-> [`SILENT_BUTTONS_TODO.md`](../SILENT_BUTTONS_TODO.md) (repo root). Its 2026-08-06
-> re-audit found **zero** dead buttons: of the 26 button tags with no `case` in any
-> handler, 23 dispatch through `Cmd_Click` suite runners and 3 through the
-> `CommandRegistry` modules, which `StingCommandHandler` consults *before* its switch.
-> That check is now enforced as Tier 4 of `tools/check_workflow_wiring.ps1`.
->
-> **Both directions have the same trap:** counting against the `StingCommandHandler`
-> switch alone ignores `UI/Modules/*CommandModule.cs` (661 registered names) and the
-> code-behind runners (38), so any figure derived that way over-reports. The 126 below
-> predates that correction and has not been re-derived across all three layers.
+> [`SILENT_BUTTONS_TODO.md`](../SILENT_BUTTONS_TODO.md) (repo root), whose 2026-08-06
+> re-audit found **zero** dead buttons. Both directions had the same defect and both
+> are now derived rather than hand-counted.
 
-- **Total IExternalCommand classes**: 1,288
-- **Wired in `StingCommandHandler.cs`**: 1,162
-- **Not in dock-panel dispatcher**: **126**
+**Do not hand-edit the numbers below.** They are produced by
+[`tools/recount_unreachable_commands.py`](../tools/recount_unreachable_commands.py),
+which prints every list in full and, with `--check`, fails if this file has drifted
+from the code. A count in this file drives deletions, so a stale one is an invitation
+to delete live code.
 
-> **Phase 177 update (corrected 2026-07-20 — verified against
-> `StingCommandHandler.cs` / `StingDockPanel.xaml`; see wiring audit W-5 in
-> `DRAWINGS_PRODUCTION_REVIEW.md`)**:
->
-> - **Wired with new tags + XAML buttons** (10): 5 AVF heatmap (`Heatmap_*`), 5 V6
->   (`V6_*`), 3 AEC filter (`AecFilters_*`, handler 1407-1409),
->   `DrawingBrowserOrganizerCommand` (tag is **`Drawing_BrowserOrganize`**,
->   handler 1410 — NOT `DrawingTypes_BrowserOrganize`, which exists nowhere),
->   `BCFSyncCommand` (`BCFSync`), `RevisionCloudAuditCommand`
->   (`RevisionCloudAudit`), `PluginOnboardingWizardCommand` (`PlanscapeOnboarding`)
-> - **Wired with a secondary alias tag** (1): `DrawingForceResyncCommand`
->   (`DrawingTypes_ForceResync`, handler 1411 + XAML button)
-> - **Still bypassed** (2): `DrawingSyncStylesCommand` and
->   `GenerateFromScopeBoxesCommand` — the previously claimed alias tags
->   `DrawingTypes_SyncStylesDirect` / `DrawingTypes_ScopeBoxesDirect` were
->   never added (they appear nowhere in the repo); the primary tags still run
->   inline reimplementations in the handler. PR #449 wires
->   `GenerateFromScopeBoxesCommand` via `WorkflowEngine.ResolveCommand`
->   (`DrawingTypes_FromScopeBoxes`); the dock-panel button still uses the
->   inline path. Converging class vs inline is review finding W-5.
-> - **Left as dead code** (3): `BatchPrintSheetsCommand`,
->   `ClashDetectionCommand` (Temp variant), `PanelScheduleCommand` (Temp
->   variant) — their dispatcher tags already route to newer commands; old
->   classes compile harmlessly and can be deleted in a future cleanup sprint
->   once confirmed no external tooling imports them directly
+```
+python tools/recount_unreachable_commands.py            # report
+python tools/recount_unreachable_commands.py --check    # CI gate
+```
 
-## Counts
+## Counts — re-derived 2026-09-09
 
-| Category | Count |
-|---|---|
-| **A** — Wired via alternative entry points (NOT dead) | **103** |
-| **A'** — Newly wired in Phase 177 | **20** |
-| **B** — V4 MVP deferred (intentionally not wired) | **0** |
-| **C** — Superseded dead code (compiler-visible, runtime-unreachable) | **3** |
-| **Total** | **126** |
+- **Total IExternalCommand classes**: **1723**
+- **Reached by a dispatch layer**: **1691**
+- **Referenced only from non-dispatch code**: **0**
+- **Named nowhere outside their own file**: **10**
+- **Ambiguous — name declared twice**: **22** (under 11 names)
 
-> Category B is zero because every V4 MVP command under
-> `StingTools/Commands/{Placement,Routing,Validation,Fabrication}/` and
-> `StingTools/Core/{Placement,Routing,Validation,Fabrication}/` is already
-> reached from the dock-panel dispatcher (TAGS Studio Fixtures/Routing/
-> Fabrication sub-tabs). The V4 MVP work has been promoted out of the
-> "deferred" bucket and is no longer dead-code-shaped.
+The four buckets partition all 1723; the script fails if they stop adding up.
 
----
+**One of the ten is an abstract base class and MUST NOT be deleted.**
+`Clash/AccUploadModelCommand.cs` declares `public abstract class
+AccUploadCommandBase : IExternalCommand`, the shared body of the two concrete
+upload commands. An abstract class cannot be instantiated, so it can never be
+dispatched and is correctly counted as unreached — but it is live code, not
+a stray. `recount_unreachable_commands.py` does not exclude abstract
+declarations, so it will keep appearing here. That matters because of this
+file's own rule: a count here drives deletions, and an abstract base listed as
+ORPHANED is an invitation to delete the base two working commands inherit from.
 
-## Category A — Wired via alternative entry points (103)
+*+1 on both totals since the 2026-09-08 (WF-7) derivation:*
+`Commands/Materials/RegisterAuditCommand` (`Materials_RegisterAudit`), which is
+dispatched from `StingCommandHandler` and has a button on the SETUP tab — so it
+lands in "reached", not in any of the three problem buckets.
 
-Three alternative dispatch surfaces exist alongside the primary
-`StingCommandHandler`:
+### What the old 126 was, and why it was wrong
 
-1. **`UI/StingElectricalCommandHandler.cs`** — electrical dock sub-panel
-2. **`UI/Plumbing/StingPlumbingCommandHandler.cs`** — plumbing dock sub-panel
-3. **`Core/WorkflowEngine.cs`** + workflow JSON presets — `ResolveCommand(tag)` + 8 `WORKFLOW_*.json` step lists
-4. **`Core/StingToolsApp.cs`** — ribbon `PushButton` registration via `typeof(X).FullName`
-5. **Static-state dialog** — `UI/CircuitWizardDialog.xaml.cs` passes state to the command class
+The previous headline — *"Total 1,288 · Wired in `StingCommandHandler.cs` 1,162 ·
+Not in dock-panel dispatcher **126**"* — measured against **one** of six dispatch
+layers. Dispatch is:
 
-### A.1 Electrical + Plumbing sub-dispatchers (79)
-
-| Class | Dispatcher |
-|---|---|
-| `AicRatingCommand` | Electrical |
-| `ArcFlashLabelSheetCommand` | Electrical |
-| `ArcFlashScheduleCommand` | Electrical |
-| `AssignPhotometricCommand` | Electrical |
-| `AutoSizeDrainageCommand` | Plumbing |
-| `AutoUpsizeWiresCommand` | Electrical |
-| `BackflowAuditCommand` | Plumbing |
-| `BreakerSizerApplyCommand` | Electrical |
-| `BreakerSizerCommand` | Electrical |
-| `BusbarModelingCommand` | Electrical |
-| `CableSizerCommand` | Electrical |
-| `CircuitDescriptionCommand` | Electrical |
-| `ConduitAutoRouteCommand` | Electrical |
-| `ConduitFillValidateCommand` | Electrical |
-| `CrossConnectionScanCommand` | Plumbing |
-| `DIALuxExportCommand` | Electrical |
-| `DeadLegScanCommand` | Plumbing |
-| `DemandFactorReportCommand` | Electrical |
-| `DialuxRoundTripCommand` | Electrical |
-| `EasyPowerExportCommand` | Electrical |
-| `ElecCircuitRenumberCommand` | Electrical |
-| `ElecLightingScheduleCommand` | Electrical |
-| `ElecLoadSummaryCommand` | Electrical |
-| `ElecPanelParamSyncCommand` | Electrical |
-| `ElecPanelWriteParamsCommand` | Electrical |
-| `EmergencyLightingAuditCommand` | Electrical |
-| `EmergencyLightingMarkCommand` | Electrical |
-| `EtapExportCommand` | Electrical |
-| `FaultCurrentCommand` | Electrical |
-| `FaultCurrentScheduleCommand` | Electrical |
-| `FeederSizerCommand` | Electrical |
-| `IfcResultsImportCommand` | Electrical |
-| `LightingPowerDensityCommand` | Electrical |
-| `LpdColorCommand` | Electrical |
-| `MaterialAuditCommand` | Plumbing |
-| `MultiEngineAggregatorCommand` | Electrical |
-| `PRVScheduleCommand` | Plumbing |
-| `PanelViewScheduleCommand` | Electrical |
-| `PhaseBalanceCommand` | Electrical |
-| `PhotometricDesignReviewCommand` | Electrical |
-| `PhotometricLibraryCommand` | Electrical |
-| `PhotometricLinkCommand` | Electrical |
-| `PhotometricPreflightCommand` | Electrical |
-| `PlumbAutoRouteCommand` | Plumbing |
-| `PlumbBOQCommand` | Plumbing |
-| `PlumbCommPackCommand` | Plumbing |
-| `PlumbExpVesselCommand` | Plumbing |
-| `PlumbFixSlopesCommand` | Plumbing |
-| `PlumbFullAuditCommand` | Plumbing |
-| `PlumbInsertPTrapsCommand` | Plumbing |
-| `PlumbInvertLevelsCommand` | Plumbing |
-| `PlumbIsometricCommand` | Plumbing |
-| `PlumbLoadSystemConfigCommand` | Plumbing |
-| `PlumbManholeScheduleCommand` | Plumbing |
-| `PlumbPipeScheduleCommand` | Plumbing |
-| `PlumbPlaceHangersCommand` | Plumbing |
-| `PlumbPlaceSleevesCommand` | Plumbing |
-| `PlumbPressureCheckCommand` | Plumbing |
-| `PlumbRoofDrainageCommand` | Plumbing |
-| `PlumbRwhCommand` | Plumbing |
-| `PlumbSaveSystemConfigCommand` | Plumbing |
-| `PlumbScanFixturesCommand` | Plumbing |
-| `PlumbSepticTankCommand` | Plumbing |
-| `PlumbSizeDrainageCommand` | Plumbing |
-| `PlumbSizeSupplyCommand` | Plumbing |
-| `PlumbSoakawayCommand` | Plumbing |
-| `PlumbSuDSCommand` | Plumbing |
-| `PlumbTMVRegisterCommand` | Plumbing |
-| `PlumbVentDesignCommand` | Plumbing |
-| `RainwaterCalcCommand` | Plumbing |
-| `RecircBalanceCommand` | Plumbing |
-| `SLDRiserDiagramCommand` | Electrical |
-| `SLDUpdateRiserCommand` | Electrical |
-| `SelectiveCoordCommand` | Electrical |
-| `StackCapacityCommand` | Plumbing |
-| `TrapAndVentAuditCommand` | Plumbing |
-| `VoltageDropCommand` | Electrical |
-| `VoltageDropFlagCommand` | Electrical |
-| `VoltageDropScheduleCommand` | Electrical |
-
-### A.2 WorkflowEngine dispatch (8)
-
-These are referenced by `WorkflowEngine.ResolveCommand(tag)` in
-`Core/WorkflowEngine.cs` and/or invoked from `WORKFLOW_*.json` presets.
-
-| Class | Entry point |
-|---|---|
-| `BatchAssignCircuitsCommand` | `WorkflowEngine.ResolveCommand` |
-| `BuildSeedFamiliesCommand` | `WorkflowEngine.ResolveCommand` + `WORKFLOW_ElectricalQA.json` |
-| `CableScheduleBuilderCommand` | `WorkflowEngine.ResolveCommand` |
-| `ConduitConsolidatorCommand` | `WorkflowEngine.ResolveCommand` |
-| `ElectricalStandardsValidatorCommand` | `WorkflowEngine.ResolveCommand` |
-| `PlanscapeDisconnectCommand` | `WorkflowEngine.ResolveCommand` |
-| `PlanscapeOpenWebCommand` | `WorkflowEngine.ResolveCommand` |
-| `SwapToManufacturerCommand` | `WorkflowEngine.ResolveCommand` |
-
-### A.3 Ribbon `PushButton` registrations (15)
-
-These are registered as Revit ribbon push-buttons in
-`Core/StingToolsApp.cs` via `typeof(X).FullName` and dispatched directly
-by Revit (no tag-string lookup involved).
-
-| Class | Entry point |
-|---|---|
-| `HubAutoTagCommand` | Ribbon `AutoTag` |
-| `HubBIMCoordCenterCommand` | Ribbon `BIMCoordCenter_Open` |
-| `HubBoqExportCostCommand` | Ribbon button (StingToolsApp.cs) |
-| `HubCreateTagFamiliesCommand` | Ribbon button (StingToolsApp.cs) |
-| `HubDocumentMgmtCommand` | Ribbon `DocumentMgmt_Open` |
-| `HubDrawingTypesCommand` | Ribbon `DrawingTypes_Edit` |
-| `HubFabricationCommand` | Ribbon `Fabrication_Open` |
-| `HubPlacementCommand` | Ribbon `Placement_Open` |
-| `HubSchedulingDashboardCommand` | Ribbon button (StingToolsApp.cs) |
-| `HubSheetManagerCommand` | Ribbon button (StingToolsApp.cs) |
-| `HubStructuralDwgWizardCommand` | Ribbon button (StingToolsApp.cs) |
-| `HubTag3DCommand` | Ribbon `Tag3D` |
-| `ToggleDockPanelCommand` | Ribbon `STING Panel` button |
-| `ToggleElectricalPanelCommand` | Ribbon `btnToggleElectrical` button |
-| `TogglePlumbingPanelCommand` | Ribbon `btnTogglePlumbing` button |
-
-### A.4 Static-state dialog interaction (1)
-
-| Class | Entry point |
-|---|---|
-| `CircuitWizardCommand` | `UI/CircuitWizardDialog.xaml.cs` writes `PendingCircuits`/`PendingPanelName` static fields, user then invokes the command from the dialog |
-
----
-
-## Category B — V4 MVP deferred (0)
-
-**No entries.** Every command in the V4 MVP folders
-(`Commands/{Placement,Routing,Validation,Fabrication}/` and
-`Core/{Placement,Routing,Validation,Fabrication}/`) is already reachable
-from the dock-panel TAGS Studio sub-tabs (Fixtures / Routing / Fabrication).
-The V4 work has been promoted out of the "deferred / not yet wired" bucket.
-
-If new V4 work lands without dispatcher wiring, list it here.
-
-| Class | Directory | TODO-VERIFY-API |
+| Layer | Where | Commands reached |
 |---|---|---|
-| — | — | — |
+| handler switches | `UI/**/…CommandHandler.cs` (6 files) | 1654 |
+| `CommandRegistry` modules | `UI/Modules/*CommandModule.cs`, consulted *before* the handler switch | 613 |
+| `WorkflowEngine.ResolveCommand` | reachable from a preset, with no button at all | 554 |
+| panel code-behind | `**/*.xaml.cs` `Cmd_Click` suite runners | 19 |
+| legacy ribbon | `Core/StingToolsApp.cs`, `typeof(X).FullName` → `PushButtonData` | 30 |
+| markup + data | `.addin`, `.xaml`, shipped `.json` / `.csv` | 56 |
+
+Layers overlap, so those figures sum to more than 1689; a command reached twice is
+counted once in the total.
+
+Two further corrections the re-derivation forced, both of which had inflated the
+old figure and neither of which was visible from a single-layer count:
+
+- **A name mentioned in a comment is not a reference.** Before comments were
+  stripped, `BatchPrintSheetsCommand` and `ClashDetectionCommand` read as "wired via
+  an alternative entry point". Both mentions are prose — a note about a validation
+  hook, and a numbered list of features.
+- **A dispatcher may declare the command it dispatches.** All 13 `Hub*Command`
+  classes live inside `Core/StingToolsApp.cs` alongside the ribbon call that reaches
+  them. Skipping a class's own declaring file reported every one as dead.
+
+## The 9 with no reference anywhere
+
+Nothing in any handler, module, workflow, code-behind, ribbon, XAML, `.addin` or
+shipped data file names these. Each needs a decision — wire it or delete it —
+and neither is made here, because "compiles and is never called" does not say
+which was intended.
+
+| Class | Declared in | Note |
+|---|---|---|
+| `BatchPrintSheetsCommand` | `Docs/SheetTemplateCommands.cs` | Named only in a comment in `Docs/TitleBlockCommands.cs`. Its tag already routes to a newer command. |
+| `EnsureSeedsCommand` | `Commands/Placement/EnsureSeedsCommand.cs` | Seed-family ensure step; the penetration presets express this intent through `skipIfFamilyLoaded`, a key the engine does not bind (WF-4). |
+| `HubSchedulingDashboardCommand` | `Core/StingToolsApp.cs` | The one `Hub*Command` with no `AddButton` call; its 12 siblings all have one. Most likely an omission when the hub panel was assembled. |
+| `PanelScheduleCommand` | `Temp/MEPScheduleCommands.cs` | Superseded by the `Commands/Panels/` suite (Phase 176). |
+| `PlatformEventDrainCommand` | `BIMManager/PlatformEvents/PlatformEventDrainer.cs` | Manual drain for the platform event queue. No button, no preset step. |
+| `PluginOnboardingWizardCommand` | `BIMManager/PluginOnboardingWizardCommand.cs` | **The Phase 177 note below claimed this was wired under the tag `PlanscapeOnboarding`. That tag appears nowhere in the repository.** |
+| `TeamWorkloadCommand` | `BIMManager/GapFixCommands.cs` | `UI/Modules/BimCommandModule.cs:184` says in a comment that it is "implemented directly in BIMCoordinationCenter" — so the class is a superseded duplicate, and the comment is the only trace of the decision. |
+| `TierTemplateClearGuidesCommand` | `Tags/TagTierCommands.cs` | Pair with the one below. |
+| `TierTemplatePrepCommand` | `Tags/TagTierCommands.cs` | Drops guide notes for tag-tier authoring; the clear-guides command removes them. A usable pair with no way to run either. |
+
+## The 22 whose name is declared twice
+
+A name-reference scan cannot say which of two same-named classes a
+`RunCommand<ClashDetectionCommand>` binds — that depends on the referring file's
+`using` directives, which is exactly how a dead twin hides behind a live one.
+These are reported separately rather than folded into one:
+
+| Name | Declared in |
+|---|---|
+| `AccessControlCommand` | `BIMManager/CoordinationCenterCommands.cs` · `Commands/PlacementExt/PlacementExtCommands.cs` |
+| `ArcFlashCommand` | `Commands/Electrical/ArcFlash/ArcFlashCommand.cs` · `Commands/StandardsExt/StandardsBulkWrappers.cs` |
+| `BOQExportCommand` | `BOQ/BOQExportCommand.cs` · `Temp/DataPipelineCommands.cs` |
+| `BatchPDFExportCommand` | `Docs/PrintManagerCommands.cs` · `ExLink/AutomationEngine.cs` |
+| `ClashDetectionCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
+| `CrossModelClashCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
+| `EnergyAnalysisCommand` | `Commands/StandardsExt/StandardsBulkWrappers.cs` · `Temp/IoTMaintenanceCommands.cs` |
+| `LifecycleCostCommand` | `Commands/StandardsExt/StandardsExtCommands.cs` · `Temp/IoTMaintenanceCommands.cs` |
+| `MEPClearanceValidationCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
+| `NamingConventionAuditCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
+| `StickyNoteDashboardCommand` | `BIMManager/BIMManagerCommands.cs` · `ExLink/StickyNotesEngine.cs` |
+
+Five of the eleven are the same pair of files — `Clash/ClashDetectionCommands.cs`
+against `Temp/DataPipelineCommands.cs` — which suggests one wholesale supersession
+rather than eleven coincidences. Resolving these is the natural follow-up to this
+audit and is tracked in [`ROADMAP.md`](ROADMAP.md).
+
+## Methodology, and what it does not claim
+
+This is a **name-reference analysis, not a call graph**. A class counts as reached
+if a dispatch-layer file names it in code (comments stripped). Consequences worth
+stating plainly:
+
+- **An entry in "the 9" is not proof of death.** It is proof that no dispatcher,
+  markup file or data file names it. A reflectively constructed command would look
+  the same. Read the class before deleting it.
+- **Being "reached by a layer" is not proof of life** either: a registry entry can
+  exist for a button that no panel shows. That is the *other* direction, and it is
+  covered by Tier 4 of `tools/check_workflow_wiring.ps1`, which currently finds zero.
+- The script carries three instrument checks, because a broken reader reports the
+  whole codebase as broken and that reads exactly like a finding: it fails if fewer
+  than 800 command classes parse, if any `*CommandHandler.cs` / `*CommandModule.cs` /
+  `*CommandRegistry.cs` file is not classified as a dispatch layer, and if the four
+  buckets stop summing to the number of declared classes.
 
 ---
 
-## Category C — Genuinely dead (23)
+## Superseded — Phase 177 triage (2026-07-20)
 
-These commands are not referenced from any dispatcher, the
-WorkflowEngine, an NLP pattern, a ribbon push-button, the
-`CircuitWizardDialog`, or any workflow JSON preset. The only references
-in the codebase are the class declaration plus (in a handful of cases)
-free-text comments referring to the class by name.
+Kept for history. **Its category tables (A: 103, A′: 20, B: 0, C: 3 — total 126)
+were a hand-maintained roster of what the script above now derives, and they are no
+longer maintained.** One claim in them is false and was corrected by this audit:
+`PluginOnboardingWizardCommand` was recorded as "wired with new tags + XAML buttons"
+under the tag `PlanscapeOnboarding`; that tag exists nowhere in the repository, and
+the command is in "the 9" above.
 
-**Deletion candidates — a future phase will decide.** Cross-reference
-with `docs/CHANGELOG.md` before removing anything: several of these are
-documented as the "engine class" for a feature whose tag now redirects
-to a newer command.
+The three classes Phase 177 called "left as dead code" —
+`BatchPrintSheetsCommand`, `ClashDetectionCommand` (Temp variant) and
+`PanelScheduleCommand` (Temp variant) — are corroborated: two appear in "the 9", and
+`ClashDetectionCommand` appears in the ambiguous list because its Temp twin shares a
+name with the live `Clash/` class. That is the strongest independent evidence that
+the derivation and the hand triage agree where the hand triage was right.
 
-- ~~`AecFiltersCreateCommand` / `AecFiltersInspectCommand` / `AecFiltersReloadCommand`~~ — **now wired** (`AecFilters_*` tags, handler 1407-1409 + XAML buttons). Not deletion candidates.
-- `ApplyLabourHoursCommand` — `V6/LabourHoursCommands.cs`. V6 feature, no V6 dispatcher exists.
-- `BCFSyncCommand` — `BIMManager/PlatformLinkCommands.cs`.
-- `BatchPrintSheetsCommand` — `Docs/SheetTemplateCommands.cs`. **Replaced** — dispatcher tag `"BatchPrintSheets"` now redirects to `Docs.ExportCenterPdfCommand`.
-- `ClashDetectionCommand` — `Temp/DataPipelineCommands.cs`. **Replaced** — dispatcher tag `"ClashDetection"` now resolves to `Core.Clash.ClashRunCommand`.
-- `ClearHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-- ~~`DrawingBrowserOrganizerCommand`~~ — **now wired** (tag `Drawing_BrowserOrganize`, handler 1410 + XAML button). Not a deletion candidate.
-- ~~`DrawingForceResyncCommand`~~ — **now wired** (tag `DrawingTypes_ForceResync`, handler 1411 + XAML button). Not a deletion candidate.
-- `DrawingSyncStylesCommand` — `Commands/Drawing/DrawingSyncStylesCommand.cs`. **Bypassed** — dispatcher tag `"DrawingTypes_SyncStyles"` calls inline `DrawingTypesSyncStylesInline(app)` instead of the class.
-- `ExportLabourHoursCommand` — `V6/LabourHoursCommands.cs`. V6 feature.
-- `GenerateFromScopeBoxesCommand` — `Commands/Drawing/GenerateFromScopeBoxesCommand.cs`. **Bypassed** — dispatcher tag `"DrawingTypes_FromScopeBoxes"` calls inline `DrawingTypesFromScopeBoxesInline(app)` instead.
-- `HealthDashboardExportHtmlCommand` — `V6/HealthDashboardEngine.cs`. V6 feature.
-- `PanelScheduleCommand` — `Temp/MEPScheduleCommands.cs`. **Replaced** — dispatcher tag `"PanelSchedule"` now redirects to `Commands.Panels.BatchPanelSchedulesCommand`.
-- `PluginOnboardingWizardCommand` — `BIMManager/PluginOnboardingWizardCommand.cs`.
-- `QRAdvanceCommissioningCommand` — `V6/QRCommissioningCommands.cs`. Carries a `// TODO-VERIFY-API` comment but lives outside the V4 MVP tree, so technically Category C per the task spec.
-- `QRCommissioningReportCommand` — `V6/QRCommissioningCommands.cs`.
-- `RevisionCloudAuditCommand` — `BIMManager/RevisionManagementCommands.cs`. Dispatcher tag `"RevisionCloudAuto"` points at `Docs.RevisionCloudAutoCreateCommand` — the audit variant is dead.
-- `VisualiseAcousticHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-- `VisualiseCarbonHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-- `VisualiseComplianceHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-- `VisualiseFillHeatmapCommand` — `Commands/Visualization/AvfHeatmapCommands.cs`.
-
-### Sub-clusters worth noting
-
-- **AVF Heatmap suite** (5): `ClearHeatmap`, `VisualiseAcoustic`, `VisualiseCarbon`, `VisualiseCompliance`, `VisualiseFill`. All five live in one file and form a coherent feature that simply has no dispatcher wiring. Either wire them or delete the file together.
-- **AEC Filter library suite** (3): `AecFiltersCreate`/`Inspect`/`Reload`. CLAUDE.md describes Phase 166 commands by these names — wiring is the likely fix, not deletion.
-- **V6 commands** (5): `ApplyLabourHours`, `ExportLabourHours`, `HealthDashboardExportHtml`, `QRAdvanceCommissioning`, `QRCommissioningReport`. The entire `StingTools/V6/` tree is unreachable; either build the V6 dispatcher or delete the tree.
-- **Drawing helper commands bypassed by inline reimplementations** (3): `DrawingSyncStyles`, `DrawingForceResync`, `GenerateFromScopeBoxes`. The dispatcher does the same work inline; the standalone classes drifted out of use.
-- **Replaced by newer commands** (4): `BatchPrintSheets`, `ClashDetection` (Temp variant), `PanelSchedule` (Temp variant), `RevisionCloudAudit`. These are now superseded; safe to remove once a downstream check confirms no tooling still imports them.
-
----
-
-## Methodology
-
-1. Extracted every `class X : IExternalCommand` declaration from `StingTools/**/*.cs` (1,288 classes total).
-2. Extracted every `\bX[A-Za-z0-9_]*Command\b` token from `UI/StingCommandHandler.cs` (the dock-panel dispatcher) — 1,162 classes referenced.
-3. Subtraction yielded **126** unreachable classes.
-4. For each unreachable class, searched in priority order:
-   - `UI/StingElectricalCommandHandler.cs`, `UI/Plumbing/StingPlumbingCommandHandler.cs`, `UI/CommandRegistry.cs`
-   - `Core/WorkflowEngine.cs` (`ResolveCommand` + workflow definitions)
-   - `Tags/NLPCommandProcessor.cs`
-   - `Data/WORKFLOW_*.json` (10 preset files)
-   - `Core/StingToolsApp.cs` (ribbon `PushButton` registrations via `typeof(X).FullName`)
-   - Every other `.cs` file for `new X(`, `X.Execute(`, or `X.<static>` references
-5. Verified that string-only comment references (`// ... X ...`) are NOT counted as wiring.
+Phase 177 also recorded two commands as still bypassed —
+`DrawingSyncStylesCommand` and `GenerateFromScopeBoxesCommand`, whose claimed alias
+tags `DrawingTypes_SyncStylesDirect` / `DrawingTypes_ScopeBoxesDirect` were never
+added. Both are now reached by a dispatch layer, so they no longer appear here;
+whether the dock-panel button runs the class or the handler's inline
+reimplementation is a separate question, tracked as review finding W-5 in
+`DRAWINGS_PRODUCTION_REVIEW.md`.

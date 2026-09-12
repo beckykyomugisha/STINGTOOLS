@@ -13,8 +13,11 @@ from docx.shared import Cm, Pt, RGBColor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
+import kut_docs_lib as K  # noqa: E402
+from midp_schema import COL_NAMES  # noqa: E402
+import kut_naming as N  # noqa: E402
 
-OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_Project_Delivery_Playbook.docx')
+OUT = os.environ.get('PLAYBOOK_OUT', 'KUT_DOCS_WORKING/issued/KUT_Project_Delivery_Playbook.docx')
 c = CorporateDoc()
 d = c.d
 h1, h2, h3 = c.h1, c.h2, c.h3
@@ -28,15 +31,17 @@ c.title_page(
     control_rows=[
         ('Document reference', 'KUT-SMB-ZZ-ZZ-RP-Z-0002'),
         ('Revision', 'P01'),
-        ('Status / suitability', 'A1 — Authorised for use'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('Prepared by', 'Symbion Consulting Group Studios'),
         ('Role', 'Information Manager'),
         ('Date of issue', '[FILL]'),
     ],
     note='Prepared for the Kampala Uganda Temple project on behalf of the Lead Appointed Party. '
-         'Issued through the Common Data Environment. Uncontrolled when printed.')
+         'Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT Project Delivery Playbook   |   Rev P01')
+c.footer('KUT Project Delivery Playbook   |   Rev P01 — DRAFT')
+
+c.toc()
 
 # ── document control ─────────────────────────────────────────────────────────
 h1('Document control')
@@ -138,7 +143,8 @@ table(['Item', 'Detail'],
        ['Lead Appointed Party', 'Symbion Consulting Group Studios'],
        ['Information Manager', 'Symbion Consulting Group Studios'],
        ['Procurement route', '[FILL]'],
-       ['Programme', '49 months. Phase 2 (design) 11 months; Phase 3 (construction and close-out) 38 months'],
+       ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months'
+                     % (K.TOTAL_MONTHS, K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'])],
        ['Key dates', '[FILL — appointment, Deliverables A to D, practical completion]']],
       widths=[5.0, 11.6])
 
@@ -158,26 +164,25 @@ h2('2.3  Volumes')
 para('The project is divided into seven volumes. The volume is the second most significant field in every '
      'container name and every asset identifier, and it governs how models are split and federated.')
 table(['Volume code', 'Volume', 'Numbering value'],
-      [['BLD1', 'Temple', '01'],
-       ['BLD2', 'Meetinghouse', '02'],
-       ['BLD3', 'Housing and ancillary', '03'],
-       ['BLD4', 'Grounds', '04'],
-       ['BLD5', 'Utility', '05'],
-       ['BLD6', 'Guard house', '06'],
-       ['EXT', 'Site-wide and external works', '00']],
+      [[code, name, num] for num, code, name, _a in N.VOLUMES if code != 'ZZ'],
       widths=[3.4, 7.6, 5.6])
 
 h2('2.4  Stages and information gates')
 table(['Stage', 'Name', 'Months', 'LOD', 'Gate'],
       [['0', 'Mobilisation', 'M0 to M1', '—', 'Kit issued, teams trained, CDE operational'],
-       ['2.1', 'Basis of Design (Deliverable A)', 'M1', '200', 'Massing and generic systems coordinated'],
-       ['2.2', 'Developed Design (Deliverable B, 50%)', 'M2 to M4', '300', 'Real geometry, correctly located'],
-       ['2.3', 'Technical Design (Deliverable C, 100%)', 'M5 to M8', '350', 'Interfaces and connections resolved'],
-       ['2.4', 'Tender', 'M9 to M10', '350', 'Tender set issued from the CDE'],
-       ['2.5', 'Conformed set', 'M11', '350', 'Addenda incorporated and reissued'],
-       ['3.1', 'Construction administration', 'M12 to M43', '400', 'Fabrication and installation-ready information'],
-       ['3.2', 'FF&E installation', 'M40 to M43', '400', 'FF&E installed and reconciled'],
-       ['3.3', 'Close-out (Deliverable D)', 'M44 to M45', '500', 'Verified record model and handover data']],
+       ['2.1', 'Basis of Design (Deliverable A)', K.span_label('2.1'), '200',
+        'Massing and generic systems coordinated'],
+       ['2.2', 'Developed Design (Deliverable B, 50%)', K.span_label('2.2'), '300',
+        'Real geometry, correctly located'],
+       ['2.3', 'Technical Design (Deliverable C, 100%)', K.span_label('2.3'), '350',
+        'Interfaces and connections resolved'],
+       ['2.4', 'Tender', K.span_label('2.4'), '350', 'Tender set issued from the CDE'],
+       ['2.5', 'Conformed set', K.span_label('2.5'), '350', 'Addenda incorporated and reissued'],
+       ['3.1', 'Construction administration', K.span_label('3.1'), '400',
+        'Fabrication and installation-ready information'],
+       ['3.2', 'FF&E installation', K.span_label('3.2'), '400', 'FF&E installed and reconciled'],
+       ['3.3', 'Close-out (Deliverable D)', K.span_label('3.3'), '500',
+        'Verified record model and handover data']],
       widths=[1.6, 5.4, 2.6, 1.4, 5.6])
 callout('Deliverable D is delivered at LOD 500, not LOD 400. LOD 500 requires verification that the modelled '
         'element corresponds to the element actually installed, together with its asset data. For serviceable '
@@ -279,14 +284,18 @@ table(['Code', 'Discipline'],
       widths=[2.6, 14.0])
 
 h2('4.4  Type codes')
-table(['Code', 'Type', 'Code', 'Type'],
-      [['M3', '3D model', 'RP', 'Report'],
-       ['M2', '2D model or drafting', 'CA', 'Calculation'],
-       ['DR', 'Drawing', 'RD', 'Room data sheet'],
-       ['SH', 'Sheet', 'MS', 'Method statement'],
-       ['SC', 'Schedule', 'PP', 'Presentation'],
-       ['SP', 'Specification', 'CR', 'Clash or coordination report']],
-      widths=[2.0, 6.3, 2.0, 6.3])
+# Generated from N.TYPES, not restated. This table was a hand-written second
+# copy of the type codes and drifted from the naming source the moment the
+# project adopted the BS EN ISO 19650-2 UK NA set -- the document gate caught
+# it, which is the only reason it is not still wrong.
+_t = list(N.TYPES)
+_half = (len(_t) + 1) // 2
+_rows = []
+for _i in range(_half):
+    _l = _t[_i]
+    _r = _t[_i + _half] if _i + _half < len(_t) else ('', '')
+    _rows.append([_l[0], _l[1], _r[0], _r[1]])
+table(['Code', 'Type', 'Code', 'Type'], _rows, widths=[1.6, 6.7, 1.6, 6.7])
 
 h2('4.5  Level codes')
 table(['Code', 'Level'],
@@ -483,7 +492,7 @@ table(['Data', 'A', 'B', 'C', 'FF&E'],
        ['Maintenance interval', 'Yes', '—', '—', '—'],
        ['Recommended spares', 'Yes', '—', '—', '—'],
        ['Commissioning date', 'Yes', '—', '—', '—'],
-       ['FF&E reference', '—', '—', '—', 'Yes']],
+       ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes']],
       widths=[6.6, 2.4, 4.0, 2.4, 1.8], font=8)
 callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
         'cause-and-effect schedule, the panel and future maintenance actually use.', 'Fire alarm devices')
@@ -559,13 +568,13 @@ stage('8.4', 'Stage 2.3 — Technical Design, Deliverable C (M5 to M8, LOD 350)'
       'LOD 350 verification passed; no unresolved clashes; specification gaps closed or formally accepted; FF&E linked; '
       'review comments closed.')
 
-h2('8.5  Stages 2.4 and 2.5 — Tender and conformed set (M9 to M11)')
+h2('8.5  Stages 2.4 and 2.5 — Tender and conformed set (%s)' % K.span_label('2.4'))
 para('The tender set is issued from the CDE at suitability A1. Queries are raised and answered as formal requests '
      'for information and are logged. No model change is made except by instruction. Following award, addenda and '
      'tender stage changes are incorporated and the set is regenerated and reissued as the conformed baseline '
      'against which construction proceeds. The register must show every superseded revision as archived.')
 
-stage('8.6', 'Stage 3.1 — Construction administration (M12 to M43, LOD 400)',
+stage('8.6', 'Stage 3.1 — Construction administration (%s, LOD 400)' % K.span_label('3.1'),
       'Conformed set published; contractor mobilised.',
       [['Contractor', 'Shop drawings and fabrication models; progressive as-built capture; requests for information through the CDE'],
        ['Design team', 'Responses to requests for information; revisions issued with revision data; site queries'],
@@ -576,12 +585,12 @@ stage('8.6', 'Stage 3.1 — Construction administration (M12 to M43, LOD 400)',
       'reports; progressive asset data capture.',
       'Construction information complete; as-built capture current to within one month; asset data capture on programme.')
 
-h2('8.7  Stage 3.2 — FF&E installation (M40 to M43)')
+h2('8.7  Stage 3.2 — FF&E installation (%s)' % K.span_label('3.2'))
 para('FF&E is installed and reconciled item by item against the Fohlio record. Finishes are verified against the '
      'installed condition. The gate requires the FF&E schedule to be reconciled with no unlinked items, and O&M '
      'information to be collected.')
 
-stage('8.8', 'Stage 3.3 — Close-out, Deliverable D (M44 to M45, LOD 500)',
+stage('8.8', 'Stage 3.3 — Close-out, Deliverable D (%s, LOD 500)' % K.span_label('3.3'),
       'Practical completion of the relevant works; within 60 days of furniture installation.',
       [['Contractor', 'Final as-built information; commissioning records; warranties and O&M documentation'],
        ['Controls contractor', 'Live Niagara station reconciled against the model equipment and points'],
@@ -632,15 +641,18 @@ table(['Meeting', 'Frequency', 'Chair', 'Attendees', 'Purpose'],
 h1('10  Information delivery planning')
 
 h2('10.1  Definitions')
-para('The Task Information Delivery Plan (TIDP) is produced by each appointed party and lists the information '
-     'that party will deliver, when, at what level of development, and in what format. It is owned by the Task '
-     'Team Manager.')
+para('The Task Information Delivery Plan (TIDP) lists the information one appointed party will deliver, when, '
+     'at what level of development, and in what format. It is owned by the Task Team Manager of that party.')
+para('A plan is issued to each party already carrying the deliverables assigned to it in the project register, '
+     'as its own sheet in the delivery plan workbook. The party confirms the dates, adds anything its scope '
+     'requires that is not listed, and returns the sheet. Nothing is transcribed: a plan rebuilt by hand from '
+     'the register is where the two stop agreeing.')
 para('The Master Information Delivery Plan (MIDP) aggregates every TIDP into the project master. It is owned by '
      'the Information Manager and is the single record of what is due, from whom, and when.')
 
 h2('10.2  Production and maintenance')
 table(['When', 'Action'],
-      [['Mobilisation', 'Each appointed party returns a TIDP. The Information Manager aggregates these into the MIDP baseline'],
+      [['Mobilisation', 'Each appointed party returns its plan. The Information Manager merges them into the MIDP baseline'],
        ['At each stage commencement', 'TIDPs are reviewed and re-baselined for the stage'],
        ['At each data drop', 'Actual dates are recorded and status updated'],
        ['Monthly', 'The MIDP is reissued with the status report'],
@@ -648,14 +660,13 @@ table(['When', 'Action'],
       widths=[4.6, 12.0])
 
 h2('10.3  Required fields')
-para('TIDPs are submitted using the issued template and the following fields.')
+para('These are the columns of the issued sheet. They are listed here so a Task Team Manager can see what will '
+     'be asked for before the sheet arrives; the sheet itself is the authoritative form.')
+_f = list(COL_NAMES)
+_rows_n = -(-len(_f) // 3)
+_f += [''] * (_rows_n * 3 - len(_f))
 table(['Field', 'Field', 'Field'],
-      [['Reference', 'Format', 'Actual date'],
-       ['Discipline', 'Suitability', 'Responsible'],
-       ['Originator', 'CDE state', 'TIDP reference'],
-       ['Deliverable', 'Planned release month', 'Status'],
-       ['Type', 'Planned date', 'Notes'],
-       ['Stage and level of development', '', '']],
+      [[_f[i], _f[i + _rows_n], _f[i + 2 * _rows_n]] for i in range(_rows_n)],
       widths=[5.6, 5.5, 5.5])
 
 # ── 11 ───────────────────────────────────────────────────────────────────────
@@ -893,7 +904,7 @@ c.properties(
     title='KUT Project Delivery Playbook',
     subject='Kampala Uganda Temple — information management, production and delivery procedures',
     category='Project procedure',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
 c.save(OUT, generator='tools/build_team_playbook.py')
 print('saved:', OUT)

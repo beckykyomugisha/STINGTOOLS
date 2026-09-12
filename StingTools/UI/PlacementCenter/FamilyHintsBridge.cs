@@ -54,8 +54,8 @@ namespace StingTools.UI.PlacementCenter
                 Add(rows, sampleType, sampleInst, "PLACE_MOUNT_HEIGHT_MM",      "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_OFFSET_X_MM",          "mm");
                 Add(rows, sampleType, sampleInst, "PLACE_MIN_SPACING_MM",       "mm");
-                Add(rows, sampleType, sampleInst, "PLACE_ANCHOR_TXT",           "");
-                Add(rows, sampleType, sampleInst, "PLACE_SIDE_TXT",             "");
+                Add(rows, sampleType, sampleInst, ParamRegistry.PLACE_ANCHOR,   "");
+                Add(rows, sampleType, sampleInst, ParamRegistry.PLACE_SIDE,     "");
                 Add(rows, sampleType, sampleInst, "PLACE_PRIORITY_INT",         "");
                 Add(rows, sampleType, sampleInst, "PLACE_MAX_PER_ROOM_INT",     "");
                 Add(rows, sampleType, sampleInst, "PLACE_SPACING_RULE_TXT",     "");
@@ -151,15 +151,47 @@ namespace StingTools.UI.PlacementCenter
                             TrySetLengthMm(sym, "PLACE_MIN_SPACING_MM", vm.MinSpacingMm)) { writes++; any = true; }
 
                         // Placement-rule discriminators
-                        if (TrySetString(sym, "PLACE_ANCHOR_TXT",        vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
-                        if (TrySetString(sym, "PLACE_SIDE_TXT",          vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
+                        if (TrySetString(sym, ParamRegistry.PLACE_ANCHOR, vm.Model.AnchorType    ?? "ROOM_CENTRE")) { writes++; any = true; }
+                        if (TrySetString(sym, ParamRegistry.PLACE_SIDE,   vm.Model.SideConstraint ?? "EITHER"))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_PRIORITY_INT",     vm.Priority))     { writes++; any = true; }
                         if (TrySetInteger(sym, "PLACE_MAX_PER_ROOM_INT", vm.MaxPerRoom))   { writes++; any = true; }
 
                         // Free-text notes + standards
                         if (TrySetString(sym, "STING_PLACEMENT_NOTES_TXT", vm.Notes       ?? "")) { writes++; any = true; }
                         if (TrySetString(sym, "STING_STANDARD_REF_TXT",    vm.StandardRef ?? "")) { writes++; any = true; }
-                        if (TrySetString(sym, "STING_UNICLASS_PR_TXT",     vm.UniclassPr  ?? "")) { writes++; any = true; }
+                        // A-2: was STING_UNICLASS_PR_TXT — a name that exists in no
+                        // parameter file, so this write silently no-opped and the
+                        // Placement Center's Uniclass hint never reached the model.
+                        // UNICLASS_PR_TXT is the name ClassificationReader reads.
+                        if (TrySetString(sym, "UNICLASS_PR_TXT",           vm.UniclassPr  ?? "")) { writes++; any = true; }
+
+                        // Specification fields. These were loaded from the rule
+                        // pack and (for glazing) authored across 30 window rules,
+                        // but nothing downstream of a point-placement run ever
+                        // read them — only the routing engines did, and only for
+                        // routing rules. Pushing them onto the family types makes
+                        // them visible to schedules, COBie and the validators.
+                        //
+                        // STING_MAINT_CLEAR_TXT specifically is the parameter
+                        // MaintenanceAccessValidator reads: nothing wrote it
+                        // before, so that validator could never fire. Writing the
+                        // rule's clearance class here is what activates it.
+                        var m = vm.Model;
+                        if (m != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(m.Material)
+                                && TrySetString(sym, "STING_MATERIAL_TXT", m.Material)) { writes++; any = true; }
+                            if (!string.IsNullOrWhiteSpace(m.GlazingSpec)
+                                && TrySetString(sym, "STING_GLAZING_SPEC_TXT", m.GlazingSpec)) { writes++; any = true; }
+                            if (TrySetInteger(sym, "STING_GLAZING_TOUGHENED_YN",
+                                              m.ToughenedGlazingRequired ? 1 : 0)) { writes++; any = true; }
+                            if (m.InsulationThicknessMm > 0
+                                && TrySetLengthMm(sym, "STING_INSULATION_THK_MM", m.InsulationThicknessMm)) { writes++; any = true; }
+                            if (m.NominalDiameterMm > 0
+                                && TrySetLengthMm(sym, "STING_NOMINAL_DIA_MM", m.NominalDiameterMm)) { writes++; any = true; }
+                            if (!string.IsNullOrWhiteSpace(m.MaintenanceClearance)
+                                && TrySetString(sym, "STING_MAINT_CLEAR_TXT", m.MaintenanceClearance)) { writes++; any = true; }
+                        }
 
                         // PC-11 — clearance / weight / envelope / fire separation
                         if (extras != null)

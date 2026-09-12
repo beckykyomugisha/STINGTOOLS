@@ -14919,6 +14919,30 @@
       "curated": true
     },
     {
+      "param_name": "FOHLIO_UNIT_COST_NR",
+      "guid": "b6e507ab-bab5-5b7f-aecd-ca78bd14f4c5",
+      "description": "Fohlio procurement unit cost, in FOHLIO_CURRENCY_TXT and NOT the project currency — read by FohlioRateProvider (rate priority 96) and converted by the registry FX adapter",
+      "datatype": "NUMBER",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
+      "param_name": "FOHLIO_CURRENCY_TXT",
+      "guid": "f369abea-4433-541c-a409-128ec9c1675e",
+      "description": "ISO 4217 currency of FOHLIO_UNIT_COST_NR (Fohlio quotes USD by default) — without it a foreign-currency quote would be billed as project currency",
+      "datatype": "TEXT",
+      "group_id": 1,
+      "group_name": "ASS_MNG",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Asset",
+      "curated": true
+    },
+    {
       "param_name": "LTG_HOIST_WEIGHT_KG",
       "guid": "f2ec67d7-0d9a-561b-b3f6-11b713ac468e",
       "description": "Decorative-lighting hoist load (kg) — A1 §5 lighting schedule",

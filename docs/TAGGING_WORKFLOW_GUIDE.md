@@ -69,7 +69,7 @@ Example: `M-BLD1-Z01-L02-HVAC-SUP-AHU-0003` reads *"third Mechanical Supply Air 
 ### Step 1.3 — Create/Load Tag Families (the .rfa files)
 
 - **Panel → TAGS → Setup → Create Tag Families** (first time ever) *or* **Load Tag Families** (use the pre-built ones).
-- *Why:* every Revit category that can be tagged needs its own tag family (.rfa). STING ships 137 of them.
+- *Why:* every Revit category that can be tagged needs its own tag family (.rfa). STING ships 207 families — 206 per-category plus STING_Tag_Universal.rfa. (The 137 figure counted the deleted Data/TagFamilies/Seeds folder.)
 - *When:* once per Revit installation. If you see *"Family not loaded"* warnings, re-run **Load Tag Families**.
 
 ### Step 1.4 — Configure defaults
@@ -198,10 +198,13 @@ Everything above deals with data. You still need to put text on the sheet.
 
 ### Switching positions after the fact
 
-Each tag family has 16 named types (`2.5mm - 1x-N`, `2.5mm - 1x-E`, …, `2.5mm - 1.5x-NW`). **Default active type is `2.5mm - 1x-N`** — North, Ring 1, 2.5 mm text. To move a tag:
-
-- **Panel → TAGS → Position → Switch Tag Position**, then pick Above / Right / Below / Left.
-- The engine just swaps the family type — no leader breaks, no position drift.
+> **REMOVED — this procedure described a type-naming scheme that never existed.**
+> It claimed 16 named types per family (`2.5mm - 1x-N` … `2.5mm - 1.5x-NW`) with
+> `2.5mm - 1x-N` active by default. No family ships those names. The real canonical form is
+> `TypeVariantSpec.CanonicalTypeName` — e.g. `2.5_BOLD_RED_Filled30_T3` — resolved by
+> `TagStyleEngine.ResolveVariantSymbol`, and the shipped universal tag currently has **no types
+> at all** (see `UNIVERSAL_TAG_CONFORMANCE.md` §2.3). Deleted rather than corrected: the whole
+> Switch-Tag-Position procedure was built on the invented scheme.
 
 ### Aligning tags into bands
 
@@ -493,4 +496,4 @@ When the client says "ship it":
 
 ---
 
-*Last updated: 2026-04-16. Schema: Tag Config v5.2, MR_PARAMETERS 2,361 entries, 137 tag families.*
+*Last updated: 2026-08-09. Schema: Tag Config v5.2, MR_PARAMETERS **3,392** PARAM lines, **207** tag families.*

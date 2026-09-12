@@ -29,6 +29,27 @@ namespace StingTools.Core.MaterialSchedule
         public List<string> TraceRefs = new List<string>();
 
         /// <summary>
+        /// The Revit categories this commodity was measured FROM, sorted.
+        ///
+        /// Aggregation groups by commodity key and had been dropping this, so a
+        /// row reading "Generic - 225mm, 610 m2, unpriced" gave a QS no way to
+        /// tell it was a ROOF — the one fact needed to price it. Cement comes
+        /// from several categories at once, so it is a set rather than a single
+        /// value; collapsing it to "the first one" would name a source that is
+        /// only part of the truth.
+        /// </summary>
+        public List<string> Categories = new List<string>();
+
+        /// <summary>
+        /// The model TYPE names behind this row, sorted, capped at a few.
+        ///
+        /// For an unmatched row the key IS the type name and this adds nothing;
+        /// for cement it says which walls and slabs produced it, which is what
+        /// makes a rate checkable rather than merely enterable.
+        /// </summary>
+        public List<string> TypeNames = new List<string>();
+
+        /// <summary>
         /// True when a supplier-unit rule matched this row's CATEGORY but not its
         /// type, so the quantity stayed in measured units rather than being
         /// converted on a guess. Surfaced by reconciler rule R5 — a wrong trade
@@ -37,8 +58,31 @@ namespace StingTools.Core.MaterialSchedule
         public bool ConversionBlocked;
         public string ConversionNote = "";
 
+        /// <summary>The constituent kind this row came from, or "" for a row that
+        /// carried none. Used to decide whether the row is an intermediate.</summary>
+        public string SourceKind = "";
+
+        /// <summary>
+        /// True when this row is an INTERMEDIATE MEASURE whose purchasable
+        /// constituents are separately listed in the same document — blockwork
+        /// area against the block count derived from it, mortar volume against
+        /// its cement and sand.
+        ///
+        /// The first real export listed all four alongside their own children
+        /// and flagged each with R3 ("has no rate. It will total zero"), which
+        /// reads as an instruction to price them. Rating 175 m2 of blockwork
+        /// next to 2,292 blocks pays for the same wall twice.
+        ///
+        /// A memorandum row keeps its quantity — it is the audit trail that
+        /// makes the derived counts checkable — but it can never carry money:
+        /// AmountUGX is hard-zero, so the double-count is unrepresentable
+        /// rather than merely discouraged.
+        /// </summary>
+        public bool IsMemorandum;
+        public string MemorandumNote = "";
+
         /// <summary>Derived — see the file header. Rounded to whole UGX.</summary>
-        public double AmountUGX => Math.Round(OrderQuantity * RateUGX, 0);
+        public double AmountUGX => IsMemorandum ? 0 : Math.Round(OrderQuantity * RateUGX, 0);
 
         /// <summary>True when no rate could be resolved for this commodity.</summary>
         public bool IsUnpriced => RateUGX <= 0;
@@ -113,6 +157,38 @@ namespace StingTools.Core.MaterialSchedule
         public List<StageSection> Stages = new List<StageSection>();
         public MaterialScheduleOptions Options = new MaterialScheduleOptions();
         public MaterialScheduleReconciliation Reconciliation = new MaterialScheduleReconciliation();
+
+        /// <summary>
+        /// Everything the export needed to say about itself: the compound-takeoff
+        /// gate, excluded rows, the tiling and room-finish scans, site-tool
+        /// heuristics.
+        ///
+        /// These used to exist ONLY in the post-export dialog. The tiling scan
+        /// was added precisely so that "no tiling appeared" stopped being
+        /// ambiguous — and then its answer vanished the moment the dialog was
+        /// closed, so a workbook reviewed later could not say why it looked the
+        /// way it did. A deliverable has to carry its own explanation.
+        /// </summary>
+        /// <summary>
+        /// The project rate file this run resolved, absolute.
+        ///
+        /// Carried on the document because the reconciler is Revit-free and
+        /// cannot ask StingPaths. It matters: every message used to name
+        /// "_BIM_COORD/commodity_rates.csv", which is the ALIAS. The live
+        /// folder is _data/coord, and a user following the text literally
+        /// landed in a stale legacy folder and concluded the file was missing.
+        /// </summary>
+        public string ProjectRatesPath = "";
+
+        /// <summary>
+        /// Measured source per (commodityKey, typeName), for the by-type sheet.
+        /// Carried on the document because the breakdown must be computed from
+        /// the SAME numerator the order lines were, not from a second pass.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, double>> SourceByType =
+            new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+
+        public List<string> Warnings = new List<string>();
 
         /// <summary>MAT-SCHED-8 — model rows dropped as not-a-material, by category.
         /// Reported so an exclusion is a stated decision, never a silent loss.</summary>

@@ -80,6 +80,11 @@
     <!-- WS A3 — pure BOQ waste + biogenic helpers shared with the materials carbon path. -->
     <Compile Include="..\StingTools\BOQ\WasteFactor.cs" Link="Engines\WasteFactor.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="Engines\BiogenicCarbon.cs" />
+    <!-- W3: BiogenicCarbon reads the ONE timber vocabulary now, which needs the
+         whole-word matcher with it. Three copies of that list disagreed on 85 of
+         1,808 real material names, on a carbon figure. -->
+    <Compile Include="..\StingTools\Core\Materials\SubstanceVocabulary.cs" Link="Engines\SubstanceVocabulary.cs" />
+    <Compile Include="..\StingTools\Core\MaterialSchedule\PatternMatch.cs" Link="Engines\PatternMatch.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\IMetricProvider.cs" Link="Engines\IMetricProvider.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\SchemeEvaluator.cs" Link="Engines\SchemeEvaluator.cs" />
     <Compile Include="..\StingTools\Core\Sustainability\EdgeKpiSnapshot.cs" Link="Engines\EdgeKpiSnapshot.cs" />

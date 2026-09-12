@@ -249,6 +249,59 @@ public class ModelGeorefWriterTests
     }
 
     [Fact]
+    public async Task A_confirmed_refusal_says_so_and_names_who_confirmed_it()
+    {
+        // The result has to distinguish the two ways a write can be refused, or
+        // a caller can only infer the reason from Written=false — and that
+        // inference is wrong for the no-survey-origin case. AutoAlignService is
+        // the caller that has to tell a human WHY, and this is what lets it do
+        // that without re-reading the row and re-testing IsConfirmed itself.
+        var confirmedAt = new DateTime(2026, 3, 4, 9, 30, 0, DateTimeKind.Utc);
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            using (var seed = NewContext(w.Conn, w.Tenant))
+            {
+                seed.ProjectModelTransforms.Add(new ProjectModelTransform
+                {
+                    TenantId = w.Tenant, ProjectId = w.Project, ProjectModelId = w.Model,
+                    IsConfirmed = true,
+                    AppliedBy = "coordinator@example.com", AppliedAt = confirmedAt,
+                });
+                await seed.SaveChangesAsync();
+            }
+
+            var write = await NewWriter(w).WriteAsync(
+                w.Project, w.Model, w.Tenant, RevitGeoref(), "PASS");
+
+            Assert.False(write.Written);
+            Assert.True(write.RefusedAsConfirmed);
+            Assert.Equal("coordinator@example.com", write.ConfirmedBy);
+            Assert.Equal(confirmedAt, write.ConfirmedAt);
+            // Still reports what it WOULD have written, so the refusal is useful.
+            Assert.Equal(432_000_000.0, write.TranslationXMm, 3);
+        }
+    }
+
+    [Fact]
+    public async Task A_refusal_for_want_of_a_survey_origin_is_not_a_confirmed_refusal()
+    {
+        // The distinction that makes `!Written` an unsafe proxy for "confirmed":
+        // both refusals share Written=false, and reporting this one as "manually
+        // confirmed by a coordinator" would be a confident wrong answer.
+        var w = NewWorld();
+        using (w.Conn)
+        {
+            var georef = RevitGeoref() with { EastingM = null, NorthingM = null };
+            var write = await NewWriter(w).WriteAsync(w.Project, w.Model, w.Tenant, georef, "PASS");
+
+            Assert.False(write.Written);
+            Assert.False(write.RefusedAsConfirmed);
+            Assert.Null(write.ConfirmedBy);
+        }
+    }
+
+    [Fact]
     public async Task Re_publishing_updates_the_existing_transform_rather_than_duplicating_it()
     {
         // ProjectModelTransform has a UNIQUE index on ProjectModelId — a second

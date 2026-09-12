@@ -36,7 +36,11 @@ namespace StingTools.Commands.Electrical
                 snap.RoomTargets = BuildRoomTargets(doc);
                 snap.WireRefRows = BuildWireRefRows("Cu", "XLPE90", "C");
                 snap.ComplianceItems = BuildCompliance(doc);
-                snap.Standard = StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard;
+                // KUT-7 — canonical id, so the snapshot carries the same token the
+                // engines route on. The panel emits "NEC2023"; the engine used to test
+                // for "NEC", which is why selecting NEC 2023 produced a BS 7671 answer.
+                snap.Standard = StingTools.Standards.ElectricalStandardId.Normalise(
+                    StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
                 // Phase 178 — surface LastResults caches (no extra Revit reads).
                 snap.Feeders = StingTools.Commands.Electrical.FeederSizing.FeederSizerCommand.LastResults
                     .Select(r => new StingTools.UI.FeederData

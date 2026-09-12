@@ -126,7 +126,17 @@ namespace StingTools.Core.Drawing
                     // carry overrides ready for when it is re-shown.
                     if (src.Visible.HasValue)
                     {
-                        try { view.SetCategoryHidden(catId, !src.Visible.Value); } catch { }
+                        // H-4 — was a silent catch. SetCategoryHidden THROWS when the
+                        // category cannot be controlled in this view, so here the
+                        // exception is the signal (unlike the parameter writes in
+                        // this batch, where the return value is). A swallowed
+                        // failure means the drawing renders with categories the
+                        // style pack says are hidden — visible on the sheet, and
+                        // attributed to the pack being wrong rather than unapplied.
+                        SafeWrite.Try(() => view.SetCategoryHidden(catId, !src.Visible.Value),
+                            "ViewStylePack.Visibility",
+                            $"category '{kv.Key}' in view '{view.Name}'",
+                            r?.Warnings);
                     }
 
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
@@ -145,8 +155,8 @@ namespace StingTools.Core.Drawing
                         // so only the projection line work renders.
                         if (t >= 100)
                         {
-                            try { ogs.SetSurfaceForegroundPatternVisible(false); } catch { }
-                            try { ogs.SetSurfaceBackgroundPatternVisible(false); } catch { }
+                            SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(false), "ViewStylePack.Pattern", "surface fg pattern off", r?.Warnings);
+                            SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(false), "ViewStylePack.Pattern", "surface bg pattern off", r?.Warnings);
                         }
                     }
 
@@ -246,7 +256,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceForegroundPatternId(fid);
-                            try { ogs.SetSurfaceForegroundPatternVisible(true); } catch { }
+                            SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(true), "ViewStylePack.Pattern", "surface fg pattern on", r?.Warnings);
                         }
                     }
                     var sbgColor = rule.SurfaceBgColor ?? defaults?.SurfBgColor;
@@ -258,7 +268,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetSurfaceBackgroundPatternId(fid);
-                            try { ogs.SetSurfaceBackgroundPatternVisible(true); } catch { }
+                            SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(true), "ViewStylePack.Pattern", "surface bg pattern on", r?.Warnings);
                         }
                     }
 
@@ -272,7 +282,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetCutForegroundPatternId(fid);
-                            try { ogs.SetCutForegroundPatternVisible(true); } catch { }
+                            SafeWrite.Try(() => ogs.SetCutForegroundPatternVisible(true), "ViewStylePack.Pattern", "cut fg pattern on", r?.Warnings);
                         }
                     }
                     var cbgColor = rule.CutBgColor ?? defaults?.CutBgColor;
@@ -284,7 +294,7 @@ namespace StingTools.Core.Drawing
                         if (fid != ElementId.InvalidElementId)
                         {
                             ogs.SetCutBackgroundPatternId(fid);
-                            try { ogs.SetCutBackgroundPatternVisible(true); } catch { }
+                            SafeWrite.Try(() => ogs.SetCutBackgroundPatternVisible(true), "ViewStylePack.Pattern", "cut bg pattern on", r?.Warnings);
                         }
                     }
 

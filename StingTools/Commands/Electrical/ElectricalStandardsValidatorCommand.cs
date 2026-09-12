@@ -30,7 +30,15 @@ namespace StingTools.Commands.Electrical
             var doc = ctx.Doc;
 
             List<ValidationResult> findings;
-            try { findings = new ElectricalStandardsValidator().Validate(doc); }
+            // KUT-7 - judge against the standard the engineer selected, not always
+            // BS 7671. NEC drops the draw-in spacing rule and uses a flat 360 deg
+            // bend cap; the validator cites whichever clause it applied.
+            var validator = new ElectricalStandardsValidator
+            {
+                StandardId = StingTools.Standards.ElectricalStandardId.Normalise(
+                    StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard),
+            };
+            try { findings = validator.Validate(doc); }
             catch (Exception ex)
             {
                 StingLog.Error("ElectricalStandardsValidator failed", ex);

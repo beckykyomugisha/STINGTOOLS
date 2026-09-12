@@ -55,12 +55,33 @@ jobs:
         run: ./tools/check_path_discipline.ps1
 
       # Workflow wiring: every WORKFLOW_*.json step must name a command the engine
-      # can resolve. Two silent no-ops used to get through here — steps keyed "tag"
-      # instead of "commandTag" (11 presets, every step, so each ran ZERO steps and
-      # still reported success), and commandTags with no ResolveCommand case.
+      # can resolve, and must not carry keys the engine never reads. Silent no-ops
+      # that used to get through here: steps keyed "tag" instead of "commandTag"
+      # (11 presets, every step, so each ran ZERO steps and still reported success),
+      # commandTags with no ResolveCommand case, "order" disagreeing with the array
+      # order the engine actually executes (Tier 3), and any other step key that
+      # WorkflowStep does not bind, which Newtonsoft drops without a word (Tier 5).
       - name: Check workflow wiring
         shell: pwsh
         run: ./tools/check_workflow_wiring.ps1
+
+      # Unreachable commands: docs/UNREACHABLE_COMMANDS_TRIAGE.md carried a count
+      # measured against ONE of six dispatch layers, and a count in that file drives
+      # deletions -- an over-report there is an invitation to delete live code. The
+      # number is now derived; this fails when the doc drifts from the tree.
+      - name: Unreachable-commands count is current
+        run: python3 tools/recount_unreachable_commands.py --check
+
+      # A method that catches an exception, abandons the work and then tells its
+      # caller it succeeded. Four of those built a project's whole finish catalogue
+      # out of one default layer and reported '168/168 renamed, 0 failed'. This is
+      # a ratchet, not a zero: it fails when the count RISES.
+      - name: No new catch that lies about the outcome
+        run: python3 tools/find_lying_catches.py --check
+
+      - name: Command doc-acquisition discipline
+        shell: pwsh
+        run: ./tools/check_command_doc_acquisition.ps1
 
       - name: Check for duplicate parameter GUIDs
         run: |
@@ -110,6 +131,31 @@ jobs:
                   FAIL = 1
               else:
                   print(f'✓ .txt/.csv mirror in sync ({len(a)} GUIDs)')
+
+          # Group-declaration check. A PARAM row names its group by ID; Revit's
+          # shared-parameter format requires that ID to appear in the *GROUP block, and
+          # a parameter in an undeclared group does not load. Nothing above would catch
+          # it: the GUID is unique, the mirror is in sync, the file parses. It surfaces
+          # only in Revit, as a parameter that is simply absent.
+          declared, used = set(), {}
+          try:
+              for line in open('StingTools/Data/MR_PARAMETERS.txt', encoding='utf-8-sig'):
+                  f = line.rstrip('\n').rstrip('\r').split('\t')
+                  if f[0] == 'GROUP' and len(f) >= 2:
+                      declared.add(f[1])
+                  elif f[0] == 'PARAM' and len(f) >= 6:
+                      used.setdefault(f[5], []).append(f[2])
+          except FileNotFoundError:
+              pass
+          orphans = {g: n for g, n in used.items() if g not in declared}
+          if orphans:
+              for g, names in sorted(orphans.items()):
+                  print(f'❌ GROUP {g} is used by {len(names)} parameter(s) but never declared: '
+                        f'{names[:5]}')
+              FAIL = 1
+          elif used:
+              print(f'✓ every PARAM group is declared ({len(declared)} groups, '
+                    f'{sum(len(n) for n in used.values())} params)')
           sys.exit(FAIL)
           EOF
 

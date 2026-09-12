@@ -1,0 +1,48 @@
+# MOB-11 baseline: parameter names in shipped configuration that do NOT exist in
+# MR_PARAMETERS.txt, as of 2026-09-08.
+#
+# THIS LIST ONLY SHRINKS. tools/check_param_name_targets.py fails if a NEW name
+# appears, and equally if a name here starts existing or stops being referenced --
+# so a fix has to delete its line in the same commit, and a stale entry cannot
+# linger claiming something about code that is gone.
+#
+# WHY NONE OF THESE WAS "JUST FIXED". Almost every one has SEVERAL plausible
+# corrections that differ by unit, or by which element carries the value.
+# ELC_POWER could be ELC_PWR_KW or ELC_PWR_TXT; HVC_PRESSURE could be
+# HVC_PRESSURE_DROP_PA or HVC_PIPE_PRESSURE_KPA. Picking one is an authoring
+# decision about what the field means, and picking wrong writes a number into the
+# wrong field -- which is worse than writing none, because a wrong value looks
+# supplied. The candidates are recorded here so the decision is cheap when
+# somebody with the authority to make it gets to it.
+#
+# Format:  NAME<TAB>note
+#
+# ── COBie attribute templates (StingParamKey) ───────────────────────────────
+# SEVERITY NOTE: these are ADVISORY ONLY. COBieDataCommands prints the key into a
+# TaskDialog as "AttributeName [unit] -> STING:KEY"; it is never passed to
+# SetString or LookupParameter. So no value is silently discarded here -- instead
+# the software TELLS AN ENGINEER TO POPULATE A PARAMETER THAT DOES NOT EXIST,
+# which is a defect of guidance rather than of data. Worth fixing, not urgent.
+ELC_IP_RATING	advisory; candidates ELC_IP_RATING_TXT, ELC_PNL_IP_RATING_TXT
+ELC_POWER	advisory; candidates ELC_PWR_KW (numeric), ELC_PWR_TXT
+ELC_VOLTAGE	advisory; candidates ELC_VOLTAGE_V (numeric), ELC_VOLTAGE_TXT, ELC_CIR_VOLTAGE_TXT
+ELC_WAYS	advisory; nearest is ELC_SPARE_WAYS_NR, which counts SPARE ways, not total
+FIRE_RATING	advisory; unprefixed. candidates PER_FIRE_RATING_HR (numeric), RGL_FIRE_RATING_TXT, SLV_FIRE_RATING_TXT
+HVC_AIRFLOW	advisory; candidates HVC_AIRFLOW_LPS (numeric), HVC_FLOW_LS, HVC_FLOW_TXT
+HVC_PRESSURE	advisory; candidates HVC_PRESSURE_DROP_PA, HVC_PIPE_PRESSURE_KPA - different quantities
+LTG_EFFICACY	advisory; candidates LTG_EFFICACY_TXT, LTG_EFFICACY_LM_W, LTG_FIX_EFFICACY_LM_W
+LTG_LUMENS	advisory; nearest is ELC_PHOTO_LUMENS_NR, a different prefix family
+LTG_WATTAGE	advisory; candidates LTG_FIX_LMP_WATTAGE_W (numeric), LTG_FIX_LMP_WATTAGE_TXT
+PLM_PIPE_FLOW	advisory; candidates PLM_PPE_FLW_LPS (numeric), PLM_PPE_FLW_TXT, PLM_FLOW_LS
+#
+# ── ExLink default link profiles (Sting profile properties) ─────────────────
+# THESE ARE REAL TARGETS. ExLinkDefaultLinks builds the property list a link
+# profile exports from and imports into, so a name that does not exist means the
+# column exports blank and an import lands nowhere -- the MOB-11 shape exactly.
+# Fixing these changes what an export CONTAINS, which is why each needs the right
+# answer rather than the nearest one.
+ASS_USAGE_TXT	real target; nearest existing is the unprefixed USAGE_TXT - confirm which the profile means
+BLE_DOOR_FIRE_RATING_TXT	real target; no BLE_ fire-rating parameter exists. candidates PER_/RGL_/SLV_FIRE_RATING_TXT
+BLE_FLOOR_FINISH_TXT	real target; candidates BLE_FLR_FINISH_TXT and BLE_FLR_FINISH_MAT_TXT - two different facts
+BLE_WALL_FIRE_RATING_TXT	real target; same as the door case - no BLE_ fire-rating parameter exists
+STR_CONCRETE_GRADE_TXT	real target; candidates BLE_STRUCT_CONCRETE_GRADE_TXT, CST_S_CON_GRADE_TXT

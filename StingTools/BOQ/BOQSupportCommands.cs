@@ -53,6 +53,196 @@ namespace StingTools.BOQ
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BOQReadinessByElementCommand — G-14 trap 2.
+    //
+    //  Trap 2 is that a row is mis-named because a parameter is missing, and it
+    //  is invisible: the bill still has a line, still has a quantity, still has
+    //  a price. The only way to find it was to read 4,000 bill lines and notice
+    //  that one of them says the wrong thing.
+    //
+    //  This is the inverse view — per ELEMENT, before the bill exists, listing
+    //  what each one lacks. It walks the SAME collection BuildBOQDocument makes
+    //  (BOQCostManager.CandidatesForReadiness), so what it clears is exactly
+    //  what will be billed. A pre-flight that walks a different set would be
+    //  worse than none.
+    //
+    //  Six fields decide whether a row comes out right:
+    //     category · type name · material · classification · STING tag · rate
+    // ══════════════════════════════════════════════════════════════════════
+    [Transaction(TransactionMode.ReadOnly)]
+    public class BOQReadinessByElementCommand : IExternalCommand
+    {
+        private sealed class Row
+        {
+            public long Id;
+            public string Category = "", TypeName = "", Missing = "";
+            public int MissingCount;
+        }
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            try
+            {
+                var ctx = ParameterHelpers.GetContext(commandData);
+                if (ctx?.Doc == null) return Result.Failed;
+                var doc = ctx.Doc;
+
+                // One build. The rows answer "will this price?" without
+                // re-implementing the provider chain, and the element walk
+                // answers the rest.
+                var boq = BOQCostManager.BuildBOQDocument(doc);
+                var rowByEl = new Dictionary<long, BOQLineItem>();
+                foreach (var it in boq.AllItems)
+                    if (it != null && it.RevitElementId > 0 && !rowByEl.ContainsKey(it.RevitElementId))
+                        rowByEl[it.RevitElementId] = it;
+
+                var els = BOQCostManager.CandidatesForReadiness(doc);
+
+                var findings = new List<Row>();
+                var fieldTally = new Dictionary<string, int>(StringComparer.Ordinal)
+                {
+                    ["category"] = 0, ["type name"] = 0, ["material"] = 0,
+                    ["classification"] = 0, ["STING tag"] = 0, ["rate"] = 0, ["no row"] = 0
+                };
+
+                foreach (var el in els)
+                {
+                    var missing = new List<string>();
+
+                    string cat = ParameterHelpers.GetCategoryName(el);
+                    if (string.IsNullOrWhiteSpace(cat)) missing.Add("category");
+
+                    string typeName = "";
+                    try { typeName = (doc.GetElement(el.GetTypeId()) as ElementType)?.Name ?? ""; } catch { }
+                    if (string.IsNullOrWhiteSpace(typeName)) missing.Add("type name");
+
+                    if (string.IsNullOrWhiteSpace(PrimaryMaterial.Resolve(el))) missing.Add("material");
+
+                    // A classification that resolved to Native.Family is the
+                    // fallback tier, not a classification — it is category +
+                    // family + type restated. Counting it as present would make
+                    // this pre-flight agree with the bill's own blind spot.
+                    try
+                    {
+                        var cls = StingTools.Core.Classification.ClassificationReader.ResolveFallback(el);
+                        if (string.IsNullOrEmpty(cls.value) ||
+                            string.Equals(cls.source, "Native.Family", StringComparison.OrdinalIgnoreCase))
+                            missing.Add("classification");
+                    }
+                    catch { missing.Add("classification"); }
+
+                    string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
+                    if (!TagConfig.TagIsComplete(tag)) missing.Add("STING tag");
+
+                    long id = el.Id?.Value ?? 0;
+                    if (!rowByEl.TryGetValue(id, out var row))
+                        missing.Add("no row");
+                    else if (row.RateUGX <= 0)
+                        missing.Add("rate");
+
+                    if (missing.Count == 0) continue;
+                    foreach (var m in missing)
+                        if (fieldTally.ContainsKey(m)) fieldTally[m]++;
+
+                    findings.Add(new Row
+                    {
+                        Id = id,
+                        Category = cat ?? "",
+                        TypeName = typeName,
+                        Missing = string.Join(", ", missing),
+                        MissingCount = missing.Count
+                    });
+                }
+
+                int total = els.Count;
+                int ready = total - findings.Count;
+
+                // CSV worklist — the point is to hand this to a modeller, not to
+                // have them read it on screen.
+                string csvPath = null;
+                try
+                {
+                    string dir = StingPaths.Meta(doc, "_BIM_COORD");
+                    Directory.CreateDirectory(dir);
+                    csvPath = Path.Combine(dir, $"boq_readiness_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("ElementId,Category,TypeName,MissingCount,MissingFields");
+                    foreach (var f in findings.OrderByDescending(x => x.MissingCount)
+                                              .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase))
+                        sb.AppendLine(string.Join(",", f.Id.ToString(CultureInfo.InvariantCulture),
+                            Csv(f.Category), Csv(f.TypeName),
+                            f.MissingCount.ToString(CultureInfo.InvariantCulture), Csv(f.Missing)));
+                    File.WriteAllText(csvPath, sb.ToString());
+                }
+                catch (Exception ex) { StingLog.Warn($"BOQ readiness CSV: {ex.Message}"); csvPath = null; }
+
+                var panel = StingResultPanel.Create("BOQ — readiness by element");
+                if (total == 0)
+                {
+                    // Zero elements is unknown, not ready. Same rule as H-3.
+                    panel.SetSubtitle("No elements would produce a BOQ row — no readiness figure can be given");
+                    panel.AddSection("NOTHING TO CHECK")
+                         .Text("BuildBOQDocument would walk zero elements on this model. That is not a clean "
+                             + "result; check the category filters and any user exclusions before reading it as one.");
+                    panel.Show();
+                    return Result.Succeeded;
+                }
+
+                panel.SetSubtitle($"{ready} of {total} element(s) ready · {findings.Count} need attention");
+                panel.AddSection("SUMMARY")
+                     .Metric("Elements that will bill", total.ToString())
+                     .Metric("Ready", $"{ready} ({100.0 * ready / total:0.#}%)")
+                     .Metric("Incomplete", findings.Count.ToString());
+
+                panel.AddSection("WHAT IS MISSING, BY FIELD");
+                foreach (var kv in fieldTally.Where(k => k.Value > 0).OrderByDescending(k => k.Value))
+                    panel.Metric(kv.Key, $"{kv.Value} element(s)",
+                        kv.Key == "no row"
+                            ? "Passes the collection filter but produces no bill line — quantity or rule gap"
+                            : kv.Key == "classification"
+                                ? "Resolves only to category/family/type — no Uniclass, CSI or OmniClass"
+                                : null);
+
+                var worst = findings.OrderByDescending(f => f.MissingCount)
+                                    .ThenBy(f => f.Category, StringComparer.OrdinalIgnoreCase)
+                                    .Take(15).ToList();
+                if (worst.Count > 0)
+                {
+                    panel.AddSection("WORST ELEMENTS");
+                    foreach (var f in worst)
+                        panel.Metric($"{f.Category} · {(string.IsNullOrEmpty(f.TypeName) ? "(no type)" : f.TypeName)}",
+                                     $"id {f.Id}", $"missing: {f.Missing}");
+                }
+
+                if (findings.Count == 0)
+                    panel.AddSection("CLEAN").Text("Every element that will bill carries all six fields.");
+                else
+                    panel.AddSection("NEXT")
+                         .Text("Open the CSV below, select by element id in Revit, and fix in the model. "
+                             + "Every row here becomes a bill line whether or not it is fixed — the line is "
+                             + "just wrong in a way the bill cannot show you.");
+
+                if (!string.IsNullOrEmpty(csvPath)) panel.SetCsvPath(csvPath);
+                panel.Show();
+                return Result.Succeeded;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("BOQReadinessByElementCommand", ex);
+                message = ex.Message; return Result.Failed;
+            }
+        }
+
+        private static string Csv(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.IndexOfAny(new[] { ',', '"', '\n' }) >= 0
+                ? "\"" + s.Replace("\"", "\"\"") + "\""
+                : s;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  BOQRateGapReportCommand (G1) — read-only report of every modelled item
     //  that still needs a price: no rate, low confidence, or a Default rate.
     //  Renders inline (StingResultPanel auto-routes to the BOQ Actions pane)
@@ -91,7 +281,13 @@ namespace StingTools.BOQ
 
                 double valueAtRisk = flagged.Values.Sum(f => f.item.TotalUGX);
                 int pricedCount = total - noRate.Count;
-                double pricedPct = total > 0 ? 100.0 * pricedCount / total : 100.0;
+                // H-3 — an empty bill is NOT a fully-priced bill. This used to fall
+                // back to 100.0, so a BOQ that produced zero modelled rows reported
+                // "100% priced" to the QS: the strongest possible green light on the
+                // weakest possible evidence. Zero rows is unknown, not perfect.
+                bool hasRows = total > 0;
+                double pricedPct = hasRows ? 100.0 * pricedCount / total : 0.0;
+                string pricedPctTxt = hasRows ? $"{pricedPct:0.#}%" : "n/a";
 
                 // CSV worklist for the QS.
                 string csvPath = null;
@@ -121,10 +317,12 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.Warn($"BOQ rate-gap CSV: {ex.Message}"); csvPath = null; }
 
                 var panel = StingResultPanel.Create("BOQ — Rate-gap report");
-                panel.SetSubtitle($"{pricedPct:0.#}% priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price");
+                panel.SetSubtitle(hasRows
+                    ? $"{pricedPctTxt} priced · value at risk UGX {valueAtRisk:N0} · {flagged.Count} item(s) need a price"
+                    : "No modelled BOQ rows — nothing to price, and no coverage figure can be given");
                 panel.AddSection("SUMMARY")
                     .Metric("Modelled items", total.ToString())
-                    .Metric("Priced", $"{pricedCount} ({pricedPct:0.#}%)")
+                    .Metric("Priced", $"{pricedCount} ({pricedPctTxt})")
                     .Metric("No rate", noRate.Count.ToString())
                     .Metric("Low confidence", $"{lowConf.Count} (< {floor})")
                     .Metric("Defaulted rate", defaulted.Count.ToString())
@@ -152,8 +350,66 @@ namespace StingTools.BOQ
                             $"{i.Quantity:0.##} {i.Unit}", $"§{i.NRM2Section} · no rate");
                 }
 
-                if (flagged.Count == 0)
+                // E-6 — material-rate misses. A row that fell through the material
+                // library to CsvRateProvider's CATEGORY-keyed rate is PRICED, so it
+                // never appears in any count above — "Walls" gets one figure whether
+                // it is 200 mm hollow block or a glazed screen. Reporting what
+                // actually happened, not what was attempted (same shape as H-1).
+                {
+                    var mm = StingTools.BOQ.Rates.MaterialRateMissLog.All();
+                    int attempts = StingTools.BOQ.Rates.MaterialRateMissLog.Attempts;
+                    int hits = StingTools.BOQ.Rates.MaterialRateMissLog.Hits;
+                    int missRows = StingTools.BOQ.Rates.MaterialRateMissLog.MissRows;
+                    int noMat = StingTools.BOQ.Rates.MaterialRateMissLog.NoMaterialRows;
+
+                    var sec = panel.AddSection("MATERIAL-RATE FALL-THROUGH");
+                    if (attempts == 0)
+                    {
+                        // Distinguished from "no misses" on purpose: a zero here means
+                        // the provider never ran, which is not evidence of coverage.
+                        sec.Text("The material-rate provider did not run on this build — "
+                               + "no coverage figure can be given. This is not the same as a clean result.");
+                    }
+                    else
+                    {
+                        double hitPct = 100.0 * hits / attempts;
+                        sec.Metric("Priced on material", $"{hits} of {attempts} ({hitPct:0.#}%)",
+                                "Rows whose rate came from the material, not its category")
+                           .Metric("Fell through to category rate", missRows.ToString(),
+                                "Priced, but on the CATEGORY — a wall type's construction did not affect its rate")
+                           .Metric("No material resolved", noMat.ToString(),
+                                "A modelling gap, not a rate-library gap — counted separately")
+                           .Metric("Distinct materials unpriced",
+                                StingTools.BOQ.Rates.MaterialRateMissLog.DistinctMaterials.ToString());
+
+                        var named = mm.Where(m => m.Material != StingTools.BOQ.Rates.MaterialRateMissLog.NoMaterialKey)
+                                      .Take(10).ToList();
+                        if (named.Count > 0)
+                        {
+                            panel.AddSection("TOP UNPRICED MATERIALS");
+                            foreach (var m in named)
+                                panel.Metric(m.Material, $"{m.Rows} row(s)",
+                                    m.Categories.Count > 0
+                                        ? $"seen on: {string.Join(", ", m.Categories.OrderBy(c => c).Take(4))}"
+                                        : "");
+                        }
+                    }
+                }
+
+                int fellThrough = StingTools.BOQ.Rates.MaterialRateMissLog.MissRows;
+                if (flagged.Count == 0 && fellThrough == 0)
                     panel.AddSection("CLEAN").Text("Every modelled item is priced above the confidence floor. Ready for QS review.");
+                else if (flagged.Count == 0)
+                    // E-6 — "every item is priced" was true and still misleading:
+                    // a category-rate fall-through IS a rate, so it cleared every
+                    // check above while carrying none of the material's cost.
+                    // Saying "ready for QS review" over that is the false green
+                    // light this batch keeps finding.
+                    panel.AddSection("PRICED, BUT NOT ON MATERIAL")
+                         .Text($"Every modelled item carries a rate above the confidence floor, but {fellThrough} "
+                             + "row(s) were priced on their CATEGORY because the material had no price. Those "
+                             + "figures do not reflect what the element is built from. Price the materials listed "
+                             + "above before treating this bill as QS-ready.");
                 else
                     panel.AddSection("NEXT")
                         .Text("Open the CSV worklist below and hand it to the QS, or run Export QS Bill to price in Excel.");
@@ -228,7 +484,12 @@ namespace StingTools.BOQ
                     .OrderByDescending(m => m.CarbonKg).ToList();
                 int verifiedRows = rows.Count(IsVerified);
                 int missingRows = rows.Count(IsMissing);
-                double epdPct = total > 0 ? 100.0 * verifiedRows / total : 100.0;
+                // H-3 — same false green light as the rate-gap report above: with no
+                // rows this returned 100.0 and told the QS the bill was fully
+                // EPD-verified. Nothing verified out of nothing is unknown, not 100%.
+                bool hasEpdRows = total > 0;
+                double epdPct = hasEpdRows ? 100.0 * verifiedRows / total : 0.0;
+                string epdPctTxt = hasEpdRows ? $"{epdPct:0.#}%" : "n/a";
                 double totalCarbon = rows.Sum(i => i.EmbodiedCarbonKg);
                 double gapCarbon = rows.Where(i => !IsVerified(i)).Sum(i => i.EmbodiedCarbonKg);
 
@@ -256,10 +517,12 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.Warn($"BOQ carbon-gap CSV: {ex.Message}"); csvPath = null; }
 
                 var panel = StingResultPanel.Create("BOQ — Carbon-gap report");
-                panel.SetSubtitle($"{epdPct:0.#}% EPD-verified · {gaps.Count} material(s) need a better factor");
+                panel.SetSubtitle(hasEpdRows
+                    ? $"{epdPctTxt} EPD-verified · {gaps.Count} material(s) need a better factor"
+                    : "No carbon-bearing rows — no EPD-verification figure can be given");
                 panel.AddSection("SUMMARY")
                     .Metric("Carbon-bearing rows", total.ToString())
-                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPct:0.#}%)")
+                    .Metric("EPD-verified rows", $"{verifiedRows} ({epdPctTxt})")
                     .Metric("Missing-factor rows", missingRows.ToString())
                     .Metric("Total embodied carbon", $"{totalCarbon / 1000.0:N1} tCO₂e")
                     .Metric("Carbon not EPD-backed", $"{gapCarbon / 1000.0:N1} tCO₂e",

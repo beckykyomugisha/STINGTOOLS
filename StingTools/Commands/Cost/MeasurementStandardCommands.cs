@@ -47,15 +47,24 @@ namespace StingTools.Commands.Cost
                 }
                 else
                 {
+                    // Say which standards actually re-measure. Only NRM2 and CESMM4
+                    // implement ApplyDeductions; the rest return the quantity unchanged,
+                    // so picking one re-sections the bill without re-measuring it. A QS
+                    // choosing "POMI" may reasonably assume POMI deduction rules were
+                    // applied to the areas they are about to price, and nothing on this
+                    // dialog previously said otherwise.
                     var items = registered
                         .Select(s => new StingListPicker.ListItem
                         {
                             Label = s.DisplayName,
-                            Detail = s.Version,
+                            Detail = s.AppliesDeductions
+                                ? $"{s.Version} — applies deduction rules"
+                                : $"{s.Version} — classification only, quantities not re-measured",
                             Tag = s.Id
                         }).ToList();
                     var picked = StingListPicker.Show("STING — Measurement standard",
-                        "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).",
+                        "Pick the measurement standard for future BOQ builds. Stored in project_config.json (key: COST_MEASUREMENT_STANDARD).\n" +
+                        "Note: the standard changes how rows are classified, described and grouped. Only NRM2 and CESMM4 also change the measured quantity.",
                         items, allowMultiSelect: false);
                     if (picked == null || picked.Count == 0) return Result.Cancelled;
                     id = picked[0].Tag as string ?? "nrm2";

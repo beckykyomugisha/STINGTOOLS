@@ -10,8 +10,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from corporate_docx import CorporateDoc, NAVY, SLATE, GREY  # noqa: E402
+import kut_docs_lib as K  # noqa: E402
+import kut_naming as N  # noqa: E402
 
-OUT = 'KUT_BIM_Execution_Plan.docx'
+OUT = 'KUT_DOCS_WORKING/issued/KUT_BIM_Execution_Plan.docx'
 
 # ── project identity ─────────────────────────────────────────────────────────
 # One definition, because it appears in the title page, the roles table, the
@@ -42,15 +44,17 @@ c.title_page(
     control_rows=[
         ('Document reference', ref('RP-Z-0001')),
         ('Revision', 'P01'),
-        ('Status / suitability', '[FILL — S3 for review, or A1 on acceptance]'),
+        ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
         ('BEP type', '[FILL — pre-appointment / post-appointment]'),
         ('Owned by', 'Symbion Consulting Group Studios (Lead Appointed Party)'),
         ('Prepared and maintained by', '%s (%s)' % (IM_ORG, IM_NAME)),
         ('Date of issue', '[FILL]'),
     ],
-    note='Issued through the Common Data Environment. Uncontrolled when printed.')
+    note='Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
-c.footer('KUT BIM Execution Plan   |   Rev P01')
+c.footer('KUT BIM Execution Plan   |   Rev P01 — DRAFT')
+
+c.toc()
 
 # ── document control ────────────────────────────────────────────────────────
 c.h1('Document control')
@@ -114,30 +118,31 @@ c.table(['Item', 'Detail'],
         [['Project name', 'Kampala Uganda Temple'],
          ['Project code', 'KUT'],
          ['Location', '[FILL — address, Kampala, Uganda]'],
-         ['Description', '[FILL — temple and ancillary buildings, gross floor area, storeys]'],
+         ['Description', 'Temple and ancillary buildings across %d volumes; %s m² gross internal area. Storeys per volume are given in the level and grid register'
+                        % (len([v for v in N.VOLUMES if v[3]]), format(N.GROSS_AREA_M2, ','))],
          ['Procurement route', '[FILL]'],
          ['Form of contract', '[FILL]'],
-         ['Programme', '49 months. Phase 2 (design) 11 months; Phase 3 (construction and close-out) 38 months. '
-                       'See Section 9'],
+         ['Programme', '%d months. Phase 2 (design) %d months; Phase 3 (construction and close-out) %d months. '
+                       'See Section 9'
+                       % (K.TOTAL_MONTHS, K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'])],
          ['Key dates', '[FILL — appointment, Deliverables A to D, practical completion]']],
         widths=[4.4, 12.2])
 
 c.h2('1.3  Volumes')
 c.para('The project is divided into seven volumes. The volume governs how models are divided and federated, '
        'and forms a field in every container name and asset identifier.')
-c.table(['Volume code', 'Volume', 'Numbering value'],
-        [['BLD1', 'Temple', '01'], ['BLD2', 'Meetinghouse', '02'],
-         ['BLD3', 'Housing and ancillary', '03'], ['BLD4', 'Grounds', '04'],
-         ['BLD5', 'Utility', '05'], ['BLD6', 'Guard house', '06'],
-         ['EXT', 'Site-wide and external works', '00']],
-        widths=[3.4, 7.6, 5.6])
+c.table(['Volume code', 'Volume', 'Numbering value', 'Gross internal area'],
+        [[code, name, num, ('%s m²' % format(area, ',')) if area else '—']
+         for num, code, name, area in N.VOLUMES if code != 'ZZ'],
+        widths=[3.0, 6.2, 3.4, 4.0])
 
 c.h2('1.4  Objectives and information uses')
 c.table(['#', 'Objective', 'Information use', 'Success measure'],
         [['1', 'Coordinated design', 'Three-dimensional coordination and clash detection',
           'No unresolved high priority clashes at any data drop'],
-         ['2', 'Reliable quantities and cost', 'Quantity take-off', 'Bill of quantities produced from the '
-          'model at Deliverables B and C'],
+         ['2', 'Reliable quantities and cost', 'Quantity take-off by the quantity surveyor',
+          'Models structured and classified so quantities can be taken from them; exports provided on '
+          'request at Deliverables B and C'],
          ['3', 'Efficient documentation', 'Drawing production', 'Drawings produced to the project standard '
           'from the coordinated models'],
          ['4', 'FF&E and handover', 'FF&E specification, structured handover data',
@@ -332,15 +337,9 @@ c.callout('Until a row is closed, the affected discipline works to the **statuto
           'the same conflict differently and the difference surfacing at tender.', 'Working position while a row is open')
 
 c.h2('4.2  Container naming convention')
-c.mono('KUT - ' + ORIGINATOR + ' - 01 - GF - M3 - A - 0001')
+c.mono(N.example_name())
 c.table(['Field', 'Length', 'Permitted values'],
-        [['Project', '3', 'KUT'],
-         ['Originator', '[FILL — 3, subject to Section 4.2.1]', 'Per the originator register'],
-         ['Volume', '2', '01 to 06 per Section 1.3; 00 site-wide; ZZ all volumes'],
-         ['Level', '2', 'B1, GF, 01 upward, RF, ZZ all levels, XX not applicable'],
-         ['Type', '2', 'M3, M2, DR, SH, SC, SP, RP, CA, RD, MS, PP, CR'],
-         ['Role', '1 to 2', 'A, S, M, E, P, FP, LV, G. Z is used for multi-discipline and federated containers'],
-         ['Number', '4', 'Sequential within the set']],
+        N.container_fields('[FILL — %d, subject to Section 4.2.1]' % N.ORIGINATOR_LENGTH),
         widths=[2.6, 3.6, 10.4])
 
 c.h3('4.2.1  Originator register')
@@ -369,10 +368,30 @@ c.callout('**Open item.** The register is issued by the Lead Appointed Party and
           'issued**, because renumbering after Deliverable A affects every issued document. The register must '
           'also state who allocates a code to a party joining mid-project, and how.', 'Open item')
 
-c.h3('4.2.2  Role code and asset discipline code')
-c.para('The role field in a container name and the discipline field in an asset identifier are distinct. '
-       'Container role codes may include Z for federated and multi-discipline containers. Asset discipline '
-       'codes are limited to the eight discipline codes and are validated on every element.')
+c.h3('4.2.2  The three identifiers')
+c.para('Three different strings identify things on this project, and they are routinely confused because '
+       'they share fields and look alike. They identify different objects, are allocated by different '
+       'people at different times, and are not interchangeable.')
+c.table(['Identifier', 'Identifies', 'Form', 'Allocated by', 'Example'],
+        [['Container name', 'A file — a model, drawing, sheet, schedule, report or notice',
+          'Project-Originator-Volume-Level-Type-Role-Number (7 fields)',
+          'The originating party, from this convention', N.example_name().replace(' ', '')],
+         ['Element tag', 'One modelled element, in the model and on a tag',
+          'Discipline-Location-Zone-Level-System-Function-Product-Sequence (8 fields)',
+          'Generated from the element and its position', 'M-BLD1-Z01-L02-HVAC-SUP-AHU-0003'],
+         ['Asset reference', 'One maintainable asset, in the asset register of the Appointing Party',
+          'The Appointing Party numbering convention',
+          'The Appointing Party, where one is issued', '[FILL — on issue of the convention]']],
+        widths=[2.6, 3.6, 4.4, 3.0, 3.0], font=8)
+c.callout('**The volume field is not the same value in the first two.** A container name carries the '
+          'numbering value (01); an element tag carries the location code (BLD1). Section 1.3 relates them. '
+          'Likewise the container ROLE field may be Z for a federated or multi-discipline container, while '
+          'an element DISCIPLINE code is always one of the eight and is validated on every element — there '
+          'is no such thing as a Z element.', 'Where the confusion starts')
+c.para('Where the Appointing Party issues no asset reference, the element tag is used in its place, and '
+       'Section 14 records that. Element tag uniqueness is guaranteed by the sequence being allocated '
+       'within a volume, level and discipline; a tag repeated across two volumes is a defect, not a '
+       'permitted collision.')
 
 c.h2('4.3  Common Data Environment states and suitability')
 c.para('WIP  →  Shared  →  Published  →  Archived. Revisions run P01 upward while preliminary and C01 upward '
@@ -601,6 +620,39 @@ c.callout('The coordination cycle is **fortnightly**. Earlier drafts of this pla
           'The fortnightly interval matches the appointment and gives task teams a working week between the '
           'issue of a coordination report and the next share, which a weekly cycle does not.', 'Confirmed cadence')
 
+c.h3('7.1.1  The cycle, by day')
+c.para('A cadence stated only as an interval leaves every party guessing when their own deadline falls. '
+       'The cycle runs to fixed days so that a task team knows, without asking, when it must have shared.')
+c.table(['Day', 'Who', 'What'],
+        [['Tuesday, 16:00', 'Every task team',
+          'Work in progress closed and shared. Nothing shared after this time enters this cycle'],
+         ['Wednesday', 'Information Manager',
+          'Models federated, clash detection run, results grouped and assigned'],
+         ['Thursday', 'Information Manager',
+          'Coordination report issued, with the issue list for the session'],
+         ['Friday', 'All disciplines', 'Coordination session. Issues assigned, with owners and dates'],
+         ['The following week', 'Task teams',
+          'Issues resolved in the work in progress area, ready for the next Tuesday']],
+        widths=[3.0, 3.6, 10.0])
+c.callout('The report is issued a full day before the session. A coordination session where the attendees '
+          'are reading the report for the first time is a reading exercise, not a coordination meeting.',
+          'Why the report comes first')
+
+c.h2('7.1.2  Information exchange calendar')
+c.para('Every exchange on the project, and the deadline that governs it. Dates are fixed against the '
+       'appointment date once confirmed; the Master Information Delivery Plan carries them per deliverable.')
+c.table(['Exchange', 'Frequency', 'Deadline', 'Suitability', 'Recipient'],
+        [['Coordination share', 'Fortnightly', 'Tuesday 16:00', 'S1', 'Information Manager'],
+         ['Coordination report', 'Fortnightly', 'Thursday', 'S2', 'All task teams'],
+         ['Progress note', 'Weekly', 'Friday', '—', 'Lead Appointed Party'],
+         ['Status report', 'Monthly', 'Last working day', 'S2', 'Appointing Party and Lead'],
+         ['Data drop', 'Per stage', 'Per the delivery plan', 'S4 then A1', 'Appointing Party'],
+         ['Owner review set', 'Per stage', 'With the data drop', 'S3',
+          'Appointing Party — two-week review window'],
+         ['Comment close-out', 'Per stage', 'Before the gate', 'S2', 'Appointing Party'],
+         ['Gate pack', 'Per stage', 'At the gate', 'S4', 'Appointing Party']],
+        widths=[3.6, 2.4, 3.4, 2.2, 5.0], font=8)
+
 c.h2('7.2  Model breakdown and federation')
 c.para('How the project is divided into models, and how they are recombined. The division follows the volumes '
        'in Section 1.3 and the disciplines in Section 4.2, so that a model can always be identified from its '
@@ -729,7 +781,30 @@ c.callout('**A temple carries sensitivities beyond the usual.** The Appointing P
           'information already federated and shared is not achievable. This is an [FILL] that should be closed '
           'at the first Appointing Party meeting.', 'To be established before modelling')
 
-c.h2('8.2  Publication and personal use')
+c.h2('8.2  Third-party services and model viewers')
+c.para('Project information is held in the Common Data Environment. Placing it anywhere else — a model '
+       'viewer, a visualisation service, a file-transfer service, an artificial intelligence assistant or '
+       'any other third-party platform — is a transfer of the Appointing Party information outside the '
+       'agreed environment, whether or not it is described as temporary or private.')
+c.table(['Requirement', 'Detail'],
+        [['Written approval', 'No project information is uploaded to any third-party service without the '
+                              'written approval of the Appointing Party, obtained in advance'],
+         ['Scope of approval', 'An approval names the service, the information, the purpose and the '
+                               'duration. It does not extend to other services or later purposes'],
+         ['Register', 'Approved services are recorded in the register of third-party services, maintained '
+                      'by the Information Manager and reissued with the monthly status report'],
+         ['Deletion', 'On completion of the approved purpose, the information is deleted from the service '
+                      'and the deletion confirmed in writing'],
+         ['Personal accounts', 'Project information is never held in a personal account of any service, '
+                               'including personal cloud storage and personal messaging']],
+        widths=[3.4, 13.2])
+c.callout('This is the requirement most often broken by accident and with good intentions — a viewer link '
+          'shared to save somebody a download, a model dropped into a transfer service because it was too '
+          'large to email. Both put Appointing Party information on infrastructure nobody has assessed. If '
+          'a service would make the work easier, ask for it to be approved; do not use it first.',
+          'The common failure')
+
+c.h2('8.3  Publication and personal use')
 c.bullet([
     'Project information — including images, plans, renders and visualisations — must not be published, '
     'circulated outside the project, or used in promotional or portfolio material without the written '
@@ -745,15 +820,12 @@ c.para('Each task team submits a Task Information Delivery Plan setting out its 
        'information need and responsible person. The Information Manager aggregates these into the Master '
        'Information Delivery Plan, which is baselined at mobilisation and reissued at each stage and data drop.')
 c.table(['Milestone', 'Stage', 'LOD', 'Planned (relative month)'],
-        [['Basis of Design (Deliverable A)', '2.1', '200', 'M1'],
-         ['Developed Design (Deliverable B)', '2.2', '300', 'M4'],
-         ['Technical Design (Deliverable C)', '2.3', '350', 'M8'],
-         ['Tender issue and award', '2.4', '—', 'M9 to M11'],
-         ['Conformed set', '2.5', '350', 'M11'],
-         ['Construction', '3.1', '400', 'M12 to M43'],
-         ['FF&E installation', '3.2', '400', 'M40 to M43'],
-         ['Close-out (Deliverable D)', '3.3', '500', 'M45']],
+        [[title, stage, lod or '—', K.programme_label(stage)]
+         for stage, title, lod, _months, _kind in K.WORK_PROGRAMME],
         widths=[6.4, 2.4, 2.0, 5.8])
+c.para('Months are counted from the appointment and run in sequence: %d months for Phase 2 and %d for Phase 3, '
+       '%d in total. Calendar dates are fixed against the appointment date once it is confirmed.'
+       % (K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'], K.TOTAL_MONTHS))
 
 # ── 10 ──────────────────────────────────────────────────────────────────────
 c.h1('10  Quality assurance and model validation')
@@ -820,6 +892,33 @@ c.table(['Item', 'Arrangement'],
                     'specification sections report as over-specification and the reconciliation reads as '
                     'complete when it is not']],
         widths=[3.6, 13.0])
+
+c.h2('10.5  Key performance indicators')
+c.para('What is measured, what the target is, and how it is obtained. An indicator with no stated method '
+       'is reported differently by whoever compiles it, and the trend then means nothing.')
+c.table(['Indicator', 'Target', 'Measured', 'Reported'],
+        [['Container naming compliance', '100%',
+          'Automated check over every container shared in the period', 'Monthly'],
+         ['Tag and data completeness', '95% or above',
+          'Automated audit over all modelled elements in scope, by discipline', 'Monthly'],
+         ['Unresolved high-priority clashes', '0 at each data drop',
+          'Clash detection over the federated model', 'Each cycle'],
+         ['Shares meeting the deadline', '100%',
+          'Count of task teams sharing by Tuesday 16:00, against those due', 'Each cycle'],
+         ['Issues closed within the agreed date', '90% or above',
+          'Coordination issue log', 'Each cycle'],
+         ['Model health within thresholds', 'All models',
+          'File size, warning count and unplaced elements against Section 10.2', 'Monthly'],
+         ['Level of information need met', '100% at each gate',
+          'Automated audit against the milestone, reported with the categories not in scope', 'At each gate'],
+         ['Asset data completeness', '95% or above by tier at Deliverable D',
+          'Count of required fields populated, by tier and volume', 'Monthly from Stage 3.1'],
+         ['Deliverables issued on the planned date', '95% or above',
+          'Master Information Delivery Plan, planned against actual', 'Monthly']],
+        widths=[4.4, 3.2, 6.0, 3.0], font=8)
+c.callout('A percentage without its scope is not a measurement. Every automated audit on this project '
+          'reports the categories it did not scan alongside the result, and the two are read together. An '
+          'empty scope reports as complete and is not.', 'Reading a percentage')
 
 # ── 11 ──────────────────────────────────────────────────────────────────────
 c.h1('11  FF&E, handover and operations')
@@ -944,7 +1043,7 @@ c.table(['Data', 'A', 'B', 'C', 'FF&E', 'D'],
          ['Maintenance interval', 'Yes', '—', '—', '—', '—'],
          ['Recommended spares', 'Yes', '—', '—', '—', '—'],
          ['Commissioning date', 'Yes', '—', '—', '—', '—'],
-         ['FF&E reference', '—', '—', '—', 'Yes', '—']],
+         ['FF&E reference', 'Specialty equipment only', 'Lighting fixtures and plumbing fixtures only', 'Casework only', 'Yes', '—']],
         widths=[6.2, 2.2, 3.6, 2.2, 1.6, 2.4], font=8)
 c.callout('Fire alarm devices carry loop and address in place of a serial number. That is the identifier the '
           'cause-and-effect schedule, the panel and any future maintenance actually use; a device serial '
@@ -1008,8 +1107,17 @@ c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],
          ['15', 'TIDPs returned by every appointed party', 'Section 9', 'Task Team Managers', '[OPEN]'],
          ['16', 'MIDP baselined from the TIDPs', 'Section 9', 'Information Manager', '[OPEN]'],
          ['17', 'Capability and capacity assessed', 'Section 12.1', 'Lead Appointed Party', '[OPEN]'],
-         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]']],
+         ['18', 'Standards reconciliation schedule opened', 'Section 4.1.3', 'All disciplines', '[OPEN]'],
+         ['18a', 'FF&E catalogue scope confirmed — which categories are procured and '
+                 'specified through the FF&E database', 'Section 14.2', 'Appointing Party', '[OPEN]']],
         widths=[1.0, 6.6, 3.4, 3.4, 2.2], font=8)
+c.callout('Item 18a affects what is required at handover. The project position is that six categories carry an '
+          'FF&E reference: furniture, furniture systems, casework, lighting fixtures, plumbing fixtures and '
+          'specialty equipment. That is the set the FF&E export covers, so it is the set the close-out check '
+          'enforces. If the Appointing Party procures only loose furniture through the catalogue, the other '
+          'four categories come out of scope and the requirement narrows accordingly. Settling this at the '
+          'kickoff costs nothing; settling it at Deliverable D means either an unenforceable requirement or a '
+          'retrospective data-capture exercise.', 'One to confirm at the kickoff')
 
 c.h2('15.3  Before the first coordination share')
 c.table(['#', 'Item', 'Reference', 'Owner', 'Status'],
@@ -1035,6 +1143,25 @@ c.callout('Items 1 to 11 gate the kickoff itself. Attempting to train a team on 
           'decided produces a team that has to be retrained, and models that have to be redone.',
           'Sequence matters')
 
+c.h2('15.5  Document reference register')
+c.para('The reference each document in the mobilisation set carries. Earlier drafts allocated these '
+       'inconsistently — the same reference was used for two documents, and one document carried two '
+       'references across drafts — which makes a transmittal ambiguous about what it transmitted.')
+c.table(['Document', 'Reference', 'Issued as'],
+        [['BIM Execution Plan (this document)', ref('RP-Z-0001'), 'A1'],
+         ['Project Delivery Playbook', ref('RP-Z-0002'), 'A1'],
+         ['Document Control Standard', ref('RP-Z-0003'), 'A1'],
+         ['Standards localisation note', ref('RP-Z-0005'), 'S3'],
+         ['Master Information Delivery Plan', ref('SC-Z-0001'), 'A1'],
+         ['Responsibility matrix', ref('SC-Z-0002'), 'A1'],
+         ['Level and grid register', ref('SC-Z-0003'), 'A1'],
+         ['Originator code register', '[FILL — on issue by the Lead Appointed Party]', 'A1'],
+         ['Mobilisation information request', ref('RP-Z-0004'), 'S3']],
+        widths=[6.0, 6.6, 4.0])
+c.callout('A reference is allocated once and never reused, including for a document that is withdrawn or '
+          'replaced. The Document Control Standard states the rule; this table is the current allocation.',
+          'Allocation')
+
 c.h1('16  Appendices')
 c.table(['Appendix', 'Content', 'Status'],
         [['A', 'Exchange information requirements (Appointing Party)', 'Attached / referenced'],
@@ -1043,6 +1170,7 @@ c.table(['Appendix', 'Content', 'Status'],
          ['D', 'Responsibility matrix, expanded', 'Attached'],
          ['E', 'Clash matrix', 'Attached'],
          ['F', 'Project Delivery Playbook (' + ref('RP-Z-0002') + ')', 'Issued separately'],
+         ['F2', 'Document Control Standard (' + ref('RP-Z-0003') + ')', 'Issued separately'],
          ['G', 'Originator code register', 'To be confirmed — Section 4.2.1'],
          ['H', 'Appointing Party asset information requirements', 'Awaited — see Section 14.4']],
         widths=[2.2, 10.4, 4.0])
@@ -1053,7 +1181,7 @@ c.properties(
     title='KUT BIM Execution Plan',
     subject='Kampala Uganda Temple — BIM Execution Plan in accordance with BS EN ISO 19650-2',
     category='Project procedure',
-    comments='Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.')
+    comments='Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.')
 
 c.save(OUT, generator='tools/build_bep.py')
 print('saved:', OUT)

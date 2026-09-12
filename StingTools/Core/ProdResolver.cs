@@ -20,6 +20,11 @@ namespace StingTools.Core
         public static class Sources
         {
             public const string Project = "project";
+
+            /// <summary>The TYPE NAME stated the code itself, in ISO 22014 form
+            /// (<c>PLNS_WBL_Hollow200-Plastered</c>). Nothing was inferred.</summary>
+            public const string Declared = "declared";
+
             public const string Corporate = "corporate";
             public const string Lps = "lps";
             public const string Sleeve = "sleeve";
@@ -35,8 +40,31 @@ namespace StingTools.Core
         /// Prod_CoverageAudit (coverage %).
         /// </summary>
         public static bool IsSpecific(string source)
-            => source == Sources.Project || source == Sources.Corporate
+            => source == Sources.Project || source == Sources.Declared
+            || source == Sources.Corporate
             || source == Sources.Lps || source == Sources.Sleeve;
+
+        /// <summary>
+        /// True when a source tier is the GENERIC last resort — the category default, or
+        /// the GEN fallback when even that is missing.
+        ///
+        /// <para><b>Why this is its own whitelist and not <c>!IsSpecific</c>.</b>
+        /// <see cref="IsSpecific"/> names five tiers and returns false for anything else,
+        /// which is the right default for the coverage audit — an unknown tier merely
+        /// understates coverage. It is the WRONG default for the rename code-gate in
+        /// <c>TypeRenamePlanner</c>, which refuses a rename only when the existing code is
+        /// specific: there, an unrecognised tier reads as "no answer to protect" and the
+        /// gate silently stops firing. Two consumers of one function with opposite safe
+        /// defaults, and <c>declared</c> and <c>sleeve</c> were both added to
+        /// <see cref="Sources"/> after that function was written.</para>
+        ///
+        /// <para>Declaring both halves makes the split TOTAL and therefore checkable:
+        /// <c>ProdResolverSourceTotalityTests</c> reflects over <see cref="Sources"/> and
+        /// fails when a const is in neither set. A new tier is then a red test rather than
+        /// a gate that quietly opens.</para>
+        /// </summary>
+        public static bool IsGeneric(string source)
+            => source == Sources.Category || source == Sources.Gen;
 
         /// <param name="familyName">Element family name (may be null/empty).</param>
         /// <param name="typeName">Element type/symbol name (may be null).</param>
@@ -52,21 +80,32 @@ namespace StingTools.Core
             IReadOnlyList<(string Pattern, string ProdCode)> projRulesForCategory,
             IReadOnlyList<(string Pattern, string ProdCode)> corpRulesForCategory,
             IReadOnlyDictionary<string, string> prodMap,
-            out string source)
+            out string source,
+            ICollection<string> knownCodes = null)
         {
             string combinedName = $"{familyName} {typeName}".ToUpperInvariant();
+
+            // 0. The TYPE NAME states its own code, ISO 22014 style. This sits ABOVE
+            //    the corporate patterns and BELOW the project overlay: a stated code
+            //    beats an inference, an explicit project instruction beats both.
+            //
+            //    Deliberately OUTSIDE the non-empty-family guard below. A wall's family
+            //    name is "Basic Wall" for every wall ever made, so gating a name that
+            //    already carries its answer on that check would be testing the one thing
+            //    the name has made irrelevant.
+            string declared = ProdNameCode.Extract(typeName, knownCodes);
 
             if (!string.IsNullOrEmpty(familyName))
             {
                 // 1. Project overlay wins.
-                if (projRulesForCategory != null)
-                    foreach (var (pattern, prodCode) in projRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Project; return prodCode; }
+                string proj = Strongest(projRulesForCategory, combinedName);
+                if (proj != null) { source = Sources.Project; return proj; }
+
+                if (declared != null) { source = Sources.Declared; return declared; }
 
                 // 2. Corporate baseline.
-                if (corpRulesForCategory != null)
-                    foreach (var (pattern, prodCode) in corpRulesForCategory)
-                        if (ProdPatternMatcher.Matches(combinedName, pattern)) { source = Sources.Corporate; return prodCode; }
+                string corp = Strongest(corpRulesForCategory, combinedName);
+                if (corp != null) { source = Sources.Corporate; return corp; }
 
                 // 3. Lightning Protection System (BS EN 62305) — CROSS-category;
                 //    family-name (not category) discriminates the sub-element kind.
@@ -81,6 +120,9 @@ namespace StingTools.Core
                 }
             }
 
+            // A coded name answers even with no family name at all.
+            if (declared != null) { source = Sources.Declared; return declared; }
+
             // 5. Category default — last resort (generic, not family-specific).
             if (prodMap != null && categoryName != null &&
                 prodMap.TryGetValue(categoryName, out string prod))
@@ -90,6 +132,38 @@ namespace StingTools.Core
             }
             source = Sources.Gen;
             return "GEN";
+        }
+
+        /// <summary>
+        /// The PROD code of the MOST SPECIFIC rule that matches, or null when none does.
+        ///
+        /// <para>Within one tier the rules are peers, not a chain: the author of
+        /// <c>*Fire Damper*</c> and the author of <c>*Damper*</c> were describing two
+        /// different products, and which of them sits higher in the CSV is an accident
+        /// of when each was added. Ten shipped rows lost that accident — see
+        /// <see cref="ProdPatternMatcher.Strength"/> for the list.</para>
+        ///
+        /// <para>Ties keep FILE ORDER, so two rules of equal specificity resolve exactly
+        /// as they always did, and the project overlay's documented "prepended wins"
+        /// behaviour is unchanged.</para>
+        /// </summary>
+        private static string Strongest(
+            IReadOnlyList<(string Pattern, string ProdCode)> rules, string combinedName)
+        {
+            if (rules == null) return null;
+
+            string best = null;
+            int bestStrength = int.MinValue;
+
+            for (int i = 0; i < rules.Count; i++)
+            {
+                int s = ProdPatternMatcher.Strength(combinedName, rules[i].Pattern);
+                if (s < 0) continue;                 // no match
+                if (s <= bestStrength) continue;     // strictly greater, so ties keep file order
+                bestStrength = s;
+                best = rules[i].ProdCode;
+            }
+            return best;
         }
 
         /// <summary>Returns the LPS PROD code for an upper-cased family+type name,

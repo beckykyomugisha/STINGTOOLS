@@ -1777,6 +1777,11 @@ namespace StingTools.UI
                             $"Lighting: {mgr.LightingStandard}\n" +
                             $"Energy: {mgr.EnergyStandard}\n" +
                             $"Units: {mgr.UnitSystem}\n\n" +
+                            // KUT-8 - show what the region actually DOES to a calculation.
+                            // The LPS line is the one that matters: it selects a ground
+                            // flash density band, and the bands span a factor of fifty.
+                            $"Duct / pipe size ladder: {StingTools.Standards.EngineRegionMap.ToMepSizingRegion(region)}\n" +
+                            $"Lightning risk band (Ng): {StingTools.Standards.EngineRegionMap.ToLpsRegion(region)}\n\n" +
                             "Click to switch (writes PROJECT_REGION onto ProjectInformation).";
                     }
                 }
@@ -1787,8 +1792,11 @@ namespace StingTools.UI
         }
 
         // Region chip click — fires StdExt_SetRegion via the existing handler.
-        // The command's ApplyRegionalPreset triggers StandardsChanged which
-        // refreshes the chip automatically.
+        // ApplyRegionalPreset raises StandardsChanged, which EngineRegionSync
+        // subscribes to and which now calls RefreshRegionIndicator (KUT-8). Before
+        // that subscriber existed this comment described nothing: the event had no
+        // listeners, RefreshRegionIndicator had no callers, and the chip kept
+        // whatever region it was built with for the life of the session.
         private void RegionIndicator_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             try

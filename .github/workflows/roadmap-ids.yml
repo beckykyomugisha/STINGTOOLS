@@ -1,0 +1,40 @@
+name: Roadmap Id Gate
+
+# One row per id in docs/ROADMAP.md. A row is closed by EDITING it, never by
+# adding a second row for the same id.
+#
+# When that slips the file contradicts itself: a CLOSED row saying the work is
+# done sits beside a stale OPEN row telling a reader to wait for it, and nothing
+# says which is current. A reader who checks a row and finds it lying stops
+# trusting the file, which is worse than the row being absent.
+#
+# Four such pairs were removed in an earlier pass and four more had appeared by
+# 2026-09-09 -- including one id carrying THREE rows, two of them "DONE" and one
+# asserting the work could not be done. Recurrence is why this is gated rather
+# than tidied again.
+
+on:
+  push:
+    paths:
+      - 'docs/ROADMAP.md'
+      - 'tools/check_roadmap_ids.py'
+      - '.github/workflows/roadmap-ids.yml'
+  pull_request:
+    paths:
+      - 'docs/ROADMAP.md'
+      - 'tools/check_roadmap_ids.py'
+      - '.github/workflows/roadmap-ids.yml'
+  workflow_dispatch:
+
+jobs:
+  one-row-per-id:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Every ROADMAP id names exactly one row
+        run: python tools/check_roadmap_ids.py

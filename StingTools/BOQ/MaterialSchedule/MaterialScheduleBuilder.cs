@@ -27,6 +27,15 @@ namespace StingTools.BOQ.MaterialSchedule
         public int ConstituentRowsSeen;
         public int RowsWithoutKind;
         public List<string> Warnings = new List<string>();
+
+        /// <summary>
+        /// The merged, patched supplier-unit table this build used.
+        ///
+        /// Handed to the rate editor so its mapping preview and the schedule
+        /// cannot disagree about what converts — re-loading it there would be a
+        /// second copy of the same layering, and two copies of a merge drift.
+        /// </summary>
+        public SupplierUnitTable UnitsUsed = new SupplierUnitTable();
     }
 
     internal static class MaterialScheduleBuilder
@@ -42,6 +51,11 @@ namespace StingTools.BOQ.MaterialSchedule
 
             result.CompoundTakeoffWasOff = !Takeoff.CompoundTakeoffBuilder.Enabled();
 
+            // Before the take-off, not after: the scan counts what THIS run
+            // inspected, and a stale count from a previous export would answer
+            // the wrong question.
+            Takeoff.CompoundTakeoffBuilder.ResetLayerScans();
+
             var boq = BOQCostManager.BuildBOQDocument(doc);
             var inputs = new AggregatorInputs
             {
@@ -50,11 +64,15 @@ namespace StingTools.BOQ.MaterialSchedule
                 Options = options ?? new MaterialScheduleOptions()
             };
 
+            result.UnitsUsed = inputs.Units;
+
             var lib = LoadStages(doc);
             inputs.StageDefs = lib.Stages;
             inputs.DefaultStageId = lib.DefaultStageId;
             inputs.ExcludedCategories = lib.ExcludedCategories;
             inputs.ExcludedDescriptionPatterns = lib.ExcludedDescriptionPatterns;
+            inputs.ExclusionProtectedCategories = lib.ExclusionProtectedCategories;
+            inputs.IntermediateMeasures = lib.IntermediateMeasures;
             inputs.Rates = LoadRates(doc);
 
             foreach (var item in boq.AllItems.Where(i => i.Source == BOQRowSource.Model))
@@ -67,6 +85,8 @@ namespace StingTools.BOQ.MaterialSchedule
                     ConstituentKind = item.ConstituentKind ?? "",
                     Category = item.Category ?? "",
                     TypeName = item.TypeName ?? "",
+                    MaterialName = item.MaterialName ?? "",
+                    WastePctOverride = item.WastePctOverride,
                     Description = item.ItemName ?? "",
                     Unit = BoqUnits.Normalise(item.Unit),
                     Quantity = item.Quantity,
@@ -75,13 +95,92 @@ namespace StingTools.BOQ.MaterialSchedule
                 });
             }
 
+            // SECOND finish source. The layer source reads a TYPE's compound
+            // structure; this reads what the ROOM says. Gated so the two can
+            // never measure the same surface: if any type carried a tiled
+            // layer, room tiling is skipped entirely. Skirting is never
+            // suppressed — no layer source produces it.
+            var roomTally = new RoomFinishTally();
+            try
+            {
+                bool layerTiling = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Tally.TypesMatched > 0;
+                inputs.Constituents.AddRange(RoomFinishGatherer.Gather(doc, layerTiling, roomTally));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Room finishes could not be read: {ex.Message}");
+                StingLog.Warn($"MaterialScheduleBuilder room finishes: {ex.Message}");
+            }
+
+            // MATSCHED-T4 — ratio-derived consumables, appended as ordinary
+            // constituent rows BEFORE aggregation so they are staged,
+            // unit-checked, converted and priced by exactly the same machinery
+            // as a measured commodity. The site-tools section bypasses all of
+            // that; a second untested path to the page is not worth repeating.
+            //
+            // Drivers are read from the rows that already exist, and the derived
+            // rows are added AFTER that read, so a consumable can never become
+            // the driver of another consumable.
+            var consumablesTally = new ConsumablesTally();
+            try
+            {
+                var conLib = LoadConsumables(doc);
+                var drivers = ConsumableDrivers.From(inputs.Constituents, inputs.Units);
+                foreach (string m in drivers.UnitMismatches) consumablesTally.UnitMismatches.Add(m);
+                consumablesTally.RoofCoveringUnattributedM2 = drivers.RoofCoveringUnattributedM2;
+                consumablesTally.RoofCoveringMeasuredM2 = drivers.RoofCoveringM2;
+                inputs.Constituents.AddRange(
+                    ConsumablesCalculator.Quantify(drivers, conLib.Rules, consumablesTally));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Ratio-derived consumables could not be estimated: {ex.Message}");
+                StingLog.Warn($"MaterialScheduleBuilder consumables: {ex.Message}");
+            }
+
             var msDoc = CommodityAggregator.Build(inputs);
             msDoc.ProjectName = doc.ProjectInformation?.Name ?? "";
             msDoc.ProjectCode = doc.ProjectInformation?.Number ?? "";
+            // Resolved, not the alias — see MaterialScheduleDocument.ProjectRatesPath.
+            msDoc.ProjectRatesPath = StingPaths.MetaFile(doc, "_BIM_COORD", "commodity_rates.csv") ?? "";
 
             AppendManualRows(doc, msDoc, boq, lib.Stages, result);
             AppendSiteTools(doc, msDoc, lib, inputs.Rates, result);
             Reconciler.Check(msDoc);
+
+            // After every row exists and every rate is resolved, and after the
+            // site-tools and manual rows are appended so their rates count too.
+            // The column says it per row; this says it once.
+            // OUTSIDE the priced block. A type mapping changes a row's UNIT and
+            // QUANTITY, so it is exactly as relevant to a quantities-only
+            // buy-list as to a priced one — arguably more, since that list is
+            // what somebody orders against.
+            string mapped = SupplierUnitPatcher.Summary(LastPatchesApplied);
+            if (!string.IsNullOrEmpty(mapped)) msDoc.Warnings.Add(mapped);
+
+            // Alongside the tiling / screed / membrane / room-finish scans, and
+            // outside the priced block for the same reason: a material match
+            // decides a row's UNIT, which a quantities-only buy-list needs too.
+            string matScan = inputs.MaterialScan?.Summary();
+            if (!string.IsNullOrEmpty(matScan)) msDoc.Warnings.Add(matScan);
+
+            string byType = CommodityTypeBreakdown.Summary(
+                CommodityTypeBreakdown.Build(
+                    msDoc.Stages.SelectMany(st => st.Commodities), msDoc.SourceByType));
+            if (!string.IsNullOrEmpty(byType)) msDoc.Warnings.Add(byType);
+
+            if (msDoc.Options.ShowPrices)
+            {
+                string provenance = RateProvenanceLabel.Summary(
+                    msDoc.Stages.SelectMany(st => st.Commodities));
+                if (!string.IsNullOrEmpty(provenance)) msDoc.Warnings.Add(provenance);
+
+                string rates = RateProvenanceLabel.RatesFileNote(
+                    msDoc.ProjectRatesPath,
+                    msDoc.Stages.SelectMany(st => st.Commodities)
+                         .Count(c => c != null && c.IsUnpriced && !c.IsMemorandum));
+                if (!string.IsNullOrEmpty(rates)) msDoc.Warnings.Add(rates);
+            }
 
             result.Document = msDoc;
             if (result.CompoundTakeoffWasOff)
@@ -99,6 +198,60 @@ namespace StingTools.BOQ.MaterialSchedule
                 result.Warnings.Add(
                     $"{result.RowsWithoutKind} of {result.ConstituentRowsSeen} model rows carried no "
                   + $"constituent kind and were routed to the default stage.");
+
+            // Reported whether or not tiling was found. A schedule with no tiling
+            // rows is either a model that describes no finishes or a pattern that
+            // failed to recognise them, and only the denominator tells them apart.
+            string tileScan = Takeoff.CompoundTakeoffBuilder.TileFinishScan.Summary();
+            if (!string.IsNullOrEmpty(tileScan)) result.Warnings.Add(tileScan);
+
+            // Same contract, same reason (MATSCHED-T1): a schedule with no screed
+            // cement means one of four unrelated things, and only the denominator
+            // tells them apart.
+            string screedScan = Takeoff.CompoundTakeoffBuilder.ScreedScan.Summary();
+            if (!string.IsNullOrEmpty(screedScan)) result.Warnings.Add(screedScan);
+
+            // MATSCHED-T2 — ceilings decomposed into nothing at all before this,
+            // and an empty result is indistinguishable from a model with no
+            // ceilings unless the scan says which it was.
+            string ceilingScan = Takeoff.CompoundTakeoffBuilder.CeilingScan.Summary();
+            if (!string.IsNullOrEmpty(ceilingScan)) result.Warnings.Add(ceilingScan);
+
+            // The furring banner is separate and CONDITIONAL: a ratio must never
+            // be presented as a measurement, and a banner qualifying a row that
+            // was never emitted is noise.
+            string furringBanner = Takeoff.CompoundTakeoffBuilder.CeilingScan.Tally.FurringBanner();
+            if (!string.IsNullOrEmpty(furringBanner)) result.Warnings.Add(furringBanner);
+
+            // MATSCHED-T3 — membranes were ignored entirely. The scan also
+            // reports the two things this take-off deliberately does NOT price
+            // (insulation, and wall membranes), so each is a stated decision
+            // rather than an unexplained absence.
+            string membraneScan = Takeoff.CompoundTakeoffBuilder.MembraneScan.Summary();
+            if (!string.IsNullOrEmpty(membraneScan)) result.Warnings.Add(membraneScan);
+
+            // MATSCHED-T4 — the denominator, then the honesty banner. Separate
+            // lines because they answer different questions: the first says what
+            // was looked at, the second says what the numbers ARE. The banner is
+            // conditional on something having been derived.
+            string consumablesScan = consumablesTally.Summary();
+            if (!string.IsNullOrEmpty(consumablesScan)) result.Warnings.Add(consumablesScan);
+
+            string consumablesBanner = consumablesTally.Banner();
+            if (!string.IsNullOrEmpty(consumablesBanner)) result.Warnings.Add(consumablesBanner);
+
+            // MATSCHED-T5 — this one reports more about what was NOT measured
+            // than about what was, on purpose: of fascia, barge board and ridge
+            // cap, only the fascia has a length the footprint states outright.
+            string roofScan = Takeoff.CompoundTakeoffBuilder.RoofAccessoryScan.Summary();
+            if (!string.IsNullOrEmpty(roofScan)) result.Warnings.Add(roofScan);
+
+            string roomScan = roomTally.Summary();
+            if (!string.IsNullOrEmpty(roomScan)) result.Warnings.Add(roomScan);
+
+            // AFTER every warning is collected, so the workbook and the dialog
+            // can never disagree about what this run reported.
+            msDoc.Warnings.AddRange(result.Warnings);
 
             StingLog.Info($"MaterialScheduleBuilder: {msDoc.Stages.Count} stage(s), "
                         + $"{msDoc.Stages.Sum(s => s.Commodities.Count)} commodity row(s), "
@@ -177,6 +330,29 @@ namespace StingTools.BOQ.MaterialSchedule
                 StingLog.Warn($"MaterialScheduleBuilder.AppendSiteTools: {ex.Message}");
                 result.Warnings.Add($"Site tools could not be estimated: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Corporate consumable ratios plus the project override, merged by
+        /// constituentKind so a project can re-rate one figure without restating
+        /// the table. Same shape as LoadTools.
+        /// </summary>
+        private static ConsumablesLibrary LoadConsumables(Document doc)
+        {
+            var libr = ReadJson<ConsumablesLibrary>(StingToolsApp.FindDataFile("STING_CONSUMABLES.json"))
+                       ?? new ConsumablesLibrary();
+            var over = ReadJson<ConsumablesLibrary>(StingPaths.MetaFile(doc, "_BIM_COORD", "consumables.json"));
+            if (over != null)
+            {
+                foreach (var r in over.Rules ?? new List<ConsumableRule>())
+                {
+                    if (r == null || string.IsNullOrWhiteSpace(r.ConstituentKind)) continue;
+                    libr.Rules.RemoveAll(x => string.Equals(x.ConstituentKind, r.ConstituentKind,
+                                                            StringComparison.OrdinalIgnoreCase));
+                    libr.Rules.Add(r);
+                }
+            }
+            return libr;
         }
 
         private static SiteToolsLibrary LoadTools(Document doc)
@@ -288,8 +464,30 @@ namespace StingTools.BOQ.MaterialSchedule
                     table.Rules.RemoveAll(x => string.Equals(x.CommodityKey, r.CommodityKey, StringComparison.OrdinalIgnoreCase));
                     table.Rules.Add(r);
                 }
+
+            // Type mappings, applied AFTER the wholesale override so a project
+            // that has both gets the patterns on top of its own rule.
+            //
+            // A separate file because the override above replaces a rule
+            // ENTIRELY: a file written to add one pattern would also reset
+            // SourceUnitsPerSupplierUnit to 1.0 and DefaultWastagePct to 0.
+            // A patch has nowhere to put either, so that is unrepresentable
+            // rather than merely discouraged.
+            var patches = ReadJson<SupplierUnitPatchFile>(
+                StingPaths.MetaFile(doc, "_BIM_COORD", "supplier_unit_patches.json"));
+            LastPatchesApplied = SupplierUnitPatcher.Apply(table, patches);
+            foreach (string problem in patches?.Validate(table) ?? new List<string>())
+                StingLog.Warn("supplier_unit_patches.json: " + problem);
+
             return table;
         }
+
+        /// <summary>
+        /// Mappings the last build applied, for the export notes. A mapping
+        /// changes a row's UNIT and quantity, so a reader comparing two exports
+        /// needs to know one was in force.
+        /// </summary>
+        internal static List<string> LastPatchesApplied = new List<string>();
 
         private static StageLibrary LoadStages(Document doc)
         {

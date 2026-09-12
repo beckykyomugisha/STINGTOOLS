@@ -1,0 +1,88 @@
+# STING OmniClass map (Phase 198). Resolves a Revit element to an OmniClass
+# Table 21 (Elements) number + title, written to ASS_OMNICLASS_TXT by
+# OmniClass_Assign. OmniClass Table 21 is the ELEMENTAL breakdown (UniFormat-
+# aligned) that complements MasterFormat work-results on the BOQ. Same grammar
+# as the CSI MasterFormat map:
+#   Category    Revit category name (exact, case-insensitive). "*" = any.
+#   FamilyRegex optional regex tested against the family name (case-insensitive).
+#   TypeRegex   optional regex tested against the type/symbol name.
+#   Sys         optional SYS token (ASS_SYSTEM_TYPE_TXT) exact match.
+#   Section     OmniClass Table 21 number (e.g. 21-04 30 00).
+#   Title       OmniClass element title (NO commas — the parser is comma-split).
+# Most-specific row wins (more matched qualifiers = higher score; ties: first).
+# Starter baseline — codes are common approximations to be confirmed against the
+# published OmniClass Table 21. Projects extend/override via
+# _BIM_COORD/omniclass_map.csv (loaded first so it wins ties). To classify by
+# Table 23 (Products) or Table 22 (Work Results) instead, replace the Section
+# codes in a project overlay.
+Category,FamilyRegex,TypeRegex,Sys,Section,Title
+Doors,,,,21-02 20 00,Exterior Vertical Enclosures
+Doors,(?i)interior,,,21-03 10 00,Interior Construction
+Windows,,,,21-02 20 00,Exterior Vertical Enclosures
+Curtain Panels,,,,21-02 20 00,Exterior Vertical Enclosures
+Curtain Wall Mullions,,,,21-02 20 00,Exterior Vertical Enclosures
+Walls,,,,21-02 20 00,Exterior Vertical Enclosures
+Walls,(?i)partition|interior,,,21-03 10 00,Interior Construction
+Floors,,,,21-03 20 00,Interior Finishes
+Floors,(?i)\bslab\b|structural,,,21-02 10 00,Superstructure
+Ceilings,,,,21-03 20 00,Interior Finishes
+Roofs,,,,21-02 30 00,Exterior Horizontal Enclosures
+Structural Framing,,,,21-02 10 00,Superstructure
+Structural Columns,,,,21-02 10 00,Superstructure
+Structural Trusses,,,,21-02 10 00,Superstructure
+Structural Foundations,,,,21-01 10 00,Foundations
+Structural Rebar,,,,21-02 10 00,Superstructure
+Stairs,,,,21-03 30 00,Stairs
+Railings,,,,21-03 30 00,Stairs
+Ramps,,,,21-02 10 00,Superstructure
+Specialty Equipment,,,,21-05 10 00,Equipment
+Specialty Equipment,(?i)bench|pew|seating,,,21-05 20 00,Furnishings
+Specialty Equipment,(?i)elevator|lift|escalator,,,21-04 10 00,Conveying
+Furniture,,,,21-05 20 00,Furnishings
+Furniture Systems,,,,21-05 20 00,Furnishings
+Casework,,,,21-05 20 00,Furnishings
+Sprinklers,,,,21-04 40 00,Fire Protection
+Pipes,,,FP,21-04 40 00,Fire Protection
+Mechanical Equipment,(?i)fire pump,,,21-04 40 00,Fire Protection
+Plumbing Fixtures,,,,21-04 20 00,Plumbing
+Pipes,,,DCW,21-04 20 00,Plumbing
+Pipes,,,DHW,21-04 20 00,Plumbing
+Pipes,,,HWS,21-04 20 00,Plumbing
+Pipes,,,SAN,21-04 20 00,Plumbing
+Pipes,,,RWD,21-04 20 00,Plumbing
+Pipes,,,GAS,21-04 20 00,Plumbing
+Mechanical Equipment,(?i)water heater|calorifier|cylinder|dhw,,,21-04 20 00,Plumbing
+Mechanical Equipment,(?i)booster|pump set,,,21-04 20 00,Plumbing
+Mechanical Equipment,(?i)elevator|lift|escalator,,,21-04 10 00,Conveying
+Ducts,,,,21-04 30 00,HVAC
+Duct Fittings,,,,21-04 30 00,HVAC
+Flex Ducts,,,,21-04 30 00,HVAC
+Duct Accessory,,,,21-04 30 00,HVAC
+Air Terminals,,,,21-04 30 00,HVAC
+Pipes,,,CHW,21-04 30 00,HVAC
+Pipes,,,HHW,21-04 30 00,HVAC
+Pipes,,,LHW,21-04 30 00,HVAC
+Pipes,,,CWS,21-04 30 00,HVAC
+Pipes,,,REFRIG,21-04 30 00,HVAC
+Pipe Fittings,,,,21-04 30 00,HVAC
+Mechanical Equipment,,,,21-04 30 00,HVAC
+Electrical Equipment,,,,21-04 50 00,Electrical
+Electrical Fixtures,,,,21-04 50 00,Electrical
+Lighting Fixtures,,,,21-04 50 00,Electrical
+Lighting Devices,,,,21-04 50 00,Electrical
+Conduits,,,,21-04 50 00,Electrical
+Conduit Fittings,,,,21-04 50 00,Electrical
+Cable Trays,,,,21-04 50 00,Electrical
+Cable Tray Fittings,,,,21-04 50 00,Electrical
+Communication Devices,,,,21-04 60 00,Communications
+Data Devices,,,,21-04 60 00,Communications
+Telephone Devices,,,,21-04 60 00,Communications
+Fire Alarm Devices,,,,21-04 70 00,Electronic Safety and Security
+Security Devices,,,,21-04 70 00,Electronic Safety and Security
+Nurse Call Devices,,,,21-04 70 00,Electronic Safety and Security
+Topography,,,,21-07 10 00,Site Preparation
+Pads,,,,21-07 10 00,Site Preparation
+Roads,,,,21-07 20 00,Site Improvements
+Parking,,,,21-07 20 00,Site Improvements
+Planting,,,,21-07 20 00,Site Improvements
+Site,,,,21-07 20 00,Site Improvements

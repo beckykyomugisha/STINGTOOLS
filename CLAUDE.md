@@ -82,7 +82,7 @@ prototype.
 | Tests | **856 declared test methods across 10 projects, all now runnable** (was 759 runnable / 97 counted-but-dead until 2026-08-06 — see §3); 1 project exercises `StingTools.dll` |
 | Empty `catch` blocks | 683 · `TaskDialog` sites 7,650 · `StingLog` sites 9,530 |
 | Stub/placeholder markers | 646 · `NotImplementedException` 10 · `TODO/FIXME/HACK` 51 |
-| EF migrations | 83 (present & applied — see §9) |
+| EF migrations | 80 migration classes on disk, **2 discoverable, 78 inert** — see §9 |
 
 ### 1. Build & compile health
 
@@ -99,8 +99,9 @@ prototype.
 - **CI exists** (11 GitHub Actions workflows: `stingtools-plugin.yml`, `planscape-server.yml`,
   `contract-drift.yml`, `multi-host-core.yml`, …) — worth referencing from the build docs.
 - **Stale caveats.** Many sections below carry *"committed without `dotnet build` verification (Linux
-  sandbox)"*, and the Healthcare section says *"EF migration not run yet."* **Both are historical**:
-  this machine builds 0/0 and 83 EF migrations exist. Trust the build, not the per-section caveat.
+  sandbox)"*. **That one is historical** — this machine builds 0/0. Trust the build, not the
+  per-section caveat. The Healthcare section's *"EF migration not run yet"* is a **different claim
+  and it still stands**: migration files exist, but almost none of them are applicable (§9).
 
 ### 2. Documentation accuracy — the headline facts have drifted
 
@@ -113,7 +114,7 @@ starts here. Measured drift (fixed in this pass where cheap; see Quick Stats + D
 | Quick Stats: "1,204 C# files, ~572,000 lines" | **1,443 files / 655,982 lines** (plugin alone) |
 | `StingCommandHandler.cs` "4,817 lines" (later section) | **9,519 lines** |
 | Assembly "v1.0.0.0" | `.csproj` `<Version>` = **2.2.0** |
-| Healthcare: "EF migration not run yet" | **83 migrations** present |
+| ~~Healthcare: "EF migration not run yet"~~ — **this row was itself wrong**; retracted 2026-08-02 | 83 was a count of `*.cs` files in `Migrations/` (80 migrations + 2 Designer + 1 snapshot). Only **2 are applicable**; 78 are inert. See §9. |
 | "committed without `dotnet build` verification" (many sections) | Builds **0/0** on Windows+Revit |
 
 **Sustainable fix applied:** the Quick Stats and Documentation Map now round + point *here* (one
@@ -128,7 +129,7 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   |---|---|---|
   | Sustainability | 365 | ✅ 438 cases, 0 failing |
   | Tags | 158 | ✅ 241 cases, **2 failing** (#554) |
-  | Boq | 121 | ✅ 196 cases, 0 failing |
+  | Boq | **956** | ✅ **1,335 cases, 0 failing** (re-measured 2026-09-10; the 121/196 was a month-stale count) |
   | Cost | 63 | ✅ 90 cases, 0 failing |
   | Clash | 56 | ✅ 64 cases, **1 failing** (#596) |
   | Routing | 41 | ✅ 45 cases, **1 failing** (#597) |
@@ -136,6 +137,11 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   | Licensing | 14 | ✅ 14 cases, 0 failing |
   | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
   | Connectivity | 0 | empty project |
+  | **Acc** (new 2026-09-10) | **60** | ✅ **67 cases, 0 failing** — the ACC surface had zero coverage until then |
+
+  Only the **Boq** and **Acc** rows were re-measured on 2026-09-10 (declared via the same
+  `[Fact]`/`[Theory]` census `.github/workflows/stingtools-unit-tests.yml` runs; cases via
+  `dotnet test`). Every other row is still the 2026-08-06 figure and should be assumed stale.
 
   Declared methods and *executed cases* are different metrics and get conflated: one `[Theory]`
   with `InlineData` expands into many cases, which is why the totals above do not match.
@@ -219,8 +225,9 @@ deliverable." Make that distinction explicit wherever it matters to a user.
 
 ### 8. Server & platform (`Planscape.Server`)
 
-ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **83 migrations present**
-and the stack is verified running locally in [`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
+ASP.NET Core 8 + EF Core + SignalR + Hangfire + PostgreSQL + Redis + MinIO. **Schema is not managed by
+EF migrations** — see §9 — and the stack is verified running locally in
+[`docs/SYSTEM_STATUS.md`](docs/SYSTEM_STATUS.md). **No
 committed secrets** — `appsettings.Production.template.json` uses `__REPLACE_WITH_…__` placeholders
 and `render.yaml` marks JWT key / owner password `sync: false`. Good hygiene. Open items are honestly
 tracked as **🟡 PARTIAL** (live 2-participant meetings, GLB viewer render, a site-photos route 404, a
@@ -234,12 +241,34 @@ geofence cached-boundary inconsistency) — they need a browser/2-client harness
 - **Branch sprawl.** This assessment was itself first drafted on a task branch **247 commits behind
   `main`** and re-synced to `main` before final measurement — a reminder that per-session `claude/*`
   branches drift fast; always re-base and re-measure before trusting a branch's numbers.
+- **EF migrations are decorative — do not read them as evidence of schema.** *(measured 2026-08-02)*
+  `Planscape.Server/src/Planscape.Infrastructure/Data/Migrations/` holds 83 `.cs` files: **80
+  migration classes, 2 `.Designer.cs`, 1 model snapshot**. EF builds its applicable-migration list by
+  reflecting over the `[Migration]` attribute, which normally lives in the Designer file — so only
+  **2 migrations are discoverable** (`MeetingMedia`, `SustainabilitySnapshots`) and **78 are inert
+  classes EF never sees**. `Database.Migrate()` applies those two and nothing else.
+
+  Real schema comes from `OnModelCreating` (via `EnsureCreated`/`CreateTables`) plus
+  `PlatformSchemaPatcher`, which runs on **both** boot branches. This is deliberate and documented in
+  [`docs/adr/0001-schema-management.md`](docs/adr/0001-schema-management.md) (Accepted).
+
+  Two consequences that keep catching people:
+  1. **A migration's contents prove nothing about the database, in either direction.** "No migration
+     creates table X" is not evidence X is missing; "a migration does Y" is not evidence Y happened.
+  2. **Security SQL that exists only in an inert migration was never applied** — Postgres RLS
+     (45 tables) and the audit-log hash-chain/partitioning are both in this category. See issue #545.
+
+  ⚠️ **Do not run `dotnet ef migrations add` here** without reading #545 first. It emits a Designer
+  file, which silently arms that one migration against a snapshot that does not describe live schema.
+  Two migrations have already become discoverable this way.
 
 ### Prioritised recommendations
 
 **P0 — cheap, high-value**
-1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, "EF not run",
-   the blanket "committed without build verification" caveat) and pointed them at this dated source.
+1. ✅ *Done in this pass:* corrected the drifted headline facts (line counts, version, the blanket
+   "committed without build verification" caveat) and pointed them at this dated source.
+   ⚠️ *Partly retracted 2026-08-02:* the "EF migration not run yet → 83 migrations present" correction
+   was **itself wrong** — 83 counted files, not applicable migrations. Fixed in §9.
 2. Populate or delete `StingTools.Connectivity.Tests` (an empty project is a false coverage signal).
 3. Add a `docs/INDEX.md` (or prune) so the 140-doc sprawl has one authoritative table of contents.
 
@@ -594,6 +623,8 @@ The Symbol Library is a data-driven engine that creates, maintains, and swaps pa
 | `PlacementCentreCommands.cs` (32) | `Placement_OpenCenter` — opens the modeless window |
 | `PlacementExcelCommands.cs` | `Placement_ExportRules`, `Placement_ImportRules` — Excel round-trip for placement rules |
 
+The **Family Converter** tab (after "Library") changes a family's host / placement type — P1 lossless checkbox toggle (Unhosted→Face-based) + P2 template rebuild — via `Core/Placement/FamilyHostConverter.cs` + `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`. See CHANGELOG "Family Converter".
+
 ---
 
 ## Visibility Center (Phases 232 + 233)
@@ -743,7 +774,12 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 
 1. `healthcare_rds.docx` template ships only as a README authoring guide
 2. MGS family stubs ship parameter specs only — real `.rfa` files come from manufacturers
-3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs
+3. `TwinReadback` BACnet / OPC-UA transports are abstract stubs. That is true of
+   `Core/Twin/TwinReadback.cs:39,46` and is the whole of what it says — it is **not** the
+   Niagara story: the file-mediated path the KUT playbook actually promises
+   (`Commands/Twin/NiagaraCommands.cs` — export a point list, reconcile against a station
+   export) and a real oBIX/JSON HTTP client (`Core/Twin/NiagaraJsonClient.cs`) are both
+   built. Two of the three paths exist; only BACnet/OPC-UA is a shell.
 4. `RAD_QE_NAME_TXT` sign-off remains mandatory before radiation calculators are treated as authoritative
 5. EF migration not run yet — `dotnet ef migrations add HealthcarePack` is required
 6. No dedicated Healthcare tab in the dock panel — commands dispatch via `WorkflowEngine.ResolveCommand` and `StingCommandHandler` button tags
@@ -925,8 +961,10 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 (Möller–Trumbore SAT triangle intersection), `ObbTree` (oriented bounding box),
 `ClashGrouper`, `ClashRuleEngine`, `ClashHistory`, `ClashPersistence`,
 `LiveClashHandler` + `LiveClashUpdater` (IUpdater-based live detection),
-`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`,
-`AccIssuesClient` (push to ACC Issues API).
+`ClashScheduler` (Hangfire-based periodic re-scan), `ClashSlaIntegration`.
+The push to ACC Issues is `StingTools/V6/AccIssueSync.cs` (`construction/issues/v1`).
+A second, orphaned `Clash/AccIssuesClient.cs` posting to `bim360/docs/v1/.../issues/bulk`
+had zero callers and disagreed with the live client's endpoint; it was deleted 2026-09-10.
 
 **Commands (6)**:
 
@@ -2629,6 +2667,67 @@ evidence of anything.
 - Clear, concise commit messages in imperative mood
 - One logical change per commit
 - No secrets, credentials, `.env` files, or API keys
+
+---
+
+## The failure mode this codebase produces
+
+**Nothing here fails loudly.** Every serious defect found in the 2026-08 audit
+looked like it was working:
+
+- The 3D viewer **fabricated clash data**, synthesising pairs from real element
+  GUIDs so the fakes carried genuine element names. It never queried the server
+  at all — a `USE_MOCK_CLASHES = true` flag commented *"server endpoint may not
+  exist yet"* long after it did.
+- **"Run clash detection" ran nothing** — it invented results client-side and
+  toasted "complete".
+- A **Create-issue** handler fabricated a stand-in issue on failure, inserted it,
+  and reported success; the row vanished on reload.
+- A **validation toast rendered underneath the modal backdrop**, so the only
+  feedback was invisible.
+- The BCC **"Save" wrote a local JSON file the server never saw**, so members
+  silently vanished on refresh. Three separate panels had this shape.
+- A documented cleanup command **could never run** — RESTRICT foreign keys made
+  it abort every time, leaving full residue.
+- Eleven permission gates compared `ProjectRole == "PM"`, a code that only
+  exists in the *other* column's vocabulary, so they **could never open for
+  anyone**.
+- A quota axis counted `ProjectRole == "Author"`, a literal **no writer
+  produces** — so one axis read 0 forever and the other counted everyone.
+- A data-rights export returned **200 with an unparseable archive**; its tests
+  asserted substrings and never parsed.
+- A Pages Function was **merged but never deployed** (`marketing-site` has no
+  git-connected build), and the static fallback made an undeployed route
+  indistinguishable from a nonexistent one.
+
+### What to do about it
+
+**Never invent fallback data.** Real data, an empty state, or a visible error.
+A fabricated value a user can act on is worse than a blank screen.
+
+**Prefer fixes that make the failure inexpressible, not merely absent.** The
+ones that held up:
+
+- one seat-count function that both the spending and reporting paths call, so
+  the two cannot drift
+- deleting an unused enum member so a stale reference is a *compile error*
+  rather than falling through to a permissive default
+- a test that enumerates `Enum.GetValues<T>()` instead of listing cases, so a
+  new member is covered without anyone remembering
+- a migration that refuses to run against a half-approved sheet
+- a probe that distinguishes *undeployed* from *nonexistent*
+
+**Prove the error path is reachable.** When you touch a failure branch, show a
+user can actually see it. Several of the above were error handling that could
+never execute.
+
+**"Merged" is not "deployed", and 200 is not "working".** Verify the artefact
+that actually serves the request. Compare a target route against both a
+known-good and a known-bad one.
+
+**Assert on non-empty data.** `PlanscapeDbContext`'s tenant filter falls back to
+`Guid.Empty` without an `ITenantContext`, so a test can pass against an empty
+result set. Prove RED before GREEN and report both numbers.
 
 ---
 

@@ -39,6 +39,27 @@ public class ProjectModel : ITenantScoped
     /// <summary>Storage path / key returned by IFileStorageService — opaque.</summary>
     public string StoragePath { get; set; } = "";
 
+    /// <summary>
+    /// The authoring document this model was published from — Revit's
+    /// <c>ProjectInformation.UniqueId</c>, the same string the geometry-delta
+    /// pipeline writes as <see cref="FederatedElement.SourceDocGuid"/>.
+    ///
+    /// <para><b>Why it exists.</b> It is the ONE key shared between the two
+    /// ingest pipelines. A ProjectModel is keyed by its uploaded-GLB
+    /// <see cref="StoragePath"/>; a FederatedElement is keyed by its per-delta
+    /// <c>GlbStoragePath</c>. Those are different key spaces and never coincide,
+    /// so before this field a model delete had no way to identify "its"
+    /// federated elements — an earlier attempt joined the two storage paths,
+    /// matched nothing, and logged a retirement count anyway.</para>
+    ///
+    /// <para>Nullable on purpose. Rows published before this shipped, and any
+    /// ingest that genuinely has no source document, carry null — and
+    /// <c>ModelsController.Delete</c> skips the federated cascade rather than
+    /// guessing, because a wrong match here retires geometry a live model still
+    /// needs.</para>
+    /// </summary>
+    public string? SourceDocGuid { get; set; }
+
     /// <summary>SHA-256 of the file — used for client-side dedup + cache-busting.</summary>
     public string? ContentHash { get; set; }
 

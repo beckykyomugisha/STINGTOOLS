@@ -265,16 +265,53 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Migration_does_not_destroy_a_status_it_does_not_recognise()
         {
-            // RESPONDED and ACCEPTED are written by UpdateIssueCommand and filtered on
-            // exactly elsewhere. Canonicalising them would collapse both to "UNKNOWN" and
-            // lose a distinction the workflow depends on.
-            foreach (string status in new[] { "RESPONDED", "ACCEPTED" })
+            // Migration must leave a stored status BYTE-FOR-BYTE alone. That is the point of
+            // this test and it is unchanged: RESPONDED and ACCEPTED are exact-match filtered
+            // in seven places, so rewriting either would silently unmatch rows.
+            //
+            // A genuinely unrecognised spelling is included so the original intent - "a status
+            // this class has never been taught survives migration" - is still covered now that
+            // RESPONDED and ACCEPTED ARE taught (IM-9).
+            foreach (string status in new[] { "RESPONDED", "ACCEPTED", "AWAITING_SITE_SURVEY" })
             {
                 var row = new JObject { ["issue_id"] = "RFI-0001", ["status"] = status };
                 IssueSchema.Migrate(row);
                 Assert.Equal(status, (string)row["status"]);
-                Assert.True(IssueSchema.IsOpen(row));   // not closed ⇒ still needs attention
             }
+        }
+
+        /// <summary>
+        /// IM-9. This assertion USED to live in the test above as
+        /// <c>Assert.True(IssueSchema.IsOpen(row))</c> for both RESPONDED and ACCEPTED, with
+        /// the comment "not closed =&gt; still needs attention".
+        ///
+        /// <para><b>It was true for the wrong reason and wrong for ACCEPTED.</b> Neither
+        /// spelling had a kind, so both normalised to <c>Unknown</c>, and <c>IsOpen</c> treats
+        /// Unknown as open so the <c>has_open_issues</c> gate fails safe. The test was
+        /// measuring the fallback, not the status.</para>
+        ///
+        /// <para>Seven places in the codebase classify ACCEPTED, and every one of them treats
+        /// it as DONE: three skip lists group it with CLOSED and VOID, a fourth returns
+        /// <c>s == "CLOSED" || s == "ACCEPTED"</c> for "is closed", the BCF and platform
+        /// bridges both map it to "Resolved", and its own description reads "Response
+        /// accepted, issue closed". RESPONDED is the opposite: it is counted open as
+        /// <c>OPEN || IN_PROGRESS || RESPONDED</c> and maps to "Active".</para>
+        /// </summary>
+        [Fact]
+        public void Responded_is_open_and_Accepted_is_not()
+        {
+            var responded = new JObject { ["issue_id"] = "RFI-0001", ["status"] = "RESPONDED" };
+            var accepted = new JObject { ["issue_id"] = "RFI-0002", ["status"] = "ACCEPTED" };
+            IssueSchema.Migrate(responded);
+            IssueSchema.Migrate(accepted);
+
+            Assert.True(IssueSchema.IsOpen(responded));
+            Assert.False(IssueSchema.IsOpen(accepted));
+
+            // An unrecognised status still fails safe.
+            var unknown = new JObject { ["issue_id"] = "RFI-0003", ["status"] = "AWAITING_SITE_SURVEY" };
+            IssueSchema.Migrate(unknown);
+            Assert.True(IssueSchema.IsOpen(unknown));
         }
 
         [Fact]

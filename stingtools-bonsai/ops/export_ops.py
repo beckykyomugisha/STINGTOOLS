@@ -192,6 +192,8 @@ class StingExportComplianceSnapshotOperator(bpy.types.Operator):
         discipline_counts: dict[str, int] = {}
 
         for el in ifc.by_type("IfcElement"):
+            if el.is_a("IfcFeatureElement"):
+                continue  # voids (openings/recesses/projections) aren't taggable assets
             psets = ifc_util.get_psets(el)
             stag = psets.get("Pset_StingTags", {})
             total += 1

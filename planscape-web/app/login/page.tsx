@@ -1,12 +1,34 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 
+/**
+ * Only ever return a same-origin path. `next` reaches us from the address bar,
+ * so an absolute URL here would turn the sign-in form into an open redirect.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/projects';
+  return raw;
+}
+
+/**
+ * useSearchParams opts the subtree out of static prerendering, and `next build`
+ * fails outright if it isn't inside a Suspense boundary — hence the split.
+ */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center p-4" />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  const next = safeNext(useSearchParams()?.get('next') ?? null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +40,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       await login(email.trim(), password);
-      router.replace('/projects');
+      router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.');
     } finally {

@@ -255,11 +255,17 @@ namespace StingTools.Model
                 using (var tx = new Transaction(uidoc.Document, "STING Room Finishes"))
                 {
                     tx.Start();
-                    int written = RoomFinishScheduler.WriteToRooms(uidoc.Document, schedule);
+                    var write = RoomFinishScheduler.WriteToRooms(uidoc.Document, schedule);
                     tx.Commit();
 
                     var sb = new System.Text.StringBuilder();
-                    sb.AppendLine($"ROOM FINISH SCHEDULE — {schedule.Count} rooms, {written} updated\n");
+                    sb.AppendLine($"ROOM FINISH SCHEDULE — {schedule.Count} rooms scanned");
+                    sb.AppendLine($"  {write.Modified} rooms updated");
+                    sb.AppendLine($"  {write.AlreadyPopulated} rooms already had finishes (left untouched)");
+                    if (write.Failed > 0)
+                        sb.AppendLine($"  {write.Failed} rooms could not be written (see log)");
+                    sb.AppendLine($"  Parameters written: {write.BuiltInParamsWritten} Revit built-in, " +
+                        $"{write.StingParamsWritten} STING shared\n");
                     foreach (var r in schedule.Take(10))
                         sb.AppendLine($"  {r.RoomNumber} {r.RoomName}: Wall={r.WallFinish}, " +
                             $"Floor={r.FloorFinish}, Ceiling={r.CeilingFinish}");

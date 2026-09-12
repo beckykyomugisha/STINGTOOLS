@@ -1,5 +1,18 @@
 # Universal Tag — Duct smoke test (the gate before scaling to all 206)
 
+
+> ## ⚠ STATUS: NEVER RUN
+>
+> This smoke test has **not been executed**. It was named as the gate for a teardown and a
+> patch that were both applied anyway, so its gate function was not honoured.
+>
+> **Unverified as a result:** that the universal tag places on a Duct at all; that any tier
+> row renders; that `TAG_PARA_STATE_*` written on the element affects the tag (see
+> `UNIVERSAL_TAG_CONFORMANCE.md` §2.5 — static analysis says it cannot); and that the
+> teardown it gated left a working state.
+>
+> Mark this executed with results, or leave it marked never-run. Do not cite it as evidence.
+
 > **Deploy target — corrected 2026-08-06.** This runner names `C:\Dev\STING_PLACEMENT_GOLD`, which is **retired** (its `deploy-gold.bat` was deleted). Revit loads whatever the manifest says — check it, and deploy with `deploy.bat` from the checkout you want live:
 >
 > ```bash
@@ -100,11 +113,11 @@ Open `STING - Duct Tag` in the Family Editor (Edit Family) and check each:
    DLL's `data/TagFamilies/`, NOT to git. So after the ALL run:
    a. Copy the propagated `.rfa` set into the git-tracked `StingTools/Data/TagFamilies/` and
       commit them (this is what the deploy + git actually ship).
-   b. **Repopulate the seed folder** `StingTools/Data/TagFamilies/Seeds/` with the propagated,
-      universal-label families (overwrite the old bespoke seeds). `TagFamilyCreatorCommand.FindSeedFamily`
-      loads these as the "gold standard" for fresh `Create Tag Families` runs, so stale seeds would
-      re-introduce the old scheme. Match the per-category file names `FindSeedFamily` expects
-      (category base name, optionally `_seed.rfa`).
+   b. **Do NOT repopulate `Data/TagFamilies/Seeds/`.** That folder was deleted deliberately
+      (91a22598a): its 137 pre-tier-change families shadowed the live set for 88 categories,
+      because ProbeRoots searched `<root>/Seeds` before `<root>`. The probe is removed too.
+      The canonical library is now `StingTools/Data/TagFamilies/` (207 families) mirrored to
+      the shared content root.
    c. Redeploy: copy the updated `data/TagFamilies/` (incl. `Seeds/`) to the deploy target
       (`C:\Dev\STING_PLACEMENT_GOLD\data\TagFamilies`, Revit closed).
 3. Begin the Task-4 staged cutover (`docs/ROADMAP.md` step 2) — apply

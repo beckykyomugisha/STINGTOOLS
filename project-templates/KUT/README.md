@@ -51,7 +51,7 @@ that reads it — start there when building a pack for a different owner.
 |---|---|
 | `_BIM_COORD/manifest.json` | Not deployed data — the index of this pack (what each file overlays, its merge key, its reader) |
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
-| `_BIM_COORD/lod_matrix.json` | Restates the confirmed 6-milestone matrix as the client-facing record. **`categoryRules` is deliberately empty** — see below |
+| `_BIM_COORD/lod_matrix.json` | The confirmed 6-milestone matrix, plus the tiered asset data schedule at rung 500 across 17 pinned categories. **Generated** by `tools/build_kut_lod_overlay.py` — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
 | `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
 | `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
@@ -193,26 +193,52 @@ deliverable. The A1 figure is read as a drafting error in the client document.
 milestone, covering Work Program item *3.1 Supervise the Building Construction
 Contract*. Nothing that was verifiable before became unverifiable.
 
-### The LOD overlay pins no categories, on purpose
+### The LOD overlay pins 17 categories at rung 500, and is generated
 
-`_BIM_COORD/lod_matrix.json` used to restate the corporate `Lighting Fixtures`
-and `Plumbing Fixtures` category rules. `LodVerificationEngine` **replaces a
-category rule wholesale**, so an overlay copy silently discards every future
-corporate improvement to that category — and both copies had already paid for
-that:
+**This section previously said the overlay pins no categories. That has not been
+true since the tiered asset data schedule landed**, and the description is
+corrected here rather than left to mislead the next reader.
 
-- `Lighting Fixtures` was byte-identical to corporate. Pure loss of future
-  improvements, in exchange for nothing.
-- `Plumbing Fixtures` had quietly dropped `+MNT_TYPE_TXT` from rung **400**,
-  which corporate has carried since Phase 192 B1 — *before* this overlay was
-  written. That is drift, not a decision: this file's own description says the
-  rules are "restated" from corporate, and they were not.
+`_BIM_COORD/lod_matrix.json` now pins 17 categories, and pins them at **every**
+rung, because `LodVerificationEngine` replaces a category rule wholesale: a
+category listing rung 500 alone would resolve to nothing at 200 to 400 and its
+elements would drop silently out of every earlier gate, reported as 100% over an
+empty scope.
 
-Both are removed and KUT now inherits corporate for those categories.
-**Behaviour change to expect:** Plumbing Fixtures at LOD 400 (the `construction`
-milestone) require `MNT_TYPE_TXT` again. Add a rule back only to state a genuine
-temple-specific difference, and say in the file's `_categoryRulesNote` what the
-difference is and why.
+That is why the file is **generated, not hand-written**. `tools/build_kut_lod_overlay.py`
+copies each category's complete corporate ladder and edits only rung 500, so the
+overlay carries the tier requirement without discarding corporate's work at the
+other rungs. Run it with `--check` to see whether corporate has moved since the
+overlay was last built; it names the categories and rungs that changed.
+
+The rung-500 requirement is tiered by what an asset actually is:
+
+| Tier | Categories | Requires |
+|---|---|---|
+| A — serialised plant | Mechanical, Electrical and Specialty Equipment | Full record: unique asset reference, serial number, warranty, expected life, maintenance interval, spares, commissioning date |
+| B — maintainable devices | Lighting, Plumbing and Electrical Fixtures, Air Terminals, Sprinklers, Fire Alarm Devices | Type-level data, installation date, supplier, warranty duration, expected life. **No serial number.** Fire Alarm Devices carry loop and address instead |
+| C — warranted fabric | Roofs, Curtain Panels, Curtain Wall Mullions, Doors, Windows, Casework | Supplier, warranty guarantor, duration and expiry |
+| FF&E | Furniture, Furniture Systems | Installation date, supplier, warranty duration |
+| D — everything else | Not pinned; inherits corporate | Identified by its tag only |
+
+An earlier version of the overlay restated the corporate `Lighting Fixtures` and
+`Plumbing Fixtures` rules by hand. `Lighting Fixtures` was byte-identical to
+corporate — pure loss of future improvements for nothing — and `Plumbing Fixtures`
+had quietly dropped `+MNT_TYPE_TXT` from rung 400, which corporate had carried
+since Phase 192 B1. That is what generating the file from corporate prevents.
+
+`FOHLIO_REF_TXT` at rung 500 is **not** listed in the generator's tier fields. It
+is added per category from `_BIM_COORD/fohlio_map.json`, so the categories the
+FF&E export covers and the categories the handover gate requires a link for
+cannot drift apart. They had: the export covered six categories, the warning rule
+covered the same six, and the handover requirement covered two.
+
+**The document gate reads this file.** `tools/check_kut_documents.py` compares the
+tier tables in the BIM Execution Plan and the Project Delivery Playbook against
+it, so a change here that is not also made in the generators fails the gate — the
+documents tell a contractor what to capture and this file decides whether they
+passed, and the two disagreeing means somebody is failed for a field nobody asked
+them for.
 
 **Raise this with the Owner** at the next BEP review so the contract record and
 the verification gate agree. If the Owner confirms 400 is intended, change

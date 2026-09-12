@@ -96,14 +96,36 @@ namespace StingTools.Core.MaterialSchedule
             if (doc.Options == null || !doc.Options.ShowPrices) return;
 
             foreach (var stage in doc.Stages)
-                foreach (var c in stage.Commodities.Where(x => x.IsUnpriced))
+                // A memorandum row is unpriced BY DESIGN — its constituents carry
+                // the money. Flagging it as missing a rate is what invited the
+                // double-count this marking exists to prevent.
+                foreach (var c in stage.Commodities.Where(x => x.IsUnpriced && !x.IsMemorandum))
                     rec.Issues.Add(new ReconciliationIssue
                     {
                         Code = "R3",
                         StageId = stage.StageId,
                         CommodityKey = c.CommodityKey,
+                        // Name the ACTION, not the file.
+                        //
+                        // This used to say "add a row keyed 'X' to
+                        // _BIM_COORD/commodity_rates.csv", which was wrong twice
+                        // over. _BIM_COORD is the ALIAS - the live folder is
+                        // _data/coord - so a reader following it literally landed
+                        // in a stale legacy folder and concluded the file was
+                        // missing. And the key is the row's DISPLAY NAME, so most
+                        // of them carry a non-ASCII em dash that an exact
+                        // OrdinalIgnoreCase lookup will miss in silence if it is
+                        // retyped as a hyphen.
+                        //
+                        // Price Commodities seeds the key from the schedule, so
+                        // it never has to be typed. The resolved path is stated
+                        // ONCE, in the export notes, for anyone preparing rates
+                        // outside Revit - repeating it on 25 rows was noise.
                         Message = $"'{c.Description}' ({c.OrderQuantity:N0} {c.SupplierUnit}) in "
-                                + $"{stage.Title} has no rate. It will total zero in a priced schedule."
+                                + $"{stage.Title} has no rate, so it totals zero here and the grand "
+                                + "total is that much of an under-statement. Price it with "
+                                + "BOQ tab -> Price Commodities: this row is already listed there, "
+                                + "so nothing has to be retyped."
                     });
         }
 
@@ -124,7 +146,8 @@ namespace StingTools.Core.MaterialSchedule
                         CommodityKey = c.CommodityKey,
                         Message = $"'{c.Description}' stayed in measured units ({c.SupplierUnit}) — "
                                 + c.ConversionNote
-                                + ". Extend the rule's type patterns to convert it, or price it as measured."
+                                + ". Add the type name to that rule's matchTypePatterns in "
+                                + "_BIM_COORD/supplier_units.json to convert it, or price it as measured."
                     });
         }
 
@@ -140,8 +163,12 @@ namespace StingTools.Core.MaterialSchedule
                             Code = "R4",
                             StageId = stage.StageId,
                             CommodityKey = c.CommodityKey,
-                            Message = $"'{c.Description}': order quantity {c.OrderQuantity:N2} is below the "
-                                    + $"net measured {c.NetQuantity:N2}. Wastage can only add."
+                            // 4 dp, not 2: at 2 dp this printed "order quantity
+                            // 174.60 is below the net measured 174.60", which
+                            // reads as a false alarm and buried a real (if tiny)
+                            // under-order behind its own rounding.
+                            Message = $"'{c.Description}': order quantity {c.OrderQuantity:N4} is below the "
+                                    + $"net measured {c.NetQuantity:N4}. Wastage can only add."
                         });
 
                     if (c.WastagePct < 0)

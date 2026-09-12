@@ -1,11 +1,11 @@
 {
-  "_comment": "KUT climate overlay example (Phase 192 E3). Copy to <project>/_BIM_COORD/climate_data.json to override the corporate Kampala entry with VERIFIED ASHRAE 2021 design values once the engineer-of-record confirms them against the Entebbe station (HUEN / WMO 636800). The corporate STING_CLIMATE_DATA.json already ships a Kampala entry that resolves via the ProjectInformation.Address fuzzy-match (address containing 'Kampala'); this overlay is only needed if the corporate estimate must be replaced. The HVAC pressure-class audit + block-load air-density use the cooling 0.4% (99.6 percentile) dry-bulb.",
+  "_comment": "KUT climate overlay. UNVERIFIED — do not present these values as confirmed design data. The record is LABELLED Kampala and carries the ENTEBBE station (HUEN / WMO 636800): latitude 0.042, longitude 32.444 and elevation 1155 m are Entebbe International Airport, roughly 35 km south of the site and about 40 m lower. Using the nearest long-record station as a proxy is normal practice, but it is stated here rather than hidden, because the elevation feeds the air-density correction and the site sits higher than the station. The values are an estimate pending confirmation by the engineer of record against ASHRAE 2021, and that confirmation is a row on the standards reconciliation schedule (BEP 4.1.3) — it is not closed. Replace both the values and this note when it is.",
   "_schema": "STING_CLIMATE_DATA",
   "_version": "1.1",
   "sites": [
     {
       "id": "kampala",
-      "label": "Kampala",
+      "label": "Kampala (Entebbe station HUEN/636800 as proxy)",
       "country": "UG",
       "lat": 0.042,
       "lon": 32.444,
@@ -17,7 +17,7 @@
       "cdd10": 3000,
       "utcOffsetHours": 3,
       "observesDstInSummer": false,
-      "source": "PROJECT OVERRIDE — replace with engineer-confirmed ASHRAE 2021 Entebbe (HUEN/636800) design values"
+      "source": "UNVERIFIED ESTIMATE. Entebbe station geometry with estimated design temperatures. Replace with engineer-confirmed ASHRAE 2021 values, and correct the elevation to the site if the design is sensitive to air density."
     }
   ]
 }

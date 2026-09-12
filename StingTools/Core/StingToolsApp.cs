@@ -221,6 +221,14 @@ namespace StingTools.Core
                 // model from receiving changes.
                 GeometrySyncUpdater.Register(application);
 
+                // Register the Planscape live element-sync updater (IUpdater) —
+                // registered with NO triggers. Triggers are attached only on a
+                // successful Planscape connect and removed on disconnect, so users
+                // who never touch Planscape pay nothing for it (Revit evaluates an
+                // updater's trigger filter on every element change even while the
+                // updater is disabled).
+                StingTools.Core.Sync.LiveSyncUpdater.Register(application);
+
                 // Register the SLD sync updater (IUpdater) — starts disabled. The
                 // SLD panel's "live sync" toggle writes sld_sync_enabled; without
                 // this registration that flag governed nothing.
@@ -933,6 +941,11 @@ namespace StingTools.Core
                 // to the .rvt → leave singleton unchanged.
                 try
                 {
+                    // KUT-8 — attach the engine wire BEFORE ApplyRegionalPreset fires, or
+                    // the StandardsChanged raised below reaches nobody and the engines keep
+                    // the previous document's region. Attach() is idempotent and seeds once.
+                    StingTools.Core.EngineRegionSync.Attach();
+
                     var pi = e.Document?.ProjectInformation;
                     string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
                     string source = "PROJECT_REGION";
@@ -948,6 +961,14 @@ namespace StingTools.Core
                         {
                             mgr.ApplyRegionalPreset(projectRegion);
                             StingLog.Info($"Standards: synced active region → {projectRegion} (from {source})");
+                        }
+                        else
+                        {
+                            // Already on the right region, so ApplyRegionalPreset raises
+                            // nothing — but on the first document of a session the engines
+                            // have never been pushed. An unchanged setting is not the same
+                            // as a propagated one.
+                            StingTools.Core.EngineRegionSync.SyncNow("document-open (region unchanged)");
                         }
                     }
                 }
@@ -1121,7 +1142,9 @@ namespace StingTools.Core
                     if (TagConfig.AutoTaggerVisual.HasValue)
                         StingAutoTagger.SetVisualTagging(TagConfig.AutoTaggerVisual.Value);
                     if (TagConfig.AutoTaggerStaleMarker.HasValue)
-                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value);
+                        // G-47: pass the document so the ISO token parameters (SHARED, so
+                        // per-document ElementIds) can be watched for staleness.
+                        StingStaleMarker.SetEnabled(TagConfig.AutoTaggerStaleMarker.Value, e.Document);
                     // GAP-AT-03: Restore discipline filter from project config
                     StingAutoTagger.RestoreDisciplineFilter();
                 }
@@ -1676,6 +1699,12 @@ namespace StingTools.Core
                 if (doc == null) return;
                 if (!_savingAsPaths.TryRemove(doc.GetHashCode(), out var paths)) return;
                 if (string.IsNullOrEmpty(paths.OldPath) || string.IsNullOrEmpty(paths.NewPath)) return;
+                // Save-As fires for FAMILY documents too. The snapshot migration resolves
+                // through the path-only StingPaths overloads, which cannot see
+                // IsFamilyDocument and used to mint a project folder beside the .rfa —
+                // the content-library leak. The resolver now refuses family paths; this
+                // is the belt-and-braces guard at the site that has the Document.
+                if (doc.IsFamilyDocument) return;
                 MigrateLiveProfileSyncSnapshot(paths.OldPath, paths.NewPath);
 
                 // Save As moves the .rvt, so the STING project root resolves somewhere new.
@@ -1776,52 +1805,73 @@ namespace StingTools.Core
                 try
                 {
                     var client = PlanscapeServerClient.Instance;
-                    var payload = new Planscape.Shared.Models.PluginSyncPayload
-                    {
-                        ProjectId     = Guid.Empty, // server resolves via auth/tenant scope
-                        UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
-                        RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
-                                          .GetName().Version?.ToString() ?? "",
-                        PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
-                        Timestamp     = DateTime.UtcNow,
-                        TagElements   = tagElements,
-                        Compliance    = new Planscape.Shared.Models.ComplianceSync
-                        {
-                            TotalElements     = totalElements,
-                            TaggedComplete    = taggedCount,
-                            StaleCount        = staleCount,
-                            PlaceholderCount  = placeholderCount,
-                            WarningCount      = warningCount,
-                            TagPercent        = tagPct,
-                            StrictPercent     = strictPct,
-                            ContainerPercent  = containerPct,
-                            RagStatus         = ragStatus
-                        }
-                    };
 
-                    var queue = OfflineQueue.Shared;
-                    if (queue != null)
+                    // The linked Planscape project id, NOT Guid.Empty. The server
+                    // does not resolve the project from auth/tenant scope — it
+                    // matches on request.ProjectId and returns 404 when it can't
+                    // find one. A 404 is a 4xx, which the offline queue classifies
+                    // as a fatal request error and DELETES the payload, so every
+                    // save-triggered sync used to be silently discarded.
+                    string bimDirSync = BIMManagerEngine.GetBIMManagerDir(doc);
+                    Guid syncProjectId = BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(
+                        Path.Combine(bimDirSync, "planscape_connection.json"));
+                    // NOTE: skip the enqueue, do NOT return — returning here would
+                    // also skip the geometry-delta trigger further down, which is a
+                    // separate and working channel.
+                    if (syncProjectId == Guid.Empty)
                     {
-                        queue.Enqueue(payload);
-                        StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
-                            $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} tag elements enqueued " +
-                            $"(queue depth: {queue.Count})");
-
-                        // C3 — drain immediately instead of waiting for the 5-min timer.
-                        // Fire-and-forget; the scheduler handles retry on failure.
-                        if (SyncScheduler.Instance != null)
-                        {
-                            _ = Task.Run(async () =>
-                            {
-                                try { await SyncScheduler.Instance.SyncNowAsync(); }
-                                catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
-                            });
-                        }
+                        StingLog.Info($"DocumentSaved: {doc.Title} — no Planscape project linked, element sync skipped");
                     }
                     else
                     {
-                        StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
-                    }
+                        var payload = new Planscape.Shared.Models.PluginSyncPayload
+                        {
+                            ProjectId     = syncProjectId,
+                            UserName      = client?.ConnectedUser ?? Environment.UserName ?? "Unknown",
+                            RevitVersion  = Assembly.GetAssembly(typeof(Autodesk.Revit.DB.Document))?
+                                              .GetName().Version?.ToString() ?? "",
+                            PluginVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "",
+                            Timestamp     = DateTime.UtcNow,
+                            TagElements   = tagElements,
+                            Compliance    = new Planscape.Shared.Models.ComplianceSync
+                            {
+                                TotalElements     = totalElements,
+                                TaggedComplete    = taggedCount,
+                                StaleCount        = staleCount,
+                                PlaceholderCount  = placeholderCount,
+                                WarningCount      = warningCount,
+                                TagPercent        = tagPct,
+                                StrictPercent     = strictPct,
+                                ContainerPercent  = containerPct,
+                                RagStatus         = ragStatus
+                            }
+                        };
+
+                        var queue = OfflineQueue.Shared;
+                        if (queue != null)
+                        {
+                            var chunks = BIMManager.PlatformSyncCommand.ChunkForTransport(payload);
+                            foreach (var chunk in chunks) queue.Enqueue(chunk);
+                            StingLog.Info($"DocumentSaved: {doc.Title} — compliance {tagPct:F1}% " +
+                                $"({taggedCount}/{totalElements}) + {tagElements?.Count ?? 0} elements enqueued " +
+                                $"in {chunks.Count} payload(s) (queue depth: {queue.Count})");
+
+                            // C3 — drain immediately instead of waiting for the 5-min timer.
+                            // Fire-and-forget; the scheduler handles retry on failure.
+                            if (SyncScheduler.Instance != null)
+                            {
+                                _ = Task.Run(async () =>
+                                {
+                                    try { await SyncScheduler.Instance.SyncNowAsync(); }
+                                    catch (Exception dEx) { StingLog.Warn($"DocumentSaved immediate drain: {dEx.Message}"); }
+                                });
+                            }
+                        }
+                        else
+                        {
+                            StingLog.Info($"DocumentSaved: {doc.Title} — SyncScheduler not running, sync skipped");
+                        }
+                    } // end: project linked
                 }
                 catch (Exception qEx)
                 {
@@ -1851,9 +1901,16 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// C3 — Collect lightweight tag element records for the sync payload.
-        /// Includes only elements with ASS_TAG_1_TXT populated (tagged elements)
-        /// and caps at <paramref name="max"/> to keep the save path fast.
+        /// C3 — Collect element records for the sync payload.
+        /// <para>
+        /// No longer gated on ASS_TAG_1_TXT: an element is eligible for sync
+        /// because it exists, not because someone has tagged it. Compliance %
+        /// stays truthful because it is computed from tag completeness, not from
+        /// row count.
+        /// </para>
+        /// Caps at <paramref name="max"/> to keep the save path fast, and defers
+        /// the whole projection to <see cref="Core.Sync.TagElementSyncMapper"/>
+        /// so this path cannot drift from the Sync Now path again.
         /// </summary>
         private static List<Planscape.Shared.Models.TagElementSync> CollectTagElements(
             Autodesk.Revit.DB.Document doc, int max = 5000)
@@ -1868,28 +1925,9 @@ namespace StingTools.Core
             foreach (var el in collector)
             {
                 if (results.Count >= max) break;
-
-                string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
-                if (string.IsNullOrEmpty(tag1)) continue;
-
-                string FromReg(string p) { try { return ParameterHelpers.GetString(el, p); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
-
-                results.Add(new Planscape.Shared.Models.TagElementSync
-                {
-                    RevitElementId = el.Id.Value,
-                    UniqueId       = el.UniqueId,
-                    Disc           = FromReg(ParamRegistry.DISC),
-                    Loc            = FromReg(ParamRegistry.LOC),
-                    Zone           = FromReg(ParamRegistry.ZONE),
-                    Lvl            = FromReg(ParamRegistry.LVL),
-                    Sys            = FromReg(ParamRegistry.SYS),
-                    Func           = FromReg(ParamRegistry.FUNC),
-                    Prod           = FromReg(ParamRegistry.PROD),
-                    Seq            = FromReg(ParamRegistry.SEQ),
-                    Tag1           = tag1,
-                    CategoryName   = el.Category?.Name ?? "",
-                    FamilyName     = ParameterHelpers.GetFamilyName(el) ?? "",
-                });
+                results.Add(Core.Sync.TagElementSyncMapper.MapElement(
+                    doc, el,
+                    hydrateTiers: Core.Sync.TagElementSyncMapper.ShouldHydrateTiers(el)));
             }
             return results;
         }
@@ -1927,6 +1965,7 @@ namespace StingTools.Core
             try { Core.Hvac.Loads.HvacEnvelopeStaleUpdater.Unregister(); } catch { }
             try { Core.Sustainability.SustainStaleUpdater.Unregister(); } catch { }
             StingTag7NarrativeUpdater.Unregister();
+            try { Core.Sync.LiveSyncUpdater.Unregister(); } catch { }
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
@@ -2510,27 +2549,65 @@ namespace StingTools.Core
         }
 
         /// <summary>Parse a CSV line respecting quoted fields.</summary>
+        /// <summary>
+        /// RFC-4180 CSV line parser: quoted fields, and <c>""</c> inside a quoted field
+        /// as one literal quote.
+        ///
+        /// G-2 — the previous implementation toggled an <c>inQuote</c> flag on every
+        /// quote character and **never appended one**. Field boundaries survived, so
+        /// nothing looked broken, but every quote character was deleted from the
+        /// content:
+        ///
+        /// <code>
+        ///   "ASS_ID_TXT + ""-"" + ASS_TAG_1_TXT"   →  ASS_ID_TXT + - + ASS_TAG_1_TXT
+        ///   if(X = ""Standard Response"", 12, 9)   →  if(X = Standard Response, 12, 9)
+        ///   if(GATE_BOOL, ASS_TAG_2_TXT, "")       →  if(GATE_BOOL, ASS_TAG_2_TXT, )
+        /// </code>
+        ///
+        /// The first drops the separator from every concatenation formula. The second
+        /// turns a string comparison into a bare identifier — which is why sprinkler
+        /// coverage evaluated its fallback on every element. The third emits a Revit
+        /// formula with an empty argument.
+        ///
+        /// Measured over the 76 shipped <c>Data/*.csv</c> files, 67,006 rows: this
+        /// change alters **13,432 rows across 13 files** — 88 in
+        /// FORMULAS_WITH_DEPENDENCIES.csv and ~13,300 in the STING_TAG_CONFIG_v5_0_*
+        /// family, which carry Revit label formulas and were being corrupted the same
+        /// way. **Field COUNT is unchanged on every one of the 67,006 rows**, so no
+        /// caller's column indexing moves; every difference is a quote character
+        /// restored inside a field, never a field boundary. All 13,432 differences are
+        /// one-directional — the RFC parser keeps a quote the old one dropped, never
+        /// the reverse.
+        ///
+        /// Lifted from <c>StingTools.Boq.Tests/FormulaSelfRefTests.cs:76-100</c>, which
+        /// already carried a correct parser precisely because the shipped one could not
+        /// read the file under test.
+        /// </summary>
         public static string[] ParseCsvLine(string line)
         {
             var result = new System.Collections.Generic.List<string>();
-            bool inQuote = false;
-            var current = new System.Text.StringBuilder();
+            if (line == null) { result.Add(""); return result.ToArray(); }
 
-            foreach (char c in line)
+            var current = new System.Text.StringBuilder();
+            bool inQuote = false;
+
+            for (int i = 0; i < line.Length; i++)
             {
-                if (c == '"')
+                char c = line[i];
+                if (inQuote)
                 {
-                    inQuote = !inQuote;
+                    if (c == '"')
+                    {
+                        // "" inside a quoted field is one literal quote; a lone quote
+                        // closes the field.
+                        if (i + 1 < line.Length && line[i + 1] == '"') { current.Append('"'); i++; }
+                        else inQuote = false;
+                    }
+                    else current.Append(c);
                 }
-                else if (c == ',' && !inQuote)
-                {
-                    result.Add(current.ToString());
-                    current.Clear();
-                }
-                else
-                {
-                    current.Append(c);
-                }
+                else if (c == '"') inQuote = true;
+                else if (c == ',') { result.Add(current.ToString()); current.Clear(); }
+                else current.Append(c);
             }
             result.Add(current.ToString());
             return result.ToArray();

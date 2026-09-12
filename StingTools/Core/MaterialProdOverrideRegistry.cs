@@ -26,15 +26,12 @@ namespace StingTools.Core
     /// </summary>
     public static class MaterialProdOverrideRegistry
     {
-        private static List<Rule> _rules;
+        // Parsing and matching live in the Revit-free MaterialProdOverrideRules so
+        // the SHIPPED rule table can be asserted outside Revit — an unanchored
+        // pattern handing sheep's wool an EPS code is a data defect, and a data
+        // defect needs a data gate. This class keeps only what needs an Element.
+        private static List<MaterialProdRule> _rules;
         private static readonly object _lock = new object();
-
-        private class Rule
-        {
-            public string Category;            // category name; "*" wildcard
-            public System.Text.RegularExpressions.Regex MaterialPattern;
-            public string Suffix;
-        }
 
         public static void Reload()
         {
@@ -50,17 +47,11 @@ namespace StingTools.Core
                 if (_rules == null || _rules.Count == 0) return null;
                 string matName = ReadPrimaryMaterialName(el);
                 if (string.IsNullOrEmpty(matName)) return null;
-                foreach (var r in _rules)
+                try
                 {
-                    if (!string.IsNullOrEmpty(r.Category) && r.Category != "*" &&
-                        !string.Equals(r.Category, categoryName, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    try
-                    {
-                        if (r.MaterialPattern.IsMatch(matName)) return r.Suffix;
-                    }
-                    catch (Exception ex) { StingLog.Warn($"MaterialProdOverride match: {ex.Message}"); }
+                    return MaterialProdOverrideRules.ResolveSuffix(_rules, matName, categoryName);
                 }
+                catch (Exception ex) { StingLog.Warn($"MaterialProdOverride match: {ex.Message}"); }
             }
             return null;
         }
@@ -69,6 +60,8 @@ namespace StingTools.Core
         {
             try
             {
+                // 1. An EXPLICIT material on the instance or type wins outright —
+                //    somebody said what this is, and no inference beats that.
                 Parameter p = el.LookupParameter("Material") ?? el.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM);
                 if (p != null && p.StorageType == StorageType.ElementId)
                 {
@@ -76,6 +69,14 @@ namespace StingTools.Core
                     if (mid != null && mid.Value > 0)
                         return el.Document?.GetElement(mid)?.Name;
                 }
+
+                // 2. A COMPOUND element is named by its core, not its skin. Without
+                //    this, a 230 mm rendered masonry wall reported gypsum, because
+                //    GetMaterialIds returns the finish layer first.
+                string layered = ReadCompoundPrimaryMaterial(el);
+                if (!string.IsNullOrEmpty(layered)) return layered;
+
+                // 3. Last resort: first material the element admits to.
                 var mats = el.GetMaterialIds(false);
                 if (mats != null)
                 {
@@ -90,12 +91,62 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>
+        /// Flatten the element type's <c>CompoundStructure</c> into layers and ask
+        /// <see cref="PrimaryMaterialSelector"/> which one names the element.
+        ///
+        /// <para>Returns null for anything that is not a layered host (a
+        /// FamilyInstance, a type with no compound structure), so the caller falls
+        /// through to its existing behaviour unchanged.</para>
+        /// </summary>
+        private static string ReadCompoundPrimaryMaterial(Element el)
+        {
+            try
+            {
+                var doc = el?.Document;
+                if (doc == null) return null;
+                if (!(doc.GetElement(el.GetTypeId()) is HostObjAttributes host)) return null;
+
+                CompoundStructure cs = host.GetCompoundStructure();
+                if (cs == null) return null;
+
+                var layers = new List<MaterialLayer>();
+                var csLayers = cs.GetLayers();
+                for (int i = 0; i < csLayers.Count; i++)
+                {
+                    var cl = csLayers[i];
+                    string name = null;
+                    if (cl.MaterialId != null && cl.MaterialId.Value > 0)
+                        name = doc.GetElement(cl.MaterialId)?.Name;
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+
+                    layers.Add(new MaterialLayer
+                    {
+                        Index = i,
+                        MaterialName = name,
+                        // Width is in FEET. Millimetres only because the selector
+                        // compares thicknesses to each other — any consistent unit
+                        // would do, and mm is what every other STING layer reader uses.
+                        ThicknessMm = cl.Width * 304.8,
+                        IsStructure = cl.Function == MaterialFunctionAssignment.Structure,
+                    });
+                }
+
+                return PrimaryMaterialSelector.Select(layers);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadCompoundPrimaryMaterial {el?.Id}: {ex.Message}");
+                return null;
+            }
+        }
+
         private static void EnsureLoaded()
         {
             lock (_lock)
             {
                 if (_rules != null) return;
-                _rules = new List<Rule>();
+                _rules = new List<MaterialProdRule>();
                 try
                 {
                     string path = StingToolsApp.FindDataFile("STING_MATERIAL_PROD_OVERRIDES.csv");
@@ -104,34 +155,9 @@ namespace StingTools.Core
                         StingLog.Info("MaterialProdOverrideRegistry: no CSV found — material-aware PROD disabled.");
                         return;
                     }
-                    var lines = File.ReadAllLines(path);
-                    if (lines.Length < 2) return;
-                    var header = StingToolsApp.ParseCsvLine(lines[0]);
-                    int iCat   = Array.FindIndex(header, h => string.Equals(h, "Category",        StringComparison.OrdinalIgnoreCase));
-                    int iPat   = Array.FindIndex(header, h => string.Equals(h, "MaterialPattern", StringComparison.OrdinalIgnoreCase));
-                    int iSuf   = Array.FindIndex(header, h => string.Equals(h, "Suffix",          StringComparison.OrdinalIgnoreCase));
-                    if (iCat < 0 || iPat < 0 || iSuf < 0)
-                    { StingLog.Warn($"MaterialProdOverrideRegistry: bad header in {path}"); return; }
-                    for (int li = 1; li < lines.Length; li++)
-                    {
-                        var f = StingToolsApp.ParseCsvLine(lines[li]);
-                        if (f == null || f.Length <= iSuf) continue;
-                        string cat = (f[iCat] ?? "").Trim();
-                        string pat = (f[iPat] ?? "").Trim();
-                        string suf = (f[iSuf] ?? "").Trim();
-                        if (string.IsNullOrEmpty(pat) || string.IsNullOrEmpty(suf)) continue;
-                        try
-                        {
-                            _rules.Add(new Rule
-                            {
-                                Category = string.IsNullOrEmpty(cat) ? "*" : cat,
-                                MaterialPattern = new System.Text.RegularExpressions.Regex(pat,
-                                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled),
-                                Suffix = suf,
-                            });
-                        }
-                        catch (Exception ex) { StingLog.Warn($"MaterialProdOverride bad regex '{pat}': {ex.Message}"); }
-                    }
+                    var warnings = new List<string>();
+                    _rules = MaterialProdOverrideRules.Parse(File.ReadAllLines(path), warnings);
+                    foreach (string w in warnings) StingLog.Warn($"MaterialProdOverride {w}");
                     StingLog.Info($"MaterialProdOverrideRegistry: loaded {_rules.Count} rule(s) from {path}");
                 }
                 catch (Exception ex) { StingLog.Warn($"MaterialProdOverride load: {ex.Message}"); }

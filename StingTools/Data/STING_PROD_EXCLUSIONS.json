@@ -1,0 +1,99 @@
+{
+  "_comment": [
+    "What is NOT a product, for PROD coverage reporting only.",
+    "",
+    "This is a DENOMINATOR policy, not a tagging policy. Nothing here stops an",
+    "element being tagged; it stops Prod_CoverageAudit counting a thing that can",
+    "never carry a product code as a product that failed to get one.",
+    "",
+    "Why it exists: the first audit on a real model reported 0.8% coverage",
+    "(13/1688). 1,187 of those 1,688 were M_GM_OpeningWall_Instance - wall voids",
+    "under category Generic Models - plus 34 filled regions, 23 rooms and 22",
+    "muntin patterns. Over the 422 elements that are actually products the figure",
+    "is 3.1%. Still low, but 0.8% overstated it four-fold and pointed the reader",
+    "at the wrong problem.",
+    "",
+    "DELIBERATELY NOT the material schedule's list, though it shares the matching",
+    "code (Core/ProductExclusion.cs). STING_MATERIAL_STAGES.json excludes",
+    "Furniture and Casework because you do not buy a sofa by the cubic metre - but",
+    "a sofa IS a product and FUR is a real PROD code. One list for both questions",
+    "would trade a wrong number for a differently wrong one.",
+    "",
+    "Also deliberately excluded from THIS list: Curtain Panels. A breeze-block",
+    "panel is a product; it just has no rule yet, which is a coverage gap and",
+    "exactly what the audit is for.",
+    "",
+    "Project override: <project>/_data/coord/prod_exclusions.json, same shape.",
+    "",
+    "THREE KEYS REPLACE; ONE ADDS. Which is which is not a convenience:",
+    "",
+    "  notAProductCategories   REPLACE   a category holds whatever a project models",
+    "  notAProductPatterns     REPLACE   a pattern can misfire on a name nobody foresaw",
+    "  protectedCategories     REPLACE   the project decides what is always a thing",
+    "  notAProductFamilies     ADD       an EXACT family name cannot misfire",
+    "",
+    "A project declaring one of the first three replaces that list and leaves the",
+    "others alone (null = not stated, [] = exclude nothing - the two must stay",
+    "distinguishable or the key cannot be overridden at all).",
+    "",
+    "notAProductFamilies is the exception, and it was bought: on 2026-09-09 a project",
+    "override declared only its entourage car, which dropped the corporate",
+    "Window-Square Opening and returned three wall voids to the coverage denominator.",
+    "The audit showed it only as a total moving 414 -> 416. A denominator has no error",
+    "state, so nothing reported it. An exact family name cannot misfire, so there was",
+    "nothing for replace-semantics to protect. A project that genuinely wants a",
+    "corporate family counted must argue it HERE, once, not silently per project."
+  ],
+
+  "notAProductCategories": [
+    "Rooms",
+    "Spaces",
+    "Toposolid",
+    "Topography",
+    "Areas",
+    "Detail Items",
+    "Lines",
+    "Text Notes",
+    "Dimensions",
+    "Levels",
+    "Grids",
+    "Reference Planes",
+    "Scope Boxes",
+    "Views",
+    "Cameras",
+    "Model Groups",
+    "RVT Links",
+    "Analytical Members",
+    "Analytical Panels",
+    "Analytical Nodes"
+  ],
+
+  "notAProductPatterns": [
+    "opening",
+    "muntin"
+  ],
+
+  "protectedCategories": [
+    "Doors",
+    "Windows"
+  ],
+
+  "_families_comment": [
+    "EXACT family names that are never products. Exact, so unlike a pattern it",
+    "cannot misfire — and therefore allowed to override protectedCategories.",
+    "",
+    "Window-Square Opening is Revit's stock wall-void family: it sits in the",
+    "Windows category, which is protected, so the 'opening' PATTERN cannot touch",
+    "it and should not be able to. Naming the family in full is a different act —",
+    "somebody looked at it and said what it is.",
+    "",
+    "Keep this list to families that ship with Revit or a shared library. A family",
+    "that exists in one project (a supplier's entourage car, say) belongs in that",
+    "project's _data/coord/prod_exclusions.json, not here — and since 2026-09-09 the",
+    "two lists UNION, so naming one there no longer un-names the ones here."
+  ],
+
+  "notAProductFamilies": [
+    "Window-Square Opening"
+  ]
+}

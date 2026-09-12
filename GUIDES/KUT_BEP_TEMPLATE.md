@@ -1,8 +1,21 @@
 # BIM Execution Plan (BEP) — Kampala Uganda Temple (KUT)
 
+<!-- maintainer-note -->
+> ⚠ **This is the working outline, not the issued document.** The BIM Execution Plan issued to
+> the project is generated (`KUT_BIM_Execution_Plan.docx`), gated, and carries a digest that
+> proves it was built from its source. This file is the structure that plan was developed from,
+> kept for reference and for reuse on another project. **Do not issue it, and do not correct a
+> fact here and expect it to reach anyone** — the issued plan is built from `tools/build_bep.py`
+> and the project configuration, not from this markdown.
+>
+> It is kept free of product, command and parameter names, and `check_kut_documents.py` enforces
+> that, because a file that looks issue-ready is one somebody eventually sends. Everything
+> outside this note is scanned; this note is not.
+<!-- /maintainer-note -->
+
 > **Template type:** ISO 19650-2 BIM Execution Plan (combined pre- and post-appointment).
-> **How to use:** Replace every `[FILL: …]` placeholder. Delete guidance shown in *italics/blockquotes* once filled. Where a section says **"STINGTOOLS generates this"**, attach or reference the generated artefact instead of hand-writing it.
-> **Owner:** Lead Appointed Party (Symbion Consulting). **Drafted/maintained by:** BIM/Information Manager (Planscape — Mayanja Davis).
+> **How to use:** Replace every `[FILL: …]` placeholder. Delete guidance shown in *italics/blockquotes* once filled. Where a section is produced from the model or the project register rather than written by hand, attach or reference the generated artefact.
+> **Owner:** Lead Appointed Party (Symbion Consulting Group Studios). **Drafted/maintained by:** Information Manager.
 > **Status:** `[FILL: Draft / Issued]`  ·  **Revision:** `[FILL: P01]`  ·  **Date:** `[FILL: yyyy-mm-dd]`
 
 ---
@@ -15,7 +28,7 @@
 | Project number | `[FILL]` |
 | Appointing Party (Client) | The Church |
 | Lead Appointed Party | Symbion Consulting |
-| Information Manager | Planscape Consulting Engineers Ltd — Mayanja Davis |
+| Information Manager | Symbion Consulting Group Studios — Mayanja Davis |
 | BEP type | `[FILL: Pre-appointment / Post-appointment]` |
 | Revision | `[FILL: P01]` |
 | Author | `[FILL]` |
@@ -66,7 +79,7 @@
 |---|---|---|---|
 | Appointing Party | The Church | `[FILL]` | `[FILL]` |
 | Lead Appointed Party | Symbion Consulting | `[FILL]` | `[FILL]` |
-| Information Manager | Planscape | Mayanja Davis | davis@planscape.build |
+| Information Manager | Symbion Consulting Group Studios | Mayanja Davis | `[FILL: contact]` |
 | BIM Coordinator(s) | `[FILL]` | `[FILL]` | `[FILL]` |
 | Task Team Manager — Architecture | `[FILL]` | `[FILL]` | `[FILL]` |
 | Task Team Manager — Structure | `[FILL]` | `[FILL]` | `[FILL]` |
@@ -97,7 +110,7 @@
 | Asset Information Requirements (AIR) | `[FILL]` | COBie + O&M + Niagara at handover |
 
 ### 3.2 Level of Information Need (LOIN) by stage
-*Geometry (LOD) + alphanumeric data + documentation, per stage. See `lod_matrix.json`.*
+*Geometry (LOD), alphanumeric data and documentation, per stage. The level of information need is stated per category and per milestone in the project configuration issued with the template.*
 | Stage | LOD (geometry) | Data (alphanumeric) | Documentation |
 |---|---|---|---|
 | 2.1 BOD | 200 | Basic identity/spatial | BOD report |
@@ -114,7 +127,7 @@
 | Topic | Standard |
 |---|---|
 | Information management | ISO 19650-1/-2/-3/-5 |
-| Classification | **CSI MasterFormat — primary.** The Owner mandates RIB SpecLink for all specifications (A2, every discipline), so CSI is the classification the deliverables are read against; `_BIM_COORD/sting_classification.json` is set to `CSI` and `CSI_Assign` / `SpecLink_Reconcile` operate on it. Uniclass 2015 is retained only as an internal cross-reference where our own tagging needs it. **Demolition (Division 02) is classified manually** — see §10.3 |
+| Classification | **CSI MasterFormat — primary.** The Owner mandates RIB SpecLink for all specifications (A2, every discipline), and SpecLink is organised by MasterFormat, so CSI is the classification the deliverables are read against and the one the model is reconciled to. Uniclass 2015 is retained only as a cross-reference. **Demolition (Division 02) is classified manually** — see §10.3 |
 | Naming | ISO 19650 field-based (see §4.2) |
 | Quantities/cost | `[FILL: NRM2 / other]` |
 | Handover | COBie 2.4 |
@@ -122,15 +135,15 @@
 
 ### 4.2 File / container naming convention
 `[Project]-[Originator]-[Volume/System]-[Level]-[Type]-[Role]-[Number]`
-Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
+Example: `KUT-SMB-ZZ-XX-M3-A-0001`  *(the originator field is exactly 3 characters)*
 | Field | Codes |
 |---|---|
 | Project | `KUT` |
-| Originator | `[FILL: PLNS, SYM, …per firm]` |
-| Volume/System | `[FILL: ZZ, Z1…]` |
+| Originator | `[FILL: 3 characters, per firm, from the originator register]` |
+| Volume/System | `01`–`06` per building · `00` site-wide · `ZZ` all volumes · `XX` not applicable |
 | Level | `[FILL: GF, 01, ZZ]` |
 | Type | `[FILL: M3, DR, SH, SP…]` |
-| Role | A, S, M, E, P, FP, G, Z |
+| Role | `A`, `C`, `E`, `I`, `M`, `P`, `Q`, `S`, `W`, `X`, `Y`, `Z` |
 | Number | 0001… |
 
 ### 4.3 CDE states & suitability codes
@@ -146,7 +159,7 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 - Units: **millimetres**. Levels/grids: `[FILL: naming]`.
 - Controlled family library only — no rogue families, no CAD-as-model.
 - Worksets strategy: `[FILL]`.
-- Tag/data completeness checked (STINGTOOLS) before every Share.
+- Tag and data completeness checked before every Share.
 - Zero unresolved high-priority clashes at each data drop.
 
 ---
@@ -158,9 +171,8 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 | CDE platform | Autodesk Construction Cloud (ACC) |
 | Folder structure | WIP / Shared / Published / Archived |
 | Access control | `[FILL: per ISO 19650-5, role-based]` |
-| Issue/approval workflow | ACC Issues + Reviews; STINGTOOLS BCF push |
-| Transmittals | STINGTOOLS / ACC — formal record of every issue |
-| Interoperability/viewer | Speckle (internal live data + web viewer) |
+| Issue/approval workflow | ACC Issues and Reviews; BCF exchanged with the coordination tools |
+| Transmittals | Issued through the CDE — a formal record of every issue |
 | Backup/retention | `[FILL]` |
 
 ---
@@ -172,8 +184,7 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 |---|---|---|
 | Authoring | Autodesk Revit | `[FILL: 2025/2026/2027]` |
 | CDE / coordination | Autodesk Construction Cloud | current |
-| Automation / QA | STINGTOOLS | current |
-| Interoperability / viewer | Speckle | current |
+| Model checking / QA | `[FILL: as proposed by each appointed party]` | `[FILL]` |
 | FF&E / O&M | Fohlio | current |
 | BMS / operations | Tridium Niagara | `[FILL]` |
 
@@ -195,27 +206,27 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 ## 7. Collaboration & coordination process
 
 ### 7.1 The coordination cycle
-`Teams Share (WIP→Shared) → Clash (ACC + STINGTOOLS) → Coordination meeting → Issues assigned & tracked → Weekly model-health report`
+`Share (WIP→Shared) → Federate → Clash detection → Coordination meeting → Issues assigned and tracked → Coordination report`
 | Cadence | Activity |
 |---|---|
 | Daily | Authoring, auto-tagging, WIP saves |
-| Weekly | Share, clash, coordination meeting, issue tracking |
+| Fortnightly | Share, federation, clash detection, coordination meeting, issue tracking |
 | Monthly | KPI/model-health report, data-quality audit, MIDP review |
 | Per stage | Formal data drop + transmittal + client review |
 
 ### 7.2 Clash management
 | Item | Detail |
 |---|---|
-| Tools | ACC Model Coordination + STINGTOOLS clash; BCF to ACC Issues |
+| Tools | ACC Model Coordination; BCF to ACC Issues |
 | Clash matrix | `[FILL: which disciplines clash vs which]` |
 | Priority/tolerance | `[FILL: e.g., hard clash 0 mm; clearance rules]` |
 | Acceptance | 0 unresolved high-priority clashes at each data drop |
-| Reporting | Clash/coordination report (STINGTOOLS export) |
+| Reporting | Clash and coordination report, issued each cycle |
 
 ### 7.3 Coordination meetings
 | Meeting | Frequency | Chair | Attendees | Output |
 |---|---|---|---|---|
-| BIM coordination | Weekly | Info Mgr | Discipline leads | Issue list, actions |
+| BIM coordination | Fortnightly | Lead AP | Discipline leads, Info Mgr | Issue list, actions |
 | Design review | `[FILL]` | Lead AP | All | Decisions log |
 
 ---
@@ -234,7 +245,7 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 ## 9. Information delivery planning (MIDP / TIDP)
 
 - **TIDPs:** each task team submits a TIDP (deliverables + dates + LOD + responsible). Collected at mobilisation, updated each stage.
-- **MIDP:** the Information Manager aggregates TIDPs into the Master Information Delivery Plan (see companion `KUT_MIDP_TEMPLATE.csv`). Baselined at mobilisation; reissued at each stage and data drop.
+- **MIDP:** the Information Manager aggregates TIDPs into the Master Information Delivery Plan (issued as a companion workbook). Baselined at mobilisation; reissued at each stage and data drop.
 - **Data drops:** Deliverable B (M4), Deliverable C (M8), Deliverable D (M45).
 
 | Milestone | Stage | LOD | Planned (rel. month) |
@@ -252,45 +263,46 @@ Example: `KUT-PLNS-ZZ-XX-M3-A-0001`
 ## 10. Quality assurance & model validation
 | Check | Tool | When |
 |---|---|---|
-| Naming compliance | STINGTOOLS / ACC | Before every Share |
-| Tag/data completeness (≥95%) | STINGTOOLS audit | Before every Share |
-| Clash-free (high-priority) | ACC + STINGTOOLS | Before every data drop |
-| Coordinate/level integrity | Revit/STINGTOOLS | Weekly |
+| Naming compliance | Automated check | Before every Share |
+| Tag/data completeness (≥95%) | Automated audit | Before every Share |
+| Clash-free (high-priority) | ACC Model Coordination | Before every data drop |
+| Coordinate/level integrity | Automated check against the seed model | Every cycle |
 | Deliverables vs MIDP | MIDP review | Monthly |
-| Model health / KPI | STINGTOOLS KPI dashboard | Monthly |
-| LOD maturity vs milestone | STINGTOOLS `LOD_Verify` | At every deliverable gate |
-| Model CSI vs SpecLink book | STINGTOOLS `SpecLink_Reconcile` | Before each spec issue |
-| Demolition classified (Div 02) | **manual — see §10.3** | Before Deliverable B and before each `SpecLink_Reconcile` |
+| Model health / KPI | Model-health report | Monthly |
+| LOD maturity vs milestone | Automated LOD audit | At every deliverable gate |
+| Model CSI vs SpecLink book | Model-to-specification reconciliation | Before each spec issue |
+| Demolition classified (Div 02) | **manual — see §10.3** | Before Deliverable B and before each specification reconciliation |
 
 ### 10.3 Manual classification: demolition (CSI Division 02)
 
-A1 Deliverable B requires an **Existing Conditions & Removals Plan**. **STINGTOOLS cannot
-classify demolition automatically** and no rule in the CSI map will produce Division 02.
+Deliverable B requires an **Existing Conditions and Removals Plan**, and its scope classifies to
+CSI Division 02. **Division 02 cannot be derived automatically and is classified by hand.**
 
-`CsiMasterFormat.Resolve` matches on category / family / type / system only; Revit expresses
-demolition through the **`Phase Demolished`** property, which the resolver never receives.
-Naming-based rules were drafted and deliberately withdrawn — they would have read as coverage
-while matching nothing.
+Automated classification matches on category, family, type and system. Demolition is not any of
+those: it is a property of an element's *phase*, so no rule over the classification map produces
+Division 02. Naming-based rules were drafted for this and deliberately withdrawn — they would
+have reported coverage while matching nothing.
 
-**Owner of this task:** `[FILL: name / role]`. **Method:** either add Division 02 rows to
-`_BIM_COORD/csi_map.csv` keyed on a `DEMO_` type-name convention agreed at kick-off (TypeRegex
-column), or write `CSI_SECTION_TXT` / `CSI_TITLE_TXT` directly on the demolition scope.
-**Timing:** before `SpecLink_Reconcile`, otherwise the Owner's Division 02 spec sections report
-as over-specification and the reconciliation reads clean when it is not.
+| Item | Requirement |
+|---|---|
+| Owner | `[FILL: name / role]` |
+| Method | Classify the demolition scope to Division 02 directly, or agree a type-naming convention at kickoff that the classification map can key on |
+| Timing | Before each reconciliation of the model against the specification |
+| Why the timing matters | Unclassified demolition makes the Owner's Division 02 specification sections report as over-specification, and the reconciliation then reads clean when it is not |
 
-> Note when reading `LOD_Verify` output: the run **discloses the categories it did not scan** in
-> the TaskDialog, the CSV header and the JSON gate report. Read that block — a pass percentage
-> means nothing without knowing what was in scope.
+> **On any automated audit.** A pass percentage is meaningless without knowing what was in scope.
+> Every audit on this project discloses the categories it did not scan, and that disclosure is
+> read alongside the percentage. An empty scope is not a pass.
 
 ---
 
 ## 11. FF&E, handover & operations
 | Item | Approach |
 |---|---|
-| FF&E | Fohlio — file/Add-in round-trip now (`Fohlio_Export/ImportFinishes`); live API later. See playbook Part 4. |
-| Quantities/cost | STINGTOOLS BOQ (NRM2) |
-| Handover data | COBie 2.4 (STINGTOOLS) + O&M (Fohlio) |
-| Digital twin / BMS | Niagara bridge (`Niagara_ExportPoints` / `Niagara_Reconcile`) at commissioning/handover |
+| FF&E | Fohlio is the authoritative FF&E, finishes and O&M database. The model carries a link reference to it and never duplicates its content |
+| Quantities/cost | Bill of quantities to NRM2 |
+| Handover data | COBie 2.4, if instructed, plus O&M through Fohlio |
+| Digital twin / BMS | The building management system point register is exported from the model and reconciled against the live station at commissioning and at handover |
 | As-built | Model updated to LOD 500 at Deliverable D |
 
 ---
@@ -298,7 +310,7 @@ as over-specification and the reconciliation reads clean when it is not.
 ## 12. Training & competence
 | Audience | Training | When |
 |---|---|---|
-| All task teams | Half-day kickoff (CDE, naming, LOD, clash, STINGTOOLS) | Mobilisation |
+| All task teams | Half-day kickoff (CDE, naming, LOD, clash, the project template) | Mobilisation |
 | Discipline leads | TIDP + data requirements | Mobilisation + each stage |
 | FM/Operator | COBie/O&M/Niagara requirements | Pre-handover |
 
@@ -312,18 +324,18 @@ as over-specification and the reconciliation reads clean when it is not.
 | Uncoordinated information | `[FILL]` | High | CDE governance + weekly clash + automated QA | Info Mgr |
 | Late deliverables | `[FILL]` | High | MIDP tracking + monthly RAG | Info Mgr |
 | Fohlio API delay | Medium | Low | Use file/Add-in route now (Option A) | Info Mgr |
-| Inconsistent standards | `[FILL]` | Medium | STINGTOOLS enforces standards | Info Mgr |
+| Inconsistent standards | `[FILL]` | Medium | Automated compliance checking before every share | Info Mgr |
 | `[FILL]` | | | | |
 
 ---
 
 ## 14. Appendices
 - A: EIR (client) — `[attach]`
-- B: MIDP — `KUT_MIDP_TEMPLATE.csv`
+- B: Master Information Delivery Plan — issued as a companion workbook
 - C: TIDPs (per discipline) — `[attach]`
 - D: Responsibility matrix (full) — `[attach]`
 - E: Clash matrix — `[attach]`
-- F: Standards references / KUT overlay — `project-templates/KUT/_BIM_COORD/`
+- F: Standards references and the project configuration issued with the project template
 
 ---
 *BEP template — keep under revision control; reissue when standards, team, programme or scope change.*

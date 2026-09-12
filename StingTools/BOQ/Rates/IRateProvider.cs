@@ -61,8 +61,26 @@ namespace StingTools.BOQ.Rates
     /// Output of a rate lookup. Null indicates no match and the registry
     /// continues to the next provider.
     /// </summary>
+    /// <summary>
+    /// How specifically a rate resolved. K-16b.
+    /// <para>
+    /// Deliberately mirrors <c>StingTools.BOQ.Takeoff.LookupState</c> (G-27) rather
+    /// than inventing a third vocabulary — a parallel scheme is how the two binders
+    /// and the two take-off paths diverged. Same shape: the most specific answer is
+    /// the good one, and everything below it is an ASSUMPTION that must be visible.
+    /// </para>
+    /// </summary>
+    // RateResolutionLevel moved to RateResolutionLevel.cs so the CSV rate passes
+    // can be compiled without the Revit API. Same namespace; no call site changed.
+
     public class RateLookup
     {
+        /// <summary>
+        /// How specifically this rate resolved. Anything below <see cref="RateResolutionLevel.Product"/>
+        /// is an average over something, and the audit (2.4) counts them.
+        /// </summary>
+        public RateResolutionLevel ResolutionLevel { get; set; } = RateResolutionLevel.None;
+
         /// <summary>Unit rate in <see cref="CurrencyCode"/>.</summary>
         public double UnitRate { get; set; }
 
@@ -86,6 +104,15 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>Optional matched key (category name, PROD code, MAT_CODE) — useful for logging.</summary>
         public string MatchedKey { get; set; } = "";
+
+        /// <summary>The currency this rate was QUOTED in, when the registry had to convert
+        /// it to the document currency. Empty when no conversion happened.
+        ///
+        /// <para>Set by the FX adapter, not by the provider, because only the registry knows
+        /// the target. It is what makes an FX-fixing date meaningful on a bill: "UGX 1,200,000"
+        /// is a fact, but "UGX 1,200,000, converted from USD at a rate fixed on 2026-09-06"
+        /// is the fact a QS has to defend at valuation.</para></summary>
+        public string SourceCurrencyCode { get; set; } = "";
 
         // ── G4 — optional labour / plant / material split (per-unit, same
         // currency + unit as UnitRate). Null when the source carries no split;

@@ -72,8 +72,10 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Σ LU (CW)",          r.SumLuCw.ToString("F1"))
                  .Metric("Σ LU (HW)",          r.SumLuHw.ToString("F1"))
                  .Metric("Σ WSFU",             r.SumWsfu.ToString("F1"))
-                 .Metric("Qd CW (BS EN 806)",  r.QdCwBsEnLps.ToString("F2") + " l/s")
-                 .Metric("Qd HW (BS EN 806)",  r.QdHwBsEnLps.ToString("F2") + " l/s")
+                 // KUT-6 - display only. The BS EN 806-3 calculation behind these is
+                 // metric and unchanged; only the rendering follows the project.
+                 .Metric("Qd CW (BS EN 806)",  StingTools.Core.Units.MepDisplayUnits.WaterFlow(r.QdCwBsEnLps))
+                 .Metric("Qd HW (BS EN 806)",  StingTools.Core.Units.MepDisplayUnits.WaterFlow(r.QdHwBsEnLps))
                  .Metric("Qd Hunter",          r.QdHunterGpm.ToString("F1") + " gpm");
             panel.AddSection($"BREAKDOWN ({r.Rows.Count} types)");
             foreach (var row in r.Rows.Take(40))
@@ -152,7 +154,12 @@ namespace StingTools.Commands.Plumbing
                 foreach (var p in r.Results.Take(30))
                 {
                     string flag = p.VelocityOk && p.PressureDropOk ? "✓" : "⚠";
-                    panel.Text($"{flag} {p.SystemName} · {p.ServiceClass} · DN{p.CurrentDnMm} → DN{p.RecommendedDnMm} · Qd {p.QdLps:F2} l/s · v {p.VelMps:F2} m/s · ΔP {p.DpPaPerM:F0} Pa/m");
+                    // Flow and pressure follow the project's display unit; DN and velocity
+                    // do NOT - DN is a nominal designation, not a length, and m/s has no
+                    // imperial counterpart in the sizing tables this reads.
+                    panel.Text($"{flag} {p.SystemName} · {p.ServiceClass} · DN{p.CurrentDnMm} → DN{p.RecommendedDnMm} · " +
+                               $"Qd {StingTools.Core.Units.MepDisplayUnits.WaterFlow(p.QdLps)} · v {p.VelMps:F2} m/s · " +
+                               $"ΔP {StingTools.Core.Units.MepDisplayUnits.Pressure(p.DpPaPerM)}/m");
                 }
             }
             panel.Show();

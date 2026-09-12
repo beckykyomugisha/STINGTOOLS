@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 244 — swapping a title block was blocked in four separate places)
+#### Completed (Phase 277 — swapping a title block was blocked in four separate places)
 
 The report was "I have views on sheets and I cannot change the title block". Four
 independent defects sat behind it, three of them silent.
@@ -61,6 +61,2980 @@ placeholders and offers to place a chosen title block on every sheet that is mis
 one.
 
 Not build-verified — no .NET SDK or Revit API in the authoring sandbox.
+#### Completed (Phase 276 — the coordination cycle stops asking, without ever assuming)
+
+Phases 265 and 266 made a failed ACC read impossible to mistake for an empty one. This one
+is about operation: **the fortnightly KUT cycle could not run without a human clicking four
+dialogs** — a coordination model-set picker, an escalate-to-ACC-Issues confirmation with a
+hardcoded cap of 10, a suitability picker, and a file picker (already solved in 266).
+
+Nothing architectural was in the way. The four ACC clients carry **0** `Autodesk.Revit`
+references; only the dialogs were.
+
+**One decision, not four.** There was no unattended / no-prompt concept anywhere in the
+codebase, so whichever command implemented one first would have become the convention by
+accident and the other three would have grown their own keys — the drift ROADMAP IM-14
+records for suitability codes and IM-17 for transmittal status. `V6/AccOperatingPolicy.cs`
+answers all four questions in one place: may this run prompt, is a model set configured,
+what is the escalation policy, what suitability should an unattended publish use.
+
+**Absent configuration means PROMPT, never "assume".** A missing settings file is the normal
+state of every project that exists today, so a default that quietly picked a model set or a
+suitability code would make all of them act on a guess. Interactive is the safe default;
+unattended is opt-in, per project, in writing. A **malformed** file answers the same and is a
+*different state* — it is discarded whole, never half-applied, and says why. It is parsed
+with `JObject` and explicit presence checks rather than `DeserializeObject`, because
+Newtonsoft would make "escalateMinScore is not set" and "escalateMinScore is 0.0" the same
+value, and 0.0 as a threshold escalates everything. An unknown key, or a key of the wrong
+type, makes the file malformed and names the offender — a typo'd `coordModelSet` that is
+merely ignored leaves an Information Manager believing the project is configured when the
+only symptom is a picker that keeps appearing.
+
+**Project-scoped, not machine-scoped.** The settings live at
+`<project>/_BIM_COORD/acc/acc_settings.json`, resolved through `StingPaths`, beside
+`pushed_clashes.json`. A coordination model-set id belongs to a *model*: the same coordinator
+on KUT and on another job needs a different one for each. Credentials stay in `%APPDATA%`.
+`AccCredentials` still carries `ProjectId` and `CoordContainerId`, which are project values
+in a machine-scoped file — **recorded as ROADMAP IM-18, deliberately not migrated here**.
+
+**A remembered model set that ACC no longer offers is named, never guessed past.** It
+resolves to `RememberedMissing` with the set's name and id, and **never** to `available[0]` —
+not even when exactly one set is offered. Clashes pulled from the wrong federation look
+exactly like a clean federation, which is the defect PR #927 closed; falling back would have
+undone two passes in one line.
+
+**Escalation became a policy, not a magic 10.** `Math.Min(10, scored.Count)` is gone.
+A policy needs **both** a count and a score — a count alone escalates trivia on a clean
+model, a score alone escalates hundreds on a bad one — and half a policy is refused with its
+reason named. **An unattended run with no policy escalates nothing**: it pulls, triages and
+writes the CSV, which is a complete cycle that creates work for nobody. Escalation creates
+ACC Issues assigned to real people, so it is the one seam where automation is opt-in twice
+over. Interactive runs are unchanged: a person clicking the button still gets the top 10
+offered, and now sees the rule that would apply. Already-tracked clashes are excluded
+*before* the count is applied, so widening a policy never re-raises what is already tracked.
+
+**`ACC_SyncIssueStatus` joined the cycle** as step 4. It has never had a dialog, writes
+nothing to ACC and only un-tracks clashes whose ACC issue has closed so a recurrence is
+raised again — which is exactly why it is safe to schedule and the upload is not. The cycle
+is 9 steps; the workflow gate reads 98/98 across 10 files.
+
+**A gate for the claim itself.** `tools/check_unattended_cycle.py` walks every step of the
+cycle, resolves each tag to its command class through `ResolveCommand` (importing the
+extraction from `check_kut_workflow_tags.py` rather than copying it), and inventories every
+construct that asks for a *decision* — a result message is not a prompt and is deliberately
+not counted. It scans the **class body**, not the file: three of these commands live in
+god-files, and a file-wide count would have blamed this cycle for 108 `TaskDialogResult` uses
+in `TagOperationCommands.cs` that belong to other commands.
+
+It is a source-level smoke check and says so: it cannot follow a call into a helper and
+cannot tell a gated prompt from an ungated one. So it produces a **reviewed inventory** with
+a baseline that only shrinks, and each of the eight entries is marked GATED or **UNGATED**.
+Two are ungated and are written down as real remaining blockers rather than quietly counted:
+`RetagStaleCommand`'s scope picker (step 1 — not ACC work, and choosing a scope for an
+operator is a decision, not a default) and `CompletenessDashboardCommand`'s offer to build a
+legend (step 9, after the work is done).
+
+Build 0 errors / 0 warnings. `StingTools.Acc.Tests` 116 passing (was 67).
+
+#### Completed (Phase 275 — the two read paths #927 did not reach)
+
+Phase 265 gave ACC reads an outcome (`Ok` / `EmptyOk` / `AuthFailed` / `NotFound` /
+`TransportFailed`) and applied it to Model Coordination clashes. **The same defect was
+still live in two other read paths, and one was worse than the one that was fixed.**
+
+**A failed ACC issue read read as "the issues are gone".**
+`AccIssueSync.PullIssuesAsync` returned a bare `List<AccIssue>` from three exits — auth
+failure, a mid-pagination HTTP error, and success. `AccSyncIssueStatusCommand` reconciled
+the escalation sidecar against that list and reported every tracked clash whose issue was
+absent as `NOT_FOUND / keep`. So an expired token made **every escalated clash look deleted
+from ACC**, and a page-2 failure produced a **partial reconciliation presented as a
+complete one** — after which the sidecar was written, permanently un-tracking whatever
+happened to be on page 1.
+
+It now returns `AccFetchResult<List<AccIssue>>`. **A partial read is a failure**: only a run
+that saw a final short page is `Ok`/`EmptyOk`, and the `Detail` names how many pages
+succeeded before it broke. The command refuses to reconcile, returns `Result.Failed`, and
+says so — *"The escalation record was left untouched — nothing was un-tracked."*
+
+**A malformed Niagara feed read as "live, nothing commissioned" — and deleted the
+fallback.** Four steps compounded. `NiagaraPointParser.Parse` correctly flagged an
+unparseable body; `NiagaraJsonClient.ParsePoints` logged that and **returned the empty
+points anyway**, discarding the flag; the empty dictionary is not null, so
+`CommissioningSource.Resolve` took the *live* branch and reported `live (captured …)`; and
+`Persist` then wrote that empty result over `last_station_points.json`, **destroying the
+last good snapshot — the fallback that exists precisely for an unreachable station**.
+`KUT_ValuationFromBms` turns those points into a commissioning percentage the cost module
+carries toward payment certification.
+
+The worst input was `{"error":"unauthorized"}`: it *parses*, yields zero points and sets no
+error at all, so nothing anywhere reported a problem. The parser now separates "not a
+points feed I recognise" from "a points feed with nothing on it" — a JSON error envelope,
+an HTML error page, a bare scalar, and a feed whose entries all lack a readable id are each
+unusable; `[]`, `{"points":[]}` and `{}` remain a legitimately empty station. `ParsePoints`
+returns null for every unusable body, and `Persist` refuses to overwrite a usable snapshot
+with an empty read — `LoadCache` rejects a zero-point snapshot, so writing one does not
+update the cache, it removes it.
+
+**Not over-corrected.** A station with nothing commissioned yet still reports
+`live (captured …)` with zero points, an empty ACC container is still `EmptyOk`, and a
+clash-clean model set still passes. The bug was failures masquerading as empty, never
+emptiness itself.
+
+**The last mile is now tested.** The branch that decides `Result.Failed` lived inside two
+Revit-bound commands that no test project can link, so it was verified by reading — the same
+gap the whole exercise is about. `V6/AccCommandOutcome.cs` holds that decision, Revit-free,
+and both commands call it, so they cannot describe the same failure differently. Its table
+is driven by `Enum.GetValues<AccFetchStatus>()`, and its switches **throw** on an unhandled
+member rather than defaulting, so a status added without a decision goes red immediately.
+The phrase "404 Not Found" was dropped from the failure text: it is the HTTP reason phrase
+and it invites exactly the misreading — a test asserts "clash-clean", "no clashes" and
+"not found" cannot appear in any failure message.
+
+**Four smaller closures.**
+
+- `tools/check_kut_workflow_tags.py` now runs in CI (`.github/workflows/kut-workflow-tags.yml`).
+  Its extraction window also stopped being a hard-coded line range: adding one `case` to
+  `ResolveCommand` pushed `default: return null;` past the end and the checker refused to
+  run — correct, but on a perfectly fine change, and a gate that cries wolf gets switched
+  off. It now locates the method by signature and brace-matches to its end, keeping all
+  three assertions. 97/97 across 10 files.
+- `ACCPublish` records the ZIP it built (`_BIM_COORD/acc/last_bundle.json`), so
+  `ACC_UploadLastBundle` can upload it with no file picker. A record naming a file that is
+  no longer on disk is **not** a bundle — that rule is what keeps this a file *choice*
+  rather than the guess #927 refused to make. **Still in no KUT workflow**, deliberately.
+- `AccModelUpload.UploadResult` carries an `AccFetchStatus` and HTTP status beside
+  `Ok`/`Message`, so a 403 on storage creation reads as an auth problem rather than as
+  "it didn't work".
+- `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` updated: its expected-output sections described
+  failures that no longer look like that.
+
+`CLAUDE.md` corrections, each re-measured in the session that changed it: the Boq test row
+(121 declared / 196 cases → **956 / 1,335**), a new Acc row (**60 / 67** — that surface had
+none), and the healthcare Niagara caveat, which was true of `TwinReadback` and read as
+"Niagara is absent" when two of its three paths are built.
+
+Build 0 errors / 0 warnings. `StingTools.Acc.Tests` 67 passing (was 38);
+`StingTools.Boq.Tests` 1,335 passing (was 1,316).
+
+#### Completed (Phase 274 — the ACC coordination gate that could pass without checking)
+
+**On a wrong container id, the KUT fortnightly coordination cycle reported a
+clean federation.** `AccModelCoordSync` documented itself as failing soft — "logs
+the HTTP status, returns empty, never throws" — and `AccPullClashesCommand` then
+rendered zero clashes as *"either the model set is clash-clean, or a clash test
+has not completed in ACC yet"* and returned `Result.Succeeded`. It named two
+causes and not the third. A 404, a rejected token and a changed
+`bim360/clash/v3` sub-path all arrived as the same empty list.
+
+New `V6/AccFetchOutcome.cs` (Revit-free and log-free, so it links into tests)
+carries `Ok` / `EmptyOk` / `AuthFailed` / `NotFound` / `TransportFailed` alongside
+the data. `ListModelSetsAsync` and `GetClashesAsync` now return
+`AccFetchResult<T>`; the command branches on it and returns `Result.Failed` with
+the failure kind, the reason and **the container id it actually used**, opening
+with "NOTHING WAS CHECKED — this is not a clean result". A 200 carrying an
+unrecognised payload — what a moved APS sub-path looks like — is
+`TransportFailed`, not `EmptyOk`.
+
+**The 429 retry could not execute.** `PushIssueAsync` built its
+`HttpRequestMessage` once, outside the loop, and re-sent it; on .NET 8 the second
+send throws `InvalidOperationException: The request message was already sent`.
+The call site caught it, so a rate-limited issue was **dropped** while the log
+said `ACC 429 — retrying in 1s`. Bulk-escalating clashes to ACC Issues is exactly
+the workload that provokes 429s. The request is now built per attempt, matching
+`PullIssuesAsync`, which was always correct.
+
+**New `StingTools.Acc.Tests` — 38 tests where there were none.** The entire ACC
+surface had zero coverage. Pure mapping tests pin the classifier; **loopback tests
+against a real `HttpListener`** pin the clients, because a pure-function test alone
+would have passed against the broken code — the old client mapped 404 to empty
+without consulting any classifier. The retry tests **count requests server-side**
+(4 against a persistent 429; 3 for 429/429/201): "it didn't throw" would have
+passed too, since the throw was swallowed one frame up.
+
+Deliberate sabotage found a fault in the new gate itself. Swallowing an
+`HttpRequestException` as `EmptyOk` still passed, because a downstream payload-shape
+check turned it into `TransportFailed` by another route — an alternative-path escape.
+The transport-down tests now also assert `HttpStatus == 0`, i.e. no response arrived
+at all.
+
+**Four smaller closures.**
+
+- `WORKFLOW_KUT_CoordinationCycle.json` step 6 said *"Publish coordination data to
+  ACC"*; `ACCPublish` builds a **local** bundle. Relabelled to say so. The real
+  uploader is now dispatchable as `ACC_UploadModel` on all three layers
+  (`StingCommandHandler`, `WorkflowEngine.ResolveCommand`, `StingDockPanel.xaml`),
+  and is deliberately in **no** workflow: a step cannot answer "upload which file?"
+  and guessing would put an unintended file in an issued CDE container.
+- `Clash/AccIssuesClient.cs` deleted — 45 lines, zero callers, and an endpoint
+  (`bim360/docs/v1/.../issues/bulk`) disagreeing with the live client's
+  `construction/issues/v1`.
+- `FohlioRestTransport.TestConnection()` returned `true` whenever `BaseUrl` and
+  `ApiKey` were merely non-empty, with no network call — a green a typo would pass.
+  It now throws like its siblings. The comments describing a "Test connection" gate
+  that exists nowhere in the UI were corrected.
+- `docs/examples/KUT/niagara_connection.json.example` shipped at last; the field
+  names previously existed only in a code comment.
+  `NiagaraConnectionExampleTests` gates it against `NiagaraConnection.Load` **in
+  both directions**, scraping the key list from the real source rather than
+  restating it.
+
+New gate `tools/check_kut_workflow_tags.py` — 97/97 steps across 10 KUT workflows.
+It self-tests before reporting, refuses to run if its `ResolveCommand` window does
+not hold exactly one `switch (tag)` reaching `default: return null;`, and catches a
+step that spells `commandTag` as `command` (which parses and silently does nothing).
+
+New runbook `docs/KUT_LIVE_VERIFICATION_RUNBOOK.md` for the three items no
+developer can close alone: the ACC APS app (**Traditional Web App**, callback
+`http://localhost:8910/callback`), the Niagara station connection, and the Fohlio
+mapping sign-off. Per item: who must act, what they supply, the observable proof,
+and what the failure looks like.
+
+Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 1316 passing (was 1311).
+
+#### Completed (Phase 273 — W4: a project's own workflows, layered over the corporate ones)
+
+**Workflows were the only layered config in this codebase without a project
+override.** Drawing types, view style packs, PROD rules, PROD exclusions, climate
+data, MEP sizing rules and material overrides all read `<project>/_BIM_COORD/…`
+on top of a corporate baseline. Presets read `StingToolsApp.DataPath` and nothing
+else, so every project got the corporate 26-step kickoff, in the corporate order,
+or nothing.
+
+`GetAvailablePresets(Document doc = null)` now layers
+`<project>/_BIM_COORD/workflows/WORKFLOW_*.json` on top. The parameter is optional
+so the three existing call sites keep their exact behaviour; all three now pass
+the document, and the path is resolved through `StingPaths.Meta` — never built by
+hand.
+
+**The brief's `extract_plugin.sh` claim, checked: it is right.** Lines 46 and 48
+use `cp -rf` onto `$DEPLOY_DIR/data/` — an overlay, not a wipe — so a preset
+written by `Workflow_CreatePreset` does survive a deploy. It is still global to
+every project, and still lost the moment the deploy target moves to another
+worktree.
+
+### The rules, and why each is the way it is
+
+**A project preset REPLACES the corporate one of the same name, whole.** Not
+merged step by step: a half-corporate half-project 26-step chain is a sequence
+nobody wrote and nobody can read, which is this codebase's signature failure —
+a thing that looks authored and is not. Same rule `DrawingTypeRegistry` uses.
+
+**A step whose tag resolves to nothing is REPORTED, not dropped.** Dropping it
+would let a project ship a 12-step workflow that runs 11 and says nothing — the
+same shape as a step keyed `tag` instead of `commandTag`, which Tier 1 of the
+wiring gate exists to catch. The preset still loads: a typo in step 7 is not a
+reason to withhold steps 1–6 from a user who can see the note.
+
+**A preset with no steps, no name, or that will not parse is refused and named.**
+An empty override replacing a working preset would remove a workflow and look
+like a rename.
+
+**A broken resolver does not manufacture findings.** If the tag check itself
+throws, the answer is "cannot say", not "every step in your file is broken".
+
+### The move that made this testable, and the gate it broke
+
+`WorkflowPreset` and `WorkflowStep` moved to `Core/WorkflowPresetModel.cs`. Both
+were always pure Newtonsoft POCOs — no Revit types — and the only reason a
+preset's SHAPE could not be asserted outside Revit was the Revit import in the
+file around them. Same namespace, same JSON names, same defaults, no call site
+changed.
+
+**Tier 5 of `check_workflow_wiring.ps1` failed immediately, and correctly.** It
+reads `WorkflowStep`'s `[JsonProperty]` names out of `WorkflowEngine.cs` to
+derive what the engine binds; with the class gone it reported
+`WorkflowStep class not found` and exited 1 rather than reading every key in
+every preset as unbound. Its own instrument check — written for exactly this —
+earned its place. The parse now searches both files, because WHERE the class
+lives is not that tier's business, only what it binds. Re-verified by renaming
+the class: it still fails loudly. **This is why the CI gates are run locally and
+not only the tests.**
+
+### RED then GREEN, by sabotage, both counts
+
+    A_Project_Preset_Replaces_The_Corporate_One_Of_The_Same_Name
+      RED   replacement disabled — the corporate 3-step preset survives and the
+            project's 2-step override is APPENDED: 3 presets, not 2, and the
+            user runs the corporate steps with a report saying SUCCEEDED
+            (8 of 14 fail)
+      GREEN 2 presets, "Project Kickoff" has the project's 2 steps
+
+    An_Unresolvable_Tag_Is_Reported_And_The_Preset_Still_Loads
+      RED   unresolvable steps filtered out — a 3-step preset silently becomes
+            2, UnresolvableSteps 0, no note                      (1 of 2)
+      GREEN 3 steps kept, UnresolvableSteps 1, the note names the tag
+
+    the repaired Tier 5 parse
+      RED   WorkflowStep renamed — "class not found in WorkflowEngine.cs or
+            WorkflowPresetModel.cs ... do not delete the tier"
+      GREEN 21 bound step keys, unchanged from before the move
+
+Build 0/0; Tags 972 → 986; Boq 1,331 unchanged; wiring OK (all tiers 0, 21 bound
+keys); path-discipline OK; recount `--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. `LoadProjectPresetFiles` —
+the `StingPaths.Meta` resolve, the directory read and the per-file
+deserialisation — is unexercised against a live document, and no project has ever
+had a `_BIM_COORD/workflows/` folder. What is proven is the merge decision, which
+is where a silent wrong answer would live.
+
+#### Completed (Phase 272 — W5: two conditions that ask what the command would do)
+
+`has_unclassed_materials` and `has_uncoded_materials` let `Materials_SetClass`
+and `Materials_StampCodes` skip cleanly on a re-run, cached the same way
+`has_stale` and the compliance checks are, and invalidated by the same post-step
+reset — both commands change the answer to their own condition.
+
+**The predicate is the part that could have gone wrong silently.** The obvious
+condition — any material whose class is blank — is TRUE FOREVER on this model,
+because `Materials_SetClass` deliberately refuses to guess a class for a name
+that says nothing. The step would never skip, the command would run on every
+kickoff, scan 1,815 materials, write nothing, and the report would say
+SUCCEEDED. Measured: **779 of the 1,815 would be re-processed on every run,
+forever.**
+
+So the condition asks what the COMMAND would do, by calling the planners the
+commands call. Over the real corpus and the real register:
+
+    1,815 materials  ->  NeedClass 1,036   NeedCode 1,279
+    after both commands have run  ->  0 and 0, and the SKIPPED line says so
+
+`MaterialWorkScan` is Revit-free and answers both in one pass, the shape
+`has_untagged` / `has_placeholders` already share. Planner failures are COUNTED
+(`Unreadable`) and logged rather than swallowed — a condition that answered
+"nothing to do" because the decision crashed is the silent no-op this codebase
+produces.
+
+### What this uncovered: 14 of 15 shipped conditions are inert
+
+`WorkflowEngine` has two condition paths and they do not agree. The compound one
+answers 27 names and **fails safe** on an unknown one. The single one is a run of
+independent name tests that **falls through** when nothing matches — so an
+unrecognised condition means no condition, and the step runs.
+
+Measured 2026-09-10 over the shipped presets: **15 distinct condition values in
+use, ONE honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets** — including `sld_view_exists` / `no_sld_view_exists`,
+whose whole purpose is "only on first generation", and `sustain_location_set`
+(x4), whose purpose is "do not assess without a location". Three of them
+(`handover_mode=...`) are not condition names at all; the engine has no
+key=value syntax.
+
+**W5's two are in BOTH paths for exactly this reason.** A condition added to the
+switch alone would have joined the 18.
+
+**Reported, not fixed.** The single path now warns and writes a "step ran
+UNGATED" line into the workflow report when it does not recognise a condition,
+so the 18 are visible on the next run — no change to which steps run. Closing
+WF-COND-1 means routing that path through `EvaluateSingleCondition`, which would
+make steps that run today start skipping in five shipped presets: its own PR,
+its own evidence. Logged in `docs/ROADMAP.md`.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Model_Whose_Work_Is_Done_Reports_Nothing_To_Do
+      RED   predicate relaxed to "class is blank"    NeedClass 779, not 0
+            (3 of 10 fail; the corpus test reports 1,815 instead of 1,036)
+      GREEN 0 and 0, reasons naming the numbers
+
+    The_Corpus_Needs_Exactly_What_The_Commands_Would_Write
+      RED   register lookup severed                  NeedCode 0, not 1,279
+      GREEN NeedCode 1,279 / NeedClass 1,036
+
+    The_Declared_Vocabulary_Is_Exactly_What_The_Block_Tests
+      RED   one name deleted from InlineConditionVocabulary
+            "implemented but not declared ... has_untagged"      (1 of 3)
+      GREEN 14 declared, 14 implemented, exact match
+
+Build 0/0; Tags 972 -> 985; Boq 1,331 unchanged; wiring, path-discipline,
+recount and the 277-file JSON parse all green.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document: collecting Materials, reading `MaterialClass` and
+`MAT_CODE`, and the cache's invalidation across steps are all unexercised.
+`Materials_StampCodes` has still never run against a document.
+
+#### Completed (Phase 271 — W3: Tier 6, the button no workflow can call)
+
+**Tier 2 proves preset steps resolve. Nothing proved a shipped command was
+reachable from a preset at all.** A command in neither `ResolveCommand` nor any
+preset is invisible to the gate — which is how seven commands sat outside both
+for a month while `ProjectKickoff` imported the register, built host types from
+it, and never stamped a code, set a class or audited what it built.
+
+**Tier 6 asks the other half of the question**: a `Cmd_Click` button tag with no
+`ResolveCommand` case is reported as **not reachable from a workflow**. It is not
+a claim the button is broken — Tier 4 already proves all 1,681 dispatch on a
+click. It is a claim that a chain cannot call them.
+
+**1,236 of 1,681 button tags** are in that state today, and they ship as
+`tools/workflow_reachability_baseline.txt`. Plenty are legitimately
+interactive-only — a modeless window, a picked element, a dialog with no headless
+meaning — so this is a baseline rather than a hard zero. The file **may shrink,
+never grow**: its entire value is that a *new* button now forces a decision
+instead of a silence.
+
+**A stale entry is REPORTED, not failed, and the asymmetry is deliberate.** A tag
+leaving the list means somebody made it chainable, which is the outcome the tier
+wants; failing for it would punish the fix, and would break whichever of two
+independent PRs merged second. Tier 5's baseline does the opposite — it fails on
+a stale entry — because there a stale line silently re-permits an unbound key.
+Both behaviours are now documented next to each other in the script.
+
+**It reuses Tier 2's `$resolvable` set on purpose.** That set is every `case`
+label in `WorkflowEngine.cs`, a superset of `ResolveCommand`'s own, so Tier 6
+under-reports rather than over-reports and the two tiers cannot disagree about
+what "resolvable" means.
+
+**No numbers are restated from `docs/UNREACHABLE_COMMANDS_TRIAGE.md`.** That file
+counts *command classes* reachable at all across six dispatch layers (1,722
+total, 1,691 reached, re-derived 2026-09-09). Tier 6 counts *button tags*
+reachable from a workflow. Different populations, different question; the two
+figures are not comparable and neither is copied into the other.
+
+**RED then GREEN, both directions, both counts.**
+
+    a NEW button with no ResolveCommand case
+      RED   baseline line for AddLeaders removed — Tier 6 FAILS, naming it:
+            "StingDockPanel.xaml button Tag=""AddLeaders"" has no case in
+             WorkflowEngine.ResolveCommand -- no preset can call it"     (1)
+      GREEN Tier 6 = 0, 1,236 baselined in use
+
+    a baselined tag that BECOMES reachable
+      RED   a ResolveCommand case added for AddLeaders — the gate prints
+            "1 Tier 6 baseline entry/ies are now reachable from a workflow",
+            baselined-in-use drops 1,236 -> 1,235, and EXITS 0
+      GREEN no stale entries
+
+The second RED is the one worth reading: it proves the tier does **not** fail
+when somebody fixes something, which is the property that makes it safe to merge
+independently of the PR that resolves the seven.
+
+#### Completed (Phase 270 — W1: the seven become reachable from a workflow)
+
+**Seven commands built this month were button-only.** `Materials_SetClass`,
+`Materials_StampCodes`, `Materials_RegisterAudit`, `Baseline_Audit`,
+`Baseline_Apply`, `Baseline_RenameTypes` and `Prod_CoverageAudit` had a
+`Cmd_Click` button and a `StingCommandHandler` case, and **no `ResolveCommand`
+case and no appearance in any of the 48 presets**. Re-measured on `origin/main`
+@ `4b4ca588b`: `presets=0 engine=0` for all seven, and `0` hits across all 277
+shipped JSON files, not only the `WORKFLOW_*.json` ones.
+
+Three consequences, and the third is why this is the load-bearing step:
+
+1. They cannot be chained, scripted, or run unattended.
+2. `ProjectKickoff` imports the register, builds host types from it, and then
+   **never stamps a code, sets a class, or audits what it just built** — which is
+   the state the 2026-09-10 register audit found: 138 Matches against 67 Differs,
+   28 Flattened and 81 with no compound structure at all.
+3. `tools/check_workflow_wiring.ps1` gates **preset steps against
+   `ResolveCommand`**. A command in neither is invisible to it, so a chain stops
+   covering new work without anything being said.
+
+All seven now resolve. Class names were taken from `StingCommandHandler`, not
+guessed.
+
+**`Baseline_Apply` and `Baseline_RenameTypes` resolve but go in no preset.** Both
+are destructive and both ask first; a chained rename is what 2026-09-09 produced,
+when 87 floor types proposed the identical name. Resolving them lets a human
+write a deliberate one-step workflow; putting them inside the 26-step kickoff is
+a different act, and W2 does not.
+
+**RED then GREEN, on the gate that actually guards this.**
+
+    A preset step on Materials_StampCodes
+      RED   with the case removed — Tier 2, naming the tag and the file:
+            "WORKFLOW_ZZProbe.json step 1 : 'Materials_StampCodes' has no case
+             in WorkflowEngine.ResolveCommand"
+      GREEN Tier 2 = 0
+
+`ResolveCommand` case labels **663 → 670**.
+
+**A figure that differs from the brief.** It predicted both the case-label count
+and the dispatchable-name count would move. Only the first did: **dispatchable
+names stayed at 2,362**, because that set is registry + `Cmd_Click` runners +
+handler cases, and all seven already had buttons. Adding a `ResolveCommand` case
+makes a tag *chainable*; it does not make it a new *name*. Worth knowing, because
+it is exactly why the wiring gate could not see the gap — which is what W3
+addresses.
+
+Build 0/0; Tags 972 and Boq 1,331 unchanged; path-discipline OK; recount
+`--check` agrees; 277 JSON files parse.
+
+**Not verified in Revit.** `deploy.bat` was not run. No workflow was executed
+against a live document, and `Materials_StampCodes` in particular has still never
+run against one.
+
+#### Completed (Phase 269 — the type creator stops reporting success after failing, and stops inventing what it was not given)
+
+`Baseline_RenameTypes` renamed 168 host types on a delivered model and logged
+`168/168 renamed, 0 failed`. 137 landed on 19 names; 87 floor types — the whole
+finish catalogue — became `PLNS_SLB_RC100`, because all 87 are one ~100 mm layer
+of `Concrete, Cast-in-Place gray` wearing 87 names taken from the corporate
+register. #902 refused the collision. This is the mechanism behind it.
+
+**W3 — the measurement, first, because it changed what W2 should do.**
+
+Two denominators, and conflating them is how the old comment stayed wrong for so
+long. Across the FILES, 326 BLE rows and 120 MEP rows declare no layer at all —
+446 of 1,279. The comment being replaced said the homogeneous fallback "covers
+165+ BLE rows with no layer data"; it is **326**, out by nearly two-fold, and
+that comment was the only record anywhere.
+
+Across the rows a shipped command actually reads — the four host-type commands
+select **380** of the 815 BLE rows by `MAT_ELEMENT_TYPE` — 329 are built from
+their declared layers, 51 take the homogeneous path (all Walls), and **not one**
+trips an invented thickness, a dropped layer or an R-value in a material column.
+
+**And W3's central question is answered in the NEGATIVE.** All 95 `FLR-*` rows
+carry a valid layer 1, so the fallback fires for **none** of them. `BuildLayers`
+only ever uses a material named in the CSV or the row's own, never a Revit stock
+material. `ParseThickness` returns the row's declared thickness (50 / 75 / 40 mm)
+and its only fallback is 10 mm, never 100. The column constants were checked
+against both headers and are correct. **So neither path in this file produced the
+87.** One identical 100 mm layer across 87 differently-declared rows is the
+signature of a duplicated base type whose structure was never replaced — which is
+consistent with W1's catch path and is **not established** as what happened. The
+ten logs on the live plugin path start 2026-08-17 and hold no type-creation line.
+
+**W1 — four creators returned `true` after failing.** `CreateWallType`,
+`CreateFloorType`, `CreateCeilingType` and `CreateRoofType` each caught a
+`SetCompoundStructure` failure, logged a warning, and returned success. The
+comment said it honestly — *"type was created, just no layers"* — and the
+function then told its caller the whole operation had succeeded. `CreateMEPType`,
+eighty lines below, has always returned false on every failure path.
+
+They now return **false**, and the half-made type is **deleted inside the same
+transaction**. The choice is stated in the code rather than left implicit: a type
+carrying a build-up nobody asked for is a wrong quantity that looks like a right
+one, and it measures, prices and carbon-counts exactly like a real one. Deleting
+is safe here specifically because the type was duplicated microseconds earlier in
+the same transaction and this command places no instances. A delete that itself
+fails is its own louder outcome, `RefusedButLeftBehind`, with a WARNING in the
+report — never folded into an ordinary refusal.
+
+`TypeCreationTally` holds the decision and the counting rule, Revit-free.
+"Created N types" no longer means two different things.
+
+**W2 — `BuildLayers` invented, dropped and substituted in silence.** All four are
+now carried out of the function as issues the caller reports:
+
+    <=0 thickness silently became 10 mm    -> reported, and FATAL
+    <1 mm raised to 1 mm                   -> reported, NOT fatal (Revit's own minimum, 180 rows)
+    >500 mm layer silently dropped         -> reported, and FATAL
+    layer material create failed           -> reported; the substitution is named
+
+Making the first and third fatal costs **nothing today** — zero rows the commands
+read trip either — which is the whole argument for doing it now.
+
+**A fifth defect the brief did not list, found by reading:** `CountActualLayers`
+`continue`d past a blank slot and returned a COUNT, which the caller used as an
+INDEX BOUND. A row populating slots 2, 3, 4 was read as slots 1, 2, 3 — a blank
+material at slot 1 and slot 4 silently dropped. Both of the register's only two
+invented thicknesses came from exactly that. Slots are read by position now.
+
+**Two things measured that contradict the code they document.** The >500 mm rule
+cites "300.0 for a 300 mm² conductor" as its reason — 300 is below 500, so that
+conductor is built as a 300 mm layer. And the rule fires on **no row of either
+file**. Both pinned rather than tidied: changing the threshold would be a
+quantity change made on no evidence.
+
+**W4 — the sweep, done properly.** `tools/find_lying_catches.py` brace-matches
+method bodies instead of pattern-matching text, because a regex over a brace
+language cannot see "this catch block ends here and the next statement on this
+path is `return true`". **Its own first version had the same false negative**, by
+a different route: requiring the braces between the catch and the return to
+BALANCE made it miss all four confirmed cases, which sit inside an `if`. Closing
+braces are fine; an opening brace is not.
+
+It also does NOT count a catch that records the failure somewhere the caller or
+the user will see — the `foreach { try/catch { errors.Add } } … return Succeeded`
+shape is a command that succeeded and said what did not, and counting those is
+the trap CLAUDE.md's 683 empty catches already sets.
+
+    before this change   156 total   Tier 1: 25   Tier 2: 131
+    after                152 total   Tier 1: 21   Tier 2: 131
+
+Tier 1 is bool-returning helpers, where the return value IS the caller's only
+signal; all four confirmed cases were there. Tier 2 is `Execute` returning
+`Result.Succeeded`, and eight sampled at random were **all** optional
+side-effects after the real work — opening Explorer, copying to the clipboard,
+refreshing a panel. **152 is a triage list, not 152 defects**, and the only ones
+verified by reading are the four now fixed. Wired into CI as a ratchet that fails
+when the count rises.
+
+**RED then GREEN.** `CompoundLayerPlanTests` — 11 of 14 failed with the old
+`BuildLayers` semantics restored inside the planner; 14 of 14 after.
+`TypeCreationTallyTests` — 6 of 6, and it asserts that the OLD decision printed
+an identical report for a run that built everything and one that refused half.
+The sweep — 156/25 before, 152/21 after, and it finds exactly the four named
+functions when the old file is put back.
+
+Tags 939 passed (baseline 919), Boq 1311 passed, plugin builds 0 warnings /
+0 errors.
+
+**Not verified in Revit.** Nothing ran in a Revit session and `deploy.bat` was
+not run. Specifically unproven: that `doc.Delete` on a just-duplicated
+`HostObjAttributes` succeeds inside the same transaction; that
+`SetCompoundStructure` on the `HostObjAttributes` base behaves as it did on the
+four concrete subtypes; and the new report text, which no user has seen. No
+compound structure was rewritten on any model and no register row was edited.
+
+#### Completed (Phase 268 — W4: FLR-028, register to rate, in one test)
+
+    register row FLR-028  ->  a material carrying MAT_CODE = FLR-028
+                          ->  a floor type whose PRIMARY layer is that material
+                          ->  the BOQ resolves MatCode = "FLR-028"
+                          ->  CsvRateProvider Pass 3 matches
+                          ->  Provenance "<rate file> MAT_CODE match"
+
+**The assertion is the provenance STRING, not the number.** The rate card in the
+test keys the category and `FLR-028` at *different* rates, so a chain that failed
+would still return a plausible figure from Pass 4. Proven load-bearing: a
+sabotage that leaves Pass 3's rate at 612,500 and only mislabels its provenance
+as a category average fails exactly one test — this one — on the string.
+
+**What it would have caught.** Every link existed and was wired four phases ago.
+`MAT_CODE` was bound to `Materials` only, the BOQ read it off a wall, and Pass 3
+has never once fired. Nothing failed. This test fails: sabotaged back to the
+pre-W2 read, `FLR_028_Walks_From_The_Register_To_A_Rate` reports `""` where
+`FLR-028` was expected, and `The_Skin_Never_Prices_The_Floor` reports `WL-999` —
+the plasterboard finish pricing the floor slab.
+
+**`CsvRateProvider` is now a compute/present split**, which is what made the
+above assertable at all. The five passes moved to `BOQ/Rates/CsvRateLookup.cs` —
+Revit-free, one copy, called by the provider — and `RateResolutionLevel` moved to
+its own file because `IRateProvider.cs` imports the Revit API for
+`RateRequest.Element` and would otherwise drag a `Document` into any test that
+wanted to assert a pass order. Same namespace; **no call site changed**. This is
+CLAUDE.md P1 #4 proven on a second feature after the Visibility Center, and on
+the provider that prices most of a model.
+
+`The_Pass_Order_Is_Specificity_Order` asserts the order by stripping the winning
+key one at a time and requiring the next-most-specific to answer — five levels,
+five confidences, in one loop, so a reordering fails here rather than being
+noticed on a tender. That order has been wrong before: K-16b found category
+consulted first and returning, which priced a fire door and a cupboard door
+alike.
+
+**The rate card is synthetic, and that is stated rather than hidden.** The
+shipped `cost_rates_5d.csv` shares no key with the register, so the chain is
+proven here on the rate card a project would have to write, while the reason it
+does not fire on shipped data is proven next door in
+`The_Shipped_Rate_Table_Shares_No_Key_With_The_Register`. Both are true; they are
+different facts, and neither is allowed to stand in for the other.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    FLR_028_Walks_From_The_Register_To_A_Rate
+      RED   pre-W2 read restored (the element answers, and answers nothing)
+            expected "FLR-028", actual ""                      (2 of 7 fail)
+            and The_Skin_Never_Prices_The_Floor -> "WL-999"
+      GREEN "project_rate_card.csv MAT_CODE match" @ 612,500 UGX/m2
+
+    the provenance assertion itself
+      RED   Pass 3 keeps its rate and reports the category sentence
+            one test fails, on the string alone                (1 of 7)
+      GREEN "project_rate_card.csv MAT_CODE match"
+
+**Not verified in Revit.** `deploy.bat` was not run. The chain is proven over the
+Revit-free halves the plugin actually calls; the Revit-bound link between them —
+`ElementMatCodeReader` reading a compound structure and a material parameter — is
+still unexercised against a document. Build 0/0; Boq 1,311 → 1,331.
+
+#### Completed (Phase 267 — W3: a type records which register row it was built from)
+
+**`CompoundTypeCreator` now stamps `StingProvenanceSchema` on every host type it
+creates** — `Engine = "CompoundTypeCreator"`, `RuleId = MAT_CODE`,
+`CreatedUtcTicks`, `Operator`. Walls, Floors, Ceilings and Roofs; the MEP
+creators are left alone because the audit only reads `HostObjAttributes`.
+
+**Not a parameter, and that is the decision.** A parameter is hand-editable, and
+a hand-editable field is the wrong home for an audit trail — the same mistake as
+letting the NAME be the authority on identity, one column over. ExtensibleStorage
+is invisible to users and cannot be edited into disagreement.
+
+**`HostTypeRegisterAudit` now prefers the recorded code over the name match**,
+and reports a fourth verdict, **`CodeSaysOtherwise`**: the type records `FLR-028`
+and its layers build a different row, or none. The `Detail` names the recorded
+row, the modelled build-up, and — via `MatchByLayers` — the row the geometry
+actually is, so a swap is visible rather than merely wrong.
+
+**A recorded code is NEVER re-matched by name.** That is the whole point of the
+verdict: 86 of the 87 floor types carried a register `MAT_NAME` verbatim while
+building something else, so a name is a coincidence and a recorded code is a
+claim. Falling back would let a wrong code hide behind a right name. A recorded
+code the register does not issue is also a finding, not a shrug.
+
+**Layers still win every quantity.** This records a claim; it does not license
+one. `Layers_Win_The_Quantity_Question_And_This_Only_Reports` asserts that the
+audit leaves the modelled layers untouched and that its total thickness is still
+the model's, not the register's.
+
+**Nothing regresses for a type with no recorded code**, which is every type in
+every existing model. Pinned against the real 2026-09-10 Herring run — **138
+Matches · 67 Differs · 28 Flattened · 81 NoStructure · 157 NotInRegister across
+471 host types** — and asserted as an ENUMERATION of the five reachable verdicts
+rather than a list of cases, so a sixth is covered whether or not anybody
+remembers to come back.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Recorded_Code_Is_Never_Re_Matched_By_Name
+      RED   audit falls back to ByName when the code is contradicted
+            verdict Differs — the recorded claim swallowed into the old
+            vocabulary and never said                        (2 of 11 fail)
+      GREEN CodeSaysOtherwise
+
+    Types_With_No_Recorded_Code_Audit_Exactly_As_Before
+      RED   an empty recorded code takes the recorded branch
+            every existing type flips to CodeSaysOtherwise; the pre-existing
+            28-Flattened / 67-Differs assertion falls with it (13 of 21 fail)
+      GREEN 28 Flattened / 67 Differs, unchanged
+
+The second RED is the one worth reading: it broke **eight tests that already
+existed**, which is what a real regression surface looks like.
+
+**Not verified in Revit.** `deploy.bat` was not run. The `Stamp` call in the four
+creators and the `Read` in `RegisterAuditCommand` are unexercised against a live
+document — no type has ever carried this entity, so every `CodeSaysOtherwise`
+proven here is proven on constructed input. Build 0/0; Tags 919 → 930; Boq 1,311
+unchanged.
+
+#### Completed (Phase 266 — W2: an element's MAT_CODE, resolved through its material)
+
+**Four places asked a wall for a parameter bound to materials.**
+
+    MatCode = ParameterHelpers.GetString(el, "MAT_CODE") ?? "",
+
+`BOQCostManager:1184` and `:2816` (the rate request), `CostStamp:152` (the rate
+request *and* the shared rate-cache key) and
+`MeasurementStandards:209` (the CESMM4 description). `MAT_CODE` binds to
+`Materials` and to nothing else — `CATEGORY_BINDINGS.csv:4693`, agreeing with
+`PARAMETER_CATEGORIES.csv:510`, `FAMILY_PARAMETER_BINDINGS.csv:4022`,
+`BINDING_COVERAGE_MATRIX.csv:611` and `PARAMETER_REGISTRY.json:9971` — so every
+one of those reads returned empty for every element ever costed, and
+`CsvRateProvider` **"Pass 3 — MATERIAL"** (`RateProviders.cs:323`, confidence
+85) has never fired.
+
+All four now go through **one** resolver. The decision is Revit-free:
+`MaterialCodeResolution` takes a layer list and a name→code map and answers
+**primary layer material → its code**, falling back to the element's single
+material only when the layers name none, then to the element's own `MAT_CODE`
+for the day somebody binds it there. `PrimaryMaterialSelector` picks the layer —
+**not a second definition of "primary"**; the fork #873 closed stays closed.
+
+**The one subtlety, and it is the whole risk.** When the layers DO name a core
+material and that material has no code, resolution **stops**. It does not then
+try the element's first material — that fall-through hands back the FINISH SKIN,
+a 230 mm rendered masonry wall answering "gypsum", which is #873 exactly. A
+layered element is answered by its core or by nothing, and empty stays empty: a
+guess would ride at confidence 85, above the category match.
+
+---
+
+### WHAT THIS MOVES ON MONEY — measured on the Herring model, not assumed
+
+Computed from the model's own exported artefacts (`register_audit_20260910_
+202805.csv`, `type_rename_core_materials_20260909.csv`) against the shipped
+register and `cost_rates_5d.csv`. No Revit.
+
+| Category | types | instances | gain a MAT_CODE | coded instances | Pass 3 matches | old rate UGX | **delta** |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Floors   | 98 | 1 | **0** | 0 | 0 | 444,000 | **0** |
+| Roofs    | 96 | 11 | **88** | 0 | 0 | 555,000 | **0** |
+| Walls    | 96 | 61 | **49** | 48 | 0 | 315,000 | **0** |
+| Ceilings | 4 | 0 | **0** | 0 | 0 | 166,500 | **0** |
+| **Total**| **294** | **73** | **137** | **48** | **0** | | **0 UGX** |
+
+**137 host types gain a MAT_CODE. Zero rates change.** The reason is exact and
+is a second instance of the very defect this work was opened for:
+
+> **Not one of the register's 1,279 codes is a key in `cost_rates_5d.csv`.**
+> The register issues `FLR-028`, `CLG-052`, `WL-128`. The rate table has a column
+> **called** `MAT_CODE` holding 43 three-letter, PROD-shaped abbreviations —
+> `FLR`, `CLG`, `WAL`, `AHU`. The two files use one column name for two
+> vocabularies, and the intersection is empty.
+
+So Pass 3 *can* now fire and still *does* not. Those are different sentences and
+the difference is the point: before W2 the lookup was dead at the key; now it is
+dead at the table, which is a place a QS can fix by editing a rate card.
+
+**Floors gain nothing, and that is the 87-type finding again.** 90 of the 98
+floor types have the core material `Concrete, Cast-in-Place gray` — a Revit stock
+material, not a register `MAT_NAME` — so no code reaches them even after W1.
+
+**This is pinned, not fixed.** `The_Shipped_Rate_Table_Shares_No_Key_With_The_
+Register` asserts the empty intersection and fails loudly, naming the codes, the
+moment one appears. Changing 43 rate keys IS a cost change and needs its own
+evidence; what this guarantees is that nobody makes it by accident.
+
+**Two other behaviour changes, stated because they are not rate changes and
+would otherwise pass unremarked.** `CostStamp`'s shared rate cache is keyed on
+`{category}|{disc}|{prod}|{matCode}|{unit}`, so a previously-constant empty
+segment now varies — the cache partitions more finely and cannot merge two
+elements that differ only by material. And every CESMM4 description said
+"`{category}; as drawn`" with no material named; it will now name the code where
+one resolves.
+
+**One thing left alone, deliberately.** `UI/IfcMaterialPsetWriter.cs:69` carries
+a *second* `ReadPrimaryMaterialName` that skips the compound-structure step
+entirely and returns the first material — the #873 defect, still live, in a
+second place. Out of scope here; logged in `ROADMAP.md` rather than folded into
+a cost change.
+
+**RED then GREEN, by sabotage, both counts.**
+
+    A_Layered_Element_Answers_With_Its_CORE
+      RED   first layer instead of the selector    WL-SKIN  (4 of 13 fail)
+      GREEN                                        WL-CORE
+
+    A_Layered_Element_Whose_Core_Has_No_Code_Does_Not_Fall_Back_To_The_Skin
+      RED   fall-through restored                  WL-SKIN  (1 of 13 fails)
+      GREEN                                        ""
+
+    The_Shipped_Rate_Table_Shares_No_Key_With_The_Register
+      RED   one row keying FLR-028 added to cost_rates_5d.csv
+            fails, names FLR-028, demands the mover count what moved  (2 of 13)
+      GREEN 0 of 1,279
+
+**Not verified in Revit.** `deploy.bat` was not run. `ElementMatCodeReader` —
+the compound-structure read, the single-material read, the memoised name→code
+map and its 30-second stale window — is **entirely unexercised against a live
+document**. Every defect this area has produced has lived in the Revit-bound
+half, and this half is the Revit-bound half. Build 0/0; Boq 1,311 → 1,324; Tags
+919 unchanged.
+
+#### Completed (Phase 265 — W1: the register's CODE reaches the material)
+
+**`MAT_CODE` is the key `RateProviders` Pass C looks up, and one of the two paths
+that mint materials never wrote it.** The parameter is declared
+(`MR_PARAMETERS.txt:973`, `758ba3d0-ea41-51fc-8dbf-3bb444174385`, TEXT), bound to
+`Materials` and to nothing else (`CATEGORY_BINDINGS.csv:4693`, and agreeing in
+`PARAMETER_CATEGORIES.csv:510`, `FAMILY_PARAMETER_BINDINGS.csv:4022`,
+`BINDING_COVERAGE_MATRIX.csv:611`, `PARAMETER_REGISTRY.json:9971`), and the
+register that supplies the codes is **100% populated — 815 BLE + 464 MEP rows,
+1,279 unique codes, no blanks**.
+
+**Correction to the brief this work came from.** It reported *"anything writes it
+— nothing"*. That is wrong: `MaterialCommands.ApplySharedParamValues` (`:1121`)
+writes `MAT_CODE` onto every material `CreateBLEMaterials` /
+`CreateMEPMaterials` creates, through `LookupParameter(name).Set(value)` — which
+the brief's `SetString|SetIfEmpty` grep could not see. What was actually missing
+is narrower and still real:
+
+* `CompoundTypeCreator` — the path that builds a project's wall / floor /
+  ceiling / roof catalogue — called `ApplyMaterialProperties` and **not** the
+  shared-parameter writer, so every material it minted was born without a code.
+* `MaterialCommands.PopulateSharedParameters` (`:1269`) is a second, **uncalled**
+  copy of the same writer. Left alone here; noted so it is not mistaken for live
+  coverage.
+* Nothing at all backfilled a model whose materials predate any of it.
+
+**`CompoundTypeCreator` now stamps the row's own `MAT_CODE`** on the primary
+material it creates, via `SetIfEmpty` — never `Set`. Only the primary material:
+the layer materials minted alongside come from `MAT_LAYER_n_MATERIAL`, which
+names a material without naming its row, and stamping those from the referencing
+row would put a governed code on a material that row does not describe.
+
+**`Materials_StampCodes`** (SETUP tab, beside `Register audit (read-only)`)
+backfills the rest, in the shape `Materials_SetClass` uses — plan CSV written
+first, `TaskDialog` with `DefaultButton = No`. It matches on the **exact**
+`MAT_NAME` only. Revit renames a colliding material to `NAME 2`, and that may be
+a copy of the register row or somebody's variant; stamping a governed code on the
+strength of a prefix is the same guess the rename collision was made of.
+
+**Three counts, and the third is the one worth reading.** Measured over the
+1,815-name corpus in `Fixtures/material_names_20260908.csv`:
+
+    1,279  stamped        — the whole register appears in this model
+      536  no register row — the project's own vocabulary
+        0  already coded   — because nothing had ever written one
+
+536 is what the next register revision should absorb. It is reported separately
+from a `RegisterSilent` count that also includes already-coded materials the
+register cannot name, because the three headline verdicts describe the **write
+decision** and must partition, while the vocabulary question does not.
+
+**A code already there is never overwritten, and a disagreement is said rather
+than settled.** A material carrying `FLR-999` where the register says `FLR-028`
+is reported in the CSV, counted as a disagreement, and left exactly as it is. The
+register is a challenger, not an oracle — the same rule the material-class work
+settled on.
+
+**RED then GREEN, by sabotage, both counts recorded.**
+
+    Corpus_Resolves_The_Registers_Codes
+      RED    register lookup severed in the planner   0 stamped / 1,815 no-row
+             (7 of the 14 new tests fail)
+      GREEN  shipped register                     1,279 stamped /   536 no-row
+
+    A_Code_Already_There_Is_Never_Overwritten
+      RED    never-overwrite branch removed   verdict Stamp — FLR-999 → FLR-028
+      GREEN                                   verdict AlreadyCoded, no write
+
+The second matters more. **2,230 tests passed on this tree before any of this
+existed**, and a wrong write would not have moved one of them.
+
+**Not verified in Revit.** `deploy.bat` was not run and no Revit session
+exercised either the `CompoundTypeCreator` stamp or `Materials_StampCodes`. What
+is proven is the build (0 errors / 0 warnings), the Revit-free decision against
+the shipped register, and `check_workflow_wiring.ps1` Tier 4 = 0 for the new
+button. `check_dispatch_parity.ps1` fails on `Hvac_FanStaticReport`, which is
+pre-existing and untouched here.
+
+#### Completed (Phase 264 — one timber vocabulary, and the matcher swap that needed stems)
+
+**Four word-lists answered "is this timber", and they disagreed both ways on a
+carbon figure.** `MaterialClassPlanner` knew fourteen words, `BiogenicCarbon`
+nine, `TypeRenamePlanner` four, and `UgCarbonFactors` read
+`Material.MaterialClass` — the controlled field, and therefore the only one that
+was right by construction. Measured over the **1,808 distinct names** in the
+shipped register plus the delivered-model corpus, the three word-lists gave
+different answers for **85** of them, including the two the brief named:
+
+    MDF CEILING PANEL 12MM   class Wood · biogenic credit YES · not timber to the renamer
+    SOLID BAMBOO 14MM        class Wood · biogenic credit NO  · not timber to the renamer
+
+`SubstanceVocabulary.Wood` is now the one list, and all three read it.
+
+**WHAT MOVED ON A CARBON NUMBER — three names lose a credit, fifteen gain one,
+and all eighteen are named in the tests rather than counted.**
+
+`BiogenicCarbon` matched by SUBSTRING and carried `"ply "` with a trailing space.
+Across all 1,808 names that needle matched **exactly three, and every one was
+wrong**:
+
+    PVC SINGLE PLY 1.5MM              a PVC roofing membrane
+    SUPPLY REGISTER 150X150MM 1-WAY   an air diffuser   (sup-PLY )
+    SUPPLY REGISTER 200X100MM 2-WAY   an air diffuser
+
+Two air diffusers and a plastic membrane were earning a biogenic carbon credit.
+`ply` is **dropped** rather than tightened: it has never once been right, and
+`plywood` covers what it was reaching for.
+
+Fifteen gain one — BAMBOO PLANK, CHEVRON PARQUET 15MM, CORK TILE, CORK TILE 6MM,
+Cork - Plastic, FLOOR LAMINATE OAK-DARK/-GREY/-LIGHT/-MEDIUM, HDF CORE,
+HERRINGBONE PARQUET 15MM, MAPLE FLOORING, Oak Flooring, Roca - TENET - 402 City
+Oak, SOLID BAMBOO 14MM. **Two of those fifteen are questionable and are asserted
+as such**: `Roca - TENET - 402 City Oak` is a sanitaryware colour and
+`Cork - Plastic` is a cork-look plastic. Both are the colour-word collision
+already documented in `MaterialClassPlanner`'s header, both are library
+appearances rather than modelled quantities, and both are said out loud.
+
+Whole-word matching also needed two suffix forms the data actually contains:
+`wooden` (WOODEN SPORTS FLOOR 22MM) and `barnwood` (BARNWOOD SIDING 22MM) both
+lost their credit without them, and both are real timber.
+
+**The consistency gate is a question about the NAME, not about the class table.**
+`A_Name_With_Two_Substances_Is_Still_Decided_By_ORDER_Not_By_This_List` pins that
+`VINYL LVT WOOD OAK-DARK` and `Cork - Plastic` are still Plastic: precedence
+belongs to the ordered table, and only the vocabulary is shared.
+
+**W5c — `TypeRenamePlanner.Match` was the third `IndexOf` site, and the swap needed
+STEMS.** Whole-word matching alone breaks **seven rows** of the 2026-09-09 plan,
+because the data is plural and the needles were singular: five walls cored with
+`Concrete Masonry Units` fall back Blockwork → RC (a block wall priced as in-situ
+reinforced concrete), and two roofs cored with `CLAY TILES PREMIUM 15MM` get no
+name at all. Shipped with `concrete masonry units`, `masonry units` and
+`clay tiles` beside their singulars — plus `cobblestone`, `bluestone`, `flagstone`
+for Stone, and `tiles` / `plastered` / `rendered` / `painted` for the Finish table.
+
+Sharing the wood list also makes the renamer name **seven** core materials it used
+to refuse — every one literally called a "Wood Joist/Rafter Layer". Named, not
+counted.
+
+**RED then GREEN.** `Timber_For_One_Is_Timber_For_All` failed on **85 of 1,808**
+names against the three unmodified consumers, and its failure list names both
+`MDF CEILING PANEL 12MM` and `SOLID BAMBOO 14MM`; 5 of 8 in the file. GREEN 0 of
+1,808, 8 of 8. `Not_One_Row_The_Run_Named_Loses_Its_Substance` failed on **7 of
+168** with the whole-word matcher and the stems removed — the brief's figure,
+reproduced exactly; 5 of 10 in that file. GREEN 0 and 10 of 10.
+
+**A probe defect was found and fixed rather than worked around.** The renamer
+probe first ran on Walls, where `CodeFor` has no `Plywood` key, so five plywood
+names read as "not timber" — a gap in the CODE table being reported as a gap in
+the vocabulary. It probes Floors now, which has both keys, and says why.
+
+Tags 839 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors, workflow-wiring Tier 4 = 0.
+
+**Not verified in Revit.** Nothing ran in a Revit session. The carbon figures
+above are the vocabulary's answers over material NAMES; no embodied-carbon report
+was regenerated, and `Baseline_RenameTypes` was not run.
+
+#### Completed (Phase 263 — the register is read as data, and refused as an oracle)
+
+StingTools ships a governed material register — `BLE_MATERIALS.csv` (815 rows)
+and `MEP_MATERIALS.csv` (464) — carrying per material a code, an ISO 19650 id, a
+category, a total thickness, **five layer slots**, a unit cost, a standard and an
+identity class, populated on **1,279 of 1,279** rows. Three parts of the plugin
+answer "what is this material" from hand-written word lists instead, and whatever
+seeded a project catalogue from this file read the NAME column and nothing else.
+
+Verified before building: 815 / 464 / 1,279 all classed · 253 BLE rows `Generic`
+· **31** GYPSUM-named rows classed `Generic` · 95 `FLR-*` rows of which **28**
+declare 2–3 layers and **all 95** declare a layer-1 material · **87** floor types
+proposed the identical name `PLNS_SLB_RC100` on 2026-09-09 · **no duplicate
+MAT_NAME anywhere**, within either file or across the two.
+
+**`MaterialRegistry` is the reader.** Revit-free (it takes CSV TEXT, like
+`ProdExclusionPolicy`), columns located by NAME so a 72nd column cannot shift
+them, RFC 4180 because these cells carry commas, and a duplicate `MAT_NAME` is
+**reported rather than resolved by last-wins** — two rows claiming one name is a
+data question, and a missing file is a reported warning rather than a silent zero.
+
+**The class column is NOT consumed as an answer, and that is the finding.** The
+brief asked for register-first. Measured over all 1,279 rows against the needle
+table: 348 agree, **85 conflict**, 342 the register answers alone, 352 the name
+says a substance and the class column names none, 152 neither. The 85 do not fall
+on one side:
+
+    the register is RIGHT   MASONRY PAINT WHITE → Paint          (needles: Masonry)
+                            26 × CEMENT PLASTER/RENDER → Concrete (needles: Gypsum)
+                            FIBERGLASS ACOUSTIC TILE → Insulation (needles: Ceramic)
+    the needles are RIGHT   GRANITE SKIRTING 100MM → Stone       (register: Wood)
+                            PVC SKIRTING 80MM → Plastic          (register: Wood)
+                            LIGHTWEIGHT SCREED 40MM → Concrete   (register: Metal)
+                            FLOOR MOUNTED CLOSE COUPLED WC       (register: Glass)
+
+**The class column classifies by TRADE.** A skirting is `Wood` whatever it is
+made of, a cladding is `Metal`, sanitaryware is `Glass`, a floor topping is
+`Concrete` even when it is epoxy resin. That is coherent for a procurement
+register and is not what `MaterialClass` means to the carbon and cost engines.
+
+**And agreement rate points the opposite way to correctness**, which is what kills
+every mechanical rule tried here: `Concrete` agrees **45%** and is mostly right
+where it differs; `Wood` agrees **84%** and is wrong where it differs. A whitelist
+keyed on agreement would be exactly backwards. Pinned by
+`Agreement_Rate_Does_Not_Identify_The_Trustworthy_Classes`, which fails if that
+stops being true — the point at which the refusal should be reconsidered.
+
+So the register CHALLENGES at the point of decision instead. `Plan` takes an
+optional registry and records `RegisterCode` and `RegisterClass` on the proposal —
+including on the already-classified early return, because a reviewer looking at a
+classified row is exactly who wants to know the register disagrees — and
+`RegisterDisagrees` says so. `With_No_Registry_The_Planner_Answers_Exactly_As_
+Before` keeps it additive. `Ceiling`, `Flooring`, `Lining` and `Generic` map to
+nothing at all: **504 of the 1,279 rows** carry one, and a mapping that guessed
+would import 504 shrugs into the one controlled field two engines trust.
+
+**`MaterialRegisterReconciliation` is the report a human acts on** — every row,
+including the agreements, so it cannot be read as 85 problems out of 85. Its gate
+is a **count ceiling, not a zero**: zero is not reachable, and a gate demanding it
+would be switched off within a week. 352 rows state a substance their class column
+does not, and the brief's 31 GYPSUM rows are the clearest of them.
+
+**`Materials_RegisterAudit` (read-only) is the W4 deliverable.** For every host
+type named after a register row it compares the modelled compound structure
+against the declared layers and reports, in the brief's own words:
+
+    STANDARD CEMENT SCREED 50MM: register says 1 × 50 mm CEMENT SCREED,
+    model has 1 × 100 mm Concrete, Cast-in-Place gray
+
+`Flattened` is its own verdict, separate from `Differs`, because it has one cause.
+Modelling all 95 `FLR-*` rows the way 2026-09-09 found them gives **28 Flattened
++ 67 Differs, 0 Matches**. A type NOT named after a register row is **not** a
+finding — an audit that flagged those would be right about the 86 and useless —
+and a model with nothing to compare says so rather than reporting a clean bill.
+**It writes nothing to the model.**
+
+**On W4's "find the writer": `Temp/FamilyCommands.cs` `CreateFloorsCommand` is the
+only shipped command that can produce the shape, and only through its failure
+path.** It DOES read the layer columns and set a compound structure — so on
+success it is not the culprit — but `CreateFloorType` (`:437-442`, and the same in
+the Wall/Ceiling/Roof twins) catches a `SetCompoundStructure` failure, logs a
+warning and **returns `true`**, leaving a type named from the CSV carrying the
+BASE type's build-up. The base type is picked as the first non-foundation
+`FloorType`, which on a stock template is a single ~100 mm layer of
+`Concrete, Cast-in-Place gray`. **Not established as what happened**: the ten logs
+on the live plugin path start 2026-08-17 and contain no type-creation line at all,
+and that path has moved. Recommended separately, not changed here: count and
+report those types instead of only logging them.
+
+**RED then GREEN, each by sabotage where the code is new.**
+`The_Disagreement_Count_Has_Not_Grown` — a needle contradicting the register
+(`ppr` → Metal, where it says Plastic) took conflicts **85 → 94**, 1 of 7 failed.
+Worth recording: a first sabotage adding `skirting` → Wood did **not** trip it,
+correctly — it AGREES with the register, and agreement is not a regression.
+`HostTypeRegisterAuditTests` — folding `Flattened` into `Differs` and swapping
+whole-word name agreement for substring failed **3 of 10**. Restored: 45 of 45
+register tests pass.
+
+**One of my own figures was wrong and the data corrected it.** The reconciliation
+constant for name-says-more-than-class was written as 156 and measured **352**;
+and a test named `SOLID BAMBOO 14MM` as a single-layer row when it declares
+`BAMBOO PLANK 14 mm` + `FINISH-SEAL 0.5 mm`. Both now select from the register
+rather than restating it.
+
+Tags 866 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors, workflow-wiring Tier 4 = 0.
+
+**Not verified in Revit.** `Materials_RegisterAudit` has never run in a Revit
+session: `ReadHostTypes`, `GetCompoundStructure`, the CSV write and the dialog are
+all unexercised, and the 28/67 split above is the audit applied to a
+RECONSTRUCTION of the 2026-09-09 model, not to the model. No compound structure
+was rewritten and no register row was edited.
+
+#### Completed (Phase 262 — two of the three IndexOf sites are refused, with the measurement that refuses them)
+
+The brief listed three `IndexOf` sites as the #863 shape and said to **construct
+the false positive first and prove it RED**. That instruction is what saved two
+of them. The third (`TypeRenamePlanner.Match`) had a real false positive and a
+real fix and is swapped elsewhere; these two do not, and are not.
+
+**W5a — `SupplierUnitConverter:191,228`. The patterns are deliberate PREFIX
+STEMS**, and two of them have to match names this plugin generates itself:
+
+    corrugat   catches corrugated / corrugation
+    galvanis   catches galvanised          galvaniz  catches galvanized
+    profil     catches profile / profiled
+    stonecoat  catches PLNS_RTL_StoneCoatedTileRoof1
+    clay       catches PLNS_RTL_ClayTileRoof14
+
+The last two settle it. `PatternMatch` treats letters and digits as word
+characters, so it can **never** match inside a compacted ISO 22014 name — and
+compacted ISO 22014 names are exactly what `TypeRenamePlanner` composes and what
+this converter is then asked about. Whole-word matching is structurally
+incompatible with the names the plugin makes.
+
+Measured over the 1,810 names this repository carries: **93 substring-only hits,
+and not one is a false positive the rules' own `matchCategories` gate does not
+already stop.** `GALVANIZED STEEL PIPE` matches the roof-sheet rule's material
+patterns and is a Pipe, not a Roof — the category gate is what does that work,
+not the matcher.
+
+**W5b — `ProductExclusion:148`. I got this wrong first, and the measurement
+corrected me.** Reading only the FAMILY name, `opening` is not a whole word in
+`M_GM_OpeningWall_Instance`, and the swap looked like it would return 1,187 wall
+voids to the PROD denominator. It does not: `Classify` matches
+`description + " " + typeName`, and the type name on all 1,187 is literally
+`Opening`. Replayed over the real 1,688-row audit, substring and whole-word give
+the **identical verdict on every row**.
+
+So the swap is measurably neutral today and strictly more fragile tomorrow: it
+makes the exclusion depend on a word boundary in a joined haystack nobody
+controls. The same family with a blank type name stops being excluded, and
+`Air Openings` — a real name in the shipped register — stops being excluded.
+Neither has an error state. A change with no measured benefit and an unmeasured
+downside is not a fix.
+
+**THE PART THAT MATTERED MOST: making both swaps broke NOTHING.** With both call
+sites converted, 827 Tags tests and 1,249 Boq tests all passed. A roof silently
+resolving to the wrong supplier unit — or to none, staying in m² on an order
+priced per tile — had nothing watching it.
+
+So what ships is the gate. `SupplierUnitStemTests` drives the real
+`SupplierUnitTable.Resolve` against the SHIPPED rules, and
+`MatcherSwapRefusalTests` drives the real `ProductExclusion.Classify` — both at
+the call site, not at the matcher, so that MAKING the swap fails.
+
+*RED, with both swaps applied:* **1 of 7** in Tags
+(`The_Real_Exclusion_Call_Site_Still_Catches_A_Plural_And_A_Blank_Type`) and
+**5 of 8** in Boq (both compacted ISO names, both galvanis/galvaniz stems, and
+the category-gate assertion). Reverted: 7 of 7 and 8 of 8.
+
+`STING_SUPPLIER_UNITS.json`'s own `note` now says the patterns are stems, why,
+and where the measurement lives — so the next person reads it in the data file
+rather than repeating the work.
+
+Tags 828 passed (baseline 821), Boq 1257 passed (baseline 1249), plugin builds
+0 warnings / 0 errors. **No production line was changed in this PR** — the two
+`IndexOf` sites are exactly as they were.
+
+#### Completed (Phase 261 — an exact family name is additive, because it cannot misfire)
+
+A project PROD-exclusion override REPLACED the list it declared. On 2026-09-09 a
+project file was written naming only its entourage car, and it silently dropped
+the corporate `Window-Square Opening`:
+
+    prod_coverage_20260908_221546.csv   414 rows, 0 Window-Square Opening, 1 SUV
+    prod_coverage_20260909_075229.csv   416 rows, 3 Window-Square Opening, 0 SUV
+
+**Three wall voids returned to the coverage denominator, and the only visible
+trace was a total moving by +2.** A denominator has no error state, so nothing
+reported it — the same shape as the 1,187-void figure this exclusion list was
+built to fix in the first place.
+
+**`notAProductFamilies` now UNIONS; the other three keys still REPLACE.** The
+split is not a convenience:
+
+| key | | why |
+|---|---|---|
+| `notAProductCategories` | REPLACE | a category holds whatever a project models in it |
+| `notAProductPatterns` | REPLACE | a pattern can misfire on a name nobody foresaw — "opening" once ate a real window type |
+| `protectedCategories` | REPLACE | the project decides what is always a thing |
+| `notAProductFamilies` | **ADD** | an EXACT family name cannot misfire, which is why the corporate file already lets it override `protectedCategories` |
+
+There was nothing for replace-semantics to protect here, and the one project that
+reached for the escape hatch did so by accident. A project that genuinely wants a
+corporate family counted must argue it in the corporate file, once, rather than
+silently per project — and the JSON's own comment now says which keys are which,
+with the measurement that bought the rule.
+
+**The half that must not follow is asserted beside it.**
+`Patterns_And_Categories_Still_REPLACE_Because_They_Can_Misfire` narrows all
+three replace-keys and checks each narrowing takes effect, so a later reader
+cannot generalise "additive" across the file.
+`With_No_Project_File_At_All_Nothing_Changes` keeps the union from inventing a
+list where neither side stated one — "not deployed" must stay distinguishable
+from "excludes nothing", which is the distinction `Parse` exists to preserve.
+
+**One assertion was reversed, and its old comment is the point.** The test written
+on 2026-09-08 asserted that a families-only override loses the corporate entry,
+"which is the documented contract, and worth seeing rather than assuming". Seeing
+it was worth exactly what it cost: three days.
+
+*RED:* with replace-semantics restored, **3 of 26** exclusion tests fail —
+`Naming_One_Family_Does_Not_Un_Name_The_Corporate_Ones`,
+`An_Empty_Families_List_No_Longer_Clears_The_Corporate_One` and the reversed
+`A_Families_Only_Override_Excludes_The_Car_And_Inherits_Everything_Else`.
+GREEN 26 of 26. `ProductExclusion.FamilyCount` is exposed so the union is
+countable rather than inferred.
+
+Tags 826 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors. **Not verified in Revit** — `Prod_CoverageAudit` was not re-run, and the
+414 / 416 figures are read from the CSVs the user's own runs wrote.
+
+#### Completed (Phase 260 — a new PROD tier is a red test, the corpus grows by being dropped in, and an unsaved write stops reading as a colleague's decision)
+
+Three small independent fixes, each proved RED before GREEN.
+
+**A source tier nobody classified used to open a gate silently.**
+`ProdResolver.IsSpecific` is a whitelist of five tiers returning false for
+everything else, and it has two consumers with **opposite safe defaults**:
+`Prod_CoverageAudit` merely understates coverage, while `TypeRenamePlanner`'s
+code-gate reads an unknown tier as "no answer to protect" and lets a
+correctly-resolved product code be renamed away — with the CSV row reading
+`rename`, exactly like every legitimate one. Two tiers (`declared`, `sleeve`)
+were added to `Sources` after that function was written; both happen to be
+listed, and the next one need not have been.
+
+`IsGeneric` is now declared as its own whitelist — **not** `!IsSpecific`, which
+would make the split trivially total and prove nothing — and
+`ProdResolverSourceTotalityTests` reflects over the `Sources` consts to assert
+every one is in exactly one set. Reflection rather than a hand-written list of
+seven, because a list needs the same edit the whitelist needs and would miss the
+same omission.
+
+*RED by sabotage:* adding an eighth const `Harvested = "harvested"` failed **1 of
+10**, naming `Sources.Harvested`. Removed; 10 of 10.
+
+**`MaterialClassCorpusTests` was pinned to one filename in two places.** The
+1,815-name corpus is the only thing that makes that file stronger than a table
+somebody thought of, so the next delivered model's list should strengthen it by
+being dropped into `Fixtures/` — not by somebody remembering to edit a string.
+The loader now globs `material_names_*.csv` in name order, every miss names the
+file it came from, and `Every_Corpus_File_In_Fixtures_Is_Actually_Being_Read`
+compares what is on disk against what was read, so a glob that matched one of
+three cannot pass quietly. The exact per-source counts stay **scoped to
+`material_names_20260908.csv` by name** — a union-wide count would move every
+time a corpus is added, which is the assertion that stops meaning anything.
+
+*RED by sabotage:* a second fixture with one wrong row moved the pinned count
+697 → **698** and failed **1 of 50**, naming the new file. Removed; 50 of 50.
+
+**An unsaved write was reported as a colleague's decision.** Run on the Herring
+model 2026-09-09 07:48, `Materials_RevertClassPlan` reported 1,815 rows, 0
+reverted, and **120 of them** as
+
+    changed since the plan ran — now 'Unassigned', the plan set 'Ceramic'.
+    That choice wins; not reverted.
+
+Every one of those 120 was in fact already reverted — the 2026-09-08 write had
+not been saved. **The verdict was right and the sentence was wrong**, which is
+the harder half to notice: it describes somebody overwriting the reader's data
+when nothing of the sort happened, on a tool whose entire purpose is to be
+trusted with a bulk undo.
+
+Already-back is now its own outcome (`AlreadyAsThePlanFoundIt`), checked before
+changed-since, and `Summary` counts the two separately. The half that must NOT be
+softened — a class a human genuinely changed afterwards — is asserted in its own
+test beside it, so the warning that matters cannot be deleted by fixing the one
+that did not.
+
+*RED:* the existing `Running_It_Twice_Does_Nothing_The_Second_Time` asserted the
+misleading wording and failed **1 of 13** the moment the message changed —
+the test had encoded the defect. Disabling the new branch failed **3 of 16**.
+GREEN 16 of 16.
+
+Tags 835 passed (baseline 821), Boq 1249 passed, plugin builds 0 warnings /
+0 errors. **Nothing was run in Revit**; the 120-row figure is read from the CSV
+the user's own run wrote, not reproduced here.
+
+#### Completed (Phase 259 — a rename that would give two types one name is refused)
+
+`Baseline_RenameTypes` was applied to a delivered model on 2026-09-09. The log
+recorded `168/168 renamed, 0 failed`. **137 of those 168 landed on 19 names.**
+The largest group was 87 floor types — the whole finish catalogue, every screed,
+tile, carpet, paver and resin — all renamed `PLNS_SLB_RC100`.
+
+**Revit's API does not refuse a duplicate type name.** Its UI does; the API does
+not. Every `type.Name = ...` returned without throwing, so the command's
+per-type try/catch had nothing to report and the run looked clean. Nothing
+failed. Everything broke. Only the fact that the model was never saved kept this
+off disk.
+
+**Why they collided.** All 87 gave the same reason: `core 'Concrete,
+Cast-in-Place gray' -> SLB; no finish layer to read`. They are one 100 mm slab of
+grey concrete wearing 87 names. The distinction was never modelled — it lived in
+the string alone, and the rename would have erased the only record of it.
+
+**Refuse, never disambiguate.** Appending `-2`, `-3` ... was the obvious repair
+and is the wrong one: it manufactures a difference the build-ups do not contain
+and, unlike the collision, looks deliberate forever after. The refusal is worth
+more than the rename, because it names the real finding — those types are named,
+not modelled, and every quantity taken off them (area, volume, embodied carbon,
+cost) has been answering "100 mm of concrete" whatever the label promised.
+
+`TypeRenamePlanner.GateDuplicateNames` runs as a second pass in `PlanAll`. The
+claim set is `ProposedName ?? CurrentName` for every type, so a rename landing on
+a name another type is KEEPING is caught too — Revit sees no difference between
+that and two renames colliding. Scope is the category, because Revit scopes type
+names per category and gating wider would refuse correct renames for a clash that
+cannot happen.
+
+A second guard sits in the command, because a plan can be stale by the time it is
+applied: it refuses when the current name matches more than one type (no way to
+tell which the plan meant) and when the proposed name is already held.
+
+**RED before GREEN.** `TypeRenameUniquenessTests` drives
+`Fixtures/type_rename_20260909.csv` — all 168 proposals from that run, with the
+core material, thickness and finish the planner read. Against the pre-gate
+planner: 5 of 9 failing, reporting 19 collisions over 137 types, matching the
+model exactly. After: 9 of 9. `The_Fixture_Reproduces_The_Recorded_Run` asserts
+the reconstruction still composes the recorded name, so the fixture cannot
+quietly drift into describing a planner that no longer exists.
+
+**It immediately found the same defect in #892's own fixture.**
+`TypeRenameCodeGateTests.The_Summary_Separates_Cannot_Name_From_Held_Back`
+asserted "4 can be renamed". Two of those four — `Exterior_CreamWhite_230 2` and
+`Exterior_BrownWhite_230`, both `Brick, Common(1)` at 205 mm with a plaster
+finish — compose the same name. They are the pair that actually collided on the
+delivered model, carrying 6 and 5 live elements. The old number was not a
+stricter expectation; it was that fixture reproducing the defect with nothing
+checking for it.
+
+**A silent failure fixed alongside.** `Plan` wraps the caller's existing-code
+resolver in a bare `catch`, which is right — an unavailable resolver must not
+abort the plan — but a resolver that throws for every type disabled the
+product-code gate completely and reported a clean run. `ExistingLookupFailed` is
+now carried per proposal and counted in `Summary`, so a dead gate no longer reads
+identically to a gate that found nothing.
+
+The plan CSV gains a `WithheldName` column: a refusal with an empty
+`ProposedName` and no record of what was rejected tells the reader nothing about
+which gate fired or whether the name would have been reasonable.
+
+**Known and deliberately not fixed here.** `TypeRenamePlanner.Match` still uses
+`IndexOf`, the #863 shape removed from the class planner in Phase 256. The new
+corpus was used to test the switch rather than guess at it, and it breaks 7 rows:
+`Concrete Masonry Units` and `CLAY TILES PREMIUM` are plurals, and the needles
+are singular, so whole-word matching sends the CMU walls back to `WRC` and drops
+the clay-tile roofs entirely. The remedy is plural-tolerant stems, proven against
+this fixture, in its own change.
+
+#### Completed (Phase 258 — the entourage car leaves the denominator, and the override that does it is pinned)
+
+`prod_coverage_20260908_221546.csv` still carries
+
+    Site,A_Revit_Suv_3d_car,A_Revit_Suv_3d_car,STE-GLZ,category,N
+
+— a supplier's entourage car, counted in the PROD denominator and reported as a
+product with no specific code. **The corporate list is right not to name it.**
+`STING_PROD_EXCLUSIONS.json` says so in its own comment: a family that exists in
+one project belongs in that project's `_data/coord/prod_exclusions.json`. The
+override simply did not exist yet, and now does — **written outside this
+repository**, at
+`D:\Work 2026\Trokon\AMANDA S. HERRING\PROJECTN\_data\coord\prod_exclusions.json`,
+two lines declaring `notAProductFamilies` only.
+
+**The risk worth testing is not the car.** A two-line override that declares ONE
+list could quietly replace the other three, and the audit would then report a
+large, plausible, wrong coverage figure — with the 1,187 wall voids back in the
+denominator and Doors no longer protected — with nothing in the run to say so.
+`ProdExclusionPolicy.Build` already gets this right (null = inherit, `[]` =
+exclude nothing) and `A_Project_Override_Replaces_Only_The_List_It_Declares`
+already pinned the general rule, but **not the shape a real override has**:
+families-only, layered over the shipped corporate file.
+
+Two tests close that. One asserts the omission — the shipped corporate policy
+does NOT exclude the car, deliberately — so a later reader sees a decision
+rather than a gap somebody forgot. The other layers the exact override text over
+the real `STING_PROD_EXCLUSIONS.json` and asserts the car is excluded **and**
+that Rooms, Detail Items, the `opening` and `muntin` patterns and the Doors
+protection all survive. It also asserts the one thing the override COSTS:
+`notAProductFamilies` is replaced, not merged, so `Window-Square Opening` stops
+being excluded by family — the documented contract, now visible rather than
+assumed.
+
+**RED by sabotage, since the behaviour under test was already correct.** There is
+no honest before-state for a gate over code that works, so the gate was broken
+instead: dropping the `f(project) != null` guard in `ProdExclusionPolicy.Build`
+made a families-only override null the other three lists, and **2 of 21**
+exclusion tests failed — the new one and the general one it complements. Guard
+restored, 21 of 21 pass. A gate only ever seen passing is not evidence.
+
+**Not verified in Revit.** `Prod_CoverageAudit` was not re-run, so the SUV is
+still in the last audit on disk; the override takes effect the next time it runs
+against that project. The file is on the D: drive and is not, and should not be,
+in this repository.
+
+#### Completed (Phase 257 — a rename stops overwriting a product code that was already right)
+
+`ProdResolver` puts a code DECLARED in a type name **above** the corporate
+pattern rules, deliberately: a name that states its answer beats an inference.
+`TypeRenamePlanner` composes exactly such a name. So `Baseline_RenameTypes` was
+never only a rename — it overwrites the classification, permanently, and nothing
+downstream queries the rule again.
+
+**Two rows from a real run on 2026-09-08 prove it.** Both resolve correctly
+today, from a corporate rule, and the rename plan from the same session proposed
+to change them:
+
+    Floors,Floor,stepsr 7,FSP-CON,corporate,Y    ->  PLNS_SLB_RC450-Tiled   FSP -> SLB
+    Walls,Basic Wall,coping,WCP-CON,corporate,Y  ->  PLNS_WRC_RC250         WCP -> WRC
+
+**`CodeFor` cannot be widened to cover them, and that is the finding.** It is
+keyed on the SUBSTANCE read off the core material, and `*Steps*` and `*Coping*`
+describe what an element is FOR. A concrete step and a concrete slab have the
+same core material; so do a retaining wall and a shear wall, a ground-bearing
+slab and a suspended one. Reconciled against `STING_PROD_CODES.csv`, **eight
+codes the rules use on these four categories are unreachable from a substance
+word** — WCP, RWL, WBD, FGS, FSP, FRB, RFL, CSU — and the reconciliation is now
+in the file as a comment naming each one, per the brief's "either give it a word
+or record why it cannot".
+
+**So the fix is a refusal, not a bigger table.** `TypeRenameProposal` gains
+`DeclaredCode` and `Existing` (code + source + whether it is specific), the
+resolution is passed in as a delegate so the planner stays Revit-free, and a
+proposal is withheld when it would declare a different code from one the type
+already resolves to **specifically**.
+
+**The line that took the most care: a CATEGORY DEFAULT is not an answer.** WL /
+FL / RF / CLG mean nobody has classified the thing, and replacing one is the
+entire purpose of the command. A gate that refused *every* code change — which
+is how the defect was first written up — would refuse `Exterior_CreamWhite_230 2`
+(WL, category) and `IntFloor_tile_150` (FL, category), and with them nearly every
+rename worth making, leaving the tool able to rename only the types that least
+need it. Both sides are pinned: `CLAY BRICK VILLAGE LARGE` resolves WBK from a
+corporate rule and the proposal declares WBK, so it stands.
+
+**The gate found ten more, in the shipped house catalogue.** `No_Catalogue_Type_
+Would_Have_Its_Own_Code_Renamed_Away` walks `STING_PROJECT_BASELINE.json` and
+found **10 of 27** types whose own planner disagrees with their own name —
+`PLNS_FSP_RC150-Terrazzo` would have been renamed to `PLNS_SLB_RC150-Terrazzo`,
+`PLNS_RWL_Retaining250-Tanked` to `PLNS_WRC_RC250-Felt`, and eight more. All ten
+are now refused.
+
+**One data fix, separately evidenced.** Four wall types on the same model
+— `Generic - 150/200/300mm Masonry` and `M_Exterior - Brick on CMU` — carry the
+core material *Concrete Masonry Units* and were all proposed as `PLNS_WRC_*`,
+reinforced concrete, because the substance table saw the word "concrete" and had
+no longer needle above it. `concrete masonry unit`, `masonry unit` and `cmu` now
+sit above `concrete`, the same ordering rule the class table next door already
+used. Cast in-situ concrete still reads RC — pinned as the control row.
+
+**Two claims in the brief did not survive contact with the data, and are not
+implemented.** `Exterior_CreamWhite_230 2 -> PLNS_WBK_ClayBrick205-Plastered` was
+described as "clay brick proposed for a 230 render wall": the model's own core
+material for that type is **`Brick, Common(1)`**, so the proposal is the planner
+doing exactly what it promises. And `IntFloor_tile_150 -> PLNS_SLB_RC500` was
+described as "a 500 mm core on a type named 150": the size comes from the core
+LAYER, which is 500 — the planner's header already says it will not repeat
+whatever number the old name happened to carry, and the name is what is wrong.
+Both rows now pass the gate as legitimate upgrades from a category default.
+
+**RED then GREEN.** Against the planner with the new fields but no refusal:
+`No_Rename_Replaces_A_Code_That_Already_Resolves_Specifically` failed on **2 of
+6** fixture rows (`stepsr 7`, `coping` — exactly the two the brief named);
+`No_Catalogue_Type_Would_Have_Its_Own_Code_Renamed_Away` failed on **10 of 27**;
+`A_Concrete_Masonry_Unit_Is_Blockwork_Not_Reinforced_Concrete` failed **4 of 5**
+cases; whole file **7 failed / 5 passed of 12**. After: 0, 0, 0, and 14 of 14.
+Tags 732 passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+The fixture is the two real CSVs joined — the coverage audit (what each type
+resolves to, and how) and the rename plan (what was proposed, off which core
+material). Two tests run before any verdict: one asserts the test's own resolver
+reproduces what the Revit run recorded, the other that the reconstructed layers
+compose the same names the run proposed. Without those, every refusal below them
+would be proved against a different type.
+
+**Not verified in Revit.** `Baseline_RenameTypes` was not run in a Revit session
+and `deploy.bat` was not run. `HostObjAttributes.FamilyName` is read for the
+first time here and is unexercised; `TagConfig.ResolveProdForNames` is new and
+its project-overlay branch has never run against a real
+`_BIM_COORD/prod_codes.csv`. **`Baseline_RenameTypes` is still not safe to
+apply** on the strength of this alone — the gate stops the downgrade it was
+built for, and the remaining question, whether every proposed name is *right*,
+is a separate one.
+
+#### Completed (Phase 256 — a tile is a shape, and a plan that was applied can be taken back)
+
+`Materials_SetClass` ran on a 1,815-material delivered model on 2026-09-08 and
+wrote 120 classes. **Forty-one were wrong, and the user applied them.** The
+plan CSV it wrote is checked in as the regression corpus.
+
+**The two defects, and why neither was findable by inspection.**
+
+`Plan()` ended with a plain `IndexOf`. That is the #863 defect — the one
+`RenameSafetyTests.A_Corrugated_Roof_Is_Not_A_Gate` exists to pin — rebuilt
+inside code written after it was documented. It gave 32 materials the class
+Gypsum "because the name contains 'render'":
+
+    _ACCURENDER\Metals\Chrome\Polished,Plain        x6   library name
+    Render Material 128-128-128                      x26   DWG RGB placeholder
+
+**Whole-word matching fixes six of those and none of the other twenty-six**,
+because in "Render Material 128-128-128" the word *render* really is a whole
+word — it just means the renderer. Those need an explicit negative statement,
+so `NamesNoSubstance` now holds `render material`, checked before the needle
+loop, in the same spirit as `notAProductFamilies` in `STING_PROD_EXCLUSIONS.json`:
+somebody looked at it and said what it is.
+
+The other nine read `tile` before the substance word. CARPET TILE was Ceramic,
+CORK TILE was Ceramic, and so were rubber, vinyl, granite, limestone, marble,
+slate and travertine. **The model's own data proved it**: GRANITE SLAB was
+Stone and GRANITE TILE was Ceramic; SHEET VINYL was Plastic and VINYL TILE was
+Ceramic; SLATE SLAB was left blank while SLATE TILE was called Ceramic. A tile
+is a **shape**. `tile` and `tiles` now sit in a last-resort group evaluated
+after every substance word, so the one default the table makes is made in the
+open — VITRIFIED TILE is still Ceramic, pinned by its own test.
+
+**The corpus test is the deliverable.** `MaterialClassCorpusTests` drives all
+1,815 names from `Fixtures/material_names_20260908.csv`, of which 697 carry a
+pinned expectation: the 41 corrections, the 79 writes that were right, the 149
+refusals that must stay refused, 22 names that do say a substance the map had
+no word for, and **406 already-classified materials where the map's answer
+equals the class a human independently set**. That last group is free evidence
+and is the only thing that would have caught what came next.
+
+**Switching to whole-word matching regresses rows that are currently right, and
+the corpus is what found them.** Eight needles only ever worked as substrings:
+`cobblestone`, `bluestone`, `cpvc`, `polyvinyl`, `painted`, `zincalume`,
+`tiles` and `mdf`. None was on anybody's list beforehand — the handover
+predicted `blockwork` and `flagstone`, and **neither turned out to be in this
+corpus at all** (`Blockwork` is a TYPE name, not a material name; the flagstone
+rows resolve through `limestone` and `sandstone` and never needed the needle).
+Both are added anyway, because the prediction is right about the shape of the
+hazard even where it was wrong about the row.
+
+**Two ordering rules the same corpus forced.** Plastic is now evaluated before
+Wood — 31 materials are named `VINYL LVT WOOD OAK-DARK`, luxury vinyl printed
+with a wood grain, and the finish technology names the substance while the
+pattern it imitates does not. Insulation and Membrane are evaluated before
+Plastic, or `Insulation - PVC Jacketed Fiberglass` becomes a plastic and
+`EPDM RUBBER MEMBRANE 1.5MM` stops being a membrane the moment `rubber` is
+added below it. Both are pinned.
+
+Whole-word matching also removed three live wrong answers nobody had noticed:
+`DUCTILE IRON GATE VALVE` and `Iron, Ductile` were Ceramic (**duc-TILE**), and
+`Lining - Textile` was Ceramic (**tex-TILE**).
+
+**A known limit, stated rather than hidden.** A colour word that is also a
+substance still wins: `ROOF CLAY-TILE SLATE-GREY` reads as Stone and
+`Roca - TENET - 402 City Oak` reads as Wood. Rule 1 keeps both harmless in this
+model — every material of that shape already carries a human's class — but the
+honest fix is a better material name, not a longer list of exceptions.
+
+**RED then GREEN, both measured.** Against the unmodified planner:
+`The_Forty_One_Bad_Writes_Say_Something_Else_Now` failed **41 of 41**;
+`Every_Pinned_Row_In_The_Corpus_Holds` reported **122 of 697** pinned rows
+disagreeing (41 correction, 59 agrees-with-model, 22 named-substance, and **0**
+from the 79 writes and 149 refusals — no false pins). After: 0 and 0. Tags 780
+passed, Boq 1249 passed, plugin builds 0 warnings / 0 errors.
+
+**`Materials_RevertClassPlan` — because re-running cannot repair this.**
+`Materials_SetClass` never overwrites a class somebody already chose. That rule
+is right, and it is exactly what left the 41 stuck: once the tool had written
+them, the tool's own guard protected them. So the new command reads the plan
+CSV — the provenance of what was set and to what — and **reverts only where the
+material still carries what that plan proposed**. Anything changed since belongs
+to whoever changed it, and is reported rather than overwritten; which is also
+what makes the command idempotent, since after one revert the class no longer
+matches the proposal. `MaterialClassRevertPlanner` is Revit-free so the
+refusals are provable, and the reader is RFC 4180 because
+`_ACCURENDER\Solid Colors\Black,Matte` is a real material name. Pointed at the
+wrong file it says so, rather than reporting nothing to revert — which would
+read as "already clean". Button on the SETUP tab beside Set material Class.
+
+**Not verified in Revit.** Nothing here was run in a Revit session. Two points
+in particular are unverified: whether Revit 2025 accepts `""` or `"Unassigned"`
+for clearing `Material.MaterialClass` (the command tries the value the plan
+recorded, then the other spelling, then reports the failure per material rather
+than swallowing it), and the whole apply path of both commands. The planner
+halves are proven; the write halves are not.
+
+#### Completed (Phase 255 — the specific rule wins, and a stem matches a word)
+
+Asked to review product-code automation for consistency. The **logic** turned
+out to be in good shape — a pure `ProdResolver` with a documented precedence
+chain, source-tier constants asserted against the strings actually emitted, and
+fifteen tests. The **data** it reads had none, and was carrying three defects.
+Every one of them resolved to a confident wrong code rather than to an error.
+
+**Ten rules were shadowed; three could never fire at all.**
+
+    BFP *Boiler Feed*            eaten by  BCH *Boiler*
+    MVP *Vacuum Pump Plant*      eaten by  CIR *Circulating*|*Pump*
+    FSD *Fire Damper*            eaten by  DMP *Damper*
+    MOP *Mop Sink*               eaten by  SKT *Sink*
+    TRV *Thermostatic Radiator*  eaten by  TSV *Thermostatic*
+    FHD *Fume Hood*              eaten by  HED *Hood*
+
+A boiler feed pump tagged as a boiler. Twelve dead alternatives across ten
+rules.
+
+**Ten different authors each wrote a specific rule expecting it to win, and
+that is the finding.** It is not ten data mistakes: the file **reads like a
+dictionary of independent rules and behaves like an ordered chain**. So the fix
+went into the matcher, not into reordering 188 rows — reordering frees these
+ten and leaves the eleventh author to make the same mistake next month.
+
+Within a tier the most specific matching rule now wins, measured by the literal
+length of the matched alternative — `*Fire Damper*` (12) beats `*Damper*` (6)
+because it says more about the thing it matched. **Ties keep file order**, so
+nothing that used to resolve one way starts resolving the other for want of a
+tie-break, and **the tier chain is untouched**: a vaguer PROJECT rule still
+beats a sharper corporate one, which is what "project overlay wins" means.
+
+One data fix was still needed. `CIR` kept a bare `*Pump*` alternative doing
+`PMP`'s job, and ranking cannot separate a tie — so that one is a curation
+question, not a mechanical one.
+
+**A stem matched inside a longer word — the same class as #863.** The
+material-override patterns are unanchored regexes run over a free-text material
+name:
+
+    "SheEPS Wool Insulation"     -> INS-EPS
+    "Acoustic SPIRal Liner"      -> INS-PIR
+    "ResPIRator Filter Housing"  -> INS-PIR
+    "PreFABRICated Ductwork"     -> FAB
+
+Sheep's wool shows the shape of it: **a real insulation handed a different
+insulation's code**, silently, in a tag nobody re-reads. #863 fixed this class
+in the material schedule the week before; nobody had looked at the PROD table.
+
+Fixed in the DATA this time, and deliberately not by a mechanism, because
+intent is per-alternative and only the author has it: `\bgalv` must keep
+matching "galvanised" and `\bcement` "cementitious", while `\beps\b` must stop
+matching "sheeps". `pvc` keeps a trailing-only anchor so uPVC and cPVC still
+resolve. A blanket `\b…\b` would have traded one silent wrong answer for
+another.
+
+**One PROD code declared two disciplines.** `VIE` / `ZVB` / `AAP` each said `P`
+in one row and `MG` in another, so a tag's discipline segment depended on which
+category somebody happened to model the thing in. All six rows are
+`SYSTEM=MGS` / HTM 02-01 and `MG` is the discipline the healthcare pack added
+for exactly that, so `P` is a leftover from before it existed. Only columns 0-2
+are read today, which makes this **inert** — asserted anyway, because an inert
+disagreement is a live one the day someone wires the `DISCIPLINE` column.
+
+**The gate.** Every shipped rule is now fed the literal it was authored for and
+must be the row that answers. Both CSVs were previously read by no test at all
+— the same asymmetry the material schedule carried until its physical constants
+got a drift gate in #846.
+
+Two things are **named rather than decided quietly**, each with a test that
+fails the day it is settled so the note cannot rot: "Lead-Free Solder" still
+takes `-PB` (not a boundary problem — the word *is* "lead"; a `(?!-free)`
+special case invites tin-free and chrome-free after it), and BHD/BHT remain two
+codes for one product under two disciplines, which is a healthcare-catalogue
+call.
+
+**The vocabularies do not meet, and that is correct.** 185 PROD codes, 30
+commodity keys, **zero overlap**, and nothing under `Core/MaterialSchedule/`
+references `ProdMap` or `ProdResolver`. A PROD code names *what an element is*
+for a tag; a commodity key names *what you buy*, and one roof yields several.
+Forcing them into one vocabulary would break both. Recorded so nobody
+"harmonises" them later. Where they legitimately meet is `BOQCostManager` /
+`RateProviders`, which already read PROD.
+
+`StingTools.Tags.Tests` **362 → 392** cases (the Boq suite, which Phase 254's
+count refers to, is unaffected at 1,225). Build 0/0, **six mutations verified
+failing**.
+
+**One mutation PASSED first and is the one worth keeping.** M4 over-anchored
+`galv`, and the test survived because `"Galvanised Steel Sheet"` also contains
+"Steel" — so it had been proving that the ROW resolved, never that the PREFIX
+did the work. The data point is now a name with no other stem in it. Third time
+in this run a gate needed the mutation to expose it.
+
+**Not verified in Revit.** This moves twelve resolutions, all of them from a
+generic code to the specific one their author asked for. `Prod_CoverageAudit`
+is the read-only check — but its headline "specific %" **will not move**, since
+all twelve already counted as specific with the wrong rule matching. The
+evidence is the PROD column of its per-element CSV, not the summary.
+
+#### Completed (Phase 254 — the data files stop disagreeing with each other, and a covering says what it is)
+
+Phase 253 made pricing possible. This phase came from one question — "how
+come it reads the materials but not the layers?" — and the answer turned a
+roof problem into a data-integrity problem.
+
+**Why the layer was invisible.** Every layer reader filters on Finish1,
+Finish2, Substrate, Membrane or Insulation. **None accepts STRUCTURE.** A
+delivered roof typed `Generic - 225mm`, 25 mm thick, carried its asphalt
+shingle on a *structure* layer — so no reader saw it, the element fell to the
+composite fallback, and the fallback names its row after the TYPE. That is the
+whole path from "the model is correct" to "610 m² of unpriceable
+`Generic - 225mm`".
+
+**So rules match on MATERIAL (#840).** Order is kind → material → type:
+decreasing reliability. A kind is emitted by our own take-off, a material is
+chosen deliberately by whoever built the model, a type name is free text at
+5 pm. That roof's type name was wrong by a factor of ten and its material was
+exactly right. Nobody renames a material to make a schedule work.
+
+A hazard was found *while testing, not after*: "no type patterns ⇒ the whole
+category converts" is existing correct behaviour, but combined with a material
+rule it meant adding one shingle rule would silently re-route **every roof in
+the model**. A rule declaring material patterns no longer falls through to
+whole-category matching.
+
+**Five East African roofing commodities**, each stating the arithmetic and each
+told to confirm it. Verified in Revit the same night: 224.44 m² of shingle
+converted to **80 bundles** — 224.44 ÷ 3.1 × 1.10, rounded up — and ROOF went
+2,790,000 → 11,590,000.
+
+**A scan that says which of three things happened (#841).** Material matching
+shipped with a failure indistinguishable from success-minus-one-pattern: the
+row reads `Generic - 225mm, 610 m², unpriced` either way. The scan publishes
+its denominator like the four before it, and *names* the materials it could not
+place. On the first real run it named `Default Roof` and
+`Eagle_Roofing-Tile-as-Specified` — which is how we learned two of three roofs
+have no material decided at all.
+
+**Then the review that reframed everything.** Asked to check the material data
+for standardisation, the sweep found `MATERIAL_LOOKUP.csv` had declared roofing
+coverage and fastener density **per profile** since long before the material
+schedule existed — read by the formula engine, never compared with
+`STING_SUPPLIER_UNITS.json`, and disagreeing on **every shared pair**. Four of
+the five were values added in #840 without checking the file that already held
+them.
+
+**#846 does not resolve them, deliberately.** 2.4 vs 2.7 m²/sheet is 11% of a
+roof order and needs a supplier's coverage table, not a judgement from whoever
+is editing. The gate makes the five impossible to forget and any *new*
+duplication impossible to add — and a recorded pair that stops disagreeing
+**also fails**, so the list shrinks only by reconciling, never by rotting.
+
+**Three things needed no supplier and were fixed:**
+
+- **Fasteners are counted per covering (#848).** A flat 11/m² was applied to
+  every roof. Tiles are nailed every other course, not screwed, and the lookup
+  has said `CLAY_TILE 0` all along. The mixed case is the one no flat ratio can
+  express: 100 m² of sheet at 8 plus 100 m² of tile at 0 is 800 fasteners; a
+  flat 11 over 200 m² gives 2,200.
+- **The plaster coat's allowance governs its cement and sand (#853).**
+- **Tile size, the fourth member of a set that already had three (#857).** Brick
+  bond, block size and plaster type each resolve a `BLE_*` parameter through a
+  canonicaliser with an inference fallback. `BLE_TILE_SIZE_TXT` had been
+  declared in `MR_PARAMETERS.txt` **with a GUID all along, read by nothing** —
+  so a mosaic splashback and a 600 mm porcelain floor both got 10% while the
+  lookup banded them 20 and 8. Adding a fifth mechanism would have been the
+  mistake; this finishes an existing one.
+
+**A By Type sheet (#855)** answers "the number of sheets/tiles for *each* type
+of roof". The order line is what you buy and is untouched; the parts are
+**apportioned, never re-converted** — rounding each type up separately would
+order more than the schedule says, and two documents in one workbook
+disagreeing about a total is worse than no breakdown.
+
+**Tests 1,065 → 1,205.** Build 0/0 throughout, all four gates on every PR, and a
+mutation pass on every change carrying logic — **27 run across eight PRs**, counted
+from the runs recorded in each PR body rather than estimated.
+
+**Four mutations proved nothing, in four different ways, and each is recorded
+rather than counted.** One did not apply (a shell-escaped `&&` broke its
+anchor). One did not compile (removing an `if` left a dangling `else`). One
+tested a **comment** — the claim that adhesive must not take a tile's cutting
+waste lived in prose and in no assertion. One was behaviour-equivalent. Every
+one was caught by checking the run rather than reading its result, and mutations
+are now written to a file with the anchor asserted.
+
+**Not verified.** The tile-size band has no route to proof on the test project —
+it has no tiling at all, its only finish material being Gypsum Wall Board. The
+By Type sheet correctly does not appear there yet either, because only one of
+three roofs converts.
+
+#### Completed (Phase 253 — pricing becomes possible, and the instruction that was impossible is retired)
+
+Ten PRs in one session, all of them started by reading a real export rather than
+by reasoning about the code. That is the through-line: **five of the six defects
+below were invisible from the source and obvious from the output.**
+
+**The roof deleted its own covering (#819).** Phase 251 routed Roofs through
+`BuildRcSlab` so a concrete roof would decompose. A roof that produced only a
+FASCIA then returned a non-empty decomposition, which suppressed the composite
+fallback — and 856 m² of roof covering left the schedule with no row, no flag and
+no warning. The fix is a rule, not a patch: an accessory-only decomposition does
+not measure its host, so the composite row still stands. Restored 3 rows and 6
+validation issues; the grand total did not move, because the rows were unpriced —
+which is exactly why nobody would have noticed.
+
+**A zero that lied about which zero it was (#820).** The same export said the
+roof-fastener driver was zero and explained "that is the intended behaviour —
+with no driver the quantity would be invented". True of a model with no roof.
+That model had 856 m² of roof, measured, three rows above the sentence.
+`SupplierUnitTable.Resolve` returns `CategoryTypeMismatch` with a NULL rule, and
+the driver sum only read `res.Rule`. **The quantity is still not derived, and
+that is correct** — 11 fasteners/m² is corrugated sheeting and the roof carries
+high-profile tiles, so the tempting fix would give a confident number for the
+wrong roof. That mutation fails four tests, which is the point of it being in the
+suite. What changed is the sentence: same zero, opposite action.
+
+**An instruction that could not be followed (#821).** The reconciler had been
+telling users to "add a row keyed 'RD_Breeze Block 01_Panel — Concrete' to
+commodity_rates.csv" — a file **nothing in the codebase had ever written**, in a
+folder named by an alias that resolved elsewhere, keyed by a string where 21 of
+25 carry a non-ASCII em dash against an exact `OrdinalIgnoreCase` lookup. Type a
+hyphen and the row stays unpriced with no error. So the keys come from the
+schedule and the user types only a number. Storage stays a plain CSV — diffable,
+hand-editable, and copyable to the next project, which Extensible Storage would
+not be. `ParseCsv` gained quote handling in the same pass: it had never been
+asked to read back anything it wrote, because there was no writer.
+
+**Rates that could not be told apart (#822).** `RateSource` had been populated
+since the first export and written to no sheet, so 28,000 against cement printed
+identically whether it was a supplier quote or the shipped guess. The labels are
+deliberately not the tokens: "baseline" reads as authority and the file it comes
+from says the opposite in its own header, so the sheet says **Indicative**.
+
+**The message, retired (#824), and the button, moved (#827).** The unpriced
+message now names the ACTION and the resolved path is stated once instead of 25
+times. Two regression tests assert it names neither `_BIM_COORD` nor the file.
+The editor had shipped with one button, on the dock panel; a QS pricing a job is
+in the BOQ & Cost Manager, and the first person to look for it did not find it.
+
+**Excel, because typing 58 numbers is the work the grid was meant to remove
+(#828).** Paste column, fill down, clear, copy keys. Three parsing decisions
+carry tests because each is a silent-failure route — a blank line consumes its
+row, a line with no number is reported rather than zeroed, and a multi-column
+paste takes the LAST numeric field.
+
+**Harvest read the wrong parameters (#830).** Found by running B4 on a real
+model: one flat list asked `Width` of a `Concrete-Rectangular-Column` and got
+4500 × 12000 — extents, beside the 450 × 450 section in `b`/`h`. The pack
+proposed minting a column 4.5 m wide, and a pack is DATA, so nothing downstream
+would have complained. Harmless only because packs are adopted by nobody, which
+is the property that bought the time to find it.
+
+**The grid says what a row IS (#833).** `ConstituentInput` carried `Category` and
+`TypeName` all along and aggregation dropped both. Carried through as SETS, with
+a From column, a tooltip and four collapsible detail columns. **No tag column**:
+a commodity is an aggregate and no single tag identifies one.
+
+**Mapping, in a file that cannot say more (#836).** `supplier_units.json`
+replaces a rule wholesale, so a file written to add one type pattern would also
+reset the conversion factor and wastage to their defaults — silently, across the
+schedule. A UI promising not to do that is a promise; a file shape that cannot
+express it is a guarantee. `supplier_unit_patches.json` carries a key, a pattern
+and a reason, and a test asserts by reflection that the type has no conversion
+field.
+
+**Tests 766 → 1,065.** Build 0/0 throughout, all four gates on every PR, and a
+mutation pass on every change that carried logic — **33 verified failing across
+eight PRs**, counted from the runs recorded in each PR body rather than estimated.
+
+**Six mutations proved nothing and are recorded rather than counted.** Three were
+redundant or behaviour-equivalent guards. One reported PASS because it had silently failed to apply —
+the source strips a non-breaking space and the mutation string carried an
+ordinary one, so the suite was green for the wrong reason; checking the bytes
+rather than the result found it. Two found REAL test gaps: assertions compared
+against a constant rather than the user-visible word, and every category test set
+`Categories` by hand so nothing exercised the aggregation that fills it. Both are
+closed. A mutation that proves nothing is worth less than no mutation, because
+it reads as evidence.
+
+**What ran in Revit, and what did not.** The T1-T5 readers, the harvest pass,
+#830's fix and the rate editor opening all executed against a real model. The
+paste path, the mapping dialog, `FamilySymbol.Duplicate`, the `EditFamily` round
+trip and catalogue adoption have still never run. See MATSCHED-T-VERIFY.
+
+#### Completed (Phase 223 — PM-3 close-out: instructed dayworks, capture → price → final account)
+
+The tender annexure has always shipped a **DAYWORKS SCHEDULE**, but it is a *rates
+framework* whose own wording defers quantities to be "priced at final account". Nothing
+captured the instructed sheets in between, so there was no path from "CA instructed
+dayworks under Clause 5.7" to a value in the Final Account. `VariationItem.RateSource`
+already reserved `"Daywork"` as distinct from `"StarRate"` — the seam was cut and left
+unfilled. This fills it.
+
+- **`Core/Variation/DayworkModels.cs`** (pure, unit-tested) — `DayworkRecord`
+  (instruction ref + date, description, Recorded/Signed/Priced status, labour / plant /
+  materials lines reusing `StarRateLine` and its basis-by-`Unit` pricing),
+  `DayworkBuildUp` (NRM2 percentage additions per section) and `DayworkRegister`.
+  Mirrors `StarRate` but rolls up via percentage additions rather than overhead-then-profit.
+- **The percentage convention is pinned and tested.** A percentage addition is an
+  addition *on top of* net prime cost — `gross = net × (1 + pct/100)` — per RICS
+  "Definition of Prime Cost of Daywork" and the annexure's own wording ("DW.10
+  Materials — percentage addition for OH&P"). A test asserts the `×pct` misreading
+  is not what the code does.
+- **Placeholder percentages can't price silently.** The defaults carry over from the
+  server (`BoqDocument.Daywork*Pct` = 115/110/112) so both sides agree numerically,
+  but under the addition convention a 110% materials addition prices materials at
+  2.1× net — not a sane tendered figure (RICS-typical materials/plant is 10-20%;
+  labour 115% *is* typical). `DayworkBuildUp.Warnings()` flags any materials/plant
+  addition over 50% and the capture / pricing surfaces show it. **The three server
+  defaults look like uniform placeholders and want confirming against a real tender.**
+- **Four commands** (`Commands/Cost/DayworkCommands.cs`, all ReadOnly — dayworks are
+  sidecar commercial records): `Daywork_Capture` (headless `DayworkJson` ExtraParam or
+  the new `UI/DayworkCaptureDialog.cs`), `Daywork_Register` (status + value audit,
+  CSV), `Daywork_Price` (values unpriced sheets at **their own** build-up percentages,
+  not today's config, so re-running can't reprice history; annexure-style CSV) and
+  `Daywork_Attach` (values a sheet into a variation as a `"Daywork"`-rated item).
+- **No double-count, by construction.** An attached sheet's value rides its VO into
+  the waterfalls, so only *unattached* priced sheets are added standalone
+  (`DayworkRegister.UnattachedPricedGrossTotal`). Both the Final Account and the AFC
+  add it on that basis; tests cover the attach transfer.
+- **`VariationItem.DayworkId`** added as a sibling of `StarRateId` rather than reusing
+  it — `RateSource` already distinguishes the two build-up documents, and punning one
+  id field would make the link unresolvable without also reading `RateSource`.
+- **Fixed in passing:** the AFC XLSX export printed neither fluctuations nor dayworks,
+  so its printed lines did not sum to the AFC figure beneath them whenever
+  fluctuations were non-zero. Both lines now print.
+- **Register location:** `<project>\STING_BIM_MANAGER\dayworks.json` — deliberately a
+  sibling of `variations\` and `star_rates\`, which its callers read in the same
+  breath. (The PM-3 brief named `_BIM_COORD`; that would add a third sidecar root
+  while "sidecar-root unification" is still an open PM-7 item.)
+- **Tests:** 17 new in `StingTools.Cost.Tests` (105 total green) — build-up arithmetic,
+  the addition convention, zero/negative clamping, basis-by-unit on lines carrying both
+  Hours and Quantity, register totals, attach transfer, warning behaviour.
+
+**ROADMAP truth-up.** Verification against `origin/main` found three PM-3/WP-Q items
+listed as open were already landed, so they are removed from the open-gaps list:
+the schedule-driven cash-flow S-curve (`Core/Schedule/CashFlowSCurve.cs`, consumed by
+EVM at `VariationAndEvmCommands.cs:636` with the manual-% fallback intact), the
+contractor CVR plus loss & expense / line CTC / commitments
+(`Commands/Cost/Pm3LifecycleCommands.cs`), and the converged MSP/XER parser reading
+`PredecessorLink` / `Relationship` / `TASKPRED` (`Core/Schedule/ScheduleImporter.cs`).
+Three genuine CVR fusion deltas found during that check (retention not broken out,
+PS movement not tracked, Value not read off the S-curve) are recorded as a new WP-Q
+bullet rather than silently closed.
+
+**Caveat:** built and unit-tested on Windows (0 errors / 0 warnings; Cost 105,
+Scheduling 38, BOQ 196 green) but **not exercised inside Revit** — the four command
+tags, the capture dialog and the panel buttons are unverified at runtime.
+
+#### Completed (Phase 224 — #338 native-type migration: measured, and recommended against)
+
+Compile-verified regeneration of the stale `claude/charming-fermi-5iafhf` branch
+(#338). The mechanical regeneration was **deliberately not performed**; the
+measurement is the deliverable. Full write-up:
+[`NATIVE_TYPE_MIGRATION_ANALYSIS.md`](NATIVE_TYPE_MIGRATION_ANALYSIS.md).
+
+- **Scope, measured against main** (not the stale branch's month-old base):
+  157 datatype flips, 27 `_BOOL`→`YESNO`, **175 new `_TXT` mirror params**
+  (3,488 → 3,663 lines). 123 of the 157 are already bound to categories.
+- **Blocking finding:** Revit will not redefine an existing GUID with a
+  different data type. `LoadSharedParamsCommand` already detects this exact case
+  and **skips** — its own comments record the "unrecoverable 'cannot be added'
+  Error-severity modal" that motivated the guard. So in every existing project
+  the migration binds the 175 empty mirrors and migrates **none** of the 123
+  bound params, while the C# side would be writing native doubles into params
+  that are still TEXT. New projects would diverge silently from existing ones.
+- **No migration path exists.** Adopting the flip requires unbind → delete →
+  rebind → re-parse every value with unit conversion, per param per project. The
+  only related API in the repo (`ReInsert`) is documented in that same file as
+  silently unreliable.
+- **The review's "~40 native double write sites" is not what the code shows.**
+  Measured: **2** `SetDouble` sites, **26** `SetString`/`SetIfEmpty` sites (which
+  would fail at runtime after a flip) and 31 `GetString` sites. The wiring risk
+  is the inverse of the one described.
+- **Recommendation:** drop the 157-param flip and the mirrors; keep the
+  lower-risk `_BOOL`→`YESNO` track (#337/#479); adopt native types for **new**
+  parameters going forward; and if the migration is ever wanted, ship a verified
+  binding-migration command first and go discipline-by-discipline.
+- **Kept:** the localized unit-conversion fixes on `claude/review-5zi8sy-338`
+  (#467) are correct independently of the migration and build clean.
+- `tools/transform_mr_params.py` imported from the stale branch, its hardcoded
+  Linux path parameterised and a `--dry-run` mode added, so every figure above
+  is reproducible: `python tools/transform_mr_params.py --dry-run`.
+- Also found: `ASS_CST_STALE_BOOL` is `YESNO` in `FAMILY_PARAMETER_BINDINGS.csv`
+  but `TEXT` in `MR_PARAMETERS.txt` — pre-existing on main, not introduced by
+  #337/#479 (verified against that branch's blob).
+
+No C# or shipped data files were modified on this branch.
+
+---
+
+#### Completed (Phase 226 — Placement Centre: tests actually run, matcher false-positive fixed, remaining editor cards wired, rule set fully tagged)
+
+Verification pass on #458 with a real toolchain. The headline is that the test
+project had **never been executed** — the sandbox that wrote it has no `dotnet`,
+and CI builds only `StingTools/StingTools.csproj`. Everything below was proven
+locally, not asserted.
+
+**1. The test suite runs, and is not vacuous.**
+`dotnet test StingTools.Placement.Tests` → **69 passed / 0 failed** (the earlier
+"45"/"48" claims were never observed by a runner). The shims still match the real
+types, so the project compiles. Because a passing suite proves nothing on its own,
+each load-bearing behaviour was mutation-tested — the fix was reverted and the
+suite re-run:
+
+| Mutation | Result |
+|---|---|
+| zero-coercion removed from `PlacementRule.MaintenanceClearance` | **4 failed** |
+| edition-year stripping disabled in `StandardsTokenMatcher` | **2 failed** |
+| `/` removed from the separator set (the exact pre-fix bug) | **2 failed** |
+| rule-pack data reverted to pre-Phase-224 | **4 failed** |
+
+**2. `StandardsTokenMatcher` had a live false-positive bug — found by cleaning the data.**
+The trailing-year strip fired on any 4-digit group in 1800–2199, so **`"BS EN 1838"`
+(emergency lighting) normalised to `"BSEN"`** — which then substring-matched every
+other BS EN standard. The whole Eurocode family (`EN 1990`–`EN 1999`) is in that
+window. The bug was masked because the mangled space-free tokens (`BSEN1838`) never
+hit the space-separated branch; cleaning them exposed it.
+
+A space-separated 4-digit group is now only treated as an edition year when the
+citation still carries a number without it: `"BS 8233 2014"` → `BS8233` (strip),
+`"BS EN 1838"` → `BSEN1838` (keep), `"Equality Act 2010"` → `EQUALITYACT2010` (keep).
+
+**3. Standards token vocabulary cleaned.**
+Phase 225's backfill built tokens by stripping whitespace out of free text, gluing
+prose onto identifiers: `"ADA §604.4 (432-483mm seat height)"` →
+`"ADA§604.4(432-483mmseatheight)"`, `"BS 8233 daylight"` → `"BS8233daylight"`, and
+three separate spellings of CIBSE Guide B. 284 rules re-tokenised to clean
+identifiers; **155 → 121 distinct tokens, 45 → 0 mangled**. Proven
+behaviour-preserving: a 451-rule × 15-profile gate snapshot taken before and after
+shows **0 changed outcomes** once the matcher bug above is fixed.
+
+**4. All 117 untagged rules tagged — the gate is now total.**
+Rules carrying neither `ApplicableStandards` nor `StandardRef` passed the gate
+unconditionally. All 117 are now tagged with the governing standard for their
+category, refined by category-scoped RuleId keywords. Coverage is **451/451**;
+`onlyStandardRef` and `untagged` are both **0**.
+
+> **Behaviour change — read before upgrading.** Those 117 rules used to be included
+> by *every* profile. A single-standard profile now sees far fewer rules: e.g.
+> `ActiveStandards: ["BS 7671"]` goes from 175 included rules to 79. This is the
+> gate working as designed (a BS 7671-only profile should not place windows), but
+> profiles should list **all** applicable standards, not one. The engine already
+> reports `"Building profile … filtered out N of M rule(s)"` on every run.
+
+An earlier pass of this tagging mis-fired: unscoped RuleId keywords tagged
+`win-residential-bathroom` (a Window) with BS 7671 wet-zone rules and
+`win-carpark-perimeter` with external-lighting rules. Keywords are now scoped to
+the categories they can legitimately apply to, and merge with the category default
+rather than replacing it.
+
+**5. The remaining uncommitted editor cards are wired.**
+Phase 225 fixed three; a systematic audit (every control assigned from a
+`s.<Property>` in the per-rule sync block, cross-referenced against wired handlers)
+found **16 more** populated from the selected rule with no write-back, so their
+edits were discarded on selection change. Notably `txtStandardsCsv` — the
+`ApplicableStandards` editor itself could not be edited. All 16 now commit via
+`CommitField`. The only remaining uncommitted controls are the two intentional
+read-only displays (`txtSourcePack`, `txtRuleError`).
+
+**6. Rule-pack loading is now runtime-verified, not just build-verified.**
+New `RulePackDataTests` deserialises all 17 packs through the real
+`PlacementRuleSet` + `StringOrCsvArrayConverter` path and asserts the coverage and
+token-hygiene invariants, plus the `STING_CATEGORY_TO_SEED_MAP.json` v2
+`placeable`/`reason` contract and that the routing-output categories are
+non-placeable. This is what previously could only happen inside Revit.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**.
+
+**Still not verified — no Revit runtime was available.** `StingTools.Headless` is a
+Design Automation *library* (`OutputType: Library`, read-only engines, no local
+entry point), so it cannot host the Placement Centre. The interactive checks —
+checklist rendering, disabled/muted states, the `ItemsControl` binding and
+`ToolTipService.ShowOnDisabled`, All/None, tick preservation, the clearance and
+glazing round-trips, "Push to Families", and the `MaintenanceAccessValidator` type-
+fallback read path — remain outstanding and are listed in the PR. The stretch
+wall/ceiling/floor-follow router was not attempted for the same reason.
+
+#### Completed (Phase 225 — Placement Centre: data-driven category checklist, rule-field consumption, standards-gate activation)
+
+Closes three of the four residual gaps under ROADMAP § "Placement Centre —
+residual gaps". Built and tested on this machine; **not exercised inside Revit**
+— see the verification checklist in the PR.
+
+**1. The Auto-place checklist is generated, not hand-declared.**
+The 19 category checkboxes were `x:Name`d in XAML with a parallel
+`CategoryChecklist()` tuple array in code-behind and hand-written tooltips —
+three places to keep in sync with the engine, and `Cable Trays` was already
+absent from the seed map it was supposed to mirror. The list now comes from a
+new `Core/Placement/PlacementCategoryRegistry`, which joins
+`STING_CATEGORY_TO_SEED_MAP.json` (bumped to v2 with a `placeable` / `reason` /
+`group` / `order` contract) against the rules actually loaded for the run:
+
+- non-placeable categories (Conduits / Pipes / **Ducts** / **Cable Trays** /
+  Stairs) render **disabled** with the registry's own reason as the tooltip,
+  and `ToolTipService.ShowOnDisabled` so the reason is actually readable;
+- placeable-but-ruleless categories render **muted italic** with a generated
+  "ticking this places nothing until a rule pack covers it" reason — the state
+  that used to look like a bug;
+- a category named only by a rule's `CategoryFilter` and absent from the map is
+  still offered, flagged as having no declared seed, rather than silently dropped;
+- "All" means "all placeable" — `PlacementCategoryCheckItem.IsChecked` refuses
+  non-placeable categories at the setter, so no code path can tick one.
+
+The old "N of M checkboxes are NULL → stale XAML build" diagnostic is replaced
+by the equivalent check for the generated path (empty collection → warn, and
+fall back to "every category allowed").
+
+**2. Rule specification fields are consumed — and the ledger is honest.**
+The ROADMAP listed ten fields as "loaded + edited but not consumed". Auditing
+them found that is true of only some, and that two *separate* defects were
+hiding underneath:
+
+| Field | Actual state before this change |
+|---|---|
+| `MinSlopePercent` | consumed — `InWallChaseRouter` / `WallFollowerRouter` → `SlopeValidator` |
+| `NominalDiameterMm` | consumed — chase depth + `RoutingSupportPlacer` |
+| `InsulationThicknessMm` | consumed — `RoutingSupportPlacer`, `InWallChaseRouter` |
+| `MinUniformityRatio` | consumed — `LightingGridCalculator` |
+| `ExposureClass` | consumed — `InWallChaseRouter` → `ConcreteCoverTable` |
+| `EmitSupports` | consumed — `RoutingSupportPlacer`, `WallFollowerRouter` |
+| `Material` | consumed on the routing path only |
+| `MaintenanceClearance` | **not consumed, and the editor was broken** |
+| `GlazingSpec`, `ToughenedGlazingRequired` | **not consumed, and the editors were broken** |
+
+- **`MaintenanceClearance` was typed `double`** while its editor is a ComboBox
+  offering class codes (`FRONT_600`, `SIDES_300`, …) and `MaintenanceAccessValidator`
+  reads a class-code *string* from `STING_MAINT_CLEAR_TXT`. The view-model parsed
+  the selection with `double.TryParse("FRONT_600")`, which always failed, so the
+  field was always `0` and every selection was silently discarded. Retyped to
+  the class-code string. No rule pack set the field, so there is no data to migrate.
+- **`chkToughenedGlazing`, `cmbGlazingSpec` and `cmbMaintenanceClearance` had no
+  commit handler at all** — populated from the selected rule, never written back,
+  so edits were lost on selection change. This is the real reason the fields
+  looked unconsumed: they were never *edited*. Handlers added.
+- `FamilyHintsBridge.PushRuleToFamilyTypes` now pushes `Material`, `GlazingSpec`,
+  `ToughenedGlazingRequired`, `InsulationThicknessMm`, `NominalDiameterMm` and
+  `MaintenanceClearance` onto the family types. **Writing `STING_MAINT_CLEAR_TXT`
+  is what activates `MaintenanceAccessValidator`** — nothing had ever written that
+  parameter, so that validator could not previously fire.
+- New `Core/Placement/PlacementAdvisoryValidator` runs post-placement and reports
+  fields that are set but cannot take effect on that rule's configuration
+  (`MinSlopePercent` with `RoutingMode: NONE`, `MinUniformityRatio` off a
+  lighting-grid anchor, an unrecognised clearance class code, `ToughenedGlazingRequired`
+  contradicting `GlazingSpec`, …). Advisory only — never blocks a run, never edits
+  the model, capped at 25 entries with the remainder logged. Fields that are
+  push-only rather than dead say so explicitly instead of being reported as discarded.
+
+**3. The standards gate is active.**
+`ApplicableStandards` backfilled from free-text `StandardRef` across **128 rules
+in 8 packs**, taking structured coverage from 206/408 to **334/408**; no rule now
+carries `StandardRef` without `ApplicableStandards`. Backfill was
+formatting-preserving (per-rule text insertion matching local indentation and
+inline style), so the diff is 128 added lines and nothing else.
+
+Matching moved to a new `Core/Placement/StandardsTokenMatcher`, because the
+previous inline comparison missed the pairings that actually occur in the packs
+— `"BS 7671"` vs `"BS7671"`, `"BS EN 12464"` vs `"BS EN 12464-1:2011"`, and
+`"Approved Doc M / BS 8300-2"` (`/` was not a separator). A missed match silently
+drops a rule from the run. The matcher splits on `,;|/`, strips edition years
+while keeping part numbers, and compares on letters+digits only. The
+warn-when-inert fallback is retained and sharpened: with rules tagged, it now
+reports how many rules carry neither field and therefore bypass the gate.
+
+**Tests — new `StingTools.Placement.Tests` (45 passing).** A pure-logic project
+following the `StingTools.Routing.Tests` pattern (no Revit assemblies; minimal
+shims in `TestHelpers/`). Deliberately does **not** touch `StingTools.Tags.Tests`,
+which is owned by an in-flight change. Covers the matcher's regression pairings
+and both halves of the advisory contract — fires when inert, silent when the
+field is on a consuming path.
+
+`dotnet build -t:Rebuild` **0 errors / 0 warnings**, unchanged from baseline.
+
+**Review follow-up (same PR).** Seven points from code review addressed:
+
+- **`MaintenanceAccessValidator` now reads the type as well as the instance.**
+  `PushRuleToFamilyTypes` writes `STING_MAINT_CLEAR_TXT` onto family *types*, but
+  the validator read it via an instance-side `LookupParameter`, which does not
+  resolve a type-bound parameter — so the write could land and still never be
+  read. `ReadString` now falls back to `el.Document.GetElement(el.GetTypeId())`.
+  This is what actually closes the "activates `MaintenanceAccessValidator`" loop.
+- **Backfill token hygiene.** The `StandardRef`→`ApplicableStandards` split ran on
+  prose in the toilet-fixtures pack (`/` inside `l/s` and parentheticals),
+  producing non-standard tokens like `sminextractforWC`, `17inchrim)` and
+  `standardresidential1500mmAFF`. Gating still worked (the real citations survived
+  as prefixes) but the structured field carried noise; 15 arrays re-curated to
+  clean identifiers (`["Approved Doc F", "BS 5720", "CIBSE Guide B2"]`, …).
+- **Legacy-`"0"` coercion.** `PlacementRule.MaintenanceClearance` now coerces a
+  purely-zero numeric to empty, so re-importing an Excel sheet exported under the
+  old `double` shape does not resurrect a `"0"` that the validator would skip and
+  Push-to-Families would stamp. A non-zero typo like `"600"` is kept so the
+  advisory still flags it. Pinned by `PlacementRuleMaintenanceClearanceTests`.
+- **Advisory scoping comment** corrected to state that a null/empty result (tests,
+  or a run that placed nothing) reports on all rules, matching the code.
+- **Test shim fidelity.** `PlacementResultShim.CountsByRule` uses the default
+  case-sensitive comparer, matching the real `PlacementResult`, so it can't be
+  more forgiving than production.
+- **Untagged-count** in the standards-gate warning now counts non-null rules only.
+- **`PlacementCategoryCheckItem.IsChecked`** raises `PropertyChanged` even when it
+  coerces a rejected tick, so a TwoWay binding reverts its visual.
+
+#### Completed (Phase 252 — the baseline reaches family-backed elements, and a catalogue that renews itself)
+
+Phase 246 shipped a baseline that could create wall, floor, roof and ceiling types and could only
+REPORT on doors, windows and structural families. Four layers close that, and the T6 proposal that
+preceded them had to be corrected first.
+
+**The correction.** The T6 proposal said adding parameters to families was "yours — not a code task".
+It was wrong: `FamilyAugmentationEngine` has done the `EditFamily` → `AddParameter` → `LoadFamily`
+round trip for symbol families all along. The row is amended in place with the correction visible
+rather than quietly edited, so anyone reading it later sees both the error and why (#809).
+
+**B1 — types minted inside loaded families (#811).** `FamilySymbol.Duplicate`, which nothing in this
+codebase had used before; only `TextNoteType` and `DimensionType` were ever duplicated. What it still
+will not do is conjure the family: a type whose category has no family matching its
+`familyNamePatterns` is GUIDANCE, never Missing, so Apply cannot promise a mint that must fail —
+deleting that branch fails three tests.
+
+Two failures already paid for were pre-empted. `Duplicate` commits BEFORE the parameter set runs, so
+a failure would leave a type named for the baseline carrying the source's dimensions, which the next
+audit reads as conforming — #798, exactly. Half-made types are deleted. And same name, different
+size is a CONFLICT: the model's 800×2100 may be deliberate.
+
+Three details earned their comments. Findings gained a `MatchKey`, because two categories can want
+the same type name and the minter would otherwise re-parse a display string the auditor formatted.
+The audit and the mint now share ONE inventory — reading twice would let the model change between the
+report somebody approves and the write that follows. And a sub-millimetre difference is rounding, not
+a conflict: Revit stores feet, so 900 mm returns as 899.9997.
+
+**B2 — shared type parameters on loaded families (#813).** Two constraints shaped it, neither in the
+spec. `Document.EditFamily` **cannot run inside an open transaction**, so layer 3 does not join the
+mint's transaction; it runs after that commits, each round trip owning its own — the shape
+`VisibilityEngine.Reset` uses for the same reason. And the parameters must be SHARED:
+`FamilyManager.AddParameter(name, group, spec, isInstance)` creates a family-LOCAL parameter with no
+GUID, so two families given "the same" parameter hold two unrelated ones that cannot be scheduled
+together — correct-looking in any single family and useless in aggregate.
+
+An unresolvable parameter name blocks Apply before a single family is opened. The report is
+Revit-free and tested because of one case: total failure, every family refusing, nothing added — a
+summary mentioning only successes would print NOTHING there, indistinguishable from "not asked to
+act".
+
+**B3 — catalogue packs, opt-in and adopted by nobody (#814).** Shipping thirty East African types in
+the corporate baseline would make one reading of the market a standard every project is audited
+against; a project whose doors are genuinely 850 wide would be told on every run that it is missing a
+type it does not want. So packs are adopted BY ID, additive, overridable per type, and versioned in
+the id so V1 → V2 is a migration rather than a silent redefinition. An unknown pack id is REPORTED —
+silently ignoring a typo leaves somebody believing they adopted a catalogue they did not.
+
+**B4 — harvest (#815).** The piece that stops the catalogue ossifying: it reads the types actually
+PLACED in a delivered model and writes a pack for review, so the catalogue grows from work that was
+built and paid for. PLACED only — a type nobody used is evidence that somebody loaded a family. Two
+refusals carry tests: our own minted types are not harvested back, or the catalogue becomes a record
+of ITSELF; and the family's own name is the only pattern used, because inferring "Door" from
+"M_Single-Flush" is the inference-from-a-name that #710 withdrew.
+
+**Tests 716 → 766**, build 0/0 throughout, all four gates PASS, **11 mutations verified failing**
+before their tests were kept.
+
+**One mutation proved nothing, and that is recorded rather than counted.** A B3 mutation removed the
+early-return guard on an empty `adoptCatalogues` list and nothing failed — an empty list simply does
+not loop, so the guard is a fast path and not the protection. The real mutation makes the loop
+iterate every pack, and that does fail. A mutation that proves nothing is worth less than no
+mutation, because it reads as evidence.
+
+**Not verified.** Nothing here has run in Revit. `FamilySymbol.Duplicate`, `EditFamily`,
+`AddParameter`, `LoadFamily` and the harvest pass are all unexercised, on top of the five features
+from Phases 247-251 that are also unexercised. See MATSCHED-T-VERIFY.
+
+#### Completed (Phase 240 — branch and workspace triage: unreviewed work found, landed or laid to rest)
+
+Two pools of work were invisible: **40 remote branches that had never had a PR opened on
+them**, and **uncommitted files sitting in worktrees**, which is the same failure one step
+earlier — not lost yet, but one `git clean` away.
+
+**The measurement had to be redone before anything could be trusted.** A branch's "N commits
+ahead" lies across a rebase: the remote can be 80 commits forward and already contain every
+patch under a new SHA. `git cherry origin/main origin/<branch>` marks each commit `-`
+(already upstream) or `+` (genuinely unique), and only the `+` count means anything. Of 40
+PR-less branches, **17 carried no unique patch at all**. One more,
+`claude/document-manager-iso-review-dbb595`, reports `+2` while `main` holds both its files
+byte-for-byte plus a `⛔ SUPERSEDED` banner — the same lesson in a second costume: `+` says
+the *patch* is not upstream, not that the *content* is missing.
+
+**Rescued, uncommitted.** Six worktrees were dirty. Two held real work that existed nowhere
+in git:
+
+- **`C:/Dev/wt-authz-model`** — an ISO 19650 role vocabulary: `ProjectMember.Iso19650Role`
+  was free text, every write site did `req.Iso19650Role ?? … ?? "M"` with no validation, and
+  that is how a gate comes to compare against a value nothing prevents and nothing supplies.
+  Validates the three write paths, serves `GET .../members/roles` from the same list rather
+  than a second copy, and reports pre-existing non-canonical rows at boot instead of
+  remapping them by guess. Builds clean; its 21 tests pass. Committed to
+  **`claude/iso19650-role-vocabulary`** rather than to the worktree's own branch, because
+  that branch carries **open PR #737** and pushing four more files into it would silently
+  expand someone's review. The new branch is cut from PR #737's exact head, so it stacks.
+- **`C:/Dev/wt-viscenter`** — 13 spec documents (4 BOQ/cost, 7 healthcare, an MCP v2 brief,
+  and a finished 7th wire-annotation diagram), 5–31 KB each, `file:line`-referenced audits.
+  Verified absent from every remote branch with `git rev-list --remotes -1 -- <path>`. They
+  had merely *followed* whatever branch that checkout was on — they have nothing to do with
+  visibility — so they are on **`claude/rescue-uncommitted-spec-docs`**, cut from `main`,
+  and indexed in `docs/INDEX.md`. Not committed: a 1.8 MB `.docx` export of a `.md` already
+  on `main` (derived, no generator, would only drift), a guide already safe on another
+  branch, and a 71-byte stdout capture from the retired `deploy-gold` script.
+
+One dirty worktree was **left alone deliberately**: `brave-elion-f9aaec` committed again six
+minutes into the sweep and was mid-edit on a second file. Committing under a live session is
+worse than leaving work uncommitted.
+
+**Landed as PRs (6):** #755 `setdepth-perf`, #756 `sustainability-laymans-guide`,
+#757 `datarights-json-fix`, #758 `kibale-finish-params`, #759 `scope-box-manager`,
+#761 `kibale-part1-fixes`. Each merges cleanly, and each was **built merged with `main`**
+before its PR was opened — 0 errors / 0 warnings, with `check_workflow_wiring.ps1` (Tier 4 =
+0), `check_smoke_test.py`, 351 BOQ tests and 3 data-rights tests green on the merged trees.
+A PR that does not compile costs a reviewer more than it saves. The 12 rotted branches, the
+2 that need a human, and the 3 landable ones left unopened against a 6-PR cap are written up
+in `ROADMAP.md`; none was deleted.
+
+**SMK-3 — declarative read-only claims.** The advisory named two presets whose prose reads
+read-only without declaring `"readOnly": true`. **Both turned out to be already correct.**
+`WORKFLOW_PlumbingAudit` opens "NOT read-only, despite the name" and names its three writing
+steps; `WORKFLOW_KUT_MonthlyReport` says "this is not a read-only workflow" and names both of
+its — confirmed independently: `CompletenessDashboardCommand` is `[Transaction(Manual)]` and
+builds a legend view, maps sheet parameters and tags sheets inside real transactions. Each
+fires only on a *positive* sentence about something else ("chains the read-only metrics",
+"for a genuinely read-only pre-gate look, use …"), which are the exact two false positives
+`claims_read_only`'s own docstring already documents.
+
+So the prose was not touched. **Rewording honest text to satisfy a heuristic is the failure
+that docstring warns about.** Instead `readonly_prose_hints` now skips a description that
+disclaims read-only anywhere in it: an author who has written "NOT read-only" has
+demonstrably considered the question. A preset that reads read-only and never disclaims it is
+still flagged — proven with six cases, including two that must still fire.
+
+Three presets **were** declared, after checking every step by hand:
+`WORKFLOW_AntiLigatureAudit`, `WORKFLOW_NFPA110-GeneratorTest`, `WORKFLOW_PressureRegimeAudit`
+— every step `[Transaction(TransactionMode.ReadOnly)]` **and** no file I/O. Four more that
+pass the transaction test were deliberately left undeclared because they write `.docx` or
+`.json` to disk; `readOnly` proves "no Revit model write", which is narrower than anyone will
+read it as. That, and the fact that an *unresolvable* step silently passes the check, are
+logged as ROADMAP SMK-3a / SMK-3b.
+
+Advisory list: **2 → 0**. Smoke-gate assertions: **170 → 173**.
+
+#### Completed (Phase 226 — DEP-6a: a real-Redis test for the handoff jti replay guard)
+
+The `/api/auth/handoff/exchange` single-use guard is a Redis
+`SET handoff:jti:{jti} … When.NotExists`: the first redemption wins, a replay of
+the same ticket loses. It had **no automated test** — the integration host
+connects Redis lazily and the guard **fails open** when Redis is absent, so any
+test would pass or fail on whether a docker Redis happened to be running.
+
+- **The test** — `HandoffProvisioningTests.Handoff_SameTicketReplayed_SecondRedemptionIsRejected`
+  mints one ticket and exchanges it twice: first `200`, replay `401 "Ticket
+  already used"`, and asserts the replay provisioned **no** second account. It
+  lives in the existing handoff test class on purpose — same `IClassFixture`,
+  same `PLANSCAPE_HANDOFF_SECRET`, so it cannot race the env var against a
+  parallel test class.
+- **Gating** — a `[SkippableFact]` on `PLANSCAPE_TEST_REDIS`, mirroring
+  `PostgresSequenceCounterTests`' `PLANSCAPE_TEST_PG`: **Skipped**, never falsely
+  Passed, when no Redis is present. It uses the factory's real
+  `IConnectionMultiplexer` (default `localhost:6379`) rather than a fake, so the
+  guard is proven end-to-end through the HTTP endpoint, not in a stub.
+- **CI** — a dedicated `redis-single-use` job in `planscape-server.yml` stands up
+  a `redis:7-alpine` service and runs only this test with the flag set. It is a
+  separate job so the Redis service cannot change the app's Redis connectivity in
+  the `build` job and silently shift the known-failing baseline the full-suite
+  gate diffs against.
+- **Proven to bite** — with `PLANSCAPE_TEST_REDIS=1` but `Redis__Connection`
+  pointed at a dead port, the guard fails open, the replay returns `200`, and the
+  test goes red. With the docker Redis up it passes; with no flag it skips.
+- **Fail-open is deliberate** (DEP-6): availability over integrity, bounded by the
+  120 s ticket TTL. The test comment and ROADMAP DEP-6a/DEP-6 record it so the
+  choice stays a decision, not an accident.
+
+Closes ROADMAP **DEP-6a**.
+
+#### Completed (Phase 251 — one roof accessory measured, two refused out loud)
+
+Of the three accessories a roof edge carries, exactly **one** has a length the model states outright.
+This phase measures that one and spends most of its effort saying, in the export, why the other two
+are missing.
+
+| Accessory | Where its length lives | Outcome |
+|---|---|---|
+| **Fascia** | along the eaves — and an eave is horizontal, so the footprint's **plan length IS its length** | **measured** → `fascia_board` (m → Lengths of 4.2 m) |
+| **Barge board** | up the **rake** of a gable — longer than the gable's plan length by 1/cos(pitch) | **not measured**; the plan length is reported, labelled as not the answer |
+| **Ridge cap** | an internal line the footprint does **not carry at all** | **not measured**; no boundary data could give it |
+
+**How the eaves are identified.** A `FootPrintRoof`'s sketch records which boundary curves *define
+slope*. Those are the eaves; the rest are gable edges. That is a fact the model states, not an
+inference from form. Only the **first** profile loop is measured — later loops are openings, and an
+opening's edge is not an eave.
+
+**Why the barge board is refused.** Recovering a rake length from a plan length needs the pitch, and
+`FootPrintRoof.get_SlopeAngle` returns a value whose units this work could not confirm against a
+running Revit — the same instrument problem that runs through all of T1–T5. Shipping a length that
+is right only if a guess about units is right would be worse than shipping none. The scan therefore
+reports the gable edges' **plan** total, hard-labelled as *not* the barge length, so a QS can finish
+the calculation by hand knowing exactly what is missing.
+
+**Deriving either from the roof AREA is refused explicitly, in the export text**, because the reader
+who wants a ridge length is precisely the person most likely to reach for the area.
+
+**Also stated in the scan:** timber rafters and purlins are out of scope here and are measured only
+when modelled as Structural Framing, where they already decompose — so their absence reads as a
+scope boundary rather than an omission. Concrete roofs are skipped (a flat RC slab has no fascia) and
+say so; extrusion roofs and roofs by face carry no boundary sketch and say so separately, because the
+two have different fixes.
+
+**A gate did not fire, and that is reported rather than papered over.** Removing the `Math.Max(0, …)`
+clamp on the eaves length moved no test — because the `if (eaves <= 0)` guard below it already
+rejects a negative. The two are redundant *by design*; a comment now says so, and removing **both**
+was verified to fail the gate. That is a different finding from a blind gate and is written up as
+such.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings — which also confirms `FootPrintRoof.GetProfiles`
+and `get_DefinesSlope` resolve against the real Revit API. `StingTools.Boq.Tests` 689 → **716 green**.
+All four gates pass. **Twenty-four deliberately wrong inputs were each shown to make the matching
+gate FAIL, then restored**: a ridge cap derived from the eaves, a barge board emitted at the eaves
+length, a dropped zero-length guard, fascia emitted in m², a doubled cutting allowance, and ten ways
+of weakening the scan — dropping the ridge/barge sentence, un-labelling the plan length, telling a
+hip roof its barge could not be measured, dropping the area refusal, dropping the rafters note, and
+folding the footprint-less / concrete / opening cases into the general count — plus a mismatched
+unit, fractional lengths, a per-metre "Lengths" label, a zeroed allowance, an invented ridge
+commodity, a missing rate, a lost kind route and a wrongly declared intermediate. One pre-existing
+gate fired as well.
+
+**What was NOT verified, and it matters more here than anywhere in T1–T4.** *Nothing Revit-side has
+been run by anyone.* `ReadRoofEavesLengthM` is a **new Revit reader** — the first since T3 — and it
+has never executed against a real model. It compiles, so the API surface is real, but whether
+`get_DefinesSlope` classifies a given project's roof edges as expected is exactly the class of thing
+that has only ever been settled by an export. Treat every fascia length as unconfirmed until
+MATSCHED-T-VERIFY is closed.
+
+**T6 was not attempted**, per its own instruction that the deliverable is a written proposal first.
+
+#### Completed (Phase 250 — the first numbers this schedule does not measure)
+
+T1–T3 measured what the model **states**: a screed layer's thickness, a board layer's area, a
+membrane layer's function. Nothing in T4 is stated anywhere. Hoop iron, binding wire, formwork nails
+and roofing fasteners exist in the schedule only because a table says how much of each goes with
+work that *was* measured.
+
+**A ratio presented as a measurement is worse than no number at all, because nobody checks it.** So
+the deliverable here is as much the honesty machinery as the quantities.
+
+**Emitted** — each from a driver the bill already carries, NET of wastage:
+
+| Kind | Driver | Ratio | Bought as |
+|---|---|---|---|
+| `hoop_iron` | walled area (m²) | 1.2 m/m² | Rolls of 30 m |
+| `binding_wire` | rebar (kg) | 1.25% | Rolls of 20 kg |
+| `formwork_nails` | formwork (m²) | 0.20 kg/m² | Kg |
+| `roof_fastener` | roof covering (m²) | 11 nr/m² | Packs of 100 |
+
+**Six rules the design had to satisfy.**
+
+1. **No ratio in C#.** All four live in the new `STING_CONSUMABLES.json`, with a project override at
+   `_BIM_COORD/consumables.json` merged by kind. `ConsumablesCalculator` knows none of its own — a
+   test empties the table against enormous drivers and asserts nothing is produced.
+2. **Every ratio states its source.** Each rule carries a `sourceNote` giving the derivation, not a
+   citation-shaped phrase: hoop iron is *"one strip in every 4th course of 200 mm block = 1 m per
+   0.84 m of height = 1.19 m/m², taken as 1.2; DOUBLE IT for a strip near each face"*. A test fails
+   on an empty note **and on one shorter than 40 characters**, because "industry standard" explains
+   nothing.
+3. **No driver, no row.** Not a minimum, not a fixed quantity, not a zero-quantity row — a
+   zero-quantity row reads as a measurement of nothing rather than an absence of information. A job
+   with no modelled steel simply gets no binding wire, and the scan says so *and says it is
+   intended*.
+4. **The banner quotes the arithmetic.** It names each rule that fired with its actual driver value
+   and ratio (`hoop_iron = 564.22 × 1.2 m per m² of walling`), so the figure can be checked against
+   the specified detail without opening the JSON. That is the difference between a disclaimer and a
+   diagnostic. Wording follows `SiteToolsCalculator`: *PRACTICE HEURISTICS, not a standard … Review
+   before issue.* It is conditional on something having been derived.
+5. **The qualification is on the row, not only in the banner.** Each commodity rule's description —
+   which is what the aggregator actually prints — reads *"(DERIVED from … by a practice ratio — not
+   measured)"*. A banner alone can be scrolled past; a row carries its own caveat wherever it goes.
+6. **Derived rows go through the ordinary machinery.** They are returned as `ConstituentInput`s and
+   fed back into the aggregator, so a consumable is staged, unit-guarded, converted and priced by
+   exactly the same code as a measured commodity. The site-tools section bypasses all of that; a
+   second untested path to the page was not worth repeating. Drivers are read *before* the derived
+   rows are appended, so a consumable can never become another consumable's driver — pinned by a
+   test.
+
+**Five gates were found BLIND, and that is the part worth reading.** Each passed with the thing it
+protected deleted:
+
+* `Rebar_Sums_Rebar_But_Not_Mesh` — the mesh row was in m², so the **unit** check turned it away and
+  the kind check never ran. Retargeted at a kg mesh row.
+* `A_Roof_That_Is_Not_A_Covering…` — the concrete row was in m³, so again the unit check caught it
+  first. Replaced with a row that **is** on a roof **and is** in m² (`"Green Roof Substrate
+  Buildup"`), which only the supplier table's type patterns can reject.
+* `Mesh_In_Its_Normal_Unit…` — mesh never enters the rebar branch at all, so dropping that branch's
+  unit check changed nothing. Retargeted at a `rebar`/m² row.
+* `End_To_End_…Convert` — it called `SupplierUnitConverter` directly, which converts whatever it is
+  handed; the unit **guard** lives in `CommodityAggregator`. It now runs the real aggregator and
+  asserts `ConversionBlocked` is false, the pack is whole, the row is priced and it is not a
+  memorandum.
+* `End_To_End_…Sections` — twice. First, the roof stage's `"roofing"` typePattern matched the row's
+  *description*, so `roof_fastener` reached the roof section with its kind route deleted;
+  descriptions are now blanked so only the kind can route. Then `superstructure` turned out to be
+  the **default** stage, so the other three landed correctly regardless; the test now points the
+  default at `external`, making all four routes observable.
+
+None of these was a live defect — the shipped behaviour was right in every case. All five were tests
+that could not fail, which is the failure mode that has now cost this codebase eight findings across
+T1–T4.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 644 → **689 green**. All
+four gates pass. **Thirty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored**, including the delete-the-thing-it-protects check on every new gate: an
+invented driver, a negative driver, a hardcoded fallback ratio, a built-in rule table, an accepted
+unknown driver, a dropped trace ref, mesh admitted to the rebar driver, dropped unit checks in three
+branches, a bare category test for roof covering, six ways of weakening the banner, four ways of
+making the scan lie, an emptied and a token source note, a bad driver name, a mismatched unit, an
+out-of-band ratio, a de-disclaimed library note, a de-qualified commodity description, fractional
+packs, a lost supplier rule, a missing rate, dropped stage routes, and a consumable wrongly declared
+an intermediate. Two pre-existing gates (`Every_Rule_Is_Reachable`,
+`Every_Commodity_Rule_Has_A_Baseline_Rate`) fired as well.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone* — T1–T3 included. T4 itself is
+Revit-free end to end: the drivers are summed from constituent rows the aggregator already holds, so
+there is no new reader. But those rows come from take-off paths that have never executed against a
+real model, so **the driver values these ratios multiply are themselves unverified**. The arithmetic,
+the classifier of drivers, the banner, the scan and the shipped-data seams are all proven headlessly.
+
+#### Completed (Phase 249 — the membranes nobody was buying)
+
+`MaterialFunctionAssignment.Membrane` layers were ignored entirely. A ground-bearing slab's DPM and
+a roof's underlay are both real purchased materials whose area the model already **states**, and
+both produced nothing — silently. Third and last of the layer-reading tasks, on the same
+`HostLayerCache` primitive as the screed and the ceilings.
+
+**Emitted.** `dpm` (m² → **Rolls** of 4 m × 25 m = 100 m²) and `roof_underlay` (m² → **Rolls** of
+1 m × 45 m = 45 m²), both rounded up, both carrying a **15% lap allowance in the supplier-unit rule**
+— a DPM laps 150–300 mm at every joint and turns up at the perimeter, so if that allowance is not
+there it exists nowhere and every order under-buys. Layers are **counted, not collapsed**: a build-up
+declaring two membrane layers really does need twice the roll.
+
+**Which commodity a layer is:** the NAME decides when it is unambiguous (`underlay` / `sarking` /
+`breather` / `felt` → underlay; `dpm` / `damp-proof` / `polythene` / `visqueen` → DPM), otherwise
+the **HOST** decides — a membrane in a roof is an underlay, one in a floor is a DPM. That is a fact
+the model states, not an inference from a type name.
+
+**Routing.** `dpm` → **substructure**, whose preamble is already "all works up to and including the
+ground floor slab", which is exactly where a DPM sits — next to the blinding and hardcore, where a
+QS looks for it. `roof_underlay` → **roof**. Kind routing is global, so a membrane on a suspended
+upper floor is also filed under substructure; that is a real limitation of one route per kind, it is
+recorded in ROADMAP, and a project override moves it.
+
+**Two things are deliberately NOT priced, and the export says both.**
+
+* **Insulation.** The runner's explicit caution, and it is handled by *reporting*, not by silence.
+  Insulation is bought by **thickness**, not by the square metre of roll; absorbing it into a
+  membrane commodity would mis-price both. Every insulation layer seen — whether by function or by
+  material name — is counted and **named** in the scan, with a line saying why it was not converted.
+  A shipped-data test asserts no commodity rule exists that could absorb it, so this fails the day
+  one appears.
+* **Wall membranes.** Counted once per wall TYPE and never measured. A layer's area on a wall is the
+  wall **face** area, and a horizontal damp-proof course occupies one course of it — measuring the
+  face would over-order by an order of magnitude, and nothing in the layer distinguishes a
+  one-course DPC from a full-height cavity membrane. Emitting nothing is correct; emitting nothing
+  **silently** is the failure this task removes, so the scope boundary is reported.
+
+**A gate was blind, and it was hiding a corrupted regex in shipped code.** Deleting the entire
+insulation exclusion list left `Insulation_Is_Never_A_Membrane` green — its inputs never matched the
+membrane pattern at all, so the exclusion never ran. Chasing that down found something worse: the
+`\b` word boundaries in `NotMembranePattern` and `InsulationPattern` had been **eaten on the way
+into the file** and shipped as literal backspace bytes, leaving bare `eps|xps|pir|pur` substrings.
+Bare `pur` matches **"Purlin"** — so *"Purlin Underlay"*, a real membrane, would have been discarded
+with no row and no warning, which is the exact defect class this task exists to remove.
+
+The intended form was wrong too: `eps\b` bounds only the right side and still matches "Steps". Both
+sides are required. Repaired to `\b(eps|xps|pir|pur)\b`, pinned by tests in both directions
+("Steps" / "Purlin" / "Respiratory" must not match; "PIR Board" / "XPS Board" / "EPS 70" must), and
+the whole tree was swept for stray backspace bytes — none remain. The tests that could not fail now
+name what they do and do not prove.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 581 → **644 green**. All
+four gates pass. **Twenty-five deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — DPM and underlay merged into one commodity, layers collapsed, a lap
+allowance applied twice, a negative layer count, membranes emitted in m³, the exclusion list deleted
+(two ways), the host overriding an explicit name, a non-membrane given a default kind, the roll size
+wrong, the lap allowance zeroed, the source unit changed, an insulation commodity introduced, the
+baseline rate removed (which also fires the pre-existing `Every_Commodity_Rule_Has_A_Baseline_Rate`),
+both stage routes dropped, `dpm` declared an intermediate, four ways of making the tally lie, and
+three forms of the word-boundary defect including the one that actually shipped.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadMembranes`,
+`NoteWallMembranes` and `MembraneConstituents` have **never executed against a real model**, and
+neither has the layer reader they sit on. The runner's opening gate — a real export showing tiling
+under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified and
+membranes inherit that status in full, exactly as the screed and the ceilings do. Proven here is the
+arithmetic, the classifier, the host/name precedence, the diagnostic message and the shipped-data
+seams.
+
+**T4, T5 and T6 were not attempted** and remain open in ROADMAP.
+
+#### Completed (Phase 248 — ceilings decomposed into nothing at all)
+
+`CeilingType` appeared in **no branch** of `CompoundTakeoffBuilder.TryBuild`. Not mishandled —
+absent. `STING Suspended Gypsum Ceiling` produced no boards, no furring and no skim, and produced
+them silently, which is indistinguishable from a model that has no ceilings.
+
+Rides the `HostLayerCache` primitive extracted in Phase 247, which is why the three layer tasks are
+sequential and not parallel.
+
+**Emitted.** `ceiling_board` (m² → **Sheets** at 2.88 m² for a 1200×2400 board) ·
+`ceiling_furring` (m → **Lengths** of 3.6 m) · and for a wet coat, the existing `plaster` /
+`plaster_cement` / `plaster_sand` kinds rather than ceiling-only twins of them — a bag of cement is
+a bag of cement, and two commodities would split one order into two part-loads and round each up
+separately.
+
+**Board and plaster are two findings, not one classification.** Plasterboard skimmed after fixing
+carries both, and the model states both; collapsing them would drop whichever lost. They can
+nonetheless never accept the same layer: board wins outright inside `IsCeilingPlaster`.
+
+**Furring is ratio-derived and says so in three places.** The model does not state grid spacing and
+no measurement standard publishes the figure, so `CEILING,DEFAULT,FURRING_M_PER_M2` (2.7 m/m² for a
+600×600 exposed grid) is a practice ratio. It is qualified on the **row description**, on the
+**commodity rule's description** (which is what the workbook actually prints), and by a **banner**
+on the document — and the banner is conditional on furring having been derived at all, because a
+banner qualifying a row that was never emitted is noise, and noise is how real banners come to be
+ignored. Furring also rides on the **board**, not on the ceiling: a skim on a concrete soffit has
+no grid, and emitting one would invent a frame the model never described.
+
+**Nothing is invented when a driver is missing.** No furring ratio → board but no furring. No
+stated skim thickness → the plastered area but no cement and no sand. No recognised finish → the
+composite line, not an empty section. Ceiling **paint** is not emitted at all: nothing in the model
+says whether a ceiling is painted, and inferring it from the ceiling's existence is the guess that
+priced whole walls as paint in the rules withdrawn by #710.
+
+**Two defects were caught by tests before they shipped, and both are recorded in the code.**
+
+1. The board pattern matched bare `gypsum`, so **"Gypsum Skim" — a wet coat — classified as sheets
+   of plasterboard**, wrong in the count, the rate and the trade. A board *word* is now required.
+   Gypsum is the material; board is the product.
+2. The exclusion list carried bare `acoustic` and bare `metal`, which would have **rejected
+   "Acoustic Plasterboard", a genuine 1200×2400 sheet**. Over-exclusion is not the safe direction —
+   it drops a real material silently, which is precisely the omission this task exists to fix. It
+   now names product *forms*, not adjectives.
+
+**Two gates were found BLIND during the break-it pass, and that is the part worth reading.** Both
+passed with the thing they existed to protect deleted:
+
+* `Things_Not_Bought_By_The_Sheet_Are_Not_Board` was green with the entire exclusion list removed.
+  After the board pattern was narrowed, none of its inputs carried a board word, so they were turned
+  away by the positive pattern and **the exclusion never ran**. A second test now uses names that
+  *do* match the board pattern (`"PVC Wall Board"`, `"Timber Wall Board"`), so the exclusion is
+  load-bearing and can fail.
+* `Both_Ceiling_Kinds_Route_To_Finishes` was green with **both kinds deleted from the stage
+  library**, because the *category* `Ceilings` already routes to finishes. It now also resolves
+  against `Walls`, which routes to SUPERSTRUCTURE, so it proves what the cross-cutting requirement
+  actually asks: kind beats category.
+
+Both are the failure mode this codebase has been bitten by three times — a test that has only ever
+been seen passing, passing for a reason other than the one it claims.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 520 → **581 green**. All
+four gates pass. **Twenty-one deliberately wrong inputs were each shown to make the matching gate
+FAIL, then restored** — furring emitted for a soffit skim, an invented furring ratio, an invented
+skim thickness, the derived-row qualification dropped from the engine and again from the commodity
+rule, furring emitted in m², bare `gypsum` re-admitted as board, the exclusion list deleted, the
+exclusion over-widened, board/plaster disjointness removed, the lookup key misspelled, the ratio put
+outside any believable grid, the sheet size wrong, board sold in fractional sheets, furring's source
+unit changed, the baseline rate removed (which also fires the pre-existing
+`Every_Commodity_Rule_Has_A_Baseline_Rate`), the stage route dropped, `ceiling_board` wrongly
+declared an intermediate, and four ways of making the tally lie.
+
+**What was NOT verified.** *Nothing Revit-side has been run by anyone.* `ReadCeilingFinish`,
+`BuildCeiling` and the `Ceilings` branch of `TryBuild` have **never executed against a real model**,
+and neither has the layer reader they sit on. The runner's opening gate — a real export showing
+tiling under FINISHES — **has not been satisfied**, so the whole layer-reading path is unverified
+and ceilings inherit that status in full. Proven here is the arithmetic, the two classifiers, the
+diagnostic message, the banner condition, and the four shipped-data seams.
+
+#### Completed (Phase 247 — the screed that contributed nothing)
+
+`STING RC Slab 150 - Ceramic Tiled` carries a 40 mm **Cement Screed** Substrate layer. It reached
+no export, produced no cement and no sand, and raised no warning — because the compound-structure
+walk asked exactly one question of exactly one kind of layer: *"is this Finish1 or Finish2, and is
+its material a tile?"*. Every screeded floor in every project was short its cement and its sand,
+and the only evidence was an absence.
+
+**The fix is a refactor before it is a feature.** `ReadTiledFinish` owned the `CompoundStructure`
+walk outright and was tile-shaped. It is now split: `HostLayerCache` returns **every** layer with
+its function, its material name and its thickness (`CompoundStructureLayer.Width`, feet → m), cached
+per TYPE because a compound structure belongs to the type; each consumer applies its own predicate
+and keeps its own tally. The tile answer is unchanged — same layers, same predicate, same counts —
+and T2/T3 ride the same primitive.
+
+**Emitted:** `screed` (m², memorandum), `screed_cement` (bag), `screed_sand` (m³), off the
+FLOOR/ROOF path only. A wall's "sand-cement" substrate is its render, which the wall path already
+measures as plaster; measuring it again here would not add a material, it would double-count one.
+
+**Five invariants this had to satisfy, and how.**
+
+* **The driver is never assumed.** The layer's declared width is the thickness. A screed layer of
+  zero width emits **nothing** — not a zero-quantity row, which would read as a measurement — and
+  the scan reports it as its own count, separate from a rejection, because "the name was right and
+  the driver was missing" sends someone to a different place than "the name was wrong".
+  `MATERIAL_LOOKUP` ships `SCREED,*,THICKNESS_M`; it is deliberately **not** read.
+* **Wastage stays in one place.** Engine quantities are NET; the supplier-unit rule owns the
+  allowance. `SCREED,*,WASTE_PCT` is likewise not read.
+* **No new commodities.** `screed_cement` joins the existing `cement` rule's `matchKinds` and
+  `screed_sand` joins `sand`. Minting a parallel "screed cement" would split one order into two
+  part-loads and round each up separately.
+* **No new mix table.** `MATERIAL_LOOKUP` already had `SCREED,STANDARD/HEAVY_DUTY/DEFAULT` rows in
+  the PLASTER shape (`MIX_CEMENT_BAGS_PER_M3` / `MIX_SAND_RATIO`). Those are consumed as they
+  stand — two figures for one ratio is a disagreement nobody would ever compare — and a test
+  asserts the 1:4 screed matches the 1:4 mortar, and the 1:3 matches the 1:3.
+* **Disjoint from tiling by construction.** `FinishTextClassifier.IsScreed` returns false for
+  anything `IsTile` accepts, rather than hoping two patterns never overlap. "Terrazzo Screed" is
+  the case that proves they can. It also refuses `plaster`, `render`, `mortar` and `skim`
+  outright — each is already measured somewhere else.
+
+**What was VERIFIED.** Build 0 errors / 0 warnings. `StingTools.Boq.Tests` 465 → **520 green**.
+All four gates pass (`check_command_doc_acquisition`, `check_path_discipline`,
+`check_workflow_wiring`, plus the shipped-data seam tests). **Fourteen deliberately wrong inputs
+were each shown to make the matching gate FAIL, then restored** — an invented default thickness, a
+second wastage multiplier, cement emitted in m³, the classifier widened onto plaster, the
+tile-disjointness guard removed, a `ScreedKey` naming a row that does not exist, the screed 1:4
+silently disagreeing with the mortar 1:4, a zeroed lookup ratio, `screed_cement` losing its
+commodity, the stage route dropped, the intermediate declaration dropped, the intermediate declared
+with only one child, and two ways of making the tally lie.
+
+**What was NOT verified, and must not be read as working.** *Nothing Revit-side has been run by
+anyone.* `HostLayerCache`, `ReadScreed` and the screed constituents have **never executed against a
+real model**, and neither has the tile layer reader they were extracted from — MATSCHED-1 has said
+so since #780 and still says so. The runner for this work opens with a gate requiring a real export
+that shows tiling appearing under FINISHES; **that gate has not been satisfied**, so the entire
+layer-reading path is unverified and the screed feature inherits that status in full. What is
+proven is the arithmetic, the classifier, the diagnostic message and the shipped-data seams — every
+part that can run without Revit.
+
+#### Completed (Phase 246 — three reachability failures, and the gate that ends them)
+
+Phase 245 shipped the model-authoring baseline. Then a user clicked its button and nothing happened,
+and the four PRs that followed are all about the same thing: **code that compiles, dispatches, builds
+and logs cleanly, and still does not run.** Each looked correct at the layer that was checked.
+
+**1 — A `case` label is not a wiring.** #789's commit said "neither is born unreachable", meaning both
+commands had a dispatch case in `StingCommandHandler`. There was no button in any XAML, no `.addin`
+external-command entry and no `WorkflowEngine.ResolveCommand` binding, so **nothing could reach the
+case.** The claim is what hid it: a green build plus a present `case` reads as wired. Buttons added to
+the SETUP tab under MODEL BASELINE (#792).
+
+**2 — A button is not a working command.** With the buttons in place both were still lifeless, and
+the log said exactly why:
+
+    10:12:01 RunCommand<BaselineAuditCommand>: start
+    10:12:01 RunCommand<BaselineAuditCommand>: done
+
+They RAN, five times, returned instantly, and showed nothing. `RunCommand<T>` calls
+`cmd.Execute(NULL, …)` **by design** and expects the `StingCommandHandler.CurrentApp` fallback; both
+commands read `data?.Application?…`, got null, and returned `Cancelled` on their first line. The
+textbook ribbon-command pattern is silently dead from the dock panel (#794).
+
+**3 — And it was never only these two.** 38 sites across 23 files carried the same shape, all routed
+through the `ParameterHelpers.GetDoc / GetUIDoc / GetApp` helpers that already existed for it. Two
+were worse than dead buttons: **`MasterSetupCommand` step 20 read the healthcare profile through the
+null `commandData`, so Healthcare Pack setup skipped itself on every panel-run Master Setup** — a
+skipped step logs nothing — and `WorkflowEngine`'s plugin-hook fallback took the same path, so custom
+plugin commands could never resolve from the panel.
+
+**The gate is the deliverable.** This defect had already been fixed twice: 28 sites across
+`Commands/Drawing`, then `Commands/Cost` — `BOQ_COST_INTEGRATION_AND_FIXES_PROMPT.md` §A.4 even
+prescribes the grep. Three rounds of one defect is a missing gate, not three mistakes.
+`tools/check_command_doc_acquisition.ps1` now fails the build on a dispatched command that reads
+`commandData` directly, and runs in CI beside the path-discipline and wiring checks, baseline zero.
+It was verified BOTH ways before being kept: its first run failed on the comments explaining the fix
+— a gate that cries wolf over prose is a gate somebody disables — and after that was fixed, a
+repaired site was deliberately re-broken and it caught it (#796).
+
+**4 — Then the baseline ran, and running it found two more.** First real Apply: 12 materials, 4 wall
+types and 3 roof types created; **all 4 floor types and the ceiling rejected** with *"Input compound
+structure has wrong EndCap condition for this element type."* `CreateSimpleCompoundStructure` returns
+a wall-shaped `EndCapCondition`, which Revit accepts on a `WallType` and refuses elsewhere — hence the
+clean split by element class. The floor types are the ones carrying the tiled finish layer, so the
+single thing the baseline exists to fix was the one thing that did not get created.
+
+The second defect there is worse. Minting is two steps and it failed on the second, so `Duplicate`
+had already committed: the model kept five types **named for the baseline** while carrying the source
+type's layers — a floor called "Ceramic Tiled" with no tile in it. The next audit reads those as
+existing and refuses to touch them, because a name match with a different build-up is a conflict, not
+something to overwrite. The failure would have become permanent, and the audit would have reported
+the model as *closer* to conforming than before Apply ran. A half-made type is now deleted: either
+the type is what the baseline describes or it is not there at all (#798).
+
+**Verified in Revit.** The re-run created **24 of 24 with no failures**, and the re-audit reports
+"nothing to create — already conforming: 32". The two outstanding items are family-backed
+(Structural Columns, Structural Foundations) and are reported as guidance, never as work Apply will
+do — the honest split behaving as designed.
+
+**Also: the mislabelled sheet, finally.** `BOQExportCommand` emitted a sheet called "Material
+Schedule" that is BOQ rows filtered to m2/m3/kg in MEASURED units. Defensible while nothing else
+claimed the name; now actively dangerous, because two documents answering to one name is how somebody
+prices square metres of blockwork as though they were blocks. Renamed **"Measured by Material"**, with
+a banner saying what it is and pointing at the real export. Closes MATSCHED-6.
+
+Build 0/0 throughout, tests 465.
+
+#### Completed (Phase 245 — Material Schedule: what a model has to SAY before it can be measured)
+
+Phase 244 fixed the six defects the first real export exposed. Running it again exposed a
+different class of problem entirely — not wrong numbers, but **missing statements**. A take-off can
+only measure what the model describes, and this model described almost nothing about its finishes.
+Four exports were run against real work in one session; each one moved the question rather than
+answering it, which is itself the finding.
+
+**1 — Six more defects, and one of them was a claim I had written.** Three rows reported *"order
+quantity 174.60 is below the net measured 174.60"*, which reads as a false alarm and was not one:
+the model held **174.6044**. `MidpointRounding.AwayFromZero` decides only TIES, yet the comment
+claimed it meant a divisible order could never round below what was measured. Worse, the test
+written to catch exactly this compared the order against `Math.Round(net, 2)` — the rounding under
+test. **A gate compared with its own transformation cannot fail.** Ceiling at 2 dp; the test now
+compares against the raw net (#777).
+
+The defect that could have cost money was quieter. `Blockwork wall` 175 m² sat beside
+`Hollow blocks 2,292 No. @ 2,500` — the same wall, twice — with an R3 telling the reader the first
+was missing a rate. Intermediate measures are now **memoranda**: quantity kept (it is how the derived
+count is checked), amount hard-zero, no rate cell, no formula. Marking is **conditional on the
+children being present**, because turning a double-count into an omission is worse: a duplicated line
+is arguable, a missing one is invisible. Also: roofs decomposed into nothing (856 m² arrived as
+unpriced area), stage routing filed a roof cap and a gate under SUPERSTRUCTURE, and one Windows row
+was dropped by a pattern written for Generic Models voids (#777).
+
+**2 — Tiling, measured from the finish layer.** The first attempt at this matched whole ELEMENTS from
+the unit table and was withdrawn in #710 for pricing entire floors as tiling. The blocker was real: a
+floor's tiled area is not its slab area, and the RC-slab path knows only concrete, rebar and formwork.
+The compound structure answers it directly — a `Finish1`/`Finish2` layer whose material reads as tile
+IS the tiled area, and its absence means the surface is not tiled. Wall tiling also corrected the
+paint: a tiled face is plastered as backing but never painted, so tiled faces come off the painted
+area — the #777 double-count wearing different clothes (#780).
+
+**3 — Then the export said there was nothing to measure, and could not say why.** Zero tiling rows,
+no errors. Two incompatible causes fit that output exactly — the model describes no finish layers, or
+it describes them under names the pattern misses — and nothing separated them. **An absent side
+effect never tells you why.** The scan now reports its own denominator, and names every material it
+rejected, because if the pattern is what is wrong those names are the evidence for it. Caching the
+walk by TYPE fixed a real miscount on the way: walls read their finish twice, once for the paint
+deduction and once for the tiling (#783).
+
+The very next export answered it: *10 wall/floor types inspected, 1 carries a finish layer, and that
+one is `Gypsum Wall Board`.*
+
+**4 — So finishes gained a SECOND source.** That model is not broken; most architects never layer
+finishes, they record them on the ROOM — and this plugin has been harvesting `ROOM_FINISH_FLOOR` /
+`_WALL` / `_BASE` into `BLE_*` all along without anything reading them for quantities. The room source
+measures what the room states, from `Room.Area` and `Room.Perimeter`. If ANY type carried a tiled
+layer, room tiling is skipped whole and the export says so — otherwise a correctly-layered model shows
+zero room tiling and looks broken when it is the guard working. **Skirting arrived for free**, closing
+something recorded as out of reach: it needs a perimeter, and `Room.Perimeter` sits beside the
+base-finish field. Two guards worth naming — "carpet tile", "vinyl tile", "LVT", "ceiling tile", "roof
+tile" and "acoustic tile" all contain the word and would have been priced with adhesive and grout at
+ceramic rates; and rooms carry the literals "None", "N/A", "-" and "TBC" far more often than they
+carry nothing, each of which would mint skirting around a room that has none (#786).
+
+**5 — The diagnostic could not be recovered from the deliverable.** The scan lines lived only in the
+post-export dialog, so a workbook reviewed an hour later could not say why it looked the way it did —
+reviewing one meant asking for a screenshot. The same mistake one level up. Notes now travel on the
+document and are written to the Validation sheet above the issues they explain. The clean-run message
+was anchored at a hardcoded row 4, which notes push into; a test pinned to that was **confirmed to
+fail** against the old row before being kept. The XLSX writer turns out to be Revit-free — ClosedXML
+only — so those tests write a REAL workbook and read it back, the first time anything in this feature
+has been asserted on the deliverable rather than the model behind it (#788).
+
+With that in place the next export explained itself: *23 placed rooms read, 0 name a tiled floor,
+0 a tiled wall, 0 a skirting — the rooms carry no finish text.* Both sources ran, both found nothing,
+and neither guessed.
+
+**6 — Which is a model-authoring problem, so the baseline became data.** Fixing it one model at a time
+is not a system. `STING_PROJECT_BASELINE.json` declares the materials and host types a STING model is
+authored with, and two commands compare a project to it. **Not an `.rte`** — a Revit template is
+binary and only authorable inside Revit, and an `.rte` would only help NEW projects while this also
+fixes the ones already underway. Deliberately narrow, too: view templates, drawing types, view style
+packs, 290 AEC filters and material packs already exist as commands and none of that is repeated.
+
+The honest split is why there are two verbs. Materials, wall/floor/roof/ceiling types and levels are
+creatable; structural columns, framing, foundations, doors and windows are FAMILY types, so with no
+`.rfa` loaded there is nothing to create and they are reported as guidance, never as work Apply will
+do. **Audit first, write on confirm**; Apply mints only what the audit marked Missing, and a type whose
+name matches but whose build-up differs is a CONFLICT, never an overwrite — the model's version may be
+the correct one. Material names are load-bearing (the take-off infers brick vs block vs RC from them;
+the roof rules match on type name), so the shipped baseline is tested against the classifiers that
+consume it. Levels ship EMPTY: auditing every model against someone else's storey heights is noise
+(#789).
+
+**Tests 351 → 465.** Build 0/0 throughout. Six existing tests were corrected rather than loosened, and
+three separate gates — the rounding contract, the MATERIAL_LOOKUP key seam and the Validation row
+anchor — were each pointed at a deliberately wrong input and **confirmed to fail** before being kept.
+
+**Not verified.** The Revit-side halves — the tile-layer reader, the room-finish reader and the entire
+baseline minter — have never touched a real model. See MATSCHED-1.
+
+#### Completed (Phase 244 — Material Schedule: the first real export, and the six defects it exposed)
+
+Phase 236 left the material schedule merged but never run. It was run, and the export
+disagreed with itself in ways no unit test could have caught, because every defect lived in the
+seam between two things that were each individually correct.
+
+**1 — It could not produce materials at all.** `COST_COMPOUND_TAKEOFF` defaults off and is set in
+**no shipped file**, so cement, sand, blocks and bricks were never emitted. The first export said it
+plainly — *"60 of 60 model rows carried no constituent kind"* — and totalled UGX 0. The command now
+detects this **before** building and offers to enable it for that export only. The override drops
+`BOQCostManager`'s host take-off cache on entry and exit, without which it would have changed
+nothing: the cached non-compound rows come straight back (#716).
+
+**2 — Furniture was sold as a building material.** The aggregator's *"no rule → keep the measured
+unit"* fallback fired on every unmatched row, so `Bed_Double_Nightstands` and
+`2D_Chair_&_Ottoman_Accent` became purchasable commodities. Three buckets now, not two: converted
+commodity, material awaiting a rate, and excluded-not-a-material — the last **counted and reported**,
+never silently dropped. Doors, windows and fixtures are deliberately **not** excluded; they are bought
+(#716). A later pass added description-pattern exclusion, because the worst offender — an OPENING sold
+**1,187 times** — was category `Generic Models`, which elsewhere holds real building elements (#724).
+
+**3 — Square metres were sold as pieces.** The sheet read `Bricks · No. · 364.31`. That was 364
+**square metres** of brickwork relabelled as a brick count: `MasonryWall` emits `brickwork` in m², the
+`brick` rule buys per `nr`, and **nothing checked that a rule's sourceUnit matched the measured unit**.
+Worse, `blockwork` (m²) and `units` (nr) both mapped to commodity `block`, so an area was *added to a
+piece count* — the export's block figure implied 2,024 m² of wall while its mortar implied 994 m², and
+both derive from the same `area` in the same function. The aggregator now refuses unlike-unit
+conversions, and area measures are no longer commodities (#728).
+
+**4 — Wastage was applied twice.** Engine and supplier-unit rule both applied it: blocks carried ~10%
+instead of 5%, plaster cement ~23% instead of 2.5%. It now lives in **exactly one place**, the
+supplier-unit rule, which is what the converter's own documentation already claimed. `UnitWastePct`
+and `PlasterWastePct` survive as retired no-ops so callers compile, with a test asserting they change
+nothing (#728).
+
+**5 — Columns and foundations were under-measured.** `CompoundTakeoffBuilder` handled Walls, Floors
+and Structural Framing only — *"Columns/foundations retain the composite line for now"* — so three RC
+columns arrived as unpriced m³ lumps and no SUB-STRUCTURE section appeared at all. Both now
+decompose. Formwork is the part that needed thought: a column shutters all four faces with no soffit,
+a round column uses its circumference (treating Ø152 as a square over-orders shuttering by ~27%), a
+pad shutters only its sides because it bears on the ground, and blinding carries no rebar (#725).
+
+**6 — Order quantities were raw floats.** `164.48145 m³` of concrete, `0.479999210217142 m³` of column
+concrete. Order quantity is what someone buys and what the amount derives from, so binary residue was
+reaching the money column. Countable units still round **up** — you cannot buy 2.08 truck trips —
+while divisible units round to 2 dp *away from zero*, so an order can never fall below the measured
+net and quietly under-order (#724).
+
+**Also landed.** Painting is measured properly: the painted area IS the plastered face area
+(`area × PlasterFaces`), which the engine already derived and simply never emitted; it is now its own
+constituent kind, split interior/exterior from `WallType.Function`, and an unplastered wall emits no
+paint at all (#712). Roof sheets and tiles convert by category **narrowed by a type-name pattern**, so
+a concrete flat roof cannot come out as a sheet count — it stays measured and is flagged R5 (#709).
+Three unsound finish rules and two unreachable ones were **withdrawn** rather than left to produce
+confident wrong numbers, and the data seam that let them through is now pinned by tests (#710). The
+hot path was indexed and the cache flush scoped to one document (#719).
+
+**Site tools (MATSCHED-9).** The schedule now opens with a tools section, derived
+`work → trade-days → gang → tools`. **There is no standard for this** — NRM2 prices tools in
+preliminaries and no measurement standard publishes a wheelbarrows-per-mason ratio — so it ships as an
+editable table calibrated against the reference schedule, and says so in the JSON, the class header
+and a banner on every export. With no programme duration it produces **nothing** rather than inventing
+a crew; duration comes from `PRJ_DURATION_DAYS` with a dialog fallback, and storeys are counted from
+the model's own Levels (#736).
+
+**Tests 196 → 351.** Build 0/0 throughout. Three existing tests encoded the old double-wastage
+behaviour and were **corrected, not loosened**; three more failed first and turned out to be wrong
+themselves — a 6-dp assertion against a 4-dp contract, and a storey test contradicting its own comment.
+
+**Not verified.** Everything from #728 onward — the unit guard, single wastage, columns, foundations
+and tools — has passed tests and CI but **has not been seen in a real export**. See MATSCHED-1.
 
 #### Completed (Phase 243 — the KUT mobilisation pack was being relied on with no gate)
 
@@ -411,6 +3385,7 @@ message specific enough to act on, pointing the wrong way.
 
 The durable fix is not in the plugin — it is an always-on instance. Logged in
 [`ROADMAP.md`](ROADMAP.md) against #705, which already wants the custom domain attached.
+
 #### Completed (Phase 238 — the invite note named the wrong cause)
 
 Follow-on to Phase 237, found by verifying that fix against the live server rather than
@@ -1054,6 +4029,7 @@ automatically by the `StingTools.*.Tests/*.csproj` glob in
 `.github/workflows/stingtools-unit-tests.yml`. `tools/check_path_discipline.ps1` → clean.
 **Not yet exercised inside Revit** — see the runner's §4 for the in-Revit checklist that
 remains open.
+
 #### Completed (Document Manager — delete/restore repair, honest outcomes, one store layer)
 
 Full accuracy/consistency review of the Document Management Center
@@ -1702,6 +4678,7 @@ restored tree. **Nothing was exercised in a live Revit session** — no workflow
 Files: `StingTools/Core/WorkflowEngine.cs` (+72 cases) · 14 `StingTools/Data/WORKFLOW_*.json` ·
 `tools/check_workflow_wiring.ps1` + `tools/workflow_wiring_baseline.txt` (new) ·
 `.github/workflows/stingtools-plugin.yml`.
+
 #### Completed (Phase 228 — KUT project-readiness: one LOD ladder, the missing CSI divisions, Owner defaults)
 
 Kampala Uganda Temple (KUT) readiness pass. The contracted role is **information
@@ -2017,7 +4994,6 @@ marked.
 Build: 0 errors, 0 warnings (clean rebuild, Revit 2025 + .NET 8). Path-discipline
 and dispatch-parity gates green.
 
-
 #### Completed (Phase 227 — CI green again: a cache outage no longer turns 404 into 500)
 
 - **The real defect was in production code, not the workflow.** The project-visibility
@@ -2076,6 +5052,7 @@ and dispatch-parity gates green.
   guard. Product code — including `ProjectAccessAttribute` — is untouched. Does not
   reproduce locally: the local full suite is byte-identical at 73 failures / 442 tests
   before and after, so CI is the verification.
+
 #### Completed (N6 — DEP-7: restore the HTTP-level handoff provisioning-failure test)
 
 Phase 212 had to drop the end-to-end test for the handoff guarantee — *a
@@ -2606,6 +5583,7 @@ to `SUIT`) — and wires STING to populate it automatically.
   **deliverable/issue ribbon** is added (full ref, deliverable status, CDE, data
   drop, last transmittal, authoriser, sheet x/y, paper·scale, notes ref), and the
   discipline swatches show their **hex codes** from the definitive registry.
+
 #### Completed (Phase 226 — reconcile: adopt a blank token from the set side, per-token, before LWW)
 
 A live verification of SB-5a surfaced a real defect in the shared reconcile
@@ -2777,6 +5755,7 @@ New files: `StingBridge/sync/ifc_reconcile.py` · `StingBridge/sync/push_chunker
 `StingBridge/tests/e2e_ifc_pull_reconcile.py`
 
 ---
+
 #### Completed (Phase 203 — ISO IM Phase 3: warnings persist · push · subscribe · audit)
 
 Warnings were live-only. `WarningsEngine.ScanWarnings` computed a rich report behind a 30s
@@ -3117,6 +6096,7 @@ branch could no longer merge. Data-file only; no code, no GUID edits.
   changed lines, **zero** non-datatype diffs, all GUIDs identical on changed
   lines, and every file's row count preserved (numstat additions == deletions per
   file). Data-only change, no `dotnet build` run (Linux sandbox).
+
 #### Completed (Phase 224 — drawings-production P2, tracks A + D)
 
 Track A (correctness) and Track D (performance) of the P2 tier, on top of Phase 223. Ten
@@ -3312,7 +6292,6 @@ exercised inside Revit yet — see the smoke-test list at the end.
 | Legends (A-3) | Place a legend on a sheet, run Update Legend: viewport still shows content, no "(1)" view appears |
 | Sections (P-5) | Produce a section along a **north-south** grid: a vertical cut, not a plan-like box, and no throw |
 | Crops (E-2) | TightBbox on a **rotated plan** and on a **section**: crop frames the geometry rather than landing arbitrarily |
-
 
 #### Completed (Phase 222 — the handoff test now tests the code, not a copy of it)
 
@@ -4299,6 +7278,7 @@ table was exercised against 20 cases in a standalone harness. **Revit runtime ve
 is still required for the Phase-5 factory change** — `ViewSchedule.CreateRevisionSchedule`
 and `ScheduleSheetInstance.Create` behave differently across Revit versions, which is why
 every path there is warning-wrapped rather than fatal.
+
 #### Completed (Phase 202 — SB-2: SEQ minting, atomic server-side counter reservation)
 
 ArchiCAD elements were leaving the bridge with 7-segment tags
@@ -4729,6 +7709,7 @@ cannot author label rows) — see the `[HUMAN-IN-REVIT]` checklist in the finali
   (inverted vs the type binding used by propagation) — latent bug for families built via "Inject
   Params"; and SEQ zero-pad has a dual source of truth (`TagConfig.SeqPadWidth` + `ParamRegistry.NumPad`)
   kept in sync only by the panel writing both.
+
 #### Completed (Phase 198 — Parameter→Category binding accuracy, branch `claude/fix-param-category-bindings`)
 
 Fixed cross-discipline shared-parameter leakage: a **Ducts** element was showing anti-ligature
@@ -4882,6 +7863,109 @@ in Revit — the one-family (Duct) smoke test is the user's next step before sca
   discipline. Wired to the CREATE tab ("Propagate Universal" button, tag `Propagate_UniversalTag`).
 - Tests: `StingTools.Tags.Tests` → 134 pass, 2 fail (pre-existing `CsiMasterFormatTests`
   section-normalization failures, unrelated to this work).
+
+#### Completed (Family Converter — change a family's host / placement type)
+
+Branch `claude/family-converter-7fa3c2`. **Build-verified** `dotnet build -t:Rebuild` = 0 errors /
+0 new warnings vs the 6-warning baseline (new files emit 0 warnings). **Runtime-unverified** — the
+sandbox compiles but cannot drive Revit's UI; the tab appearing and a real conversion re-hosting an
+instance need a running Revit (see the PR handover checklist).
+
+A durable tool that changes a Revit family's host / placement type (e.g. Ceiling-hosted → Face-based)
+and keeps it working across the project library. `Family.FamilyPlacementType` is read-only in the API,
+so the engine picks one of two mechanisms per `(source → target)` pair:
+
+- **New `Core/Placement/FamilyHostConverter.cs`** — pure engine (no UI / no `TaskDialog`).
+  - **P1 — checkbox toggle (lossless):** Unhosted level-based → Face-based by setting
+    `BuiltInParameter.FAMILY_WORK_PLANE_BASED` on the `OwnerFamily` inside the family doc, then
+    `LoadFamily` overwrite. Geometry / params / connectors untouched; existing instances survive.
+    (The design spec named `FAMILY_WORK_PLANE_BASED_PARAM`, which does not exist in the Revit 2025 API —
+    the real member is `FAMILY_WORK_PLANE_BASED`.)
+  - **P2 — template rebuild (lossy, gated behind the "Allow lossy rebuild" toggle):** `NewFamilyDocument`
+    from the target host `.rft`, `ElementTransformUtils.CopyElements` for geometry + reference planes,
+    recreate family parameters (shared by GUID via the shared-parameter file where present, family by
+    name/type otherwise), formulas, and types via `FamilyManager`, re-apply the original category
+    (gated through `FamilyCategoryCompatibility.ModelFamilyGroup`), `SaveAs` a new `.rfa` under
+    `_BIM_COORD/Families/Converted`, then `LoadFamily` overwrite. Best-effort non-interactive instance
+    rehost (free-standing re-place for Face-based / Unhosted targets; hosted targets are flagged for a
+    manual host pick — a face/host cannot be picked in batch). MEP connectors do **not** survive
+    `CopyElements` and are transferred by `FamilyConnectorTransfer` (see the addendum block below);
+    host-relative geometry re-anchors to the template default and is flagged for review.
+  - Per-document registry (`FamilyHostTemplateRegistry`) layering corporate baseline over a
+    `<project>/_BIM_COORD/family_host_templates.json` override, mirroring `MepSizingRegistry`.
+  - §9 edge cases: non-model / in-place / curve-driven families refused; already-at-target reported as
+    no-change; missing `.rft` skipped with the resolved path; workshared families owned by another user
+    skipped with an ownership note; nested-usage families flagged.
+- **New `Data/Placement/STING_FAMILY_HOST_TEMPLATES.json`** — 6-target matrix (Face / Unhosted / Wall /
+  Ceiling / Floor / Roof) + path rules (`Unhosted → FaceBased` = P1; everything else = P2).
+- **New "Family Converter" tab** in the modeless Placement Centre (`StingPlacementCenter.xaml[.cs]`),
+  immediately after "Library". Scan / Import-folder / Load-`.rfa` toolbar, a per-row
+  `DataGridTemplateColumn` target combo (per-row `AllowedTargets`, not a column-wide list) with a live
+  P1/P2 Path hint that recomputes on selection, and Apply Selected / Apply All Pending / Save-Reload /
+  Audit Only. Everything routes through the existing `RunInlineAction` bridge and renders into the shared
+  inline Report panel (`bdrReport`) — no pop-ups except the OS file/folder pickers. Batch runs isolate
+  per-family failures so one bad family never aborts the run. Reuses `StingFamilyLoadOptions`,
+  `InstanceRehostSnapshot`, `FamilyQuickEditHelpers`, `FamilyCategoryCompatibility`, and
+  `SymbolLibraryCreator.ResolveTemplateFolder`.
+
+#### Completed (Family Converter addendum — connector preservation + shared-parameter integrity)
+
+Branch `claude/family-converter-7fa3c2`, on top of the block above. Spec:
+`docs/superpowers/specs/2026-07-18-family-converter-addendum.md`. **Build-verified**
+`dotnet build -t:Rebuild` against Revit 2025 = 0 errors / 0 warnings (the tree's current baseline is
+0/0 — the addendum predicted 6, but `origin/main` has moved 186 commits since it was written and the
+0/0 fix has landed). **Runtime-unverified** — whether connectors survive a real ceiling→face
+conversion and mate to a system needs a running Revit.
+
+- **A — MEP connectors now survive a P2 rebuild.** `ElementTransformUtils.CopyElements` does not carry
+  `ConnectorElement`s between family documents, so a rebuilt MEP family previously had none and could
+  not join a system; the engine merely counted them and said "re-add manually". New
+  **`Core/Placement/FamilyConnectorTransfer.cs`** is a two-tier transfer engine:
+  - **Tier 1 (STING seeds)** — resolve the backing `SymbolDefinition` from `Data/Seeds/STING_SEED_*.json`
+    (matched on seed id, definition name, or a type-variant name) and re-mint declaratively via
+    `SymbolLibraryCreator.AddConnectors` (widened `private` → `internal`). Exact, no geometric guessing.
+    A re-mint that yields nothing falls through to Tier 2 rather than reporting a false success.
+  - **Tier 2 (any vendor / legacy family)** — harvest every connector (domain, system classification,
+    origin, coordinate system, profile, radius/width/height, primary flag, description and every
+    writable non-dimensional parameter), then re-create each with three attempts, best fidelity first:
+    **(A)** the copied `PlanarFace` whose plane contains the origin (0.5 mm tol), whose normal aligns
+    (dot > 0.999) and onto which the origin genuinely projects — created on `face.Reference`;
+    **(B)** a minted `ModelCurve` at the harvested origin/normal, created on its endpoint reference —
+    the same technique `SymbolLibraryCreator.AddConnectorList` already uses to author seed connectors;
+    **(C)** reported as manual with exact origin XYZ, normal, domain, shape and size.
+    Geometry options set `ComputeReferences = true` — without it `face.Reference` is null and connector
+    creation silently fails.
+  - The blanket "connectors were NOT transferred" note is replaced with real accounting:
+    `{harvested} harvested · {recreated} re-created ({n} on copied faces, {n} on reference lines) ·
+    {n} need manual re-add`, plus the per-connector detail list. Only connectors actually created are
+    claimed, and reference-line placements are counted separately and flagged for review.
+  - *Deviation from the spec:* the addendum went straight from "no face match" to "report as manual".
+    Attempt B is inserted before that, recovering connectors hosted on reference planes or whose host
+    face failed to copy.
+- **B — shared-parameter integrity.** `CopyFamilyParameters` previously resolved shared params through
+  whatever file the user happened to have pointed, so every STING shared parameter would silently
+  degrade to a plain family parameter — the family still loads, but tags, schedules, ExLink and COBie
+  quietly stop working on it. Now:
+  - STING's `MR_PARAMETERS.txt` is **pinned** for the duration of the copy and **always restored in a
+    `finally`**, even on throw.
+  - **Both** files are searched by GUID — STING's first, then the user's original — so vendor shared
+    params that exist only in the user's file still resolve. A parameter only falls back when it is in
+    neither. Implemented as ordered passes (pin file → add what it defines → move on) because an
+    `ExternalDefinition` is only reliably usable while its own file is the pinned one.
+  - **Pre-flight in Audit Only**: `FamilyHostConverter.PreflightSharedParameters` opens each pending
+    P2 family read-only and reports "N shared parameter(s) would fall back", naming each one and both
+    resolved file paths, so the loss is a decision rather than a discovery. It runs through the existing
+    `RunInlineAction` bridge and appends to the same Audit report.
+- **C — build baseline.** No code change; `origin/main` merged in (186 commits, not the 2 the addendum
+  predicted). The one conflict was `docs/CHANGELOG.md`, resolved keeping both sides.
+
+**API notes** — verified against Revit 2025 `RevitAPI.dll` / `RevitAPI.xml` rather than assumed:
+the addendum's `ConnectorElement.Create*` signature list is correct as written;
+`Domain.DomainCableTrayConduit` covers both conduit and cable tray and they are discriminated via
+`BuiltInParameter.RBS_CABLETRAYCONDUIT_CONNECTORELEM_TYPE`; `ConnectorElement` exposes
+`SystemClassification` (`MEPSystemClassification`), not the per-domain system enums, whose names map
+1:1 except Electrical `DataCircuit` → `Data` (mapped by name with a concrete fallback, since the
+factories reject `UndefinedSystemType`).
 
 #### Completed (Matrix Place — room-oriented grid + fixture rotation, and a variant dropdown)
 
@@ -5287,6 +8371,7 @@ hosts best-effort (nearest wall/ceiling per the seed's placement type + the mapp
 anchor); blocks not inside a Room pass `room=null` (level-based / hosted fallback) and
 unhostable ones are reported as skipped, never silently dropped. `DWG_SYMBOL_MAP.json`
 ships as a documented seed map — extend per project via the `_BIM_COORD` override.
+
 #### Completed (Phase 197 — MEP visual-tag declutter: one tag per run, branch `claude/mep-tag-declutter-advice`)
 
 Smart Placement was drawing **one visual `IndependentTag` per modelled segment**, so a single pipe or
@@ -5400,6 +8485,7 @@ Closed the integration gap between the universal-tag status badges (data + QA ga
   items. The runner's guide edits (Task 6.1 — UPPERCASE `VIS_*`, message labels, view-driven control)
   target guides that live on branch `claude/tag-tier-review-94c78a`, not this branch; the enabling
   code landed here and the guide edits are flagged in ROADMAP for that branch.
+
 #### Completed (HVAC gap remediation Tier 3 item 3.4 — branch `claude/hvac-impl`)
 
 Item 3.4 from `docs/HVAC_GAP_REMEDIATION_PROMPT.md` — the gbXML load import no longer overwrites Space
@@ -5941,6 +9027,7 @@ Verified safe against interference: the conduit drift detector
 **Registration**: `Electrical_WireElementAnnotate` / `…Batch` added to
 `StingCommandHandler`, `WorkflowEngine.ResolveCommand`, and two buttons in
 `StingDockPanel.xaml` (MEP → "Wire + fill ops") beside "Wire annotate".
+
 #### Completed (STALE-P2 — Make the dashboard STALE count actionable: Select / Highlight / Clear, branch `claude/stale-select-filter`)
 
 Follow-up to STALE-1…STALE-4. The dashboards show a `ComplianceScan.StaleCount`
@@ -8285,6 +11372,7 @@ against engine/scorer consumption):
 | Conduits / Pipes / Cable Trays | ANNOTATED | routing outputs (obstruction-only as targets); tooltip added |
 | Specialty Equipment | ANNOTATED | no baseline rules — needs project/specialty pack |
 | Nurse Call Devices | ANNOTATED | needs healthcare rule pack |
+
 #### Completed (BOQ 5D — inline result action bar: Open-Export + Action buttons)
 
 Slice 3 review found the inline renderer dropped the dialog footer entirely, so
@@ -9586,6 +12674,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (MEP Systems — Phase I: cross-check hardening fixes)
 
 A two-stream adversarial review (engine logic + data/integration) over the whole A–H
@@ -10308,6 +13397,7 @@ fallback.
 V1 places fixtures from blocks only. Straight runs (Duct/Pipe/Conduit/Tray),
 fixture host-snapping, and the per-layer wizard are V2; fittings/risers/slope
 are V3 — see `docs/ROADMAP.md`.
+
 #### Completed (Phase 196 — tag-creation inject path: pre-skip type conflicts + failure swallower, mirrors LoadSharedParams)
 
 `CreateTagFamilies` could throw the unrecoverable Revit modal **"… cannot be
@@ -11464,6 +14554,7 @@ the `SuggestionEngine` strip with inline "→ Open" jump buttons.
    `PRJ_CORPORATE_LIBRARY_VERSION_TXT`, `PRJ_TEMPLATE_PROFILE_TXT`)
    need to land in `MR_PARAMETERS.txt` + `ParamRegistry`. `DriftDetector`
    + `CorporateLibrary` degrade gracefully when the params aren't bound.
+
 #### Completed (Phase 189a — review hardening + condition-based maintenance)
 
 Two review passes over the Phase 189 build.
@@ -14013,6 +17104,7 @@ drift detection + SyncStyles.
 #### Completed (Phase 41 — Build Error Fix: CS1597 Semicolon After Method)
 
 411. **CS1597 fix: ValidateCDETransition trailing semicolon** — Removed invalid trailing semicolon (`};` → `}`) from `BIMManagerEngine.ValidateCDETransition()` method closing brace in `BIMManagerCommands.cs:110`. The semicolon is valid after lambda/delegate declarations but not after regular methods. The remaining 12 build errors (CS8300 merge conflict markers) are from the user's local build environment where a prior merge was not fully resolved — no merge conflict markers exist in the branch source files.
+
 #### Completed (Phase 39 — Document Management Center Enhancement)
 
 391. **Action bar TabControl redesign** — Replaced single-row horizontal-scrolling `WrapPanel` (58+ hidden buttons requiring sideways scroll) with 7-tab `TabControl`: FILE/BULK, DOCS/CDE, ISSUES, REVISIONS, COORDINATION, HANDOVER, NOTES/BEP. All buttons visible without scrolling. Each tab groups related operations with section labels.
@@ -14538,7 +17630,7 @@ drift detection + SyncStyles.
 #### Completed (Phase 70 — Comprehensive Guide Rewrite & Deep Review)
 
 649. **BIM_COORDINATION_WORKFLOW_GUIDE.md rewrite** — Complete rewrite from 1,034 to 1,705 lines with 22 sections: Introduction & Purpose, Roles & Responsibilities (14 ISO 19650 roles with CDE access matrix), Daily BIM Coordinator Workflow (6-phase day cycle with step-by-step procedures), Model Setup & Configuration (3 setup methods, project_config.json reference), Tagging Workflow (full 11-step pipeline, 5 collision modes, SEQ persistence), Document Management & CDE State Machine (7-state lifecycle, compliance-gated transitions, suitability codes, file naming), Issue Management & BCF (7 issue types, SLA enforcement, cross-system automation), Revision Management (snapshots, compare, auto-revision), Coordination & Clash Detection (intra/cross-model, federated compliance), Compliance & QA (real-time scan, 5 compliance gates, data drop readiness, 45-check validation), Warnings Management (87+ rules, 10 auto-fix strategies, SLA tracking, deliverable impact), Workflow Automation (30+ presets, 19 condition types, compound conditions, custom JSON), Data Exchange (Excel round-trip with 7-token validation, COBie V2.4 with 22 presets, IFC, BCF), Handover & FM (COBie, maintenance, O&M, asset health), BEP & Governance (22 presets, auto-enrichment), Reporting & Dashboards (11 report types, compliance trend), International Standards (19 standards reference), BIM Coordination Center (13 tabs, interactive features, 3D zoom), Meeting Management (5 types, action tracking, 6 automation rules), 4D/5D Scheduling, Troubleshooting, Command Quick Reference.
-650. **TAGGING_GUIDE.md rewrite** — Complete rewrite from 1,291 to 1,306 lines with 27 sections: Introduction (comparison table, 22 categories), Tag Format & Structure (configurable format), Token Reference (all 8 segments with auto-detection methods, valid codes, cross-validation rules), Tagging Pipeline (11-step RunFullPipeline with detailed step descriptions), Tagging Commands Reference (4 tables: primary/validation/fix/setup), One-Click Workflows (6 project stages, 5 automation presets, custom JSON), Token Management (individual/bulk/lock/cross-discipline), Tag Collision Handling (3 modes, SEQ persistence, range allocation), Tag Containers (53 parameters with selective writing), TAG7 Rich Narrative (6 sub-sections, 5 presentation modes, paragraph depth), Tag Validation (4 buckets, ISO code validation, cross-validation, 5 compliance gates), Smart Tag Placement (16-position system, collision algorithm, 16 commands), Tag Style Engine (128 combinations, 8 color schemes, 8 commands), Display Modes (5 modes, per-view routing), Real-Time Auto-Tagging (IUpdater, discipline filter, bulk paste queue), Stale Detection (3 staleness triggers, re-tagging, selection), Tag Operations (7+7+5+5 commands), Leader Management (14 commands), Legend Building (31 commands), Workflow Automation (3 recommended flows, 5 presets, custom JSON), Cross-System Integration (10 system links), Data Exchange (Excel columns, 7-token validation, COBie), Graitec Numbering (5 styles, 6 grouping algorithms), Tag Export/Import, Configuration Reference (20+ keys), Troubleshooting (12 common issues, 6 performance tips), Complete Command Reference (42 commands in 3 tables).
+650. **TAGGING_GUIDE.md rewrite** — Complete rewrite from 1,291 to 1,306 lines with 27 sections: Introduction (comparison table, 22 categories), Tag Format & Structure (configurable format), Token Reference (all 8 segments with auto-detection methods, valid codes, cross-validation rules), Tagging Pipeline (11-step RunFullPipeline with detailed step descriptions), Tagging Commands Reference (4 tables: primary/validation/fix/setup), One-Click Workflows (6 project stages, 5 automation presets, custom JSON), Token Management (individual/bulk/lock/cross-discipline), Tag Collision Handling (3 modes, SEQ persistence, range allocation), Tag Containers (53 parameters with selective writing), TAG7 Rich Narrative (6 sub-sections, 12 presentation modes, paragraph depth), Tag Validation (4 buckets, ISO code validation, cross-validation, 5 compliance gates), Smart Tag Placement (16-position system, collision algorithm, 16 commands), Tag Style Engine (128 combinations, 8 color schemes, 8 commands), Display Modes (5 modes, per-view routing), Real-Time Auto-Tagging (IUpdater, discipline filter, bulk paste queue), Stale Detection (3 staleness triggers, re-tagging, selection), Tag Operations (7+7+5+5 commands), Leader Management (14 commands), Legend Building (31 commands), Workflow Automation (3 recommended flows, 5 presets, custom JSON), Cross-System Integration (10 system links), Data Exchange (Excel columns, 7-token validation, COBie), Graitec Numbering (5 styles, 6 grouping algorithms), Tag Export/Import, Configuration Reference (20+ keys), Troubleshooting (12 common issues, 6 performance tips), Complete Command Reference (42 commands in 3 tables).
 651. **Deep review findings** — 97+ gaps identified across 3 parallel review agents: Tagging pipeline (35 gaps: 5 CRITICAL including batch size inconsistency, STATUS/REV missing from validation, NativeParamMapper order issues), BIM/Coordination workflows (47 gaps: 6 CRITICAL including CDE approval enforcement, entity linking, coordination data refresh), Warnings/Model systems (16 gaps: 3 CRITICAL including 15+ missing classification rules, 12 categories without auto-fix, missing MEP/structural standards enforcement).
 
 #### Completed (Phase 71 — Critical Performance Fix, Warnings Enhancement, DWG-to-BIM Enhancement)
@@ -15077,7 +18169,6 @@ Consolidates all remaining remote branches into `claude/merge-branches-resolve-c
 
 **Verification:** `git branch -r --no-merged HEAD` returns empty. `git grep -l '^<<<<<<< \|^=======$\|^>>>>>>> '` across `.md`/`.cs`/`.xaml`/`.json`/`.csproj` returns no hits. No build work lost; the only content dropped was the duplicated `StingBIM.Standards/` folder already superseded by `StingTools.Standards/`.
 
-
 #### Completed (Phase 111 — v6 residual gaps: N-G4 / N-G12 / N-G16 / N-G17)
 
 Closes the four "partial / missing" items identified in the 2026-04-22 v6
@@ -15141,7 +18232,6 @@ dialog in the dock panel is a follow-up).
 **Audit outcome**: 60 of 62 runner sections implemented (96 %);
 17 of 18 new gaps implemented (94 %). Only N-G18 (AI vision) remains
 deferred, per the original v6 runner's Year-2 scope.
-
 
 #### Completed (Phase 112 — Planscape Template Engine v1.1: S01–S18 + visibility fix)
 
@@ -16383,7 +19473,6 @@ ThemeManager.
  9. Click "Undo last run" → deletes the last batch in one transaction;
     history grid refreshes.
 
-
 #### Completed (Phase 128 — Placement Centre PC-01..PC-25)
 
 Implements every gap from `docs/PLACEMENT_CENTRE_REVIEW.md` §9. Branch
@@ -16488,7 +19577,6 @@ Deferred (PC-24): embedding the Centre's full editor as a tab inside
 the WPF dockable panel needs the Centre's singleton Window →
 UserControl refactor; the dockable panel's existing `Placement_OpenCentre`
 button continues to invoke the Centre as a modeless window.
-
 
 #### Completed (Phase 129 — Branch consolidation + parameter file alignment)
 
@@ -18048,6 +21136,205 @@ engineering" now have first-shipped implementations:
 - `Data/STING_REFNET_JOINTS.json`
 - `Data/STING_CTF_COEFFICIENTS.json`
 
+
+---
+
+## Server test-health pass — DEP-5 / DEP-6a / DEP-10 / DEP-11
+
+Scope: `Planscape.Server` only. Integration-suite failures **73 → 9**
+(430 passing). `check-new-failures.sh` exits 0; `known-failing-tests.txt`
+shrank from 66 entries to 9, and every remaining entry now carries a diagnosis.
+
+### The headline: five of the "drifted assertions" were real bugs
+
+DEP-10 assumed the 73 failures were stale test expectations. Five were not.
+
+| Bug | Effect in production |
+|---|---|
+| `ProjectVisibility.IsTenantAdmin` read `FindFirst("role")`, which JWT inbound claim mapping had already rewritten to the `ClaimTypes.Role` URI | The claim was always null, so the method was **always false**. Tenant Owners and SecurityOfficers lost their see-everything privilege and fell through to the author-or-member predicate: they saw only projects they personally created and got 404 on deep links to any other project in their own tenant. Root cause of ~28 of the 73 failures |
+| `DocumentsController.GetUserRole()` — same claim bug | Every CDE state transition was evaluated as if the caller were a `Viewer`, so nobody could move a document out of WIP |
+| `/api/auth/refresh` missing `IgnoreQueryFilters()` | `AppUser` is `ITenantScoped` and the endpoint is anonymous, so the global tenant filter ran with `CurrentTenantId == Guid.Empty` and matched zero rows — **every refresh returned 401**. Login, ForgotPassword and ResetPassword all bypass the filter and say why; refresh was missed |
+| `/api/auth/license/activate` missing `IgnoreQueryFilters()` | Same mechanism on `LicenseKey`. Licence activation from the Revit add-in — which calls this before any session exists — **could never succeed for anyone**. Its companion test `ActivateLicense_InvalidKey_ReturnsInvalid` was passing for the wrong reason |
+| `TagSyncController.SyncElements` returned on an empty batch **above** the tenant check | This controller takes `projectId` from the body, so `[ProjectAccess]` does not apply and those three lines are its only isolation. A caller from any tenant got 200 for any `projectId` — an existence oracle, and a live hazard the moment anything is added to the empty-batch path |
+
+Also fixed: `DocumentRecord.Project` ↔ `Project.Documents` is a serialization
+cycle, and several controllers return raw entities, so any successful create
+threw mid-response once EF fixup populated the navigation. Latent only because
+the visibility bug 404'd those endpoints first. `ReferenceHandler.IgnoreCycles`
+is now set on the MVC JSON options.
+
+### Fixture rot (the genuine test drift)
+
+- **Global tenant query filter** starved fixtures written before it landed. Handler
+  unit tests built a `DbContext` with no `ITenantContext`, so `CurrentTenantId`
+  was `Guid.Empty` and every seeded row was filtered out — both DB grant paths in
+  `BimManagerOrAdminHandler` were dead. Fixed with a stub tenant context and
+  `TenantId` on seeded `ProjectMember` rows, *not* by bypassing the filter, which
+  would have made the denial tests pass vacuously.
+- **`AddDbContext` invokes its options lambda per context instance**, so
+  `UseInMemoryDatabase(Guid.NewGuid().ToString())` gave the fixture and the
+  handler's own scope two different empty stores. Hoisted to a local.
+- **`Tenant.Plan` was never seeded** in the test factory, defaulting to `Trial`,
+  which now allows one project — and one was already seeded, so every create
+  402'd. `SeedData.cs:60-63` had hit and documented the identical trap.
+- **The seeded project had no `CreatedById` and no `ProjectMember`**, so it was
+  invisible to everyone under the visibility model.
+- **EF InMemory raises `TransactionIgnoredWarning` as an error**, 500-ing any
+  handler that opens a transaction.
+- Assertions genuinely stale: Trial project cap 3 → 1 and Network 10 →
+  unlimited after the repricing; `register` returns `plan`, not `tier`;
+  `/health` is gated to private-network callers (the liveness probe is
+  `/health/live`); `/meetings/actions/open` returns a paginated envelope.
+
+### DEP-6a — `IReplayGuard`
+
+`Core/Interfaces/IReplayGuard.cs` + `Infrastructure/Services/RedisReplayGuard.cs`,
+faked by `TestReplayGuard`. The implementation deliberately does **not** swallow
+transport exceptions: whether an unreachable store fails open or closed is a
+security decision that belongs at the call site, next to the thing it protects.
+Fail-open semantics are unchanged. Four tests cover replay-blocked,
+distinct-tickets-independent, fail-open-on-throw, and guard-actually-consulted.
+
+### Harness
+
+`check-new-failures.sh` required a space immediately before `[FAIL]`, so the `(`
+of a theory case ended the match and **every failing theory case was invisible to
+CI** — a newly-broken theory would have sailed through. Now matched and collapsed
+to the base method name.
+
+### Known limits, stated honestly
+
+- **3 tests need real PostgreSQL** and cannot pass on the InMemory harness:
+  `EF.Functions.ILike` is Npgsql-only, and `SequenceCounterService` runs
+  `INSERT … ON CONFLICT … RETURNING` via `SqlQueryRaw`. Not bugs; they belong in
+  the real-Postgres suite. **Not run against Postgres in this pass.**
+- **6 tests are confirmed production defects in `DeliverableStateMachine`**
+  (ROADMAP DEP-14) — including `"BLOCKED".Contains("LOCKED")` misclassifying
+  every `BLOCKED*` state as terminal. Not fixed here: each remedy changes how
+  every tenant's custom workflow vocabulary is classified.
+- **~22 further `FindFirst("role")` sites remain unmapped** (ROADMAP DEP-12).
+  Audited as fail-closed, so this degrades function rather than opening access.
+  The central fix touches every claim reader and needs its own security review.
+- **Log output cannot be asserted from an integration test** (ROADMAP DEP-13):
+  Serilog's `Log.Logger` is process-global and concurrent hosts race over it.
+- **Two lines were ADDED to the baseline** (the file still went 66 → 11 net):
+  `Login_NonexistentUser_Returns401` and
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly`. Both are pre-existing
+  order/parallelism flakes, confirmed by running `origin/main` — the Login one
+  fails 3/3 there in the full suite and passes in isolation, so the previous
+  baseline simply captured a luckier run. The ETag one stands up a second
+  `WebApplicationFactory`, which is exactly the DEP-7 hazard. Listing them makes
+  CI deterministic instead of randomly red; the check script still prints a
+  "now PASS" notice on runs where they succeed, so they stay visible.
+  A shared never-disposed `JobStorage` was tried as a DEP-7 mitigation and made
+  the suite *worse* (cross-factory state bleed) — reverted, not shipped.
+
+---
+
+## Follow-up — review of #460 (rate-limiter scope + refresh soft-delete guard)
+
+Two fixes stacked on the test-health pass, from a code review of #460.
+
+### Rate limiter: `refresh` and `license/activate` off the shared `auth` bucket
+
+The test-health pass put `[EnableRateLimiting("auth")]` on both endpoints. The
+`auth` policy is a single 5-req/5-min sliding window keyed by **IP only**
+(`Program.cs`) and shared across *every* auth endpoint (login, forgot/reset,
+handoff, PAT exchange). That is right for login but too tight for these two:
+
+- `refresh` is automatic and periodic. Behind a shared egress IP (corporate
+  NAT / VPN) the combined refresh traffic of a handful of users exhausts the
+  bucket and 429s everyone — including re-login, which draws from the same
+  bucket. Moved to the `api` policy (100/60s, per-user or per-IP). The refresh
+  token is a 128-bit random secret, so a strict brute-force limiter adds little.
+- `license/activate` is a validity oracle, so it keeps a limiter — but on its
+  own dedicated per-IP `license` policy (20/5min), not shared with login. The
+  Revit add-in calls it pre-session, so a multi-engineer office activates from
+  one public IP; 20/5min covers that while staying far too slow to walk a
+  high-entropy keyspace.
+
+### `refresh` soft-delete guard
+
+`RefreshToken` disables **all** global query filters with `IgnoreQueryFilters()`
+but re-stated only `IsActive`. Its two sibling anonymous lookups both exclude
+soft-deleted users (handoff exchange: `&& !u.IsDeleted`; PAT exchange: an
+explicit `user.IsDeleted` guard), and `AppUser`'s global `!IsDeleted` filter is
+itself overwritten by the reflection-applied tenant filter — so nothing else
+excluded a soft-deleted user from token refresh. Added `&& !u.IsDeleted` to the
+predicate.
+
+Built without `dotnet build` verification (no .NET SDK in the sandbox); the
+changes are attribute/predicate-level and mirror existing adjacent patterns.
+
+---
+
+## Follow-up 2 — review of #460 (dead soft-delete filter + handoff-secret test leak)
+
+Two more items from the #460 review, both flagged in #463's notes.
+
+### `AppUser` soft-delete query filter was dead (real, pre-existing bug)
+
+`AppUser` sets a soft-delete global filter (`e.HasQueryFilter(u => !u.IsDeleted)` in
+its entity block) **and** is `ITenantScoped`, so `ApplyTenantQueryFilters` — which
+runs *after* the entity blocks — called `HasQueryFilter` again with the tenant
+predicate. EF Core's `HasQueryFilter` **replaces** rather than combines, so the
+tenant filter silently clobbered the soft-delete one: soft-deleted users stayed
+visible to every normal query, contradicting the entity-block comment and the two
+anonymous lookups (handoff, PAT exchange) that rely on `!IsDeleted`.
+
+Fix: `ApplyTenantQueryFilters` now reads each entity's existing filter via
+`GetQueryFilter()` and `AND`s it with the tenant predicate under one shared
+parameter (a small `ParameterReplacer : ExpressionVisitor` rebinds the existing
+lambda's parameter). General, not an AppUser special-case — any future entity with
+its own filter is preserved too. No behavioural change today (nothing sets
+`AppUser.IsDeleted = true` yet), but the guarantee is now real — and pinned by a
+regression test (`SecurityCriticalPathTests.SoftDeletedUser_ExcludedByGlobalFilter_ButPresentUnderIgnoreQueryFilters`):
+a soft-deleted row is absent from a normal query and present under
+`IgnoreQueryFilters`, with a live row in the same tenant proving the combine did not
+break tenant scoping.
+
+### Handoff-secret test isolation
+
+`AuthController.HandoffExchange` read `PLANSCAPE_HANDOFF_SECRET` via
+`Environment.GetEnvironmentVariable`, which forced two test classes to set a
+**process-global** env var in their constructors — leaking across the parallel
+xunit suite. Now read via `IConfiguration` (env vars remain a config source, so a
+deployed secret still resolves; the direct read stays as a fallback). The factory
+injects a known `HandoffSecret` through `ConfigureAppConfiguration` (reached because
+the secret is read at request time, not host-build), and both `HandoffProvisioning`
+and `HandoffReplayGuard` tests drop their `Environment.SetEnvironmentVariable` calls.
+
+### Not done (deliberately)
+
+- **Baselined flakes** `Login_NonexistentUser_Returns401` /
+  `Get_WithConfig_ETagDiffersFromBuiltInOnly` are downstream of the process-global
+  state in **DEP-7** (Hangfire `JobStorage.Current`) / **DEP-13** (Serilog
+  `Log.Logger`). Those are large infra refactors whose mitigations the test-health
+  pass already measured and reverted; not churned here.
+
+Built **without `dotnet build` verification** (no .NET SDK in the sandbox);
+compile is covered by CI's full-solution build (`contract-drift.yml`). The EF filter
+change is exercised by the whole tenant-isolation suite, which runs in
+`planscape-server.yml` — worth confirming that job runs on this PR.
+
+### Follow-up 2b — test-harness fixes from the #475 build review
+
+Two non-blocking observations from running the build/verify pass:
+
+- **`check-new-failures.sh` completion guard was invocation-fragile.** It required a
+  `^(Passed!|Failed!)` line, which only the VSTest per-project console logger emits;
+  a solution-level `dotnet test Planscape.sln` (or Microsoft.Testing.Platform) prints
+  a different summary, so the gate errored `no test summary` and exited 1 on an
+  otherwise-valid run. The guard now accepts all three summary shapes (`Passed!`/
+  `Failed!`, `Total tests:`, `Test summary:`). Broadening the guard added a
+  false-green risk (a summary whose `[FAIL]` lines we can't parse), so a cross-check
+  now bails if the run's own summary reports failures but none were parsed.
+- **3 Postgres-only `CoreApiTests` were baseline *failures*, not skips.**
+  `Search_ValidQuery_ReturnsResults` (`EF.Functions.ILike`) and `Transmittals_CreateAndList`
+  / `_MarkSent` (`INSERT … ON CONFLICT … RETURNING`) run on the always-InMemory test
+  host regardless of `PLANSCAPE_TEST_PG`, so they can never pass there. Converted to
+  `[Fact(Skip=…)]` (report as Skipped) and removed from `known-failing-tests.txt`, so
+  the baseline shrank to the 6 confirmed `DeliverableStateMachine` defects.
 
 #### Completed (Phase 195 — Propagate Universal Tag: overwrite-by-file-name fix)
 

@@ -1,0 +1,102 @@
+[
+  {
+    "Category": "Walls",
+    "UnitRate": 68000,
+    "Currency": "UGX",
+    "Unit": "m2",
+    "Note": "PLACEHOLDER — 200mm hollow block, cement-sand render 1:4 both faces, emulsion. Replace with your priced rate.",
+    "Labour": 22000,
+    "Plant": 2000,
+    "Material": 44000
+  },
+  {
+    "Category": "Floors",
+    "UnitRate": 145000,
+    "Currency": "UGX",
+    "Unit": "m2",
+    "Note": "PLACEHOLDER — composite: 150 RC slab + 50 screed + finish. Split these once the takeoff rules separate slab/screed/finish by PROD code.",
+    "Labour": 40000,
+    "Plant": 8000,
+    "Material": 97000
+  },
+  {
+    "Category": "Roofs",
+    "UnitRate": 92000,
+    "Currency": "UGX",
+    "Unit": "m2",
+    "Note": "PLACEHOLDER — makuti thatch on eucalyptus purlins.",
+    "Labour": 38000,
+    "Plant": 2000,
+    "Material": 52000
+  },
+  {
+    "Category": "Ceilings",
+    "UnitRate": 46000,
+    "Currency": "UGX",
+    "Unit": "m2",
+    "Note": "PLACEHOLDER — timber tongue-and-groove ceiling on brandering."
+  },
+  {
+    "Category": "Doors",
+    "UnitRate": 850000,
+    "Currency": "UGX",
+    "Unit": "each",
+    "Note": "PLACEHOLDER — average across D2/pvo, D4/pvo, D5. Price the three types separately once the door schedule is complete."
+  },
+  {
+    "Category": "Windows",
+    "UnitRate": 520000,
+    "Currency": "UGX",
+    "Unit": "each",
+    "Note": "PLACEHOLDER — average across W1/pvo, W2/pvo, W3/pvo."
+  },
+  {
+    "Category": "Structural Columns",
+    "UnitRate": 1450000,
+    "Currency": "UGX",
+    "Unit": "m3",
+    "Note": "PLACEHOLDER — RC C25 including formwork and reinforcement."
+  },
+  {
+    "Category": "Structural Framing",
+    "UnitRate": 1520000,
+    "Currency": "UGX",
+    "Unit": "m3",
+    "Note": "PLACEHOLDER — RC beams including formwork and reinforcement."
+  },
+  {
+    "Category": "Structural Foundations",
+    "UnitRate": 1180000,
+    "Currency": "UGX",
+    "Unit": "m3",
+    "Note": "PLACEHOLDER — mass and reinforced foundations."
+  },
+  {
+    "Category": "Stairs",
+    "UnitRate": 2400000,
+    "Currency": "UGX",
+    "Unit": "each",
+    "Note": "PLACEHOLDER — external steps and ramps on the sloping site."
+  },
+  {
+    "Category": "Toposolid",
+    "UnitRate": 38000,
+    "Currency": "UGX",
+    "Unit": "m3",
+    "Note": "PLACEHOLDER — bulk cut/fill to formation. NOTE the corporate default prices Toposolid per m2; the project takeoff rule kbl-topo-cutfill switches it to m3, so this rate must be a VOLUME rate."
+  },
+  {
+    "Category": "Plumbing Fixtures",
+    "UnitRate": 1250000,
+    "Currency": "UGX",
+    "Unit": "each",
+    "Note": "PLACEHOLDER — whb, wc, sh, bt averaged. Split by type before tender."
+  },
+  {
+    "Category": "Generic Models",
+    "UnitRate": 0,
+    "Currency": "UGX",
+    "Unit": "each",
+    "Note": "Deliberately zero. Generic Models is a catch-all; anything landing here should be re-categorised or given its own takeoff rule, not silently priced."
+  }
+]

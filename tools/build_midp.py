@@ -20,9 +20,11 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import kut_docs_lib as K                                          # noqa: E402
-from midp_schema import COLS, LIST_COL, LISTS, MIDP_VALIDATED, TIDP_VALIDATED   # noqa: E402
+import midp_rows as D                                             # noqa: E402
+import midp_schema as S                                           # noqa: E402
+from midp_schema import COLS, COL_NAMES, LIST_COL, LISTS          # noqa: E402
 
-OUT = 'KUT_Master_Information_Delivery_Plan.xlsx'
+OUT = 'KUT_DOCS_WORKING/issued/KUT_Master_Information_Delivery_Plan.xlsx'
 
 NAVY = '1F3654'
 SLATE = '444F5C'
@@ -52,87 +54,12 @@ shade_fill = PatternFill('solid', fgColor=SHADE)
 # workbook offered. See that module for why.
 
 # ── register rows ───────────────────────────────────────────────────────────
-# Ref, Discipline, Deliverable, Type, Stage, LOD, Format, Suit, State, Month, Responsible, TIDP, Notes
-R = [
-    ('Z-000', 'Information Management', 'BIM Execution Plan', 'Document', 'Mobilisation', 'n/a', 'DOCX/PDF', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Baselined at mobilisation'),
-    ('Z-001', 'Information Management', 'Master Information Delivery Plan', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Aggregated from all TIDPs'),
-    ('Z-002', 'Information Management', 'Project Delivery Playbook', 'Document', 'Mobilisation', 'n/a', 'DOCX/PDF', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-003', 'Information Management', 'Responsibility matrix (RACI)', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-004', 'Information Management', 'Project template, family library and title blocks', 'Document', 'Mobilisation', 'n/a', 'RVT/RFA', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Issued to every task team'),
-    ('Z-005', 'Information Management', 'Originator code register', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'Appointing Party', 'TIDP-Z', 'Required before any container is numbered'),
-    ('Z-007', 'Information Management', 'Standards reconciliation schedule (BEP section 4.1.3)', 'Document', 'Mobilisation', 'n/a', 'DOCX/PDF', 'S3', 'Shared', 'M0', 'All disciplines', 'TIDP-Z', 'Opened at mobilisation; CLOSED before Technical Design. An open row means two parties may design to different bases'),
-    ('Z-008', 'Information Management', 'Shared coordinates seed model', 'Model', 'Mobilisation', 'n/a', 'RVT', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Survey point, project base point, true north, levels and grids. Every model acquires coordinates from it'),
-    ('Z-009', 'Information Management', 'Level and grid register', 'Schedule', 'Mobilisation', 'n/a', 'XLSX/PDF', 'A1', 'Published', 'M0', 'Lead Appointed Party', 'TIDP-Z', 'Level codes appear in every container name'),
-    ('Z-011', 'Information Management', 'Software and version register', 'Schedule', 'Mobilisation', 'n/a', 'XLSX', 'A1', 'Published', 'M0', 'All parties', 'TIDP-Z', 'One authoring version project-wide for the duration of a stage'),
-    ('Z-012', 'Information Management', 'CDE folder structure and permission matrix', 'Document', 'Mobilisation', 'n/a', 'PDF', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-013', 'Information Management', 'Information classification and access schedule', 'Document', 'Mobilisation', 'n/a', 'PDF', 'A1', 'Published', 'M0', 'Appointing Party', 'TIDP-Z', 'Restricted spaces and systems must be classified BEFORE modelling begins'),
-    ('Z-014', 'Information Management', 'Clash matrix and tolerance schedule', 'Document', 'Mobilisation', 'n/a', 'PDF', 'S3', 'Shared', 'M1', 'MEP and structural leads', 'TIDP-Z', 'Required before the first coordination cycle of Stage 2.2'),
-    ('Z-015', 'Information Management', 'IFC export configuration', 'Document', 'Mobilisation', 'n/a', 'PDF/JSON', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Issued centrally, or every consultant IFC differs'),
-    ('Z-016', 'Information Management', 'Shared parameter file', 'Document', 'Mobilisation', 'n/a', 'TXT', 'A1', 'Published', 'M0', 'Information Manager', 'TIDP-Z', 'Central ownership; a locally added parameter has a different GUID'),
-    ('Z-017', 'Information Management', 'Capability and capacity assessment', 'Report', 'Mobilisation', 'n/a', 'XLSX', 'S3', 'Shared', 'M1', 'Lead Appointed Party', 'TIDP-Z', 'ISO 19650-2; the Stage 0 test model is its practical form'),
-    ('Z-006', 'All disciplines', 'Task Information Delivery Plan', 'Document', 'Mobilisation', 'n/a', 'XLSX', 'S3', 'Shared', 'M0', 'Task Team Managers', 'TIDP-ALL', 'One per appointed party'),
-    ('Z-010', 'Information Management', 'Federated coordination model', 'Model', '2.1 Deliverable A', '200', 'NWC/IFC', 'S1', 'Shared', 'M1', 'BIM Coordinator', 'TIDP-Z', 'First federation'),
-    ('A-100', 'Architecture', 'Architectural model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'Architecture lead', 'TIDP-A', 'Massing and generic systems; rooms placed'),
-    ('S-100', 'Structure', 'Structural model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'Structural lead', 'TIDP-S', 'Indicative frame and foundations'),
-    ('M-100', 'Mechanical', 'Mechanical model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'MEP lead', 'TIDP-M', 'Plant space allocation, primary routes'),
-    ('E-100', 'Electrical', 'Electrical model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'MEP lead', 'TIDP-E', 'Plant space allocation, primary routes'),
-    ('P-100', 'Public Health', 'Plumbing and drainage model', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'MEP lead', 'TIDP-P', 'Primary routes'),
-    ('G-100', 'Civil and Site', 'Site model and levels', 'Model', '2.1 Deliverable A', '200', 'RVT/IFC', 'S2', 'Shared', 'M1', 'Civil lead', 'TIDP-G', 'Site levels, access, drainage strategy'),
-    ('Z-110', 'Information Management', 'Basis of design report', 'Document', '2.1 Deliverable A', '200', 'DOCX/PDF', 'S3', 'Shared', 'M1', 'Lead Appointed Party', 'TIDP-Z', 'Design intent'),
-    ('Z-111', 'Information Management', 'Area schedule reconciled to the brief', 'Schedule', '2.1 Deliverable A', '200', 'XLSX/PDF', 'S3', 'Shared', 'M1', 'Information Manager', 'TIDP-Z', 'Gate condition'),
-    ('Z-112', 'Information Management', 'Deliverable A gate pack', 'Document', '2.1 Deliverable A', '200', 'PDF', 'S4', 'Shared', 'M1', 'Information Manager', 'TIDP-Z', 'Contents per the playbook, Appendix B'),
-    ('A-200', 'Architecture', 'Architectural model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', 'Real geometry, correctly located'),
-    ('A-201', 'Architecture', 'General arrangement plans, sections and elevations (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
-    ('A-202', 'Architecture', 'Door and window schedules', 'Schedule', '2.2 Deliverable B', '300', 'PDF/XLSX', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
-    ('A-203', 'Architecture', 'Room data sheets (key spaces)', 'Room data sheet', '2.2 Deliverable B', '300', 'PDF', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', ''),
-    ('A-204', 'Architecture', 'Existing conditions and removals plan', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Architecture lead', 'TIDP-A', 'Demolition classification is a manual task; see BEP 10.4'),
-    ('S-200', 'Structure', 'Structural model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'Structural lead', 'TIDP-S', 'Sized members; penetrations coordinated'),
-    ('S-201', 'Structure', 'General arrangement drawings (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'Structural lead', 'TIDP-S', ''),
-    ('M-200', 'Mechanical', 'Mechanical model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-M', 'Real equipment; risers fixed'),
-    ('M-201', 'Mechanical', 'HVAC layouts (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-M', ''),
-    ('E-200', 'Electrical', 'Electrical model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-E', ''),
-    ('E-201', 'Electrical', 'Power and lighting layouts (50%)', 'Drawing', '2.2 Deliverable B', '300', 'PDF/DWG', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-E', ''),
-    ('P-200', 'Public Health', 'Plumbing and drainage model', 'Model', '2.2 Deliverable B', '300', 'RVT/IFC', 'S2', 'Shared', 'M4', 'MEP lead', 'TIDP-P', ''),
-    ('FP-200', 'Fire Protection', 'Fire strategy and suppression layout', 'Model/Document', '2.2 Deliverable B', '300', 'RVT/PDF', 'S2', 'Shared', 'M4', 'Fire lead', 'TIDP-FP', ''),
-    ('Z-210', 'Information Management', 'Coordination report', 'Report', '2.2 Deliverable B', '300', 'PDF/BCF', 'S2', 'Shared', 'M4', 'BIM Coordinator', 'TIDP-Z', 'No unresolved high priority clashes'),
-    ('Z-211', 'Information Management', 'Federated model', 'Model', '2.2 Deliverable B', '300', 'NWC/IFC', 'S2', 'Shared', 'M4', 'BIM Coordinator', 'TIDP-Z', ''),
-    ('Z-212', 'QS / Cost', 'Bill of quantities (preliminary)', 'Schedule', '2.2 Deliverable B', '300', 'XLSX', 'S2', 'Shared', 'M4', 'Quantity Surveyor', 'TIDP-Q', ''),
-    ('FF-200', 'FF&E', 'FF&E and finishes register (first exchange)', 'Schedule', '2.2 Deliverable B', '300', 'CSV/XLSX', 'S2', 'Shared', 'M4', 'Interior Designer', 'TIDP-FF', 'Matched on room number'),
-    ('Z-213', 'Information Management', 'Deliverable B gate pack', 'Document', '2.2 Deliverable B', '300', 'PDF', 'S4', 'Shared', 'M4', 'Information Manager', 'TIDP-Z', ''),
-    ('A-300', 'Architecture', 'Architectural model', 'Model', '2.3 Deliverable C', '350', 'RVT/IFC', 'S4', 'Shared', 'M8', 'Architecture lead', 'TIDP-A', 'Interfaces resolved'),
-    ('A-301', 'Architecture', 'Full drawing set (100%) and details', 'Drawing', '2.3 Deliverable C', '350', 'PDF/DWG', 'S4', 'Shared', 'M8', 'Architecture lead', 'TIDP-A', ''),
-    ('S-300', 'Structure', 'Structural model', 'Model', '2.3 Deliverable C', '350', 'RVT/IFC', 'S4', 'Shared', 'M8', 'Structural lead', 'TIDP-S', 'Connections resolved'),
-    ('S-301', 'Structure', 'Structural drawing set (100%)', 'Drawing', '2.3 Deliverable C', '350', 'PDF/DWG', 'S4', 'Shared', 'M8', 'Structural lead', 'TIDP-S', ''),
-    ('M-300', 'Mechanical', 'Mechanical model and drawing set (100%)', 'Model/Drawing', '2.3 Deliverable C', '350', 'RVT/PDF', 'S4', 'Shared', 'M8', 'MEP lead', 'TIDP-M', 'BMS points identified'),
-    ('E-300', 'Electrical', 'Electrical model and drawing set (100%)', 'Model/Drawing', '2.3 Deliverable C', '350', 'RVT/PDF', 'S4', 'Shared', 'M8', 'MEP lead', 'TIDP-E', ''),
-    ('P-300', 'Public Health', 'Plumbing model and drawing set (100%)', 'Model/Drawing', '2.3 Deliverable C', '350', 'RVT/PDF', 'S4', 'Shared', 'M8', 'MEP lead', 'TIDP-P', ''),
-    ('FP-300', 'Fire Protection', 'Fire strategy and model (100%)', 'Model/Document', '2.3 Deliverable C', '350', 'RVT/PDF', 'S4', 'Shared', 'M8', 'Fire lead', 'TIDP-FP', ''),
-    ('LV-300', 'Low Voltage', 'Communications and security model', 'Model/Drawing', '2.3 Deliverable C', '350', 'RVT/PDF', 'S4', 'Shared', 'M8', 'LV lead', 'TIDP-LV', ''),
-    ('Z-310', 'QS / Cost', 'Bill of quantities (tender)', 'Schedule', '2.3 Deliverable C', '350', 'XLSX', 'S4', 'Shared', 'M8', 'Quantity Surveyor', 'TIDP-Q', ''),
-    ('Z-311', 'Information Management', 'Specifications', 'Specification', '2.3 Deliverable C', '350', 'PDF', 'S4', 'Shared', 'M8', 'Lead Appointed Party', 'TIDP-Z', ''),
-    ('Z-312', 'Information Management', 'Specification reconciliation report', 'Report', '2.3 Deliverable C', '350', 'XLSX/PDF', 'S4', 'Shared', 'M8', 'Information Manager', 'TIDP-Z', 'Gaps closed or formally accepted'),
-    ('FF-300', 'FF&E', 'FF&E specifications and schedule', 'Schedule', '2.3 Deliverable C', '350', 'XLSX/PDF', 'S4', 'Shared', 'M8', 'Interior Designer', 'TIDP-FF', ''),
-    ('Z-313', 'Information Management', 'Deliverable C gate pack', 'Document', '2.3 Deliverable C', '350', 'PDF', 'S4', 'Shared', 'M8', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-400', 'Information Management', 'Tender documents', 'Document', '2.4 Tender', 'n/a', 'PDF', 'A1', 'Published', 'M9', 'Lead Appointed Party', 'TIDP-Z', ''),
-    ('Z-401', 'Information Management', 'Tender query and addendum log', 'Report', '2.4 Tender', 'n/a', 'XLSX', 'S2', 'Shared', 'M10', 'Lead Appointed Party', 'TIDP-Z', ''),
-    ('Z-410', 'Information Management', 'Conformed set', 'Drawing', '2.5 Conformed set', '350', 'PDF/DWG', 'A1', 'Published', 'M11', 'Lead Appointed Party', 'TIDP-Z', 'Post-award addenda incorporated'),
-    ('ALL-500', 'All disciplines', 'Construction stage models', 'Model', '3.1 Construction', '400', 'RVT/IFC', 'A1', 'Published', 'M12-M43', 'Task teams', 'TIDP-ALL', 'Ongoing; revisions tracked'),
-    ('Z-510', 'Information Management', 'Request for information and submittal register', 'Report', '3.1 Construction', '400', 'XLSX', 'S2', 'Shared', 'M12-M43', 'Information Manager', 'TIDP-Z', 'Maintained continuously'),
-    ('Z-511', 'Information Management', 'Monthly status report', 'Report', '3.1 Construction', '400', 'PDF', 'S2', 'Shared', 'M12-M43', 'Information Manager', 'TIDP-Z', 'Monthly throughout construction'),
-    ('Z-512', 'Contractor', 'As-built capture (progressive)', 'Model', '3.1 Construction', '400', 'RVT/IFC', 'S2', 'Shared', 'M12-M43', 'Contractor', 'TIDP-C', 'Current to within one month'),
-    ('Z-513', 'Contractor', 'Asset data capture (tiered schedule, BEP section 14)', 'Schedule', '3.1 Construction', '400', 'XLSX', 'S2', 'Shared', 'M12-M43', 'Contractor', 'TIDP-C', 'Tier A serialised plant, Tier B maintainable devices, Tier C warranted fabric. Required for LOD 500; reported monthly from the first month of construction'),
-    ('Z-514', 'Information Management', 'Asset data completeness report', 'Report', '3.1 Construction', '400', 'XLSX/PDF', 'S2', 'Shared', 'M12-M43', 'Information Manager', 'TIDP-Z', 'Monthly, by tier and by volume. A tier below 95 per cent at the Deliverable D gate is a gate failure'),
-    ('M-520', 'Mechanical', 'Commissioning point list', 'Schedule', '3.1 Construction', '400', 'CSV', 'S2', 'Shared', 'M40', 'MEP lead', 'TIDP-M', 'Produced from the model for the controls contractor'),
-    ('FF-600', 'FF&E', 'FF&E final schedule and procurement record', 'Schedule', '3.2 FF&E', '400', 'XLSX', 'A1', 'Published', 'M43', 'Interior Designer', 'TIDP-FF', 'Reconciled item by item'),
-    ('A-700', 'Architecture', 'As-built architectural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'Architecture lead', 'TIDP-A', 'Verified as-built'),
-    ('S-700', 'Structure', 'As-built structural model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'Structural lead', 'TIDP-S', ''),
-    ('M-700', 'Mechanical', 'As-built MEP model', 'Model', '3.3 Deliverable D', '500', 'RVT/IFC', 'A1', 'Published', 'M45', 'MEP lead', 'TIDP-M', 'Includes Tier A and Tier B asset data'),
-    ('Z-700', 'Information Management', 'COBie handover dataset', 'Schedule', '3.3 Deliverable D', '500', 'XLSX', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', 'COBie 2.4'),
-    ('Z-701', 'Information Management', 'Operation and maintenance / asset data pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-702', 'Information Management', 'Reconciled building management system point register', 'Schedule', '3.3 Deliverable D', '500', 'CSV/PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', 'Model reconciled to the live station'),
-    ('Z-703', 'Information Management', 'Deliverable D gate pack', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Published', 'M45', 'Information Manager', 'TIDP-Z', ''),
-    ('Z-704', 'Information Management', 'Final transmittal and project archive', 'Document', '3.3 Deliverable D', '500', 'PDF', 'A1', 'Archived', 'M45', 'Information Manager', 'TIDP-Z', ''),
-]
+# The 122 deliverables, their provenance and the Task Information Delivery Plans
+# they belong to all live in tools/midp_rows.py, which validates itself on
+# import: every row must start inside its own stage, carry a permitted type
+# code, volume, suitability and state, and name a Task Information Delivery Plan
+# that exists. A bad row fails the build.
+R = D.R
 
 
 def style_header(ws, row, ncols):
@@ -164,10 +91,15 @@ ws['B7'].alignment = Alignment(wrap_text=True, vertical='top')
 ws.merge_cells('B7:C7')
 ws.row_dimensions[7].height = 32
 
+# The control banner on every sheet and the cover block must state the same
+# reference and revision. Naming them once is the only way that stays true.
+DOC_REF = 'KUT-SMB-ZZ-ZZ-SH-Z-0001'
+DOC_REV = 'P01'
+
 meta = [
-    ('Document reference', 'KUT-SMB-ZZ-ZZ-SC-Z-0001'),
-    ('Revision', 'P01'),
-    ('Status / suitability', 'A1 — Authorised for use'),
+    ('Document reference', DOC_REF),
+    ('Revision', DOC_REV),
+    ('Status / suitability', 'DRAFT — not issued (S0, work in progress)'),
     ('Prepared by', 'Symbion Consulting Group Studios (Information Manager)'),
     ('Baselined', '[FILL — date]'),
     ('Last updated', '[FILL — date]'),
@@ -183,11 +115,17 @@ r += 1
 ws.cell(row=r, column=2, value='How to use this workbook').font = h_f
 r += 1
 for line in [
+    ('Programme', 'Enter the appointment date here, once. Every calendar date in the workbook is calculated from it.'),
     ('MIDP', 'The project register. One row per deliverable. Filter by discipline, stage or status. '
              'The Information Manager maintains this sheet.'),
-    ('TIDP', 'The return template. Each appointed party completes a copy for its own scope and returns it '
-             'to the Information Manager, who merges it into the MIDP sheet.'),
-    ('Summary', 'Counts by stage and by discipline, calculated from the MIDP sheet. Nothing is typed here.'),
+    ('TIDP-…', 'One Task Information Delivery Plan per appointed party, pre-filled with the deliverables '
+               'already assigned to it. Confirm the dates, add anything your scope requires that is not '
+               'listed, and return the sheet. TIDP-ALL carries the deliverables every party owes.'),
+    ('Summary', 'Counts by stage, discipline and delivery plan, calculated from the MIDP sheet. '
+                'Nothing is typed here.'),
+    ('Drawing schedule', 'Indicative sheet counts by volume and role, for production planning.'),
+    ('Change log', 'What changed since the previous issue of this register, and why, including the '
+                   'references that were retired.'),
     ('Lists', 'The permitted values behind the drop-down lists. Amend here to change the drop-downs.'),
 ]:
     ws.cell(row=r, column=2, value=line[0]).font = lbl_f
@@ -200,10 +138,13 @@ for line in [
 r += 1
 ws.cell(row=r, column=2, value='Before this plan is baselined').font = h_f
 r += 1
-note = ('The Originator column is deliberately empty. The originator code register has not been confirmed, '
-        'and the container naming rule requires a code of a fixed length that is still to be agreed. Complete '
-        'the Originator column only once the register is issued. Nothing on this project is to be numbered '
-        'before that point.')
+note = ('The Originator column is deliberately empty. The LENGTH is settled -- exactly three characters, '
+        'which the compliance check enforces -- but the register that ALLOCATES a code to each appointed '
+        'party has not been issued, so no row can state one. Complete this column only once the register '
+        'is issued. Nothing on this project is to be numbered before that point. Symbion’s own '
+        'containers already carry SMB in their document references, and the Information Manager rows could '
+        'be completed on that basis if the Lead Appointed Party confirms SMB is its allocated code rather '
+        'than a worked example.')
 c = ws.cell(row=r, column=2, value=note)
 c.font = Font(name='Calibri', size=9.5)
 c.alignment = Alignment(wrap_text=True, vertical='top')
@@ -213,42 +154,148 @@ for rr in range(r, r + 3):
         ws.cell(row=rr, column=cc).fill = shade_fill
 r += 4
 
-ws.cell(row=r, column=2, value=('Issued through the Common Data Environment. Uncontrolled when printed.')).font = small_f
+ws.cell(row=r, column=2, value=('Not yet issued through the Common Data Environment. Uncontrolled when printed.')).font = small_f
+
+# ═══ 1b. Programme ══════════════════════════════════════════════════════════
+# ONE input: the appointment date. Every calendar date in this workbook derives
+# from it by formula. Until now the pack carried month offsets and the only
+# calendar dates anywhere were illustrative ones in a guide, assuming an
+# appointment in September 2026 -- so nobody could answer "what date is
+# Deliverable B" without doing the arithmetic themselves and getting a different
+# answer from the next person. Enter the date once here on appointment.
+ps = wb.create_sheet('Programme')
+ps.sheet_view.showGridLines = False
+ps.column_dimensions['A'].width = 3
+for col, w in (('B', 34), ('C', 10), ('D', 10), ('E', 16), ('F', 16), ('G', 10)):
+    ps.column_dimensions[col].width = w
+
+ps['B2'] = 'Programme'
+ps['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
+ps['B4'] = 'Appointment date (M0)'
+ps['B4'].font = lbl_f
+APPT = 'C4'
+ps[APPT] = None
+ps[APPT].number_format = 'dd mmm yyyy'
+ps[APPT].fill = PatternFill('solid', fgColor=AMBER)
+ps[APPT].border = box
+ps['E4'] = '← the only date entered by hand. Everything else is calculated from it.'
+ps['E4'].font = small_f
+
+ps['B6'] = ('Stage durations are the Appointing Party Work Program: Phase 2 totals %d months and Phase 3 '
+            'totals %d months, %d in all, read in sequence.'
+            % (K.PHASE_SUBTOTALS['2'], K.PHASE_SUBTOTALS['3'], K.TOTAL_MONTHS))
+ps['B6'].font = small_f
+ps['B6'].alignment = Alignment(wrap_text=True, vertical='top')
+ps.merge_cells('B6:G7')
+
+r = 9
+for i, hh in enumerate(['Stage', 'From', 'To', 'Starts', 'Ends', 'Months'], start=2):
+    ps.cell(row=r, column=i, value=hh)
+style_header(ps, r, 7)
+r += 1
+_months = K.stage_months()
+for stage, title, lod, months, _kind in K.WORK_PROGRAMME:
+    start, end, _ = _months[stage]
+    vals = [
+        '%s  %s' % (stage, title),
+        'M%d' % start, 'M%d' % end,
+        '=IF($%s="","",EDATE($%s,%d))' % (APPT, APPT, start - 1),
+        '=IF($%s="","",EOMONTH($%s,%d))' % (APPT, APPT, end - 1),
+        months,
+    ]
+    for i, v in enumerate(vals, start=2):
+        c = ps.cell(row=r, column=i, value=v)
+        c.font = body_f
+        c.border = box
+        if i in (5, 6):
+            c.number_format = 'dd mmm yyyy'
+        if i in (3, 4, 7):
+            c.alignment = Alignment(horizontal='center')
+    r += 1
+ps.cell(row=r, column=2, value='Total').font = lbl_f
+ps.cell(row=r, column=7, value=K.TOTAL_MONTHS).font = lbl_f
+ps.cell(row=r, column=7).alignment = Alignment(horizontal='center')
+for i in range(2, 8):
+    ps.cell(row=r, column=i).border = box
+    ps.cell(row=r, column=i).fill = shade_fill
+
+r += 2
+ps.cell(row=r, column=2, value=(
+    'Calendar dates are indicative until the appointment date is entered and the plan is rebaselined. '
+    'A stage runs to the end of its final month, so a stage ending M8 ends on the last day of the eighth '
+    'month after appointment.')).font = small_f
+ps.cell(row=r, column=2).alignment = Alignment(wrap_text=True, vertical='top')
+ps.merge_cells(start_row=r, start_column=2, end_row=r + 1, end_column=7)
 
 # ═══ 2. MIDP register ═══════════════════════════════════════════════════════
+# Every column below is addressed BY NAME. The previous version wrote literal
+# letters and indices -- 'Q2:Q%d' for the RAG band, `i in (12, 13)` for the date
+# formats -- which are silently wrong the moment a column is inserted, and this
+# workbook has just gained six. L() and C() resolve a name to a letter and an
+# index from midp_schema.COLS, so the layout is stated once.
+FIRST = S.MIDP_FIRST_COL
+
+
+def L(name):
+    return S.letter_of(name, FIRST)
+
+
+def C(name):
+    return COL_NAMES.index(name) + FIRST
+
+
 ms = wb.create_sheet('MIDP')
 ms.sheet_view.showGridLines = False
-for i, (name, width) in enumerate(COLS, start=1):
+for i, (name, width) in enumerate(COLS, start=FIRST):
     ms.cell(row=1, column=i, value=name)
     ms.column_dimensions[get_column_letter(i)].width = width
 style_header(ms, 1, len(COLS))
 
-for n, row in enumerate(R, start=2):
-    (ref, disc, deliv, typ, stage, lod, fmt, suit, state, month, resp, tidp, notes) = row
-    vals = [ref, disc, '', deliv, typ, stage, lod, fmt, suit, state, month, None, None,
-            '=IF(AND(L{0}<>"",M{0}<>""),M{0}-L{0},"")'.format(n), resp, tidp, '', notes]
-    for i, v in enumerate(vals, start=1):
-        c = ms.cell(row=n, column=i, value=v)
+WRAP = {'Deliverable', 'Notes'}
+CENTRE = {'Volume', 'Type code', 'LOD', 'Suitability', 'CDE State', 'Month from',
+          'Month to', 'Critical', 'As-built', 'O&M', 'RAG'}
+DATES = {'Planned date', 'Actual date'}
+
+for n, r in enumerate(R, start=2):
+    vals = {
+        'Ref': r['ref'], 'Discipline': r['discipline'], 'Originator': '',
+        'Volume': r['volume'], 'Deliverable': r['deliverable'], 'Type': r['type'],
+        'Type code': r['isotype'], 'Stage': r['stage'], 'LOD': r['lod'],
+        'Format': r['fmt'], 'Suitability': r['suit'], 'CDE State': r['state'],
+        'Month from': r['m_from'], 'Month to': r['m_to'],
+        # Derived from the one appointment date on the Programme sheet, at the
+        # month the deliverable is due. A blank appointment date leaves it blank
+        # rather than showing a date computed from zero.
+        'Planned date': '=IF(Programme!$C$4="","",EOMONTH(Programme!$C$4,%d))' % r['m_to'],
+        'Actual date': None,
+        'Variance (days)': '=IF(AND({p}{n}<>"",{a}{n}<>""),{a}{n}-{p}{n},"")'.format(
+            p=L('Planned date'), a=L('Actual date'), n=n),
+        'Responsible': r['responsible'], 'TIDP ref': r['tidp'],
+        'Critical': r['crit'], 'As-built': r['asbuilt'], 'O&M': r['om'],
+        'RAG': '', 'Notes': r['notes'],
+    }
+    for name, _w in COLS:
+        c = ms.cell(row=n, column=C(name), value=vals[name])
         c.font = body_f
         c.border = box
-        c.alignment = Alignment(vertical='top', wrap_text=(i in (4, 18)))
-        if i in (12, 13):
+        c.alignment = Alignment(vertical='top', wrap_text=name in WRAP)
+        if name in DATES:
             c.number_format = 'dd mmm yyyy'
-        if i == 14:
+        elif name == 'Variance (days)':
             c.number_format = '0;-0;""'
             c.alignment = Alignment(horizontal='center', vertical='top')
-        if i in (7, 9, 10, 17):
+        elif name in CENTRE:
             c.alignment = Alignment(horizontal='center', vertical='top')
 
 last = len(R) + 1
-ms.freeze_panes = 'A2'
-ms.auto_filter.ref = 'A1:R%d' % last
+ms.freeze_panes = '%s2' % L('Deliverable')
+ms.auto_filter.ref = 'A1:%s%d' % (L(COL_NAMES[-1]), last)
 
 # Drop-downs. The source column on the Lists sheet is NOT the same letter as the
 # column being validated -- LIST_COL maps them explicitly, in midp_schema.py.
 # Pointing a list at its own column letter silently offers the wrong values,
 # which a reader would take as correct.
-for col_letter, key in MIDP_VALIDATED:
+for col_letter, key in S.validated(FIRST):
     src = LIST_COL[key]
     dv = DataValidation(type='list', formula1="'Lists'!$%s$2:$%s$30" % (src, src),
                         allow_blank=True, showDropDown=False)
@@ -258,15 +305,23 @@ for col_letter, key in MIDP_VALIDATED:
     dv.add('%s2:%s%d' % (col_letter, col_letter, last))
 
 # RAG colouring
-rag = 'Q2:Q%d' % last
-ms.conditional_formatting.add(rag, CellIsRule(operator='equal', formula=['"Red"'], fill=PatternFill('solid', fgColor=RED)))
-ms.conditional_formatting.add(rag, CellIsRule(operator='equal', formula=['"Amber"'], fill=PatternFill('solid', fgColor=AMBER)))
-ms.conditional_formatting.add(rag, CellIsRule(operator='equal', formula=['"Green"'], fill=PatternFill('solid', fgColor=GREEN)))
-ms.conditional_formatting.add(rag, CellIsRule(operator='equal', formula=['"Complete"'], fill=PatternFill('solid', fgColor=GREEN)))
+rag = '{c}2:{c}{n}'.format(c=L('RAG'), n=last)
+for word, colour in (('Red', RED), ('Amber', AMBER), ('Green', GREEN), ('Complete', GREEN)):
+    ms.conditional_formatting.add(rag, CellIsRule(
+        operator='equal', formula=['"%s"' % word], fill=PatternFill('solid', fgColor=colour)))
+
+# Critical-path deliverables are banded so they read at a glance.
+ms.conditional_formatting.add(
+    'A2:%s%d' % (L(COL_NAMES[-1]), last),
+    FormulaRule(formula=['${c}2="Y"'.format(c=L('Critical'))],
+                fill=PatternFill('solid', fgColor=SHADE), stopIfTrue=False))
+
 # overdue: planned date passed and no actual date
 ms.conditional_formatting.add(
-    'A2:R%d' % last,
-    FormulaRule(formula=['AND($L2<>"",$M2="",$L2<TODAY())'], fill=PatternFill('solid', fgColor=RED), stopIfTrue=False))
+    'A2:%s%d' % (L(COL_NAMES[-1]), last),
+    FormulaRule(formula=['AND(${p}2<>"",${a}2="",${p}2<TODAY())'.format(
+        p=L('Planned date'), a=L('Actual date'))],
+        fill=PatternFill('solid', fgColor=RED), stopIfTrue=False))
 
 ms.page_setup.orientation = 'landscape'
 ms.page_setup.fitToWidth = 1
@@ -274,57 +329,122 @@ ms.page_setup.fitToHeight = 0
 ms.sheet_properties.pageSetUpPr.fitToPage = True
 ms.print_title_rows = '1:1'
 
-# ═══ 3. TIDP return template ════════════════════════════════════════════════
-ts = wb.create_sheet('TIDP')
-ts.sheet_view.showGridLines = False
-ts.column_dimensions['A'].width = 3
-ts['B2'] = 'Task Information Delivery Plan'
-ts['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
-ts['B4'] = ('Complete one copy of this sheet for your scope and return it to the Information Manager. '
-            'Rows are merged into the project Master Information Delivery Plan. Use the drop-down lists; '
-            'if a value you need is not offered, raise it rather than typing a variant.')
-ts['B4'].font = Font(name='Calibri', size=9.5)
-ts['B4'].alignment = Alignment(wrap_text=True, vertical='top')
-ts.merge_cells('B4:H5')
+# ═══ 3. Task Information Delivery Plans, one sheet per appointed party ══════
+# The August workbook carried a single blank TIDP template. A Task Information
+# Delivery Plan is per appointed party, so a blank template made every party
+# transcribe their own rows out of the register before they could confirm a
+# date -- and transcription is where the register and the plans drift apart.
+#
+# Each party now gets a sheet pre-filled with the deliverables already assigned
+# to them, plus blank rows for anything the register has missed. They confirm
+# dates and add rows; they do not retype the scope.
+TFIRST = S.TIDP_FIRST_COL
 
-hdr = [('Appointed party', '[FILL]'), ('Discipline', '[FILL]'), ('Originator code', '[FILL — once the register is issued]'),
-       ('Task Team Manager', '[FILL]'), ('Contact', '[FILL]'), ('TIDP reference', '[FILL — e.g. TIDP-A]'),
-       ('Revision', 'P01'), ('Date', '[FILL]')]
-r = 7
-for k, v in hdr:
-    ts.cell(row=r, column=2, value=k).font = lbl_f
-    ts.cell(row=r, column=3, value=v).font = body_f
+
+def TL(name):
+    return S.letter_of(name, TFIRST)
+
+
+TIDP_BLANKS = 15
+tidp_sheets = []
+
+for tidp_ref, scope, org, _role in D.TIDPS + [('TIDP-ALL', 'Every appointed party',
+                                               'All parties', 'ZZ')]:
+    mine = [r for r in R if r['tidp'] == tidp_ref]
+    ts = wb.create_sheet(tidp_ref)
+    tidp_sheets.append(tidp_ref)
+    ts.sheet_view.showGridLines = False
+    ts.column_dimensions['A'].width = 3
+
+    ts['B2'] = 'Task Information Delivery Plan — %s' % scope
+    ts['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
+    ts['B4'] = ('The deliverables below are those already assigned to you in the Master Information '
+                'Delivery Plan. Confirm the planned dates, add any deliverable your scope requires '
+                'that is not listed, and return this sheet to the Information Manager. Rows are '
+                'merged back into the register by reference. Use the drop-down lists; if a value '
+                'you need is not offered, raise it rather than typing a variant.')
+    ts['B4'].font = Font(name='Calibri', size=9.5)
+    ts['B4'].alignment = Alignment(wrap_text=True, vertical='top')
+    ts.merge_cells('B4:H5')
+
+    hdr = [('Task Information Delivery Plan', tidp_ref),
+           ('Scope', scope),
+           ('Appointed party', org),
+           ('Originator code', '[FILL — once the register is issued]'),
+           ('Task Team Manager', '[FILL]'), ('Contact', '[FILL]'),
+           ('Revision', 'P01'), ('Date', '[FILL]')]
+    r = 7
+    for k, v in hdr:
+        ts.cell(row=r, column=2, value=k).font = lbl_f
+        ts.cell(row=r, column=3, value=v).font = body_f
+        r += 1
+
     r += 1
+    for i, (name, width) in enumerate(COLS, start=TFIRST):
+        ts.cell(row=r, column=i, value=name)
+        ts.column_dimensions[get_column_letter(i)].width = width
+    style_header(ts, r, len(COLS) + 1)
+    header_row = r
 
-r += 1
-for i, (name, width) in enumerate(COLS, start=2):
-    ts.cell(row=r, column=i, value=name)
-    ts.column_dimensions[get_column_letter(i)].width = width
-style_header(ts, r, len(COLS) + 1)
-blank_start = r + 1
-for n in range(blank_start, blank_start + 40):
-    for i in range(2, len(COLS) + 2):
-        c = ts.cell(row=n, column=i)
-        c.border = box
-        c.font = body_f
-        if i in (13, 14):
-            c.number_format = 'dd mmm yyyy'
-for col_letter, key in TIDP_VALIDATED:
-    src = LIST_COL[key]
-    dv = DataValidation(type='list', formula1="'Lists'!$%s$2:$%s$30" % (src, src), allow_blank=True,
-                        showDropDown=False)
-    ts.add_data_validation(dv)
-    dv.add('%s%d:%s%d' % (col_letter, blank_start, col_letter, blank_start + 39))
-ts.freeze_panes = 'A%d' % blank_start
-ts.page_setup.orientation = 'landscape'
-ts.page_setup.fitToWidth = 1
-ts.sheet_properties.pageSetUpPr.fitToPage = True
+    for n, row in enumerate(mine, start=header_row + 1):
+        vals = {
+            'Ref': row['ref'], 'Discipline': row['discipline'], 'Originator': '',
+            'Volume': row['volume'], 'Deliverable': row['deliverable'], 'Type': row['type'],
+            'Type code': row['isotype'], 'Stage': row['stage'], 'LOD': row['lod'],
+            'Format': row['fmt'], 'Suitability': row['suit'], 'CDE State': row['state'],
+            'Month from': row['m_from'], 'Month to': row['m_to'],
+            'Planned date': None, 'Actual date': None, 'Variance (days)': None,
+            'Responsible': row['responsible'], 'TIDP ref': row['tidp'],
+            'Critical': row['crit'], 'As-built': row['asbuilt'], 'O&M': row['om'],
+            'RAG': '', 'Notes': row['notes'],
+        }
+        for name, _w in COLS:
+            c = ts.cell(row=n, column=COL_NAMES.index(name) + TFIRST, value=vals[name])
+            c.font = body_f
+            c.border = box
+            c.alignment = Alignment(vertical='top', wrap_text=name in WRAP)
+            if name in DATES:
+                c.number_format = 'dd mmm yyyy'
+            elif name in CENTRE:
+                c.alignment = Alignment(horizontal='center', vertical='top')
+
+    blank_start = header_row + 1 + len(mine)
+    for n in range(blank_start, blank_start + TIDP_BLANKS):
+        for i in range(TFIRST, len(COLS) + TFIRST):
+            c = ts.cell(row=n, column=i)
+            c.border = box
+            c.font = body_f
+            if COL_NAMES[i - TFIRST] in DATES:
+                c.number_format = 'dd mmm yyyy'
+
+    for col_letter, key in S.validated(TFIRST):
+        src = LIST_COL[key]
+        dv = DataValidation(type='list', formula1="'Lists'!$%s$2:$%s$30" % (src, src),
+                            allow_blank=True, showDropDown=False)
+        ts.add_data_validation(dv)
+        dv.add('%s%d:%s%d' % (col_letter, header_row + 1, col_letter,
+                              blank_start + TIDP_BLANKS - 1))
+
+    ts.freeze_panes = 'A%d' % (header_row + 1)
+    # The register carries a filter; the sheets drawn from it did not. A TIDP
+    # is a working sheet -- the appointed party filters it by stage and status
+    # to answer 'what do I owe this month', which is the question it exists for.
+    ts.auto_filter.ref = 'A%d:%s%d' % (header_row, L(COL_NAMES[-1]), n)
+    ts.page_setup.orientation = 'landscape'
+    ts.page_setup.fitToWidth = 1
+    ts.sheet_properties.pageSetUpPr.fitToPage = True
+    ts.print_title_rows = '%d:%d' % (header_row, header_row)
 
 # ═══ 4. Summary ═════════════════════════════════════════════════════════════
+# Counts are COUNTIF over the register, and every column in every formula is
+# resolved through L() by name. The previous version hard-coded $F for Stage and
+# $Q for RAG; both moved when the register gained six columns, and a COUNTIF
+# against the wrong column returns 0 rather than an error -- a summary that
+# reads "no deliverables outstanding" because it is counting the Type column.
 ss = wb.create_sheet('Summary')
 ss.sheet_view.showGridLines = False
 ss.column_dimensions['A'].width = 3
-ss.column_dimensions['B'].width = 26
+ss.column_dimensions['B'].width = 30
 for col in 'CDEFG':
     ss.column_dimensions[col].width = 14
 
@@ -333,82 +453,264 @@ ss['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
 ss['B3'] = 'Calculated from the MIDP sheet. Do not type in this sheet.'
 ss['B3'].font = small_f
 
-ss['B5'] = 'By stage'
-ss['B5'].font = h_f
-heads = ['Stage', 'Deliverables', 'Complete', 'Red', 'Amber', 'Outstanding']
-for i, hh in enumerate(heads, start=2):
-    ss.cell(row=6, column=i, value=hh)
-style_header(ss, 6, 7)
-r = 7
-for stage in LISTS['Stage']:
-    ss.cell(row=r, column=2, value=stage).font = body_f
-    ss.cell(row=r, column=3, value='=COUNTIF(MIDP!$F:$F,$B%d)' % r).font = body_f
-    ss.cell(row=r, column=4, value='=COUNTIFS(MIDP!$F:$F,$B%d,MIDP!$Q:$Q,"Complete")' % r).font = body_f
-    ss.cell(row=r, column=5, value='=COUNTIFS(MIDP!$F:$F,$B%d,MIDP!$Q:$Q,"Red")' % r).font = body_f
-    ss.cell(row=r, column=6, value='=COUNTIFS(MIDP!$F:$F,$B%d,MIDP!$Q:$Q,"Amber")' % r).font = body_f
-    ss.cell(row=r, column=7, value='=C%d-D%d' % (r, r)).font = body_f
+C_STAGE, C_DISC, C_RAG, C_TIDP = L('Stage'), L('Discipline'), L('RAG'), L('TIDP ref')
+HEADS = ['Deliverables', 'Complete', 'Red', 'Amber', 'Outstanding']
+
+
+def block(r, title, key_head, key_col, values):
+    ss.cell(row=r, column=2, value=title).font = h_f
+    r += 1
+    for i, hh in enumerate([key_head] + HEADS, start=2):
+        ss.cell(row=r, column=i, value=hh)
+    style_header(ss, r, 7)
+    r += 1
+    first = r
+    for v in values:
+        ss.cell(row=r, column=2, value=v).font = body_f
+        ss.cell(row=r, column=3,
+                value='=COUNTIF(MIDP!${c}:${c},$B{r})'.format(c=key_col, r=r)).font = body_f
+        for i, word in ((4, 'Complete'), (5, 'Red'), (6, 'Amber')):
+            ss.cell(row=r, column=i,
+                    value='=COUNTIFS(MIDP!${c}:${c},$B{r},MIDP!${g}:${g},"{w}")'.format(
+                        c=key_col, g=C_RAG, r=r, w=word)).font = body_f
+        ss.cell(row=r, column=7, value='=C%d-D%d' % (r, r)).font = body_f
+        for i in range(2, 8):
+            ss.cell(row=r, column=i).border = box
+            if i > 2:
+                ss.cell(row=r, column=i).alignment = Alignment(horizontal='center')
+        r += 1
+    ss.cell(row=r, column=2, value='Total').font = lbl_f
+    for i, col in enumerate('CDEFG', start=3):
+        ss.cell(row=r, column=i, value='=SUM(%s%d:%s%d)' % (col, first, col, r - 1)).font = lbl_f
+        ss.cell(row=r, column=i).alignment = Alignment(horizontal='center')
     for i in range(2, 8):
         ss.cell(row=r, column=i).border = box
-        if i > 2:
-            ss.cell(row=r, column=i).alignment = Alignment(horizontal='center')
+        ss.cell(row=r, column=i).fill = shade_fill
+    return r + 3
+
+
+r = block(5, 'By stage', 'Stage', C_STAGE, LISTS['Stage'])
+r = block(r, 'By discipline', 'Discipline', C_DISC, LISTS['Discipline'])
+r = block(r, 'By Task Information Delivery Plan', 'TIDP', C_TIDP, tidp_sheets)
+
+# Deliverables that carry the project: critical path, as-built and O&M feeds.
+ss.cell(row=r, column=2, value='Deliverable classes').font = h_f
+r += 1
+for i, hh in enumerate(['Class', 'Deliverables'], start=2):
+    ss.cell(row=r, column=i, value=hh)
+style_header(ss, r, 3)
+r += 1
+for label, colname in (('On the critical path', 'Critical'),
+                       ('Feeding the as-built model', 'As-built'),
+                       ('Feeding the O&M / asset data pack', 'O&M')):
+    ss.cell(row=r, column=2, value=label).font = body_f
+    ss.cell(row=r, column=3,
+            value='=COUNTIF(MIDP!${c}:${c},"Y")'.format(c=L(colname))).font = body_f
+    for i in (2, 3):
+        ss.cell(row=r, column=i).border = box
+    ss.cell(row=r, column=3).alignment = Alignment(horizontal='center')
     r += 1
-ss.cell(row=r, column=2, value='Total').font = lbl_f
-for i, col in enumerate('CDEFG', start=3):
-    ss.cell(row=r, column=i, value='=SUM(%s7:%s%d)' % (col, col, r - 1)).font = lbl_f
-    ss.cell(row=r, column=i).alignment = Alignment(horizontal='center')
-for i in range(2, 8):
-    ss.cell(row=r, column=i).border = box
-    ss.cell(row=r, column=i).fill = shade_fill
+
+ss.page_setup.orientation = 'portrait'
+ss.page_setup.fitToWidth = 1
+ss.sheet_properties.pageSetUpPr.fitToPage = True
+
+# ═══ 4b. Drawing schedule ═══════════════════════════════════════════════════
+# The planned sheet count per volume and role. It is an estimate, and it is
+# labelled as one -- but a drawing register with no expected total cannot tell
+# anybody at Deliverable B whether production is behind.
+ds = wb.create_sheet('Drawing schedule')
+ds.sheet_view.showGridLines = False
+ds.column_dimensions['A'].width = 3
+for col, w in (('B', 10), ('C', 30), ('D', 16), ('E', 10), ('F', 58)):
+    ds.column_dimensions[col].width = w
+
+ds['B2'] = 'Planned drawing schedule'
+ds['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
+ds['B3'] = ('Indicative sheet counts by volume and role, carried forward from the June information '
+            'delivery plan. Confirmed against each Task Information Delivery Plan at mobilisation '
+            'and rebaselined at Deliverable B.')
+ds['B3'].font = small_f
+ds['B3'].alignment = Alignment(wrap_text=True, vertical='top')
+ds.merge_cells('B3:F4')
+
+r = 6
+for i, hh in enumerate(['Volume', 'Building', 'Role', 'Sheets', 'Content'], start=2):
+    ds.cell(row=r, column=i, value=hh)
+style_header(ds, r, 6)
+r += 1
+first_draw = r
+for vol, bld, role, sheets, content in D.DRAWINGS:
+    for i, v in enumerate((vol, bld, role, sheets, content), start=2):
+        c = ds.cell(row=r, column=i, value=v)
+        c.font = body_f
+        c.border = box
+        c.alignment = Alignment(vertical='top', wrap_text=(i == 6),
+                                horizontal='center' if i in (2, 5) else 'left')
+    r += 1
+ds.cell(row=r, column=3, value='Total sheets').font = lbl_f
+ds.cell(row=r, column=5, value='=SUM(E%d:E%d)' % (first_draw, r - 1)).font = lbl_f
+ds.cell(row=r, column=5).alignment = Alignment(horizontal='center')
+for i in range(2, 7):
+    ds.cell(row=r, column=i).border = box
+    ds.cell(row=r, column=i).fill = shade_fill
+ds.freeze_panes = 'A%d' % first_draw
+ds.auto_filter.ref = 'B%d:F%d' % (first_draw - 1, r - 1)
+ds.page_setup.orientation = 'landscape'
+ds.page_setup.fitToWidth = 1
+ds.sheet_properties.pageSetUpPr.fitToPage = True
+
+# ═══ 4c. Change log ═════════════════════════════════════════════════════════
+# Where every row came from, and what happened to the ones that went. Generated
+# from the `source` and `change` fields on the register, so it cannot describe a
+# change that was not actually made -- which is the failure mode of a change log
+# maintained by hand beside the thing it describes.
+cl = wb.create_sheet('Change log')
+cl.sheet_view.showGridLines = False
+cl.column_dimensions['A'].width = 3
+for col, w in (('B', 12), ('C', 12), ('D', 44), ('E', 62)):
+    cl.column_dimensions[col].width = w
+
+cl['B2'] = 'Change log'
+cl['B2'].font = Font(name='Calibri', size=16, bold=True, color=NAVY)
+cl['B3'] = ('What changed between the previous issue of this register and this one, and why. '
+            '"Restored" rows were carried by the June plan and dropped by the August issue.')
+cl['B3'].font = small_f
+cl['B3'].alignment = Alignment(wrap_text=True, vertical='top')
+cl.merge_cells('B3:E4')
+
+SRC_LABEL = {'Both': 'Carried forward', 'Aug P01': 'Carried forward',
+             'Jun P01': 'Restored', 'New P02': 'Added'}
+
+r = 6
+cl.cell(row=r, column=2, value='Counts').font = h_f
+r += 1
+for i, hh in enumerate(['Change', 'Deliverables'], start=2):
+    cl.cell(row=r, column=i, value=hh)
+style_header(cl, r, 3)
+r += 1
+import collections as _collections
+counts = _collections.Counter(SRC_LABEL[x['source']] for x in R)
+for label in ('Carried forward', 'Restored', 'Added'):
+    cl.cell(row=r, column=2, value=label).font = body_f
+    cl.cell(row=r, column=3, value=counts.get(label, 0)).font = body_f
+    for i in (2, 3):
+        cl.cell(row=r, column=i).border = box
+    cl.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+    r += 1
+cl.cell(row=r, column=2, value='Total').font = lbl_f
+cl.cell(row=r, column=3, value=len(R)).font = lbl_f
+cl.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+for i in (2, 3):
+    cl.cell(row=r, column=i).border = box
+    cl.cell(row=r, column=i).fill = shade_fill
 
 r += 3
-ss.cell(row=r, column=2, value='By discipline').font = h_f
+cl.cell(row=r, column=2, value='Rows added or restored').font = h_f
 r += 1
-for i, hh in enumerate(['Discipline', 'Deliverables', 'Complete', 'Red', 'Amber', 'Outstanding'], start=2):
-    ss.cell(row=r, column=i, value=hh)
-style_header(ss, r, 7)
+for i, hh in enumerate(['Ref', 'Change', 'Deliverable', 'Reason'], start=2):
+    cl.cell(row=r, column=i, value=hh)
+style_header(cl, r, 5)
 r += 1
-for disc in LISTS['Discipline']:
-    ss.cell(row=r, column=2, value=disc).font = body_f
-    ss.cell(row=r, column=3, value='=COUNTIF(MIDP!$B:$B,$B%d)' % r).font = body_f
-    ss.cell(row=r, column=4, value='=COUNTIFS(MIDP!$B:$B,$B%d,MIDP!$Q:$Q,"Complete")' % r).font = body_f
-    ss.cell(row=r, column=5, value='=COUNTIFS(MIDP!$B:$B,$B%d,MIDP!$Q:$Q,"Red")' % r).font = body_f
-    ss.cell(row=r, column=6, value='=COUNTIFS(MIDP!$B:$B,$B%d,MIDP!$Q:$Q,"Amber")' % r).font = body_f
-    ss.cell(row=r, column=7, value='=C%d-D%d' % (r, r)).font = body_f
-    for i in range(2, 8):
-        ss.cell(row=r, column=i).border = box
-        if i > 2:
-            ss.cell(row=r, column=i).alignment = Alignment(horizontal='center')
+for x in R:
+    label = SRC_LABEL[x['source']]
+    if label == 'Carried forward' and not x['change']:
+        continue
+    for i, v in enumerate((x['ref'], label, x['deliverable'], x['change']), start=2):
+        c = cl.cell(row=r, column=i, value=v)
+        c.font = body_f
+        c.border = box
+        c.alignment = Alignment(vertical='top', wrap_text=(i in (4, 5)))
     r += 1
 
 r += 2
-ss.cell(row=r, column=2, value='Overdue (planned date passed, no actual date)').font = lbl_f
-ss.cell(row=r, column=3,
-        value='=SUMPRODUCT((MIDP!$L$2:$L$%d<>"")*(MIDP!$M$2:$M$%d="")*(MIDP!$L$2:$L$%d<TODAY()))'
-              % (last, last, last)).font = Font(name='Calibri', size=9.5, bold=True, color='B00020')
-ss.cell(row=r, column=3).alignment = Alignment(horizontal='center')
+cl.cell(row=r, column=2, value='Retired references').font = h_f
+r += 1
+for i, hh in enumerate(['Ref', 'From', 'Deliverable', 'Disposition'], start=2):
+    cl.cell(row=r, column=i, value=hh)
+style_header(cl, r, 5)
+r += 1
+for ref, src, deliv, disp in D.RETIRED:
+    for i, v in enumerate((ref, src, deliv, disp), start=2):
+        c = cl.cell(row=r, column=i, value=v)
+        c.font = body_f
+        c.border = box
+        c.alignment = Alignment(vertical='top', wrap_text=(i in (4, 5)))
+    r += 1
+cl.page_setup.orientation = 'landscape'
+cl.page_setup.fitToWidth = 1
+cl.sheet_properties.pageSetUpPr.fitToPage = True
 
 # ═══ 5. Lists ═══════════════════════════════════════════════════════════════
+# The column order is DERIVED from LIST_COL, not restated. A hand-written order
+# beside a hand-written letter map is two copies of the same fact, and the first
+# time they disagreed every drop-down on the register offered the wrong values
+# while looking entirely correct. Deriving it means a list added to the schema
+# lands in the column its drop-downs already point at.
 ls = wb.create_sheet('Lists')
 ls.sheet_view.showGridLines = False
-ls['A1'] = 'Permitted values. Amend here to change the drop-down lists on the MIDP and TIDP sheets.'
-ls['A1'].font = small_f
-order = ['Discipline', 'Originator', 'Type', 'Stage', 'LOD', 'Suitability', 'CDE State', 'RAG']
-for i, key in enumerate(order, start=1):
+
+order = sorted(LIST_COL, key=lambda k: (len(LIST_COL[k]), LIST_COL[k]))
+for key in order:
+    i = sum((ord(ch) - 64) * 26 ** n
+            for n, ch in enumerate(reversed(LIST_COL[key])))
     col = get_column_letter(i)
     ls.column_dimensions[col].width = 22
-    c = ls.cell(row=1, column=i, value=key if key in LISTS or key == 'Originator' else key)
+    c = ls.cell(row=1, column=i, value=key)
     c.font = Font(name='Calibri', size=9, bold=True, color=NAVY)
     c.fill = hdr_fill
     c.border = box
+    # 'Originator' has no fixed list: the codes come from the register the Lead
+    # Appointed Party issues, and inventing them here would pre-empt it.
     vals = LISTS.get(key, ['[FILL — from the originator code register]'])
     for j, v in enumerate(vals, start=2):
         cc = ls.cell(row=j, column=i, value=v)
         cc.font = body_f
         cc.border = box
-ls['A1'] = 'Discipline'
-ls['A1'].font = Font(name='Calibri', size=9, bold=True, color=NAVY)
-ls['A1'].fill = hdr_fill
-ls['A1'].border = box
+
+# The Ref prefix groups the register; it is NOT the container role code, and
+# the two deliberately differ (FF for FF&E, C for the contractor, ALL for
+# project-wide). Stated here because a reader who assumes they are the same
+# builds a container name out of a register key.
+_ref_row = 20
+ls.cell(row=_ref_row, column=1, value='Reference prefix').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+ls.cell(row=_ref_row, column=2, value='Groups').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+ls.cell(row=_ref_row, column=3, value='Container role code').font = Font(
+    name='Calibri', size=9, bold=True, color=NAVY)
+for _c in (1, 2, 3):
+    ls.cell(row=_ref_row, column=_c).fill = hdr_fill
+    ls.cell(row=_ref_row, column=_c).border = box
+_REF_PREFIXES = [
+    ('A', 'Architecture and interiors', 'A'),
+    ('S', 'Structure', 'S'),
+    ('M', 'Mechanical', 'M'),
+    ('E', 'Electrical, including lighting', 'E'),
+    ('P', 'Public health', 'P'),
+    ('FP', 'Fire protection', 'FP'),
+    ('LV', 'Low voltage and communications', 'LV'),
+    ('G', 'Civil and site', 'G'),
+    ('FF', 'FF&E and finishes', 'A — issued under architecture'),
+    ('C', 'Contractor and specialists', 'per the discipline of the container'),
+    ('Z', 'Information management, cost and project-wide', 'Z'),
+]
+for _i, (_p, _g, _role) in enumerate(_REF_PREFIXES, start=_ref_row + 1):
+    for _c, _v in ((1, _p), (2, _g), (3, _role)):
+        _cell = ls.cell(row=_i, column=_c, value=_v)
+        _cell.font = body_f
+        _cell.border = box
+
+# Every validated column must point at a populated list column. Checked rather
+# than assumed, because a drop-down sourced from an empty column silently
+# offers nothing and reads as "no constraint".
+for _sheet_first in (S.MIDP_FIRST_COL, S.TIDP_FIRST_COL):
+    for _letter, _key in S.validated(_sheet_first):
+        if _key not in LIST_COL:
+            raise SystemExit('drop-down on column %s wants list %r, which has no '
+                             'column on the Lists sheet' % (_letter, _key))
+        if _key not in LISTS and _key != 'Originator':
+            raise SystemExit('list %r has a column but no permitted values' % _key)
 
 wb.properties.title = 'KUT Master Information Delivery Plan'
 wb.properties.subject = 'Kampala Uganda Temple — aggregated information delivery schedule'
@@ -429,10 +731,65 @@ wb.properties.modified = _EPOCH
 # the gate can read it back with plain `zipfile` and stay stdlib-only.
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 wb.properties.description = K.with_provenance(
-    'Rev P01. Issued through the Common Data Environment. Uncontrolled when printed.',
-    'tools/build_midp.py', K.inputs_digest(_ROOT, OUT))
+    'Rev P01 — DRAFT. Not yet issued through the Common Data Environment. Uncontrolled when printed.',
+    # GENERATED is keyed by BASENAME, not by path: corporate_docx.save() looks
+    # a document up by basename to decide whether to stamp provenance, and the
+    # two must agree or the stamp is silently skipped.
+    'tools/build_midp.py', K.inputs_digest(_ROOT, pathlib.Path(OUT).name))
 
 wb.active = 0
+# The DRAFT stamp reached the Cover sheet only -- 19 of the 20 had no marking at
+# all. A workbook is not read like a document: it opens on whichever tab was last
+# active, single sheets get filtered, printed and forwarded, and a reader who
+# lands on a TIDP tab would see nothing saying this is unissued. Word carries its
+# status in a footer on every page; this is the same thing for every sheet.
+# ── navigation ───────────────────────────────────────────────────────────────
+# Twenty tabs of identical grey, and no index. Colour groups them by KIND so the
+# eye finds the register without reading every tab, and the Cover carries a
+# hyperlink to each sheet with a return link back.
+_TAB = {'Cover': '1F3654', 'Programme': '1F3654',
+        'MIDP': 'C00000', 'Summary': '2E7D32', 'Drawing schedule': '2E7D32',
+        'Change log': '7A7A7A', 'Lists': '7A7A7A'}
+for _ws in wb.worksheets:
+    _ws.sheet_properties.tabColor = _TAB.get(_ws.title, '444F5C')   # TIDPs = slate
+
+_cs = wb['Cover']
+_r = _cs.max_row + 2
+_cs.cell(row=_r, column=2, value='Sheets in this workbook').font = Font(bold=True, size=11, color='1F3654')
+_r += 1
+for _ws in wb.worksheets:
+    if _ws.title == 'Cover':
+        continue
+    _c = _cs.cell(row=_r, column=2, value=_ws.title)
+    _c.hyperlink = "#'%s'!A1" % _ws.title
+    _c.font = Font(color='0563C1', underline='single', size=10)
+    _r += 1
+    # A way back, so a reader who followed a link is not stranded -- but ONLY
+    # where A1 is free. Writing it unconditionally overwrote the register's own
+    # 'Ref' header, which the gate caught: a navigation aid is not worth a column.
+    if _ws.cell(row=1, column=1).value in (None, ''):
+        _b = _ws.cell(row=1, column=1, value='< Cover')
+        _b.hyperlink = "#'Cover'!A1"
+        _b.font = Font(color='0563C1', underline='single', size=8)
+
+for _ws in wb.worksheets:
+    # A document-control banner on every sheet, after the pattern the Tilenga
+    # subcontract document list uses: reference, revision and status at the top,
+    # originator and page position at the foot, on every page of every sheet.
+    #
+    # It goes in the HEADER AND FOOTER rather than in cells. Tilenga puts its
+    # banner in rows 1-6 of each sheet, which is more visible -- but inserting six
+    # rows here would shift every freeze pane, every autofilter range and the
+    # register's own column headers, and this workbook is read through those. The
+    # banner appears on every printed page, in Page Layout view, and in the PDF,
+    # which is how the pack is circulated. No cell moves.
+    _ws.oddHeader.left.text = "&\"Calibri,Bold\"&9KAMPALA UGANDA TEMPLE"
+    _ws.oddHeader.center.text = "&\"Calibri,Bold\"&9&A"
+    _ws.oddHeader.right.text = "&9%s   Rev %s" % (DOC_REF, DOC_REV)
+    _ws.oddFooter.left.text = "&9&KC00000DRAFT - not issued (S0, work in progress)"
+    _ws.oddFooter.center.text = "&8Symbion Consulting Group Studios - Information Manager"
+    _ws.oddFooter.right.text = "&9&A   Page &P of &N"
+
 wb.save(OUT)
 K.finalise(pathlib.Path(OUT))
 print('saved:', OUT, '|', len(R), 'deliverables')

@@ -1,0 +1,205 @@
+// ==========================================================================
+//  ClassificationPolicy.cs - per-project classification overlay.
+//
+//  <project>/_BIM_COORD/classification_policy.json carries three independent
+//  per-project switches, all optional and all defaulting to today's behaviour:
+//
+//    {
+//      "omniClassTable": "21",
+//      "tagClassifications": ["CSI_SECTION_TXT"],
+//      "order": [
+//        { "id": "csi",         "param": "CSI_SECTION_TXT",    "prefix": "CSI",  "label": "CSI.MasterFormat" },
+//        { "id": "omniclass23", "param": "STING_OMNICLASS_23", "prefix": "OMNI", "label": "OmniClass23" },
+//        { "id": "native" }
+//      ]
+//    }
+//
+//  omniClassTable      which OmniClass table OmniClass_Assign / _Audit and the
+//                      BOQ OmniClass column classify by (see OmniClassTables).
+//  tagClassifications  which classification parameter(s) get stamped into the
+//                      element's rich TAG7 narrative. Empty => none.
+//  order               an EXPLICIT classification fallback ladder for BOQ
+//                      grouping / COBie / IFC.
+//
+//  On `order` and ClassificationStandard
+//  ------------------------------------
+//  ClassificationReader.ResolveFallback already lets a project choose which
+//  standard leads, through ClassificationStandard (sting_classification.json:
+//  Uniclass | CSI | OmniClass | Native). That covers the four common answers and
+//  stays the default. What it cannot express is a bespoke ladder over a
+//  parameter the code has never heard of - an owner classification table, say.
+//  `order` is that escape hatch: name ANY text parameter, in any sequence, and
+//  the ladder is data, not a recompile.
+//
+//  The two do not fight. `order` is honoured ONLY when the project authored a
+//  non-empty one (HasExplicitOrder); otherwise ResolveFallback keeps using
+//  ClassificationStandard exactly as before. A project with no policy file, or
+//  one that sets only omniClassTable, sees no change at all.
+//
+//  HOST-FREE (no Autodesk.Revit references) so it unit-tests independently of
+//  Revit. Reading the file is ClassificationReader's job - it holds the Document
+//  the path resolver needs.
+// ==========================================================================
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json;
+
+namespace StingTools.Core.Classification
+{
+    /// <summary>One rung of the classification fallback ladder.</summary>
+    public sealed class ClassificationSource
+    {
+        [JsonProperty("id")]    public string Id { get; set; } = "";
+        [JsonProperty("param")] public string Param { get; set; } = "";
+        [JsonProperty("prefix")] public string Prefix { get; set; } = "";
+        [JsonProperty("label")] public string Label { get; set; } = "";
+
+        /// <summary>Terminal native family/type fallback (no parameter to read).</summary>
+        [JsonIgnore]
+        public bool IsNative =>
+            string.IsNullOrWhiteSpace(Param) ||
+            string.Equals(Id, "native", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public sealed class ClassificationPolicy
+    {
+        [JsonProperty("order")]
+        public List<ClassificationSource> Order { get; set; } = new List<ClassificationSource>();
+
+        /// <summary>
+        /// Phase 199 — the active OmniClass TABLE the OmniClass column / OmniClass_Assign
+        /// classifies by. Any real OmniClass table number works (11/12/13/14/21/22/23/31/
+        /// 32/33/34/35/36/41/49 — there is NO table 24-28); the BOQ-relevant ones are
+        /// "21" = Elements (default), "23" = Products, "41" = Materials (element axes) and
+        /// "13"/"14" = Spaces (host-room axis). Accepts "Table 21" / "T21" / "21"
+        /// (normalised by <see cref="OmniClassTableNumber"/>). Switching is this one line;
+        /// the assigner loads STING_OMNICLASS_&lt;table&gt;_MAP.csv (corporate) +
+        /// _BIM_COORD/omniclass_map.csv (overlay) and the BOQ column names the table.
+        /// Tables 21 (Elements), 23 (Products), 41 (Materials) + 13 (Spaces) ship corporate
+        /// maps; any other table needs its map shipped or supplied via the overlay.
+        /// </summary>
+        [JsonProperty("omniClassTable")]
+        public string OmniClassTable { get; set; } = "21";
+
+        /// <summary>
+        /// Phase 199f — which classification code(s) get stamped into the element's
+        /// TAG7 rich narrative (so they appear on drawings). A flat list of shared-parameter
+        /// names, e.g. ["CSI_SECTION_TXT"] for MasterFormat, ["ASS_OMNICLASS_TXT"] for
+        /// OmniClass, or both. EMPTY by default ⇒ nothing stamped (no change for existing
+        /// projects). Data-driven + sustainable: name ANY classification text parameter and
+        /// it stamps with a sensible label — no recompile, no tag-family rebuild. Decoupled
+        /// from the BOQ `order`, so a project can bill by one axis but annotate by another
+        /// (or none). Set via the "Classification on Tags…" command or this file.
+        /// </summary>
+        [JsonProperty("tagClassifications")]
+        public List<string> TagClassifications { get; set; } = new List<string>();
+
+        /// <summary>
+        /// True when the project authored its own non-empty <see cref="Order"/>. Only then
+        /// does the ladder override <c>ClassificationStandard</c>; the default policy and a
+        /// policy that sets only <c>omniClassTable</c> / <c>tagClassifications</c> leave the
+        /// existing standard selector in charge, so opting into an OmniClass table cannot
+        /// silently re-order a project's BOQ grouping.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasExplicitOrder { get; private set; }
+
+        /// <summary>Normalised active table number — "Table 21"/"T21"/"21" → "21". Default "21".</summary>
+        [JsonIgnore]
+        public string OmniClassTableNumber => NormalizeTable(OmniClassTable);
+
+        private static string NormalizeTable(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "21";
+            var digits = new string(raw.Where(char.IsDigit).ToArray());
+            return digits.Length > 0 ? digits : "21";
+        }
+
+        /// <summary>
+        /// The compiled-in default: the exact order ResolveFallback used before
+        /// Phase 196 (Uniclass.Pr → Ss → Ef → OmniClass23 → native). Returned
+        /// whenever no project policy is present, so existing projects are
+        /// untouched.
+        /// </summary>
+        public static ClassificationPolicy Default => new ClassificationPolicy
+        {
+            Order = new List<ClassificationSource>
+            {
+                new ClassificationSource { Id = "uniclass.pr", Param = "UNICLASS_PR_TXT",    Prefix = "PR",   Label = "Uniclass.Pr" },
+                new ClassificationSource { Id = "uniclass.ss", Param = "UNICLASS_SS_TXT",    Prefix = "SS",   Label = "Uniclass.Ss" },
+                new ClassificationSource { Id = "uniclass.ef", Param = "UNICLASS_EF_TXT",    Prefix = "EF",   Label = "Uniclass.Ef" },
+                new ClassificationSource { Id = "omniclass23", Param = "STING_OMNICLASS_23", Prefix = "OMNI", Label = "OmniClass23" },
+                new ClassificationSource { Id = "native" }
+            }
+        };
+
+        /// <summary>
+        /// Parse a policy from raw JSON. Returns the Default policy on null/blank
+        /// input, malformed JSON, or an empty order — a broken policy file must
+        /// never break classification, it just falls back to the baseline order.
+        /// Always normalised so a terminal native rung exists and every rung
+        /// carries a prefix + label (synthesised from the id when omitted).
+        /// </summary>
+        public static ClassificationPolicy Parse(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return Default;
+            try
+            {
+                var p = JsonConvert.DeserializeObject<ClassificationPolicy>(json);
+                if (p == null) return Default;
+                // A policy may set only omniClassTable / tagClassifications (no order) -
+                // keep those, use the default classification order, and leave
+                // HasExplicitOrder false so ClassificationStandard stays in charge.
+                if (p.Order == null || p.Order.Count == 0) { p.Order = Default.Order; return p; }
+                return Normalize(p);
+            }
+            catch
+            {
+                return Default;
+            }
+        }
+
+        private static ClassificationPolicy Normalize(ClassificationPolicy p)
+        {
+            var cleaned = new List<ClassificationSource>();
+            bool hasNative = false;
+            foreach (var s in p.Order)
+            {
+                if (s == null) continue;
+                if (hasNative) break;              // native is terminal — ignore any trailing rungs
+                if (s.IsNative)
+                {
+                    hasNative = true;
+                    cleaned.Add(new ClassificationSource { Id = "native" });
+                    continue;
+                }
+                cleaned.Add(new ClassificationSource
+                {
+                    Id = string.IsNullOrWhiteSpace(s.Id) ? s.Param : s.Id.Trim(),
+                    Param = s.Param.Trim(),
+                    Prefix = string.IsNullOrWhiteSpace(s.Prefix) ? PrefixFromId(s) : s.Prefix.Trim(),
+                    Label = string.IsNullOrWhiteSpace(s.Label) ? (string.IsNullOrWhiteSpace(s.Id) ? s.Param : s.Id.Trim()) : s.Label.Trim()
+                });
+            }
+            // Guarantee a terminal native rung so ResolveFallback always yields a key.
+            if (!hasNative) cleaned.Add(new ClassificationSource { Id = "native" });
+            return new ClassificationPolicy
+            {
+                Order = cleaned,
+                OmniClassTable = p.OmniClassTable,
+                TagClassifications = p.TagClassifications ?? new List<string>(),
+                HasExplicitOrder = true
+            };
+        }
+
+        private static string PrefixFromId(ClassificationSource s)
+        {
+            string baseId = string.IsNullOrWhiteSpace(s.Id) ? s.Param : s.Id;
+            baseId = (baseId ?? "").Trim();
+            int dot = baseId.IndexOf('.');
+            string seg = dot > 0 ? baseId.Substring(dot + 1) : baseId;
+            return string.IsNullOrEmpty(seg) ? "CLS" : seg.ToUpperInvariant();
+        }
+    }
+}

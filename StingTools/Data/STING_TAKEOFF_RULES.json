@@ -3,6 +3,32 @@
   "_note": "Corporate baseline take-off rules. Project overrides go in <project>/_BIM_COORD/takeoff_rules.json. Rule order matters — first match wins.",
   "rules": [
     {
+      "id": "earthworks-cut",
+      "matchCategory": "Toposolid",
+      "matchDiscipline": "*",
+      "matchProdCode": "*",
+      "unit": "m3",
+      "quantitySource": "VOLUME_CUT",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 0,
+      "nrm2Section": "5",
+      "description": "Excavate to reduce levels",
+      "notes": "B-2. VOLUME_CUT is the real graded cut, verified present in RevitAPI 2025/2026/2027. Supersedes any rule measuring SolidVolume, which measures the whole solid rather than the cut. Ordered BEFORE toposolid-area so a graded toposolid bills by volume, not area. Revit cut/fill accuracy approx +/-2%. Site_CutFillTakeoff is the fuller path: it also emits cart-away, imported fill and compaction, which no single per-element rule can derive."
+    },
+    {
+      "id": "earthworks-fill",
+      "matchCategory": "Toposolid",
+      "matchDiscipline": "EARTHFILL",
+      "matchProdCode": "*",
+      "unit": "m3",
+      "quantitySource": "VOLUME_FILL",
+      "unitConversion": "ft3_to_m3",
+      "wastePercent": 0,
+      "nrm2Section": "5",
+      "description": "Fill deposited and compacted in layers",
+      "notes": "B-2. Gated on discipline EARTHFILL so a toposolid does not produce BOTH a cut and a fill row from the element walk — cut and fill on one platform are two quantities of one element, which the per-element take-off cannot express. Use Site_CutFillTakeoff for the balanced four-row set."
+    },
+    {
       "id": "curtain-wall-area",
       "matchCategory": "Curtain",
       "matchDiscipline": "*",

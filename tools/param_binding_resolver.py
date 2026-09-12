@@ -1,4 +1,9 @@
-import os,re,csv,collections
+import io,os,re,csv,collections
+# csv.writer's default lineterminator is CRLF whatever open(newline="") does, so
+# the terminator has to be set on the WRITER. All three outputs are pinned to LF
+# and to `text eol=lf` in .gitattributes: the drift gate regenerates on Linux and
+# diffs, so a Windows-authored CRLF file would fail CI on a tree nobody edited.
+LF = "\n"
 # ---- code scan: param -> set(code domains) ----
 params={}
 for line in open("StingTools/Data/MR_PARAMETERS.txt",encoding="utf-8",errors="replace"):
@@ -49,7 +54,7 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
 "ROOF":"Roofs","STAIR":"Stairs|Railings","RAMP":"Ramps","RAILING":"Railings","CASEWORK":"Casework","FURN":"Furniture|Furniture Systems",
 "PARK":"Parking","COLUMN":"Columns|Structural Columns","ROOM":"Rooms","FINISH":"Walls|Floors|Ceilings|Roofs|Rooms",
-"MATERIAL":"Materials","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
+"MATERIAL":"Materials","SHEET":"Sheets","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
 SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"DATA","MGS":"HEALTH","CLN":"HEALTH","CEQ":"HEALTH","RAD":"HEALTH","FLS":"FIRE"}
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
@@ -64,8 +69,22 @@ def resolve(n,desc,depth=0):
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
-    if pre in("Qto","VT","TB","TBL","SHT","VIEW"): return "NONE","excluded"
-    if pre=="CSI": return "UNIVERSAL","classification"
+    # SHT_* binds to Sheets. It sat in the excluded tuple beside the genuinely
+    # unbindable prefixes (Qto quantity sets, view/title-block metadata), so every
+    # regeneration silently dropped ten sheet parameters that the committed spec
+    # bound -- and "absent from the spec" means intentionally UNBOUND, not
+    # broad-bound, so they go dark rather than wrong. Only ONE of the ten has a
+    # CATEGORY_BINDINGS.csv row to fall back on; the other nine bind nowhere.
+    # This must come before the _TAG_ rule so SHT_TAG_1_TXT / SHT_TAG_7_TXT land
+    # on Sheets rather than being treated as element tag containers.
+    if pre=="SHT": return "SHEET","sheet"
+    if pre in("Qto","VT","TB","TBL","VIEW"): return "NONE","excluded"
+    # A classification code is a property of the thing, not of a discipline, so every
+    # classification axis binds universally. CSI was here alone; UNICLASS (Pr/Ss/EF),
+    # NBS and the per-element RFI URL are the other four ClassificationReader.Read()
+    # consults, and without a rule they fell through to UNRESOLVED and bound NOWHERE.
+    if pre in ("CSI","UNICLASS","NBS"): return "UNIVERSAL","classification"
+    if n=="ASSET_RFI_URL_TXT": return "UNIVERSAL","classification"
     if pre=="STRUCT":
         if sub=="COL": return "COLUMN","struct-col"
         return "STRUCT","struct"
@@ -118,11 +137,64 @@ def resolve(n,desc,depth=0):
     if cs: return cs,"code-usage"
     if cc: return "NONE","UNRESOLVED(polluted-curated)"
     return "NONE","UNRESOLVED"
+# ── The Materials cross-check ───────────────────────────────────────────────
+# "Materials" in RESOLVED_BINDINGS.csv is DROPPED by SharedParamGuids when it loads
+# the spec -- OST_Materials is a pseudo-category there. Material binding happens by
+# a different mechanism entirely: LoadSharedParamsCommand.IsMaterialRelevantParam
+# selects parameters BY NAME PREFIX and CleanMaterialBindings binds those.
+#
+# So a Materials row is honoured only if that C# rule also recognises the parameter.
+# One it does not recognise sits in the spec looking bound and binds to NOTHING --
+# and "absent from the spec" means intentionally unbound, so nothing downstream
+# reports it. That is the same failure the C# comment already records for
+# BLE_MATERIAL_TXT, which is why that name is an explicit exception there.
+#
+# The prefixes are READ OUT OF THE C# SOURCE, not copied here. A second copy of the
+# list is the defect class this generator exists to remove, and a mirror would rot
+# the first time someone edits the C# and not this file.
+def material_prefixes():
+    src_path = "StingTools/Tags/LoadSharedParamsCommand.cs"
+    text = io.open(src_path, encoding="utf-8", errors="replace").read()
+    # Anchored on the opening paren. A bare name find() PREFIX-MATCHES a renamed
+    # method -- IsMaterialRelevantParamRenamed still contains it -- so the reader
+    # would parse a method that no longer exists under that name and report a
+    # confident prefix list from it. Found by sabotaging this check with exactly
+    # that rename, which passed until the anchor was added.
+    start = text.find("private static bool IsMaterialRelevantParam(")
+    if start < 0:
+        raise SystemExit(
+            "IsMaterialRelevantParam not found in " + src_path + " -- fix this reader "
+            "rather than copying the prefix list, or the two will drift.")
+    end = text.index("\n        }", start)
+    body = text[start:end]
+    prefixes = re.findall(r'StartsWith\("([^"]+)"', body)
+    exact = re.findall(r'paramName == "([^"]+)"', body)
+    if not prefixes:
+        raise SystemExit(
+            "no StartsWith prefixes parsed out of IsMaterialRelevantParam -- the "
+            "method shape changed. Fix this reader; an empty prefix list would let "
+            "the check below pass by recognising nothing.")
+    return prefixes, exact
+
+MAT_PREFIXES, MAT_EXACT = material_prefixes()
+def material_relevant(name):
+    return any(name.startswith(px) for px in MAT_PREFIXES) or name in MAT_EXACT
+
 out=[]; src=collections.Counter()
 for n,(g,d) in params.items():
     dom,s=resolve(n,d)
     cats = "|".join(sorted(catb[n])) if dom is None else S[dom]
     out.append((n,g,s,cats,d)); src[s]+=1
+# FAIL rather than write a row that claims a binding nothing delivers.
+mat_orphans=[o[0] for o in out if o[3]=="Materials" and not material_relevant(o[0])]
+if mat_orphans:
+    raise SystemExit(
+        "%d parameter(s) resolve to Materials but IsMaterialRelevantParam does not "
+        "recognise them, so they would bind to NOTHING while the spec says they are "
+        "bound:\n  %s\n"
+        "Either give them a real category in resolve(), or add their prefix to "
+        "IsMaterialRelevantParam in StingTools/Tags/LoadSharedParamsCommand.cs."
+        % (len(mat_orphans), "\n  ".join(sorted(mat_orphans)[:20])))
 scoped=sum(1 for o in out if o[3] not in("","<ALL>")); univ=sum(1 for o in out if o[3]=="<ALL>"); unb=sum(1 for o in out if o[3]=="")
 gaps=[o for o in out if o[2].startswith("UNRESOLVED")]
 print("resolution source:")
@@ -130,12 +202,16 @@ for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
+    w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
+    w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","desc"]); [w.writerow((o[0],o[1],o[4])) for o in sorted(gaps)]
 with open("StingTools/Data/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
-    w=csv.writer(f); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
+    w=csv.writer(f, lineterminator=LF); w.writerow(["# Parameter_Name","Categories(pipe)|<ALL>=universal"])
     for n,g,srcx,cats,d in sorted(out):
         if cats!="": w.writerow([n,cats])
+print("material rows cross-checked against IsMaterialRelevantParam: "
+      "%d prefix(es), %d exact, %d row(s), 0 orphans"
+      % (len(MAT_PREFIXES), len(MAT_EXACT),
+         sum(1 for o in out if o[3]=="Materials")))
 print("code-usage recovered:",src["code-usage"])
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")

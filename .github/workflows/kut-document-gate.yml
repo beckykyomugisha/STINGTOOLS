@@ -36,15 +36,21 @@ name: KUT Issued Document Gate
 on:
   push:
     paths:
-      - 'KUT_*.docx'
-      - 'KUT_*.xlsx'
+      - 'KUT_DOCS_WORKING/issued/*.docx'
+      - 'KUT_DOCS_WORKING/issued/*.xlsx'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
+      - 'tools/build_document_control.py'
+      - 'tools/build_symbion_request.py'
+      - 'tools/kut_naming.py'
+      - 'GUIDES/KUT_BEP_TEMPLATE.md'
+      - 'GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md'
       - 'tools/build_kut_lod_overlay.py'
       - 'tools/corporate_docx.py'
       - 'tools/kut_docs_lib.py'
       - 'tools/midp_schema.py'
+      - 'tools/midp_rows.py'
       - 'tools/check_kut_documents.py'
       - 'tools/merge_tidp.py'
       - 'project-templates/KUT/**'
@@ -53,15 +59,21 @@ on:
       - '.github/workflows/kut-document-gate.yml'
   pull_request:
     paths:
-      - 'KUT_*.docx'
-      - 'KUT_*.xlsx'
+      - 'KUT_DOCS_WORKING/issued/*.docx'
+      - 'KUT_DOCS_WORKING/issued/*.xlsx'
       - 'tools/build_bep.py'
       - 'tools/build_team_playbook.py'
       - 'tools/build_midp.py'
+      - 'tools/build_document_control.py'
+      - 'tools/build_symbion_request.py'
+      - 'tools/kut_naming.py'
+      - 'GUIDES/KUT_BEP_TEMPLATE.md'
+      - 'GUIDES/KUT_PROJECT_DELIVERY_PLAYBOOK.md'
       - 'tools/build_kut_lod_overlay.py'
       - 'tools/corporate_docx.py'
       - 'tools/kut_docs_lib.py'
       - 'tools/midp_schema.py'
+      - 'tools/midp_rows.py'
       - 'tools/check_kut_documents.py'
       - 'tools/merge_tidp.py'
       - 'project-templates/KUT/**'
@@ -113,7 +125,9 @@ jobs:
           python tools/build_bep.py
           python tools/build_team_playbook.py
           python tools/build_midp.py
-          git diff --exit-code -- 'KUT_*.docx' 'KUT_*.xlsx' || {
+          python tools/build_document_control.py
+          python tools/build_symbion_request.py
+          git diff --exit-code -- 'KUT_DOCS_WORKING/issued/*.docx' 'KUT_*.xlsx' || {
             echo "--- which OPC parts actually differ ---"
             python tools/diff_ooxml.py
             exit 1
