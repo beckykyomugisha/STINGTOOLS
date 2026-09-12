@@ -1974,6 +1974,9 @@
                                 <Button Style="{StaticResource BlueBtn}" Content="Register audit (read-only)" Tag="Materials_RegisterAudit" Click="Cmd_Click"
                                         ToolTip="READ-ONLY. For every host type whose NAME is a row of BLE_MATERIALS.csv / MEP_MATERIALS.csv, compares the modelled compound structure against the layers, materials and thicknesses that register row declares, and writes the mismatches to CSV. Written after 87 floor types named after register rows turned out to be one 100mm layer of concrete each - the register was read for its NAME column and nothing else. Changes NOTHING: rebuilding a compound structure moves every element hosted on the type."
                                         HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
+                                <Button Style="{StaticResource OrangeBtn}" Content="Stamp material Codes (asks first)" Tag="Materials_StampCodes" Click="Cmd_Click"
+                                        ToolTip="Writes each material's MAT_CODE from the register row of the same MAT_NAME, where the material has none. MAT_CODE is the key the BOQ's most specific rate lookup uses - a material without one is priced by category and name instead, which is where vocabulary drift turns into a wrong rate. Matches on the EXACT name only, never overwrites a code somebody set, and writes the full plan to CSV before asking. Reports three counts: stamped, already coded, and NOT IN THE REGISTER - the third is this project's own vocabulary and the number the next register revision should absorb."
+                                        HorizontalAlignment="Stretch" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
 

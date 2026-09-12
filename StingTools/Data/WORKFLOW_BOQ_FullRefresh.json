@@ -20,6 +20,11 @@
       "optional": false
     },
     {
+      "commandTag": "Prod_CoverageAudit",
+      "label": "Audit PROD rule coverage (read-only) — an unruled family is a wrong rate",
+      "optional": true
+    },
+    {
       "commandTag": "BOQRefresh",
       "label": "Rebuild BOQ from model",
       "optional": false,

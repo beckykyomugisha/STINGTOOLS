@@ -56,6 +56,12 @@ namespace StingTools.Core.Materials
         public int InstanceCount;
         public List<ModelledLayer> Layers = new List<ModelledLayer>();
 
+        /// <summary>The register code this type RECORDS, from StingProvenanceSchema —
+        /// written by CompoundTypeCreator when it built the type from a register row.
+        /// Empty for every type created before that landed, which is why name matching
+        /// stays as the fallback rather than being replaced.</summary>
+        public string RecordedCode = "";
+
         public double TotalThicknessMm => Layers?.Sum(l => Math.Max(0, l.ThicknessMm)) ?? 0;
     }
 
@@ -73,6 +79,12 @@ namespace StingTools.Core.Materials
         Differs,
         /// <summary>The model type has no compound structure to read.</summary>
         NoStructure,
+        /// <summary>The type RECORDS a register code and its layers do not build that
+        /// row. The strongest finding here, because a recorded code is a CLAIM about
+        /// identity rather than a coincidence of naming — and the geometry refutes it.
+        /// Never re-matched by name: that would let a wrong code hide behind a right
+        /// name, which is the whole failure this verdict exists to surface.</summary>
+        CodeSaysOtherwise,
     }
 
     public sealed class RegisterAuditRow
@@ -88,7 +100,12 @@ namespace StingTools.Core.Materials
 
         public bool IsFinding => Verdict == RegisterAuditVerdict.Flattened
                               || Verdict == RegisterAuditVerdict.Differs
-                              || Verdict == RegisterAuditVerdict.NoStructure;
+                              || Verdict == RegisterAuditVerdict.NoStructure
+                              || Verdict == RegisterAuditVerdict.CodeSaysOtherwise;
+
+        /// <summary>True when the register row was found by the type's RECORDED code
+        /// rather than by its name.</summary>
+        public bool MatchedByRecordedCode;
 
         public override string ToString() => $"{Verdict}: {TypeName} — {Detail}";
     }
@@ -109,22 +126,50 @@ namespace StingTools.Core.Materials
                 {
                     Category = t.Category, TypeName = t.TypeName, InstanceCount = t.InstanceCount,
                 };
-                var reg = registry?.ByName(t.TypeName);
-                if (reg == null)
+                // The RECORDED code wins over the name. A type that says what it was
+                // built from is not guessing, and a name is a coincidence — 86 of the 87
+                // floor types carried a register MAT_NAME verbatim while building
+                // something else entirely.
+                string recorded = (t.RecordedCode ?? "").Trim();
+                MaterialRow reg;
+                if (recorded.Length > 0)
                 {
-                    row.Verdict = RegisterAuditVerdict.NotInRegister;
-                    row.Detail = "type name is not a register MAT_NAME";
-                    outRows.Add(row);
-                    continue;
+                    row.MatchedByRecordedCode = true;
+                    row.RegisterCode = recorded;
+                    reg = registry?.ByCode(recorded);
+                    if (reg == null)
+                    {
+                        // A recorded code the register does not issue. NOT re-matched by
+                        // name: falling back here is exactly how a wrong code would hide
+                        // behind a right name.
+                        row.Verdict = RegisterAuditVerdict.CodeSaysOtherwise;
+                        row.Detail = $"type records {recorded}, which is not a code this "
+                                   + "register issues";
+                        outRows.Add(row);
+                        continue;
+                    }
+                }
+                else
+                {
+                    reg = registry?.ByName(t.TypeName);
+                    if (reg == null)
+                    {
+                        row.Verdict = RegisterAuditVerdict.NotInRegister;
+                        row.Detail = "type name is not a register MAT_NAME";
+                        outRows.Add(row);
+                        continue;
+                    }
+                    row.RegisterCode = reg.Code;
                 }
 
-                row.RegisterCode = reg.Code;
                 var modelled = (t.Layers ?? new List<ModelledLayer>())
                                .Where(l => l != null).ToList();
 
                 if (modelled.Count == 0)
                 {
-                    row.Verdict = RegisterAuditVerdict.NoStructure;
+                    row.Verdict = row.MatchedByRecordedCode
+                        ? RegisterAuditVerdict.CodeSaysOtherwise
+                        : RegisterAuditVerdict.NoStructure;
                     row.Detail = $"register says {Describe(reg)}, model has no compound structure";
                     outRows.Add(row);
                     continue;
@@ -140,6 +185,19 @@ namespace StingTools.Core.Materials
                 {
                     row.Verdict = RegisterAuditVerdict.Matches;
                     row.Detail = $"{modelled.Count} layer(s), as the register declares";
+                }
+                else if (row.MatchedByRecordedCode)
+                {
+                    // A recorded code contradicted by the geometry. The LAYERS WIN — this
+                    // reports, it never reconciles, because Revit measures the layers and
+                    // anything else would price a building that was not drawn.
+                    row.Verdict = RegisterAuditVerdict.CodeSaysOtherwise;
+                    var other = MatchByLayers(registry, modelled, reg.Code);
+                    row.Detail = $"type records {reg.Code} ({Describe(reg)}), model has "
+                               + $"{Describe(modelled)}"
+                               + (other != null
+                                  ? $" — which is {other.Code} {other.Name}"
+                                  : " — which is no register row");
                 }
                 else if (reg.Layers.Count > 1 && modelled.Count == 1)
                 {
@@ -157,6 +215,30 @@ namespace StingTools.Core.Materials
                 outRows.Add(row);
             }
             return outRows;
+        }
+
+        /// <summary>
+        /// The register row this build-up actually IS, or null. Used only to say what a
+        /// contradicted code should probably have been — never to re-label the type,
+        /// because a build-up that happens to match a row is not evidence the type meant
+        /// that row.
+        /// </summary>
+        internal static MaterialRow MatchByLayers(
+            MaterialRegistry registry, List<ModelledLayer> modelled, string excludeCode)
+        {
+            if (registry == null || modelled == null || modelled.Count == 0) return null;
+            foreach (var r in registry.Rows)
+            {
+                if (r.Layers == null || r.Layers.Count != modelled.Count) continue;
+                if (!string.IsNullOrEmpty(excludeCode)
+                    && string.Equals(r.Code, excludeCode, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                bool all = r.Layers.Zip(modelled, (rl, m) => NameAgrees(rl.Material, m.MaterialName)
+                                       && Math.Abs(rl.ThicknessMm - m.ThicknessMm) <= ToleranceMm)
+                                   .All(x => x);
+                if (all) return r;
+            }
+            return null;
         }
 
         /// <summary>
@@ -190,6 +272,7 @@ namespace StingTools.Core.Materials
             int flat = rows.Count(r => r.Verdict == RegisterAuditVerdict.Flattened);
             int diff = rows.Count(r => r.Verdict == RegisterAuditVerdict.Differs);
             int none = rows.Count(r => r.Verdict == RegisterAuditVerdict.NoStructure);
+            int said = rows.Count(r => r.Verdict == RegisterAuditVerdict.CodeSaysOtherwise);
 
             var sb = new StringBuilder();
             sb.AppendLine($"{rows.Count} host type(s); {inReg} are named after a register row.");
@@ -207,6 +290,9 @@ namespace StingTools.Core.Materials
             sb.AppendLine($"  {flat} are FLATTENED — the register declares layers and the model has one");
             sb.AppendLine($"  {diff} differ in material or thickness");
             sb.AppendLine($"  {none} have no compound structure at all");
+            if (said > 0)
+                sb.AppendLine($"  {said} RECORD a register code their layers do not build "
+                            + "— the code is a claim, the geometry is the fact");
             sb.AppendLine();
             sb.AppendLine("This is READ-ONLY and stays that way. A flattened type's geometry is "
                         + "wrong, but rebuilding it from a CSV also moves every element hosted on "
@@ -217,10 +303,11 @@ namespace StingTools.Core.Materials
         public static List<string> ToCsv(IEnumerable<RegisterAuditRow> rows)
         {
             var outLines = new List<string>
-            { "Verdict,Category,TypeName,Instances,RegisterCode,Detail" };
+            { "Verdict,Category,TypeName,Instances,RegisterCode,MatchedBy,Detail" };
             foreach (var r in rows ?? Enumerable.Empty<RegisterAuditRow>())
                 outLines.Add(string.Join(",", Csv(r.Verdict.ToString()), Csv(r.Category),
-                    Csv(r.TypeName), r.InstanceCount, Csv(r.RegisterCode), Csv(r.Detail)));
+                    Csv(r.TypeName), r.InstanceCount, Csv(r.RegisterCode),
+                    Csv(r.MatchedByRecordedCode ? "recorded code" : "name"), Csv(r.Detail)));
             return outLines;
         }
 

@@ -2,6 +2,76 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Workflow conditions (2026-09-10)
+
+**WF-COND-1 — 14 of the 15 `condition` values shipped presets use are not
+evaluated by the path that reads them.** `WorkflowEngine` has two condition
+paths. The compound one (`conditions[]` -> `EvaluateSingleCondition`) answers 27
+names and **fails safe** on an unknown one, warning and skipping. The single one
+(`"condition": "..."` in `RunWorkflow`) is a run of independent `if (cond ==
+"...")` tests that **falls through** when nothing matches — so an unrecognised
+condition means *no condition* and the step runs.
+
+Measured over the shipped presets on 2026-09-10: **15 distinct `condition` values
+in use, 1 honoured** (`has_untagged`). The other 14 run ungated across **18 step
+instances in 5 presets**, including:
+
+    sld_view_exists / no_sld_view_exists  WORKFLOW_SLDProduction, WORKFLOW_ElectricalQA
+       — their entire purpose is "only on first generation"
+    sustain_location_set (x4)             WORKFLOW_SustainabilityAssessment
+       — its purpose is "do not assess without a location"
+    has_conduits, has_unassigned_circuits, load_summary_complete  WORKFLOW_ElectricalQA
+    has_down_conductors, has_earth_electrodes, has_spd_rows,
+    lps_class_undecided, spd_grid_empty, planscape_authenticated  WORKFLOW_LpsCommissioning
+    handover_mode=... (x3)                WORKFLOW_TierConversionHandover
+       — not a condition name at all; the engine has no `key=value` syntax
+
+**Reported, not fixed, as of Phase 272.** The single-condition path now warns and
+writes an "step ran UNGATED" line into the workflow report whenever it does not
+recognise a condition, so the 18 cases are visible on the next run.
+`WorkflowEngine.InlineConditionVocabulary` declares what that path tests and
+`WorkflowConditionVocabularyTests` fails if the declaration and the code drift.
+
+Closing it means routing the single path through `EvaluateSingleCondition`. That
+is a small change with a real consequence — **steps that run today would start
+skipping** in five shipped presets — so it needs its own PR and its own evidence
+about each of the 18, not a quiet fix inside an unrelated one. The three
+`handover_mode=...` values need a decision first: the engine has no comparison
+syntax, so they can only ever be unknown.
+
+## MAT_CODE as a rate key — what W2 left open (2026-09-10)
+
+**MC-1 — the register and the rate table use one column name for two
+vocabularies.** `cost_rates_5d.csv` has a column called `MAT_CODE` holding 43
+PROD-shaped abbreviations (`FLR`, `CLG`, `WAL`, `AHU`); the governed register
+issues 1,279 codes shaped `FLR-028`, `CLG-052`, `WL-128`. **The intersection is
+empty**, so `CsvRateProvider` Pass 3 (MATERIAL, confidence 85) still matches
+nothing even now that `RateRequest.MatCode` carries a real value. Closing it
+means deciding which vocabulary that column speaks and repricing accordingly —
+a cost change needing its own evidence, not a rename. Pinned by
+`MaterialCodeResolutionTests.The_Shipped_Rate_Table_Shares_No_Key_With_The_
+Register`, which fails and names the codes the moment one crosses over.
+
+**MC-2 — `UI/IfcMaterialPsetWriter.cs:69` carries a second
+`ReadPrimaryMaterialName`** that reads the explicit Material parameter then the
+first material, **skipping the compound structure entirely**. On a rendered
+masonry wall it returns the gypsum skin — the defect #873 closed, still live in
+this one place, and it is what gets written into `Pset_StingMaterial`. Should
+call the single definition (`MaterialProdOverrideRegistry` / the layer read in
+`ElementMatCodeReader`) rather than keep a third copy.
+
+**MC-3 — 90 of the Herring model's 98 floor types have the core material
+`Concrete, Cast-in-Place gray`**, a Revit stock material absent from the
+register, so no `MAT_CODE` reaches them however the backfill is run. This is the
+87-type flattening finding seen from the cost side: until those types carry the
+build-up the register declares, floors cannot be priced by material at all.
+
+**MC-4 — `ElementMatCodeReader`'s memo is bounded by a 30-second TTL, not by a
+change hook.** Stamping codes onto existing materials changes no material count,
+so the count alone cannot invalidate. `Invalidate()` exists; once W1 and W2 are
+both on `main`, `Materials_StampCodes` should call it after its transaction
+commits rather than rely on the window.
+
 ## Shared-parameter data hygiene (2026-09-07)
 
 | ID | Item | Detail |
@@ -245,6 +315,7 @@ either explicitly out of that phase's scope, or discovered adjacent to it.
 | IM-13 | **Three document-identity resolvers differ on trimming** | **CLOSED — `b76438483` (branch `claude/iso19650-consolidation`).** One shared rule now lives in `Core/DocumentIdentity.cs` (trim + first-non-blank); all three resolvers route through it, each keeping its existing empty sentinel so no caller contract changed. The register's row mapping + id-keyed merge were split into the Revit-free `Core/DocumentRegisterMerge.cs` so the dedup is provable headlessly, and `Merge` re-normalises at key time so no other call site can reintroduce the split namespace. Regression test: `DocumentRegisterMergeTests.TrailingSpaceDocNumber_DedupsWithDeliverable` — verified load-bearing (reverting the trim fails 10 of 14 merge tests). Original finding: `DocumentRegister.First(...)` and `CoordStores.RowId(...)` return the raw first-non-blank candidate key; `DeliverableLifecycle.DeliverableKey`/`RowKey` `.Trim()` first. So a `DocNumber` carrying a trailing space keys as `"PRJ-001"` in `deliverables.json` (RowKey, trimmed) but `"PRJ-001 "` in the register reader (untrimmed `First`), and the two stores fail to dedup in `DocumentRegister.BuildUnified` — the same deliverable shows twice. Low severity (doc numbers rarely carry whitespace), deferred because unifying the key rule changes how existing project files collapse and needs its own verification pass. Fix: one shared `NormalizeId` (trim + candidate-list) used by all three. |
 | IM-14 | **Suitability/status vocabulary is not single-sourced** | **CLOSED — `8ac700189` (branch `claude/iso19650-consolidation`).** `Iso19650Vocabulary` became the canonical source (rather than adding a fourth parallel class — `DocStatusCodes.SuitabilityCodes` already delegated to it): added `SharedSuitabilityCodes` (S0–S7), `TerminalStatuses`, `CdeStates` (aliasing `StingPaths.CdeStates`) and `CdeStatesWithTerminal`. The three exact-duplicate inline arrays in `UI/BIMCoordinationCenter.cs` now read from it. **Deliberately left alone:** the bespoke-label positional `suitCodes[,]` grid, `TitleBlockCommands.ValidSuitabilityCodes` and `DocumentLookups.SuitabilityCodes` (different supersets carrying `A6/A7/B7` and `C1–C3/D1–D2`), and the typed transition maps in `BIMManagerCommands` / `Phase75Enhancements` — none are literal duplicates and repointing them would change behaviour. Original finding: the four CDE containers are now single-sourced (`StingPaths.CdeStates`), but suitability (S0–S7) and status/terminal codes (SUPERSEDED/WITHDRAWN/OBSOLETE) are still spread across `Core/Drawing/Iso19650Vocabulary`, `BIMManager.DocStatusCodes.All`, and inline arrays in `UI/BIMCoordinationCenter.cs`. No canonical suitability enum, so the sets can drift. Fix: promote one `Iso19650Codes` source (states + suitability + status) and repoint the inline arrays, as was done for `CdeStates`. |
 | IM-15 | **P→C revision scheme is hard-coded** | **CLOSED — `f71b98ee3` (branch `claude/iso19650-consolidation`).** Driven from the manifest's `revision_scheme`, which `ProjectManifestBlock` already declared but nothing ever read. New Revit-free `Docs/Templates/RevisionScheme.cs` parses it into preliminary/contractual prefixes and owns `Bump` + `PromoteToContractual`; a single-stage scheme makes promotion a no-op rather than inventing a `C` series. Unset/blank/prefix-less falls back to P/C so existing projects are unchanged. 14 tests in `RevisionSchemeTests`. Original finding: `DeliverableLifecycle.BumpRevision` / `PromoteToContractual` bake in the `P01`→`C01` preliminary→contractual scheme. Appointments that mandate a different revision convention need code changes. Fix: drive the scheme from project config (`PRJ_ORG_*` or the manifest), defaulting to P/C. |
+| IM-17 | **A transmittal records `ISSUED` for a package that was never sent — and no reader can see the status anyway** | Two defects that mask each other, found while auditing the ACC path for KUT (`docs/KUT_INTEGRATION_READINESS_2026-09.md`). **(1) A false assertion in the record.** `BIMManagerEngine.CreateTransmittal` (`BIMManager/BIMManagerCommands.cs:3582`) hard-codes `["status"] = "ISSUED"` (`:3600`) and stamps `date_issued` with today. `ACCPublishCommand` calls it (`BIMManager/PlatformLinkCommands.cs:1208`) after building a **local ZIP** whose own dialog tells the user “Upload the ZIP file to ACC/BIM 360 document management” (`:1230`) — so `transmittals.json` gains a row asserting a package was issued to ACC/BIM 360 on a date when nothing left the disk. `ACCPublish` is step 6 of `WORKFLOW_KUT_CoordinationCycle.json`, run fortnightly on KUT, so the register accrues roughly 26 such rows a year, each burning a sequential `TX` number that interleaves with genuine MIDP drops. The BEP makes the register “a formal record of every issue”; this writes false positives into it. **(2) The status is inert, which is why nobody noticed (1).** `ISSUED` is **not** in `UI/DocumentManagementDialog.ValidTransmittalStatuses` (`:6869` — `DRAFT, SENT, RECEIVED, ACKNOWLEDGED, SIGNED, REJECTED, SUPERSEDED, AUTO_GENERATED, VOID`), so `ValidateTransmittalStatus` (`:6875`) silently coerces **every** transmittal — including genuine MIDP drops — to `DRAFT`. Two vocabularies for one field, reconciled by a fallback: the shape CLAUDE.md records for the `ProjectRole == "PM"` gates that could never open. **Bounded.** `status` is read by exactly one consumer (that dialog) and nothing branches on it; `ACCPublish` writes JSON only and does **not** call `TransmittalOrchestrator`, so no rendered `.docx` reaches a client. Nothing is broken today — the register is wrong on paper, and the paper is the deliverable. **NOT FIXED, deliberately.** The fix requires choosing a vocabulary, and IM-9 in this table is the precedent for why that is not a guess: it “offered two options and the second one was wrong”, because folding a status into a neighbouring kind silently unmatched rows seven exact-match filters relied on. The options here are (a) add `ISSUED` to the valid set, (b) have `CreateTransmittal` write `SENT`, or (c) give the prepared-but-unsent case its own status — `AUTO_GENERATED` is already in the vocabulary and already written by `Core/ProjectFolderEngine.cs:2946`, and is arguably exactly what an `ACCPublish` by-product is. (c), plus a real `SENT` at the moment an upload actually succeeds, is the shape that would let the register tell the truth — but which is correct is an Information-Manager decision about an ISO 19650 record, not a code cleanup, so it is written down rather than guessed. Related: IM-14 single-sourced the *suitability* vocabulary and deliberately left the typed transition maps alone; this is a different field it did not cover. |
 
 ## Drawings-production deep review (2026-07-20)
 
