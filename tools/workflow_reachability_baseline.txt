@@ -103,10 +103,7 @@ AutoPlaceViewports
 AutoTaggerConfig
 AutoTaggerToggle
 AutoTagVisual
-Baseline_Apply
-Baseline_Audit
 Baseline_HarvestTypes
-Baseline_RenameTypes
 BatchAddFamilyParams
 BatchAlignViewports
 BatchApplyColorScheme
@@ -588,10 +585,7 @@ MagicRename
 ManageSelectionSets
 MasterLegendPipeline
 MaterialLegend
-Materials_RegisterAudit
 Materials_RevertClassPlan
-Materials_SetClass
-Materials_StampCodes
 MaterialSchedule_Export
 MaterialSchedule_PriceCommodities
 MaterialSchedules
@@ -750,7 +744,6 @@ PreviewParamStyles
 PreviewTag
 PreviewTagStyles
 PrjVolumeCodeAuto
-Prod_CoverageAudit
 Prod_GenerateRules
 ProjectBrowserOrganizer
 ProjectDashboard
