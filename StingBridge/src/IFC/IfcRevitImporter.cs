@@ -29,6 +29,7 @@
 // UGR / uniformity values and writes them back onto matching Revit fixtures.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -44,6 +45,8 @@ namespace StingBridge.IFC
     {
         public bool     Success       { get; set; }
         public string   SourceFile    { get; set; } = "";
+        /// <summary>Elements actually copied from the IFC document into the model.</summary>
+        public int      ElementsImported { get; set; }
         public int      ElementsTagged { get; set; }
         public string   ErrorMessage  { get; set; } = "";
     }
@@ -72,48 +75,77 @@ namespace StingBridge.IFC
             bool             applyTags = true)
         {
             var result = new IfcImportResult { SourceFile = ifcPath };
+            Document? ifcDoc = null;
 
             try
             {
-                // Gap 1/7: Parse site origin from STEP header before opening a transaction.
+                if (!File.Exists(ifcPath))
+                    throw new FileNotFoundException("IFC file not found.", ifcPath);
+
+                // Gap 1/7: Parse site origin from STEP header before touching Revit.
                 var origin = ParseIfcSiteOrigin(ifcPath);
-
-                using var tx = new Transaction(doc, $"STING IFC Import — {Path.GetFileName(ifcPath)}");
-                tx.Start();
-
-                // Gap 15: Remove any existing ImportInstance that came from the same file
-                // so re-import produces a clean update rather than stacked duplicates.
-                RemoveExistingImport(doc, ifcPath);
-
-                var opts = new IFCImportOptions();
 
                 if (mode == IfcImportMode.Link)
                 {
-                    // The Revit core API (RevitAPI.dll) does not expose a programmatic
-                    // "Link IFC" method — that functionality lives in the IFC for Revit
-                    // add-in, not in the core assembly. Fall back to Import so callers
-                    // always get usable native elements regardless of the requested mode.
-                    StingLog.Warn($"IfcRevitImporter: IFC link mode is not available via the " +
-                                  $"Revit API; falling back to Import for {Path.GetFileName(ifcPath)}");
+                    // There is genuinely no programmatic "Link IFC" in the Revit API —
+                    // OpenIFCDocument is the only entry point, and it yields a separate
+                    // document whose elements we copy in. Callers still get native
+                    // elements; they just are not a live link.
+                    StingLog.Warn("IfcRevitImporter: IFC link mode is not available via the " +
+                                  $"Revit API; importing elements instead for {Path.GetFileName(ifcPath)}");
                 }
 
-                // Import converts IFC geometry into native Revit elements.
-                // The fourth (out) parameter receives the ElementId of the created
-                // import symbol — required by the Revit 2025+ API signature.
-                doc.Import(ifcPath, opts, doc.ActiveView, out ElementId importSymbolId);
-
-                // Gap 1: Translate the import symbol to align the IFC survey origin to
-                // the Revit project origin (which is at the Survey Point for shared coordinates).
-                // Only applied when the model has a non-trivial survey offset (>1 m magnitude).
-                if (origin.HasMapConversion && importSymbolId != ElementId.InvalidElementId)
+                // Revit opens IFC as its OWN document — there is no Document.Import
+                // overload for IFC. Must happen outside any transaction.
+                var opts = new Autodesk.Revit.DB.IFC.IFCImportOptions
                 {
-                    ApplySurveyOriginTranslation(doc, importSymbolId, origin);
+                    Action = Autodesk.Revit.DB.IFC.IFCImportAction.Open,
+                    Intent = Autodesk.Revit.DB.IFC.IFCImportIntent.Reference,
+                    AutoJoin = false
+                };
+
+                ifcDoc = doc.Application.OpenIFCDocument(ifcPath, opts);
+                if (ifcDoc == null)
+                    throw new InvalidOperationException("OpenIFCDocument returned no document.");
+
+                // Everything copyable from the IFC document: model elements only.
+                var sourceIds = new FilteredElementCollector(ifcDoc)
+                    .WhereElementIsNotElementType()
+                    .WhereElementIsViewIndependent()
+                    .Where(e => e.Category != null && e.Category.HasMaterialQuantities)
+                    .Select(e => e.Id)
+                    .ToList();
+
+                if (sourceIds.Count == 0)
+                    throw new InvalidOperationException(
+                        $"'{Path.GetFileName(ifcPath)}' opened but contained no copyable model elements.");
+
+                using (var tx = new Transaction(doc, $"STING IFC Import — {Path.GetFileName(ifcPath)}"))
+                {
+                    tx.Start();
+
+                    // Gap 15: drop anything previously imported from this same file so a
+                    // re-import updates rather than stacking duplicates.
+                    RemoveExistingImport(doc, ifcPath);
+
+                    // Gap 1 + Gap 7: fold the survey-origin translation and true-north
+                    // rotation into the copy transform, so elements land correctly in one
+                    // step rather than being moved afterwards.
+                    Transform placement = BuildPlacementTransform(origin);
+
+                    var newIds = CopyElementsResilient(ifcDoc, sourceIds, doc, placement, ifcPath);
+                    result.ElementsImported = newIds.Count;
+
+                    if (newIds.Count == 0)
+                        throw new InvalidOperationException(
+                            $"No elements from '{Path.GetFileName(ifcPath)}' could be copied into the model.");
+
+                    if (applyTags)
+                        result.ElementsTagged = StampImportedElements(doc, ifcPath, newIds);
+
+                    tx.Commit();
                 }
 
-                if (applyTags)
-                    result.ElementsTagged = StampImportedElements(doc, ifcPath);
-
-                tx.Commit();
                 result.Success = true;
             }
             catch (Exception ex)
@@ -121,6 +153,16 @@ namespace StingBridge.IFC
                 StingLog.Error("IfcRevitImporter.Import", ex);
                 result.ErrorMessage = ex.Message;
                 ArchiveToFailed(ifcPath, ex.Message);
+            }
+            finally
+            {
+                // The IFC document is a real open Revit document; leaking it holds a
+                // file lock and leaves a stray document in the session.
+                if (ifcDoc != null)
+                {
+                    try { ifcDoc.Close(false); }
+                    catch (Exception ex) { StingLog.Warn($"IfcRevitImporter: could not close IFC document: {ex.Message}"); }
+                }
             }
 
             if (result.Success)
@@ -131,20 +173,25 @@ namespace StingBridge.IFC
 
         // ── Gap 15: Deduplication ─────────────────────────────────────────────
 
+        /// <summary>
+        /// Deletes elements previously imported from the same IFC file, keyed on the
+        /// IFC_SOURCE_FILE_TXT stamp this importer writes.
+        ///
+        /// This used to look for an <c>ImportInstance</c> whose name contained the file
+        /// stem. Copying elements out of an opened IFC document never creates an
+        /// ImportInstance, so that search always matched nothing and every re-import
+        /// silently stacked another full copy of the model on top of the last one.
+        /// </summary>
         private static void RemoveExistingImport(Document doc, string ifcPath)
         {
             string stem = Path.GetFileNameWithoutExtension(ifcPath);
             var toDelete = new FilteredElementCollector(doc)
-                .OfClass(typeof(ImportInstance))
-                .Cast<ImportInstance>()
-                .Where(ii =>
-                {
-                    // Check if the import instance's category or name matches the source file.
-                    string catName = ii.Category?.Name ?? "";
-                    return catName.Contains(stem, StringComparison.OrdinalIgnoreCase)
-                        || (ii.Name ?? "").Contains(stem, StringComparison.OrdinalIgnoreCase);
-                })
-                .Select(ii => ii.Id)
+                .WhereElementIsNotElementType()
+                .ToElements()
+                .Where(e => string.Equals(
+                    e.LookupParameter("IFC_SOURCE_FILE_TXT")?.AsString(),
+                    stem, StringComparison.OrdinalIgnoreCase))
+                .Select(e => e.Id)
                 .ToList();
 
             foreach (var id in toDelete)
@@ -159,39 +206,120 @@ namespace StingBridge.IFC
 
         // ── Gap 1 + Gap 7: Survey-origin alignment ────────────────────────────
 
-        private static void ApplySurveyOriginTranslation(
-            Document doc, ElementId importSymbolId, IfcSiteOrigin origin)
+        /// <summary>
+        /// Builds the transform applied while copying elements out of the IFC document:
+        /// the true-north rotation about the project origin, then the negated survey
+        /// offset that brings the model back to the Revit project origin.
+        ///
+        /// Returns <see cref="Transform.Identity"/> when the file carries no usable map
+        /// conversion, or when the offset is under 1 m — small offsets are export noise
+        /// on origin-based models and moving by them does more harm than good.
+        /// </summary>
+        private static Transform BuildPlacementTransform(IfcSiteOrigin origin)
         {
+            if (origin == null || !origin.HasMapConversion) return Transform.Identity;
+
+            // Convert metres → Revit internal units (feet).
+            double eastFt  = origin.EastingM   / 0.3048;
+            double northFt = origin.NorthingM  / 0.3048;
+            double elevFt  = origin.ElevationM / 0.3048;
+
+            double magnitude = Math.Sqrt(eastFt * eastFt + northFt * northFt + elevFt * elevFt);
+            bool translate = magnitude >= (1.0 / 0.3048);
+            bool rotate    = Math.Abs(origin.TrueNorthDeg) > 0.1;
+
+            if (!translate && !rotate) return Transform.Identity;
+
+            Transform t = Transform.Identity;
+
+            // Gap 7: true-north rotation about the vertical axis through the origin.
+            if (rotate)
+            {
+                double angleRad = origin.TrueNorthDeg * Math.PI / 180.0;
+                t = Transform.CreateRotation(XYZ.BasisZ, angleRad);
+                StingLog.Info($"IfcRevitImporter: true-north rotation {origin.TrueNorthDeg:F2}° folded into copy transform.");
+            }
+
+            // Gap 1: negate the survey offset to bring the model to the project origin.
+            // Applied after rotation, so it is a straight world-space shift.
+            if (translate)
+            {
+                var translation = Transform.CreateTranslation(new XYZ(-eastFt, -northFt, -elevFt));
+                t = translation.Multiply(t);
+                StingLog.Info($"IfcRevitImporter: survey translation ({-eastFt:F3}, {-northFt:F3}, {-elevFt:F3} ft) folded into copy transform.");
+            }
+
+            return t;
+        }
+
+        /// <summary>
+        /// Copies elements between documents. <see cref="ElementTransformUtils.CopyElements"/>
+        /// is all-or-nothing, and real IFC files routinely contain a handful of elements
+        /// Revit refuses to copy — so a single bad element would otherwise lose the whole
+        /// import. Falls back to chunked copying and reports exactly what was skipped
+        /// rather than failing silently or pretending everything landed.
+        /// </summary>
+        private static List<ElementId> CopyElementsResilient(
+            Document source, List<ElementId> ids, Document dest, Transform transform, string ifcPath)
+        {
+            var options = new CopyPasteOptions();
+            options.SetDuplicateTypeNamesHandler(new UseDestinationTypesHandler());
+
             try
             {
-                // Convert metres → Revit internal units (feet).
-                double eastFt  = origin.EastingM   / 0.3048;
-                double northFt = origin.NorthingM  / 0.3048;
-                double elevFt  = origin.ElevationM / 0.3048;
-
-                double magnitude = Math.Sqrt(eastFt * eastFt + northFt * northFt + elevFt * elevFt);
-                // Only apply if magnitude > 1 m to avoid micro-adjustments on origin-based exports.
-                if (magnitude < (1.0 / 0.3048)) return;
-
-                // Negate the survey offset to bring the model back to the project origin.
-                var translation = new XYZ(-eastFt, -northFt, -elevFt);
-                ElementTransformUtils.MoveElement(doc, importSymbolId, translation);
-                StingLog.Info($"IfcRevitImporter: applied survey translation ({-eastFt:F3}, {-northFt:F3}, {-elevFt:F3} ft) to import symbol.");
-
-                // Gap 7: Apply true-north rotation if the bearing is non-trivial (>0.1°).
-                if (Math.Abs(origin.TrueNorthDeg) > 0.1)
-                {
-                    double angleRad = origin.TrueNorthDeg * Math.PI / 180.0;
-                    // Rotate around vertical axis through the project origin (0,0,0 → 0,0,1).
-                    var axis = Line.CreateBound(XYZ.Zero, XYZ.BasisZ);
-                    ElementTransformUtils.RotateElement(doc, importSymbolId, axis, angleRad);
-                    StingLog.Info($"IfcRevitImporter: applied true-north rotation {origin.TrueNorthDeg:F2}° ({angleRad:F4} rad) to import symbol.");
-                }
+                return ElementTransformUtils
+                    .CopyElements(source, ids, dest, transform, options)
+                    .ToList();
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"IfcRevitImporter.ApplySurveyOriginTranslation: {ex.Message}");
+                StingLog.Warn($"IfcRevitImporter: bulk copy of {ids.Count} element(s) failed " +
+                              $"({ex.Message}); retrying in chunks.");
             }
+
+            var copied = new List<ElementId>();
+            int skipped = 0;
+            const int chunk = 25;
+
+            for (int i = 0; i < ids.Count; i += chunk)
+            {
+                var slice = ids.Skip(i).Take(chunk).ToList();
+                try
+                {
+                    copied.AddRange(ElementTransformUtils.CopyElements(source, slice, dest, transform, options));
+                }
+                catch
+                {
+                    // Narrow to the individual offenders so one bad element costs one element.
+                    foreach (var id in slice)
+                    {
+                        try
+                        {
+                            copied.AddRange(ElementTransformUtils.CopyElements(
+                                source, new List<ElementId> { id }, dest, transform, options));
+                        }
+                        catch (Exception exOne)
+                        {
+                            skipped++;
+                            StingLog.Warn($"IfcRevitImporter: skipped element {id} from " +
+                                          $"'{Path.GetFileName(ifcPath)}': {exOne.Message}");
+                        }
+                    }
+                }
+            }
+
+            if (skipped > 0)
+                StingLog.Warn($"IfcRevitImporter: {skipped} of {ids.Count} element(s) from " +
+                              $"'{Path.GetFileName(ifcPath)}' could not be copied.");
+
+            return copied;
+        }
+
+        /// <summary>Keeps the host model's existing types when an IFC type name collides.</summary>
+        private sealed class UseDestinationTypesHandler : IDuplicateTypeNamesHandler
+        {
+            public DuplicateTypeAction OnDuplicateTypeNamesFound(DuplicateTypeNamesHandlerArgs args)
+                => DuplicateTypeAction.UseDestinationTypes;
         }
 
         // ── Gap 1/7: IFC STEP header parser ───────────────────────────────────
@@ -279,7 +407,16 @@ namespace StingBridge.IFC
 
         // ── Stamp imported elements with STING parameters ─────────────────────
 
-        private static int StampImportedElements(Document doc, string sourceFile)
+        /// <summary>
+        /// Stamps STING parameters onto the elements just copied in.
+        ///
+        /// Scoped to <paramref name="importedIds"/> deliberately: the previous version
+        /// swept every element in the document carrying an IfcGUID, so each import also
+        /// re-walked every earlier import's elements and reported them in the tagged
+        /// count. The number is now what this import actually touched.
+        /// </summary>
+        private static int StampImportedElements(
+            Document doc, string sourceFile, List<ElementId> importedIds)
         {
             int count = 0;
             string shortName = Path.GetFileNameWithoutExtension(sourceFile);
@@ -289,10 +426,7 @@ namespace StingBridge.IFC
             // lookups and level detection are amortised across all elements.
             var ctx = TokenAutoPopulator.PopulationContext.Build(doc);
 
-            foreach (var el in new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToElements()
-                .Where(e => e.LookupParameter("IfcGUID") != null))
+            foreach (var el in importedIds.Select(doc.GetElement).Where(e => e != null))
             {
                 try
                 {

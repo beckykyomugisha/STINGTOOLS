@@ -72,7 +72,16 @@ namespace StingBridge.IFC
                 return;
             }
 
-            string dest = Path.Combine(_dropRoot, "processing", e.Name);
+            // e.Name is nullable on FileSystemEventArgs and Path.Combine throws on null;
+            // FullPath is always populated, so derive the file name from it.
+            string fileName = Path.GetFileName(e.FullPath);
+            if (string.IsNullOrEmpty(fileName))
+            {
+                StingLog.Warn($"IfcDropWatcher: could not determine a file name for '{e.FullPath}'; skipping.");
+                return;
+            }
+
+            string dest = Path.Combine(_dropRoot, "processing", fileName);
             try
             {
                 File.Move(e.FullPath, dest, overwrite: true);

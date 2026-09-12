@@ -71,7 +71,10 @@ public sealed class MqttTelemetryAdapter : ITelemetryAdapter
     {
         var list = new List<TelemetryReading>();
         var token = JToken.Parse(payload);
-        var items = token is JArray arr ? arr.Children() : new[] { token };
+        // Both arms must share a type: Children() is JEnumerable<JToken>, the
+        // single-object arm is JToken[]. Without the cast the conditional has no
+        // common type (CS0173).
+        IEnumerable<JToken> items = token is JArray arr ? arr.Children() : new[] { token };
         var topicDevice = TopicDevice(topic);
 
         foreach (var it in items)
