@@ -253,5 +253,53 @@ namespace StingTools.Tags.Tests
             // A 0 would place an invisible stamp — indistinguishable from no stamp.
             Assert.Null(SheetQrConfig.ParseSize(raw));
         }
+
+        // ── FormatAnchor ↔ ParseAnchor ───────────────────────────────────────
+        //
+        // These two are a pair. FormatAnchor is what StingQrAnchorSchema stores in
+        // Extensible Storage, ParseAnchor is what SheetQrStamper reads back, and a
+        // drift between them would strand every anchor ever recorded — the operator
+        // picks a cell, is told it was saved, and the stamp still lands in a corner.
+        // The Revit half cannot be tested here, so the CONTRACT is tested instead.
+
+        [Theory]
+        [InlineData(701.0, 85.0, 24.0)]
+        [InlineData(0.0, 0.0, 12.0)]
+        [InlineData(1153.25, 10.5, 26.0)]
+        [InlineData(216.0, 10.0, 20.0)]
+        public void A_formatted_anchor_parses_back_to_itself(double x, double y, double size)
+        {
+            var back = SheetQrConfig.ParseAnchor(SheetQrConfig.FormatAnchor(x, y, size), 0.0);
+
+            Assert.NotNull(back);
+            Assert.Equal(x, back.XMm, 2);
+            Assert.Equal(y, back.YMm, 2);
+            Assert.Equal(size, back.SizeMm, 2);
+        }
+
+        [Fact]
+        public void A_formatted_anchor_carries_its_own_size_not_the_default()
+        {
+            // Read with a default of 0: if FormatAnchor ever stopped emitting "size",
+            // this would come back 0 and the stamper would refuse it as unusable
+            // rather than quietly substituting the planner default.
+            var back = SheetQrConfig.ParseAnchor(SheetQrConfig.FormatAnchor(50, 60, 18), 0.0);
+
+            Assert.NotNull(back);
+            Assert.Equal(18.0, back.SizeMm, 2);
+        }
+
+        [Fact]
+        public void A_formatted_anchor_uses_a_dot_decimal_separator()
+        {
+            // On a comma-decimal locale a culture-sensitive format would emit
+            // {"x":701,5} — valid-looking, unparseable, and only reproducible on
+            // machines nobody tests on.
+            var json = SheetQrConfig.FormatAnchor(701.5, 85.25, 24.0);
+
+            Assert.Contains("701.5", json);
+            Assert.Contains("85.25", json);
+            Assert.DoesNotContain("701,5", json);
+        }
     }
 }

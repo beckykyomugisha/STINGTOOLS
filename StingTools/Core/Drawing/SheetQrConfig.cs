@@ -86,6 +86,18 @@ namespace StingTools.Core.Drawing
         /// with a zero or negative size. A zero-size anchor would place a stamp with
         /// no extent, which renders as nothing at all and looks exactly like the
         /// feature being switched off.</summary>
+        /// <summary>Render an anchor to the canonical JSON that <see cref="ParseAnchor"/>
+        /// reads back. The two are a pair and must stay reciprocal: this is the form
+        /// stored in Extensible Storage AND the form TB_QR_ANCHOR_JSON_TXT carries, so a
+        /// drift between writer and reader would strand every anchor ever recorded.
+        /// Round-tripped in the unit tests for exactly that reason.
+        ///
+        /// Invariant culture is not cosmetic — a machine with a comma decimal separator
+        /// would otherwise emit {"x":701,5} and silently produce unparseable JSON.</summary>
+        public static string FormatAnchor(double xMm, double yMm, double sizeMm) =>
+            string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "{{\"x\":{0:0.##},\"y\":{1:0.##},\"size\":{2:0.##}}}", xMm, yMm, sizeMm);
+
         public static QrAnchor ParseAnchor(string raw, double defaultSizeMm)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;

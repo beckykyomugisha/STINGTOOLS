@@ -33,13 +33,26 @@ namespace StingTools.Core.Storage
 {
     public static class StingQrAnchorSchema
     {
+        // GUID bumped once, from ...1248..., after the first layout proved
+        // unconstructible: it declared XMm/YMm/SizeMm as `double`, and Revit
+        // answered "Units are required for field XMm" — every floating-point ES
+        // field needs a SetSpec. GetOrCreate therefore returned null and no
+        // document ever registered the old layout, so nothing has to be migrated;
+        // the bump only guarantees a half-registered schema can never be found
+        // with field names that no longer exist.
+        //
+        // The replacement stores ONE STRING rather than three specced doubles.
+        // A Length-specced field would hold Revit internal units (feet), putting a
+        // mm->ft conversion on every read and write of a value whose whole point is
+        // to be millimetres — a fresh bug surface, and one the unit tests could not
+        // see because they are Revit-free. The string is the same {x,y,size} JSON
+        // TB_QR_ANCHOR_JSON_TXT carries, parsed by the same SheetQrConfig.ParseAnchor
+        // that is already under test. One format, one parser, no units.
         public static readonly Guid SchemaGuid =
-            new Guid("E1A7B2C4-1011-1248-8411-F6E5D4C3B2CF");
+            new Guid("E1A7B2C4-1011-1249-8411-F6E5D4C3B2D0");
 
         private const string SchemaName        = "StingQrAnchorSchema";
-        private const string FieldXMm          = "XMm";
-        private const string FieldYMm          = "YMm";
-        private const string FieldSizeMm       = "SizeMm";
+        private const string FieldAnchorJson   = "AnchorJson";
         private const string FieldStampedTicks = "StampedUtcTicks";
 
         public sealed class AnchorData
@@ -62,12 +75,11 @@ namespace StingTools.Core.Storage
                 sb.SetVendorId(StingSchemaBuilder.VendorId);
                 sb.SetReadAccessLevel(AccessLevel.Public);
                 sb.SetWriteAccessLevel(AccessLevel.Vendor);
-                sb.AddSimpleField(FieldXMm, typeof(double))
-                    .SetDocumentation("QR cell left edge, mm from the sheet origin (bottom-left)");
-                sb.AddSimpleField(FieldYMm, typeof(double))
-                    .SetDocumentation("QR cell bottom edge, mm from the sheet origin (bottom-left)");
-                sb.AddSimpleField(FieldSizeMm, typeof(double))
-                    .SetDocumentation("Printed QR size in mm (the cell is square)");
+                // string, NOT double — see the GUID note above. A double field
+                // without SetSpec makes Finish() throw and the schema unusable.
+                sb.AddSimpleField(FieldAnchorJson, typeof(string))
+                    .SetDocumentation("QR cell as {\"x\":mm,\"y\":mm,\"size\":mm} from the sheet " +
+                        "origin (bottom-left) — the same shape TB_QR_ANCHOR_JSON_TXT carries");
                 sb.AddSimpleField(FieldStampedTicks, typeof(long))
                     .SetDocumentation("DateTime.UtcNow.Ticks when the anchor was written");
                 return sb.Finish();
@@ -92,17 +104,21 @@ namespace StingTools.Core.Storage
                 var entity = el.GetEntity(schema);
                 if (entity == null || !entity.IsValid()) return null;
 
-                var data = new AnchorData
+                string json = entity.Get<string>(FieldAnchorJson);
+                // Parsed by the SAME Revit-free parser the family parameter uses, so
+                // the stored form and the authored form cannot drift apart.
+                var a = Drawing.SheetQrConfig.ParseAnchor(json, 0.0);
+                if (a == null) return null;
+                // A zero size is not an anchor — it is an entity written badly.
+                // Say nothing rather than place a 0 mm code.
+                if (a.SizeMm <= 0) return null;
+                return new AnchorData
                 {
-                    XMm             = entity.Get<double>(FieldXMm),
-                    YMm             = entity.Get<double>(FieldYMm),
-                    SizeMm          = entity.Get<double>(FieldSizeMm),
+                    XMm             = a.XMm,
+                    YMm             = a.YMm,
+                    SizeMm          = a.SizeMm,
                     StampedUtcTicks = entity.Get<long>(FieldStampedTicks),
                 };
-                // A zero size is not an anchor — it is an entity that was written
-                // badly or half-migrated. Say nothing rather than place a 0mm code.
-                if (data.SizeMm <= 0) return null;
-                return data;
             }
             catch (Exception ex)
             {
@@ -120,9 +136,7 @@ namespace StingTools.Core.Storage
                 var schema = GetOrCreate();
                 if (schema == null) return false;
                 var entity = new Entity(schema);
-                entity.Set(FieldXMm, xMm);
-                entity.Set(FieldYMm, yMm);
-                entity.Set(FieldSizeMm, sizeMm);
+                entity.Set(FieldAnchorJson, Drawing.SheetQrConfig.FormatAnchor(xMm, yMm, sizeMm));
                 entity.Set(FieldStampedTicks, DateTime.UtcNow.Ticks);
                 el.SetEntity(entity);
                 return true;
