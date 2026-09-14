@@ -421,6 +421,9 @@ namespace StingTools.Docs
                 CultureInfo.InvariantCulture);
             string stampUser = Environment.UserName ?? "unknown";
 
+            var multiTbSheets = new List<string>();
+            var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             using (var tx = new Transaction(doc, "STING Title Block Populate"))
             {
                 tx.Start();
@@ -436,6 +439,34 @@ namespace StingTools.Docs
                         noTbSkipped++;
                         skippedSheets.Add($"{sheet.SheetNumber}: no title block placed");
                         continue;
+                    }
+
+                    // WHICH title block was written to. "the" title block is whichever
+                    // the collector yields first, and that order is not a documented
+                    // guarantee -- so on a sheet carrying two, this can write to one
+                    // while the drawing displays the other. Every write then reports
+                    // success and the cell stays blank. Recording the id makes that
+                    // answerable from the log instead of by guesswork.
+                    int tbCount = 0;
+                    try
+                    {
+                        tbCount = new FilteredElementCollector(doc, sheet.Id)
+                            .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                            .WhereElementIsNotElementType()
+                            .GetElementCount();
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TB Populate: counting title blocks on '{sheet.SheetNumber}': {ex.Message}"); }
+
+                    if (tbCount > 1)
+                    {
+                        string warn = $"{sheet.SheetNumber}: {tbCount} title blocks on this sheet — "
+                            + $"wrote to id {tb.Id}; the drawing may be showing another one";
+                        StingLog.Warn("TB Populate: " + warn);
+                        multiTbSheets.Add(warn);
+                    }
+                    else
+                    {
+                        StingLog.Info($"TB Populate: '{sheet.SheetNumber}' -> title block id {tb.Id}");
                     }
 
                     // Lock gate — skip sheets the user has explicitly frozen
@@ -462,7 +493,16 @@ namespace StingTools.Docs
                             continue;
 
                         string val = csv.ValueFor(paramName, disc);
-                        if (string.IsNullOrEmpty(val)) continue;
+                        if (string.IsNullOrEmpty(val))
+                        {
+                            // NOT a failure -- the CSV simply has nothing to say for
+                            // this parameter and discipline. But it is not a success
+                            // either, and reporting only "8 fields written" left the
+                            // operator unable to tell "no value in the CSV" from
+                            // "the write failed", which are opposite problems.
+                            noValue.Add(paramName);
+                            continue;
+                        }
 
                         bool ok;
                         if (ParamRegistry.TitleBlockBoolParams.Contains(paramName))
@@ -513,12 +553,32 @@ namespace StingTools.Docs
                 .Metric("Sheets skipped (locked)", lockedSkipped.ToString())
                 .Metric("Sheets skipped (no title block)", noTbSkipped.ToString())
                 .Metric("Parameter write failures", paramFails.ToString())
+                .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
+                .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
                 .Metric("CSV path", csvPath ?? "<default>")
                 .AddSection("Updated Sheets")
                 .Text(updatedSheets.Count == 0 ? "(none)" : string.Join("\n", updatedSheets))
                 .AddSection("Skipped Sheets")
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
+                // A sheet with two title blocks explains the whole "it says it wrote and
+                // the cell is blank" class of report, so it goes ABOVE the failures.
+                .AddSection("Sheets With More Than One Title Block")
+                .Text(multiTbSheets.Count == 0
+                    ? "(none — every sheet has exactly one)"
+                    : string.Join("\n", multiTbSheets)
+                      + "\n\nEvery command writes to whichever title block the collector yields"
+                      + "\nfirst, and that order is not guaranteed. A value written to one will"
+                      + "\nnot appear on a drawing that displays the other. Delete the spare and"
+                      + "\nre-run Populate.")
+                .AddSection("Parameters With No CSV Value (not a failure)")
+                .Text(noValue.Count == 0
+                    ? "(none — every title-block parameter had a value to write)"
+                    : string.Join("\n", noValue.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                        .Select(n => "  " + n))
+                      + "\n\nThese were SKIPPED, not failed: TITLE_BLOCK.csv has no value for them"
+                      + "\nunder this sheet's discipline and no DefaultValue. Fill the cell in"
+                      + "\nTITLE_BLOCK.csv (Edit CSV...) if the sheet should show one.")
                 .AddSection("Parameter Write Failures")
                 .Text(failsByParam.Count == 0
                     ? "(none)"

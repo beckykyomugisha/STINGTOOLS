@@ -60,13 +60,29 @@ namespace StingTools.Commands.Drawing
                 return Result.Cancelled;
             }
 
-            var tb = TitleBlockLock.FindTitleBlock(doc, sheet);
-            if (tb == null)
+            // EVERY title block on the sheet, not just the first.
+            //
+            // Populate, Count Sheets, the QR stamper and three more all resolve "the
+            // title block" as the FIRST element the collector yields, and collector
+            // order is not a documented guarantee. If a sheet carries two -- an old
+            // one left behind by a swap, or a second dragged on by accident -- then
+            // one command can write to one and the drawing can display the other.
+            // Every write reports success and the cell stays blank, which is exactly
+            // the symptom this inspector was built for and the one thing it could not
+            // see when it only looked at the first.
+            var titleBlocks = new FilteredElementCollector(doc, sheet.Id)
+                .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                .WhereElementIsNotElementType()
+                .ToList();
+
+            if (titleBlocks.Count == 0)
             {
                 TaskDialog.Show("STING — Title Block Fields",
                     $"Sheet '{sheet.SheetNumber}' has no title block.");
                 return Result.Cancelled;
             }
+
+            var tb = titleBlocks[0];
 
             var type = doc.GetElement(tb.GetTypeId());
             var rows = new List<string>();
@@ -134,7 +150,23 @@ namespace StingTools.Commands.Drawing
 
             var sb = new StringBuilder();
             sb.AppendLine($"Sheet       : {sheet.SheetNumber} — {sheet.Name}");
-            sb.AppendLine($"Title block : {TypeName(doc, tb)}");
+            sb.AppendLine($"Title block : {TypeName(doc, tb)}  [id {tb.Id}]");
+            if (titleBlocks.Count > 1)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"*** THIS SHEET CARRIES {titleBlocks.Count} TITLE BLOCKS ***");
+                sb.AppendLine("Every command that writes to \"the\" title block takes the FIRST one the");
+                sb.AppendLine("collector yields, and that order is not guaranteed. So a write can land");
+                sb.AppendLine("on one while the drawing shows the other -- the write reports success and");
+                sb.AppendLine("the cell stays blank. If a field below holds a value you cannot see on");
+                sb.AppendLine("the sheet, this is almost certainly why.");
+                sb.AppendLine();
+                foreach (var extra in titleBlocks)
+                    sb.AppendLine($"    id {extra.Id,-12} {TypeName(doc, extra)}");
+                sb.AppendLine();
+                sb.AppendLine("Delete the one that is not wanted, then re-run Populate.");
+                sb.AppendLine("Fields below are read from the FIRST one only (id " + tb.Id + ").");
+            }
             sb.AppendLine();
             sb.AppendLine($"Carrying a value : {hasValue}");
             sb.AppendLine($"Present but empty: {emptyOnFamily}");
@@ -174,9 +206,11 @@ namespace StingTools.Commands.Drawing
 
             var td = new TaskDialog("STING — Title Block Fields")
             {
-                MainInstruction = guidMismatch > 0
-                    ? $"{guidMismatch} parameter(s) are duplicated under one name"
-                    : $"{hasValue} of {rows.Count} fields carry a value",
+                MainInstruction = titleBlocks.Count > 1
+                    ? $"{titleBlocks.Count} title blocks on this sheet — writes may be landing on the wrong one"
+                    : guidMismatch > 0
+                        ? $"{guidMismatch} parameter(s) are duplicated under one name"
+                        : $"{hasValue} of {rows.Count} fields carry a value",
                 MainContent = sb.ToString(),
                 CommonButtons = TaskDialogCommonButtons.Ok,
             };
