@@ -61,11 +61,50 @@ public class CommissioningStateMachineTests
     }
 
     [Fact]
-    public void It_refuses_to_repeat_a_state()
+    public void It_refuses_to_repeat_a_state_and_says_it_is_a_DUPLICATE_not_a_regression()
     {
-        // "Advance to the state it is already in" is a no-op, and a caller must not
-        // be able to report it as progress.
+        // QR-13. "Advance to the state it is already in" is a no-op, and a caller
+        // must not be able to report it as progress — but it is NOT someone trying
+        // to rewind the record.
+        //
+        // The case that matters: two operatives both scan an asset at INSTALLED with
+        // no signal, both record TESTED, and the second drain lands after the first.
+        // Telling that operative "refusing to regress" is wrong and alarming; the
+        // truth is that a colleague captured the same work first.
         var d = CommissioningStateMachine.Decide("INSTALLED", By("A. Fitter", target: "INSTALLED"));
+
+        Assert.False(d.Ok);
+        Assert.Equal(CommissioningRefusal.AlreadyInState, d.Refusal);
+        Assert.NotEqual(CommissioningRefusal.Regression, d.Refusal);
+    }
+
+    [Fact]
+    public void The_offline_double_signoff_lands_as_a_duplicate_not_an_accidental_advance()
+    {
+        // The full QR-13 scenario, and the reason the CLIENT pins requestedState.
+        //
+        // A and B both scan at INSTALLED offline. Both intend TESTED. A drains first
+        // and the asset moves to TESTED. B drains second.
+        //
+        // WITH the target pinned, B is refused as a duplicate — correct.
+        var pinned = CommissioningStateMachine.Decide("TESTED", By("B. Fitter", target: "TESTED"));
+        Assert.False(pinned.Ok);
+        Assert.Equal(CommissioningRefusal.AlreadyInState, pinned.Refusal);
+
+        // WITHOUT it, "advance one step" is resolved at drain time against the state
+        // A left behind, so B's TESTED sign-off would be recorded as COMMISSIONED —
+        // in B's name, with no witness, on an asset nobody declared fit for use.
+        // This is what the pin prevents; asserted so the danger stays visible.
+        var unpinned = CommissioningStateMachine.Decide("TESTED", By("B. Fitter", witness: "W"));
+        Assert.True(unpinned.Ok);
+        Assert.Equal("COMMISSIONED", unpinned.ToState);
+    }
+
+    [Fact]
+    public void A_true_regression_is_still_reported_as_a_regression()
+    {
+        // Splitting AlreadyInState out must not swallow the real case.
+        var d = CommissioningStateMachine.Decide("TESTED", By("A. Fitter", target: "INSTALLED"));
 
         Assert.False(d.Ok);
         Assert.Equal(CommissioningRefusal.Regression, d.Refusal);
@@ -128,7 +167,8 @@ public class CommissioningStateMachineTests
         var d = CommissioningStateMachine.Decide("HANDOVER", By("A. Fitter"));
 
         Assert.False(d.Ok);
-        Assert.Equal(CommissioningRefusal.Regression, d.Refusal);
+        // Next() clamps at HANDOVER, so this asks for the state it is already in.
+        Assert.Equal(CommissioningRefusal.AlreadyInState, d.Refusal);
         Assert.True(CommissioningStates.IsTerminal("HANDOVER"));
     }
 

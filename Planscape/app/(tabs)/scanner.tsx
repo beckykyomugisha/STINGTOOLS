@@ -222,6 +222,13 @@ export default function ScannerScreen() {
     const body = {
       elementUniqueId: uniqueId,
       operative,
+      // QR-13 — PIN THE TARGET. "Advance one step" is resolved by the server at
+      // the moment the request lands, and for a queued scan that is hours later.
+      // If someone else advanced the asset meanwhile, an unpinned request would
+      // record the step AFTER theirs — so an operative who signed off TESTED would
+      // find COMMISSIONED recorded in their name. Naming the state they were shown
+      // means the ladder refuses it as a duplicate instead.
+      requestedState: state.nextState ?? undefined,
       elementTag: element.tag1,
       elementName: element.familyName,
       source: 'mobile-scan',
@@ -261,7 +268,13 @@ export default function ScannerScreen() {
       if (status === 422) {
         // The server refused on a rule. Show ITS sentence — it names the actual
         // reason, which a generic "could not save" destroys.
-        Alert.alert('Not recorded', body?.reason ?? 'That step is not allowed right now.');
+        //
+        // AlreadyInState is the offline double-sign-off and deserves its own
+        // heading: the operative did the work, and the only news is that a
+        // colleague captured it first. "Not recorded" alone reads as a failure.
+        const title =
+          body?.refusal === 'AlreadyInState' ? 'Already recorded' : 'Not recorded';
+        Alert.alert(title, body?.reason ?? 'That step is not allowed right now.');
         return;
       }
       Alert.alert('Not recorded', err instanceof Error ? err.message : String(err));

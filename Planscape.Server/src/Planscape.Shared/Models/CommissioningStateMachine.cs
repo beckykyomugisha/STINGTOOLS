@@ -33,6 +33,14 @@ public enum CommissioningRefusal
     UnknownState,
     /// <summary>Going backwards. Commissioning is a ratchet.</summary>
     Regression,
+    /// <summary>The element is ALREADY in the requested state.
+    ///
+    /// Separated from <see cref="Regression"/> because it means something different
+    /// and needs a different sentence. The case that matters is two operatives
+    /// recording the same step offline: the second drain is not someone trying to
+    /// rewind the record, it is a duplicate of work already captured, and telling
+    /// them "refusing to regress" is both wrong and alarming.</summary>
+    AlreadyInState,
     /// <summary>Skipping a step. Each state is evidence the previous one happened.</summary>
     SkippedState,
     /// <summary>No operative named. An unattributed sign-off is not a sign-off.</summary>
@@ -153,13 +161,22 @@ public static class CommissioningStateMachine
             return CommissioningDecision.Refuse(from, target, CommissioningRefusal.UnknownState,
                 $"'{target}' is not a commissioning state. Valid: {string.Join(", ", CommissioningStates.All)}.");
 
-        // Already at the end AND asked to stay there: that is a no-op, not progress.
-        // It is refused as a regression so a caller cannot report "advanced" for it.
-        if (ti <= ci && ci > 0)
+        // QR-13 — asked for the state it is already in. This is the offline
+        // double-sign-off: two operatives both scanned at INSTALLED, both recorded
+        // TESTED, and the second one drains after the first has landed. It is a
+        // duplicate, NOT an attempt to rewind, and it gets its own refusal so the
+        // client can say "already recorded" rather than "refusing to regress".
+        //
+        // Still a refusal, not a silent success: a caller must never report
+        // "advanced" for a step that changed nothing.
+        if (ti == ci && ci > 0)
+            return CommissioningDecision.Refuse(from, target, CommissioningRefusal.AlreadyInState,
+                $"Already {from}. Someone may have recorded this step already — "
+                + "commissioning does not repeat a state.");
+
+        if (ti < ci)
             return CommissioningDecision.Refuse(from, target, CommissioningRefusal.Regression,
-                ti == ci
-                    ? $"Already {from}; commissioning does not repeat a state."
-                    : $"Refusing to regress from {from} to {target}.");
+                $"Refusing to regress from {from} to {target}.");
 
         if (ti - ci > 1)
             return CommissioningDecision.Refuse(from, target, CommissioningRefusal.SkippedState,

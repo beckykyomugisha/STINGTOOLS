@@ -2,28 +2,33 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
-## QR chain (2026-09-14, Phases 280-282)
+## QR chain (2026-09-14, Phases 280-283)
 
-QR-2 through QR-12 are **CLOSED**. QR-1 cannot be closed from a build machine and
-QR-11 is a deploy action, not code. See `CHANGELOG.md` Phases 280-282.
+QR-2 through QR-15 are **CLOSED**. Two remain, and neither can be closed from a
+build machine. See `CHANGELOG.md` Phases 280-283.
 
 | ID | Status | Detail |
 |---|---|---|
-| QR-1 | **OPEN — needs Revit** | The placement DECISION is Revit-free and unit-tested (`SheetQrPlacement`, 15 tests; both off-paper regressions pinned by their exact numbers). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge, on a real project:** open a sheet, run `Sheet_SetQRAnchor` and pick the two corners of the SCAN cell the title block already draws; `Sheet_StampQR` -> the code lands in that cell; run it twice -> exactly one image; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own images alone; scan it with a phone. Then `QR_LabelSheet` on a handful of tagged elements, and `TitleBlock_CreateAll` to confirm the new params reach the families. |
-| QR-11 | **OPEN — a deploy action** | The code is done and fails closed. App links stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on the `planscape-web` service **and it is redeployed** — bindings are captured at deploy time (see "merged is not deployed" in CLAUDE.md). Until then every deep link, including the four that predate this work, opens a browser instead of the app. I cannot do this; it needs the signing fingerprint and the Apple Team ID. |
-| QR-2 … QR-10, QR-12 | ✅ closed | Sheet lookup, commissioning API, all 21 families, revision refresh, web routes, label sheet, offline queue, witness form, token matching, grid layout. |
+| QR-1 | **OPEN — needs Revit** | The placement DECISION is Revit-free and unit-tested (`SheetQrPlacement`, 15 tests). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge:** open a sheet, run `Sheet_SetQRAnchor`, pick the two corners of the SCAN cell your title block already draws, then `Sheet_StampQR` — the code should land IN that cell. Run it twice (expect one image). `Sheet_InspectQR`, then `Sheet_ClearQR`. Scan it with a phone. Then `QR_LabelSheet` on a few tagged elements, and `TitleBlock_CreateAll` to confirm the new params reach the families. |
+| QR-11 | **OPEN — a deploy action** | Code-complete and failing closed. App links stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on `planscape-web` **and it is redeployed** — bindings are captured at deploy time. I cannot do this; it needs the signing fingerprint and the Apple Team ID. |
+| QR-2 … QR-10, QR-12 … QR-15 | ✅ closed | Sheet lookup, commissioning API, all 21 families, revision refresh, web routes, label sheet, offline queue, witness form, token matching, grid layout, offline double-sign-off, carbon rollup, A3-portrait verification. |
 
-**Residue, and it is small:**
+**Found while closing QR-15, and NOT fixed — it needs a focused session:**
 
 | ID | Gap | Detail |
 |---|---|---|
-| QR-13 | **A queued commissioning step drops its concurrency guard** | `expectedCurrentState` is deliberately NOT replayed from the offline queue: it is a claim about a live screen, and hours later it is stale by construction, so replaying it would 409 every offline sign-off taken while someone else worked the same asset. The ladder still refuses a regression or a skip, which is the protection that matters. But two people signing off the same asset offline, in the same window, will both record — and only the audit trail shows it. A server-side dedupe on (element, toState, occurredAt-window) would close it. |
-| QR-14 | **Carbon reaches the scan; it does not reach a rollup** | `EmbodiedCarbonKg` / `EpdRef` / `MaterialName` now sync per element and show on a scan. Nothing aggregates them — `EdgeKpiSnapshot` still computes `MaterialCarbonKgM2` from its own path. Joining the two means deciding which is authoritative when they disagree, which is a design decision, not a wiring job. Until then the scan figure is per-element evidence, not a project total. |
-| QR-15 | **The A3-portrait QR cell is in the spec, not measured on a plot** | Every other slot was verified against text extents by `TitleBlockQrSlotTests`, which caught the original A3-portrait collision. Its replacement at (216,10) passes the same check — but "passes the extent model" is not "looked right on paper", and A3 portrait is the tightest sheet in the catalogue. Worth a visual check when QR-1 is run. |
+| TB-LINES-1 | **A1's border geometry leaks into 22 families** | `TitleBlockSpec.Resolve` CONCATENATES `Lines` up the extends chain — it is leaf-wins for parameters, slots, static text and labels, but not for line geometry ("no natural id -> plain concatenate"). So a built A3-portrait `.rfa` carries A1's 841 x 594 border on a 297 x 420 sheet. This is the concrete symptom of **GAP-TB-01** and the reason it recommends splitting `A1_common` into a params-only identity base and a separate A1-geometry base. `TitleBlockQrSlotTests.Inherited_A1_border_geometry_leaks_into_smaller_sheets` RECORDS the 22 so a new family cannot join them unnoticed, and fails if one drops out without the list being updated. It does not fail the build on the existing set. Found by rendering the spec previews: the header read "paper 841 x 594 mm" on a family whose own description says "A3 portrait (297 x 420 mm)". |
+
+**Residue from the closures:**
+
+| ID | Gap | Detail |
+|---|---|---|
+| QR-16 | **Two offline sign-offs still both reach the queue** | QR-13 fixed the dangerous half: the client now PINS the target state, so a second drain is refused as `AlreadyInState` instead of silently advancing the asset one step further under the wrong person's name. What it does not do is merge the two records — the second operative is told a colleague got there first, and only the audit trail shows both attempted it. That is honest and probably correct; a true merge needs a decision about whose name the step carries. |
+| QR-17 | **The carbon rollup and the EDGE figure are not reconciled** | `GET /api/tagsync/carbon` sums per-element `STING_EMB_CARBON_NR` over ASSESSED elements and reports coverage; `EdgeKpiSnapshot.MaterialCarbonKgM2` computes a per-m² intensity from the sustainability module's own take-off. They can disagree, and which is authoritative is a design decision, not a wiring job. The endpoint states this in its own `basis` field rather than pretending to reconcile them. |
 
 **Pre-existing, found while running the gates and NOT fixed here:**
 `tools/validate_param_readership.py` reports **386 violations against a baseline of 384** on a
-clean tree, before any of this work — measured by stashing. Phases 280-282 are readership-neutral
+clean tree, before any of this work — measured by stashing. Phases 280-283 are readership-neutral
 (386 throughout, including after three new declared parameters). Whoever introduced the 2 should
 raise the ceiling with a reason or fix them; raising it on their behalf would defeat the ratchet.
 

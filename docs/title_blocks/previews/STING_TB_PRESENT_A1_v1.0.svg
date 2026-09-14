@@ -52,6 +52,7 @@
 <g transform="translate(684,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CHECKED BY</text></g>
 <g transform="translate(754,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">APPROVED BY</text></g>
 <g transform="translate(624,69) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DATES</text></g>
+<g transform="translate(300,56) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SYSTEM</text></g>
 <g transform="translate(565,56) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">PROJECT</text></g>
 <g transform="translate(665,56) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">TITLE</text></g>
 <g transform="translate(765,56) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">REV</text></g>
@@ -62,8 +63,8 @@
 <g transform="translate(4,86) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
 <g transform="translate(4,70) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(4,60) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
-<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
-<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_NAME}</text></g>
+<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_ADDRESS}</text></g>
 <g transform="translate(40,31) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
 <g transform="translate(40,26) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
 <g transform="translate(40,16) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
@@ -85,6 +86,7 @@
 <g transform="translate(624,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
 <g transform="translate(684,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_CHECKED}</text></g>
 <g transform="translate(754,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_APVD}</text></g>
+<g transform="translate(300,50) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_SYSTEM}</text></g>
 <g transform="translate(565,42) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(665,42) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(765,42) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·REVISION_NR}</text></g>
@@ -127,6 +129,10 @@
 <rect x="10" y="577" width="19.0" height="7" fill="#FFEB3B" opacity="0.9"/>
 <g transform="translate(12,582.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">RENDER</text></g>
 <g transform="translate(12,575) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#FFEB3B" opacity="0.85">presentation-render</text></g>
+<rect x="807" y="7" width="22" height="22" fill="#37474F" fill-opacity="0.0" stroke="#37474F" stroke-width="0.5" stroke-dasharray="5,1.5,1.5,1.5" opacity="0.65"/>
+<rect x="807" y="22" width="12" height="7" fill="#37474F" opacity="0.9"/>
+<g transform="translate(809,27.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">QR</text></g>
+<g transform="translate(809,20) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#37474F" opacity="0.85">qr-code</text></g>
 <rect x="565" y="64" width="272" height="14" fill="#795548" fill-opacity="0.0" stroke="#795548" stroke-width="0.5" stroke-dasharray="5,1.5,1.5,1.5" opacity="0.65"/>
 <rect x="565" y="71" width="21.5" height="7" fill="#795548" opacity="0.9"/>
 <g transform="translate(567,76.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">CAPTION</text></g>
@@ -151,8 +157,10 @@
 <text x="497" y="55" font-size="5" fill="#333">key-plan</text>
 <rect x="524" y="51" width="6" height="6" fill="#FFEB3B" opacity="0.85"/>
 <text x="533" y="55" font-size="5" fill="#333">presentation-render</text>
-<rect x="593" y="51" width="6" height="6" fill="#795548" opacity="0.85"/>
-<text x="602" y="55" font-size="5" fill="#333">caption</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 41  ·  lines 28  ·  labels 33  ·  static-text 24  ·  fills 1  ·  slots 10</text>
+<rect x="593" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
+<text x="602" y="55" font-size="5" fill="#333">qr-code</text>
+<rect x="626" y="51" width="6" height="6" fill="#795548" opacity="0.85"/>
+<text x="635" y="55" font-size="5" fill="#333">caption</text>
+<text x="30" y="689.0" font-size="7" fill="#444">parameters 53  ·  lines 28  ·  labels 34  ·  static-text 25  ·  fills 1  ·  slots 11</text>
 <text x="30" y="699.0" font-size="6" fill="#666">Presentation title block (colour) — A1 landscape, FULL-BLEED render area (entire sheet is the slot). Bottom-right 280×60 mm watermark with project / title / rev / date / drawn / client. Designed for r…</text>
 </svg>

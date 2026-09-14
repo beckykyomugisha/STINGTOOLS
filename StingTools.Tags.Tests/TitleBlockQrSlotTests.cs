@@ -108,9 +108,21 @@ namespace StingTools.Tags.Tests
             return new Box(x0, y0, x1, y1, (string)it["param"] ?? text ?? "(text)");
         }
 
-        /// <summary>Paper extent, taken from the widest border line the family draws.
-        /// The spec carries no paperSize field in mm, and the border is what actually
-        /// bounds the sheet.</summary>
+        /// <summary>The PHYSICAL paper this family prints on, mm.
+        ///
+        /// Taken from the family's OWN border lines — the nearest-to-leaf non-empty
+        /// `lines` array — NOT from the resolved effective geometry.
+        ///
+        /// Those are different, and the difference is a real defect this test
+        /// uncovered. TitleBlockSpec.Resolve CONCATENATES `Lines` up the extends
+        /// chain; it is leaf-wins only for parameters, slots, static text and labels.
+        /// So the effective geometry of A3_PORT_common_v2.0 spans 841 x 594 mm —
+        /// A1's border, inherited — while the sheet it prints on is 297 x 420.
+        /// See Inherited_A1_border_geometry_leaks_into_smaller_sheets.
+        ///
+        /// For "is the QR cell on the paper?" the PHYSICAL sheet is the right bound,
+        /// and it is the stricter one. Using the concatenated extent would let an A3
+        /// slot sit at x = 700 mm — off the A3 sheet entirely — and still pass.</summary>
         private static (double w, double h) Paper(Dictionary<string, JToken> fams, string id)
         {
             double w = 0, h = 0;
@@ -121,6 +133,28 @@ namespace StingTools.Tags.Tests
                         w = Math.Max(w, (double)p[0]);
                         h = Math.Max(h, (double)p[1]);
                     }
+            return (w, h);
+        }
+
+        /// <summary>Effective geometry extent after the resolver CONCATENATES `lines`
+        /// up the chain — what the built .rfa would actually contain.</summary>
+        private static (double w, double h) ResolvedLineExtent(Dictionary<string, JToken> fams, string id)
+        {
+            double w = 0, h = 0;
+            var f = fams.TryGetValue(id, out var x) ? x : null;
+            while (f != null)
+            {
+                if (f["lines"] is JArray arr)
+                    foreach (var l in arr)
+                        foreach (var key in new[] { "from", "to" })
+                            if (l[key] is JArray p)
+                            {
+                                w = Math.Max(w, (double)p[0]);
+                                h = Math.Max(h, (double)p[1]);
+                            }
+                var parent = (string)f["extends"];
+                f = parent != null && fams.TryGetValue(parent, out var pf) ? pf : null;
+            }
             return (w, h);
         }
 
@@ -269,6 +303,109 @@ namespace StingTools.Tags.Tests
             var names = ((JArray)root["parameters"]).Select(p => (string)p["name"]).ToList();
             Assert.Contains("TB_QR_PAYLOAD_TXT", names);
             Assert.Contains("PRJ_TB_SHOW_QR_CODE_BOOL", names);
+        }
+
+        /// <summary>
+        /// A PRE-EXISTING defect, pinned so it cannot spread.
+        ///
+        /// 22 of the catalogue's families are affected. The check is "does the resolved
+        /// geometry extend beyond anything this family declares for ITSELF" — which
+        /// catches both a size base inheriting A1's border and a concrete family that
+        /// declares only its info strip and inherits the whole A1 sheet behind it.
+        ///
+        /// TitleBlockSpec.Resolve concatenates `Lines` up the extends chain — it is
+        /// leaf-wins for parameters, slots, static text and labels, but NOT for line
+        /// geometry ("Lines / filled regions have no natural id -> plain concatenate").
+        /// Every family extending A1_common_v2.0 therefore inherits A1's 841 x 594
+        /// border IN ADDITION to its own, so a built A3-portrait .rfa carries an
+        /// A1-sized border on a 297 x 420 sheet.
+        ///
+        /// This is the concrete symptom of ROADMAP GAP-TB-01, which calls for
+        /// splitting A1_common into a params-only identity base and a separate
+        /// A1-geometry base. That is a data-model refactor touching every family and
+        /// is explicitly scoped to a focused session — so this test does NOT fail on
+        /// it. It RECORDS the set, so a new family joining the leak is caught rather
+        /// than absorbed into it.
+        ///
+        /// Found by rendering the spec previews while verifying the A3-portrait QR
+        /// cell: the preview header read "paper 841 x 594 mm" on a family whose own
+        /// description says "A3 portrait working sheet (297 x 420 mm)".
+        /// </summary>
+        [Fact]
+        public void Inherited_A1_border_geometry_leaks_into_smaller_sheets()
+        {
+            var fams = Families();
+            var known = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "STING_TB_A1_BIM_v2.0",
+                "STING_TB_A1_NONBIM_v2.0",
+                "STING_TB_A0_BIM_v2.0",
+                "STING_TB_A0_PORT_BIM_v2.0",
+                "A1_PORT_common_v2.0",
+                "STING_TB_A1_PORT_BIM_v2.0",
+                "STING_TB_A1_PORT_NONBIM_v2.0",
+                "A3_LAND_common_v2.0",
+                "STING_TB_A3_BIM_v2.0",
+                "STING_TB_A3_NONBIM_v2.0",
+                "A3_PORT_common_v2.0",
+                "STING_TB_A3_PORT_BIM_v2.0",
+                "STING_TB_A3_PORT_NONBIM_v2.0",
+                "A2_LAND_common_v2.0",
+                "A2_PORT_common_v2.0",
+                "STING_TB_A2_BIM_v2.0",
+                "STING_TB_A2_NONBIM_v2.0",
+                "STING_TB_A2_PORT_BIM_v2.0",
+                "STING_TB_A2_PORT_NONBIM_v2.0",
+                "STING_TB_COVER_A3_v1.0",
+                "STING_TB_COVER_A2_v1.0",
+                "STING_TB_CLARIFICATION_A3_v1.0",
+            };
+
+            var leaking = new List<string>();
+            foreach (var f in (JArray)Library()["families"])
+            {
+                var id = (string)f["id"];
+                var own = Paper(fams, id);
+                if (own.w <= 0) continue;
+                var resolved = ResolvedLineExtent(fams, id);
+                if (resolved.w > own.w + 0.001 || resolved.h > own.h + 0.001) leaking.Add(id);
+            }
+
+            var newly = leaking.Where(id => !known.Contains(id)).ToList();
+            Assert.True(newly.Count == 0,
+                "These families newly inherit border geometry larger than their own sheet - "
+                + "the A1 border is leaking into them (ROADMAP GAP-TB-01):\n  "
+                + string.Join("\n  ", newly));
+
+            // The known set must not silently shrink either: a family dropping out
+            // means someone made progress, and the list should be updated deliberately.
+            var fixedUp = known.Where(id => !leaking.Contains(id) && fams.ContainsKey(id)).ToList();
+            Assert.True(fixedUp.Count == 0,
+                "These families no longer leak - GAP-TB-01 progress. Remove them from the "
+                + "known list in this test:\n  " + string.Join("\n  ", fixedUp));
+        }
+
+        /// <summary>The QR cell is bounded by the PHYSICAL sheet, which is the stricter
+        /// of the two extents. Proven rather than assumed on the families where they
+        /// differ — otherwise a future switch to the looser bound would go unnoticed
+        /// and let an A3 slot sit at x = 700 mm.</summary>
+        [Theory]
+        [InlineData("A3_PORT_common_v2.0")]
+        [InlineData("A3_LAND_common_v2.0")]
+        [InlineData("A2_PORT_common_v2.0")]
+        public void The_qr_bound_is_the_physical_sheet_not_the_resolved_geometry(string familyId)
+        {
+            var fams = Families();
+            var physical = Paper(fams, familyId);
+            var resolved = ResolvedLineExtent(fams, familyId);
+
+            Assert.True(resolved.w > physical.w || resolved.h > physical.h,
+                $"{familyId} was chosen because the two bounds differ; they no longer do.");
+
+            var cell = SlotBox(familyId);
+            Assert.True(cell.X1 <= physical.w + 0.001 && cell.Y1 <= physical.h + 0.001,
+                $"{familyId}: QR cell {cell} is off the {physical.w}x{physical.h} mm sheet, "
+                + $"even though it fits the {resolved.w}x{resolved.h} mm resolved geometry.");
         }
 
         // ─── helpers ─────────────────────────────────────────────────────────

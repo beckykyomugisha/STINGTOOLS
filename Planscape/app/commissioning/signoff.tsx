@@ -113,15 +113,18 @@ export default function CommissioningSignoffScreen() {
       );
     } catch (err) {
       const status = (err as { status?: number })?.status;
-      const b = (err as { body?: { reason?: string; detail?: string } })?.body;
+      const b = (err as { body?: { refusal?: string; reason?: string; detail?: string } })?.body;
       if (status === 409) {
         Alert.alert('Someone got there first', b?.detail ?? 'Re-scan to see the current state.');
         return;
       }
       if (status === 422) {
         // Show the SERVER's sentence — it names the actual rule that refused, which
-        // a generic "could not save" destroys.
-        Alert.alert('Not recorded', b?.reason ?? 'That step is not allowed right now.');
+        // a generic "could not save" destroys. AlreadyInState is the offline
+        // double-sign-off: the work was done, a colleague captured it first, and
+        // "Not recorded" alone would read as a failure.
+        const title = b?.refusal === 'AlreadyInState' ? 'Already recorded' : 'Not recorded';
+        Alert.alert(title, b?.reason ?? 'That step is not allowed right now.');
         return;
       }
       Alert.alert('Not recorded', err instanceof Error ? err.message : String(err));

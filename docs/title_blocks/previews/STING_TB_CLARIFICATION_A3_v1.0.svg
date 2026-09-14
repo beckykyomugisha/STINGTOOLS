@@ -51,6 +51,7 @@
 <g transform="translate(684,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CHECKED BY</text></g>
 <g transform="translate(754,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">APPROVED BY</text></g>
 <g transform="translate(624,69) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DATES</text></g>
+<g transform="translate(300,56) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SYSTEM</text></g>
 <g transform="translate(4,287) scale(1,-1)"><text x="0" y="0" font-size="2.4" text-anchor="start" fill="#000">RFI / CLARIFICATION</text></g>
 <g transform="translate(315.0,287) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">RFI REF</text></g>
 <g transform="translate(4,262) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">QUERY</text></g>
@@ -62,8 +63,8 @@
 <g transform="translate(4,86) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
 <g transform="translate(4,70) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(4,60) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
-<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
-<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_NAME}</text></g>
+<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_ADDRESS}</text></g>
 <g transform="translate(40,31) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
 <g transform="translate(40,26) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
 <g transform="translate(40,16) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
@@ -85,6 +86,7 @@
 <g transform="translate(624,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
 <g transform="translate(684,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_CHECKED}</text></g>
 <g transform="translate(754,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_APVD}</text></g>
+<g transform="translate(300,50) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_SYSTEM}</text></g>
 <g transform="translate(315.0,275) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·LAST_TRANSMITTAL}</text></g>
 <g transform="translate(4,8) scale(1,-1)"><text x="0" y="0" font-size="1.8" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(144.0,8) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
@@ -133,6 +135,10 @@
 <rect x="215.0" y="278" width="12" height="7" fill="#F44336" opacity="0.9"/>
 <g transform="translate(217.0,283.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">REV</text></g>
 <g transform="translate(217.0,276) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#F44336" opacity="0.85">revision-history</text></g>
+<rect x="393" y="7" width="15" height="15" fill="#37474F" fill-opacity="0.0" stroke="#37474F" stroke-width="0.5" stroke-dasharray="1,1.5" opacity="0.95"/>
+<rect x="393" y="15" width="12" height="7" fill="#37474F" opacity="0.9"/>
+<g transform="translate(395,20.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">QR</text></g>
+<g transform="translate(395,13) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#37474F" opacity="0.85">qr-code</text></g>
 <rect x="215.0" y="35" width="195.0" height="232" fill="#00BCD4" fill-opacity="0.0" stroke="#00BCD4" stroke-width="0.5" stroke-dasharray="5,1.5,1.5,1.5" opacity="0.65"/>
 <rect x="215.0" y="260" width="19.0" height="7" fill="#00BCD4" opacity="0.9"/>
 <g transform="translate(217.0,265.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">MARKUP</text></g>
@@ -161,8 +167,9 @@
 <text x="575" y="55" font-size="5" fill="#333">rfi-query</text>
 <rect x="605" y="51" width="6" height="6" fill="#F44336" opacity="0.85"/>
 <text x="614" y="55" font-size="5" fill="#333">revision-history</text>
-<rect x="665" y="51" width="6" height="6" fill="#00BCD4" opacity="0.85"/>
-<text x="674" y="55" font-size="5" fill="#333">markup-plan</text>
-<text x="30" y="392.0" font-size="7" fill="#444">parameters 41  ·  lines 28  ·  labels 31  ·  static-text 25  ·  fills 0  ·  slots 12</text>
+<rect x="665" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
+<text x="674" y="55" font-size="5" fill="#333">qr-code</text>
+<text x="698" y="55" font-size="5" fill="#999">+1 more</text>
+<text x="30" y="392.0" font-size="7" fill="#444">parameters 54  ·  lines 28  ·  labels 32  ·  static-text 26  ·  fills 0  ·  slots 13</text>
 <text x="30" y="402.0" font-size="6" fill="#666">RFI / clarification sketch sheet — A3 landscape (420 × 297 mm). Two-pane layout: left half is a legend / schedule for the QUERY text, right half is a SKETCH slot for annotated plan or detail. 25 mm he…</text>
 </svg>

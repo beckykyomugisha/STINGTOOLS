@@ -413,7 +413,10 @@ def main():
         with open(path, "w", encoding="utf-8") as out:
             out.write(svg)
         written += 1
-        print(f"  ✓ {fam_id}.svg  ({paper_w:.0f}×{paper_h:.0f} mm)")
+        # ASCII only. A Windows console defaults to cp1252, where the tick and the
+        # multiplication sign raise UnicodeEncodeError — the generator then died AFTER
+        # writing the SVGs, so it looked like a failed run that had actually succeeded.
+        print(f"  ok {fam_id}.svg  ({paper_w:.0f}x{paper_h:.0f} mm)")
     print(f"\nWrote {written} SVG previews to {OUT}")
     print(f"Open one in a browser, e.g. file://{OUT}/{lib['families'][0]['id']}.svg")
     if skipped:

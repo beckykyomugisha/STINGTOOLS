@@ -2,6 +2,83 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 283 — QR-13/14/15, and a border leak found by looking at the drawing)
+
+**QR-15 was a verification task, and verifying it found something else.** Rendering
+the spec previews to check the A3-portrait QR cell showed a header reading
+**"paper 841 × 594 mm"** on a family whose own description says *"A3 portrait
+working sheet (297 × 420 mm)"*.
+
+That is real. `TitleBlockSpec.Resolve` **CONCATENATES** `Lines` up the extends
+chain — it is leaf-wins for parameters, slots, static text and labels, but not for
+line geometry ("Lines / filled regions have no natural id → plain concatenate").
+So a built A3-portrait `.rfa` carries A1's 841 × 594 border on a 297 × 420 sheet.
+**22 of the catalogue's families are affected.**
+
+This is the concrete symptom of **GAP-TB-01**, which the roadmap already scopes to
+a focused session, so it is not fixed here. `TitleBlockQrSlotTests` now RECORDS the
+22 — a new family cannot join them unnoticed, and if one drops out the test says so
+rather than absorbing the progress silently.
+
+It also exposed a flaw in my own test. `Paper()` assumed leaf-wins on `lines`,
+so it was validating QR cells against a different extent from the one the resolver
+produces. Every cell passes under BOTH readings, so no placement changes — but the
+method now says which bound it uses and why: the PHYSICAL sheet, deliberately, as
+it is the stricter one. Using the concatenated extent would let an A3 slot sit at
+x = 700 mm — off the A3 sheet entirely — and still pass. Three families where the
+two bounds differ assert that explicitly.
+
+Also fixed: `tools/generate_title_block_previews.py` crashed on a Windows console
+(cp1252 cannot encode the tick or the multiplication sign) **after** writing all 41
+SVGs, so a successful run looked like a failure. That crash is what nearly stopped
+this investigation.
+
+**QR-13 — the offline double-sign-off had a sharper bug than "both record".**
+
+Two operatives scan an asset at INSTALLED with no signal. Both intend TESTED. A
+drains first; the asset moves to TESTED. B drains second — and because
+`requestedState` was empty, **"advance one step" is resolved at drain time**, so
+B's TESTED sign-off would have been recorded as **COMMISSIONED**: in B's name,
+with no witness, on an asset nobody declared fit for use.
+
+The client now PINS the state it showed the operative. B is then refused, and the
+refusal has its own kind: `AlreadyInState`, split out from `Regression`, because
+the second operative is not trying to rewind the record — a colleague captured the
+same work first, and "refusing to regress" is both wrong and alarming. Both
+screens show "Already recorded" for it rather than "Not recorded".
+
+The test asserts the dangerous path too — that WITHOUT the pin the transition
+succeeds as COMMISSIONED — so the reason for the pin stays visible.
+
+**QR-14 — carbon reaches a rollup, and cannot be mistaken for more than it is.**
+
+`GET /api/tagsync/carbon` sums per-element embodied carbon, optionally grouped by
+discipline / category / level / material. The shape is the point: the total NEVER
+travels without `assessed`, `total` and `coveragePercent`, and each group carries
+its own coverage too. On a real project the assessed subset is a minority for a
+long time, and "2.4 tCO₂e" over 12% of a model reads as a building's footprint to
+anyone shown only the number.
+
+**It does not extrapolate.** Scaling the measured mean across the un-assessed
+remainder would give a plausible building total built from an assumption — the
+fabricated-data failure this codebase has shipped before. A genuine zero counts as
+assessed; an unknown does not. An unrecognised `groupBy` is refused rather than
+ignored, because silently returning an ungrouped total to a caller who asked for a
+breakdown is the right shape with the wrong answer and no way to tell.
+
+It is deliberately NOT reconciled with `EdgeKpiSnapshot.MaterialCarbonKgM2`, which
+is a per-m² intensity from the sustainability module's own take-off. They can
+disagree; which is authoritative is a design decision. The endpoint says so in its
+own `basis` field rather than pretending otherwise — logged as QR-17.
+
+Gates: plugin 0/0 with **1,237 tests**; server **+40** (26 state machine, 14 carbon
+rollup); planscape-web 115 + `next build`; mobile tsc + full suite. Wiring,
+path-discipline and param-contract all OK; readership unchanged at 386.
+
+Still open: QR-1 (needs Revit), QR-11 (needs the signing secrets and a redeploy),
+TB-LINES-1 (GAP-TB-01, recorded not fixed), QR-16 and QR-17 (both design
+decisions). See `ROADMAP.md`.
+
 #### Completed (Phase 282 — flexibility proved by three real sheets, sustainability on the scan, QR-8 to QR-12)
 
 **Three sheets exported from a live project on 2026-09-14 proved the stamper was
