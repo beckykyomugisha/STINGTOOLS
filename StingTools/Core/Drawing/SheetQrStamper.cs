@@ -268,13 +268,47 @@ namespace StingTools.Core.Drawing
                 // Idempotent: a re-run must REPLACE, not accumulate. Stacked QR images
                 // are invisible on screen (they overlap exactly) and show up only as a
                 // muddy print and a bloated file.
-                if (RemoveExistingStamp(doc, sheet, r)) r.ImagesReplaced++;
+                //
+                // If the OLD stamp could not be cleared, do NOT place a second one.
+                // Placing anyway and returning "placed" is the lie: the run reports
+                // success while quietly breaking the one contract this method has.
+                if (!TryRemoveExistingStamp(doc, sheet, r, out bool replaced))
+                {
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}': the existing QR could not be removed, so a new " +
+                        "one was NOT placed — stamping anyway would leave two stacked on the sheet.");
+                    return false;
+                }
+                if (replaced) r.ImagesReplaced++;
 
                 var opts = new ImageTypeOptions(pngPath, false, ImageTypeSource.Import);
                 var imageType = ImageType.Create(doc, opts);
-                // Name carries the prefix so RemoveExistingStamp can find it again.
-                try { imageType.Name = ImageNamePrefix + sheet.SheetNumber; }
-                catch (Exception ex) { StingLog.Warn($"SheetQrStamper: could not name image type: {ex.Message}"); }
+
+                // The name carries the prefix, and the prefix IS the cleanup contract:
+                // Sheet_ClearQR and the replace pass above both find images by it. An
+                // unnamed image type is therefore permanently unmanageable — it cannot
+                // be cleared, and the next stamp run stacks on top of it.
+                //
+                // So a naming failure is fatal to this stamp, not a warning. Delete
+                // what was just created and report it: no stamp is better than one
+                // nothing can remove.
+                try
+                {
+                    imageType.Name = ImageNamePrefix + sheet.SheetNumber;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"SheetQrStamper: could not name the image type on '{sheet.SheetNumber}'", ex);
+                    try { doc.Delete(imageType.Id); }
+                    catch (Exception cleanup)
+                    {
+                        StingLog.Warn($"SheetQrStamper: and could not delete the unnamed image type: {cleanup.Message}");
+                    }
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}': the QR image type could not be named " +
+                        $"({ex.Message}), so it would never be removable. Nothing was placed.");
+                    return false;
+                }
 
                 var (centre, sizeFt) = ResolvePlacement(doc, sheet, tb);
                 var instance = ImageInstance.Create(doc, sheet, imageType.Id,
@@ -299,7 +333,17 @@ namespace StingTools.Core.Drawing
         /// <see cref="ImageNamePrefix"/> contract only — an operator's own placed
         /// images are never touched.</summary>
         private static bool RemoveExistingStamp(Document doc, ViewSheet sheet, SheetQrResult r)
+            => TryRemoveExistingStamp(doc, sheet, r, out bool removed) && removed;
+
+        /// <summary>Delete any STING QR image already on this sheet.
+        ///
+        /// Returns FALSE only when the attempt FAILED — which is different from
+        /// "there was nothing to remove" (<paramref name="removed"/> false, return
+        /// true). Collapsing the two is how a caller ends up stacking a second image
+        /// on a sheet whose first one it could not clear, and reporting success.</summary>
+        private static bool TryRemoveExistingStamp(Document doc, ViewSheet sheet, SheetQrResult r, out bool removed)
         {
+            removed = false;
             try
             {
                 var doomed = new FilteredElementCollector(doc, sheet.Id)
@@ -313,14 +357,15 @@ namespace StingTools.Core.Drawing
                     .Select(i => i.Id)
                     .ToList();
 
-                if (doomed.Count == 0) return false;
+                if (doomed.Count == 0) return true;   // nothing to remove IS success
                 doc.Delete(doomed);
+                removed = true;
                 return true;
             }
             catch (Exception ex)
             {
                 r?.Warnings.Add($"Sheet '{sheet.SheetNumber}': could not clear the previous QR — {ex.Message}");
-                StingLog.Warn($"SheetQrStamper: RemoveExistingStamp on '{sheet.SheetNumber}': {ex.Message}");
+                StingLog.Warn($"SheetQrStamper: TryRemoveExistingStamp on '{sheet.SheetNumber}': {ex.Message}");
                 return false;
             }
         }
