@@ -55,6 +55,10 @@ namespace StingTools.Core.Drawing
         public int SheetsProcessed { get; set; }
         public int ParamsWritten   { get; set; }
         public int SheetsSkipped   { get; set; }
+        /// <summary>QR-5 — sheets whose existing QR stamp was re-encoded with the new
+        /// revision. Only sheets that ALREADY carried one; a revision sync never mints
+        /// a stamp the operator did not ask for.</summary>
+        public int QrSheetsRefreshed { get; set; }
         public List<string> Warnings { get; } = new List<string>();
     }
 
@@ -127,9 +131,38 @@ namespace StingTools.Core.Drawing
                 tx.Commit();
             }
 
+            // ROADMAP QR-5 — a sheet QR encodes ?r={revision}, so the moment the
+            // revision moves the stamp is stale. This is the only correct point to
+            // refresh it: a stamp written BEFORE the revision is minted encodes the
+            // OLD one, which is worse than none — it would send a scanner to a
+            // superseded drawing while looking authoritative.
+            //
+            // REFRESH, not stamp. Sheets that carry no QR are left alone: stamping is
+            // a deliberate act (Sheet_StampQR), and a revision sync must not quietly
+            // decide for the operator that this drawing set carries codes.
+            //
+            // Runs AFTER the commit above, in its own transaction, because creating an
+            // ImageType is a model change and the revision write must land regardless
+            // of whether the QR refresh does.
+            try
+            {
+                var qr = SheetQrStamper.Refresh(doc, sheets);
+                result.QrSheetsRefreshed = qr.Stamped;
+                foreach (var w in qr.Warnings) result.Warnings.Add("QR: " + w);
+            }
+            catch (Exception ex)
+            {
+                // Never fail a revision sync because a QR could not be redrawn. But
+                // never swallow it either: a silently stale QR on an issued drawing is
+                // exactly the failure this whole feature exists to stop.
+                result.Warnings.Add($"QR refresh failed: {ex.Message}");
+                StingLog.Error("TitleBlockRevisionSyncer: QR refresh failed", ex);
+            }
+
             StingLog.Info($"TitleBlockRevisionSyncer.SyncAll done — " +
                 $"{result.SheetsProcessed} processed, {result.ParamsWritten} params written, " +
-                $"{result.SheetsSkipped} skipped, {result.Warnings.Count} warning(s).");
+                $"{result.SheetsSkipped} skipped, {result.QrSheetsRefreshed} QR refreshed, " +
+                $"{result.Warnings.Count} warning(s).");
             return result;
         }
 

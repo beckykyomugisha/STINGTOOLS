@@ -2,6 +2,98 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 281 — closing the QR gaps: QR-2 through QR-7)
+
+Phase 280 made the QR chain work and logged seven gaps. Six are closed; the
+seventh (QR-1) needs Revit and cannot be closed from a build machine.
+
+**QR-4 — all 21 slot-declaring families now carry a `qr-code` slot.** The twelve
+concrete families declare their own `slots[]`, which under leaf-wins REPLACES the
+size base's, so they had no slot and fell back to a blind corner. The two
+presentation blocks get `category: "overlay"` — their RENDER slot is full-bleed,
+so there is no free cell anywhere and the overlap is the design, exactly as the
+CAPTION slot already does it; `PRJ_TB_SHOW_QR_CODE_BOOL` is how an operator says
+no to a mark on a client render.
+
+`TitleBlockQrSlotTests` checks every shipped slot against text EXTENTS rather than
+anchor points — a label anchored at x=754 with a 28-character value reaches past
+x=800, and an anchor-only test calls that free. **It caught a real collision in
+Phase 280's own A3-portrait slot** on its first run: (269,10) sat on
+`PRJ_TB_PAPER_SZ_TXT` (x 257-269). Moved to (216,10).
+
+**QR-1 — the placement decision is now testable without Revit.** `SheetQrPlacement`
+holds it; `ResolvePlacement` only converts units and delegates. 15 tests pin both
+off-paper regressions by their exact numbers (y = -29 mm on A0, -5 mm on A3
+portrait), the too-small-to-scan refusal, non-square fitting, and that a null
+title-block extent means "cannot tell" rather than "reject". The Revit API call
+itself remains a manual check — ROADMAP QR-1 carries the script.
+
+**QR-2 — `GET /api/projects/{id}/documents/by-sheet`.** There is no sheet entity
+on the server; a sheet number lives only inside an ISO 19650 document NAME, so
+that is what it matches. **Ordering is the feature**: PUBLISHED, then SHARED, then
+WIP, newest within each. The test makes the PUBLISHED drawing the OLDEST on
+purpose — a date-first sort would put an unissued WIP drawing on top of a site
+operative's scan. A scanned revision narrows the answer only when it matches
+something; when it does not, the wider answer is kept and `revisionNarrowed:false`
+says so, because "this drawing does not exist" is the wrong thing to tell someone
+whose print is merely superseded.
+
+**QR-6 — the deep links have a destination.** `/e/{project}/{tag}` and
+`/s/{project}/{sheet}` on planscape-web. The QR carries a project CODE and every
+API route is keyed by GUID, so the page resolves code→id and reports each failure
+separately: not signed in, code matches nothing, code matches several. 401 is not
+"nothing found".
+
+Found while doing it: `.well-known/assetlinks.json` and
+`apple-app-site-association` have **never existed at any host**, while
+`app.config.js` has declared `autoVerify: true` for `/accept-invitation`,
+`/reset-password`, `/issues` and `/documents` since M2. None of those links has
+ever verified. Both files are now served and both **fail closed** — with no
+fingerprint or team id they 404, which is today's behaviour, rather than serving a
+guess. A wrong `assetlinks.json` is worse than a missing one because Android
+caches the failed verification, and an empty `statements` array is not neutral: it
+positively asserts that no app is associated with the domain.
+
+**QR-3 — phone-driven commissioning, with one state machine instead of two.**
+`CommissioningStateMachine` moved to `Planscape.Shared`, which the plugin already
+ProjectReferences — no cross-project `<Compile Include>` hack, unlike BcfEngine.
+Extracting it **fixed a real bug**: the old `IndexOfState` returned 0 for any
+unrecognised state, so a typo — or a state written by a newer build — read as
+NOT_STARTED and could be silently advanced over, erasing it. `RankOf` now returns
+-1 and the machine refuses.
+
+`CommissioningRecord` is append-only: a single mutable row would answer "what
+state is it in" and destroy "who signed it off, when, and who witnessed", which is
+the half asked in a dispute years later. Per ADR 0001 it reaches an existing
+database through `PlatformSchemaPatcher`, not a migration.
+
+`expectedCurrentState` is opt-in optimistic concurrency — two fitters scanning the
+same asset seconds apart would otherwise both read INSTALLED and both advance,
+recording one step twice under two names.
+
+**QR-5 — the ordering question answered by construction.** The open question was
+which step of an issue run should stamp; a stamp written before the revision is
+minted encodes a stale `?r=`. So `TitleBlockRevisionSyncer` refreshes AFTER the
+revision lands, in its own transaction. **Refresh, never mint**: sheets carrying no
+QR are left alone, because stamping is a deliberate act and a revision sync must
+not quietly decide for the operator that this drawing set carries codes.
+
+**QR-7 — `QR_LabelSheet`.** Element codes on a plottable sheet, each captioned with
+its tag, at 30 mm for plant rooms. It refuses to label an untagged element: a blank
+label gets stuck on, scanned, resolves to nothing, and by then the asset is in a
+ceiling void. Duplicate tags are labelled once, because two identical labels on two
+assets cannot be told apart afterwards.
+
+**Still open, and listed rather than glossed:** QR-1 (Revit), plus QR-8 (no offline
+queue for a scan in a basement), QR-9 (COMMISSIONED needs a form, not an Alert),
+QR-10 (`by-sheet` matches on file name, so `M-1` would match `M-101`), QR-11
+(app-link verification is served but stays 404 until the secrets are set AND
+redeployed), QR-12 (the label sheet does not bin-pack). See `ROADMAP.md`.
+
+Gates: plugin 0 errors / 0 warnings, 1,176 tests. Server builds clean, 51 new
+tests. planscape-web 115 tests + `next build`. Mobile tsc + full suite. Workflow
+wiring (Tier 4 and 6 both 0), path discipline and param contract all OK.
+
 #### Completed (Phase 280 — the QR chain, end to end, and the title-block stamp that was only ever documented)
 
 **The plugin's QR codes could not be read by the plugin's own app, and never had been.**

@@ -2075,6 +2075,7 @@ namespace StingTools.Core
                 case "Sheet_StampQR":            return new Commands.Drawing.SheetStampQrCommand();
                 case "Sheet_ClearQR":            return new Commands.Drawing.SheetClearQrCommand();
                 case "Sheet_InspectQR":          return new Commands.Drawing.SheetInspectQrCommand();
+                case "QR_LabelSheet":            return new Commands.Drawing.QrLabelSheetCommand();
                 case "QR_ScanCommission":        return new V6.QRScanCommissioningCommand();
 
                 // Phase 96: BCC-Perm-01 fix — ExportPermissionMatrix was resolvable from the

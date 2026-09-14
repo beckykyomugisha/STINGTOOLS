@@ -4,25 +4,35 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 
 ## QR chain (2026-09-14, Phase 280)
 
-The parse/generate/stamp halves are built and gated by a shared corpus
-(`tools/qr_payload_corpus.json`). These are the parts that are **not** built, and
-the reasons they were left rather than half-done.
+QR-2 through QR-7 are **CLOSED** — see `CHANGELOG.md` Phase 280. What remains is
+QR-1, which cannot be closed from here, plus the honest residue of the ones that
+were closed.
+
+| ID | Status | Detail |
+|---|---|---|
+| QR-1 | **OPEN — needs Revit** | The placement DECISION is now Revit-free and unit-tested (`SheetQrPlacement`, 15 tests, both off-paper regressions pinned by their exact numbers). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge, on a real project:** `Sheet_StampQR` on an A1 sheet -> a QR appears bottom-right of the info strip, clear of the SCALE / APPROVED BY cells; run it twice -> exactly one image, not two; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own placed images alone; scan it -> the camera offers `app.planscape.build/s/…`. Also check one A0 and one A3 PORTRAIT — the two sizes the first placement cut got wrong, and A3 portrait is also the one whose slot `TitleBlockQrSlotTests` later caught sitting on `PRJ_TB_PAPER_SZ_TXT`. Then `QR_LabelSheet` on a handful of tagged elements, and `TitleBlock_CreateAll` to confirm the two new params reach the families. |
+| QR-2 | ✅ closed | `GET /api/projects/{id}/documents/by-sheet`, ordered PUBLISHED → SHARED → WIP so the top row is what to build from. 13 tests. |
+| QR-3 | ✅ closed | `CommissioningRecord` + `CommissioningController`, with the state machine moved to `Planscape.Shared` so the plugin and the API share one copy. 38 tests. |
+| QR-4 | ✅ closed | All 21 slot-declaring families carry a `qr-code` slot, verified against text EXTENTS by `TitleBlockQrSlotTests`. |
+| QR-5 | ✅ closed | `TitleBlockRevisionSyncer` refreshes existing stamps after the revision lands. **Refresh, never mint** — see below. |
+| QR-6 | ✅ closed | `/e/…` and `/s/…` routes on planscape-web; `.well-known` files that fail closed. |
+| QR-7 | ✅ closed | `QR_LabelSheet` places element codes on a plottable sheet with tag captions. |
+
+**Residue from the closures — real, and not papered over:**
 
 | ID | Gap | Detail |
 |---|---|---|
-| QR-1 | **Nothing in the stamper has been run in Revit** | `SheetQrStamper` compiles and is the first `ImageType.Create` / `ImageInstance.Create` code in the plugin, so no prior run proves the API usage. It is unreachable from any test — it needs a `Document`, a `ViewSheet` and a title-block instance. **Before merge, on a real project:** `Sheet_StampQR` on an A1 sheet → a QR appears in the bottom-right of the info strip, clear of the SCALE / APPROVED BY cells; run it twice → exactly one image, not two; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own placed images alone; scan the result with a phone → the camera offers to open `app.planscape.build/s/…`. Also check one A0 and one A3 portrait, the two sizes where the first (fractional) placement cut landed off-paper. |
-| QR-2 | **Scanning a sheet code cannot open the drawing** | Planscape has no lookup-by-sheet-number endpoint. `parseQr` returns `type: 'sheet'` and the scanner shows the sheet number, project and revision, then stops. It deliberately does **not** run the element search on a sheet number — that returns nothing and reads as "not in this project", a wrong answer rather than an empty one. Fix: a `GET /api/documents/by-sheet?projectId&number` (or reuse `DocumentsController`), then a sheet route in the app. |
-| QR-3 | **Phone-driven commissioning does not exist** | `Planscape.Server` has no commissioning controller and no commissioning entity, so there is nothing for the app to POST a scan to. `QR_ScanCommission` is the DESKTOP path only (USB/Bluetooth scanner or a pasted payload). Building the mobile half means: a `Commissioning` entity + controller mirroring `QRCommissioningWorkflow`'s state machine, the audit-log write, and an offline-queue path — this is a feature, not a wiring job. |
-| QR-4 | **12 concrete title-block families have no `qr-code` slot** | `STING_TB_ASSEMBLY_{PIPE,DUCT,COND,HANGER}`, `STING_TB_PRESENT_A1{,_MONO}`, `STING_TB_DIVIDER_A1`, `STING_TB_REGISTER_A1`, `STING_TB_SUBMISSION_{KCCA,ERA,NEMA}`, `STING_TB_CLARIFICATION_A3` each declare their own `slots` array, which under leaf-wins **replaces** the size base's — so they shadow the `QR` slot. They fall back to a corner inset. Placing one blind in each is exactly the mistake the fractional-coords cut already made, so each needs its layout read and its free cell collision-checked, the way the nine bases were. |
-| QR-5 | **The stamp is not wired into the issue orchestrator** | Deliberate. `TITLE_BLOCK_CREATION_GUIDE.md` used to claim the orchestrator "bakes a QR code into `TB_QR_PAYLOAD_TXT`" and nothing did; that claim is removed rather than satisfied by a hasty call. If it should run at issue time, the decision is *which* step — a stamp written before the revision is minted encodes a stale `?r=`. |
-| QR-6 | **`app.planscape.build` does not claim the deep link** | The payload is an https URL so a stock camera opens it, but nothing declares Android App Links (`assetlinks.json`) or iOS Universal Links (`apple-app-site-association`), and there is no `/e/…` or `/s/…` web route. Today a scan opens a browser and lands on whatever that path serves. Until the web routes exist this is a working *scan* and an incomplete *destination*. |
-| QR-7 | **`QRCodeCommand` still writes loose PNGs nobody places** | The element QR is generated to a folder; nothing puts it on a drawing, a schedule or a label sheet. `SheetQrStamper` now proves the image-placement pattern, so an element-label sheet (a grid of QR + tag, plotted and cut) is a small build on top of it. |
+| QR-8 | **A scan taken with no signal is lost** | `advanceCommissioning` posts directly. A basement plant room is exactly where commissioning happens and exactly where there is no signal. The app already has an offline queue (`src/utils/offlineQueue.ts`) and an `IdempotencyRecord` table exists server-side; wiring the commissioning POST through both is the fix. Until then the operative sees the error and retries — which is honest, but not good enough for the job. |
+| QR-9 | **COMMISSIONED cannot be recorded on the phone** | It needs a witness, and the scan flow uses `Alert`, which cannot collect two names. The app refuses that step and says why rather than posting something the server will reject. Needs a real form screen. |
+| QR-10 | **The sheet lookup matches on file NAME** | There is no sheet entity on the server, so `by-sheet` does `FileName LIKE '%M-101%'`. A sheet numbered `M-1` would match `M-101`, `M-10` and `M-1`. Acceptable for ISO 19650 names, which are long and structured; wrong for a project numbering sheets `1`, `2`, `3`. A real fix is a sheet register synced from the plugin's `DrawingRegisterSync`. |
+| QR-11 | **App-link verification is configured but not switched on** | `assetlinks.json` and `apple-app-site-association` are served and fail closed. They stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on the `planscape-web` service **and it is redeployed** (bindings are captured at deploy time — see the "merged is not deployed" section in CLAUDE.md). Until then every deep link, including the four that predate this work, opens a browser rather than the app. |
+| QR-12 | **The label sheet does not bin-pack** | `QR_LabelSheet` lays out a naive grid and starts a new sheet when the current one fills. `SheetManagerEngineExt` already has MaxRects; using it would fit more labels per plot. Cosmetic, and cheap to do later. |
 
-**Pre-existing, found while running the gates and not fixed here:**
+**Pre-existing, found while running the gates and NOT fixed here:**
 `tools/validate_param_readership.py` reports **386 violations against a baseline of 384** on a
-clean tree, before any of this work — measured by stashing. The Phase 280 change is
-readership-neutral (386 before, 386 after). Whoever introduced the 2 should raise the ceiling
-with a reason or fix them; raising it on their behalf would defeat the ratchet.
+clean tree, before any of this work — measured by stashing. Phase 280 is readership-neutral
+(386 before, 386 after). Whoever introduced the 2 should raise the ceiling with a reason or fix
+them; raising it on their behalf would defeat the ratchet.
 
 ## Workflow conditions (2026-09-10)
 

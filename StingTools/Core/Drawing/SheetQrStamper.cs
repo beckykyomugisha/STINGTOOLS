@@ -85,6 +85,60 @@ namespace StingTools.Core.Drawing
         /// <see cref="SheetQrResult.Warnings"/> naming the sheet.</summary>
         /// <param name="placeImage">False writes only TB_QR_PAYLOAD_TXT — useful when
         /// the title block draws the code itself from the payload label.</param>
+        /// <summary>Re-stamp ONLY the sheets that already carry a STING QR, so an
+        /// existing stamp stops encoding a revision the drawing has moved past.
+        ///
+        /// REFRESH, NEVER MINT — and that distinction is the whole design.
+        /// `Sheet_StampQR` is a deliberate act: an operator decided this drawing set
+        /// carries codes. A revision sync must not quietly turn that decision on for
+        /// sheets nobody stamped, and must not turn it off either.
+        ///
+        /// This is also the answer to "which step of the issue run should stamp?"
+        /// (ROADMAP QR-5). A stamp written BEFORE the revision is minted encodes a
+        /// stale `?r=`, so the only correct point is after the revision is on the
+        /// sheet — which is exactly here, at the end of TitleBlockRevisionSyncer.</summary>
+        public static SheetQrResult Refresh(Document doc, IEnumerable<ViewSheet> sheets)
+        {
+            var r = new SheetQrResult();
+            if (doc == null || sheets == null) return r;
+
+            var stamped = new List<ViewSheet>();
+            foreach (var sheet in sheets)
+            {
+                if (sheet == null) continue;
+                try { if (HasStamp(doc, sheet)) stamped.Add(sheet); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SheetQrStamper.Refresh: probing '{sheet.SheetNumber}': {ex.Message}");
+                }
+            }
+
+            if (stamped.Count == 0)
+            {
+                StingLog.Info("SheetQrStamper.Refresh: no sheet carries a QR stamp; nothing to refresh.");
+                return r;
+            }
+            return Stamp(doc, stamped);
+        }
+
+        /// <summary>Does this sheet already carry a STING QR — either the image or a
+        /// non-empty payload? Either alone counts: a project that stamps payload-only
+        /// (placeImage:false, for a title block that draws the code from the label)
+        /// still needs its URL refreshed when the revision moves.</summary>
+        public static bool HasStamp(Document doc, ViewSheet sheet)
+        {
+            bool hasImage = new FilteredElementCollector(doc, sheet.Id)
+                .OfClass(typeof(ImageInstance))
+                .Cast<ImageInstance>()
+                .Any(i => (doc.GetElement(i.GetTypeId())?.Name ?? "")
+                    .StartsWith(ImageNamePrefix, StringComparison.Ordinal));
+            if (hasImage) return true;
+
+            var tb = FindTitleBlock(doc, sheet);
+            var p = tb?.LookupParameter(ParamRegistry.TB_QR_PAYLOAD);
+            return p != null && !string.IsNullOrWhiteSpace(p.AsString());
+        }
+
         public static SheetQrResult Stamp(Document doc, IEnumerable<ViewSheet> sheets, bool placeImage = true)
         {
             var r = new SheetQrResult();

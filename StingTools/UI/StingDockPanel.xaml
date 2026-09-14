@@ -2468,6 +2468,7 @@
                                 <Button Style="{StaticResource ActionBtn}" Content="Clear HL"   Tag="ClearStaleHighlight"   Click="Cmd_Click" ToolTip="Remove the stale highlight filter from the active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
                                 <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate a QR code PNG for each selected element. Encodes an https deep link carrying the ISO 19650 tag and the element UniqueId, so a stock phone camera opens it and the Planscape scanner resolves it."/>
+                                <Button Style="{StaticResource ActionBtn}" Content="QR Labels"  Tag="QR_LabelSheet"         Click="Cmd_Click" ToolTip="Put the selected elements’ QR codes on a plottable sheet, each captioned with its tag. Untagged elements are reported and skipped — never given a blank label."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
                             </WrapPanel>
                         </Border>
