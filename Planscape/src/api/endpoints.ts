@@ -277,6 +277,91 @@ export function transitionCDE(
   });
 }
 
+// ── Commissioning (scanned asset QR) ──
+
+/** One step on the commissioning ladder, as stored by the server. */
+export interface CommissioningRecord {
+  id: string;
+  elementUniqueId: string;
+  elementTag?: string | null;
+  elementName?: string | null;
+  fromState: string;
+  toState: string;
+  operative: string;
+  witness?: string | null;
+  notes?: string | null;
+  source: string;
+  recordedAt: string;
+  occurredAt?: string | null;
+}
+
+export interface CommissioningState {
+  elementUniqueId: string;
+  currentState: string;
+  /** Null only when currentState is not one the server recognises. */
+  nextState: string | null;
+  isTerminal: boolean;
+  /** True when the NEXT step is COMMISSIONED, which needs a witness. Render the
+   *  witness field from this rather than from a copy of the rule. */
+  witnessRequiredNext: boolean;
+  history: CommissioningRecord[];
+}
+
+/** Every state a client should offer, from the server, so the app never keeps
+ *  its own copy of the ladder — the copy is what drifts. */
+export function getCommissioningStates(): Promise<{
+  states: string[];
+  witnessRequiredFor: string;
+  terminal: string;
+}> {
+  return apiFetch('/api/commissioning/states');
+}
+
+export function getCommissioningState(
+  projectId: string,
+  elementUniqueId: string
+): Promise<CommissioningState> {
+  return apiFetch(
+    `/api/projects/${projectId}/commissioning/${encodeURIComponent(elementUniqueId)}`
+  );
+}
+
+/**
+ * Advance one element by one step.
+ *
+ * `expectedCurrentState` is how two fitters scanning the same asset seconds apart
+ * do not both record the same step under two names: pass what you showed the user,
+ * and the server answers 409 `state_moved` if it has since changed.
+ *
+ * A refusal comes back 422 with a `refusal` ENUM — branch on that, never on the
+ * message text, which is written for a human and will be reworded.
+ */
+export function advanceCommissioning(
+  projectId: string,
+  body: {
+    elementUniqueId: string;
+    requestedState?: string;
+    operative: string;
+    witness?: string;
+    notes?: string;
+    elementTag?: string;
+    elementName?: string;
+    source?: string;
+    occurredAt?: string;
+    expectedCurrentState?: string;
+  }
+): Promise<{
+  record: CommissioningRecord;
+  currentState: string;
+  nextState: string | null;
+  isTerminal: boolean;
+}> {
+  return apiFetch(`/api/projects/${projectId}/commissioning/advance`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 // ── Sheet Lookup (scanned title-block QR) ──
 
 /** What the server answers for a scanned sheet code. */

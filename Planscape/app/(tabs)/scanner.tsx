@@ -19,12 +19,16 @@ import {
   lookupElement,
   lookupSheet,
   listIssues,
+  getCommissioningState,
+  advanceCommissioning,
   _getBaseUrl,
 } from '@/api/endpoints';
+import type { CommissioningState } from '@/api/endpoints';
 import type { Project, TaggedElement, BimIssue } from '@/types/api';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { parseQr } from '@/services/qrParser';
 import { crashReporter } from '@/services/crashReporter';
+import { useAuthStore } from '@/stores/authStore';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -109,12 +113,124 @@ export default function ScannerScreen() {
         ]);
         if (elements.length === 0) {
           Alert.alert('No match', `Scanned ${parsed.id} — no element in this project.`);
+        } else if (parsed.uniqueId) {
+          // The payload carries a UniqueId, so this scan CAN drive commissioning.
+          // Only offer it when it can actually work: the ladder is keyed on
+          // UniqueId, and a tag-only payload (an older code, or a hand-typed tag)
+          // has nothing to advance. Offering a button that then fails would be
+          // worse than not offering it.
+          await offerCommissioning(parsed.uniqueId, elements[0]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Lookup failed');
       } finally {
         setSearching(false);
       }
+    }
+  }
+
+  /**
+   * Offer to advance this element's commissioning state, having scanned it.
+   *
+   * This is the path that did not exist: "QR commissioning" shipped with no scan
+   * anywhere, and could not have had one — the ladder is keyed on UniqueId and the
+   * QR carried only the tag. Both halves are fixed, and this is the mobile end.
+   *
+   * The witness prompt is driven by `witnessRequiredNext` FROM THE SERVER rather
+   * than by a copy of the rule here. A client-side copy is the same drift risk as a
+   * second state machine, one layer out.
+   */
+  async function offerCommissioning(uniqueId: string, element: TaggedElement) {
+    if (!activeProject) return;
+    try {
+      const state = await getCommissioningState(activeProject.id, uniqueId);
+
+      if (state.isTerminal) {
+        Alert.alert(
+          element.tag1 || 'Asset',
+          `Commissioning is complete (${state.currentState}). There is nothing further to record.`,
+        );
+        return;
+      }
+
+      const needsWitness = state.witnessRequiredNext;
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Commissioning: ${state.currentState} → ${state.nextState}` +
+          (needsWitness
+            ? '\n\nThis step declares the asset fit for use and needs a witness, so it has to be recorded on a device where you can type one.'
+            : ''),
+        needsWitness
+          ? [{ text: 'OK', style: 'cancel' }]
+          : [
+              { text: 'Not now', style: 'cancel' },
+              {
+                text: `Record ${state.nextState}`,
+                onPress: () => void recordCommissioningStep(uniqueId, element, state),
+              },
+            ],
+      );
+    } catch (err) {
+      // Never block the scan result on this. The element WAS found; failing to
+      // read its commissioning state is a smaller problem and must not present
+      // as "no match".
+      crashReporter.warn('scanner: commissioning state read failed', {
+        err: String(err),
+      });
+    }
+  }
+
+  async function recordCommissioningStep(
+    uniqueId: string,
+    element: TaggedElement,
+    state: CommissioningState,
+  ) {
+    if (!activeProject) return;
+
+    // The operative must be a REAL name. The server refuses an unattributed step,
+    // and a placeholder like "Unknown" would satisfy that check while recording a
+    // sign-off attributable to nobody — the exact thing the rule exists to prevent.
+    const auth = useAuthStore.getState();
+    const operative = (auth.displayName || auth.email || '').trim();
+    if (!operative) {
+      Alert.alert(
+        'Not recorded',
+        'Your account has no name or email on it, and a commissioning step has to be attributable to a person. Sign in again, or record this from a device that is signed in.',
+      );
+      return;
+    }
+
+    try {
+      const result = await advanceCommissioning(activeProject.id, {
+        elementUniqueId: uniqueId,
+        operative,
+        elementTag: element.tag1,
+        elementName: element.familyName,
+        source: 'mobile-scan',
+        occurredAt: new Date().toISOString(),
+        // What we just showed the user. If someone else advanced it in between,
+        // the server answers 409 rather than recording the same step twice under
+        // two names.
+        expectedCurrentState: state.currentState,
+      });
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Recorded: ${result.record.fromState} → ${result.currentState}`,
+      );
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const body = (err as { body?: { refusal?: string; reason?: string; detail?: string } })?.body;
+      if (status === 409) {
+        Alert.alert('Someone got there first', body?.detail ?? 'Re-scan to see the current state.');
+        return;
+      }
+      if (status === 422) {
+        // The server refused on a rule. Show ITS sentence — it names the actual
+        // reason, which a generic "could not save" destroys.
+        Alert.alert('Not recorded', body?.reason ?? 'That step is not allowed right now.');
+        return;
+      }
+      Alert.alert('Not recorded', err instanceof Error ? err.message : String(err));
     }
   }
 
