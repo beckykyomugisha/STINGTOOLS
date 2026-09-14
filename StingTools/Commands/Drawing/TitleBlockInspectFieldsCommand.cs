@@ -87,15 +87,27 @@ namespace StingTools.Commands.Drawing
             var type = doc.GetElement(tb.GetTypeId());
             var rows = new List<string>();
             int hasValue = 0, emptyOnFamily = 0, absent = 0, guidMismatch = 0;
+            int alsoOnSheet = 0, readOnly = 0;
             var mismatches = new List<string>();
+            var sheetHomes = new List<string>();
 
             foreach (string name in ParamRegistry.AllTitleBlockParams
                          .Concat(ExtraWatched)
                          .Distinct(StringComparer.OrdinalIgnoreCase)
                          .OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
             {
-                Parameter p = null;
+                // THREE homes, not one. A name can exist on the sheet (a project
+                // parameter), on the title-block instance, and on its type, all at
+                // once and all different. The label in the .rfa binds to exactly one
+                // of them; every STING command writes to the title-block instance. If
+                // those are not the same home, the write succeeds and the drawing
+                // never changes -- which is the symptom that sent us round four
+                // theories, and the one thing this could not see while it looked at
+                // the title block alone.
+                Parameter p = null, onSheet = null;
                 string where = null;
+                try { onSheet = sheet.LookupParameter(name); }
+                catch (Exception ex) { StingLog.Warn($"InspectFields sheet '{name}': {ex.Message}"); }
                 try
                 {
                     p = tb.LookupParameter(name);
@@ -103,6 +115,18 @@ namespace StingTools.Commands.Drawing
                     else { p = type?.LookupParameter(name); if (p != null) where = "type"; }
                 }
                 catch (Exception ex) { StingLog.Warn($"InspectFields '{name}': {ex.Message}"); }
+
+                if (onSheet != null)
+                {
+                    string sv = null;
+                    try { sv = onSheet.StorageType == StorageType.Integer
+                                ? onSheet.AsInteger().ToString() : onSheet.AsString(); }
+                    catch (Exception ex) { StingLog.Warn($"InspectFields sheet read '{name}': {ex.Message}"); }
+                    alsoOnSheet++;
+                    sheetHomes.Add($"  {name,-42} sheet holds: "
+                        + (string.IsNullOrWhiteSpace(sv) ? "(empty)" : Trim(sv))
+                        + (p != null ? "   — AND the title block has its own copy" : ""));
+                }
 
                 if (p == null)
                 {
@@ -136,15 +160,25 @@ namespace StingTools.Commands.Drawing
                 }
                 catch (Exception ex) { StingLog.Warn($"InspectFields guid '{name}': {ex.Message}"); }
 
+                // "shared" vs "family": a LABEL bound to a shared parameter and a
+                // family parameter of the same name are different things, and only one
+                // of them is what gets written.
+                string kind = "";
+                try { kind = p.IsShared ? " {shared}" : " {family}"; }
+                catch (Exception ex) { StingLog.Warn($"InspectFields kind '{name}': {ex.Message}"); }
+                string ro = "";
+                try { if (p.IsReadOnly) { readOnly++; ro = " READ-ONLY"; } }
+                catch (Exception ex) { StingLog.Warn($"InspectFields readonly '{name}': {ex.Message}"); }
+
                 if (string.IsNullOrWhiteSpace(val))
                 {
                     emptyOnFamily++;
-                    rows.Add($"  {name,-42} [{where}] (empty){guidNote}");
+                    rows.Add($"  {name,-42} [{where}]{kind}{ro} (empty){guidNote}");
                 }
                 else
                 {
                     hasValue++;
-                    rows.Add($"  {name,-42} [{where}] {Trim(val)}{guidNote}");
+                    rows.Add($"  {name,-42} [{where}]{kind}{ro} {Trim(val)}{guidNote}");
                 }
             }
 
@@ -198,7 +232,24 @@ namespace StingTools.Commands.Drawing
                 sb.AppendLine();
             }
 
-            sb.AppendLine("Fields:");
+            if (alsoOnSheet > 0)
+            {
+                sb.AppendLine($"*** {alsoOnSheet} of these names ALSO exist on the SHEET ***");
+                sb.AppendLine("A label in the .rfa binds to ONE parameter. Every STING command writes");
+                sb.AppendLine("to the title-block instance. Where a name lives in both places, the");
+                sb.AppendLine("label may be reading the sheet's copy while the writes land on the");
+                sb.AppendLine("title block's — the write succeeds and the drawing never changes.");
+                sb.AppendLine();
+                foreach (var h in sheetHomes) sb.AppendLine(h);
+                sb.AppendLine();
+            }
+            if (readOnly > 0)
+            {
+                sb.AppendLine($"{readOnly} field(s) are READ-ONLY on this title block and can never be");
+                sb.AppendLine("written by any command — a formula or a reporting parameter drives them.");
+                sb.AppendLine();
+            }
+            sb.AppendLine("Fields:   [where] {shared|family}  value");
             foreach (var r in rows) sb.AppendLine(r);
 
             StingLog.Info($"TitleBlock_InspectFields '{sheet.SheetNumber}': "
