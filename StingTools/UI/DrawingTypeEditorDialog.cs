@@ -1707,6 +1707,12 @@ namespace StingTools.UI
                 "These two are how you see and clear that.",
                 new (string,string,string)[]
                 {
+                    ("Fields?",          "TitleBlock_InspectFields",
+                        "Read-only: every title-block field on the ACTIVE sheet — what it holds, whether " +
+                        "it lives on the instance or the type, and whether the family's parameter is the " +
+                        "same shared parameter STING writes. Answers \"Populate said it wrote and the cell " +
+                        "is still blank\": either no label draws it, or the family has a same-named " +
+                        "parameter with a different GUID."),
                     ("Locked?",          "TitleBlock_InspectLock",
                         "Read-only: which sheets carry PRJ_TB_LOCK_BOOL, and whether the flag sits on the " +
                         "title-block instance or on its TYPE. A type-held lock came from the family itself, " +
