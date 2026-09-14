@@ -2584,6 +2584,9 @@ Generic Models,TB_ORIENTATION_TXT,b6319d2e-ce98-581f-8ef7-e99efb586415,TEXT,TBL_
 Generic Models,TB_PAPER_SIZE_TXT,91e14b95-8eaa-55a7-9371-a4ce7a59e903,TEXT,TBL_TITLEBLOCK,Type,Paper size A0 A1 A2 A3 A4 [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_PURPOSE_TXT,04661785-4aa1-5969-9664-b056c880e3f0,TEXT,TBL_TITLEBLOCK,Type,Sheet purpose Plan RCP Section Elevation Detail Schedule Spool Coordination Legend 3D Submission [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_QR_PAYLOAD_TXT,33472683-7bb0-572a-bcfb-af85c0a9dbcd,TEXT,TBL_TITLEBLOCK,Type,Engine populates with deep link URL to CDE record [STING TB v1],False,,,MULTI,1,0
+Generic Models,TB_QR_ANCHOR_JSON_TXT,4d22d338-3235-55b2-8a16-8496736f346a,TEXT,TBL_TITLEBLOCK,Type,Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1],False,,,MULTI,1,0
+Generic Models,TB_QR_SIZE_MM_TXT,1e12f424-d0bb-599c-a284-7362405fa621,TEXT,TBL_TITLEBLOCK,Type,Override for the printed QR size in mm on this title block [STING TB v1],False,,,MULTI,1,0
+Generic Models,TB_QR_PAYLOAD_TEMPLATE_TXT,54dea7ad-c65a-5d41-891c-beb8c6d71ed9,TEXT,TBL_TITLEBLOCK,Type,Token template for what this sheet's QR encodes; blank = the STING deep link [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_REQUIRED_PRJ_PARAMS_TXT,94b48873-b462-5ecd-9829-454c75fd1c19,TEXT,TBL_TITLEBLOCK,Type,CSV of project params that must be non empty for submission eg PRJ_PLOT_NUMBER;PRJ_LRV_NUMBER [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_REQUIRED_REV_FORMAT_TXT,debf8b1e-9057-59f6-8341-74d419ab7982,TEXT,TBL_TITLEBLOCK,Type,Required revision format pattern eg P01-P02 or A-B-C [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_REQUIRED_SEALS_JSON_TXT,a480a6e8-5038-56ff-b773-9bc8547c8e18,TEXT,TBL_TITLEBLOCK,Type,JSON array of required signature seals for submission TBs [STING TB v1],False,,,MULTI,1,0

@@ -64,6 +64,14 @@ namespace StingTools.Core.Drawing
 
     public static class SheetQrStamper
     {
+        static SheetQrStamper()
+        {
+            // SheetQrConfig is deliberately Revit-free so its parsing is unit-tested.
+            // Point its complaint hook at the real log here, once, so a malformed
+            // TB_QR_ANCHOR_JSON_TXT is still reported rather than dropped.
+            SheetQrConfig.Warn = m => StingLog.Warn(m);
+        }
+
         /// <summary>Every image type this stamper creates carries this prefix. It is
         /// the cleanup contract: the idempotency pass finds and replaces by it, and
         /// touches nothing else on the sheet. Same shape as the "STING VIS - " prefix
@@ -184,7 +192,7 @@ namespace StingTools.Core.Drawing
                             "stamping anyway. Run TitleBlock_CreateAll to regenerate the family with the toggle.");
                     }
 
-                    string url = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, ReadRevision(sheet));
+                    string url = BuildPayload(doc, sheet, tb, projectCode, r);
 
                     // 1 — the payload parameter.
                     var payload = tb.LookupParameter(ParamRegistry.TB_QR_PAYLOAD);
@@ -333,38 +341,118 @@ namespace StingTools.Core.Drawing
         /// far has lived — a slot resolving off the paper is arithmetic, not API.</summary>
         private static (XYZ centre, double sizeFt) ResolvePlacement(Document doc, ViewSheet sheet, Element tb)
         {
-            QrRect? slotRect = null;
-            try
-            {
-                var slots = Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
-                var slot = slots.Values.FirstOrDefault(s =>
-                    string.Equals(s.PurposeTag, "qr-code", StringComparison.OrdinalIgnoreCase));
-                if (slot?.Bbox != null) slotRect = ToMm(slot.Bbox);
-            }
-            catch (Exception ex)
-            {
-                // A slot we cannot read is not a slot. Fall through to the fallback,
-                // having said why.
-                StingLog.Warn($"SheetQrStamper: qr-code slot lookup failed for '{sheet.SheetNumber}': {ex.Message}");
-            }
+            var anchor = ResolveAnchor(doc, sheet, tb);
 
             QrRect? tbRect = null;
             try { tbRect = ToMm(tb.get_BoundingBox(sheet)); }
             catch (Exception ex) { StingLog.Warn($"SheetQrStamper: title-block bbox read failed: {ex.Message}"); }
 
-            var plan = SheetQrPlacement.Plan(slotRect, tbRect);
+            var plan = SheetQrPlacement.Plan(anchor?.ToRect(), tbRect);
 
-            // Report the fallback AND its reason. "Placed at the slot" and "placed in a
-            // corner because the slot was nonsense" must never read alike in the log.
-            if (plan.Source != QrPlacementSource.Slot && !string.IsNullOrEmpty(plan.Rejection))
+            if (plan.Source == QrPlacementSource.Slot)
             {
+                StingLog.Info($"SheetQrStamper: '{sheet.SheetNumber}' placed from {anchor?.Source} at {anchor}.");
+            }
+            else
+            {
+                // Report the fallback AND its reason, and say what would fix it. A
+                // corner stamp on a title block that HAS a drawn QR cell is the exact
+                // outcome this resolution chain exists to prevent, so it must never
+                // read the same as a successful placement.
                 StingLog.Warn(
-                    $"SheetQrStamper: sheet '{sheet.SheetNumber}' fell back to {plan.Source} — " +
-                    $"{plan.Rejection}. Fix the slot in STING_TITLE_BLOCKS.json.");
+                    $"SheetQrStamper: sheet '{sheet.SheetNumber}' fell back to {plan.Source}" +
+                    (string.IsNullOrEmpty(plan.Rejection) ? "" : $" — {plan.Rejection}") +
+                    $". Set {ParamRegistry.TB_QR_ANCHOR} on this title block (or run Sheet_SetQRAnchor) " +
+                    "to place it where the family's own QR cell is.");
             }
 
             return (new XYZ(plan.CentreXMm / MmPerFoot, plan.CentreYMm / MmPerFoot, 0),
                     plan.SizeMm / MmPerFoot);
+        }
+
+        /// <summary>Find the QR cell, most specific source first.
+        ///
+        /// 1. <c>TB_QR_ANCHOR_JSON_TXT</c> on the title-block INSTANCE — works for any
+        ///    family, needs no spec entry, and is what a project uses for its own
+        ///    hand-authored title blocks.
+        /// 2. A <c>qr-code</c> entry in the family's own <c>TB_VIEWPORT_SLOTS_JSON_TXT</c>
+        ///    slot map, which a STING-authored title block already carries.
+        /// 3. A <c>qr-code</c> slot in <c>STING_TITLE_BLOCKS.json</c>, matched by family id.
+        /// 4. Nothing — the caller falls back to a corner and says so loudly.
+        ///
+        /// The order is "what this specific family says" before "what the catalogue
+        /// says about families like it". A project that has moved its QR cell must not
+        /// be overruled by a spec entry it never edited.</summary>
+        internal static QrAnchor ResolveAnchor(Document doc, ViewSheet sheet, Element tb)
+        {
+            double defaultSize = ResolveSizeMm(tb);
+
+            // 1 — the instance parameter.
+            try
+            {
+                var raw = tb.LookupParameter(ParamRegistry.TB_QR_ANCHOR)?.AsString();
+                var a = SheetQrConfig.ParseAnchor(raw, defaultSize);
+                if (a != null) return a;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetQrStamper: reading {ParamRegistry.TB_QR_ANCHOR}: {ex.Message}");
+            }
+
+            // 2 — the family's own slot map.
+            try
+            {
+                var raw = tb.LookupParameter("TB_VIEWPORT_SLOTS_JSON_TXT")?.AsString();
+                var a = SheetQrConfig.ParseSlotMap(raw, defaultSize);
+                if (a != null) return a;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetQrStamper: reading the family slot map: {ex.Message}");
+            }
+
+            // 3 — the corporate catalogue, by family id.
+            try
+            {
+                var slots = Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
+                var slot = slots.Values.FirstOrDefault(s =>
+                    string.Equals(s.PurposeTag, "qr-code", StringComparison.OrdinalIgnoreCase));
+                if (slot?.Bbox != null)
+                {
+                    var r = ToMm(slot.Bbox);
+                    if (r.HasValue)
+                        return new QrAnchor
+                        {
+                            XMm = r.Value.X0,
+                            YMm = r.Value.Y0,
+                            SizeMm = Math.Min(r.Value.Width, r.Value.Height),
+                            Source = QrAnchorSource.SpecSlot,
+                        };
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetQrStamper: qr-code slot lookup failed for '{sheet.SheetNumber}': {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>Printed size for this title block: its own override, else the
+        /// planner's default.</summary>
+        private static double ResolveSizeMm(Element tb)
+        {
+            try
+            {
+                var raw = tb.LookupParameter(ParamRegistry.TB_QR_SIZE_MM)?.AsString();
+                var v = SheetQrConfig.ParseSize(raw);
+                if (v.HasValue) return v.Value;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetQrStamper: reading {ParamRegistry.TB_QR_SIZE_MM}: {ex.Message}");
+            }
+            return SheetQrPlacement.DefaultSizeMm;
         }
 
         /// <summary>Revit feet to millimetres, in ONE place, so a unit slip has one
@@ -386,6 +474,62 @@ namespace StingTools.Core.Drawing
                 .OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsNotElementType()
                 .FirstElement();
+
+        /// <summary>What this sheet's QR encodes.
+        ///
+        /// Defaults to the STING deep link, and ONLY departs from it when the title
+        /// block carries an explicit <c>TB_QR_PAYLOAD_TEMPLATE_TXT</c>. That default
+        /// matters: the Planscape scanner understands the deep link, and a silently
+        /// applied template would produce codes our own app rejects — which is the
+        /// defect this whole feature started as.
+        ///
+        /// Tokens available to a template: <c>{project}</c> <c>{sheet}</c> <c>{rev}</c>
+        /// <c>{title}</c> <c>{suitability}</c> <c>{date}</c> <c>{url}</c>, the last
+        /// being the STING deep link itself so a client can wrap rather than replace
+        /// it.</summary>
+        private static string BuildPayload(Document doc, ViewSheet sheet, Element tb,
+                                           string projectCode, SheetQrResult r)
+        {
+            string rev = ReadRevision(sheet);
+            string standard = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, rev);
+
+            string template = null;
+            try { template = tb.LookupParameter(ParamRegistry.TB_QR_PAYLOAD_TEMPLATE)?.AsString(); }
+            catch (Exception ex) { StingLog.Warn($"SheetQrStamper: reading {ParamRegistry.TB_QR_PAYLOAD_TEMPLATE}: {ex.Message}"); }
+
+            if (string.IsNullOrWhiteSpace(template)) return standard;
+
+            var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["project"] = projectCode,
+                ["sheet"] = sheet.SheetNumber ?? "",
+                ["rev"] = rev ?? "",
+                ["title"] = sheet.Name ?? "",
+                ["suitability"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS),
+                ["date"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                ["url"] = standard,
+            };
+
+            var rendered = SheetQrConfig.RenderTemplate(template, tokens);
+            if (string.IsNullOrWhiteSpace(rendered))
+            {
+                // A template that renders to nothing would encode an empty QR. Say so
+                // and use the standard link rather than stamping a blank.
+                r.Warnings.Add(
+                    $"Sheet '{sheet.SheetNumber}': {ParamRegistry.TB_QR_PAYLOAD_TEMPLATE} rendered empty; " +
+                    "used the standard STING link instead.");
+                return standard;
+            }
+
+            StingLog.Info($"SheetQrStamper: '{sheet.SheetNumber}' using a custom payload template.");
+            return rendered;
+        }
+
+        private static string SafeParam(Element el, string name)
+        {
+            try { return el?.LookupParameter(name)?.AsString() ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"SheetQrStamper: reading '{name}': {ex.Message}"); return ""; }
+        }
 
         /// <summary>Current sheet revision, or null. Reads the native
         /// SHEET_CURRENT_REVISION so the QR agrees with the revision box the

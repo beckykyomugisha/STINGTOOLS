@@ -691,6 +691,7 @@ namespace StingTools.UI
                     case "Sheet_StampQRAll":    RunCommand<Commands.Drawing.SheetStampQrAllCommand>(app); break;
                     case "Sheet_ClearQR":       RunCommand<Commands.Drawing.SheetClearQrCommand>(app); break;
                     case "Sheet_InspectQR":     RunCommand<Commands.Drawing.SheetInspectQrCommand>(app); break;
+                    case "Sheet_SetQRAnchor":   RunCommand<Commands.Drawing.SheetSetQrAnchorCommand>(app); break;
                     // QR-7 — element QR codes onto a plottable sheet, so the PNGs
                     // stop being loose files nobody places.
                     case "QR_LabelSheet":       RunCommand<Commands.Drawing.QrLabelSheetCommand>(app); break;

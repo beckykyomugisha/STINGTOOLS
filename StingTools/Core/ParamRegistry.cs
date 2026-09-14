@@ -558,6 +558,26 @@ namespace StingTools.Core
         // NB: no PRJ_ prefix — that is the shipped spelling, do not "correct" it.
         public const string TB_QR_PAYLOAD          = "TB_QR_PAYLOAD_TXT";
         public const string TB_QR_PAYLOAD_GUID     = "33472683-7bb0-572a-bcfb-af85c0a9dbcd";
+        // ── Per-family QR configuration. ──
+        // These exist because the FIRST cut could only find a QR cell for families
+        // listed in STING_TITLE_BLOCKS.json, and real projects do not use those. A
+        // set of sheets exported from a live project on 2026-09-14 had a SCAN cell
+        // already drawn and labelled on all three sheets — in a DIFFERENT place on
+        // each — and the stamper's corner fallback would have missed every one.
+        // A title block that states its own QR cell needs no spec entry at all.
+        /// <summary>{"x":701,"y":85,"size":24} in mm from the sheet origin. The
+        /// highest-priority anchor: authored once per family, works for any family.</summary>
+        public const string TB_QR_ANCHOR           = "TB_QR_ANCHOR_JSON_TXT";
+        public const string TB_QR_ANCHOR_GUID      = "4d22d338-3235-55b2-8a16-8496736f346a";
+        /// <summary>Printed size override in mm, when the cell is sized but not placed
+        /// by TB_QR_ANCHOR_JSON_TXT.</summary>
+        public const string TB_QR_SIZE_MM          = "TB_QR_SIZE_MM_TXT";
+        public const string TB_QR_SIZE_MM_GUID     = "1e12f424-d0bb-599c-a284-7362405fa621";
+        /// <summary>Token template for what this sheet's QR encodes. Blank means the
+        /// STING deep link. Lets a client whose CDE is elsewhere point the code there
+        /// without a code change.</summary>
+        public const string TB_QR_PAYLOAD_TEMPLATE      = "TB_QR_PAYLOAD_TEMPLATE_TXT";
+        public const string TB_QR_PAYLOAD_TEMPLATE_GUID = "54dea7ad-c65a-5d41-891c-beb8c6d71ed9";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
         public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";

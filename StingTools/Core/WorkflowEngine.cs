@@ -2075,6 +2075,7 @@ namespace StingTools.Core
                 case "Sheet_StampQR":            return new Commands.Drawing.SheetStampQrCommand();
                 case "Sheet_ClearQR":            return new Commands.Drawing.SheetClearQrCommand();
                 case "Sheet_InspectQR":          return new Commands.Drawing.SheetInspectQrCommand();
+                case "Sheet_SetQRAnchor":        return new Commands.Drawing.SheetSetQrAnchorCommand();
                 case "QR_LabelSheet":            return new Commands.Drawing.QrLabelSheetCommand();
                 case "QR_ScanCommission":        return new V6.QRScanCommissioningCommand();
 
