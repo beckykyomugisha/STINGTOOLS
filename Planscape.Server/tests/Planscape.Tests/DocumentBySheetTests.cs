@@ -225,15 +225,40 @@ public class DocumentBySheetTests : IClassFixture<PlanscapeWebApplicationFactory
     [Fact]
     public async Task The_lookup_is_scoped_to_the_project_in_the_route()
     {
-        // A sheet number is only unique within a project. BSM801 exists in another
-        // project; asking this one must not find it.
-        SeedInProject(Guid.Parse("77777777-7777-7777-7777-777777777777"),
-                      "BS-OTHERPROJECT-BSM801.pdf", "PUBLISHED", "C01");
+        // A sheet number is only unique within a project, so the same number asked
+        // of a DIFFERENT project must not find this one's drawing.
+        //
+        // Asked this way round on purpose. Seeding the document into a second
+        // project id would need that project to exist: `Documents.ProjectId` has a
+        // real foreign key, and CI runs Postgres where that is enforced. An earlier
+        // version of this test seeded into a fabricated project id, passed locally,
+        // and failed in CI with a 23503 — the fixture, not the endpoint.
+        Seed("BS-SCOPE-BSM801.pdf", "PUBLISHED", "C01", DateTime.UtcNow);
         var client = await _factory.CreateAuthenticatedClientAsync();
 
-        var body = await GetAsync(client, $"{Base}/by-sheet?number=BSM801");
+        // It IS findable in its own project …
+        var own = await GetAsync(client, $"{Base}/by-sheet?number=BSM801");
+        Assert.Equal(1, own.GetProperty("matched").GetInt32());
 
-        Assert.Equal(0, body.GetProperty("matched").GetInt32());
+        // … and not from another. The ACL refuses a project this caller is not a
+        // member of outright (404), which is a better answer than an empty list: it
+        // discloses nothing about whether such a project exists. Either shape is
+        // acceptable here; returning THIS project's drawing is not, and that is what
+        // the assertion pins.
+        var res = await client.GetAsync(
+            "/api/projects/77777777-7777-7777-7777-777777777777/documents/by-sheet?number=BSM801");
+
+        if (res.StatusCode == HttpStatusCode.OK)
+        {
+            var other = JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+            Assert.Equal(0, other.GetProperty("matched").GetInt32());
+        }
+        else
+        {
+            Assert.True(res.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden,
+                $"expected 200-with-nothing, 404 or 403 for another project; got {(int)res.StatusCode}");
+            Assert.DoesNotContain("BSM801", await res.Content.ReadAsStringAsync());
+        }
     }
 
     [Fact]
@@ -261,12 +286,15 @@ public class DocumentBySheetTests : IClassFixture<PlanscapeWebApplicationFactory
             .Select(i => i.GetProperty("fileName").GetString()!)
             .ToList();
 
-    private DocumentRecord Seed(string fileName, string cdeStatus, string revision, DateTime uploadedAt)
-        => SeedInProject(TestData.ProjectId, fileName, cdeStatus, revision, uploadedAt);
-
-    private DocumentRecord SeedInProject(
-        Guid projectId, string fileName, string cdeStatus, string revision, DateTime? uploadedAt = null)
+    /// <summary>Seed into the fixture's real project. There is deliberately no
+    /// "seed into another project" helper: `Documents.ProjectId` carries a foreign
+    /// key that Postgres enforces, so a fabricated project id fails in CI while
+    /// passing locally. Cross-project scoping is tested by READING a different
+    /// project id, which needs no row.</summary>
+    private DocumentRecord Seed(
+        string fileName, string cdeStatus, string revision, DateTime? uploadedAt = null)
     {
+        var projectId = TestData.ProjectId;
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlanscapeDbContext>();
         db.BypassTenantFilter = true;

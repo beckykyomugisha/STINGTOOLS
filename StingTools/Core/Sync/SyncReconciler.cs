@@ -153,6 +153,19 @@ namespace StingTools.Core.Sync
             F(r.ParaDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             F(r.PatternMode);
 
+            // SUS-QR — sustainability. INCLUDED deliberately: without these an
+            // element whose only change is its embodied carbon or EPD reference
+            // hashes identically to its previous state and is never re-sent. The
+            // assessment would sit in the model and never reach the server, with
+            // nothing reporting it — the value is written, the sync "succeeds", and
+            // the figure simply never arrives.
+            //
+            // NULL is encoded distinctly from a value, so "assessed at 0" and
+            // "never assessed" produce different hashes. Collapsing them would mean
+            // a first assessment that lands on zero never syncs.
+            F(r.EpdRef); F(r.MaterialName);
+            F(r.EmbodiedCarbonKg?.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+
             // LastModifiedUtc is deliberately EXCLUDED. It falls back to
             // DateTime.UtcNow whenever ASS_TAG_MODIFIED_DT is absent, so
             // including it would make every element's hash differ on every

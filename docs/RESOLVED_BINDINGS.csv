@@ -2941,10 +2941,10 @@ TB_NORTH_ARROW_AUTO_ROTATE_BOOL,26,excluded,,Engine rotates nested north arrow t
 TB_ORIENTATION_TXT,26,excluded,,Sheet orientation Landscape or Portrait [STING TB v1]
 TB_PAPER_SIZE_TXT,26,excluded,,Paper size A0 A1 A2 A3 A4 [STING TB v1]
 TB_PURPOSE_TXT,26,excluded,,Sheet purpose Plan RCP Section Elevation Detail Schedule Spool Coordination Legend 3D Submission [STING TB v1]
-TB_QR_PAYLOAD_TXT,26,excluded,,Engine populates with deep link URL to CDE record [STING TB v1]
-TB_QR_ANCHOR_JSON_TXT,26,excluded,,Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1]
-TB_QR_SIZE_MM_TXT,26,excluded,,Override for the printed QR size in mm on this title block [STING TB v1]
+TB_QR_ANCHOR_JSON_TXT,26,excluded,,"Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1]"
 TB_QR_PAYLOAD_TEMPLATE_TXT,26,excluded,,Token template for what this sheet's QR encodes; blank = the STING deep link [STING TB v1]
+TB_QR_PAYLOAD_TXT,26,excluded,,Engine populates with deep link URL to CDE record [STING TB v1]
+TB_QR_SIZE_MM_TXT,26,excluded,,Override for the printed QR size in mm on this title block [STING TB v1]
 TB_REQUIRED_PRJ_PARAMS_TXT,26,excluded,,CSV of project params that must be non empty for submission eg PRJ_PLOT_NUMBER;PRJ_LRV_NUMBER [STING TB v1]
 TB_REQUIRED_REV_FORMAT_TXT,26,excluded,,Required revision format pattern eg P01-P02 or A-B-C [STING TB v1]
 TB_REQUIRED_SEALS_JSON_TXT,26,excluded,,JSON array of required signature seals for submission TBs [STING TB v1]
