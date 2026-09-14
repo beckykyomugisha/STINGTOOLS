@@ -68,10 +68,21 @@ SEED_SRC="$SCRIPT_DIR/Families/TitleBlocks/_seeds"
 SEED_DST="$DEPLOY_DIR/Families/TitleBlocks/_seeds"
 if [ -d "$SEED_SRC" ]; then
     mkdir -p "$SEED_DST"
-    # *.rfa only — the README beside them is documentation, not content.
-    if ls "$SEED_SRC"/*.rfa >/dev/null 2>&1; then
-        cp -f "$SEED_SRC"/*.rfa "$SEED_DST/"
-    else
+    # *.rfa only — the README beside them is documentation, not content — and
+    # NOT Revit's own <name>.0001.rfa backups, which it leaves on every save in
+    # the Family Editor. They match no spec id so the factory would ignore them,
+    # but shipping them is ~1 MB of noise each and would make the seed count
+    # below overstate how many families are really seeded.
+    seeds_copied=0
+    for seed in "$SEED_SRC"/*.rfa; do
+        [ -e "$seed" ] || continue
+        case "$(basename "$seed")" in
+            *.[0-9][0-9][0-9][0-9].rfa) continue ;;
+        esac
+        cp -f "$seed" "$SEED_DST/"
+        seeds_copied=$((seeds_copied + 1))
+    done
+    if [ "$seeds_copied" = "0" ]; then
         echo "  NOTE: no seed .rfa present — title blocks will build without labels."
     fi
 else

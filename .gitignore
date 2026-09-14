@@ -153,3 +153,12 @@ niagara_connection.json
 # current. Assembled on demand; see KUT_DOCS_WORKING/to_send/README.md.
 KUT_DOCS_WORKING/to_send/*
 !KUT_DOCS_WORKING/to_send/README.md
+
+# Revit's own backup families. Authoring a title-block seed in the Family Editor
+# leaves <name>.0001.rfa beside it on every save, and those are ~1 MB each. They
+# match no spec id so the factory ignores them, but committing and deploying
+# them is pure noise — and the seed count in the deploy summary would overstate
+# how many families are actually seeded.
+Families/TitleBlocks/_seeds/*.[0-9][0-9][0-9][0-9].rfa
+# The plugin creates this beside any family it opens from here.
+Families/TitleBlocks/_seeds/STING_BIM_MANAGER/
