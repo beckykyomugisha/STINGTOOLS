@@ -622,9 +622,10 @@ namespace StingTools.Core.Drawing
                 ["disc"] = SafeParam(sheet, ParamRegistry.SHT_DISC),
                 ["cde"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE),
                 ["lod"] = SafeParam(tb, PLod),
+                ["suitability_code"] = SafeParam(tb, PSuitability),
                 ["paper"] = SafeParam(tb, PPaperSize),
                 ["scale"] = SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE),
-                ["sheetoftotal"] = SafeParam(sheet, PSheetOfTotal),
+                ["sheetoftotal"] = SafeParam(tb, PSheetOfTotal),
                 ["drawn"] = SafeParam(tb, PDrawnBy),
                 ["checked"] = SafeParam(tb, PCheckedBy),
                 ["approved"] = SafeParam(tb, PApprovedBy),
@@ -655,6 +656,13 @@ namespace StingTools.Core.Drawing
         private const string PPaperSize    = "PRJ_TB_PAPER_SZ_TXT";
         private const string PSheetOfTotal = "PRJ_SHEET_OF_TOTAL_TXT";
         private const string PLod          = "PRJ_DWG_LOIN_LOD_TXT";
+        // The ISO 19650 SUITABILITY CODE (S0..S7 / A1..A5) -- the "S4" cell on the
+        // sheet. NOT PRJ_TB_DELIVERABLE_STATUS_TXT, which is a separate
+        // deliverable-tracking field and was what the first cut read: the payload
+        // carried an empty suitability while "S4 FOR CONSTRUCTION" was printed two
+        // inches away. Suitability is the single most useful fact to carry, because
+        // it is what lets an offline scan say the print is superseded.
+        private const string PSuitability  = "PRJ_DWG_SUITABILITY_COD_TXT";
 
         /// <summary>Gather the issue facts the rich document link carries.
         ///
@@ -665,15 +673,26 @@ namespace StingTools.Core.Drawing
         {
             return new StingQrFormat.DocFacts
             {
-                Suitability  = NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS)),
+                // Suitability code first; the deliverable-status field is a distant
+                // fallback so a project that only fills that one still carries something.
+                Suitability  = NullIfBlank(SafeParam(tb, PSuitability))
+                               ?? NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS)),
                 CdeState     = NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE)),
-                // The date the code was STAMPED. Honest as a fact about this print,
+                // The date the code was STAMPED -- an honest fact about this print,
                 // which is what a scanner needs in order to judge whether it is holding
-                // a current sheet -- unlike a "status" that goes stale on the paper.
-                IssueDate    = DateTime.UtcNow.ToString("yyyyMMdd"),
+                // a current sheet, unlike a "status" that goes stale on the paper.
+                //
+                // LOCAL date, not UTC. The first cut used UtcNow and stamped 20260914
+                // onto a sheet plotted at 01:30 on the 15th in Kampala (UTC+3): a
+                // drawing dated the day before it was issued. Nobody reading the paper
+                // can tell that came from a timezone rather than a backdated issue.
+                IssueDate    = DateTime.Now.ToString("yyyyMMdd"),
                 Zone         = null,   // no sheet-level zone parameter exists yet
-                SheetOfTotal = NullIfBlank(SafeParam(sheet, PSheetOfTotal)),
-                Lod          = NullIfBlank(SafeParam(tb, PLod)),
+                // On the TITLE BLOCK, not the sheet -- that is where the sheet-count
+                // paginator writes it (TitleBlockCommands.cs). Reading the sheet found
+                // nothing while "25 OF 100" was printed on the drawing.
+                SheetOfTotal = SheetQrConfig.NormaliseSheetOfTotal(SafeParam(tb, PSheetOfTotal)),
+                Lod          = SheetQrConfig.NormaliseLod(SafeParam(tb, PLod)),
                 PaperSize    = NullIfBlank(SafeParam(tb, PPaperSize)),
                 Scale        = NullIfBlank(SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE)),
                 Initials     = ReadInitials(tb),

@@ -289,6 +289,63 @@ namespace StingTools.Tags.Tests
             Assert.Equal(18.0, back.SizeMm, 2);
         }
 
+        // ── Fact normalisers ─────────────────────────────────────────────────
+        //
+        // Both exist because the PRINTED form of a value and its PAYLOAD form are
+        // different things. The sheet says "025 / 100" and "LOD 300" because a human
+        // reads those next to other codes; the QR wants the numbers. Left raw, the
+        // producer's alphanumeric folding turns every space and slash into '.', so
+        // "025 / 100" would ship as "025...100" — six wasted characters out of a
+        // budget measured in tens.
+
+        [Theory]
+        [InlineData("025 / 100", "25.100")]
+        [InlineData("25 OF 100", "25.100")]
+        [InlineData("1/12", "1.12")]
+        [InlineData("007 / 009", "7.9")]
+        public void The_sheet_position_becomes_two_bare_numbers(string raw, string expected)
+            => Assert.Equal(expected, SheetQrConfig.NormaliseSheetOfTotal(raw));
+
+        [Fact]
+        public void A_zero_padded_sheet_position_does_not_become_empty()
+        {
+            // TrimStart('0') on "000" leaves nothing at all; the result must still be
+            // a number rather than a stray separator.
+            Assert.Equal("0.100", SheetQrConfig.NormaliseSheetOfTotal("000 / 100"));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void An_absent_sheet_position_is_null(string raw)
+            => Assert.Null(SheetQrConfig.NormaliseSheetOfTotal(raw));
+
+        [Fact]
+        public void A_sheet_position_with_only_one_number_is_passed_through()
+        {
+            // Better to carry something a person can interpret than to invent a total.
+            Assert.Equal("25", SheetQrConfig.NormaliseSheetOfTotal("25"));
+        }
+
+        [Theory]
+        [InlineData("LOD 300", "300")]
+        [InlineData("LOD350", "350")]
+        [InlineData("200", "200")]
+        [InlineData(" lod 400 ", "400")]
+        public void The_lod_becomes_the_number_alone(string raw, string expected)
+            => Assert.Equal(expected, SheetQrConfig.NormaliseLod(raw));
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public void An_absent_lod_is_null(string raw)
+            => Assert.Null(SheetQrConfig.NormaliseLod(raw));
+
+        [Fact]
+        public void A_non_numeric_lod_is_passed_through_not_dropped()
+            => Assert.Equal("TBC", SheetQrConfig.NormaliseLod("TBC"));
+
         [Fact]
         public void A_formatted_anchor_uses_a_dot_decimal_separator()
         {

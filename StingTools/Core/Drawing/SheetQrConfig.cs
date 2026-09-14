@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Drawing
@@ -76,16 +77,6 @@ namespace StingTools.Core.Drawing
         /// and the stamp then lands in a corner. That has to be sayable.</summary>
         public static Action<string> Warn { get; set; } = _ => { };
 
-        /// <summary>Parse TB_QR_ANCHOR_JSON_TXT.
-        ///
-        /// Accepts <c>{"x":701,"y":85,"size":24}</c> and, because a person typing
-        /// this into a Revit parameter box will not reach for JSON, the plain forms
-        /// <c>701,85,24</c> and <c>701 85 24</c>.
-        ///
-        /// Returns null for anything it cannot read — INCLUDING a well-formed object
-        /// with a zero or negative size. A zero-size anchor would place a stamp with
-        /// no extent, which renders as nothing at all and looks exactly like the
-        /// feature being switched off.</summary>
         /// <summary>Render an anchor to the canonical JSON that <see cref="ParseAnchor"/>
         /// reads back. The two are a pair and must stay reciprocal: this is the form
         /// stored in Extensible Storage AND the form TB_QR_ANCHOR_JSON_TXT carries, so a
@@ -98,6 +89,48 @@ namespace StingTools.Core.Drawing
             string.Format(System.Globalization.CultureInfo.InvariantCulture,
                 "{{\"x\":{0:0.##},\"y\":{1:0.##},\"size\":{2:0.##}}}", xMm, yMm, sizeMm);
 
+        /// <summary>"025 / 100" -> "25.100". The paginator writes a zero-padded,
+        /// space-and-slash form for PRINTING; the payload wants the two numbers and
+        /// nothing else. Left raw, Seg() would fold each space and slash to '.' and
+        /// emit "025...100" -- six wasted characters out of a budget measured in
+        /// tens, and unreadable at the far end.</summary>
+        public static string NormaliseSheetOfTotal(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var nums = Regex.Matches(raw, @"\d+");
+            if (nums.Count < 2) return NullIfBlankLocal(raw);
+            // TrimStart('0') on "000" would leave nothing, so fall back to "0".
+            string n = nums[0].Value.TrimStart('0');
+            string t = nums[1].Value.TrimStart('0');
+            return (n.Length == 0 ? "0" : n) + "." + (t.Length == 0 ? "0" : t);
+        }
+
+        /// <summary>"LOD 300" -> "300". The printed cell repeats the word because a
+        /// human reads it next to other codes; the payload does not need it, and four
+        /// characters is real money at this size.</summary>
+        public static string NormaliseLod(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var m = Regex.Match(raw, @"\d+");
+            return m.Success ? m.Value : NullIfBlankLocal(raw);
+        }
+
+
+        /// <summary>Null rather than an empty or whitespace string, so "not carried"
+        /// and "carried as blank" stay distinguishable at the far end.</summary>
+        private static string NullIfBlankLocal(string s) =>
+            string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        /// <summary>Parse TB_QR_ANCHOR_JSON_TXT.
+        ///
+        /// Accepts <c>{"x":701,"y":85,"size":24}</c> and, because a person typing
+        /// this into a Revit parameter box will not reach for JSON, the plain forms
+        /// <c>701,85,24</c> and <c>701 85 24</c>.
+        ///
+        /// Returns null for anything it cannot read — INCLUDING a well-formed object
+        /// with a zero or negative size. A zero-size anchor would place a stamp with
+        /// no extent, which renders as nothing at all and looks exactly like the
+        /// feature being switched off.</summary>
         public static QrAnchor ParseAnchor(string raw, double defaultSizeMm)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;
