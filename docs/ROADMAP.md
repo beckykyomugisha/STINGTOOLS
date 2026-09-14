@@ -2,6 +2,28 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## QR chain (2026-09-14, Phase 280)
+
+The parse/generate/stamp halves are built and gated by a shared corpus
+(`tools/qr_payload_corpus.json`). These are the parts that are **not** built, and
+the reasons they were left rather than half-done.
+
+| ID | Gap | Detail |
+|---|---|---|
+| QR-1 | **Nothing in the stamper has been run in Revit** | `SheetQrStamper` compiles and is the first `ImageType.Create` / `ImageInstance.Create` code in the plugin, so no prior run proves the API usage. It is unreachable from any test — it needs a `Document`, a `ViewSheet` and a title-block instance. **Before merge, on a real project:** `Sheet_StampQR` on an A1 sheet → a QR appears in the bottom-right of the info strip, clear of the SCALE / APPROVED BY cells; run it twice → exactly one image, not two; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own placed images alone; scan the result with a phone → the camera offers to open `app.planscape.build/s/…`. Also check one A0 and one A3 portrait, the two sizes where the first (fractional) placement cut landed off-paper. |
+| QR-2 | **Scanning a sheet code cannot open the drawing** | Planscape has no lookup-by-sheet-number endpoint. `parseQr` returns `type: 'sheet'` and the scanner shows the sheet number, project and revision, then stops. It deliberately does **not** run the element search on a sheet number — that returns nothing and reads as "not in this project", a wrong answer rather than an empty one. Fix: a `GET /api/documents/by-sheet?projectId&number` (or reuse `DocumentsController`), then a sheet route in the app. |
+| QR-3 | **Phone-driven commissioning does not exist** | `Planscape.Server` has no commissioning controller and no commissioning entity, so there is nothing for the app to POST a scan to. `QR_ScanCommission` is the DESKTOP path only (USB/Bluetooth scanner or a pasted payload). Building the mobile half means: a `Commissioning` entity + controller mirroring `QRCommissioningWorkflow`'s state machine, the audit-log write, and an offline-queue path — this is a feature, not a wiring job. |
+| QR-4 | **12 concrete title-block families have no `qr-code` slot** | `STING_TB_ASSEMBLY_{PIPE,DUCT,COND,HANGER}`, `STING_TB_PRESENT_A1{,_MONO}`, `STING_TB_DIVIDER_A1`, `STING_TB_REGISTER_A1`, `STING_TB_SUBMISSION_{KCCA,ERA,NEMA}`, `STING_TB_CLARIFICATION_A3` each declare their own `slots` array, which under leaf-wins **replaces** the size base's — so they shadow the `QR` slot. They fall back to a corner inset. Placing one blind in each is exactly the mistake the fractional-coords cut already made, so each needs its layout read and its free cell collision-checked, the way the nine bases were. |
+| QR-5 | **The stamp is not wired into the issue orchestrator** | Deliberate. `TITLE_BLOCK_CREATION_GUIDE.md` used to claim the orchestrator "bakes a QR code into `TB_QR_PAYLOAD_TXT`" and nothing did; that claim is removed rather than satisfied by a hasty call. If it should run at issue time, the decision is *which* step — a stamp written before the revision is minted encodes a stale `?r=`. |
+| QR-6 | **`app.planscape.build` does not claim the deep link** | The payload is an https URL so a stock camera opens it, but nothing declares Android App Links (`assetlinks.json`) or iOS Universal Links (`apple-app-site-association`), and there is no `/e/…` or `/s/…` web route. Today a scan opens a browser and lands on whatever that path serves. Until the web routes exist this is a working *scan* and an incomplete *destination*. |
+| QR-7 | **`QRCodeCommand` still writes loose PNGs nobody places** | The element QR is generated to a folder; nothing puts it on a drawing, a schedule or a label sheet. `SheetQrStamper` now proves the image-placement pattern, so an element-label sheet (a grid of QR + tag, plotted and cut) is a small build on top of it. |
+
+**Pre-existing, found while running the gates and not fixed here:**
+`tools/validate_param_readership.py` reports **386 violations against a baseline of 384** on a
+clean tree, before any of this work — measured by stashing. The Phase 280 change is
+readership-neutral (386 before, 386 after). Whoever introduced the 2 should raise the ceiling
+with a reason or fix them; raising it on their behalf would defeat the ratchet.
+
 ## Workflow conditions (2026-09-10)
 
 **WF-COND-1 — 14 of the 15 `condition` values shipped presets use are not

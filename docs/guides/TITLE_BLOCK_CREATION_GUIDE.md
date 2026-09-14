@@ -92,7 +92,7 @@ In STING, a title block is more than a printable border — it is a **self-descr
 | Which nested families (north arrow, scale bar, key plan, grid bubble, section marker, elevation marker, callout, rev cloud) are pre-loaded? | `TB_NESTED_*_FAMILY_TXT` family of pointers |
 | Is this title block valid? When was it last validated? | `TB_LAST_VALIDATED_DT_TXT`, `TB_TEMPLATE_VERSION_TXT` |
 
-Because the title block answers all those questions itself, the STING placement engine, the validator, the QR-code stamper and the auto-rotate-north-arrow tool **never need a hard-coded fallback** — they read the family.
+Because the title block answers all those questions itself, the STING placement engine, the validator, the QR-code stamper (`SheetQrStamper`, built 2026-09-14) and the auto-rotate-north-arrow tool **never need a hard-coded fallback** — they read the family.
 
 > **Plain-language version:** the title block is the *map* of the sheet. The engine reads the map; you draw the map once.
 
@@ -219,7 +219,7 @@ The kit ships as 15 `.rfa` families covering every deliverable surface a typical
 
 #### 4.1.1 Layman-friendly description of every kit member
 
-1. **Cover page (`STING_TB_COVER_A3`)** — the front sheet of any deliverable bundle. Big logo, project name banner, deliverable code, revision number. *No drawable zone* (so the engine refuses to drop viewports on it). Auto-fills from `PRJ_NAME_TXT`, `PRJ_NUMBER_TXT`, `PRJ_TB_DELIVERABLE_STATUS_TXT`, `PRJ_TB_REVISION_NR_TXT`. QR code links back to the CDE record.
+1. **Cover page (`STING_TB_COVER_A3`)** — the front sheet of any deliverable bundle. Big logo, project name banner, deliverable code, revision number. *No drawable zone* (so the engine refuses to drop viewports on it). Auto-fills from `PRJ_NAME_TXT`, `PRJ_NUMBER_TXT`, `PRJ_TB_DELIVERABLE_STATUS_TXT`, `PRJ_TB_REVISION_NR_TXT`. QR code links back to the CDE record (stamped by `Sheet_StampQR`; see §5.3 — it is a deliberate step, not part of the issue run).
 2. **Start-up page (`STING_TB_STARTUP_A3`)** — page 2. "About this deliverable" paragraph, project team table, sheet-index placeholder, revision-history placeholder. The DocAutomation `BuildStartupPage` command fills the placeholder rectangles with live `DrawingRegisterSchedule` and `RevisionSchedule` views at issue time.
 3. **Pipe spool (`STING_TB_ASSEMBLY_PIPE`)** — workshop drawing for one spool of pipe. 5 viewport slots (PLAN / ISO / ELEV0 / ELEV90 / 3D) plus a 200 mm BOM strip on the right. BOM auto-fills from `AssyParams` (spool#, weight, weld count, bolt count, fitting count, test pressure, fab status, BOM rev, QC inspector). Bound to `pipe-spool-A1-1to50`.
 4. **Duct spool (`STING_TB_ASSEMBLY_DUCT`)** — same shape as pipe spool but discipline = DUCT. Bound to `duct-spool-A1-1to50`. Engine swaps the discipline-tagged grid bubble (`STING_GRID_HVAC`) and the title-block colour band (HVAC blue).
@@ -227,7 +227,7 @@ The kit ships as 15 `.rfa` families covering every deliverable surface a typical
 6. **Hanger-only fabrication (`STING_TB_ASSEMBLY_HANGER`)** — A2 (smaller) because hanger packages are simpler. Used for drawing lone support / hanger / bracket assemblies.
 7. **Technical presentation (`STING_TB_TECHNICAL_A1`)** — internal IDR / TDR. Discipline colour band on the right edge (Mech blue / Elec yellow / Plumb green / Arch grey / Struct red), key plan top-left, north arrow top-right (auto-rotates to True North), revision history bottom-left, project info bottom-right. Hosts MEP coord, mech plan, plant rooms, clash sheets.
 8. **Client presentation (`STING_TB_CLIENT_A1`)** — softer typography (Arial 18 pt minimum), client logo top, no grids/levels/sections visible, big breathing room. Hosts presentation 3Ds, perspectives, context-site, render boards, exterior elevations. Style pack flips between `corp-presentation-rich` (full colour) and `corp-presentation-mono` (greyscale) per deliverable.
-9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on, QR code links to RFI portal. Validator refuses to ship if `PRJ_TB_DESIGN_STAGE_TXT != "C"`.
+9. **Issued For Construction (`STING_TB_IFC_A1`)** — solid red 25 mm "ISSUED FOR CONSTRUCTION" banner across the top. Revision table on. (An "RFI portal" QR was described here and never built — the stamp links to the sheet's CDE record like every other block.) Validator refuses to ship if `PRJ_TB_DESIGN_STAGE_TXT != "C"`.
 10. **Issued For Tender (`STING_TB_IFT_A1`)** — diagonal "ISSUED FOR TENDER" watermark at 8 % opacity. Required seals from Lead Architect / Structural Engineer / MEP Engineer. CDE state pinned to `S3`.
 11. **As-built (`STING_TB_AS_BUILT_A1`)** — green "AS-BUILT — RECORD" status banner. Existing-phase elements show un-halftoned (the record IS the existing fabric). Frozen rev table.
 12. **KCCA submission (`STING_TB_SUBMISSION_KCCA`)** — authority-specific. Required `PRJ_PLOT_NUMBER`, `PRJ_LRV_NUMBER`, `PRJ_PHYSICAL_ADDRESS` non-empty. KCCA-tagged grid bubble. Revision pattern `P\d{2}`. Form version baked in (`KCCA-2024-Rev3`).
@@ -300,9 +300,34 @@ When the deliverable orchestrator (Phase 112 template engine) renders a delivera
 1. Reads `ProjectInformation` parameters once.
 2. Mints / increments the deliverable revision via `DocumentIdentityGenerator.Next()`.
 3. Writes the freshly-minted values back to all `PRJ_TB_*` cover-page labels.
-4. Bakes a QR code into `TB_QR_PAYLOAD_TXT` containing the deliverable id + CDE permalink.
 
 Result: the cover page **never** has stale info, because every issue rewrites it.
+
+#### The QR stamp is a separate, explicit step
+
+Until 2026-09-14 this list had a fourth item — *"bakes a QR code into `TB_QR_PAYLOAD_TXT`
+containing the deliverable id + CDE permalink"* — describing something no code did. The
+parameter was declared and bound, its description read "Engine populates with deep link URL
+to CDE record", and there was no engine: zero C# references in the whole repository.
+
+The engine now exists (`Core/Drawing/SheetQrStamper.cs`), but it is **not** wired into the
+issue orchestrator, and this guide will not claim it is. Run it deliberately:
+
+| Command | What it does |
+|---|---|
+| `Sheet_StampQR` | Active or selected sheets — writes `TB_QR_PAYLOAD_TXT` and places the code |
+| `Sheet_StampQRAll` | Every sheet in the project. Idempotent: re-running replaces, never stacks |
+| `Sheet_InspectQR` | Read-only — which sheets actually carry a stamp, which families lack the params |
+| `Sheet_ClearQR` | Removes stamps matching the `"STING QR - "` image-type prefix, nothing else |
+
+The payload is an **https deep link**, `https://app.planscape.build/s/{project}/{sheet}?r={rev}`,
+so a stock phone camera opens it. The earlier `sting://` custom scheme could not be opened by
+any camera app and was rejected by Planscape's own scanner.
+
+**What still does not work end to end:** scanning a sheet code on a phone shows the sheet
+number, project and revision, and stops there — Planscape has no lookup-by-sheet-number
+endpoint yet, so the app cannot open the drawing. The element codes (`Sheet`'s sibling,
+`/e/{project}/{tag}`) DO resolve, because `/api/tagsync/elements/search` matches on `Tag1`.
 
 ---
 

@@ -310,6 +310,18 @@
           "kind": "shared",
           "instance": true,
           "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_QR_CODE_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "TB_QR_PAYLOAD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -1111,6 +1123,17 @@
           "description": "Key-plan pocket \u2014 small location overview",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "QR",
+          "anchor": [794, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -2824,6 +2847,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [1153, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -4309,6 +4343,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [805, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -5772,6 +5817,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [805, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -6601,6 +6657,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [566, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -8012,6 +8079,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [392, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -9423,6 +9501,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [269, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -10840,6 +10929,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [561.8, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -11601,6 +11701,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [387.8, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },

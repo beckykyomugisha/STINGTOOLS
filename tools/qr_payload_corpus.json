@@ -1,0 +1,222 @@
+{
+  "_comment": [
+    "THE QR payload corpus. One file, read by BOTH parsers' test suites:",
+    "  C#  StingTools.Tags.Tests/StingQrFormatTests.cs   (StingTools/Core/StingQrPayload.cs)",
+    "  TS  Planscape/tests/qrParser.contract.test.mjs    (Planscape/src/services/qrParser.ts)",
+    "",
+    "It exists because the two parsers silently disagreed for the whole life of",
+    "the feature: the plugin emitted sting://asset/{code}/{tag} and the scanner",
+    "accepted only planscape:// or a bare UUID, so every code the plugin ever",
+    "produced was rejected by our own app at the parse step. Nothing failed",
+    "loudly; a rejected scan looks exactly like a bad scan.",
+    "",
+    "A shared corpus makes that disagreement a RED TEST rather than a field",
+    "report. Adding a case here fails whichever side has not implemented it.",
+    "",
+    "expect.tag / projectCode / uniqueId use null to mean 'must be absent'.",
+    "expect.ok=false means the parser MUST reject it — returning a guess for",
+    "these is the defect, not the absence of one.",
+    "A 'sheet' case sets expect.kind='sheet' and carries sheetNumber/revision instead of tag/uniqueId."
+  ],
+  "cases": [
+    {
+      "name": "current https deep link, tag only",
+      "raw": "https://app.planscape.build/e/KUT/M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+      "expect": {
+        "ok": true,
+        "projectCode": "KUT",
+        "tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "current https deep link, with UniqueId for commissioning",
+      "raw": "https://app.planscape.build/e/KUT/M-BLD1-Z01-L02-HVAC-SUP-AHU-0003?u=3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+      "expect": {
+        "ok": true,
+        "projectCode": "KUT",
+        "tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+        "uniqueId": "3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+        "kind": "element"
+      }
+    },
+    {
+      "name": "percent-encoded tag round-trips",
+      "raw": "https://app.planscape.build/e/PRJ%20A/E-BLD1-Z01-L01-LV%2FHV-PWR-DB-0007",
+      "expect": {
+        "ok": true,
+        "projectCode": "PRJ A",
+        "tag": "E-BLD1-Z01-L01-LV/HV-PWR-DB-0007",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "legacy sting:// still resolves — codes are printed on issued sheets",
+      "raw": "sting://asset/KUT/M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+      "expect": {
+        "ok": true,
+        "projectCode": "KUT",
+        "tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "mobile-native scheme carrying a tag",
+      "raw": "planscape://element/M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+      "expect": {
+        "ok": true,
+        "projectCode": null,
+        "tag": "M-BLD1-Z01-L02-HVAC-SUP-AHU-0003",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "mobile-native scheme carrying a UniqueId",
+      "raw": "planscape://element/3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+      "expect": {
+        "ok": true,
+        "projectCode": null,
+        "tag": null,
+        "uniqueId": "3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+        "kind": "element"
+      }
+    },
+    {
+      "name": "bare Revit UniqueId (GUID + element-id suffix)",
+      "raw": "3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+      "expect": {
+        "ok": true,
+        "projectCode": null,
+        "tag": null,
+        "uniqueId": "3f2504e0-4f89-11d3-9a0c-0305e82c3301-000a1b2c",
+        "kind": "element"
+      }
+    },
+    {
+      "name": "bare GUID, no element-id suffix",
+      "raw": "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+      "expect": {
+        "ok": true,
+        "projectCode": null,
+        "tag": null,
+        "uniqueId": "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
+        "kind": "element"
+      }
+    },
+    {
+      "name": "bare ISO 19650 tag, hand-typed from a label",
+      "raw": "P-BLD1-Z02-GF-DCW-SUP-WC-0011",
+      "expect": {
+        "ok": true,
+        "projectCode": null,
+        "tag": "P-BLD1-Z02-GF-DCW-SUP-WC-0011",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "surrounding whitespace is trimmed, not rejected",
+      "raw": "  https://app.planscape.build/e/KUT/A-BLD1-Z01-GF-ARC-FIN-DR-0001  ",
+      "expect": {
+        "ok": true,
+        "projectCode": "KUT",
+        "tag": "A-BLD1-Z01-GF-ARC-FIN-DR-0001",
+        "uniqueId": null,
+        "kind": "element"
+      }
+    },
+    {
+      "name": "sheet deep link from a title block",
+      "raw": "https://app.planscape.build/s/KUT/M-101",
+      "expect": {
+        "ok": true,
+        "kind": "sheet",
+        "projectCode": "KUT",
+        "sheetNumber": "M-101",
+        "revision": null
+      }
+    },
+    {
+      "name": "sheet deep link carrying the current revision",
+      "raw": "https://app.planscape.build/s/KUT/M-101?r=P03",
+      "expect": {
+        "ok": true,
+        "kind": "sheet",
+        "projectCode": "KUT",
+        "sheetNumber": "M-101",
+        "revision": "P03"
+      }
+    },
+    {
+      "name": "sheet number with a slash survives encoding",
+      "raw": "https://app.planscape.build/s/KUT/M-101%2FA",
+      "expect": {
+        "ok": true,
+        "kind": "sheet",
+        "projectCode": "KUT",
+        "sheetNumber": "M-101/A",
+        "revision": null
+      }
+    },
+    {
+      "name": "sheet link with no sheet number",
+      "raw": "https://app.planscape.build/s/KUT",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "empty string",
+      "raw": "",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "a word from some other QR code",
+      "raw": "hello",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "an unrelated URL",
+      "raw": "https://example.com/e/KUT/M-0001",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "deep link with a project code but no tag",
+      "raw": "https://app.planscape.build/e/KUT",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "legacy scheme with no tag",
+      "raw": "sting://asset/KUT",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "native scheme with an empty id",
+      "raw": "planscape://element/",
+      "expect": {
+        "ok": false
+      }
+    },
+    {
+      "name": "free text containing a hyphen must NOT become a tag lookup",
+      "raw": "Wi-Fi password is on the wall",
+      "expect": {
+        "ok": false
+      }
+    }
+  ]
+}

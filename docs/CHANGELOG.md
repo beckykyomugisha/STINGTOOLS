@@ -2,6 +2,111 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 280 — the QR chain, end to end, and the title-block stamp that was only ever documented)
+
+**The plugin's QR codes could not be read by the plugin's own app, and never had been.**
+`StingQRHelper` encoded `sting://asset/{code}/{tag}`; `Planscape/src/services/qrParser.ts`
+accepted `planscape://element|issue|document/{id}` or a bare UUID, and nothing else. Every
+code StingTools ever produced hit the `unknown` branch and was rejected at the parse step —
+before any network call, so nothing logged, nothing 500'd, and a rejected payload looked
+exactly like a bad scan. The server end always worked: `/api/tagsync/elements/search`
+ILIKEs on `Tag1`, so a STING tag resolves fine once it gets past that function.
+
+Neither side was wrong on its own. They had simply never been introduced, and nothing
+checked. **`tools/qr_payload_corpus.json` is now that check** — one corpus of 21 cases read
+by both `StingTools.Tags.Tests/StingQrFormatTests.cs` (40 tests) and
+`Planscape/tests/qrParser.contract.test.mjs` (`npm run test:qr`, in `npm test`). Reverting
+the parser to its prior version fails 10 of 17 cases; it was proved RED before GREEN.
+
+**Payload is now an https deep link**, `https://app.planscape.build/e/{project}/{tag}?u={uid}`
+for an element and `/s/{project}/{sheet}?r={rev}` for a sheet. A custom scheme is unopenable
+by a stock phone camera, which is precisely the site operative a printed QR exists for.
+`Parse` still reads the legacy `sting://` form, because codes are already printed on issued
+sheets and must keep resolving.
+
+**Three more defects in the generator:**
+
+- `SaveQRPng` used `File.OpenWrite` — `OpenOrCreate`, which does **not** truncate. Regenerating
+  over a longer PNG left the old file's bytes past the new `IEND`. Now `File.Create`.
+- `Margin = 1`. That is the quiet zone in MODULES and ISO/IEC 18004 requires 4 — the usual
+  cause of a code that reads on screen and fails on a plot. Now 4, and ECC raised M -> Q for
+  codes that get dusty, creased and photographed at an angle.
+- The project code came from the `.rvt` FILENAME, so renaming the model silently changed
+  every QR it had ever produced. Now `PRJ_ORG_PROJECT_CODE_TXT`, falling back to
+  `ProjectInformation.Number`, then `"PRJ"`.
+
+Also: filename sanitising handled `/ \ :` only, so a tag carrying `* ? " < > |` threw — and
+the throw was counted as "skipped, no tag", which is a different and misleading thing.
+Failures are now counted and reported separately from skips.
+
+**The title-block QR was specified in three documents and implemented in none.**
+`TB_QR_PAYLOAD_TXT` was declared in `MR_PARAMETERS.txt`, bound in `RESOLVED_BINDINGS.csv`,
+and described as *"Engine populates with deep link URL to CDE record"* — **zero C# references
+in 1,443 source files.** `PRJ_TB_SHOW_QR_CODE_BOOL` was documented in `TitleBlockSpec.cs` and
+`SLOT_TAXONOMY.md` and appeared in **zero** of the ~30 title-block specs, while its four
+siblings (`SHOW_NORTH_ARROW`, `SHOW_SCALE_BAR`, ...) appear in nine each. No `qr-code`
+`purposeTag` existed anywhere. So a reader of the codebase would conclude the feature
+shipped, and a reader of a produced sheet would assume a toggle was off.
+
+`Core/Drawing/SheetQrStamper.cs` is that engine. It writes the payload, renders the PNG, and
+places it via `ImageType.Create` / `ImageInstance.Create` — **the first image-placement code
+in the plugin**. Commands: `Sheet_StampQR`, `Sheet_StampQRAll`, `Sheet_InspectQR`,
+`Sheet_ClearQR`.
+
+Contracts worth knowing:
+
+- **`"STING QR - "` is the cleanup contract.** Replace and clear find images by that prefix
+  and touch nothing else. Re-running REPLACES rather than stacks; stacked QR images overlap
+  exactly, so they are invisible on screen and show up only as a muddy plot.
+- **The nine size bases declare the `QR` slot in absolute mm, not fractions.** The first cut
+  used `fracAnchor` resolved against the drawable rect and put the stamp at y = -29 mm on A0
+  and y = -5 mm on A3 portrait — off the paper, invisible on screen AND absent from the plot,
+  with nothing reporting it. Every cell was collision-checked against that base's own labels
+  and static text. `ResolvePlacement` now also REFUSES a slot that resolves outside the title
+  block's bounding box and falls back to a corner with a named warning.
+- **Twelve concrete families shadow `slots`** (fabrication, presentation, submission, divider,
+  register, clarification) and therefore have no `qr-code` slot. They get the corner fallback.
+  That is a deliberate, stated gap — their layouts differ too much to place blind.
+- **A missing parameter is reported, never assumed.** No title block, a locked
+  `PRJ_TB_LOCK_BOOL`, an absent toggle and an absent payload param are each named individually.
+  `SheetQrResult.DidNothing` exists so "0 stamped, 0 failed" cannot be reported as a success.
+
+**"QR commissioning" involved no QR, and could not have.** `QRAdvanceCommissioningCommand`
+reads the Revit SELECTION; there was no scan path anywhere. And `QRCommissioningWorkflow.Advance`
+resolves by `UniqueId` while `QRCodeCommand` encoded only `ASS_TAG_1_TXT` — producer and its
+only intended consumer disagreed on the key, so even a working scanner could not have driven
+it. Both halves fixed: the payload carries `?u={UniqueId}`, and `QR_ScanCommission` accepts a
+scanned/pasted payload, resolves by UniqueId first then by tag, and **refuses to guess when a
+tag is duplicated** — advancing the wrong asset's commissioning state is not something a later
+run can detect or undo.
+
+**`GenerateQRSheet` repointed.** It was named for a sheet QR that did not exist and aliased the
+per-ELEMENT command (`MISWIRE_AUDIT.md` cluster E), so a caller asking for a sheet stamp
+silently got a folder of element PNGs. It now runs `SheetStampQrAllCommand`.
+
+**What is NOT built, stated plainly:**
+
+1. **Scanning a sheet code cannot open the drawing.** Planscape has no lookup-by-sheet-number
+   endpoint. The app shows sheet number, project and revision, and stops. It does not run an
+   element search on a sheet number — that would return nothing and read as "not in this
+   project", a wrong answer rather than an empty one.
+2. **Phone-driven commissioning does not exist.** `Planscape.Server` has no commissioning
+   controller or entity, so there is nothing for the app to POST to. `QR_ScanCommission` is the
+   DESKTOP path: a USB/Bluetooth scanner (which types like a keyboard) or a pasted payload.
+3. **The stamp is not wired into the issue orchestrator.** It is a deliberate command. The
+   creation guide previously claimed the orchestrator "bakes a QR code into `TB_QR_PAYLOAD_TXT`";
+   that line is now removed rather than made true by hand-waving.
+
+Docs corrected where they described this as shipped: `SLOT_TAXONOMY.md`,
+`TITLE_BLOCK_CREATION_GUIDE.md` (including an "RFI portal" QR that was never built), and
+`DRAWINGS_PRODUCTION_LAYMANS_GUIDE.md` ("scanning a code on site pulls up that element's asset
+data" — it did not).
+
+Gates: plugin builds 0 errors / 0 warnings. Workflow-wiring OK (Tier 4 and Tier 6 both 0 across
+1,689 buttons). Path-discipline OK. Parameter-contract OK. The parameter-readership gate reports
+386 against a baseline of 384 — **that failure pre-dates this work**, measured on a clean tree,
+and this change is readership-neutral (386 before, 386 after).
+
 #### Completed (Phase 279 — every parameter role decided, and the cost block measured instead of asserted)
 
 #953 landed the contract gate with 226 of 253 entries `unresolved`. All 253 now

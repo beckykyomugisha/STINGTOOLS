@@ -80,6 +80,26 @@ export default function ScannerScreen() {
       Alert.alert('Unrecognised code', `Scanned: ${result.data}`);
       return;
     }
+    // A SHEET code (the title-block stamp) names a drawing, not an element.
+    // Running it through the element search would return nothing and read as
+    // "that element is not in this project" — a wrong answer, not an empty one.
+    // Say what it is and stop, until there is a sheet lookup to call.
+    if (parsed.type === 'sheet') {
+      setQuery(parsed.sheetNumber ?? parsed.id);
+      Alert.alert(
+        `Sheet ${parsed.sheetNumber}`,
+        [
+          parsed.projectCode ? `Project: ${parsed.projectCode}` : null,
+          parsed.revision ? `Revision: ${parsed.revision}` : null,
+          '',
+          'This is a drawing-sheet code. Opening sheets from a scan is not built yet — search the Documents tab by this number.',
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      );
+      return;
+    }
+
     // Treat element/issue/document QR payloads as element tag lookup
     setQuery(parsed.id);
     if (activeProject) {

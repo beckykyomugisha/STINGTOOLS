@@ -77,7 +77,14 @@ namespace StingTools.UI.Modules
             // ── QR / Code ───────────────────────────────────────────────────
             registry.Register("QRCode",                    app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
             registry.Register("GenerateQRCode",            app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
-            registry.Register("GenerateQRSheet",           app => StingCommandHandler.RunCommandPublic<Tags.QRCodeCommand>(app));
+            // Repointed to the real sheet stamper; it aliased the per-element command
+            // while no sheet QR existed (MISWIRE_AUDIT.md cluster E).
+            registry.Register("GenerateQRSheet",           app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetStampQrAllCommand>(app));
+            registry.Register("Sheet_StampQR",             app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetStampQrCommand>(app));
+            registry.Register("Sheet_StampQRAll",          app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetStampQrAllCommand>(app));
+            registry.Register("Sheet_ClearQR",             app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetClearQrCommand>(app));
+            registry.Register("Sheet_InspectQR",           app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetInspectQrCommand>(app));
+            registry.Register("QR_ScanCommission",         app => StingCommandHandler.RunCommandPublic<V6.QRScanCommissioningCommand>(app));
             // "PrintQRTags" registration retired (Group 3 QR collapse — button removed; it ran the
             // same QRCodeCommand as GenerateQRCode). See MISWIRE_AUDIT.md cluster E.
             registry.Register("CodeLegend",                app => StingCommandHandler.RunCommandPublic<Tags.CodeLegendCommand>(app));

@@ -2467,7 +2467,7 @@
                                 <Button Style="{StaticResource RedBtn}"    Content="Stale HL"   Tag="HighlightStale"        Click="Cmd_Click" ToolTip="Highlight flagged-stale elements in the active view with a red parameter-filter override"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Clear HL"   Tag="ClearStaleHighlight"   Click="Cmd_Click" ToolTip="Remove the stale highlight filter from the active view"/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Containers" Tag="ContainerPreCheck"     Click="Cmd_Click" ToolTip="Verify all 36+ tag container parameters are bound and writable"/>
-                                <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate QR code PNG for each selected element (encodes ASS_TAG_1_TXT as sting:// asset URL)"/>
+                                <Button Style="{StaticResource BlueBtn}"   Content="QR"         Tag="QRCode"                Click="Cmd_Click" ToolTip="Generate a QR code PNG for each selected element. Encodes an https deep link carrying the ISO 19650 tag and the element UniqueId, so a stock phone camera opens it and the Planscape scanner resolves it."/>
                                 <Button Style="{StaticResource ActionBtn}" Content="Codes"      Tag="CodeLegend"            Click="Cmd_Click" ToolTip="Browse all ISO 19650, CDE, discipline, STING parameter and RIBA stage codes in a searchable reference window"/>
                             </WrapPanel>
                         </Border>
@@ -3926,6 +3926,11 @@
                                     <Button Style="{StaticResource ActionBtn}" Content="Lab Export" Tag="Labour_Export" Click="Cmd_Click" ToolTip="Export the labour-hours summary to CSV."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="QR Advance" Tag="QR_AdvanceCommission" Click="Cmd_Click" ToolTip="QR: advance the commissioning state for the selected element."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="QR Report" Tag="QR_CommissionReport" Click="Cmd_Click" ToolTip="QR: generate the commissioning progress CSV report."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="QR Scan" Tag="QR_ScanCommission" Click="Cmd_Click" ToolTip="QR: scan or paste a payload and advance THAT element — the scan-driven path. &apos;QR Advance&apos; acts on the current selection instead."/>
+                                    <Button Style="{StaticResource BlueBtn}"   Content="Sheet QR" Tag="Sheet_StampQR" Click="Cmd_Click" ToolTip="Stamp the QR on the active or selected sheets: writes TB_QR_PAYLOAD_TXT and places the code at the title block&apos;s qr-code slot."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet QR All" Tag="Sheet_StampQRAll" Click="Cmd_Click" ToolTip="Stamp the QR on every sheet in the project. Idempotent — re-running replaces the previous stamp rather than stacking."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Sheet QR ?" Tag="Sheet_InspectQR" Click="Cmd_Click" ToolTip="Read-only: which sheets actually carry a QR image and payload, and which title-block families lack the parameters."/>
+                                    <Button Style="{StaticResource RedBtn}"    Content="Sheet QR X" Tag="Sheet_ClearQR" Click="Cmd_Click" ToolTip="Remove STING QR stamps from the active or selected sheets. Matches the &quot;STING QR - &quot; prefix only; your own placed images are untouched."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Health HTML" Tag="Health_DashboardHtml" Click="Cmd_Click" ToolTip="Build and export the model-health dashboard as HTML."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Clash XLSX" Tag="Clash_XlsxExport" Click="Cmd_Click" ToolTip="Export clashes.json to a filtered Excel workbook."/>
                                 </WrapPanel>
