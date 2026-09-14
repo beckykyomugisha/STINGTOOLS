@@ -9504,11 +9504,11 @@
         },
         {
           "id": "QR",
-          "anchor": [269, 10],
+          "anchor": [216, 10],
           "size": [18, 18],
           "purposeTag": "qr-code",
           "category": "symbol",
-          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time. A3 PORTRAIT SPECIFIC: the bottom-right corner is occupied by PRJ_TB_PAPER_SZ_TXT (x 257-269), so this sits in the empty band between PRJ_TB_APVD_BY_TXT (ends x=210) and that label. TitleBlockQrSlotTests caught the original bottom-right placement.",
           "respectShowToggle": true,
           "createReferencePlanes": false,
           "showCornerMarker": false
@@ -13792,6 +13792,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -14560,6 +14571,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -15328,6 +15350,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -16096,6 +16129,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -16386,6 +16430,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildCaption"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "overlay",
+          "description": "QR stamp — deep link to this sheet's CDE record. OVERLAY on the full-bleed RENDER slot - deliberate, and the only option: RENDER covers the whole sheet, so there is no free cell anywhere. The CAPTION slot overlays it the same way. Sits below the caption (y 64-78). Turn it off per sheet with PRJ_TB_SHOW_QR_CODE_BOOL when a client render should carry no marks. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -16676,6 +16731,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildCaption"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "overlay",
+          "description": "QR stamp — deep link to this sheet's CDE record. OVERLAY on the full-bleed RENDER slot - see STING_TB_PRESENT_A1_v1.0. Toggle it off for clean client output. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -18069,6 +18135,17 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "TB_ApplyDisciplineBand"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, clear of the BAND slot (40,80)-(801,554). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -18697,6 +18774,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "ExportSheetRegister"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the REGISTER schedule slot (starts y=62). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -19036,6 +19124,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -19375,6 +19474,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -19714,6 +19824,17 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -20025,6 +20146,17 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [393, 7],
+          "size": [15, 15],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the A3 sheet (420x297), below the QUERY/SKETCH slots (y>=35). Bottom-LEFT is taken by PRJ_ORG_PROJECT_NAME_TXT. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     }

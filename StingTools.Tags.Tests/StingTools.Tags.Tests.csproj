@@ -76,6 +76,9 @@
     <!-- The QR payload contract. Revit-free by design so both this suite and
          the mobile parser can be held to the same corpus (tools/qr_payload_corpus.json). -->
     <Compile Include="..\StingTools\Core\StingQrPayload.cs" Link="Core\StingQrPayload.cs" />
+    <!-- The sheet-QR placement decision. Revit-free on purpose: it is the half of
+         SheetQrStamper that can be wrong without Revit, and the only half that has been. -->
+    <Compile Include="..\StingTools\Core\Drawing\SheetQrPlacement.cs" Link="Core\Drawing\SheetQrPlacement.cs" />
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value
          entered as CFM, stored as l/s and redisplayed - is provable without a host. -->
     <Compile Include="..\StingTools\Core\Units\FlowDisplayUnits.cs" Link="Core\Units\FlowDisplayUnits.cs" />

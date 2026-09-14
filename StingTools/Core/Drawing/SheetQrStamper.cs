@@ -70,10 +70,10 @@ namespace StingTools.Core.Drawing
         /// in the Visibility Center.</summary>
         public const string ImageNamePrefix = "STING QR - ";
 
-        /// <summary>Printed size of the stamp, mm. 20 mm at ~25 modules gives a
-        /// 0.8 mm module, comfortably above the ~0.5 mm floor for a phone camera at
-        /// arm's length on a paper drawing.</summary>
-        public const double DefaultSizeMm = 20.0;
+        /// <summary>Printed size of the stamp, mm. Delegates to the planner rather than
+        /// restating the number: two copies of one constant is how the sizes drift, and
+        /// only the planner's copy is under test.</summary>
+        public static double DefaultSizeMm => SheetQrPlacement.DefaultSizeMm;
 
         /// <summary>Render resolution. 600 px over 20 mm is ~760 dpi — well past
         /// plotter resolution, so the printed edges stay crisp.</summary>
@@ -270,68 +270,57 @@ namespace StingTools.Core.Drawing
         /// bottom-right because the bottom strip is where every STING title block
         /// puts its project-info block, so a fallback there would overlap real
         /// content on a family that simply has no slot yet.</summary>
+        /// <summary>Where the stamp goes, in sheet feet, and how big.
+        ///
+        /// This method now does ONE thing: convert Revit's units and types into
+        /// millimetres, hand the decision to <see cref="SheetQrPlacement.Plan"/>, and
+        /// convert back. The decision itself is Revit-free and unit-tested
+        /// (SheetQrPlacementTests), because that is where this feature's only bug so
+        /// far has lived — a slot resolving off the paper is arithmetic, not API.</summary>
         private static (XYZ centre, double sizeFt) ResolvePlacement(Document doc, ViewSheet sheet, Element tb)
         {
-            double sizeFt = DefaultSizeMm / MmPerFoot;
-            var bb = tb.get_BoundingBox(sheet);
-
+            QrRect? slotRect = null;
             try
             {
                 var slots = Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
                 var slot = slots.Values.FirstOrDefault(s =>
                     string.Equals(s.PurposeTag, "qr-code", StringComparison.OrdinalIgnoreCase));
-                if (slot?.Bbox != null)
-                {
-                    var min = slot.Bbox.Min;
-                    var max = slot.Bbox.Max;
-                    // Fit inside the slot rather than assuming it is square.
-                    double fit = Math.Min(max.X - min.X, max.Y - min.Y);
-                    var centre = new XYZ((min.X + max.X) / 2.0, (min.Y + max.Y) / 2.0, 0);
-
-                    // Guard: a slot that resolves OUTSIDE the title block is worse than
-                    // no slot. The first cut of this used fractional coords resolved
-                    // against the drawable rect, which put the stamp at y = -29 mm on A0
-                    // and y = -5 mm on A3 portrait — off the paper, where it would have
-                    // been invisible on screen AND absent from the plot, with nothing
-                    // reporting a thing. Fall back rather than trust the declaration.
-                    if (fit > 0 && WithinTitleBlock(bb, centre))
-                        return (centre, fit);
-
-                    StingLog.Warn(
-                        $"SheetQrStamper: sheet '{sheet.SheetNumber}' — the qr-code slot resolves to " +
-                        $"({centre.X * MmPerFoot:F0}, {centre.Y * MmPerFoot:F0}) mm, outside the title block. " +
-                        "Using the corner fallback; fix the slot in STING_TITLE_BLOCKS.json.");
-                }
+                if (slot?.Bbox != null) slotRect = ToMm(slot.Bbox);
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"SheetQrStamper: qr-code slot lookup failed, using corner fallback: {ex.Message}");
+                // A slot we cannot read is not a slot. Fall through to the fallback,
+                // having said why.
+                StingLog.Warn($"SheetQrStamper: qr-code slot lookup failed for '{sheet.SheetNumber}': {ex.Message}");
             }
 
-            // Fallback — inset from the title block's top-right corner.
-            double marginFt = 8.0 / MmPerFoot;
-            if (bb != null)
+            QrRect? tbRect = null;
+            try { tbRect = ToMm(tb.get_BoundingBox(sheet)); }
+            catch (Exception ex) { StingLog.Warn($"SheetQrStamper: title-block bbox read failed: {ex.Message}"); }
+
+            var plan = SheetQrPlacement.Plan(slotRect, tbRect);
+
+            // Report the fallback AND its reason. "Placed at the slot" and "placed in a
+            // corner because the slot was nonsense" must never read alike in the log.
+            if (plan.Source != QrPlacementSource.Slot && !string.IsNullOrEmpty(plan.Rejection))
             {
-                return (new XYZ(bb.Max.X - marginFt - sizeFt / 2.0,
-                                bb.Max.Y - marginFt - sizeFt / 2.0, 0), sizeFt);
+                StingLog.Warn(
+                    $"SheetQrStamper: sheet '{sheet.SheetNumber}' fell back to {plan.Source} — " +
+                    $"{plan.Rejection}. Fix the slot in STING_TITLE_BLOCKS.json.");
             }
 
-            // No bounding box at all — the sheet origin is the only thing we can be
-            // sure of. Offset so the stamp is at least visible and obviously misplaced
-            // rather than invisibly at (0,0) under the border.
-            return (new XYZ(marginFt + sizeFt / 2.0, marginFt + sizeFt / 2.0, 0), sizeFt);
+            return (new XYZ(plan.CentreXMm / MmPerFoot, plan.CentreYMm / MmPerFoot, 0),
+                    plan.SizeMm / MmPerFoot);
         }
 
-        /// <summary>Is this point inside the title block's footprint? A null bbox
-        /// means we cannot tell, and "cannot tell" must not read as "yes" — but it
-        /// must not block a stamp either, so it answers true and the corner fallback
-        /// is never reached. Callers log which branch they took.</summary>
-        private static bool WithinTitleBlock(BoundingBoxXYZ bb, XYZ p)
+        /// <summary>Revit feet to millimetres, in ONE place, so a unit slip has one
+        /// place to live. Returns null for a null box rather than a zero rect — "no
+        /// extent" and "an extent of zero" lead to different decisions.</summary>
+        private static QrRect? ToMm(BoundingBoxXYZ bb)
         {
-            if (bb == null || p == null) return true;
-            const double tol = 1e-6;
-            return p.X >= bb.Min.X - tol && p.X <= bb.Max.X + tol
-                && p.Y >= bb.Min.Y - tol && p.Y <= bb.Max.Y + tol;
+            if (bb == null) return null;
+            return new QrRect(bb.Min.X * MmPerFoot, bb.Min.Y * MmPerFoot,
+                              bb.Max.X * MmPerFoot, bb.Max.Y * MmPerFoot);
         }
 
         // ─────────────────────────────────────────────────────────────────
