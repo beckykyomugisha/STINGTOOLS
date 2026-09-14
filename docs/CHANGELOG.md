@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 284 — TB-LINES-1: the A1 border stops being drawn on every other sheet)
+
+**The defect.** `TitleBlockSpec.Resolve` CONCATENATES `Lines` up the extends chain —
+it is leaf-wins for parameters, slots, static text and labels, but line geometry
+has no natural id, so it accumulated. Every size base extends `A1_common_v2.0`, so
+an A3-portrait family inherited A1's **841 × 594 border in addition to its own
+297 × 420 one**: a built `.rfa` with an A1 border drawn across an A3 sheet.
+
+Families at the SAME size as A1 were affected too, and more quietly. The assembly,
+presentation, cover, divider, register and submission blocks each redraw the full
+border, so the inherited copy landed exactly on top of theirs — duplicate
+overlapping linework, invisible on screen and doubled in the file. **22 families.**
+
+**The fix.** `replacesInheritedGeometry` on the 24 families that draw a complete
+sheet border of their own. When set, the fold discards inherited lines and filled
+regions rather than adding to them — which is what "I am a different sheet" means.
+
+**Explicit, not inferred.** It would be possible to detect "this family draws a
+complete border" from the geometry and switch behaviour on that, and it would be
+right today. A heuristic that silently changes what a family renders is precisely
+the failure mode this codebase produces, so the spec states it. The 24 initial
+values were *chosen* by that analysis; the flag is the contract.
+
+A family that declares only an ADDITION — the `STING_TB_*_BIM` info strips — must
+leave it false, so it still inherits its size base's border. Nine such families do,
+correctly.
+
+**Three tests hold it:**
+
+  * no family carries geometry beyond its own sheet (was 22, now 0)
+  * a family drawing its own complete border DECLARES that it replaces — otherwise
+    it silently double-draws its parent's border
+  * a family that only adds does NOT claim to replace — which would discard the very
+    border it is drawing onto and ship a sheet with no outline at all
+
+Plus the paper sizes pinned by value: A3 portrait resolves to 297 × 420, not
+841 × 594.
+
+**Two more bugs surfaced on the way, both in the instrument rather than the code.**
+
+`TitleBlockQrSlotTests.ResolvedLineExtent` still walked the old concat-all path
+after the fix, so five pinned paper sizes failed. That failure is the useful kind —
+a test measuring something different from what the code does is the defect it was
+written to catch, one level up. It now mirrors `MergeInto`.
+
+`tools/generate_title_block_previews.py` had its own copy of the fold (taught the
+flag) and derived paper size from a family-id string match that never matched
+`A3_PORT_common_v2.0` — the pattern looks for `_A3_PORT` and that id has no leading
+underscore, so every unprefixed size base fell through to an A1 default and rendered
+A3 content on an A1 canvas. It now prefers the family's own border geometry, which
+since this fix states the real sheet, and keeps the id heuristic only as a fallback.
+
+**Verified on the drawing, not just in the model.** The preview that exposed the
+defect — header reading "paper 841 × 594 mm" on a family whose description says
+"A3 portrait working sheet (297 × 420 mm)" — now reads 297 × 420, renders a border
+that fits the paper, and shows the QR cell sitting in its bottom-right cell. That
+closes **QR-15** as an actual visual check rather than a model assertion.
+
+Gates: plugin 0/0 with **1,250 tests**. Wiring, path-discipline and param-contract
+all OK; readership unchanged at 386.
+
+GAP-TB-01 stays open — splitting `A1_common` into a params-only identity base plus a
+separate A1-geometry base is still the cleaner end-state. But the defect it was
+chiefly wanted for is gone, so it is now a structural tidy-up rather than a
+correctness fix.
+
 #### Completed (Phase 283 — QR-13/14/15, and a border leak found by looking at the drawing)
 
 **QR-15 was a verification task, and verifying it found something else.** Rendering

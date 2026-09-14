@@ -55,6 +55,33 @@ def detect_paper(fam_id: str, fam: dict) -> tuple:
             sz = p["default"].upper().strip()
             if sz in PAPER_BY_BASENAME:
                 return PAPER_BY_BASENAME[sz]
+    # TB-LINES-1 — prefer the family's OWN border geometry, which since the
+    # replacesInheritedGeometry fix states the real sheet. The id heuristic below
+    # is a guess and got A3_PORT_common_v2.0 wrong: it looks for "_A3_PORT", and
+    # that id has no leading underscore, so every unprefixed size base fell through
+    # to the A1 default and rendered A3 content on an A1 canvas.
+    own = fam.get("lines") or []
+    if own:
+        w = h = 0.0
+        for ln in own:
+            for key in ("from", "to"):
+                pt = ln.get(key)
+                if pt:
+                    w = max(w, pt[0]); h = max(h, pt[1])
+        # Only trust it when the family closes a full border; a family declaring
+        # just an info strip must still fall through to the size heuristic.
+        tol = 1.0
+        horiz = any(l.get("from") and l.get("to")
+                    and abs(l["from"][1] - l["to"][1]) < tol
+                    and abs(min(l["from"][0], l["to"][0])) < tol
+                    and abs(max(l["from"][0], l["to"][0]) - w) < tol for l in own)
+        vert = any(l.get("from") and l.get("to")
+                   and abs(l["from"][0] - l["to"][0]) < tol
+                   and abs(min(l["from"][1], l["to"][1])) < tol
+                   and abs(max(l["from"][1], l["to"][1]) - h) < tol for l in own)
+        if horiz and vert and w > 0 and h > 0:
+            return (w, h)
+
     # Match by suffix on the id.
     upper = fam_id.upper()
     for size in ["A0", "A1", "A2", "A3", "A4"]:
@@ -111,8 +138,19 @@ def resolve_extends(lib: dict, fam: dict) -> dict:
             if s.get("id"):
                 slots[s["id"].lower()] = s
         merged["slots"] = list(slots.values())
-        # everything else concatenates
-        for k in ("lines", "staticText", "labels", "filledRegions"):
+        # TB-LINES-1 — a family declaring its own complete sheet REPLACES inherited
+        # line + filled-region geometry instead of adding to it. Mirrors
+        # TitleBlockSpec.MergeInto; without it this preview showed A1's 841x594
+        # border on an A3 sheet, which is how the defect was spotted.
+        if src.get("replacesInheritedGeometry"):
+            merged["lines"] = list(src.get("lines") or [])
+            merged["filledRegions"] = list(src.get("filledRegions") or [])
+        else:
+            for k in ("lines", "filledRegions"):
+                merged[k] = (merged.get(k) or []) + (src.get(k) or [])
+        # Annotations always concatenate here (the C# fold is id-aware; this
+        # preview is deliberately simpler and over-draws rather than hiding one).
+        for k in ("staticText", "labels"):
             merged[k] = (merged.get(k) or []) + (src.get(k) or [])
     return merged
 

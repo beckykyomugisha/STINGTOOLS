@@ -5,25 +5,6 @@
 <text x="240.0" y="39.0" text-anchor="middle" fill="#cfe2ff" font-size="9">paper 420 × 594 mm   ·   mode=NONBIM</text>
 <g transform="translate(30,674) scale(1,-1)">
 <rect x="0" y="0" width="420" height="594" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
 <line x1="0.0" y1="0.0" x2="420.0"  y2="0.0" stroke="#000" stroke-width="0.7"/>
 <line x1="420.0" y1="0.0" x2="420.0"  y2="594.0" stroke="#000" stroke-width="0.7"/>
 <line x1="420.0" y1="594.0" x2="0.0"  y2="594.0" stroke="#000" stroke-width="0.7"/>
@@ -206,6 +187,6 @@
 <text x="566" y="55" font-size="5" fill="#333">north-arrow</text>
 <rect x="602" y="51" width="6" height="6" fill="#009688" opacity="0.85"/>
 <text x="611" y="55" font-size="5" fill="#333">scale-bar</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 55  ·  lines 39  ·  labels 54  ·  static-text 40  ·  fills 0  ·  slots 11</text>
+<text x="30" y="689.0" font-size="7" fill="#444">parameters 55  ·  lines 20  ·  labels 54  ·  static-text 40  ·  fills 0  ·  slots 11</text>
 <text x="30" y="699.0" font-size="6" fill="#666">A3 portrait working sheet — A2 size; geometry scaled from STING_TB_A3_PORT_NONBIM_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).</text>
 </svg>

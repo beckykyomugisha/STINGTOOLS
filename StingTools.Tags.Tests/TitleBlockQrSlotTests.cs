@@ -136,25 +136,46 @@ namespace StingTools.Tags.Tests
             return (w, h);
         }
 
-        /// <summary>Effective geometry extent after the resolver CONCATENATES `lines`
-        /// up the chain — what the built .rfa would actually contain.</summary>
+        /// <summary>Effective geometry extent — what the built .rfa would contain.
+        ///
+        /// MIRRORS TitleBlockSpec.MergeInto: `lines` concatenate up the chain, EXCEPT
+        /// where a spec sets `replacesInheritedGeometry`, which discards everything
+        /// above it.
+        ///
+        /// This walk previously ignored the flag, so it kept reporting the old
+        /// pre-fix extents and five of the pinned paper sizes failed. That failure is
+        /// the useful kind: a test measuring something different from what the code
+        /// does is the defect it was written to catch, one level up.</summary>
         private static (double w, double h) ResolvedLineExtent(Dictionary<string, JToken> fams, string id)
         {
-            double w = 0, h = 0;
+            // Root-first, so a `replacesInheritedGeometry` spec can drop what came
+            // before it — exactly as Resolve folds root → … → leaf.
+            var chain = new List<JToken>();
             var f = fams.TryGetValue(id, out var x) ? x : null;
             while (f != null)
             {
-                if (f["lines"] is JArray arr)
-                    foreach (var l in arr)
-                        foreach (var key in new[] { "from", "to" })
-                            if (l[key] is JArray p)
-                            {
-                                w = Math.Max(w, (double)p[0]);
-                                h = Math.Max(h, (double)p[1]);
-                            }
+                chain.Add(f);
                 var parent = (string)f["extends"];
                 f = parent != null && fams.TryGetValue(parent, out var pf) ? pf : null;
             }
+            chain.Reverse();
+
+            var effective = new List<JToken>();
+            foreach (var spec in chain)
+            {
+                var own = spec["lines"] as JArray;
+                if ((bool?)spec["replacesInheritedGeometry"] == true) effective.Clear();
+                if (own != null) effective.AddRange(own);
+            }
+
+            double w = 0, h = 0;
+            foreach (var l in effective)
+                foreach (var key in new[] { "from", "to" })
+                    if (l[key] is JArray p)
+                    {
+                        w = Math.Max(w, (double)p[0]);
+                        h = Math.Max(h, (double)p[1]);
+                    }
             return (w, h);
         }
 
@@ -306,109 +327,224 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// A PRE-EXISTING defect, pinned so it cannot spread.
+        /// TB-LINES-1 — no family may carry geometry larger than its own sheet.
         ///
-        /// 22 of the catalogue's families are affected. The check is "does the resolved
-        /// geometry extend beyond anything this family declares for ITSELF" — which
-        /// catches both a size base inheriting A1's border and a concrete family that
-        /// declares only its info strip and inherits the whole A1 sheet behind it.
+        /// `Lines` CONCATENATE up the extends chain (they have no natural id, unlike
+        /// the id-aware static text and labels). Every size base extends
+        /// A1_common_v2.0, so an A3-portrait family used to inherit A1's 841 x 594
+        /// border IN ADDITION to its own 297 x 420 one — a built .rfa with an A1
+        /// border drawn across an A3 sheet. 22 families were affected.
         ///
-        /// TitleBlockSpec.Resolve concatenates `Lines` up the extends chain — it is
-        /// leaf-wins for parameters, slots, static text and labels, but NOT for line
-        /// geometry ("Lines / filled regions have no natural id -> plain concatenate").
-        /// Every family extending A1_common_v2.0 therefore inherits A1's 841 x 594
-        /// border IN ADDITION to its own, so a built A3-portrait .rfa carries an
-        /// A1-sized border on a 297 x 420 sheet.
+        /// Families at the SAME size as A1 were affected too, more quietly: the
+        /// assembly, presentation, cover, divider, register and submission blocks
+        /// each redraw the full border, so the inherited copy landed exactly on top
+        /// of theirs — duplicate overlapping linework, invisible on screen and
+        /// doubled in the file.
         ///
-        /// This is the concrete symptom of ROADMAP GAP-TB-01, which calls for
-        /// splitting A1_common into a params-only identity base and a separate
-        /// A1-geometry base. That is a data-model refactor touching every family and
-        /// is explicitly scoped to a focused session — so this test does NOT fail on
-        /// it. It RECORDS the set, so a new family joining the leak is caught rather
-        /// than absorbed into it.
+        /// `replacesInheritedGeometry` fixes it. This test is the ratchet: it FAILS,
+        /// rather than recording, because the defect is now closed and re-opening it
+        /// would put an A1 border back on an A3 drawing.
         ///
         /// Found by rendering the spec previews while verifying the A3-portrait QR
         /// cell: the preview header read "paper 841 x 594 mm" on a family whose own
         /// description says "A3 portrait working sheet (297 x 420 mm)".
         /// </summary>
         [Fact]
-        public void Inherited_A1_border_geometry_leaks_into_smaller_sheets()
+        public void No_family_carries_geometry_larger_than_its_own_sheet()
         {
             var fams = Families();
-            var known = new HashSet<string>(StringComparer.Ordinal)
-            {
-                "STING_TB_A1_BIM_v2.0",
-                "STING_TB_A1_NONBIM_v2.0",
-                "STING_TB_A0_BIM_v2.0",
-                "STING_TB_A0_PORT_BIM_v2.0",
-                "A1_PORT_common_v2.0",
-                "STING_TB_A1_PORT_BIM_v2.0",
-                "STING_TB_A1_PORT_NONBIM_v2.0",
-                "A3_LAND_common_v2.0",
-                "STING_TB_A3_BIM_v2.0",
-                "STING_TB_A3_NONBIM_v2.0",
-                "A3_PORT_common_v2.0",
-                "STING_TB_A3_PORT_BIM_v2.0",
-                "STING_TB_A3_PORT_NONBIM_v2.0",
-                "A2_LAND_common_v2.0",
-                "A2_PORT_common_v2.0",
-                "STING_TB_A2_BIM_v2.0",
-                "STING_TB_A2_NONBIM_v2.0",
-                "STING_TB_A2_PORT_BIM_v2.0",
-                "STING_TB_A2_PORT_NONBIM_v2.0",
-                "STING_TB_COVER_A3_v1.0",
-                "STING_TB_COVER_A2_v1.0",
-                "STING_TB_CLARIFICATION_A3_v1.0",
-            };
+            var offenders = new List<string>();
 
-            var leaking = new List<string>();
             foreach (var f in (JArray)Library()["families"])
             {
                 var id = (string)f["id"];
-                var own = Paper(fams, id);
-                if (own.w <= 0) continue;
                 var resolved = ResolvedLineExtent(fams, id);
-                if (resolved.w > own.w + 0.001 || resolved.h > own.h + 0.001) leaking.Add(id);
+                if (resolved.w <= 0) continue;
+
+                var sheet = SheetSize(fams, id);
+                if (sheet.w <= 0) continue;
+
+                if (resolved.w > sheet.w + 0.001 || resolved.h > sheet.h + 0.001)
+                    offenders.Add(
+                        $"{id}: geometry spans {resolved.w:F0} x {resolved.h:F0} mm "
+                        + $"on a {sheet.w:F0} x {sheet.h:F0} mm sheet");
             }
 
-            var newly = leaking.Where(id => !known.Contains(id)).ToList();
-            Assert.True(newly.Count == 0,
-                "These families newly inherit border geometry larger than their own sheet - "
-                + "the A1 border is leaking into them (ROADMAP GAP-TB-01):\n  "
-                + string.Join("\n  ", newly));
-
-            // The known set must not silently shrink either: a family dropping out
-            // means someone made progress, and the list should be updated deliberately.
-            var fixedUp = known.Where(id => !leaking.Contains(id) && fams.ContainsKey(id)).ToList();
-            Assert.True(fixedUp.Count == 0,
-                "These families no longer leak - GAP-TB-01 progress. Remove them from the "
-                + "known list in this test:\n  " + string.Join("\n  ", fixedUp));
+            Assert.True(offenders.Count == 0,
+                "These families carry line geometry beyond their own sheet — the A1 border is "
+                + "leaking in again (TB-LINES-1). A family that declares its own complete "
+                + "border must set \"replacesInheritedGeometry\": true:\n  "
+                + string.Join("\n  ", offenders));
         }
 
-        /// <summary>The QR cell is bounded by the PHYSICAL sheet, which is the stricter
-        /// of the two extents. Proven rather than assumed on the families where they
-        /// differ — otherwise a future switch to the looser bound would go unnoticed
-        /// and let an A3 slot sit at x = 700 mm.</summary>
+        /// <summary>Every family that draws a complete sheet border of its own must
+        /// declare that it replaces inherited geometry — otherwise it silently
+        /// double-draws its parent's border on top of its own.</summary>
+        [Fact]
+        public void A_family_drawing_its_own_border_declares_that_it_replaces()
+        {
+            var missing = new List<string>();
+
+            foreach (var f in (JArray)Library()["families"])
+            {
+                if (f["extends"] == null) continue;            // the root replaces nothing
+                if (f["lines"] is not JArray own || own.Count == 0) continue;
+
+                var e = ExtentOf(own);
+                if (!DrawsFullBorder(own, e.w, e.h)) continue; // only adds — must inherit
+
+                if ((bool?)f["replacesInheritedGeometry"] != true)
+                    missing.Add($"{(string)f["id"]} ({e.w:F0} x {e.h:F0} mm)");
+            }
+
+            Assert.True(missing.Count == 0,
+                "These families draw a complete sheet border of their own but do not set "
+                + "\"replacesInheritedGeometry\": true, so their parent's border is drawn on "
+                + "top of it:\n  " + string.Join("\n  ", missing));
+        }
+
+        /// <summary>And the converse: a family that only ADDS to its parent — an info
+        /// strip, a banner — must NOT set the flag, or it discards the very border it
+        /// is drawing onto and ships a sheet with no outline at all.</summary>
+        [Fact]
+        public void A_family_that_only_adds_does_not_claim_to_replace()
+        {
+            var wrong = new List<string>();
+
+            foreach (var f in (JArray)Library()["families"])
+            {
+                if ((bool?)f["replacesInheritedGeometry"] != true) continue;
+                if (f["lines"] is not JArray own || own.Count == 0)
+                {
+                    wrong.Add($"{(string)f["id"]} declares no lines of its own");
+                    continue;
+                }
+                var e = ExtentOf(own);
+                if (!DrawsFullBorder(own, e.w, e.h))
+                    wrong.Add($"{(string)f["id"]} draws no complete border ({e.w:F0} x {e.h:F0} mm)");
+            }
+
+            Assert.True(wrong.Count == 0,
+                "These families claim to replace inherited geometry but do not draw a complete "
+                + "sheet border, so they would ship with no outline:\n  "
+                + string.Join("\n  ", wrong));
+        }
+
+        [Fact]
+        public void The_A3_portrait_sheet_is_A3_portrait()
+        {
+            // The case that started TB-LINES-1, pinned by its numbers. The preview
+            // header said 841 x 594 for this family; it is a 297 x 420 sheet.
+            var fams = Families();
+            var resolved = ResolvedLineExtent(fams, "A3_PORT_common_v2.0");
+
+            Assert.Equal(297, resolved.w, 1);
+            Assert.Equal(420, resolved.h, 1);
+        }
+
+        [Theory]
+        [InlineData("A3_PORT_common_v2.0", 297, 420)]
+        [InlineData("A3_LAND_common_v2.0", 420, 297)]
+        [InlineData("A2_PORT_common_v2.0", 420, 594)]
+        [InlineData("A2_LAND_common_v2.0", 594, 420)]
+        [InlineData("A0_PORT_common_v2.0", 841, 1189)]
+        [InlineData("A0_LAND_common_v2.0", 1189, 841)]
+        [InlineData("STING_TB_COVER_A3_v1.0", 420, 297)]
+        [InlineData("STING_TB_A3_PORT_BIM_v2.0", 297, 420)]
+        public void Every_paper_size_resolves_to_its_real_dimensions(string familyId, double w, double h)
+        {
+            // Pinned by VALUE so a regression in the fold is a named failure rather
+            // than a subtly oversized border nobody notices until it plots.
+            var resolved = ResolvedLineExtent(Families(), familyId);
+
+            Assert.Equal(w, resolved.w, 1);
+            Assert.Equal(h, resolved.h, 1);
+        }
+
+        /// <summary>The physical sheet and the resolved geometry now AGREE.
+        ///
+        /// Before TB-LINES-1 they did not: A3 portrait printed on 297 x 420 mm while
+        /// its resolved geometry spanned A1's 841 x 594, because the border
+        /// concatenated up the chain. The QR test bounded cells by the physical sheet
+        /// precisely because it was the stricter of two disagreeing numbers.
+        ///
+        /// With the leak closed there is only one number, and this asserts that —
+        /// on the families where the gap used to be widest. If the fold regresses,
+        /// these are the first to notice.</summary>
         [Theory]
         [InlineData("A3_PORT_common_v2.0")]
         [InlineData("A3_LAND_common_v2.0")]
         [InlineData("A2_PORT_common_v2.0")]
-        public void The_qr_bound_is_the_physical_sheet_not_the_resolved_geometry(string familyId)
+        [InlineData("A0_PORT_common_v2.0")]
+        [InlineData("STING_TB_CLARIFICATION_A3_v1.0")]
+        public void The_physical_sheet_and_the_resolved_geometry_agree(string familyId)
         {
             var fams = Families();
             var physical = Paper(fams, familyId);
             var resolved = ResolvedLineExtent(fams, familyId);
 
-            Assert.True(resolved.w > physical.w || resolved.h > physical.h,
-                $"{familyId} was chosen because the two bounds differ; they no longer do.");
-
-            var cell = SlotBox(familyId);
-            Assert.True(cell.X1 <= physical.w + 0.001 && cell.Y1 <= physical.h + 0.001,
-                $"{familyId}: QR cell {cell} is off the {physical.w}x{physical.h} mm sheet, "
-                + $"even though it fits the {resolved.w}x{resolved.h} mm resolved geometry.");
+            Assert.Equal(physical.w, resolved.w, 1);
+            Assert.Equal(physical.h, resolved.h, 1);
         }
 
-        // ─── helpers ─────────────────────────────────────────────────────────
+        // ─── helpers ─────────────────────────────────────────
+
+        /// <summary>Extent of a raw line array, mm.</summary>
+        private static (double w, double h) ExtentOf(JArray lines)
+        {
+            double w = 0, h = 0;
+            foreach (var l in lines)
+                foreach (var key in new[] { "from", "to" })
+                    if (l[key] is JArray p)
+                    {
+                        w = Math.Max(w, (double)p[0]);
+                        h = Math.Max(h, (double)p[1]);
+                    }
+            return (w, h);
+        }
+
+        /// <summary>Does this line set close a complete outer border — one line
+        /// spanning the full width and one the full height?
+        ///
+        /// This is how the initial `replacesInheritedGeometry` values were chosen,
+        /// and it stays here as the test's own definition of "declares its own
+        /// sheet". The SPEC is the contract; this is the check that the spec and the
+        /// geometry still agree.</summary>
+        private static bool DrawsFullBorder(JArray lines, double w, double h, double tol = 1.0)
+        {
+            bool horiz = false, vert = false;
+            foreach (var l in lines)
+            {
+                if (l["from"] is not JArray a || l["to"] is not JArray b) continue;
+                double ax = (double)a[0], ay = (double)a[1], bx = (double)b[0], by = (double)b[1];
+                if (Math.Abs(ay - by) < tol && Math.Abs(Math.Min(ax, bx)) < tol
+                    && Math.Abs(Math.Max(ax, bx) - w) < tol) horiz = true;
+                if (Math.Abs(ax - bx) < tol && Math.Abs(Math.Min(ay, by)) < tol
+                    && Math.Abs(Math.Max(ay, by) - h) < tol) vert = true;
+            }
+            return horiz && vert;
+        }
+
+        /// <summary>The sheet a family prints on: the nearest ancestor (inclusive)
+        /// that draws a complete border. A family declaring only an info strip takes
+        /// its size base's paper, which is exactly right — the strip is drawn ONTO
+        /// that sheet.</summary>
+        private static (double w, double h) SheetSize(Dictionary<string, JToken> fams, string id)
+        {
+            var f = fams.TryGetValue(id, out var x) ? x : null;
+            while (f != null)
+            {
+                if (f["lines"] is JArray own && own.Count > 0)
+                {
+                    var e = ExtentOf(own);
+                    if (DrawsFullBorder(own, e.w, e.h)) return e;
+                }
+                var parent = (string)f["extends"];
+                f = parent != null && fams.TryGetValue(parent, out var pf) ? pf : null;
+            }
+            return (0, 0);
+        }
+        // ────────────────
 
         private static JToken QrSlot(string familyId)
             => ((JArray)Families()[familyId]["slots"]).First(

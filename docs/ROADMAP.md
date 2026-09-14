@@ -13,11 +13,24 @@ build machine. See `CHANGELOG.md` Phases 280-283.
 | QR-11 | **OPEN — a deploy action** | Code-complete and failing closed. App links stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on `planscape-web` **and it is redeployed** — bindings are captured at deploy time. I cannot do this; it needs the signing fingerprint and the Apple Team ID. |
 | QR-2 … QR-10, QR-12 … QR-15 | ✅ closed | Sheet lookup, commissioning API, all 21 families, revision refresh, web routes, label sheet, offline queue, witness form, token matching, grid layout, offline double-sign-off, carbon rollup, A3-portrait verification. |
 
-**Found while closing QR-15, and NOT fixed — it needs a focused session:**
+**TB-LINES-1 — FIXED.** `TitleBlockSpec.Resolve` concatenated `Lines` up the extends
+chain, so every family extending `A1_common_v2.0` inherited A1's 841 × 594 border on top
+of its own — an A1 border drawn across a 297 × 420 A3 sheet. Families at A1 size were
+affected too, more quietly: the assembly, presentation, cover, divider, register and
+submission blocks each redraw the full border, so the inherited copy sat exactly on theirs,
+duplicating every line in the file. 22 families in total.
 
-| ID | Gap | Detail |
-|---|---|---|
-| TB-LINES-1 | **A1's border geometry leaks into 22 families** | `TitleBlockSpec.Resolve` CONCATENATES `Lines` up the extends chain — it is leaf-wins for parameters, slots, static text and labels, but not for line geometry ("no natural id -> plain concatenate"). So a built A3-portrait `.rfa` carries A1's 841 x 594 border on a 297 x 420 sheet. This is the concrete symptom of **GAP-TB-01** and the reason it recommends splitting `A1_common` into a params-only identity base and a separate A1-geometry base. `TitleBlockQrSlotTests.Inherited_A1_border_geometry_leaks_into_smaller_sheets` RECORDS the 22 so a new family cannot join them unnoticed, and fails if one drops out without the list being updated. It does not fail the build on the existing set. Found by rendering the spec previews: the header read "paper 841 x 594 mm" on a family whose own description says "A3 portrait (297 x 420 mm)". |
+Fixed by `replacesInheritedGeometry` on the 24 families that draw a complete sheet border
+of their own. Explicit rather than inferred: detecting "this draws a border" from geometry
+would be right today and is exactly the kind of heuristic that silently changes what a
+family renders. Enforced by three tests — no family carries geometry beyond its sheet, a
+family drawing its own border declares it, and a family that only ADDS does not claim to
+replace (which would ship a sheet with no outline at all).
+
+This is narrower than **GAP-TB-01**, which proposes splitting `A1_common` into a
+params-only identity base plus a separate A1-geometry base. That remains the cleaner
+end-state and is still open — but the defect it was chiefly wanted for is gone, so it is
+now a structural tidy-up rather than a correctness fix.
 
 **Residue from the closures:**
 

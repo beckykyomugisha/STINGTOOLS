@@ -10,25 +10,6 @@
 <line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
 <line x1="185" y1="0" x2="185"  y2="110" stroke="#444" stroke-width="0.18"/>
 <line x1="353" y1="0" x2="353"  y2="110" stroke="#444" stroke-width="0.18"/>
 <line x1="555" y1="0" x2="555"  y2="110" stroke="#444" stroke-width="0.18"/>
@@ -215,6 +196,6 @@
 <rect x="674" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
 <text x="683" y="55" font-size="5" fill="#333">qr-code</text>
 <text x="707" y="55" font-size="5" fill="#999">+2 more</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 51  ·  lines 39  ·  labels 51  ·  static-text 37  ·  fills 0  ·  slots 14</text>
+<text x="30" y="689.0" font-size="7" fill="#444">parameters 51  ·  lines 20  ·  labels 51  ·  static-text 37  ·  fills 0  ·  slots 14</text>
 <text x="30" y="699.0" font-size="6" fill="#666">A1 landscape working sheet (841 × 594 mm) — common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper.…</text>
 </svg>

@@ -2025,6 +2025,7 @@
       "id": "A0_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A0 landscape working sheet (1189 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 1169 \u00d7 696 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
       "drawable": { "x": 10, "y": 135, "w": 1169, "h": 701, "marginMm": 25 },
@@ -3521,6 +3522,7 @@
       "id": "A0_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A0 portrait working sheet (841 \u00d7 1189 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 821 \u00d7 1044 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
       "drawable": { "x": 10, "y": 135, "w": 821, "h": 1049, "marginMm": 25 },
@@ -5017,6 +5019,7 @@
       "id": "A1_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "drawable": { "x": 10, "y": 115, "w": 821, "h": 474, "marginMm": 25 },
       "description": "A1 landscape working sheet (841 \u00d7 594 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 821 \u00d7 469 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -5835,6 +5838,7 @@
       "id": "A1_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A1 portrait working sheet (594 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 574 \u00d7 716 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "drawable": { "x": 10, "y": 115, "w": 574, "h": 721, "marginMm": 25 },
@@ -7331,6 +7335,7 @@
       "id": "A3_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 400 \u00d7 212 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": { "x": 10, "y": 75, "w": 400, "h": 217, "marginMm": 25 },
@@ -8753,6 +8758,7 @@
       "id": "A3_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 277 \u00d7 335 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": { "x": 10, "y": 75, "w": 277, "h": 340, "marginMm": 25 },
@@ -10175,6 +10181,7 @@
       "id": "A2_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 A2 size; geometry scaled from A3_LAND_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": {
@@ -10947,6 +10954,7 @@
       "id": "A2_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 A2 size; geometry scaled from A3_PORT_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": {
@@ -13030,6 +13038,7 @@
     {
       "id": "STING_TB_ASSEMBLY_PIPE_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 pipe spool. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #0076A8. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_PIPE_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -13809,6 +13818,7 @@
     {
       "id": "STING_TB_ASSEMBLY_DUCT_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 duct spool. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #F2A341. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_DUCT_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -14588,6 +14598,7 @@
     {
       "id": "STING_TB_ASSEMBLY_COND_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 conduit / cable assembly. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #7B3F00. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_COND_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -15367,6 +15378,7 @@
     {
       "id": "STING_TB_ASSEMBLY_HANGER_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 hanger / support. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #5A5A5A. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_HANGER_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16146,6 +16158,7 @@
     {
       "id": "STING_TB_PRESENT_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Presentation title block (colour) \u2014 A1 landscape, FULL-BLEED render area (entire sheet is the slot). Bottom-right 280\u00d760 mm watermark with project / title / rev / date / drawn / client. Designed for renders, perspectives, full-page axonometrics \u2014 the watermark is deliberately minimal so the artwork dominates.",
       "saveAs": "Families/TitleBlocks/STING_TB_PRESENT_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16447,6 +16460,7 @@
     {
       "id": "STING_TB_PRESENT_A1_MONO_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Presentation title block (monochrome) \u2014 A1 landscape, FULL-BLEED render area (entire sheet is the slot). Bottom-right 280\u00d760 mm watermark with project / title / rev / date / drawn / client. Designed for renders, perspectives, full-page axonometrics \u2014 the watermark is deliberately minimal so the artwork dominates.",
       "saveAs": "Families/TitleBlocks/STING_TB_PRESENT_A1_MONO_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16748,6 +16762,7 @@
     {
       "id": "STING_TB_COVER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A1 landscape, NO drawable zone (viewport placement deliberately blocked). Top dark-blue banner, amber accent band, large centred project name + address + client + RIBA stage. Bottom strip carries deliverable status, revision, issue date, transmittal ref.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17041,6 +17056,7 @@
     {
       "id": "STING_TB_COVER_A0_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A0 landscape (1189 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). A0 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A0_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A0_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17334,6 +17350,7 @@
     {
       "id": "STING_TB_COVER_A3_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A3 landscape (420 \u00d7 297 mm), NO drawable zone (viewport placement deliberately blocked). A3 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A3_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A3_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17627,6 +17644,7 @@
     {
       "id": "STING_TB_COVER_A2_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A2 size; geometry scaled from STING_TB_COVER_A1_v1.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A2_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17920,6 +17938,7 @@
     {
       "id": "STING_TB_DIVIDER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Discipline section divider \u2014 A1 landscape, large grey background panel, huge centred discipline label (60 mm \u2014 e.g. 'MEP', 'STRUCTURAL', 'ARCHITECTURAL'), project code below. Minimal 50 mm bottom strip carries discipline / project / deliverable identifiers. Used between disciplines in a multi-discipline package.",
       "saveAs": "Families/TitleBlocks/STING_TB_DIVIDER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -18152,6 +18171,7 @@
     {
       "id": "STING_TB_REGISTER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Drawing register sheet \u2014 A1 landscape. Full-page 9-column \u00d7 24-row schedule (# / DRAWING TITLE / SHEET NO / REV / STATUS / DATE / DRAWN / CHKD / APVD). 60 mm bottom strip carries project + deliverable + rev. The actual register is populated by ExportSheetRegister at print time \u2014 this title block just provides the static frame.",
       "saveAs": "Families/TitleBlocks/STING_TB_REGISTER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -18791,6 +18811,7 @@
     {
       "id": "STING_TB_SUBMISSION_KCCA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 KAMPALA CAPITAL CITY AUTHORITY (KCCA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #006937. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_KCCA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -19141,6 +19162,7 @@
     {
       "id": "STING_TB_SUBMISSION_ERA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 ELECTRICITY REGULATORY AUTHORITY (ERA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #1F4E79. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_ERA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -19491,6 +19513,7 @@
     {
       "id": "STING_TB_SUBMISSION_NEMA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 NATIONAL ENVIRONMENT MANAGEMENT AUTHORITY (NEMA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #7B3F00. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_NEMA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -19841,6 +19864,7 @@
     {
       "id": "STING_TB_CLARIFICATION_A3_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "RFI / clarification sketch sheet \u2014 A3 landscape (420 \u00d7 297 mm). Two-pane layout: left half is a legend / schedule for the QUERY text, right half is a SKETCH slot for annotated plan or detail. 25 mm header carries 'RFI / CLARIFICATION' + RFI REF. 30 mm footer carries PROJECT / DATE / REV.",
       "saveAs": "Families/TitleBlocks/STING_TB_CLARIFICATION_A3_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",

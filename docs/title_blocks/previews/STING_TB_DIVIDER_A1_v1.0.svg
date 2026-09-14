@@ -10,25 +10,6 @@
 <line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
 <line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="50" x2="841"  y2="50" stroke="#222" stroke-width="0.35"/>
 <line x1="280.3333333333333" y1="0" x2="280.3333333333333"  y2="50" stroke="#444" stroke-width="0.18"/>
 <line x1="560.6666666666666" y1="0" x2="560.6666666666666"  y2="50" stroke="#444" stroke-width="0.18"/>
@@ -149,6 +130,6 @@
 <text x="533" y="55" font-size="5" fill="#333">discipline-band</text>
 <rect x="581" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
 <text x="590" y="55" font-size="5" fill="#333">qr-code</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 53  ·  lines 26  ·  labels 33  ·  static-text 22  ·  fills 1  ·  slots 10</text>
+<text x="30" y="689.0" font-size="7" fill="#444">parameters 53  ·  lines 7  ·  labels 33  ·  static-text 22  ·  fills 1  ·  slots 10</text>
 <text x="30" y="699.0" font-size="6" fill="#666">Discipline section divider — A1 landscape, large grey background panel, huge centred discipline label (60 mm — e.g. &#x27;MEP&#x27;, &#x27;STRUCTURAL&#x27;, &#x27;ARCHITECTURAL&#x27;), project code below. Minimal 50 mm bottom stri…</text>
 </svg>

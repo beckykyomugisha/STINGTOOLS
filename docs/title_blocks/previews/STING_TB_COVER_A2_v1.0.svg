@@ -7,25 +7,6 @@
 <rect x="0" y="0" width="594" height="420" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
 <rect x="0.0" y="377.6" width="594.0" height="42.39999999999998" fill="#1F4E79" opacity="0.85"/>
 <rect x="0.0" y="67.2" width="594.0" height="3.5" fill="#F2A341" opacity="0.85"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
 <line x1="0.0" y1="0.0" x2="594.0"  y2="0.0" stroke="#000" stroke-width="0.7"/>
 <line x1="594.0" y1="0.0" x2="594.0"  y2="420.0" stroke="#000" stroke-width="0.7"/>
 <line x1="594.0" y1="420.0" x2="0.0"  y2="420.0" stroke="#000" stroke-width="0.7"/>
@@ -151,6 +132,6 @@
 <text x="497" y="55" font-size="5" fill="#333">key-plan</text>
 <rect x="524" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
 <text x="533" y="55" font-size="5" fill="#333">qr-code</text>
-<text x="30" y="515.0" font-size="7" fill="#444">parameters 56  ·  lines 27  ·  labels 37  ·  static-text 24  ·  fills 2  ·  slots 9</text>
+<text x="30" y="515.0" font-size="7" fill="#444">parameters 56  ·  lines 8  ·  labels 37  ·  static-text 24  ·  fills 2  ·  slots 9</text>
 <text x="30" y="525.0" font-size="6" fill="#666">Project / package cover sheet — A2 size; geometry scaled from STING_TB_COVER_A1_v1.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).</text>
 </svg>

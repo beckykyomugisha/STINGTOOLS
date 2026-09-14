@@ -1,29 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 901 704" width="901mm" height="704mm" style="background:#fafafa;font-family:Helvetica,Arial,sans-serif;">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 901 1299" width="901mm" height="1299mm" style="background:#fafafa;font-family:Helvetica,Arial,sans-serif;">
 <rect x="0" y="0" width="901" height="50" fill="#1F4E79"/>
 <text x="450.5" y="22.5" text-anchor="middle" fill="#fff" font-size="14" font-weight="bold">A0_PORT_common_v2.0</text>
-<text x="450.5" y="39.0" text-anchor="middle" fill="#cfe2ff" font-size="9">ABSTRACT BASE   ·   paper 841 × 594 mm   ·   mode=—</text>
-<g transform="translate(30,674) scale(1,-1)">
-<rect x="0" y="0" width="841" height="594" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
+<text x="450.5" y="39.0" text-anchor="middle" fill="#cfe2ff" font-size="9">ABSTRACT BASE   ·   paper 841 × 1189 mm   ·   mode=—</text>
+<g transform="translate(30,1269) scale(1,-1)">
+<rect x="0" y="0" width="841" height="1189" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
 <line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
 <line x1="841" y1="0" x2="841"  y2="1189" stroke="#000" stroke-width="0.7"/>
 <line x1="841" y1="1189" x2="0"  y2="1189" stroke="#000" stroke-width="0.7"/>
@@ -217,6 +198,6 @@
 <rect x="674" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
 <text x="683" y="55" font-size="5" fill="#333">qr-code</text>
 <text x="707" y="55" font-size="5" fill="#999">+2 more</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 51  ·  lines 39  ·  labels 52  ·  static-text 38  ·  fills 0  ·  slots 14</text>
-<text x="30" y="699.0" font-size="6" fill="#666">A0 portrait working sheet (841 × 1189 mm) — common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper.…</text>
+<text x="30" y="1284.0" font-size="7" fill="#444">parameters 51  ·  lines 20  ·  labels 52  ·  static-text 38  ·  fills 0  ·  slots 14</text>
+<text x="30" y="1294.0" font-size="6" fill="#666">A0 portrait working sheet (841 × 1189 mm) — common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper.…</text>
 </svg>

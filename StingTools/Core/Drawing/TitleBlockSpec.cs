@@ -63,6 +63,41 @@ namespace StingTools.Core.Drawing
         /// extend. Use for `A1_common_v2.0` / `A0_common_v2.0` etc.</summary>
         [JsonProperty("abstract")]             public bool   Abstract { get; set; }
 
+        /// <summary>TB-LINES-1 — this family declares its OWN complete sheet
+        /// geometry, so inherited lines and filled regions are DISCARDED rather
+        /// than added to.
+        ///
+        /// WHY THIS EXISTS
+        /// ---------------
+        /// <see cref="Lines"/> concatenate up the extends chain (they have no
+        /// natural id, unlike the P10 id-aware static text and labels). Every size
+        /// base extends A1_common_v2.0, so an A3-portrait family inherited A1's
+        /// 841 x 594 border IN ADDITION to its own 297 x 420 one — a built .rfa
+        /// with an A1 border drawn across an A3 sheet. 22 families were affected.
+        ///
+        /// Families whose own extent MATCHES the parent's were affected too, more
+        /// quietly: the assembly, presentation, cover, divider, register and
+        /// submission blocks each redraw the full A1 border, so the inherited copy
+        /// sat exactly on top of theirs — duplicate overlapping linework in every
+        /// one, invisible on screen and doubled in the file.
+        ///
+        /// EXPLICIT, NOT INFERRED. It would be possible to detect "this family
+        /// draws a complete border" from the geometry and switch behaviour on that,
+        /// and it would be right today. A heuristic that silently changes what a
+        /// family renders is precisely the failure mode this codebase produces, so
+        /// the spec states it instead. The initial values were chosen by that
+        /// analysis; the flag is the contract.
+        ///
+        /// A family that declares only an ADDITION — an info strip, a banner — must
+        /// leave this false so it still inherits its size base's border.
+        ///
+        /// This is a narrower fix than ROADMAP GAP-TB-01, which proposes splitting
+        /// A1_common into a params-only identity base plus a separate A1-geometry
+        /// base. That remains the cleaner end-state; this removes the defect the
+        /// split was chiefly wanted for.</summary>
+        [JsonProperty("replacesInheritedGeometry")]
+        public bool ReplacesInheritedGeometry { get; set; }
+
         /// <summary>"BIM" or "NONBIM" — written into the family's
         /// PRJ_SHEET_BIM_MODE_TXT shared parameter as the default
         /// value, so each sheet inherits the right marker. Empty for
@@ -457,9 +492,29 @@ namespace StingTools.Core.Drawing
             // "WORKING", …) shadowed every A0/A3/portrait/fab/presentation family.
             into.Parameters    = MergeParams(into.Parameters,       from.Parameters);
             into.Slots         = MergeSlots (into.Slots,            from.Slots);
-            // Lines / filled regions have no natural id → plain concatenate.
-            into.Lines         = ConcatList(into.Lines,             from.Lines);
-            into.FilledRegions = ConcatList(into.FilledRegions,     from.FilledRegions);
+            // Lines / filled regions have no natural id → plain concatenate,
+            // UNLESS the incoming spec declares its own complete sheet geometry.
+            //
+            // TB-LINES-1: without this, every size base inherited A1_common's
+            // 841 x 594 border on top of its own, so a built A3-portrait .rfa
+            // carried an A1 border across a 297 x 420 sheet. Families at the same
+            // size as A1 were affected too — their inherited copy sat exactly on
+            // top of their own, duplicating every line in the file.
+            //
+            // `from` is the nearer-to-leaf spec (Resolve folds root → … → leaf), so
+            // discarding the accumulator here means "this family's geometry
+            // replaces everything above it", which is what a different sheet size
+            // means.
+            if (from.ReplacesInheritedGeometry)
+            {
+                into.Lines         = ConcatList(null, from.Lines);
+                into.FilledRegions = ConcatList(null, from.FilledRegions);
+            }
+            else
+            {
+                into.Lines         = ConcatList(into.Lines,         from.Lines);
+                into.FilledRegions = ConcatList(into.FilledRegions, from.FilledRegions);
+            }
             // P10 — static text + labels are id-aware. An id-less entry
             // concatenates exactly as ConcatList did (100% backward compatible);
             // an id'd entry lets a nearer-to-leaf spec OVERRIDE the inherited one
