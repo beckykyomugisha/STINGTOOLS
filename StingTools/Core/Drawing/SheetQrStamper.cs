@@ -171,7 +171,8 @@ namespace StingTools.Core.Drawing
                     if (TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
                     {
                         r.LockedSkipped++;
-                        r.Warnings.Add($"Sheet '{sheet.SheetNumber}': title block locked ({ParamRegistry.TB_LOCK}); left untouched.");
+                        r.Warnings.Add($"Sheet '{sheet.SheetNumber}': title block locked ({ParamRegistry.TB_LOCK}); "
+                            + "left untouched. " + Commands.Drawing.TitleBlockLock.HowToClear);
                         continue;
                     }
 

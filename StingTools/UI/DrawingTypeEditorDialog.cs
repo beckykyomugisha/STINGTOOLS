@@ -1701,12 +1701,23 @@ namespace StingTools.UI
             }));
 
             // ── Repair / first-aid ──
-            stack.Children.Add(SectionCard("Repair & first-aid", new (string,string)[]
-            {
-                ("Reset Position",   "TitleBlockReset"),
-                ("Rescue",           "TitleBlockRescue"),
-                ("Transmittal Gate", "TransmittalGateCheck"),
-            }));
+            stack.Children.Add(SectionCardRich("Repair & first-aid",
+                "A locked title block (PRJ_TB_LOCK_BOOL) is skipped by QR stamping, parameter " +
+                "fill, revision sync, heal, pagination and swap — each reporting \"left untouched\". " +
+                "These two are how you see and clear that.",
+                new (string,string,string)[]
+                {
+                    ("Locked?",          "TitleBlock_InspectLock",
+                        "Read-only: which sheets carry PRJ_TB_LOCK_BOOL, and whether the flag sits on the " +
+                        "title-block instance or on its TYPE. A type-held lock came from the family itself, " +
+                        "so every sheet placed from it arrives locked. Writes nothing."),
+                    ("Unlock TBs",       "TitleBlock_Unlock",
+                        "Clear PRJ_TB_LOCK_BOOL — this sheet, or every locked sheet. Names what it will " +
+                        "change first, because a lock is sometimes a deliberate freeze on an issued drawing."),
+                    ("Reset Position",   "TitleBlockReset",   null),
+                    ("Rescue",           "TitleBlockRescue",  null),
+                    ("Transmittal Gate", "TransmittalGateCheck", null),
+                }));
 
             // ── Built catalogue (file map + nested-family pointers) ──
             stack.Children.Add(InfoCard(
