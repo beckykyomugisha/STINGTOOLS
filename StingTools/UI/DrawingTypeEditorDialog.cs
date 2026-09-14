@@ -1653,6 +1653,38 @@ namespace StingTools.UI
                 ("Set Variant",    "TitleBlockSetVariant"),
             }));
 
+            // ── QR on the sheet ──
+            //
+            // These live here, not on the BIM tab, because where the code lands is a
+            // title-block decision: the cell comes from the family's TB_QR_ANCHOR, and
+            // falls back to a sheet corner only when the family does not declare one.
+            stack.Children.Add(SectionCardRich("QR code (title-block slot → sheet)",
+                "Stamp a scannable https://app.planscape.build link onto sheets. The cell is read " +
+                "from the title-block family's TB_QR_ANCHOR; 'Set QR Cell' writes that by picking " +
+                "two corners. Stamping twice replaces rather than stacks.",
+                new (string,string,string)[]
+                {
+                    ("Set QR Cell",  "Sheet_SetQRAnchor",
+                        "Pick two corners on the active sheet to define the QR cell, and write it to the " +
+                        "title-block family's TB_QR_ANCHOR so every sheet on that family inherits it. " +
+                        "Refuses a cell under 12 mm — smaller than that will not scan reliably."),
+                    ("Stamp QR",     "Sheet_StampQR",
+                        "Place the QR on the active sheet. Encodes the sheet deep link " +
+                        "(https://app.planscape.build/s/{project}/{sheet}). Re-running replaces the existing " +
+                        "code rather than stacking a second one on top."),
+                    ("Stamp QR — all sheets", "Sheet_StampQRAll",
+                        "Same, across every sheet in the project, in one transaction group."),
+                    ("Inspect QR",   "Sheet_InspectQR",
+                        "Read-only: report which sheets carry a QR, where the cell came from (family slot, " +
+                        "corner fallback, or last resort) and what payload each one encodes. Writes nothing."),
+                    ("Clear QR",     "Sheet_ClearQR",
+                        "Remove STING-placed QR images from the active sheet. Matches on the " +
+                        "'STING QR - ' image-name prefix, so hand-placed images are never touched."),
+                    ("QR Label Sheet", "QR_LabelSheet",
+                        "Different output: a printable grid of element QR labels (one per tagged element) " +
+                        "on its own sheet, for sticking onto plant. Not a title-block stamp."),
+                }));
+
             // ── Revision tools that stamp the title block ──
             stack.Children.Add(SectionCard("Revision (writes to PRJ_TB_REVISION_*)", new (string,string)[]
             {
