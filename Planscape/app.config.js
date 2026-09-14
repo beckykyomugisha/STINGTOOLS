@@ -88,9 +88,11 @@ module.exports = ({ config }) => ({
             { scheme: 'https', host, pathPrefix: '/reset-password' },
             { scheme: 'https', host, pathPrefix: '/issues' },
             { scheme: 'https', host, pathPrefix: '/documents' },
-            // STING QR codes: /e/{project}/{tag} element, /s/{project}/{sheet} sheet.
+            // STING QR codes: /e/{project}/{tag} element, /s/{project}/{sheet} sheet,
+            // /d/{iso19650-id}/... the rich document form carrying the issue record.
             { scheme: 'https', host, pathPrefix: '/e/' },
             { scheme: 'https', host, pathPrefix: '/s/' },
+            { scheme: 'https', host, pathPrefix: '/d/' },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
         },

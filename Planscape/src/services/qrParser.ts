@@ -32,7 +32,36 @@ export interface QrPayload {
   /** Project code from the payload. Informational — the app scopes lookups by
    *  the active project, so a mismatch here is worth SHOWING, not acting on. */
   projectCode?: string;
+  /** Full ISO 19650 document identifier, on a `/d/` document payload. Its
+   *  presence is what distinguishes the rich drawing form from the older
+   *  `planscape://document/{id}` form, which carries only an id. */
+  docId?: string;
+  /** Issue facts carried IN the code. Readable with NO network — the reason the
+   *  rich form exists. Undefined on every other payload kind. */
+  facts?: QrDocFacts;
   raw: string;
+}
+
+/** The issue record a `/d/` code carries, in the order it is encoded. Every
+ *  field is optional: the producer sheds them from the least important end when
+ *  the printed cell is too small (StingQrFormat.BuildDocUrlWithin), so an absent
+ *  field means "did not fit or not known", never "empty". */
+export interface QrDocFacts {
+  suitability?: string;
+  cdeState?: string;
+  /** yyyyMMdd, the date the code was stamped. */
+  issueDate?: string;
+  zone?: string;
+  /** "25.100" = sheet 25 of 100. */
+  sheetOfTotal?: string;
+  lod?: string;
+  paperSize?: string;
+  /** "1.100" = 1:100 — ':' is legal in QR alphanumeric mode but reserved in a
+   *  URL path, so the producer substitutes '.'. */
+  scale?: string;
+  /** "DRW.CHK.APR" — drawn, checked, approved. */
+  initials?: string;
+  signature?: string;
 }
 
 /** Deep-link host. Mirrors StingQrFormat.BaseUrl + ElementPath. */
@@ -40,6 +69,18 @@ const ELEMENT_URL = /^https?:\/\/app\.planscape\.build\/e\/([^/?#]+)\/([^/?#]+)(
 
 /** Sheet deep link, stamped into the title block by SheetQrStamper. */
 const SHEET_URL = /^https?:\/\/app\.planscape\.build\/s\/([^/?#]+)\/([^/?#]+)(?:\?([^#]*))?$/i;
+
+/** The RICH document deep link: `/d/{iso19650-id}/{fact}/{fact}/...`.
+ *
+ *  Positional, not key=value, and that is deliberate on the producer side: QR
+ *  alphanumeric mode has no '?', '&' or '=', so one query character drops the
+ *  whole payload into byte mode and costs ~40% of the printable capacity. The
+ *  trailing part is matched loosely here and split below. */
+const DOC_URL = /^https?:\/\/app\.planscape\.build\/d\/([^/?#]+)((?:\/[^?#]*)?)$/i;
+
+/** Placeholder the producer writes for an absent INTERIOR fact, so the fields
+ *  after it keep their positions. Must read back as "not carried", not as "-". */
+const BLANK = '-';
 
 /** Legacy scheme, pre-2026-09. Still parsed: codes are already printed on
  *  issued sheets and must keep resolving. Never emitted. */
@@ -77,6 +118,52 @@ function safeDecode(value: string): string {
 export function parseQr(raw: string): QrPayload {
   const trimmed = raw.trim();
   if (!trimmed) return { type: 'unknown', raw: trimmed };
+
+  // 0a — rich document deep link. Matched before the sheet form because it is
+  //      the more specific of the two, and the facts it carries are the whole
+  //      reason to prefer it: they are readable with no network.
+  const doc = trimmed.match(DOC_URL);
+  if (doc) {
+    const docId = safeDecode(doc[1]);
+    if (!docId) return { type: 'unknown', raw: trimmed };
+
+    const segs = (doc[2] || '')
+      .replace(/^\//, '')
+      .split('/')
+      .map(safeDecode);
+    const at = (i: number): string | undefined => {
+      const v = segs[i];
+      return v && v !== BLANK ? v : undefined;
+    };
+
+    // PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV, per the SHT_TAG_1
+    // assembly in ParameterHelpers. Read the ends out rather than making
+    // every caller re-split the identifier.
+    const parts = docId.split('-');
+    // The NUMBER itself may contain '-' (A-L1-001), so the sheet number is
+    // everything between the discipline and the revision, not a fixed index.
+    return {
+      type: 'document',
+      id: docId,
+      docId,
+      projectCode: parts.length > 1 ? parts[0] : undefined,
+      revision: parts.length > 1 ? parts[parts.length - 1] : undefined,
+      sheetNumber: parts.length > 6 ? parts.slice(5, -1).join('-') : undefined,
+      facts: {
+        suitability: at(0),
+        cdeState: at(1),
+        issueDate: at(2),
+        zone: at(3),
+        sheetOfTotal: at(4),
+        lod: at(5),
+        paperSize: at(6),
+        scale: at(7),
+        initials: at(8),
+        signature: at(9),
+      },
+      raw: trimmed,
+    };
+  }
 
   // 0 — sheet deep link (a title-block stamp, not an element).
   const sheet = trimmed.match(SHEET_URL);

@@ -72,12 +72,17 @@ export function ScanLanding({
   projectCode,
   value,
   revision,
+  hideHeader = false,
 }: {
   kind: ScanKind;
   projectCode: string;
   /** The ISO 19650 tag, or the sheet number. */
   value: string;
   revision?: string;
+  /** Suppress this component's own PageHeader. Set by the /d/ page, which has
+   *  already shown a richer heading built from the identifier and must not
+   *  render a second one underneath it. */
+  hideHeader?: boolean;
 }) {
   const [state, setState] = useState<State>({ phase: 'loading' });
 
@@ -138,7 +143,7 @@ export function ScanLanding({
   // every page.tsx to render it, and nesting two would double the chrome.
   return (
     <>
-      <PageHeader title={heading} description={subtitle} />
+      {!hideHeader && <PageHeader title={heading} description={subtitle} />}
       <div style={{ padding: '1rem 0', maxWidth: 720 }}>
         {state.phase === 'loading' && <p>Looking this up…</p>}
 

@@ -32,8 +32,9 @@ export const dynamic = 'force-dynamic';
 const BUNDLE_ID = process.env.IOS_BUNDLE_ID || 'com.planscape.app';
 
 /**
- * The deep-link paths the app claims. `/e/*` and `/s/*` are the STING QR codes
- * (element and sheet); the rest predate them.
+ * The deep-link paths the app claims. `/e/*`, `/s/*` and `/d/*` are the STING QR
+ * codes (element, sheet, and the rich ISO 19650 document form); the rest predate
+ * them.
  *
  * Exported so the drift test can compare this list against app.config.js rather
  * than trusting that two hand-maintained lists agree.
@@ -45,6 +46,7 @@ export const APP_LINK_PATHS = [
   '/documents/*',
   '/e/*',
   '/s/*',
+  '/d/*',
 ];
 
 export async function GET() {
