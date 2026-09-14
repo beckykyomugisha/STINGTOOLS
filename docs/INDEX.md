@@ -52,7 +52,10 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 `AEC_FILTER_LIBRARY.md` · `AEC_PRODUCTION_SET_STRATEGY.md` · `STING_MANAGED_TEMPLATES_DESIGN.md` ·
 `DRAWINGS_PRODUCTION_REVIEW.md` · `DRAWING_VG_RESEARCH.md` · `MEP_DRAWING_TYPES_PRINT_READY_RUNNER.md` ·
 `TITLE_BLOCK_FAMILY_DESIGN.md` · `TITLE_BLOCK_FAMILY_INVENTORY.md` · `TITLE_BLOCK_GENERATOR_RESEARCH.md` ·
-`ISO_ANNOTATION_SYMBOLS_PLAN.md` · `ISO_ANNOTATION_SYMBOLS_REVIEW.md` · `US_STANDARDS_PRESET.md`
+`ISO_ANNOTATION_SYMBOLS_PLAN.md` · `ISO_ANNOTATION_SYMBOLS_REVIEW.md` · `US_STANDARDS_PRESET.md` ·
+[`QR1_REVIT_TEST_SCRIPT.md`](QR1_REVIT_TEST_SCRIPT.md) ✅ — the in-Revit checks for the sheet QR
+stamp. Everything else in the QR work is covered by tests; the `ImageType.Create` /
+`ImageInstance.Create` path is confirmed only by the compiler, and this closes it.
 
 ## BOQ, cost & sustainability
 
@@ -198,53 +201,103 @@ already wired. Six offline tasks, and an explicit list of what must stay manual 
 - [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied
 - [Tagging workflow analysis](TAGGING_WORKFLOW_ANALYSIS.md) ⛔ SUPERSEDED
 - [Universal tag badge/glyph guide](UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md) ⛔ SUPERSEDED
-
-## Unclassified — indexed, not yet triaged
-
-**These are listed so they are not invisible, not because anyone has read them.**
-Every other section marks a document ✅ current or ⛔ superseded. Nobody has made
-that call for the files below, and guessing would be worse than saying so: a wrong
-✅ sends a reader to act on a stale plan.
-
-They were named nowhere in this index until 2026-09-09, which meant a reader
-checking whether a document existed concluded it did not. `tools/check_docs_index.py`
-now fails when a `docs/*.md` is named nowhere here, so the list cannot grow silently.
-
-**This section should only shrink.** Moving a file out of it — into the section it
-belongs to, with a ✅ or ⛔ — is the work; it needs someone who knows whether the
-document still describes the code.
-
-- `BOQ_5D_ENHANCED_REBUILD_PROMPT.md`
-- `BOQ_5D_ENHANCEMENTS_PROMPT.md`
-- `BOQ_LOOKUP_FORMULA_AUDIT.md`
-- `CLIENT_SERVER_VOCABULARY_PROPOSALS.md`
-- `DOCUMENT_MANAGER_GAPS_RUNNER.md`
-- `HVAC_GAP_ANALYSIS.md`
-- `HVAC_GAP_REMEDIATION_PROMPT.md`
-- `KIBALE_REVIT_VERIFICATION.md`
-- `KNP26_READINESS.md`
-- `MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md`
-- `MATERIAL_SCHEDULE_GAPS_RUNNER_PROMPT.md`
-- `MATERIAL_SCHEDULE_T6_FAMILY_MATERIALS_PROPOSAL.md`
-- `NATIVE_TYPE_MIGRATION_ANALYSIS.md`
-- `OPERATOR_SESSION_KIBALE.md`
-- `PERFECT_PLACEMENT_PROMPT.md`
-- `PLACEMENT_CENTRE_REVIEW_AND_FIX_PROMPT.md`
-- `PLACEMENT_LIBRARY_TAB_AND_DWG_BRIDGE_PROMPT.md`
-- `PLACEMENT_SEEDS_SWAP_IMPLEMENTATION_PROMPT.md`
-- `PROMPT_BRANCH_AND_WORKSPACE_TRIAGE.md`
-- `PROMPT_KUT_LIFECYCLE_INTEGRATION.md`
-- `PROMPT_KUT_MOBILISATION_HARDENING.md`
-- `RESEARCH_PROMPT_livekit_and_corporate_ui.md`
-- `ROUND_TRIP_R1_R2_SPEC.md`
-- `UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`
-- `UNIVERSAL_TAG_FINALIZE_RUNNER.md`
-- `UNIVERSAL_TAG_INTEGRATION_RUNNER.md`
-- `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`
-- `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`
-- `UNIVERSAL_TAG_TEARDOWN_RUNNER.md`
-- `VERIFY_PHASE1.md`
-- `VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`
-- `VISIBILITY_CENTER_RUNNER.md`
-- `WIRE_ELEMENT_ANNOTATION_SCOPE.md`
-- `archicad-zone-mapping-guide.md`
+
+
+## Unclassified — indexed, not yet triaged
+
+
+
+**These are listed so they are not invisible, not because anyone has read them.**
+
+Every other section marks a document ✅ current or ⛔ superseded. Nobody has made
+
+that call for the files below, and guessing would be worse than saying so: a wrong
+
+✅ sends a reader to act on a stale plan.
+
+
+
+They were named nowhere in this index until 2026-09-09, which meant a reader
+
+checking whether a document existed concluded it did not. `tools/check_docs_index.py`
+
+now fails when a `docs/*.md` is named nowhere here, so the list cannot grow silently.
+
+
+
+**This section should only shrink.** Moving a file out of it — into the section it
+
+belongs to, with a ✅ or ⛔ — is the work; it needs someone who knows whether the
+
+document still describes the code.
+
+
+
+- `BOQ_5D_ENHANCED_REBUILD_PROMPT.md`
+
+- `BOQ_5D_ENHANCEMENTS_PROMPT.md`
+
+- `BOQ_LOOKUP_FORMULA_AUDIT.md`
+
+- `CLIENT_SERVER_VOCABULARY_PROPOSALS.md`
+
+- `DOCUMENT_MANAGER_GAPS_RUNNER.md`
+
+- `HVAC_GAP_ANALYSIS.md`
+
+- `HVAC_GAP_REMEDIATION_PROMPT.md`
+
+- `KIBALE_REVIT_VERIFICATION.md`
+
+- `KNP26_READINESS.md`
+
+- `MATERIAL_SCHEDULE_BASELINE_LAYER2_LAYER3_SPEC.md`
+
+- `MATERIAL_SCHEDULE_GAPS_RUNNER_PROMPT.md`
+
+- `MATERIAL_SCHEDULE_T6_FAMILY_MATERIALS_PROPOSAL.md`
+
+- `NATIVE_TYPE_MIGRATION_ANALYSIS.md`
+
+- `OPERATOR_SESSION_KIBALE.md`
+
+- `PERFECT_PLACEMENT_PROMPT.md`
+
+- `PLACEMENT_CENTRE_REVIEW_AND_FIX_PROMPT.md`
+
+- `PLACEMENT_LIBRARY_TAB_AND_DWG_BRIDGE_PROMPT.md`
+
+- `PLACEMENT_SEEDS_SWAP_IMPLEMENTATION_PROMPT.md`
+
+- `PROMPT_BRANCH_AND_WORKSPACE_TRIAGE.md`
+
+- `PROMPT_KUT_LIFECYCLE_INTEGRATION.md`
+
+- `PROMPT_KUT_MOBILISATION_HARDENING.md`
+
+- `RESEARCH_PROMPT_livekit_and_corporate_ui.md`
+
+- `ROUND_TRIP_R1_R2_SPEC.md`
+
+- `UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`
+
+- `UNIVERSAL_TAG_FINALIZE_RUNNER.md`
+
+- `UNIVERSAL_TAG_INTEGRATION_RUNNER.md`
+
+- `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`
+
+- `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`
+
+- `UNIVERSAL_TAG_TEARDOWN_RUNNER.md`
+
+- `VERIFY_PHASE1.md`
+
+- `VISIBILITY_CENTER_ENHANCEMENTS_RUNNER.md`
+
+- `VISIBILITY_CENTER_RUNNER.md`
+
+- `WIRE_ELEMENT_ANNOTATION_SCOPE.md`
+
+- `archicad-zone-mapping-guide.md`
+

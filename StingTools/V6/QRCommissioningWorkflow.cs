@@ -13,10 +13,10 @@ namespace StingTools.V6
     /// Each step stamps COMM_STATE_TXT / COMM_DATE_TXT / COMM_OPERATIVE_TXT (+ witness + notes).</summary>
     public static class QRCommissioningWorkflow
     {
-        public static readonly string[] States = new[]
-        {
-            "NOT_STARTED", "RECEIVED", "INSTALLED", "TESTED", "COMMISSIONED", "HANDOVER"
-        };
+        /// <summary>The state ladder. Aliases the shared list rather than restating it —
+        /// a second copy of the states is how the desktop and the API come to disagree
+        /// about what "advance" means, and that disagreement is silent.</summary>
+        public static string[] States => Planscape.Shared.Commissioning.CommissioningStates.All;
 
         public class ScanPayload
         {
@@ -48,19 +48,23 @@ namespace StingTools.V6
         }
 
         public static int IndexOfState(string state)
-        {
-            if (string.IsNullOrEmpty(state)) return 0;
-            for (int i = 0; i < States.Length; i++)
-                if (string.Equals(States[i], state, StringComparison.OrdinalIgnoreCase)) return i;
-            return 0;
-        }
+            => Math.Max(0, Planscape.Shared.Commissioning.CommissioningStates.RankOf(state));
 
         public static string NextState(string current)
-        {
-            int i = IndexOfState(current);
-            return States[Math.Min(i + 1, States.Length - 1)];
-        }
+            => Planscape.Shared.Commissioning.CommissioningStates.Next(current)
+               ?? Planscape.Shared.Commissioning.CommissioningStates.All[0];
 
+        /// <summary>Advance one element's commissioning state.
+        ///
+        /// The RULES now live in Planscape.Shared.Commissioning.CommissioningStateMachine,
+        /// which the server's CommissioningController also calls. They used to live only
+        /// here, which was fine while the desktop was the only way in — but the phone
+        /// needed the same ladder, and two copies of a state machine drift invisibly: a
+        /// desktop that refuses a skip-state transition and an API that allows it produce
+        /// a handover record nobody can reconcile, months later, with no error anywhere.
+        ///
+        /// This method keeps what is genuinely Revit's: resolving the element, writing the
+        /// COMM_* parameters, and appending to the on-disk audit trail.</summary>
         public static TransitionResult Advance(Document doc, ScanPayload scan)
         {
             if (scan == null || string.IsNullOrEmpty(scan.ElementUniqueId))
@@ -70,22 +74,27 @@ namespace StingTools.V6
                 return new TransitionResult { Ok = false, Reason = $"Element not found: {scan.ElementUniqueId}" };
 
             string current = ParameterHelpers.GetString(el, ParamRegistry.COMM_STATE_TXT);
-            string target = string.IsNullOrEmpty(scan.RequestedState) ? NextState(current) : scan.RequestedState.ToUpperInvariant();
 
-            int ci = IndexOfState(current), ti = IndexOfState(target);
-            if (ti <= ci && ci > 0)
-                return new TransitionResult { Ok = false, FromState = current, ToState = target,
-                    Reason = $"Refusing to regress from {States[ci]} to {target}" };
-            if (ti - ci > 1)
-                return new TransitionResult { Ok = false, FromState = current, ToState = target,
-                    Reason = $"Skip-state transition not allowed ({States[ci]} → {target}); advance one step at a time" };
-            if (string.IsNullOrWhiteSpace(scan.Operative))
-                return new TransitionResult { Ok = false, FromState = current, ToState = target,
-                    Reason = "Operative name required" };
-            if (target == "COMMISSIONED" && string.IsNullOrWhiteSpace(scan.Witness))
-                return new TransitionResult { Ok = false, FromState = current, ToState = target,
-                    Reason = "COMMISSIONED transition requires a witness" };
+            var decision = Planscape.Shared.Commissioning.CommissioningStateMachine.Decide(
+                current,
+                new Planscape.Shared.Commissioning.CommissioningRequest
+                {
+                    RequestedState = scan.RequestedState,
+                    Operative = scan.Operative,
+                    Witness = scan.Witness,
+                    Notes = scan.Notes,
+                });
 
+            if (!decision.Ok)
+                return new TransitionResult
+                {
+                    Ok = false,
+                    FromState = decision.FromState,
+                    ToState = decision.ToState,
+                    Reason = decision.Reason,
+                };
+
+            string target = decision.ToState;
             string now = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
             ParameterHelpers.SetString(el, ParamRegistry.COMM_STATE_TXT, target, overwrite: true);
             ParameterHelpers.SetString(el, ParamRegistry.COMM_DATE_TXT, now, overwrite: true);

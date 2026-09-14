@@ -98,6 +98,27 @@ public class TaggedElement : ITenantScoped, ISoftDeletable
     public string?  ActualStart     { get; set; }
     public string?  ActualFinish    { get; set; }
 
+
+    // ── Sustainability (SUS-QR) ───────────────────────────────────────────────
+    // Carried so a SCANNED asset can answer "what is this made of and what did it
+    // cost the planet" without a second system. The QR label on a duct is the only
+    // interface a site operative has to the model, and embodied carbon is exactly
+    // the number that is otherwise locked in a spreadsheet nobody on site opens.
+    //
+    // NULLABLE THROUGHOUT, AND THAT IS THE POINT. An element with no EPD has no
+    // EPD — it must not read as 0 kgCO2e, which is a claim about the world rather
+    // than an absence of data. Every consumer branches on null; none defaults.
+    /// <summary>SUS_EPD_REF_TXT — the EPD this element's material cites.</summary>
+    public string? EpdRef { get; set; }
+
+    /// <summary>STING_MAT_EMB_CARBON — embodied carbon A1-A3, kgCO2e. Null means
+    /// UNKNOWN, never zero.</summary>
+    public double? EmbodiedCarbonKg { get; set; }
+
+    /// <summary>The material the figures above describe, so a scan can say WHAT it
+    /// is reporting on rather than presenting a bare number.</summary>
+    public string? MaterialName { get; set; }
+
     // Navigation
     public Project? Project { get; set; }
 }

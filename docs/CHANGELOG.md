@@ -2,6 +2,447 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 284 — TB-LINES-1: the A1 border stops being drawn on every other sheet)
+
+**The defect.** `TitleBlockSpec.Resolve` CONCATENATES `Lines` up the extends chain —
+it is leaf-wins for parameters, slots, static text and labels, but line geometry
+has no natural id, so it accumulated. Every size base extends `A1_common_v2.0`, so
+an A3-portrait family inherited A1's **841 × 594 border in addition to its own
+297 × 420 one**: a built `.rfa` with an A1 border drawn across an A3 sheet.
+
+Families at the SAME size as A1 were affected too, and more quietly. The assembly,
+presentation, cover, divider, register and submission blocks each redraw the full
+border, so the inherited copy landed exactly on top of theirs — duplicate
+overlapping linework, invisible on screen and doubled in the file. **22 families.**
+
+**The fix.** `replacesInheritedGeometry` on the 24 families that draw a complete
+sheet border of their own. When set, the fold discards inherited lines and filled
+regions rather than adding to them — which is what "I am a different sheet" means.
+
+**Explicit, not inferred.** It would be possible to detect "this family draws a
+complete border" from the geometry and switch behaviour on that, and it would be
+right today. A heuristic that silently changes what a family renders is precisely
+the failure mode this codebase produces, so the spec states it. The 24 initial
+values were *chosen* by that analysis; the flag is the contract.
+
+A family that declares only an ADDITION — the `STING_TB_*_BIM` info strips — must
+leave it false, so it still inherits its size base's border. Nine such families do,
+correctly.
+
+**Three tests hold it:**
+
+  * no family carries geometry beyond its own sheet (was 22, now 0)
+  * a family drawing its own complete border DECLARES that it replaces — otherwise
+    it silently double-draws its parent's border
+  * a family that only adds does NOT claim to replace — which would discard the very
+    border it is drawing onto and ship a sheet with no outline at all
+
+Plus the paper sizes pinned by value: A3 portrait resolves to 297 × 420, not
+841 × 594.
+
+**Two more bugs surfaced on the way, both in the instrument rather than the code.**
+
+`TitleBlockQrSlotTests.ResolvedLineExtent` still walked the old concat-all path
+after the fix, so five pinned paper sizes failed. That failure is the useful kind —
+a test measuring something different from what the code does is the defect it was
+written to catch, one level up. It now mirrors `MergeInto`.
+
+`tools/generate_title_block_previews.py` had its own copy of the fold (taught the
+flag) and derived paper size from a family-id string match that never matched
+`A3_PORT_common_v2.0` — the pattern looks for `_A3_PORT` and that id has no leading
+underscore, so every unprefixed size base fell through to an A1 default and rendered
+A3 content on an A1 canvas. It now prefers the family's own border geometry, which
+since this fix states the real sheet, and keeps the id heuristic only as a fallback.
+
+**Verified on the drawing, not just in the model.** The preview that exposed the
+defect — header reading "paper 841 × 594 mm" on a family whose description says
+"A3 portrait working sheet (297 × 420 mm)" — now reads 297 × 420, renders a border
+that fits the paper, and shows the QR cell sitting in its bottom-right cell. That
+closes **QR-15** as an actual visual check rather than a model assertion.
+
+Gates: plugin 0/0 with **1,250 tests**. Wiring, path-discipline and param-contract
+all OK; readership unchanged at 386.
+
+GAP-TB-01 stays open — splitting `A1_common` into a params-only identity base plus a
+separate A1-geometry base is still the cleaner end-state. But the defect it was
+chiefly wanted for is gone, so it is now a structural tidy-up rather than a
+correctness fix.
+
+#### Completed (Phase 283 — QR-13/14/15, and a border leak found by looking at the drawing)
+
+**QR-15 was a verification task, and verifying it found something else.** Rendering
+the spec previews to check the A3-portrait QR cell showed a header reading
+**"paper 841 × 594 mm"** on a family whose own description says *"A3 portrait
+working sheet (297 × 420 mm)"*.
+
+That is real. `TitleBlockSpec.Resolve` **CONCATENATES** `Lines` up the extends
+chain — it is leaf-wins for parameters, slots, static text and labels, but not for
+line geometry ("Lines / filled regions have no natural id → plain concatenate").
+So a built A3-portrait `.rfa` carries A1's 841 × 594 border on a 297 × 420 sheet.
+**22 of the catalogue's families are affected.**
+
+This is the concrete symptom of **GAP-TB-01**, which the roadmap already scopes to
+a focused session, so it is not fixed here. `TitleBlockQrSlotTests` now RECORDS the
+22 — a new family cannot join them unnoticed, and if one drops out the test says so
+rather than absorbing the progress silently.
+
+It also exposed a flaw in my own test. `Paper()` assumed leaf-wins on `lines`,
+so it was validating QR cells against a different extent from the one the resolver
+produces. Every cell passes under BOTH readings, so no placement changes — but the
+method now says which bound it uses and why: the PHYSICAL sheet, deliberately, as
+it is the stricter one. Using the concatenated extent would let an A3 slot sit at
+x = 700 mm — off the A3 sheet entirely — and still pass. Three families where the
+two bounds differ assert that explicitly.
+
+Also fixed: `tools/generate_title_block_previews.py` crashed on a Windows console
+(cp1252 cannot encode the tick or the multiplication sign) **after** writing all 41
+SVGs, so a successful run looked like a failure. That crash is what nearly stopped
+this investigation.
+
+**QR-13 — the offline double-sign-off had a sharper bug than "both record".**
+
+Two operatives scan an asset at INSTALLED with no signal. Both intend TESTED. A
+drains first; the asset moves to TESTED. B drains second — and because
+`requestedState` was empty, **"advance one step" is resolved at drain time**, so
+B's TESTED sign-off would have been recorded as **COMMISSIONED**: in B's name,
+with no witness, on an asset nobody declared fit for use.
+
+The client now PINS the state it showed the operative. B is then refused, and the
+refusal has its own kind: `AlreadyInState`, split out from `Regression`, because
+the second operative is not trying to rewind the record — a colleague captured the
+same work first, and "refusing to regress" is both wrong and alarming. Both
+screens show "Already recorded" for it rather than "Not recorded".
+
+The test asserts the dangerous path too — that WITHOUT the pin the transition
+succeeds as COMMISSIONED — so the reason for the pin stays visible.
+
+**QR-14 — carbon reaches a rollup, and cannot be mistaken for more than it is.**
+
+`GET /api/tagsync/carbon` sums per-element embodied carbon, optionally grouped by
+discipline / category / level / material. The shape is the point: the total NEVER
+travels without `assessed`, `total` and `coveragePercent`, and each group carries
+its own coverage too. On a real project the assessed subset is a minority for a
+long time, and "2.4 tCO₂e" over 12% of a model reads as a building's footprint to
+anyone shown only the number.
+
+**It does not extrapolate.** Scaling the measured mean across the un-assessed
+remainder would give a plausible building total built from an assumption — the
+fabricated-data failure this codebase has shipped before. A genuine zero counts as
+assessed; an unknown does not. An unrecognised `groupBy` is refused rather than
+ignored, because silently returning an ungrouped total to a caller who asked for a
+breakdown is the right shape with the wrong answer and no way to tell.
+
+It is deliberately NOT reconciled with `EdgeKpiSnapshot.MaterialCarbonKgM2`, which
+is a per-m² intensity from the sustainability module's own take-off. They can
+disagree; which is authoritative is a design decision. The endpoint says so in its
+own `basis` field rather than pretending otherwise — logged as QR-17.
+
+Gates: plugin 0/0 with **1,237 tests**; server **+40** (26 state machine, 14 carbon
+rollup); planscape-web 115 + `next build`; mobile tsc + full suite. Wiring,
+path-discipline and param-contract all OK; readership unchanged at 386.
+
+Still open: QR-1 (needs Revit), QR-11 (needs the signing secrets and a redeploy),
+TB-LINES-1 (GAP-TB-01, recorded not fixed), QR-16 and QR-17 (both design
+decisions). See `ROADMAP.md`.
+
+#### Completed (Phase 282 — flexibility proved by three real sheets, sustainability on the scan, QR-8 to QR-12)
+
+**Three sheets exported from a live project on 2026-09-14 proved the stamper was
+too rigid to use.** All three title blocks ALREADY reserve a QR cell — drawn,
+labelled "SCAN · VERIFY ISSUE" and "SCAN CURRENT ISSUE", with an empty square
+waiting for the code — and the cell is somewhere different on each:
+
+    cover   x 196-224 mm   y 403-407 mm
+    001     x 767-799 mm   y 109-113 mm
+    002     x 591-622 mm   y  34- 38 mm
+
+`raster images on page: 0` on all three. None of those families is in
+`STING_TITLE_BLOCKS.json`, so the slot lookup finds nothing and the corner
+fallback would have missed every one — on drawings already exported to a shared
+CDE folder.
+
+The title-block guide has always promised the opposite: *"the QR-code stamper …
+never needs a hard-coded fallback — they read the family."* Now it does.
+`SheetQrStamper.ResolveAnchor` tries, most specific first:
+`TB_QR_ANCHOR_JSON_TXT` on the instance, then a `qr-code` entry in the family's
+own `TB_VIEWPORT_SLOTS_JSON_TXT`, then the spec slot by family id, then the
+corner — which now names what would have fixed it. **What this family says beats
+what the catalogue says about families like it.**
+
+`Sheet_SetQRAnchor` writes that anchor by picking the two corners of the cell.
+It REFUSES a cell under the scannable floor rather than writing an anchor the
+stamper will later reject: believing the cell was set and finding a corner stamp
+on the plot is worse than being told no.
+
+Two more per-project decisions without a code change: `TB_QR_SIZE_MM_TXT` (A3
+wants a smaller code than A0) and `TB_QR_PAYLOAD_TEMPLATE_TXT`, with `{url}`
+available so a client can WRAP the STING link rather than replace it. Unset means
+the STING deep link, deliberately: a template applied by accident would produce
+codes our own scanner rejects, which is the defect this feature began as.
+
+Accepting `701,85,24` and `701 85 24` as well as JSON is not politeness — nobody
+types JSON into a Revit parameter box, and rejecting those would mean the feature
+only works for people who already know it works.
+
+A test caught a real bug while writing it: `{"x":701}` deserialised to y = 0, the
+sheet's bottom edge — a plausible-looking position nobody wrote. Both keys must
+now be PRESENT, not merely deserialisable.
+
+**SUS-QR — a scanned asset now answers "what is this made of, and what did it
+cost the planet".** `EpdRef` / `EmbodiedCarbonKg` / `MaterialName` flow from the
+Revit element through TagSync to the element scan, on mobile and web. The QR
+label on a duct is the only interface a site operative has to the model, and
+embodied carbon is otherwise locked in a spreadsheet nobody on site opens.
+
+**One rule holds the whole thing up: NULL MEANS UNKNOWN, NEVER ZERO.** Revit
+reports an unset double as 0.0, so the lazy version turns "nobody assessed this"
+into "this element emits nothing" — a measurement, arriving in a carbon rollup,
+that no one ever made. It would not error and would not look wrong; it would just
+make a building's footprint smaller with every un-assessed element added to it.
+`ReadOptionalNumber` checks `HasValue`, the ingest writes only when the push
+carries a value, and both screens render the section only when there is something
+to say. A **genuine** zero — a timber element really assessed at ~0 — is stored
+and is distinguishable from unknown; the test that a re-assessment DOWN to zero
+still overwrites exists because `carbon > 0` would have silently kept the higher
+figure and hidden the improvement.
+
+**QR-8 — a scan with no signal survives.** Commissioning happens in basement
+plant rooms, which is exactly where there is no signal; the operative walked down
+three flights and should not have to again. `COMMISSIONING_ADVANCE` joins the
+offline queue. `expectedCurrentState` is deliberately NOT replayed — it is a
+claim about a live screen, stale by construction hours later, and replaying it
+would 409 every offline sign-off. Logged as QR-13.
+
+**QR-9 — COMMISSIONED can be recorded at the asset.** It needs a witness, which
+an `Alert` cannot collect, so it was refused outright: honest, and useless on the
+one step that most needs recording while you are standing there.
+`/commissioning/signoff` is that form. It does not re-implement the rule — the
+server's `witnessRequiredNext` drives it, so a rule change keeps working.
+
+**QR-10 — `M-1` no longer matches `M-101`.** The LIKE is now a prefilter; a
+token match (bounded by ISO 19650 delimiters) decides. A project numbering sheets
+1, 2, 3 would otherwise have had every scan return most of the register with an
+arbitrary row on top. When tokenising finds nothing but the substring found
+something, the looser answer comes back with `exactTokenMatch: false` — near
+misses, not "your drawing", and never a silent empty.
+
+**QR-12 — the label grid fits.** MaxRects was the logged suggestion and would buy
+nothing: every label is the same size, and for equal squares a uniform grid is
+already optimal. The real bug was simpler — a row was started whenever the cursor
+was above the bottom margin, so the last row could begin with less than a cell of
+height left and run off the plot. A clipped QR is unreadable while still looking
+like a usable label. `QrLabelLayout` computes the grid that fits, centres it, and
+returns zero cells for a sheet too small — which the command reports instead of
+placing one label off the edge.
+
+Gates: plugin 0/0 with **1,233 tests**; server **81** QR/TagSync tests;
+planscape-web **115** + `next build`; mobile tsc + full suite. Wiring (Tier 4 and
+6 both 0), path-discipline and param-contract all OK. Readership unchanged at 386
+— the three new parameters are declared in `MR_PARAMETERS.txt`/`.csv` and
+`RESOLVED_BINDINGS.csv`, so they add no violations.
+
+Still open and listed rather than glossed: QR-1 (needs Revit), QR-11 (needs the
+signing secrets and a redeploy), QR-13 (offline double-sign-off), QR-14 (carbon
+reaches the scan, not a rollup), QR-15 (A3 portrait verified by model, not on
+paper). See `ROADMAP.md`.
+
+#### Completed (Phase 281 — closing the QR gaps: QR-2 through QR-7)
+
+Phase 280 made the QR chain work and logged seven gaps. Six are closed; the
+seventh (QR-1) needs Revit and cannot be closed from a build machine.
+
+**QR-4 — all 21 slot-declaring families now carry a `qr-code` slot.** The twelve
+concrete families declare their own `slots[]`, which under leaf-wins REPLACES the
+size base's, so they had no slot and fell back to a blind corner. The two
+presentation blocks get `category: "overlay"` — their RENDER slot is full-bleed,
+so there is no free cell anywhere and the overlap is the design, exactly as the
+CAPTION slot already does it; `PRJ_TB_SHOW_QR_CODE_BOOL` is how an operator says
+no to a mark on a client render.
+
+`TitleBlockQrSlotTests` checks every shipped slot against text EXTENTS rather than
+anchor points — a label anchored at x=754 with a 28-character value reaches past
+x=800, and an anchor-only test calls that free. **It caught a real collision in
+Phase 280's own A3-portrait slot** on its first run: (269,10) sat on
+`PRJ_TB_PAPER_SZ_TXT` (x 257-269). Moved to (216,10).
+
+**QR-1 — the placement decision is now testable without Revit.** `SheetQrPlacement`
+holds it; `ResolvePlacement` only converts units and delegates. 15 tests pin both
+off-paper regressions by their exact numbers (y = -29 mm on A0, -5 mm on A3
+portrait), the too-small-to-scan refusal, non-square fitting, and that a null
+title-block extent means "cannot tell" rather than "reject". The Revit API call
+itself remains a manual check — ROADMAP QR-1 carries the script.
+
+**QR-2 — `GET /api/projects/{id}/documents/by-sheet`.** There is no sheet entity
+on the server; a sheet number lives only inside an ISO 19650 document NAME, so
+that is what it matches. **Ordering is the feature**: PUBLISHED, then SHARED, then
+WIP, newest within each. The test makes the PUBLISHED drawing the OLDEST on
+purpose — a date-first sort would put an unissued WIP drawing on top of a site
+operative's scan. A scanned revision narrows the answer only when it matches
+something; when it does not, the wider answer is kept and `revisionNarrowed:false`
+says so, because "this drawing does not exist" is the wrong thing to tell someone
+whose print is merely superseded.
+
+**QR-6 — the deep links have a destination.** `/e/{project}/{tag}` and
+`/s/{project}/{sheet}` on planscape-web. The QR carries a project CODE and every
+API route is keyed by GUID, so the page resolves code→id and reports each failure
+separately: not signed in, code matches nothing, code matches several. 401 is not
+"nothing found".
+
+Found while doing it: `.well-known/assetlinks.json` and
+`apple-app-site-association` have **never existed at any host**, while
+`app.config.js` has declared `autoVerify: true` for `/accept-invitation`,
+`/reset-password`, `/issues` and `/documents` since M2. None of those links has
+ever verified. Both files are now served and both **fail closed** — with no
+fingerprint or team id they 404, which is today's behaviour, rather than serving a
+guess. A wrong `assetlinks.json` is worse than a missing one because Android
+caches the failed verification, and an empty `statements` array is not neutral: it
+positively asserts that no app is associated with the domain.
+
+**QR-3 — phone-driven commissioning, with one state machine instead of two.**
+`CommissioningStateMachine` moved to `Planscape.Shared`, which the plugin already
+ProjectReferences — no cross-project `<Compile Include>` hack, unlike BcfEngine.
+Extracting it **fixed a real bug**: the old `IndexOfState` returned 0 for any
+unrecognised state, so a typo — or a state written by a newer build — read as
+NOT_STARTED and could be silently advanced over, erasing it. `RankOf` now returns
+-1 and the machine refuses.
+
+`CommissioningRecord` is append-only: a single mutable row would answer "what
+state is it in" and destroy "who signed it off, when, and who witnessed", which is
+the half asked in a dispute years later. Per ADR 0001 it reaches an existing
+database through `PlatformSchemaPatcher`, not a migration.
+
+`expectedCurrentState` is opt-in optimistic concurrency — two fitters scanning the
+same asset seconds apart would otherwise both read INSTALLED and both advance,
+recording one step twice under two names.
+
+**QR-5 — the ordering question answered by construction.** The open question was
+which step of an issue run should stamp; a stamp written before the revision is
+minted encodes a stale `?r=`. So `TitleBlockRevisionSyncer` refreshes AFTER the
+revision lands, in its own transaction. **Refresh, never mint**: sheets carrying no
+QR are left alone, because stamping is a deliberate act and a revision sync must
+not quietly decide for the operator that this drawing set carries codes.
+
+**QR-7 — `QR_LabelSheet`.** Element codes on a plottable sheet, each captioned with
+its tag, at 30 mm for plant rooms. It refuses to label an untagged element: a blank
+label gets stuck on, scanned, resolves to nothing, and by then the asset is in a
+ceiling void. Duplicate tags are labelled once, because two identical labels on two
+assets cannot be told apart afterwards.
+
+**Still open, and listed rather than glossed:** QR-1 (Revit), plus QR-8 (no offline
+queue for a scan in a basement), QR-9 (COMMISSIONED needs a form, not an Alert),
+QR-10 (`by-sheet` matches on file name, so `M-1` would match `M-101`), QR-11
+(app-link verification is served but stays 404 until the secrets are set AND
+redeployed), QR-12 (the label sheet does not bin-pack). See `ROADMAP.md`.
+
+Gates: plugin 0 errors / 0 warnings, 1,176 tests. Server builds clean, 51 new
+tests. planscape-web 115 tests + `next build`. Mobile tsc + full suite. Workflow
+wiring (Tier 4 and 6 both 0), path discipline and param contract all OK.
+
+#### Completed (Phase 280 — the QR chain, end to end, and the title-block stamp that was only ever documented)
+
+**The plugin's QR codes could not be read by the plugin's own app, and never had been.**
+`StingQRHelper` encoded `sting://asset/{code}/{tag}`; `Planscape/src/services/qrParser.ts`
+accepted `planscape://element|issue|document/{id}` or a bare UUID, and nothing else. Every
+code StingTools ever produced hit the `unknown` branch and was rejected at the parse step —
+before any network call, so nothing logged, nothing 500'd, and a rejected payload looked
+exactly like a bad scan. The server end always worked: `/api/tagsync/elements/search`
+ILIKEs on `Tag1`, so a STING tag resolves fine once it gets past that function.
+
+Neither side was wrong on its own. They had simply never been introduced, and nothing
+checked. **`tools/qr_payload_corpus.json` is now that check** — one corpus of 21 cases read
+by both `StingTools.Tags.Tests/StingQrFormatTests.cs` (40 tests) and
+`Planscape/tests/qrParser.contract.test.mjs` (`npm run test:qr`, in `npm test`). Reverting
+the parser to its prior version fails 10 of 17 cases; it was proved RED before GREEN.
+
+**Payload is now an https deep link**, `https://app.planscape.build/e/{project}/{tag}?u={uid}`
+for an element and `/s/{project}/{sheet}?r={rev}` for a sheet. A custom scheme is unopenable
+by a stock phone camera, which is precisely the site operative a printed QR exists for.
+`Parse` still reads the legacy `sting://` form, because codes are already printed on issued
+sheets and must keep resolving.
+
+**Three more defects in the generator:**
+
+- `SaveQRPng` used `File.OpenWrite` — `OpenOrCreate`, which does **not** truncate. Regenerating
+  over a longer PNG left the old file's bytes past the new `IEND`. Now `File.Create`.
+- `Margin = 1`. That is the quiet zone in MODULES and ISO/IEC 18004 requires 4 — the usual
+  cause of a code that reads on screen and fails on a plot. Now 4, and ECC raised M -> Q for
+  codes that get dusty, creased and photographed at an angle.
+- The project code came from the `.rvt` FILENAME, so renaming the model silently changed
+  every QR it had ever produced. Now `PRJ_ORG_PROJECT_CODE_TXT`, falling back to
+  `ProjectInformation.Number`, then `"PRJ"`.
+
+Also: filename sanitising handled `/ \ :` only, so a tag carrying `* ? " < > |` threw — and
+the throw was counted as "skipped, no tag", which is a different and misleading thing.
+Failures are now counted and reported separately from skips.
+
+**The title-block QR was specified in three documents and implemented in none.**
+`TB_QR_PAYLOAD_TXT` was declared in `MR_PARAMETERS.txt`, bound in `RESOLVED_BINDINGS.csv`,
+and described as *"Engine populates with deep link URL to CDE record"* — **zero C# references
+in 1,443 source files.** `PRJ_TB_SHOW_QR_CODE_BOOL` was documented in `TitleBlockSpec.cs` and
+`SLOT_TAXONOMY.md` and appeared in **zero** of the ~30 title-block specs, while its four
+siblings (`SHOW_NORTH_ARROW`, `SHOW_SCALE_BAR`, ...) appear in nine each. No `qr-code`
+`purposeTag` existed anywhere. So a reader of the codebase would conclude the feature
+shipped, and a reader of a produced sheet would assume a toggle was off.
+
+`Core/Drawing/SheetQrStamper.cs` is that engine. It writes the payload, renders the PNG, and
+places it via `ImageType.Create` / `ImageInstance.Create` — **the first image-placement code
+in the plugin**. Commands: `Sheet_StampQR`, `Sheet_StampQRAll`, `Sheet_InspectQR`,
+`Sheet_ClearQR`.
+
+Contracts worth knowing:
+
+- **`"STING QR - "` is the cleanup contract.** Replace and clear find images by that prefix
+  and touch nothing else. Re-running REPLACES rather than stacks; stacked QR images overlap
+  exactly, so they are invisible on screen and show up only as a muddy plot.
+- **The nine size bases declare the `QR` slot in absolute mm, not fractions.** The first cut
+  used `fracAnchor` resolved against the drawable rect and put the stamp at y = -29 mm on A0
+  and y = -5 mm on A3 portrait — off the paper, invisible on screen AND absent from the plot,
+  with nothing reporting it. Every cell was collision-checked against that base's own labels
+  and static text. `ResolvePlacement` now also REFUSES a slot that resolves outside the title
+  block's bounding box and falls back to a corner with a named warning.
+- **Twelve concrete families shadow `slots`** (fabrication, presentation, submission, divider,
+  register, clarification) and therefore have no `qr-code` slot. They get the corner fallback.
+  That is a deliberate, stated gap — their layouts differ too much to place blind.
+- **A missing parameter is reported, never assumed.** No title block, a locked
+  `PRJ_TB_LOCK_BOOL`, an absent toggle and an absent payload param are each named individually.
+  `SheetQrResult.DidNothing` exists so "0 stamped, 0 failed" cannot be reported as a success.
+
+**"QR commissioning" involved no QR, and could not have.** `QRAdvanceCommissioningCommand`
+reads the Revit SELECTION; there was no scan path anywhere. And `QRCommissioningWorkflow.Advance`
+resolves by `UniqueId` while `QRCodeCommand` encoded only `ASS_TAG_1_TXT` — producer and its
+only intended consumer disagreed on the key, so even a working scanner could not have driven
+it. Both halves fixed: the payload carries `?u={UniqueId}`, and `QR_ScanCommission` accepts a
+scanned/pasted payload, resolves by UniqueId first then by tag, and **refuses to guess when a
+tag is duplicated** — advancing the wrong asset's commissioning state is not something a later
+run can detect or undo.
+
+**`GenerateQRSheet` repointed.** It was named for a sheet QR that did not exist and aliased the
+per-ELEMENT command (`MISWIRE_AUDIT.md` cluster E), so a caller asking for a sheet stamp
+silently got a folder of element PNGs. It now runs `SheetStampQrAllCommand`.
+
+**What is NOT built, stated plainly:**
+
+1. **Scanning a sheet code cannot open the drawing.** Planscape has no lookup-by-sheet-number
+   endpoint. The app shows sheet number, project and revision, and stops. It does not run an
+   element search on a sheet number — that would return nothing and read as "not in this
+   project", a wrong answer rather than an empty one.
+2. **Phone-driven commissioning does not exist.** `Planscape.Server` has no commissioning
+   controller or entity, so there is nothing for the app to POST to. `QR_ScanCommission` is the
+   DESKTOP path: a USB/Bluetooth scanner (which types like a keyboard) or a pasted payload.
+3. **The stamp is not wired into the issue orchestrator.** It is a deliberate command. The
+   creation guide previously claimed the orchestrator "bakes a QR code into `TB_QR_PAYLOAD_TXT`";
+   that line is now removed rather than made true by hand-waving.
+
+Docs corrected where they described this as shipped: `SLOT_TAXONOMY.md`,
+`TITLE_BLOCK_CREATION_GUIDE.md` (including an "RFI portal" QR that was never built), and
+`DRAWINGS_PRODUCTION_LAYMANS_GUIDE.md` ("scanning a code on site pulls up that element's asset
+data" — it did not).
+
+Gates: plugin builds 0 errors / 0 warnings. Workflow-wiring OK (Tier 4 and Tier 6 both 0 across
+1,689 buttons). Path-discipline OK. Parameter-contract OK. The parameter-readership gate reports
+386 against a baseline of 384 — **that failure pre-dates this work**, measured on a clean tree,
+and this change is readership-neutral (386 before, 386 after).
+
 #### Completed (Phase 279 — every parameter role decided, and the cost block measured instead of asserted)
 
 #953 landed the contract gate with 226 of 253 entries `unresolved`. All 253 now

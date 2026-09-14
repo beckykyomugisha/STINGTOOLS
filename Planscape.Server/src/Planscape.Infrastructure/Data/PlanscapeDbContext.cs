@@ -170,6 +170,9 @@ public class PlanscapeDbContext : DbContext
 
     // Healthcare Pack H-22 — clinical / facility-engineering log tables.
     public DbSet<HealthcarePressureLog>       HealthcarePressureLogs       => Set<HealthcarePressureLog>();
+    // QR-3 — append-only commissioning ladder, shared by the desktop plugin and
+    // the mobile scan path. Every advance INSERTS; current state is the newest row.
+    public DbSet<CommissioningRecord>         CommissioningRecords         => Set<CommissioningRecord>();
     public DbSet<HealthcareMgasVerification>  HealthcareMgasVerifications  => Set<HealthcareMgasVerification>();
     public DbSet<HealthcareAntiLigatureAudit> HealthcareAntiLigatureAudits => Set<HealthcareAntiLigatureAudit>();
     public DbSet<HealthcareRdsSnapshot>       HealthcareRdsSnapshots       => Set<HealthcareRdsSnapshot>();
@@ -1293,6 +1296,20 @@ public class PlanscapeDbContext : DbContext
         modelBuilder.Entity<HealthcareMgasVerification>(e =>
         {
             e.HasIndex(x => new { x.ProjectId, x.CapturedAt });
+        });
+        modelBuilder.Entity<CommissioningRecord>(e =>
+        {
+            // The hot query is "current state of this element", which is the newest
+            // row for one (project, element). A composite on exactly that, descending
+            // by time, turns it into an index seek plus one row rather than a scan of
+            // every step the element has ever been through.
+            e.HasIndex(x => new { x.ProjectId, x.ElementUniqueId, x.RecordedAt });
+            // The register view: everything commissioned in a project, newest first.
+            e.HasIndex(x => new { x.ProjectId, x.RecordedAt });
+            // A Revit UniqueId is a GUID plus an optional 8-hex suffix: 45 chars.
+            e.Property(x => x.ElementUniqueId).HasMaxLength(64);
+            e.Property(x => x.ToState).HasMaxLength(32);
+            e.Property(x => x.FromState).HasMaxLength(32);
         });
         modelBuilder.Entity<HealthcareAntiLigatureAudit>(e =>
         {

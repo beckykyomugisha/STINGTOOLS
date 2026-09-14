@@ -277,6 +277,133 @@ export function transitionCDE(
   });
 }
 
+// ── Commissioning (scanned asset QR) ──
+
+/** One step on the commissioning ladder, as stored by the server. */
+export interface CommissioningRecord {
+  id: string;
+  elementUniqueId: string;
+  elementTag?: string | null;
+  elementName?: string | null;
+  fromState: string;
+  toState: string;
+  operative: string;
+  witness?: string | null;
+  notes?: string | null;
+  source: string;
+  recordedAt: string;
+  occurredAt?: string | null;
+}
+
+export interface CommissioningState {
+  elementUniqueId: string;
+  currentState: string;
+  /** Null only when currentState is not one the server recognises. */
+  nextState: string | null;
+  isTerminal: boolean;
+  /** True when the NEXT step is COMMISSIONED, which needs a witness. Render the
+   *  witness field from this rather than from a copy of the rule. */
+  witnessRequiredNext: boolean;
+  history: CommissioningRecord[];
+}
+
+/** Every state a client should offer, from the server, so the app never keeps
+ *  its own copy of the ladder — the copy is what drifts. */
+export function getCommissioningStates(): Promise<{
+  states: string[];
+  witnessRequiredFor: string;
+  terminal: string;
+}> {
+  return apiFetch('/api/commissioning/states');
+}
+
+export function getCommissioningState(
+  projectId: string,
+  elementUniqueId: string
+): Promise<CommissioningState> {
+  return apiFetch(
+    `/api/projects/${projectId}/commissioning/${encodeURIComponent(elementUniqueId)}`
+  );
+}
+
+/**
+ * Advance one element by one step.
+ *
+ * `expectedCurrentState` is how two fitters scanning the same asset seconds apart
+ * do not both record the same step under two names: pass what you showed the user,
+ * and the server answers 409 `state_moved` if it has since changed.
+ *
+ * A refusal comes back 422 with a `refusal` ENUM — branch on that, never on the
+ * message text, which is written for a human and will be reworded.
+ */
+export function advanceCommissioning(
+  projectId: string,
+  body: {
+    elementUniqueId: string;
+    requestedState?: string;
+    operative: string;
+    witness?: string;
+    notes?: string;
+    elementTag?: string;
+    elementName?: string;
+    source?: string;
+    occurredAt?: string;
+    expectedCurrentState?: string;
+  }
+): Promise<{
+  record: CommissioningRecord;
+  currentState: string;
+  nextState: string | null;
+  isTerminal: boolean;
+}> {
+  return apiFetch(`/api/projects/${projectId}/commissioning/advance`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+// ── Sheet Lookup (scanned title-block QR) ──
+
+/** What the server answers for a scanned sheet code. */
+export interface SheetLookupResult {
+  sheetNumber: string;
+  requestedRevision: string | null;
+  /**
+   * TRUE when the scanned ?r= revision actually matched documents, so `items`
+   * are that revision. FALSE when it did not, so `items` are EVERY revision of
+   * the sheet — the server keeps the wider answer rather than narrowing to
+   * nothing, because an empty result on site reads as "this drawing does not
+   * exist". The screen must say which of the two it is showing.
+   */
+  revisionNarrowed: boolean;
+  /** Total matches before `limit` — `items.length` can be smaller. */
+  matched: number;
+  /**
+   * PUBLISHED first, then SHARED, then WIP, newest within each. The top row is
+   * what a person on site should be building from; do not re-sort.
+   */
+  items: DocumentRecord[];
+}
+
+/**
+ * Resolve a sheet number stamped into a title-block QR
+ * (`https://app.planscape.build/s/{project}/{sheet}`) to its documents.
+ *
+ * There is no sheet entity on the server — a sheet number lives inside the ISO
+ * 19650 document NAME — so this matches on file name. An empty `items` means
+ * nothing matched, and the caller must show that as an empty result rather than
+ * substituting anything.
+ */
+export function lookupSheet(
+  projectId: string,
+  sheetNumber: string,
+  revision?: string | null
+): Promise<SheetLookupResult> {
+  const q = new URLSearchParams({ number: sheetNumber });
+  if (revision) q.set('revision', revision);
+  return apiFetch(`/api/projects/${projectId}/documents/by-sheet?${q.toString()}`);
+}
+
 // ── Tag Sync / Element Lookup ──
 
 export function lookupElement(

@@ -10,25 +10,6 @@
 <line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
 <line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
 <line x1="0" y1="80" x2="841"  y2="80" stroke="#222" stroke-width="0.35"/>
 <line x1="641" y1="80" x2="641"  y2="594" stroke="#222" stroke-width="0.35"/>
 <line x1="200" y1="0" x2="200"  y2="80" stroke="#444" stroke-width="0.18"/>
@@ -78,6 +59,7 @@
 <g transform="translate(684,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CHECKED BY</text></g>
 <g transform="translate(754,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">APPROVED BY</text></g>
 <g transform="translate(624,69) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DATES</text></g>
+<g transform="translate(300,56) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SYSTEM</text></g>
 <g transform="translate(4,76) scale(1,-1)"><text x="0" y="0" font-size="1.3" text-anchor="start" fill="#000">SPOOL #</text></g>
 <g transform="translate(204,76) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DISCIPLINE</text></g>
 <g transform="translate(204,36.0) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">WEIGHT</text></g>
@@ -98,8 +80,8 @@
 <g transform="translate(4,86) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
 <g transform="translate(4,70) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(4,60) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
-<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
-<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_NAME}</text></g>
+<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_ADDRESS}</text></g>
 <g transform="translate(40,31) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
 <g transform="translate(40,26) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
 <g transform="translate(40,16) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
@@ -121,15 +103,16 @@
 <g transform="translate(624,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
 <g transform="translate(684,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_CHECKED}</text></g>
 <g transform="translate(754,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_APVD}</text></g>
-<g transform="translate(4,62) scale(1,-1)"><text x="0" y="0" font-size="3.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·VARIANT}</text></g>
+<g transform="translate(300,50) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_SYSTEM}</text></g>
+<g transform="translate(4,62) scale(1,-1)"><text x="0" y="0" font-size="3.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ASS_SPOOL_NR}</text></g>
 <g transform="translate(204,62) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DISCIPLINE}</text></g>
-<g transform="translate(204,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·NOTES_LEGEND_REF}</text></g>
-<g transform="translate(404,62) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·FEDERATION_STATUS}</text></g>
-<g transform="translate(404,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DELIVERABLE_STATUS}</text></g>
-<g transform="translate(564,62) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·REVISION_NR}</text></g>
+<g transform="translate(204,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ASS_WEIGHT_KG}</text></g>
+<g transform="translate(404,62) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ASS_FAB_LOC}</text></g>
+<g transform="translate(404,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ASS_FAB_STATUS}</text></g>
+<g transform="translate(564,62) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ASS_BOM_REV}</text></g>
 <g transform="translate(564,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
 <g transform="translate(704,62) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
-<g transform="translate(704,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ST·SHEET_FULL_REF}</text></g>
+<g transform="translate(704,22.0) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_OF_TOTAL}</text></g>
 <rect x="10" y="120" width="810" height="470" fill="#1F4E79" fill-opacity="0.05" stroke="#1F4E79" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
 <rect x="10" y="583" width="12" height="7" fill="#1F4E79" opacity="0.9"/>
 <g transform="translate(12,588.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">S01</text></g>
@@ -174,6 +157,10 @@
 <rect x="643" y="583" width="12" height="7" fill="#AD1457" opacity="0.9"/>
 <g transform="translate(645,588.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">CUT</text></g>
 <g transform="translate(645,581) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#AD1457" opacity="0.85">cut-list</text></g>
+<rect x="807" y="7" width="22" height="22" fill="#37474F" fill-opacity="0.0" stroke="#37474F" stroke-width="0.5" stroke-dasharray="1,1.5" opacity="0.95"/>
+<rect x="807" y="22" width="12" height="7" fill="#37474F" opacity="0.9"/>
+<g transform="translate(809,27.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">QR</text></g>
+<g transform="translate(809,20) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#37474F" opacity="0.85">qr-code</text></g>
 <rect x="10" y="561" width="60" height="22" fill="#880E4F" fill-opacity="0.0" stroke="#880E4F" stroke-width="0.5" stroke-dasharray="5,1.5,1.5,1.5" opacity="0.65"/>
 <rect x="10" y="576" width="12" height="7" fill="#880E4F" opacity="0.9"/>
 <g transform="translate(12,581.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">REF</text></g>
@@ -202,8 +189,9 @@
 <text x="608" y="55" font-size="5" fill="#333">bom</text>
 <rect x="620" y="51" width="6" height="6" fill="#AD1457" opacity="0.85"/>
 <text x="629" y="55" font-size="5" fill="#333">cut-list</text>
-<rect x="656" y="51" width="6" height="6" fill="#880E4F" opacity="0.85"/>
-<text x="665" y="55" font-size="5" fill="#333">spool-refs</text>
-<text x="30" y="689.0" font-size="7" fill="#444">parameters 44  ·  lines 54  ·  labels 36  ·  static-text 34  ·  fills 1  ·  slots 12</text>
+<rect x="656" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
+<text x="665" y="55" font-size="5" fill="#333">qr-code</text>
+<text x="689" y="55" font-size="5" fill="#999">+1 more</text>
+<text x="30" y="689.0" font-size="7" fill="#444">parameters 60  ·  lines 35  ·  labels 37  ·  static-text 35  ·  fills 1  ·  slots 13</text>
 <text x="30" y="699.0" font-size="6" fill="#666">Fabrication assembly title block — hanger / support. A1 landscape, 200 mm BOM strip on the right (6 cols × 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC…</text>
 </svg>

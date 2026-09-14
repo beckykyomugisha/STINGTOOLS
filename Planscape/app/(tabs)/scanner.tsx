@@ -14,11 +14,23 @@ import {
   Modal,
 } from 'react-native';
 import { theme, getRAGColor } from '@/utils/theme';
-import { listProjects, lookupElement, listIssues, _getBaseUrl } from '@/api/endpoints';
+import {
+  listProjects,
+  lookupElement,
+  lookupSheet,
+  listIssues,
+  getCommissioningState,
+  advanceCommissioning,
+  _getBaseUrl,
+} from '@/api/endpoints';
+import type { CommissioningState } from '@/api/endpoints';
 import type { Project, TaggedElement, BimIssue } from '@/types/api';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { parseQr } from '@/services/qrParser';
 import { crashReporter } from '@/services/crashReporter';
+import { useAuthStore } from '@/stores/authStore';
+import { isOnline } from '@/utils/connectivity';
+import { enqueue } from '@/utils/offlineQueue';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -80,6 +92,15 @@ export default function ScannerScreen() {
       Alert.alert('Unrecognised code', `Scanned: ${result.data}`);
       return;
     }
+    // A SHEET code (the title-block stamp) names a drawing, not an element, so it
+    // goes to the sheet lookup. Running it through the element search would return
+    // nothing and read as "that element is not in this project" — a wrong answer,
+    // not an empty one.
+    if (parsed.type === 'sheet') {
+      await resolveScannedSheet(parsed);
+      return;
+    }
+
     // Treat element/issue/document QR payloads as element tag lookup
     setQuery(parsed.id);
     if (activeProject) {
@@ -94,12 +115,261 @@ export default function ScannerScreen() {
         ]);
         if (elements.length === 0) {
           Alert.alert('No match', `Scanned ${parsed.id} — no element in this project.`);
+        } else if (parsed.uniqueId) {
+          // The payload carries a UniqueId, so this scan CAN drive commissioning.
+          // Only offer it when it can actually work: the ladder is keyed on
+          // UniqueId, and a tag-only payload (an older code, or a hand-typed tag)
+          // has nothing to advance. Offering a button that then fails would be
+          // worse than not offering it.
+          await offerCommissioning(parsed.uniqueId, elements[0]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Lookup failed');
       } finally {
         setSearching(false);
       }
+    }
+  }
+
+  /**
+   * Offer to advance this element's commissioning state, having scanned it.
+   *
+   * This is the path that did not exist: "QR commissioning" shipped with no scan
+   * anywhere, and could not have had one — the ladder is keyed on UniqueId and the
+   * QR carried only the tag. Both halves are fixed, and this is the mobile end.
+   *
+   * The witness prompt is driven by `witnessRequiredNext` FROM THE SERVER rather
+   * than by a copy of the rule here. A client-side copy is the same drift risk as a
+   * second state machine, one layer out.
+   */
+  async function offerCommissioning(uniqueId: string, element: TaggedElement) {
+    if (!activeProject) return;
+    try {
+      const state = await getCommissioningState(activeProject.id, uniqueId);
+
+      if (state.isTerminal) {
+        Alert.alert(
+          element.tag1 || 'Asset',
+          `Commissioning is complete (${state.currentState}). There is nothing further to record.`,
+        );
+        return;
+      }
+
+      // QR-9 — COMMISSIONED needs a witness, which an Alert cannot collect. It used
+      // to be refused outright: honest, but useless on the one step that most needs
+      // recording while you are standing at the asset. It now opens a form.
+      const needsWitness = state.witnessRequiredNext;
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Commissioning: ${state.currentState} → ${state.nextState}` +
+          (needsWitness
+            ? '\n\nThis step declares the asset fit for use, so it needs a witness as well as your name.'
+            : ''),
+        [
+          { text: 'Not now', style: 'cancel' },
+          needsWitness
+            ? {
+                text: 'Sign off…',
+                onPress: () =>
+                  router.push(
+                    `/commissioning/signoff?projectId=${activeProject.id}` +
+                      `&uid=${encodeURIComponent(uniqueId)}` +
+                      `&tag=${encodeURIComponent(element.tag1 ?? '')}` +
+                      `&name=${encodeURIComponent(element.familyName ?? '')}` +
+                      `&from=${encodeURIComponent(state.currentState)}` +
+                      `&to=${encodeURIComponent(state.nextState ?? '')}`,
+                  ),
+              }
+            : {
+                text: `Record ${state.nextState}`,
+                onPress: () => void recordCommissioningStep(uniqueId, element, state),
+              },
+        ],
+      );
+    } catch (err) {
+      // Never block the scan result on this. The element WAS found; failing to
+      // read its commissioning state is a smaller problem and must not present
+      // as "no match".
+      crashReporter.warn('scanner: commissioning state read failed', {
+        err: String(err),
+      });
+    }
+  }
+
+  async function recordCommissioningStep(
+    uniqueId: string,
+    element: TaggedElement,
+    state: CommissioningState,
+  ) {
+    if (!activeProject) return;
+
+    // The operative must be a REAL name. The server refuses an unattributed step,
+    // and a placeholder like "Unknown" would satisfy that check while recording a
+    // sign-off attributable to nobody — the exact thing the rule exists to prevent.
+    const auth = useAuthStore.getState();
+    const operative = (auth.displayName || auth.email || '').trim();
+    if (!operative) {
+      Alert.alert(
+        'Not recorded',
+        'Your account has no name or email on it, and a commissioning step has to be attributable to a person. Sign in again, or record this from a device that is signed in.',
+      );
+      return;
+    }
+
+    // QR-8 — commissioning happens in basement plant rooms, which is exactly where
+    // there is no signal. Queue rather than lose the sign-off: the operative walked
+    // to the asset once and should not have to again.
+    const body = {
+      elementUniqueId: uniqueId,
+      operative,
+      // QR-13 — PIN THE TARGET. "Advance one step" is resolved by the server at
+      // the moment the request lands, and for a queued scan that is hours later.
+      // If someone else advanced the asset meanwhile, an unpinned request would
+      // record the step AFTER theirs — so an operative who signed off TESTED would
+      // find COMMISSIONED recorded in their name. Naming the state they were shown
+      // means the ladder refuses it as a duplicate instead.
+      requestedState: state.nextState ?? undefined,
+      elementTag: element.tag1,
+      elementName: element.familyName,
+      source: 'mobile-scan',
+      occurredAt: new Date().toISOString(),
+    };
+
+    if (!(await isOnline())) {
+      await enqueue('COMMISSIONING_ADVANCE', { projectId: activeProject.id, payload: body });
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Saved offline: ${state.currentState} → ${state.nextState}.\n\n` +
+          'It will be sent when you have signal. Until then it is NOT on the server, ' +
+          'so nobody else can see it.',
+      );
+      return;
+    }
+
+    try {
+      const result = await advanceCommissioning(activeProject.id, {
+        ...body,
+        // What we just showed the user. If someone else advanced it in between,
+        // the server answers 409 rather than recording the same step twice under
+        // two names.
+        expectedCurrentState: state.currentState,
+      });
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Recorded: ${result.record.fromState} → ${result.currentState}`,
+      );
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      const body = (err as { body?: { refusal?: string; reason?: string; detail?: string } })?.body;
+      if (status === 409) {
+        Alert.alert('Someone got there first', body?.detail ?? 'Re-scan to see the current state.');
+        return;
+      }
+      if (status === 422) {
+        // The server refused on a rule. Show ITS sentence — it names the actual
+        // reason, which a generic "could not save" destroys.
+        //
+        // AlreadyInState is the offline double-sign-off and deserves its own
+        // heading: the operative did the work, and the only news is that a
+        // colleague captured it first. "Not recorded" alone reads as a failure.
+        const title =
+          body?.refusal === 'AlreadyInState' ? 'Already recorded' : 'Not recorded';
+        Alert.alert(title, body?.reason ?? 'That step is not allowed right now.');
+        return;
+      }
+      Alert.alert('Not recorded', err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /**
+   * Resolve a scanned title-block QR to the sheet's documents.
+   *
+   * Four outcomes, kept distinct on purpose — the failure this codebase produces
+   * is a no-op that reads like a success:
+   *   - no project selected -> say so; a sheet number is only unique within one
+   *   - nothing matched     -> an EMPTY result, said plainly. Never a stand-in row
+   *   - lookup failed       -> the error, NOT "no match". Different answers
+   *   - matched             -> open the top document (PUBLISHED first, newest),
+   *                            and warn when the scanned revision is not the one
+   *                            being shown, because the print in their hand is
+   *                            then superseded
+   */
+  async function resolveScannedSheet(parsed: ReturnType<typeof parseQr>) {
+    const sheetNumber = parsed.sheetNumber ?? parsed.id ?? '';
+    setQuery(sheetNumber);
+
+    if (!activeProject) {
+      Alert.alert(
+        `Sheet ${sheetNumber}`,
+        'Choose a project first — a sheet number is only unique within one.',
+      );
+      return;
+    }
+
+    setSearching(true);
+    setError(null);
+    try {
+      const result = await lookupSheet(activeProject.id, sheetNumber, parsed.revision);
+      setHistory(prev => [
+        {
+          query: sheetNumber,
+          resultCount: result.matched,
+          timestamp: new Date().toISOString(),
+        },
+        ...prev.slice(0, 19),
+      ]);
+
+      if (result.items.length === 0) {
+        Alert.alert(
+          `Sheet ${sheetNumber}`,
+          [
+            parsed.projectCode ? `Stamped project: ${parsed.projectCode}` : null,
+            parsed.revision ? `Stamped revision: ${parsed.revision}` : null,
+            '',
+            `No document in ${activeProject.name} carries this sheet number.`,
+            'If the drawing was issued from another project, switch to it and scan again.',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+        return;
+      }
+
+      const top = result.items[0];
+      const staleRevision =
+        parsed.revision && !result.revisionNarrowed
+          ? `\n\nThe code says revision ${parsed.revision}, which is not in the register. ` +
+            `Showing ${top.revision || 'the latest'} instead — the print in your hand may be superseded.`
+          : '';
+
+      Alert.alert(
+        top.fileName,
+        [
+          `Sheet ${sheetNumber}`,
+          `Status: ${top.cdeStatus}${top.revision ? ` · Rev ${top.revision}` : ''}`,
+          result.matched > 1 ? `${result.matched} revisions on file` : null,
+        ]
+          .filter(Boolean)
+          .join('\n') + staleRevision,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Open',
+            onPress: () => router.push(`/documents/markup?id=${top.id}`),
+          },
+        ],
+      );
+    } catch (err) {
+      // A failed lookup is NOT an empty one. Say which happened.
+      setError(err instanceof Error ? err.message : 'Sheet lookup failed');
+      Alert.alert(
+        `Sheet ${sheetNumber}`,
+        `Could not reach the document register.\n\n${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    } finally {
+      setSearching(false);
     }
   }
 
@@ -497,6 +767,27 @@ function ElementDetail({
       <DetailField label="Type" value={element.typeName} />
       <DetailField label="Status" value={element.status ?? ''} />
       <DetailField label="Revision" value={element.rev ?? ''} />
+
+      {/* Sustainability (SUS-QR).
+          Rendered ONLY when there is something to say. An "Embodied carbon: —"
+          row on every element trains people to ignore the section; worse, a
+          "0 kgCO₂e" default would assert a measurement nobody made and read as
+          a genuinely zero-carbon asset. Absent data is absent. */}
+      {(element.epdRef || element.embodiedCarbonKg != null || element.materialName) && (
+        <>
+          <Text style={styles.detailSectionTitle}>Sustainability</Text>
+          {!!element.materialName && <DetailField label="Material" value={element.materialName} />}
+          {element.embodiedCarbonKg != null && (
+            <DetailField
+              label="Embodied carbon"
+              value={`${element.embodiedCarbonKg.toLocaleString(undefined, {
+                maximumFractionDigits: 1,
+              })} kgCO₂e (A1–A3)`}
+            />
+          )}
+          {!!element.epdRef && <DetailField label="EPD" value={element.epdRef} />}
+        </>
+      )}
 
       {/* Spatial */}
       {(element.roomName || element.gridRef) && (

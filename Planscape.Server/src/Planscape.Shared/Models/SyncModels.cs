@@ -106,6 +106,21 @@ public class TagElementSync
     /// </summary>
     public DateTime? LastModifiedUtc { get; set; }
 
+    // ─── Sustainability (SUS-QR) ───
+    // So a SCANNED asset can answer "what is this made of, and what did it cost
+    // the planet" without a second system. The QR label on a duct is the only
+    // interface a site operative has to the model.
+    //
+    // ALL NULLABLE, and null means UNKNOWN — never 0 kgCO₂e. A zero default would
+    // be a claim about the world where there is no measurement, and it would flow
+    // into a carbon rollup indistinguishable from a real one.
+    /// <summary>SUS_EPD_REF_TXT — the EPD this element's material cites.</summary>
+    public string? EpdRef { get; set; }
+    /// <summary>STING_EMB_CARBON_NR — embodied carbon A1–A3, kgCO₂e.</summary>
+    public double? EmbodiedCarbonKg { get; set; }
+    /// <summary>The material the carbon figure describes.</summary>
+    public string? MaterialName { get; set; }
+
     // ─── Phase 165 tier payload ───
     // TAG7A-TAG7F mirror the per-section parameters written by WriteTag7All;
     // T4-T10 are the formatted summaries built by BuildTag7Sections; ParaDepth

@@ -107,6 +107,13 @@ public record TaggedElementDto
     public string? Status { get; init; }
     public string? Rev { get; init; }
     public string? GridRef { get; init; }
+
+    // ── Sustainability (SUS-QR) ──
+    // Null means UNKNOWN. A client that renders null as "0 kgCO2e" is asserting
+    // something nobody measured; every consumer must branch.
+    public string? EpdRef { get; init; }
+    public double? EmbodiedCarbonKg { get; init; }
+    public string? MaterialName { get; init; }
     public string? RoomName { get; init; }
     public string? Level { get; init; }   // level NAME (distinct from Lvl)
 
@@ -165,6 +172,9 @@ public record TaggedElementDto
         Status = e.Status,
         Rev = e.Rev,
         GridRef = e.GridRef,
+        EpdRef = e.EpdRef,
+        EmbodiedCarbonKg = e.EmbodiedCarbonKg,
+        MaterialName = e.MaterialName,
         RoomName = e.RoomName,
         Level = e.Level,
         IsStale = e.IsStale,

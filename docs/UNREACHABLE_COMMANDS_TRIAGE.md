@@ -19,15 +19,20 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-12
+## Counts — re-derived 2026-09-14
 
-- **Total IExternalCommand classes**: **1724**
-- **Reached by a dispatch layer**: **1692**
+- **Total IExternalCommand classes**: **1731**
+- **Reached by a dispatch layer**: **1699**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1724; the script fails if they stop adding up.
+The four buckets partition all 1731; the script fails if they stop adding up.
+
+**+7 since 2026-09-12**, all reached: the QR work added `Sheet_StampQR`,
+`Sheet_StampQRAll`, `Sheet_ClearQR`, `Sheet_InspectQR`, `Sheet_SetQRAnchor`,
+`QR_LabelSheet` and `QR_ScanCommission`. The unreachable and ambiguous buckets are
+unchanged — nothing new joined either.
 
 **One of the ten is an abstract base class and MUST NOT be deleted.**
 `Clash/AccUploadModelCommand.cs` declares `public abstract class

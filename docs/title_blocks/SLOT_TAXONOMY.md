@@ -57,7 +57,17 @@ The colour palette in `tools/generate_title_block_previews.py` (`PURPOSE_PALETTE
 |---|---|---|---|
 | `north-arrow` | `#009688` teal | North-arrow nested family | `PRJ_TB_SHOW_NORTH_ARROW_BOOL` |
 | `scale-bar` | `#009688` teal | Scale-bar nested family | `PRJ_TB_SHOW_SCALE_BAR_BOOL` |
-| `qr-code` | `#37474F` dark grey | QR-code post-export stamp | `PRJ_TB_SHOW_QR_CODE_BOOL` |
+| `qr-code` | `#37474F` dark grey | QR stamp — deep link to the sheet's CDE record, placed by `SheetQrStamper` | `PRJ_TB_SHOW_QR_CODE_BOOL` |
+
+> **`qr-code` was documentation-only until 2026-09-14.** This table listed it, `TitleBlockSpec.cs` listed it,
+> and the creation guide described a "QR-code stamper" — while no title-block spec declared a `qr-code`
+> slot, no family carried `PRJ_TB_SHOW_QR_CODE_BOOL`, and no C# anywhere read either it or
+> `TB_QR_PAYLOAD_TXT`. It is now real: the nine size bases declare a `QR` slot in absolute mm
+> (fractional coords resolved off-paper on A0 and A3 portrait), the root parameter set carries both
+> params, and `Sheet_StampQR` / `Sheet_StampQRAll` write them. The twelve concrete families that
+> declare their own `slots` array (fabrication, presentation, submission, divider, register,
+> clarification) shadow the base and so have NO `qr-code` slot — those fall back to a corner inset,
+> which is a deliberate gap, not an oversight. `Sheet_InspectQR` reports which families lack what.
 
 ### Overlay / specialty
 

@@ -115,6 +115,11 @@ public class PluginSyncMappingTests
         nameof(TagElementSync.T10Compliance),
         nameof(TagElementSync.ParaDepth),
         nameof(TagElementSync.PatternMode),
+        // SUS-QR — mapped in TagElementSyncMapper.MapElement and included in
+        // SyncReconciler.ComputeHash, so a re-assessment actually re-sends.
+        nameof(TagElementSync.EpdRef),
+        nameof(TagElementSync.EmbodiedCarbonKg),
+        nameof(TagElementSync.MaterialName),
     };
 
     [Fact]

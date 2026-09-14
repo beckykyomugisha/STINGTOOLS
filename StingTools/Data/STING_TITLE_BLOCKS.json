@@ -310,6 +310,18 @@
           "kind": "shared",
           "instance": true,
           "group": "Graphics"
+        },
+        {
+          "name": "PRJ_TB_SHOW_QR_CODE_BOOL",
+          "kind": "shared",
+          "instance": true,
+          "group": "Graphics"
+        },
+        {
+          "name": "TB_QR_PAYLOAD_TXT",
+          "kind": "shared",
+          "instance": true,
+          "group": "IdentityData"
         }
       ],
       "lines": [
@@ -1111,6 +1123,17 @@
           "description": "Key-plan pocket \u2014 small location overview",
           "createReferencePlanes": false,
           "showCornerMarker": true
+        },
+        {
+          "id": "QR",
+          "anchor": [794, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -2002,6 +2025,7 @@
       "id": "A0_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A0 landscape working sheet (1189 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 1169 \u00d7 696 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
       "drawable": { "x": 10, "y": 135, "w": 1169, "h": 701, "marginMm": 25 },
@@ -2824,6 +2848,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [1153, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -3487,6 +3522,7 @@
       "id": "A0_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A0 portrait working sheet (841 \u00d7 1189 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 130 mm, drawable zone 821 \u00d7 1044 mm.",
       "templateRft": "Annotations/Titleblocks/A0 metric.rft",
       "drawable": { "x": 10, "y": 135, "w": 821, "h": 1049, "marginMm": 25 },
@@ -4309,6 +4345,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [805, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -4972,6 +5019,7 @@
       "id": "A1_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "drawable": { "x": 10, "y": 115, "w": 821, "h": 474, "marginMm": 25 },
       "description": "A1 landscape working sheet (841 \u00d7 594 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 821 \u00d7 469 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -5772,6 +5820,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [805, 10],
+          "size": [26, 26],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -5779,6 +5838,7 @@
       "id": "A1_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A1 portrait working sheet (594 \u00d7 841 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 110 mm, drawable zone 574 \u00d7 716 mm.",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
       "drawable": { "x": 10, "y": 115, "w": 574, "h": 721, "marginMm": 25 },
@@ -6601,6 +6661,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [566, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -7264,6 +7335,7 @@
       "id": "A3_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 400 \u00d7 212 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": { "x": 10, "y": 75, "w": 400, "h": 217, "marginMm": 25 },
@@ -8012,6 +8084,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [392, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -8675,6 +8758,7 @@
       "id": "A3_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 common base shared between BIM and NONBIM variants. Inherits the 40-param identity-data universe from A1_common_v2.0 and adds geometry sized for this paper. Five-column bottom strip (CLIENT/PROJECT/CONSULTANTS \u2014 NOTES/PROJECT-REF/DISCIPLINE/STAGE \u2014 DRAWING TITLE \u2014 DATES/AUTHORING \u2014 SHEET ID), strip height 70 mm, drawable zone 277 \u00d7 335 mm.",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": { "x": 10, "y": 75, "w": 277, "h": 340, "marginMm": 25 },
@@ -9423,6 +9507,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [216, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time. A3 PORTRAIT SPECIFIC: the bottom-right corner is occupied by PRJ_TB_PAPER_SZ_TXT (x 257-269), so this sits in the empty band between PRJ_TB_APVD_BY_TXT (ends x=210) and that label. TitleBlockQrSlotTests caught the original bottom-right placement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -10086,6 +10181,7 @@
       "id": "A2_LAND_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 landscape working sheet (420 \u00d7 297 mm) \u2014 A2 size; geometry scaled from A3_LAND_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": {
@@ -10840,6 +10936,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [561.8, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -10847,6 +10954,7 @@
       "id": "A2_PORT_common_v2.0",
       "abstract": true,
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "A3 portrait working sheet (297 \u00d7 420 mm) \u2014 A2 size; geometry scaled from A3_PORT_common_v2.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
       "drawable": {
@@ -11601,6 +11709,17 @@
           "showCornerMarker": false,
           "respectShowToggle": true,
           "automationHook": "Symbol_PlaceScaleBar"
+        },
+        {
+          "id": "QR",
+          "anchor": [387.8, 10],
+          "size": [18, 18],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Absolute mm, NOT fractional: resolving it against the drawable rect put it off-paper on A0 and A3_PORT. Sits in the free bottom-right cell of the info strip; verified clear of every label and static text in this base. Nothing is authored into the .rfa for this slot (no ref planes, no corner marker) — it is a position declaration read by SheetQrStamper.ResolvePlacement at stamp time.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
@@ -12919,6 +13038,7 @@
     {
       "id": "STING_TB_ASSEMBLY_PIPE_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 pipe spool. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #0076A8. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_PIPE_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -13681,12 +13801,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_ASSEMBLY_DUCT_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 duct spool. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #F2A341. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_DUCT_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -14449,12 +14581,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_ASSEMBLY_COND_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 conduit / cable assembly. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #7B3F00. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_COND_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -15217,12 +15361,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_ASSEMBLY_HANGER_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Fabrication assembly title block \u2014 hanger / support. A1 landscape, 200 mm BOM strip on the right (6 cols \u00d7 18 rows), 80 mm bottom title strip with fab metadata (SPOOL # / DISCIPLINE / WEIGHT / FAB LOC / STATUS / BOM REV / ISSUE DATE / PROJECT / DRG NO). Discipline accent stripe in #5A5A5A. Drawable 636\u00d7509 mm \u2014 fits a typical 1:25 spool isometric.",
       "saveAs": "Families/TitleBlocks/STING_TB_ASSEMBLY_HANGER_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -15985,12 +16141,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Fab_LinkSpoolRefs"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the fabrication strip, below the ISO/BOM/CUT slots (all y>=85). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_PRESENT_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Presentation title block (colour) \u2014 A1 landscape, FULL-BLEED render area (entire sheet is the slot). Bottom-right 280\u00d760 mm watermark with project / title / rev / date / drawn / client. Designed for renders, perspectives, full-page axonometrics \u2014 the watermark is deliberately minimal so the artwork dominates.",
       "saveAs": "Families/TitleBlocks/STING_TB_PRESENT_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16275,12 +16443,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildCaption"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "overlay",
+          "description": "QR stamp — deep link to this sheet's CDE record. OVERLAY on the full-bleed RENDER slot - deliberate, and the only option: RENDER covers the whole sheet, so there is no free cell anywhere. The CAPTION slot overlays it the same way. Sits below the caption (y 64-78). Turn it off per sheet with PRJ_TB_SHOW_QR_CODE_BOOL when a client render should carry no marks. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_PRESENT_A1_MONO_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Presentation title block (monochrome) \u2014 A1 landscape, FULL-BLEED render area (entire sheet is the slot). Bottom-right 280\u00d760 mm watermark with project / title / rev / date / drawn / client. Designed for renders, perspectives, full-page axonometrics \u2014 the watermark is deliberately minimal so the artwork dominates.",
       "saveAs": "Families/TitleBlocks/STING_TB_PRESENT_A1_MONO_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16565,12 +16745,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildCaption"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "overlay",
+          "description": "QR stamp — deep link to this sheet's CDE record. OVERLAY on the full-bleed RENDER slot - see STING_TB_PRESENT_A1_v1.0. Toggle it off for clean client output. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_COVER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A1 landscape, NO drawable zone (viewport placement deliberately blocked). Top dark-blue banner, amber accent band, large centred project name + address + client + RIBA stage. Bottom strip carries deliverable status, revision, issue date, transmittal ref.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -16864,6 +17056,7 @@
     {
       "id": "STING_TB_COVER_A0_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A0 landscape (1189 \u00d7 841 mm), NO drawable zone (viewport placement deliberately blocked). A0 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A0_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A0_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17157,6 +17350,7 @@
     {
       "id": "STING_TB_COVER_A3_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A3 landscape (420 \u00d7 297 mm), NO drawable zone (viewport placement deliberately blocked). A3 mirror of STING_TB_COVER_A1_v1.0 with geometry scaled from A1; same identity labels / captions / dark-blue banner + amber strip. Provide a seed at Families/TitleBlocks/_seeds/STING_TB_COVER_A3_v1.0.rfa to carry the full authored layout; TitleBlock_CreateAll augments it from this spec.",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A3_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17450,6 +17644,7 @@
     {
       "id": "STING_TB_COVER_A2_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Project / package cover sheet \u2014 A2 size; geometry scaled from STING_TB_COVER_A1_v1.0. Same format/arrangement; design is replaced wholesale when the A1 master seed is present (TitleBlock_CreateAll).",
       "saveAs": "Families/TitleBlocks/STING_TB_COVER_A2_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17743,6 +17938,7 @@
     {
       "id": "STING_TB_DIVIDER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Discipline section divider \u2014 A1 landscape, large grey background panel, huge centred discipline label (60 mm \u2014 e.g. 'MEP', 'STRUCTURAL', 'ARCHITECTURAL'), project code below. Minimal 50 mm bottom strip carries discipline / project / deliverable identifiers. Used between disciplines in a multi-discipline package.",
       "saveAs": "Families/TitleBlocks/STING_TB_DIVIDER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -17958,12 +18154,24 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "TB_ApplyDisciplineBand"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, clear of the BAND slot (40,80)-(801,554). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_REGISTER_A1_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Drawing register sheet \u2014 A1 landscape. Full-page 9-column \u00d7 24-row schedule (# / DRAWING TITLE / SHEET NO / REV / STATUS / DATE / DRAWN / CHKD / APVD). 60 mm bottom strip carries project + deliverable + rev. The actual register is populated by ExportSheetRegister at print time \u2014 this title block just provides the static frame.",
       "saveAs": "Families/TitleBlocks/STING_TB_REGISTER_A1_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -18586,12 +18794,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "ExportSheetRegister"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the REGISTER schedule slot (starts y=62). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_SUBMISSION_KCCA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 KAMPALA CAPITAL CITY AUTHORITY (KCCA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #006937. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_KCCA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -18925,12 +19145,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_SUBMISSION_ERA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 ELECTRICITY REGULATORY AUTHORITY (ERA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #1F4E79. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_ERA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -19264,12 +19496,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_SUBMISSION_NEMA_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "Statutory submission title block \u2014 NATIONAL ENVIRONMENT MANAGEMENT AUTHORITY (NEMA). A1 landscape with a prominent 80 mm regulator banner across the top, statutory disclaimer band under it, and a 4-cell bottom identity strip (PROJECT / PERMIT NO / SUBMISSION DATE / AUTHORISED BY). Banner accent in #7B3F00. Drawable zone 821 \u00d7 369 mm.",
       "saveAs": "Families/TitleBlocks/STING_TB_SUBMISSION_NEMA_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A1 metric.rft",
@@ -19603,12 +19847,24 @@
           "createReferencePlanes": false,
           "showCornerMarker": true,
           "automationHook": "Legend_BuildStatutoryDeclaration"
+        },
+        {
+          "id": "QR",
+          "anchor": [807, 7],
+          "size": [22, 22],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right, below the S01/STAMP/DECL slots (all y>=130). Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     },
     {
       "id": "STING_TB_CLARIFICATION_A3_v1.0",
       "extends": "A1_common_v2.0",
+      "replacesInheritedGeometry": true,
       "description": "RFI / clarification sketch sheet \u2014 A3 landscape (420 \u00d7 297 mm). Two-pane layout: left half is a legend / schedule for the QUERY text, right half is a SKETCH slot for annotated plan or detail. 25 mm header carries 'RFI / CLARIFICATION' + RFI REF. 30 mm footer carries PROJECT / DATE / REV.",
       "saveAs": "Families/TitleBlocks/STING_TB_CLARIFICATION_A3_v1.0.rfa",
       "templateRft": "Annotations/Titleblocks/A3 metric.rft",
@@ -19914,6 +20170,17 @@
           "showCornerMarker": true,
           "respectShowToggle": true,
           "automationHook": "Revisions_AutoPopulateSchedule"
+        },
+        {
+          "id": "QR",
+          "anchor": [393, 7],
+          "size": [15, 15],
+          "purposeTag": "qr-code",
+          "category": "symbol",
+          "description": "QR stamp — deep link to this sheet's CDE record. Bottom-right of the A3 sheet (420x297), below the QUERY/SKETCH slots (y>=35). Bottom-LEFT is taken by PRJ_ORG_PROJECT_NAME_TXT. Absolute mm, never fractional (fractions resolved off-paper on A0 and A3 portrait). Cell verified against this family's own label and static-text EXTENTS, not just their anchor points, by TitleBlockQrSlotTests. Nothing is authored into the .rfa for this slot; it is a position declaration read by SheetQrStamper.ResolvePlacement.",
+          "respectShowToggle": true,
+          "createReferencePlanes": false,
+          "showCornerMarker": false
         }
       ]
     }

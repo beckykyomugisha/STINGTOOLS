@@ -2060,12 +2060,24 @@ namespace StingTools.Core
 
                 // Phase 96: QR code tags dispatched from BCC Overview "QR CODES" section
                 // and the Planscape-native-hub → "Generate QR Link" quick share button.
-                // All four aliases land on the same ReadOnly QRCodeCommand.
+                // These three aliases land on the same ReadOnly QRCodeCommand.
                 case "QRCode":
                 case "GenerateQRCode":
-                case "GenerateQRSheet":
                 // "PrintQRTags" tag retired (Group 3 QR collapse) — its button was removed.
                 case "PlanscapeQR":              return new Tags.QRCodeCommand();
+
+                // "GenerateQRSheet" no longer aliases the per-ELEMENT command. It was named
+                // for a sheet QR that did not exist (MISWIRE_AUDIT.md cluster E), so a caller
+                // asking for a sheet stamp silently got a folder of element PNGs. It now runs
+                // the real sheet stamper.
+                case "GenerateQRSheet":
+                case "Sheet_StampQRAll":         return new Commands.Drawing.SheetStampQrAllCommand();
+                case "Sheet_StampQR":            return new Commands.Drawing.SheetStampQrCommand();
+                case "Sheet_ClearQR":            return new Commands.Drawing.SheetClearQrCommand();
+                case "Sheet_InspectQR":          return new Commands.Drawing.SheetInspectQrCommand();
+                case "Sheet_SetQRAnchor":        return new Commands.Drawing.SheetSetQrAnchorCommand();
+                case "QR_LabelSheet":            return new Commands.Drawing.QrLabelSheetCommand();
+                case "QR_ScanCommission":        return new V6.QRScanCommissioningCommand();
 
                 // Phase 96: BCC-Perm-01 fix — ExportPermissionMatrix was resolvable from the
                 // dock panel (StingCommandHandler) but not from the BCC action path, so the

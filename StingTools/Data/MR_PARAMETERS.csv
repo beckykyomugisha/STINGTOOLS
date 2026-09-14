@@ -1,4 +1,4 @@
-# v6.8 | 3598 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3601 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3607,3 +3607,6 @@ Generic Models,UNICLASS_SS_TXT,56d504fd-7f0f-51bd-b1cc-1f38ed9cdfd9,TEXT,ASS_MNG
 Generic Models,UNICLASS_EF_TXT,40adcf6e-4d27-5f38-abd8-d2a92cbef48f,TEXT,ASS_MNG,Instance,Uniclass 2015 Elements/Functions (EF_) classification code -- read by ClassificationReader for BOQ / COBie / IFC export [Uniclass 2015],False,,,MULTI,1,0
 Generic Models,NBS_CODE_TXT,7dd1529e-886b-56b5-96fa-d023f03b6a32,TEXT,ASS_MNG,Instance,NBS specification clause reference for this type -- read by ClassificationReader as a classification fallback [NBS],False,,,MULTI,1,0
 Generic Models,ASSET_RFI_URL_TXT,8c96dd6c-13ec-5f34-9caa-a0d9de7abd19,TEXT,ASS_MNG,Instance,URL to the asset's RFI / product data record -- read per instance by ClassificationReader,False,,,MULTI,1,0
+Generic Models,TB_QR_ANCHOR_JSON_TXT,4d22d338-3235-55b2-8a16-8496736f346a,TEXT,TBL_TITLEBLOCK,Instance,"Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1]",False,,,MULTI,1,0
+Generic Models,TB_QR_SIZE_MM_TXT,1e12f424-d0bb-599c-a284-7362405fa621,TEXT,TBL_TITLEBLOCK,Instance,Override for the printed QR size in mm on this title block [STING TB v1],False,,,MULTI,1,0
+Generic Models,TB_QR_PAYLOAD_TEMPLATE_TXT,54dea7ad-c65a-5d41-891c-beb8c6d71ed9,TEXT,TBL_TITLEBLOCK,Instance,Token template for what this sheet's QR encodes; blank = the STING deep link [STING TB v1],False,,,MULTI,1,0

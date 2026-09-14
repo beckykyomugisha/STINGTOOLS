@@ -5,25 +5,6 @@
 <text x="327.0" y="39.0" text-anchor="middle" fill="#cfe2ff" font-size="9">paper 594 × 841 mm   ·   mode=NONBIM</text>
 <g transform="translate(30,921) scale(1,-1)">
 <rect x="0" y="0" width="594" height="841" fill="#ffffff" stroke="#1a1a1a" stroke-width="0.6"/>
-<line x1="0" y1="0" x2="841"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="0" x2="841"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="841" y1="594" x2="0"  y2="594" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="594" x2="0"  y2="0" stroke="#000" stroke-width="0.7"/>
-<line x1="0" y1="110" x2="841"  y2="110" stroke="#222" stroke-width="0.35"/>
-<line x1="200" y1="0" x2="200"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="400" y1="0" x2="400"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="0" x2="620"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="820" y1="0" x2="820"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="50" x2="200"  y2="50" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="35" x2="200"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="0" y1="20" x2="200"  y2="20" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="85" x2="400"  y2="85" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="60" x2="400"  y2="60" stroke="#444" stroke-width="0.18"/>
-<line x1="200" y1="35" x2="400"  y2="35" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="90" x2="820"  y2="90" stroke="#444" stroke-width="0.18"/>
-<line x1="620" y1="72" x2="820"  y2="72" stroke="#444" stroke-width="0.18"/>
-<line x1="680" y1="72" x2="680"  y2="110" stroke="#444" stroke-width="0.18"/>
-<line x1="750" y1="72" x2="750"  y2="110" stroke="#444" stroke-width="0.18"/>
 <line x1="0" y1="0" x2="594"  y2="0" stroke="#000" stroke-width="0.7"/>
 <line x1="594" y1="0" x2="594"  y2="841" stroke="#000" stroke-width="0.7"/>
 <line x1="594" y1="841" x2="0"  y2="841" stroke="#000" stroke-width="0.7"/>
@@ -62,6 +43,7 @@
 <g transform="translate(684,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">CHECKED BY</text></g>
 <g transform="translate(754,87) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">APPROVED BY</text></g>
 <g transform="translate(624,69) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">DATES</text></g>
+<g transform="translate(300,56) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SYSTEM</text></g>
 <g transform="translate(2,107) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#000">CLIENT</text></g>
 <g transform="translate(2,88.66666666666667) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">PROJECT</text></g>
 <g transform="translate(2,70.33333333333334) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">ARCHITECT</text></g>
@@ -80,14 +62,15 @@
 <g transform="translate(513,107) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">SHEET</text></g>
 <g transform="translate(513,63.0) scale(1,-1)"><text x="0" y="0" font-size="0.9" text-anchor="start" fill="#000">SCALE</text></g>
 <g transform="translate(513,30.0) scale(1,-1)"><text x="0" y="0" font-size="0.9" text-anchor="start" fill="#000">PAPER</text></g>
+<g transform="translate(191,57.5) scale(1,-1)"><text x="0" y="0" font-size="0.9" text-anchor="start" fill="#000">SYSTEM</text></g>
 <g transform="translate(513,93.5) scale(1,-1)"><text x="0" y="0" font-size="1.2" text-anchor="start" fill="#000">SHEET NUMBER</text></g>
 <g transform="translate(513,33.0) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#000">REV</text></g>
 <g transform="translate(4,95) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_NAME}</text></g>
 <g transform="translate(4,86) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
 <g transform="translate(4,70) scale(1,-1)"><text x="0" y="0" font-size="2.0" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(4,60) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
-<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
-<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(40,46) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_NAME}</text></g>
+<g transform="translate(40,41) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_ADDRESS}</text></g>
 <g transform="translate(40,31) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
 <g transform="translate(40,26) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
 <g transform="translate(40,16) scale(1,-1)"><text x="0" y="0" font-size="1.4" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
@@ -109,12 +92,13 @@
 <g transform="translate(624,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_DRAWN}</text></g>
 <g transform="translate(684,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_CHECKED}</text></g>
 <g transform="translate(754,64) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·DATE_APVD}</text></g>
+<g transform="translate(300,50) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_SYSTEM}</text></g>
 <g transform="translate(2,99.91666666666667) scale(1,-1)"><text x="0" y="0" font-size="1.6" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_NAME}</text></g>
 <g transform="translate(2,93.41666666666667) scale(1,-1)"><text x="0" y="0" font-size="0.9" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CLIENT_ADDRESS}</text></g>
 <g transform="translate(2,82.58333333333334) scale(1,-1)"><text x="0" y="0" font-size="1.5" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_NAME}</text></g>
 <g transform="translate(2,76.08333333333334) scale(1,-1)"><text x="0" y="0" font-size="0.85" text-anchor="start" fill="#1F4E79" font-style="italic">{ORG·PROJECT_ADDRESS}</text></g>
-<g transform="translate(2,64.25) scale(1,-1)"><text x="0" y="0" font-size="1.1" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_NAME}</text></g>
-<g transform="translate(2,57.75000000000001) scale(1,-1)"><text x="0" y="0" font-size="0.75" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·CONSULTANT_ADDRESS}</text></g>
+<g transform="translate(2,64.25) scale(1,-1)"><text x="0" y="0" font-size="1.1" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_NAME}</text></g>
+<g transform="translate(2,57.75000000000001) scale(1,-1)"><text x="0" y="0" font-size="0.75" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·COMPANY_ADDRESS}</text></g>
 <g transform="translate(2,45.916666666666664) scale(1,-1)"><text x="0" y="0" font-size="1.1" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_NAME}</text></g>
 <g transform="translate(2,39.416666666666664) scale(1,-1)"><text x="0" y="0" font-size="0.75" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·STRUCTURAL_CONSULTANTS_ADDRESS}</text></g>
 <g transform="translate(2,27.583333333333336) scale(1,-1)"><text x="0" y="0" font-size="1.1" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·MEP_CONSULTANTS_NAME}</text></g>
@@ -132,6 +116,7 @@
 <g transform="translate(394,18.8) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·APVD_BY}</text></g>
 <g transform="translate(513,54.0) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·SCALE_OVERRIDE}</text></g>
 <g transform="translate(513,21.0) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·PAPER_SZ}</text></g>
+<g transform="translate(191,51.8) scale(1,-1)"><text x="0" y="0" font-size="1.0" text-anchor="start" fill="#1F4E79" font-style="italic">{PRJ_SHEET_SYSTEM}</text></g>
 <g transform="translate(513,60.50000000000001) scale(1,-1)"><text x="0" y="0" font-size="4.0" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·SHEET_NR}</text></g>
 <g transform="translate(513,11.0) scale(1,-1)"><text x="0" y="0" font-size="1.5" text-anchor="start" fill="#1F4E79" font-style="italic">{TB·REVISION_NR}</text></g>
 <rect x="10" y="115" width="574" height="721" fill="#1F4E79" fill-opacity="0.05" stroke="#1F4E79" stroke-width="0.5" stroke-dasharray="" opacity="1.0"/>
@@ -178,6 +163,10 @@
 <rect x="489" y="302" width="12" height="7" fill="#F44336" opacity="0.9"/>
 <g transform="translate(491,307.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">REV</text></g>
 <g transform="translate(491,300) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#F44336" opacity="0.85">revision-history</text></g>
+<rect x="566" y="10" width="18" height="18" fill="#37474F" fill-opacity="0.0" stroke="#37474F" stroke-width="0.5" stroke-dasharray="1,1.5" opacity="0.95"/>
+<rect x="566" y="21" width="12" height="7" fill="#37474F" opacity="0.9"/>
+<g transform="translate(568,26.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">QR</text></g>
+<g transform="translate(568,19) scale(1,-1)"><text x="0" y="0" font-size="3" fill="#37474F" opacity="0.85">qr-code</text></g>
 <rect x="561" y="117" width="18" height="18" fill="#009688" fill-opacity="0.0" stroke="#009688" stroke-width="0.5" stroke-dasharray="1,1.5" opacity="0.95"/>
 <rect x="561" y="128" width="12" height="7" fill="#009688" opacity="0.9"/>
 <g transform="translate(563,133.5) scale(1,-1)"><text x="0" y="0" font-size="4" font-weight="bold" fill="#fff">NA</text></g>
@@ -210,9 +199,9 @@
 <text x="560" y="55" font-size="5" fill="#333">discipline-legend</text>
 <rect x="614" y="51" width="6" height="6" fill="#F44336" opacity="0.85"/>
 <text x="623" y="55" font-size="5" fill="#333">revision-history</text>
-<rect x="674" y="51" width="6" height="6" fill="#009688" opacity="0.85"/>
-<text x="683" y="55" font-size="5" fill="#333">north-arrow</text>
-<text x="719" y="55" font-size="5" fill="#999">+1 more</text>
-<text x="30" y="936.0" font-size="7" fill="#444">parameters 44  ·  lines 39  ·  labels 52  ·  static-text 38  ·  fills 0  ·  slots 13</text>
+<rect x="674" y="51" width="6" height="6" fill="#37474F" opacity="0.85"/>
+<text x="683" y="55" font-size="5" fill="#333">qr-code</text>
+<text x="707" y="55" font-size="5" fill="#999">+2 more</text>
+<text x="30" y="936.0" font-size="7" fill="#444">parameters 55  ·  lines 20  ·  labels 54  ·  static-text 40  ·  fills 0  ·  slots 14</text>
 <text x="30" y="946.0" font-size="6" fill="#666">A1 portrait working sheet — minimal NONBIM identity (large sheet-number block in the right column). Extends A1_PORT_common_v2.0 — inherits the 5-column bottom strip + slots.</text>
 </svg>

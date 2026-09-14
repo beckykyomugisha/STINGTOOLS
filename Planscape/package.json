@@ -19,7 +19,9 @@
     "test:queue": "node --experimental-transform-types tests/offlineQueue.terminal.test.mjs",
     "test:lint-rule": "node tests/lintRule.test.mjs",
     "test:forbidden": "node --experimental-transform-types tests/forbidden.states.test.mjs",
-    "test": "npm run test:queue && npm run test:lint-rule && npm run test:forbidden && npm run test:geofence && npm run typecheck",
+    "test": "npm run test:queue && npm run test:lint-rule && npm run test:forbidden && npm run test:geofence && npm run test:qr && npm run test:commissioning-queue && npm run typecheck",
+    "test:qr": "node --experimental-transform-types tests/qrParser.contract.test.mjs",
+    "test:commissioning-queue": "node --experimental-transform-types tests/commissioningQueue.test.mjs",
     "test:geofence": "node --experimental-transform-types tests/geofenceHeaders.test.mjs"
   },
   "dependencies": {

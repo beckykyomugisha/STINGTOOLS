@@ -483,6 +483,119 @@ public class TagSyncController : ControllerBase
     /// Search tagged elements by text query across all tag fields.
     /// Uses PostgreSQL ILIKE for case-insensitive search.
     /// </summary>
+
+    /// <summary>
+    /// QR-14 — the embodied-carbon rollup for a project.
+    ///
+    /// WHY IT REPORTS COVERAGE AND NOT JUST A TOTAL
+    /// --------------------------------------------
+    /// Per-element carbon arrives from the plugin for the elements that have been
+    /// assessed, and on a real project that is a minority for a long time. A bare
+    /// "2.4 tCO₂e" over 12% of the model is not a building's footprint — it is a
+    /// twelfth of one, and every consumer who sees only the number will treat it as
+    /// the former.
+    ///
+    /// So the total NEVER travels without its denominator. `assessed`, `total` and
+    /// `coveragePercent` are part of the answer, not metadata, and a client that
+    /// renders the figure without them is misreporting.
+    ///
+    /// AND IT DOES NOT EXTRAPOLATE. Scaling the measured mean across un-assessed
+    /// elements would produce a plausible building total from an assumption — the
+    /// exact shape of fabricated data this codebase has shipped before. If someone
+    /// wants an estimate, that is a different endpoint with a different name.
+    ///
+    /// NOT THE SAME NUMBER AS EdgeKpiSnapshot.MaterialCarbonKgM2, DELIBERATELY.
+    /// That is computed from the sustainability module's own material take-off, per
+    /// m² of floor area, for EDGE certification. This is a sum of what individual
+    /// elements report. They can disagree, and which is authoritative is an open
+    /// design question (ROADMAP QR-14) — so this endpoint does not pretend to
+    /// reconcile them, and says so in its own payload.
+    /// </summary>
+    [HttpGet("carbon")]
+    public async Task<ActionResult> GetCarbonRollup(Guid projectId, [FromQuery] string? groupBy = null)
+    {
+        var tenantId = GetTenantId();
+
+        var project = await _db.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
+        if (project == null) return NotFound(new { error = "Project not found." });
+
+        var elements = await _db.TaggedElements
+            .Where(e => e.ProjectId == projectId && e.Project!.TenantId == tenantId)
+            .Where(e => e.DeletedAtUtc == null)
+            .Select(e => new
+            {
+                e.EmbodiedCarbonKg,
+                e.EpdRef,
+                e.MaterialName,
+                e.Disc,
+                e.CategoryName,
+                e.Lvl,
+            })
+            .ToListAsync();
+
+        int total = elements.Count;
+        var assessed = elements.Where(e => e.EmbodiedCarbonKg.HasValue).ToList();
+        double sum = assessed.Sum(e => e.EmbodiedCarbonKg!.Value);
+
+        // Grouping, when asked for. Only over the ASSESSED subset, and each group
+        // carries its own coverage for the same reason the whole does: a discipline
+        // with one assessed element out of four hundred must not present its total
+        // as that discipline's footprint.
+        object? groups = null;
+        if (!string.IsNullOrWhiteSpace(groupBy))
+        {
+            Func<dynamic, string> key = groupBy.Trim().ToLowerInvariant() switch
+            {
+                "discipline" or "disc" => e => string.IsNullOrWhiteSpace((string?)e.Disc) ? "(none)" : (string)e.Disc,
+                "category" => e => string.IsNullOrWhiteSpace((string?)e.CategoryName) ? "(none)" : (string)e.CategoryName,
+                "level" or "lvl" => e => string.IsNullOrWhiteSpace((string?)e.Lvl) ? "(none)" : (string)e.Lvl,
+                "material" => e => string.IsNullOrWhiteSpace((string?)e.MaterialName) ? "(none)" : (string)e.MaterialName,
+                _ => null!,
+            };
+            if (key == null)
+                return BadRequest(new
+                {
+                    error = "unknown_groupBy",
+                    detail = $"'{groupBy}' is not a grouping. Use discipline, category, level or material.",
+                });
+
+            groups = elements
+                .GroupBy(e => key(e))
+                .Select(g => new
+                {
+                    key = g.Key,
+                    total = g.Count(),
+                    assessed = g.Count(e => e.EmbodiedCarbonKg.HasValue),
+                    embodiedCarbonKg = g.Where(e => e.EmbodiedCarbonKg.HasValue)
+                                        .Sum(e => e.EmbodiedCarbonKg!.Value),
+                    coveragePercent = g.Any()
+                        ? Math.Round(100.0 * g.Count(e => e.EmbodiedCarbonKg.HasValue) / g.Count(), 1)
+                        : 0.0,
+                })
+                .OrderByDescending(g => g.embodiedCarbonKg)
+                .ToList();
+        }
+
+        return Ok(new
+        {
+            projectId,
+            // The measured sum. Meaningless without the three fields below it.
+            embodiedCarbonKg = sum,
+            assessed = assessed.Count,
+            total,
+            coveragePercent = total > 0 ? Math.Round(100.0 * assessed.Count / total, 1) : 0.0,
+            withEpd = elements.Count(e => !string.IsNullOrWhiteSpace(e.EpdRef)),
+            groups,
+            // Stated in the payload, not only in the docs, because the client that
+            // renders this is the one that could mislead someone with it.
+            basis = "Sum of per-element STING_EMB_CARBON_NR (A1-A3) over ASSESSED elements only. "
+                  + "Not extrapolated to the un-assessed remainder, and not the same figure as "
+                  + "the EDGE material-carbon intensity, which is computed per m2 from the "
+                  + "sustainability module's own take-off. See ROADMAP QR-14.",
+        });
+    }
+
     [HttpGet("elements/search")]
     [ProducesResponseType(typeof(List<TaggedElementDto>), 200)]
     public async Task<ActionResult> SearchElements(
@@ -615,6 +728,16 @@ public class TagSyncController : ControllerBase
         entity.CategoryName = dto.CategoryName; entity.FamilyName = dto.FamilyName;
         entity.Status = dto.Status; entity.Rev = dto.Rev;
         entity.IsComplete = dto.IsComplete; entity.IsFullyResolved = dto.IsFullyResolved;
+
+        // ── Sustainability (SUS-QR) ──
+        // Written ONLY when the push carries a value, the same rule IfcGlobalId
+        // follows above. An older plugin build omits these fields entirely, and a
+        // blind assignment would blank an EPD reference that took someone an
+        // afternoon to source — silently, on every sync from an un-upgraded seat.
+        if (!string.IsNullOrWhiteSpace(dto.EpdRef)) entity.EpdRef = dto.EpdRef;
+        if (dto.EmbodiedCarbonKg.HasValue) entity.EmbodiedCarbonKg = dto.EmbodiedCarbonKg;
+        if (!string.IsNullOrWhiteSpace(dto.MaterialName)) entity.MaterialName = dto.MaterialName;
+
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
         // UNDELETE, centralised: this method is only reached for an element the
         // client reports as LIVE (the tombstone branch never calls it), so

@@ -372,6 +372,22 @@ async function replayAction(action: OfflineAction): Promise<void> {
       );
       break;
     }
+    case 'COMMISSIONING_ADVANCE': {
+      // NOTE the deliberate omission: expectedCurrentState is NOT replayed.
+      //
+      // It is an optimistic-concurrency guard for a live screen — "the state I
+      // just showed you". Hours later, after a queued scan finally drains, that
+      // claim is stale by construction, and replaying it would 409 every offline
+      // sign-off taken while someone else worked the same asset. The server's
+      // ladder still refuses a regression or a skip, which is the protection that
+      // actually matters here.
+      const { advanceCommissioning } = await import('@/api/endpoints');
+      await advanceCommissioning(
+        p.projectId as string,
+        p.payload as Parameters<typeof advanceCommissioning>[1],
+      );
+      break;
+    }
   }
 }
 

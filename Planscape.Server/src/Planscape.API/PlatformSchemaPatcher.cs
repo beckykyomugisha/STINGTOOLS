@@ -437,6 +437,51 @@ internal static class PlatformSchemaPatcher
         @"ALTER TABLE ""ProjectModels"" ADD COLUMN IF NOT EXISTS ""SourceDocGuid"" character varying(100)",
         @"CREATE INDEX IF NOT EXISTS ""IX_ProjectModels_ProjectId_SourceDocGuid""
             ON ""ProjectModels"" (""ProjectId"", ""SourceDocGuid"")",
+
+        // ── QR-3 — CommissioningRecords ──
+        // Append-only: every advance INSERTS a row, and the current state is the
+        // newest row's ToState. A single mutable row would answer "what state is it
+        // in" and destroy "who signed it off, when, and who witnessed" — the half
+        // that gets asked in a dispute years later.
+        //
+        // Per ADR 0001 this patcher, not an EF migration, is how the table reaches
+        // an existing production database: EnsureCreated short-circuits once
+        // Tenants exists, so without this the first scan would throw 'relation does
+        // not exist' on every deployment that predates this branch.
+        @"CREATE TABLE IF NOT EXISTS ""CommissioningRecords"" (
+            ""Id"" uuid PRIMARY KEY,
+            ""TenantId"" uuid NOT NULL,
+            ""ProjectId"" uuid NOT NULL,
+            ""ElementUniqueId"" character varying(64) NOT NULL DEFAULT '',
+            ""ElementTag"" text,
+            ""ElementName"" text,
+            ""FromState"" character varying(32) NOT NULL DEFAULT 'NOT_STARTED',
+            ""ToState"" character varying(32) NOT NULL DEFAULT '',
+            ""Operative"" text NOT NULL DEFAULT '',
+            ""Witness"" text,
+            ""Notes"" text,
+            ""Source"" text NOT NULL DEFAULT 'api',
+            ""RecordedAt"" timestamp with time zone NOT NULL DEFAULT now(),
+            ""OccurredAt"" timestamp with time zone,
+            ""RecordedByUserId"" text)",
+        // The hot query is "current state of this element" — the newest row for one
+        // (project, element). This turns it into a seek plus one row instead of a
+        // scan of every step the element has been through.
+        @"CREATE INDEX IF NOT EXISTS ""IX_CommissioningRecords_ProjectId_ElementUniqueId_RecordedAt""
+            ON ""CommissioningRecords"" (""ProjectId"", ""ElementUniqueId"", ""RecordedAt"")",
+        @"CREATE INDEX IF NOT EXISTS ""IX_CommissioningRecords_ProjectId_RecordedAt""
+            ON ""CommissioningRecords"" (""ProjectId"", ""RecordedAt"")",
+
+        // ── SUS-QR — sustainability on the scanned element ──
+        // Additive and nullable. NULL means UNKNOWN, never 0 kgCO2e: a default of
+        // zero would be a claim about the world where there is simply no data, and
+        // it would flow straight into a carbon rollup as a real measurement.
+        //
+        // Per ADR 0001 the patcher, not a migration, is how these reach an existing
+        // production database.
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EpdRef"" text",
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EmbodiedCarbonKg"" double precision",
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""MaterialName"" text",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

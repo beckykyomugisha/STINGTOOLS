@@ -686,6 +686,15 @@ namespace StingTools.UI
 
                     // ── Drawing Template Manager (Phase 113) ──
                     case "DrawingTypes_Inspect": RunCommand<Commands.Drawing.DrawingTypesInspectCommand>(app); break;
+                    // Sheet QR stamp (SheetQrStamper).
+                    case "Sheet_StampQR":       RunCommand<Commands.Drawing.SheetStampQrCommand>(app); break;
+                    case "Sheet_StampQRAll":    RunCommand<Commands.Drawing.SheetStampQrAllCommand>(app); break;
+                    case "Sheet_ClearQR":       RunCommand<Commands.Drawing.SheetClearQrCommand>(app); break;
+                    case "Sheet_InspectQR":     RunCommand<Commands.Drawing.SheetInspectQrCommand>(app); break;
+                    case "Sheet_SetQRAnchor":   RunCommand<Commands.Drawing.SheetSetQrAnchorCommand>(app); break;
+                    // QR-7 — element QR codes onto a plottable sheet, so the PNGs
+                    // stop being loose files nobody places.
+                    case "QR_LabelSheet":       RunCommand<Commands.Drawing.QrLabelSheetCommand>(app); break;
                     case "DrawingTypes_Reload":  RunCommand<Commands.Drawing.DrawingTypesReloadCommand>(app);  break;
                     case "DrawingTypes_PresentationSetup": RunCommand<Commands.Drawing.PresentationStyleSetupCommand>(app); break;
                     case "DrawingTypes_Editor":  RunCommand<Commands.Drawing.DrawingTypeEditorCommand>(app);   break;
@@ -1498,6 +1507,9 @@ namespace StingTools.UI
                     case "Labour_Export":       RunCommand<V6.ExportLabourHoursCommand>(app); break;
                     case "QR_AdvanceCommission": RunCommand<V6.QRAdvanceCommissioningCommand>(app); break;
                     case "QR_CommissionReport": RunCommand<V6.QRCommissioningReportCommand>(app); break;
+                    // QR scan path — the one that resolves a SCANNED payload rather
+                    // than the current selection. See QRScanCommissioningCommand.
+                    case "QR_ScanCommission":   RunCommand<V6.QRScanCommissioningCommand>(app); break;
                     case "Health_DashboardHtml": RunCommand<V6.HealthDashboardExportHtmlCommand>(app); break;
                     // Clash → BIM tab
                     case "Clash_XlsxExport":    RunCommand<Core.Clash.ClashXlsxExportCommand>(app); break;
@@ -3992,9 +4004,13 @@ namespace StingTools.UI
 
                     // ── QR Codes ──
                     case "GenerateQRCode": RunCommand<Tags.QRCodeCommand>(app); break;
-                    case "GenerateQRSheet": RunCommand<Tags.QRCodeCommand>(app); break;
-                    // "PrintQRTags" case removed (Group 3 QR collapse): identical to
-                    // GenerateQRSheet (both → QRCodeCommand). See MISWIRE_AUDIT.md cluster E.
+                    // Repointed: this tag names a SHEET stamp and used to run the
+                    // per-element command (MISWIRE_AUDIT.md cluster E).
+                    case "GenerateQRSheet": RunCommand<Commands.Drawing.SheetStampQrAllCommand>(app); break;
+                    // "PrintQRTags" case removed (Group 3 QR collapse): it was identical
+                    // to GenerateQRCode (both → QRCodeCommand). See MISWIRE_AUDIT.md
+                    // cluster E. GenerateQRSheet is no longer in that set — it runs the
+                    // sheet stamper now.
 
                     // ── 4D/5D ──
                     case "ExportMilestones": RunCommand<BIMManager.MilestoneRegisterCommand>(app); break;

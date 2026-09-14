@@ -580,10 +580,26 @@ need one.
 
 **`QRCodeCommand`** generates QR PNGs for **model elements**:
 
-- Encodes an asset URL: `sting://asset/{projectCode}/{tagValue}`
-  (read from each element's `ASS_TAG_1_TXT` tag).
+- Encodes an https deep link: `https://app.planscape.build/e/{projectCode}/{tag}?u={uniqueId}`
+  (tag read from `ASS_TAG_1_TXT`; the project code from `PRJ_ORG_PROJECT_CODE_TXT`).
 - Writes PNG files to `_bim_manager/qr/` next to the `.rvt`.
-- Scanning a code on site pulls up that element's asset data.
+- Scanning a code on site opens it in any phone camera, and the Planscape
+  scanner resolves it to the element via `/api/tagsync/elements/search`.
+
+> **Corrected 2026-09-14.** This previously said the payload was
+> `sting://asset/{projectCode}/{tagValue}` and that "scanning a code on site pulls up
+> that element's asset data". The first was true and the second was not: Planscape's
+> own scanner (`Planscape/src/services/qrParser.ts`) accepted only `planscape://` or a
+> bare UUID, so it rejected every code this command had ever produced — at the parse
+> step, before any network call, which made it look like a bad scan. And a custom
+> scheme cannot be opened by a stock camera app at all. Both ends now share one
+> contract, pinned by `tools/qr_payload_corpus.json`.
+
+**Sheet QR** (`Sheet_StampQR` / `Sheet_StampQRAll`, `Core/Drawing/SheetQrStamper.cs`)
+stamps the title block: writes `TB_QR_PAYLOAD_TXT` and places the code at the family's
+`qr-code` slot, gated on `PRJ_TB_SHOW_QR_CODE_BOOL`. Scanning a sheet code shows the
+sheet number, project and revision — Planscape has no lookup-by-sheet-number endpoint
+yet, so it cannot open the drawing itself.
 
 **Commissioning workflow** (V6): `QRAdvanceCommissioningCommand` walks
 an element through `NOT_STARTED → RECEIVED → INSTALLED → TESTED →

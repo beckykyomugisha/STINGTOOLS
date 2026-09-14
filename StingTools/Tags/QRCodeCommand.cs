@@ -43,8 +43,16 @@ namespace StingTools.Tags
                 : ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER", "qr");
             Directory.CreateDirectory(projectDir);
 
-            // Project code from doc title
-            string projectCode = Path.GetFileNameWithoutExtension(doc.Title) ?? "PRJ";
+            // Project code: the ISO 19650 project code the rest of the plugin uses,
+            // NOT the .rvt filename. Reading the filename meant renaming the model
+            // silently changed every QR payload it had ever produced.
+            string projectCode = null;
+            try { projectCode = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE); }
+            catch (Exception ex) { StingLog.Warn($"QRCode: could not read {ParamRegistry.ORG_PROJECT_CODE}: {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(projectCode))
+                projectCode = doc.ProjectInformation?.Number;
+            if (string.IsNullOrWhiteSpace(projectCode))
+                projectCode = "PRJ";
 
             // Collect selected elements (or active view elements if nothing selected).
             // Guard against ActiveView being null (family editor, dockable panel with
@@ -84,8 +92,11 @@ namespace StingTools.Tags
                         continue;
                     }
 
-                    string assetUrl = StingQRHelper.BuildAssetUrl(projectCode, tagValue);
-                    string safeTag  = tagValue.Replace("/", "_").Replace("\\", "_").Replace(":", "_");
+                    // Carry the UniqueId so a scan can drive the commissioning path,
+                    // which resolves elements by UniqueId and had no way to act on a
+                    // tag-only payload.
+                    string assetUrl = StingQrFormat.BuildElementUrl(projectCode, tagValue, el.UniqueId);
+                    string safeTag  = SanitiseFileName(tagValue);
                     string pngPath  = Path.Combine(projectDir, $"{safeTag}.png");
 
                     StingQRHelper.SaveQRPng(assetUrl, pngPath, size: 200);
@@ -93,14 +104,17 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex)
                 {
+                    // A failure is NOT a skip. Counting it as one made a folder full of
+                    // exceptions read as "these elements just had no tag".
+                    StingLog.Error($"QRCode: element {id.Value} failed", ex);
                     errors.Add($"ID {id.Value}: {ex.Message}");
-                    skipped++;
                 }
             }
 
             string summary = $"QR Code Generation\n\n" +
                              $"Generated : {generated}\n" +
-                             $"Skipped   : {skipped} (no ASS_TAG_1_TXT)\n\n" +
+                             $"Skipped   : {skipped} (no ASS_TAG_1_TXT)\n" +
+                             $"Failed    : {errors.Count}\n\n" +
                              $"Output folder:\n{projectDir}";
 
             if (errors.Count > 0)
@@ -124,6 +138,20 @@ namespace StingTools.Tags
             }
 
             return Result.Succeeded;
+        }
+
+        /// <summary>Make a tag safe as a filename. Replaces every character Windows
+        /// rejects, not the three (<c>/ \ :</c>) this used to handle — a tag carrying
+        /// <c>* ? " &lt; &gt; |</c> threw, and the throw was counted as "skipped, no
+        /// tag", which is a different and misleading thing.</summary>
+        internal static string SanitiseFileName(string value)
+        {
+            var chars = value.ToCharArray();
+            var invalid = Path.GetInvalidFileNameChars();
+            for (int i = 0; i < chars.Length; i++)
+                if (Array.IndexOf(invalid, chars[i]) >= 0) chars[i] = '_';
+            var name = new string(chars).Trim().TrimEnd('.');
+            return string.IsNullOrEmpty(name) ? "unnamed" : name;
         }
     }
 }

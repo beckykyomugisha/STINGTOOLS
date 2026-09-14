@@ -2,6 +2,49 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## QR chain (2026-09-14, Phases 280-283)
+
+QR-2 through QR-15 are **CLOSED**. Two remain, and neither can be closed from a
+build machine. See `CHANGELOG.md` Phases 280-283.
+
+| ID | Status | Detail |
+|---|---|---|
+| QR-1 | **OPEN — needs Revit** | The placement DECISION is Revit-free and unit-tested (`SheetQrPlacement`, 15 tests). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge:** open a sheet, run `Sheet_SetQRAnchor`, pick the two corners of the SCAN cell your title block already draws, then `Sheet_StampQR` — the code should land IN that cell. Run it twice (expect one image). `Sheet_InspectQR`, then `Sheet_ClearQR`. Scan it with a phone. Then `QR_LabelSheet` on a few tagged elements, and `TitleBlock_CreateAll` to confirm the new params reach the families. |
+| QR-11 | **OPEN — a deploy action** | Code-complete and failing closed. App links stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on `planscape-web` **and it is redeployed** — bindings are captured at deploy time. I cannot do this; it needs the signing fingerprint and the Apple Team ID. |
+| QR-2 … QR-10, QR-12 … QR-15 | ✅ closed | Sheet lookup, commissioning API, all 21 families, revision refresh, web routes, label sheet, offline queue, witness form, token matching, grid layout, offline double-sign-off, carbon rollup, A3-portrait verification. |
+
+**TB-LINES-1 — FIXED.** `TitleBlockSpec.Resolve` concatenated `Lines` up the extends
+chain, so every family extending `A1_common_v2.0` inherited A1's 841 × 594 border on top
+of its own — an A1 border drawn across a 297 × 420 A3 sheet. Families at A1 size were
+affected too, more quietly: the assembly, presentation, cover, divider, register and
+submission blocks each redraw the full border, so the inherited copy sat exactly on theirs,
+duplicating every line in the file. 22 families in total.
+
+Fixed by `replacesInheritedGeometry` on the 24 families that draw a complete sheet border
+of their own. Explicit rather than inferred: detecting "this draws a border" from geometry
+would be right today and is exactly the kind of heuristic that silently changes what a
+family renders. Enforced by three tests — no family carries geometry beyond its sheet, a
+family drawing its own border declares it, and a family that only ADDS does not claim to
+replace (which would ship a sheet with no outline at all).
+
+This is narrower than **GAP-TB-01**, which proposes splitting `A1_common` into a
+params-only identity base plus a separate A1-geometry base. That remains the cleaner
+end-state and is still open — but the defect it was chiefly wanted for is gone, so it is
+now a structural tidy-up rather than a correctness fix.
+
+**Residue from the closures:**
+
+| ID | Gap | Detail |
+|---|---|---|
+| QR-16 | **Two offline sign-offs still both reach the queue** | QR-13 fixed the dangerous half: the client now PINS the target state, so a second drain is refused as `AlreadyInState` instead of silently advancing the asset one step further under the wrong person's name. What it does not do is merge the two records — the second operative is told a colleague got there first, and only the audit trail shows both attempted it. That is honest and probably correct; a true merge needs a decision about whose name the step carries. |
+| QR-17 | **The carbon rollup and the EDGE figure are not reconciled** | `GET /api/tagsync/carbon` sums per-element `STING_EMB_CARBON_NR` over ASSESSED elements and reports coverage; `EdgeKpiSnapshot.MaterialCarbonKgM2` computes a per-m² intensity from the sustainability module's own take-off. They can disagree, and which is authoritative is a design decision, not a wiring job. The endpoint states this in its own `basis` field rather than pretending to reconcile them. |
+
+**Pre-existing, found while running the gates and NOT fixed here:**
+`tools/validate_param_readership.py` reports **386 violations against a baseline of 384** on a
+clean tree, before any of this work — measured by stashing. Phases 280-283 are readership-neutral
+(386 throughout, including after three new declared parameters). Whoever introduced the 2 should
+raise the ceiling with a reason or fix them; raising it on their behalf would defeat the ratchet.
+
 ## Workflow conditions (2026-09-10)
 
 **WF-COND-1 — 14 of the 15 `condition` values shipped presets use are not

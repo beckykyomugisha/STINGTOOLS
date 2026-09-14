@@ -308,6 +308,156 @@ public class DocumentsController : ControllerBase
         return Ok(new { items = docs, total, page, pageSize });
     }
 
+
+    /// <summary>
+    /// Resolve a SHEET NUMBER to the documents that carry it — the endpoint a scanned
+    /// title-block QR needs.
+    ///
+    /// WHY IT EXISTS
+    /// -------------
+    /// The plugin stamps sheets with `https://app.planscape.build/s/{project}/{sheet}`
+    /// (SheetQrStamper). Until this endpoint, the mobile scanner could parse that code
+    /// and then had nothing to call: there is no sheet entity on this server, so a sheet
+    /// number only exists inside an ISO 19650 document NAME.
+    ///
+    /// So that is what this matches. A site operative scanning the code on a printed
+    /// drawing wants the current PDF of that drawing, which is exactly a DocumentRecord
+    /// whose FileName carries the sheet number.
+    ///
+    /// WHAT IT DELIBERATELY DOES NOT DO
+    /// --------------------------------
+    /// It does not invent a document when none matches. An empty list is returned as an
+    /// empty list with `matched: 0`, never as a placeholder row — a fabricated result a
+    /// user can act on is worse than a blank screen, and this codebase has shipped that
+    /// mistake before (a Create-issue handler that inserted a stand-in on failure and
+    /// reported success).
+    ///
+    /// ORDERING IS THE FEATURE. A sheet number typically matches several revisions. They
+    /// come back PUBLISHED first, then SHARED, then WIP, newest within each — so the top
+    /// row is the one a person on site should be building from. A scan that surfaced a
+    /// superseded WIP drawing above the published one would be worse than no answer.
+    /// </summary>
+    [HttpGet("by-sheet")]
+    public async Task<ActionResult> GetDocumentsBySheetNumber(
+        Guid projectId,
+        [FromQuery] string number,
+        [FromQuery] string? revision = null,
+        [FromQuery] int limit = 20)
+    {
+        if (string.IsNullOrWhiteSpace(number) || number.Trim().Length < 2)
+            return BadRequest(new { error = "Query parameter 'number' must be at least 2 characters." });
+
+        var sheet = number.Trim();
+        limit = Math.Clamp(limit, 1, 100);
+        var tenantId = GetTenantId();
+
+        var query = _db.Documents
+            .Where(d => d.ProjectId == projectId && d.Project!.TenantId == tenantId)
+            .Where(d => d.FileName.Contains(sheet));
+
+        // A revision from the QR's ?r= narrows the answer, but ONLY when it actually
+        // matches something. Narrowing to nothing would turn a good answer into an empty
+        // one, which on site reads as "this drawing does not exist" — so the unfiltered
+        // result is kept and the client is told the revision did not narrow it.
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        query = Planscape.API.Authorization.ProjectMemberAcl.ApplyTo(query, acl);
+
+        var candidates = await query.ToListAsync();
+
+        // QR-10 — the LIKE above is a PREFILTER, not the answer. A bare substring
+        // match means a sheet numbered "M-1" also matches "M-101", "M-10" and
+        // "M-1A", and the scan would then present someone else's drawing as yours.
+        // Re-filter in memory on a TOKEN match: the number has to sit between ISO
+        // 19650 delimiters, not merely appear inside a longer run of characters.
+        //
+        // Kept as a two-stage filter rather than a SQL regex so the index-assisted
+        // LIKE still does the heavy lifting; the candidate set is small by then.
+        var all = candidates.Where(d => ContainsSheetToken(d.FileName, sheet)).ToList();
+
+        // If tokenising leaves nothing but the substring matched something, say the
+        // looser answer rather than an empty one — with `exactTokenMatch: false`, so
+        // the client can show it as "nothing matched exactly; these are close".
+        // Silently returning empty would tell a site operative the drawing does not
+        // exist when in fact only its numbering is unconventional.
+        bool exactTokenMatch = all.Count > 0;
+        if (all.Count == 0) all = candidates;
+
+        bool revisionNarrowed = false;
+        var considered = all;
+        if (!string.IsNullOrWhiteSpace(revision))
+        {
+            var byRev = all.Where(d => string.Equals(d.Revision, revision, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (byRev.Count > 0) { considered = byRev; revisionNarrowed = true; }
+        }
+
+        var ordered = considered
+            .OrderBy(d => CdeRank(d.CdeStatus))
+            .ThenByDescending(d => d.UploadedAt)
+            .Take(limit)
+            .ToList();
+
+        foreach (var d in ordered) WithAllowedTransitions(d);
+
+        return Ok(new
+        {
+            sheetNumber = sheet,
+            requestedRevision = revision,
+            // The client MUST be able to tell "the revision you scanned is not here, so
+            // these are every revision" from "these are the revision you scanned".
+            revisionNarrowed,
+            // FALSE means the sheet number matched only as a substring, not as a
+            // delimited token — so "M-1" fell back to matching inside "M-101". The
+            // client must present those as near misses, never as "your drawing".
+            exactTokenMatch,
+            matched = considered.Count,
+            items = ordered,
+        });
+    }
+
+    /// <summary>Does this ISO 19650 file name carry <paramref name="sheet"/> as a
+    /// whole token?
+    ///
+    /// "Whole token" means bounded by a delimiter or the ends of the name, so
+    /// PRJ-ZZ-XX-DR-A-M-1.pdf matches "M-1" and PRJ-ZZ-XX-DR-A-M-101.pdf does not.
+    /// Without this a project numbering sheets 1, 2, 3 would have every scan return
+    /// most of the register with an arbitrary row on top.</summary>
+    internal static bool ContainsSheetToken(string fileName, string sheet)
+    {
+        if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(sheet)) return false;
+
+        int from = 0;
+        while (true)
+        {
+            int i = fileName.IndexOf(sheet, from, StringComparison.OrdinalIgnoreCase);
+            if (i < 0) return false;
+
+            bool leftOk = i == 0 || IsDelimiter(fileName[i - 1]);
+            int end = i + sheet.Length;
+            bool rightOk = end >= fileName.Length || IsDelimiter(fileName[end]);
+            if (leftOk && rightOk) return true;
+
+            from = i + 1;
+        }
+    }
+
+    /// <summary>Characters that separate fields in a document name. The file
+    /// extension's "." counts, so a sheet number at the very end of the stem still
+    /// reads as a whole token.</summary>
+    private static bool IsDelimiter(char c) =>
+        c == '-' || c == '_' || c == '.' || c == ' ' || c == '(' || c == ')' || c == '[' || c == ']';
+
+    /// <summary>CDE sort order for a scanned lookup: what a person on site should be
+    /// building from, first. Unknown states sort last rather than first — an
+    /// unrecognised status is not evidence of being authoritative.</summary>
+    private static int CdeRank(string? cdeStatus) => (cdeStatus ?? "").ToUpperInvariant() switch
+    {
+        "PUBLISHED" => 0,
+        "SHARED" => 1,
+        "WIP" => 2,
+        "ARCHIVE" => 3,
+        _ => 4,
+    };
+
     [HttpPost]
     public async Task<ActionResult> CreateDocument(Guid projectId, [FromBody] CreateDocumentRequest req)
     {

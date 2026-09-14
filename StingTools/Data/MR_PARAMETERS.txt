@@ -2857,6 +2857,9 @@ PARAM	46ee0d08-0b63-55af-9099-9b1f4a11e2a9	PRJ_TB_SHOW_COMPANY_STRIP_BOOL	YESNO	
 PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL	YESNO		26	1	Visibility toggle for discipline color strip [STING TB v1]	1
 PARAM	f5374df4-b048-5fd2-97cf-552d304ed134	TB_NORTH_ARROW_AUTO_ROTATE_BOOL	YESNO		26	1	Engine rotates nested north arrow to match viewport rotation [STING TB v1]	1
 PARAM	33472683-7bb0-572a-bcfb-af85c0a9dbcd	TB_QR_PAYLOAD_TXT	TEXT		26	1	Engine populates with deep link URL to CDE record [STING TB v1]	1
+PARAM	4d22d338-3235-55b2-8a16-8496736f346a	TB_QR_ANCHOR_JSON_TXT	TEXT		26	1	Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1]	1
+PARAM	1e12f424-d0bb-599c-a284-7362405fa621	TB_QR_SIZE_MM_TXT	TEXT		26	1	Override for the printed QR size in mm on this title block [STING TB v1]	1
+PARAM	54dea7ad-c65a-5d41-891c-beb8c6d71ed9	TB_QR_PAYLOAD_TEMPLATE_TXT	TEXT		26	1	Token template for what this sheet's QR encodes; blank = the STING deep link [STING TB v1]	1
 PARAM	a480a6e8-5038-56ff-b773-9bc8547c8e18	TB_REQUIRED_SEALS_JSON_TXT	TEXT		26	1	JSON array of required signature seals for submission TBs [STING TB v1]	1
 PARAM	debf8b1e-9057-59f6-8341-74d419ab7982	TB_REQUIRED_REV_FORMAT_TXT	TEXT		26	1	Required revision format pattern eg P01-P02 or A-B-C [STING TB v1]	1
 PARAM	1def6a69-c050-5ce9-a118-b190d7359e23	TB_AUTHORITY_FORM_VERSION_TXT	TEXT		26	1	Submission form version eg KCCA-2024-Rev3 [STING TB v1]	1
