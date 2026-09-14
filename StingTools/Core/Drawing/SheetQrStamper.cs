@@ -565,7 +565,36 @@ namespace StingTools.Core.Drawing
                                            string projectCode, SheetQrResult r)
         {
             string rev = ReadRevision(sheet);
-            string standard = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, rev);
+
+            // The DOCUMENT link is preferred when the sheet carries its assembled
+            // ISO 19650 identifier (SHT_TAG_1_TXT, written by TagSheet). It is keyed
+            // by that identifier rather than the bare sheet number, and carries the
+            // issue facts IN the code so a scan reads them with no network -- which is
+            // the state a site operative is usually in.
+            //
+            // Falls back to the sheet link when the identifier is absent, because a
+            // document link with no document id identifies nothing. TagSheet has not
+            // necessarily been run, and a QR is not the place to find that out.
+            // The payload is chosen against the PRINTED CELL, not in the abstract.
+            // A richer code that does not scan is worse than a plain one that does,
+            // and the difference is invisible until someone is holding the paper.
+            double cellMm = ResolveAnchor(doc, sheet, tb)?.SizeMm ?? SheetQrPlacement.DefaultSizeMm;
+
+            string docId = SafeParam(sheet, ParamRegistry.SHT_TAG_1);
+            string standard = null;
+            if (!string.IsNullOrWhiteSpace(docId))
+            {
+                standard = StingQrFormat.BuildDocUrlWithin(docId, ReadDocFacts(sheet, tb), cellMm);
+                if (standard == null)
+                {
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}': the {cellMm:F0} mm QR cell is too small for the " +
+                        "ISO 19650 document link, so the short sheet link was encoded instead. " +
+                        "Widen the cell (Set QR Cell) to about 31 mm to carry the full issue record.");
+                }
+            }
+            if (standard == null)
+                standard = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, rev);
 
             string template = null;
             try { template = tb.LookupParameter(ParamRegistry.TB_QR_PAYLOAD_TEMPLATE)?.AsString(); }
@@ -582,6 +611,22 @@ namespace StingTools.Core.Drawing
                 ["suitability"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS),
                 ["date"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 ["url"] = standard,
+
+                // Everything the title block itself carries, so a project can compose
+                // any payload it wants without a code change.
+                ["docid"] = docId,
+                ["originator"] = SafeParam(sheet, ParamRegistry.SHT_ORIGINATOR),
+                ["level"] = SafeParam(sheet, ParamRegistry.SHT_LEVEL),
+                ["form"] = SafeParam(sheet, ParamRegistry.SHT_FORM),
+                ["disc"] = SafeParam(sheet, ParamRegistry.SHT_DISC),
+                ["cde"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE),
+                ["lod"] = SafeParam(tb, PLod),
+                ["paper"] = SafeParam(tb, PPaperSize),
+                ["scale"] = SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE),
+                ["sheetoftotal"] = SafeParam(sheet, PSheetOfTotal),
+                ["drawn"] = SafeParam(tb, PDrawnBy),
+                ["checked"] = SafeParam(tb, PCheckedBy),
+                ["approved"] = SafeParam(tb, PApprovedBy),
             };
 
             var rendered = SheetQrConfig.RenderTemplate(template, tokens);
@@ -598,6 +643,61 @@ namespace StingTools.Core.Drawing
             StingLog.Info($"SheetQrStamper: '{sheet.SheetNumber}' using a custom payload template.");
             return rendered;
         }
+
+        // These five are declared in MR_PARAMETERS.txt but have no ParamRegistry
+        // constant. Named here rather than inline so the read path has one spelling,
+        // and so a rename shows up as one edit instead of four scattered literals.
+        // Same precedent as TB_VIEWPORT_SLOTS_JSON_TXT in ResolveAnchor.
+        private const string PDrawnBy      = "PRJ_TB_DRAWN_BY_TXT";
+        private const string PCheckedBy    = "PRJ_TB_CHECKED_BY_TXT";
+        private const string PApprovedBy   = "PRJ_TB_APVD_BY_TXT";
+        private const string PPaperSize    = "PRJ_TB_PAPER_SZ_TXT";
+        private const string PSheetOfTotal = "PRJ_SHEET_OF_TOTAL_TXT";
+        private const string PLod          = "PRJ_DWG_LOIN_LOD_TXT";
+
+        /// <summary>Gather the issue facts the rich document link carries.
+        ///
+        /// Every one is READ, never derived: a QR that states a fact the drawing does
+        /// not is worse than one that omits it, because the reader cannot tell which
+        /// happened. An absent parameter yields null and the field is not carried.</summary>
+        private static StingQrFormat.DocFacts ReadDocFacts(ViewSheet sheet, Element tb)
+        {
+            return new StingQrFormat.DocFacts
+            {
+                Suitability  = NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS)),
+                CdeState     = NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE)),
+                // The date the code was STAMPED. Honest as a fact about this print,
+                // which is what a scanner needs in order to judge whether it is holding
+                // a current sheet -- unlike a "status" that goes stale on the paper.
+                IssueDate    = DateTime.UtcNow.ToString("yyyyMMdd"),
+                Zone         = null,   // no sheet-level zone parameter exists yet
+                SheetOfTotal = NullIfBlank(SafeParam(sheet, PSheetOfTotal)),
+                Lod          = NullIfBlank(SafeParam(tb, PLod)),
+                PaperSize    = NullIfBlank(SafeParam(tb, PPaperSize)),
+                Scale        = NullIfBlank(SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE)),
+                Initials     = ReadInitials(tb),
+                // Signature stays null until a signing key exists. A field that LOOKS
+                // like a signature but is not one is worse than no field at all.
+                Signature    = null,
+            };
+        }
+
+        /// <summary>DRW.CHK.APR -- who signed it off, as initials. Omitted entirely
+        /// unless at least one is present, and a missing one holds its place so the
+        /// three never shift and read as each other.</summary>
+        private static string ReadInitials(Element tb)
+        {
+            string d = SafeParam(tb, PDrawnBy);
+            string c = SafeParam(tb, PCheckedBy);
+            string a = SafeParam(tb, PApprovedBy);
+            if (string.IsNullOrWhiteSpace(d) && string.IsNullOrWhiteSpace(c) && string.IsNullOrWhiteSpace(a))
+                return null;
+            return Dash(d) + "." + Dash(c) + "." + Dash(a);
+        }
+
+        private static string Dash(string s) => string.IsNullOrWhiteSpace(s) ? "-" : s.Trim();
+
+        private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         private static string SafeParam(Element el, string name)
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace StingTools.Core
 {
@@ -38,7 +39,10 @@ namespace StingTools.Core
         /// <summary>A modelled element, keyed by ISO 19650 tag and/or UniqueId.</summary>
         Element,
         /// <summary>A drawing sheet, keyed by sheet number (+ revision).</summary>
-        Sheet
+        Sheet,
+        /// <summary>A drawing DOCUMENT, keyed by its full ISO 19650 identifier and
+        /// carrying the issue facts printed on the title block.</summary>
+        Document
     }
 
     /// <summary>What a scanned STING QR code resolves to.</summary>
@@ -66,6 +70,14 @@ namespace StingTools.Core
         /// callers that need it MUST branch, never assume.</summary>
         public string UniqueId { get; set; }
 
+        /// <summary>Full ISO 19650 document identifier (SHT_TAG_1_TXT), on a
+        /// Document payload. Null on every other kind.</summary>
+        public string DocId { get; set; }
+
+        /// <summary>Issue facts carried IN the code, readable with no network — the
+        /// whole point of the rich form. Null on every other kind.</summary>
+        public StingQrFormat.DocFacts Facts { get; set; }
+
         /// <summary>The exact string that was scanned, for diagnostics.</summary>
         public string Raw { get; set; }
     }
@@ -82,6 +94,11 @@ namespace StingTools.Core
 
         /// <summary>Path segment for a sheet deep link.</summary>
         public const string SheetPath = "s";
+
+        /// <summary>Path segment for a DOCUMENT deep link — the rich form, keyed by
+        /// the full ISO 19650 document identifier rather than the bare sheet number.
+        /// </summary>
+        public const string DocPath = "d";
 
         private const string LegacyPrefix = "sting://asset/";
         private const string NativePrefix = "planscape://element/";
@@ -102,6 +119,205 @@ namespace StingTools.Core
             if (!string.IsNullOrWhiteSpace(revision))
                 url += "?r=" + Uri.EscapeDataString(revision.Trim());
             return url;
+        }
+
+        /// <summary>Fields a document deep link can carry, beyond the identifier
+        /// itself. Every one is already on the title block or the sheet — nothing
+        /// here is invented for the QR.</summary>
+        public sealed class DocFacts
+        {
+            /// <summary>Suitability code — S0..S7 / A1..A5.</summary>
+            public string Suitability { get; set; }
+            /// <summary>CDE state — WIP / SHARED / PUB / ARCHIVE.</summary>
+            public string CdeState { get; set; }
+            /// <summary>Issue date, yyyyMMdd.</summary>
+            public string IssueDate { get; set; }
+            public string Zone { get; set; }
+            /// <summary>Sheet position, e.g. "25.100" for sheet 25 of 100.</summary>
+            public string SheetOfTotal { get; set; }
+            /// <summary>LOD number only — "350", not "LOD 350".</summary>
+            public string Lod { get; set; }
+            public string PaperSize { get; set; }
+            /// <summary>Scale with '.' for ':' — "1.100", since ':' is legal in QR
+            /// alphanumeric mode but reserved in a URL path.</summary>
+            public string Scale { get; set; }
+            /// <summary>Drawn.Checked.Approved initials, e.g. "DRW.CHK.APR".</summary>
+            public string Initials { get; set; }
+            /// <summary>Truncated HMAC proving the print came from the issue process.
+            /// Null until a signing key is configured.</summary>
+            public string Signature { get; set; }
+        }
+
+        /// <summary>Build the RICH document deep link, keyed by the full ISO 19650
+        /// document identifier (SHT_TAG_1_TXT).
+        ///
+        /// WHY PATH SEGMENTS AND NOT A QUERY STRING
+        /// ----------------------------------------
+        /// QR alphanumeric mode packs 5.5 bits/char, byte mode 8. Its charset is
+        /// 0-9 A-Z space and $ % * + - . / : — it does NOT contain '?', '&' or '='.
+        /// One query string therefore drops the ENTIRE payload into byte mode and
+        /// forfeits ~40% of the symbol's capacity. Measured on ZXing 0.16.9 at
+        /// ECC Q: the same facts cost 53 modules as a query string and 49 as path
+        /// segments, while carrying ELEVEN MORE characters.
+        ///
+        /// That is why this is upper-case and slash-separated, and why callers must
+        /// not "tidy" it into ?key=value form. SheetQrDensityTests pins the budget.
+        ///
+        /// Trailing empty facts are omitted, so a project that knows only its
+        /// suitability gets a short link rather than a run of empty segments.</summary>
+        public static string BuildDocUrl(string docId, DocFacts facts = null)
+        {
+            if (string.IsNullOrWhiteSpace(docId))
+                throw new ArgumentException("docId is required", nameof(docId));
+
+            var parts = new List<string> { Seg(docId) };
+            if (facts != null)
+            {
+                // ORDER IS THE CONTRACT — positional, so it can never be reordered
+                // without breaking every code already printed. Append only.
+                parts.Add(Seg(facts.Suitability));
+                parts.Add(Seg(facts.CdeState));
+                parts.Add(Seg(facts.IssueDate));
+                parts.Add(Seg(facts.Zone));
+                parts.Add(Seg(facts.SheetOfTotal));
+                parts.Add(Seg(facts.Lod));
+                parts.Add(Seg(facts.PaperSize));
+                parts.Add(Seg(facts.Scale));
+                parts.Add(Seg(facts.Initials));
+                parts.Add(Seg(facts.Signature));
+            }
+
+            // Drop trailing blanks only. An INTERIOR blank must stay as "-", or every
+            // field after it shifts one place and silently reads as the wrong thing.
+            int last = parts.Count - 1;
+            while (last > 0 && parts[last] == Blank) last--;
+
+            return BaseUrl.ToUpperInvariant() + "/" + DocPath.ToUpperInvariant() + "/"
+                 + string.Join("/", parts.GetRange(0, last + 1));
+        }
+
+        /// <summary>How many alphanumeric-mode characters a square cell of this size
+        /// can hold and still scan, at ECC Q.
+        ///
+        /// Derived from the measured symbol ladder for ZXing 0.16.9 at ECC Q with a
+        /// 4-module quiet zone, against a 0.50 mm/module floor — the point below which
+        /// a phone camera stops reading a plotted, folded, site-handled drawing.
+        ///
+        ///     cell     total modules at 0.50mm     alphanumeric chars
+        ///     20 mm          40                          ~45
+        ///     24 mm          48                          ~70
+        ///     31 mm          62                         ~140
+        ///     40 mm          80                         ~300
+        ///
+        /// Deliberately conservative. The failure it prevents is silent: an over-dense
+        /// code prints perfectly and fails in someone's hand, weeks later, on a site
+        /// with no way to reprint.</summary>
+        public static int MaxCharsForCell(double cellMm)
+        {
+            if (cellMm <= 0) return 0;
+            if (cellMm < 20.0) return 0;     // too small for any URL worth encoding
+            if (cellMm < 24.0) return 45;
+            if (cellMm < 28.0) return 70;
+            if (cellMm < 31.0) return 100;
+            if (cellMm < 40.0) return 140;
+            return 300;
+        }
+
+        /// <summary>Build the richest document link that FITS the printed cell.
+        ///
+        /// Facts are dropped from the least important end — signature, initials,
+        /// scale, paper, LOD, sheet-of-total, zone — until the payload is inside
+        /// budget. The identifier, suitability, CDE state and issue date are the last
+        /// to go, because they are the ones that let a scan answer "is the sheet in my
+        /// hand the current one?", which is the question worth answering offline.
+        ///
+        /// Returns null when even the bare identifier will not fit; the caller then
+        /// falls back to the short sheet link rather than printing something dense
+        /// enough to be decorative.</summary>
+        public static string BuildDocUrlWithin(string docId, DocFacts facts, double cellMm)
+        {
+            int budget = MaxCharsForCell(cellMm);
+            if (budget <= 0 || string.IsNullOrWhiteSpace(docId)) return null;
+
+            // Progressive degradation, most expendable first.
+            var ladder = new List<Action<DocFacts>>
+            {
+                f => f.Signature = null,
+                f => f.Initials = null,
+                f => f.Scale = null,
+                f => f.PaperSize = null,
+                f => f.Lod = null,
+                f => f.SheetOfTotal = null,
+                f => f.Zone = null,
+                f => f.IssueDate = null,
+                f => f.CdeState = null,
+                f => f.Suitability = null,
+            };
+
+            var trial = Clone(facts);
+            string url = BuildDocUrl(docId, trial);
+            for (int i = 0; url.Length > budget && i < ladder.Count; i++)
+            {
+                ladder[i](trial);
+                url = BuildDocUrl(docId, trial);
+            }
+
+            return url.Length <= budget ? url : null;
+        }
+
+        private static DocFacts Clone(DocFacts f) => f == null ? new DocFacts() : new DocFacts
+        {
+            Suitability  = f.Suitability,
+            CdeState     = f.CdeState,
+            IssueDate    = f.IssueDate,
+            Zone         = f.Zone,
+            SheetOfTotal = f.SheetOfTotal,
+            Lod          = f.Lod,
+            PaperSize    = f.PaperSize,
+            Scale        = f.Scale,
+            Initials     = f.Initials,
+            Signature    = f.Signature,
+        };
+
+        /// <summary>Placeholder for an absent interior field. A single '-' is in the
+        /// QR alphanumeric charset and costs one character.</summary>
+        private const string Blank = "-";
+
+        /// <summary>First '-' segment of the ISO 19650 identifier — the project code.
+        /// Null rather than a guess when the identifier has no separator at all.</summary>
+        private static string FirstSegment(string docId)
+        {
+            if (string.IsNullOrWhiteSpace(docId)) return null;
+            int i = docId.IndexOf('-');
+            return i > 0 ? docId.Substring(0, i) : null;
+        }
+
+        /// <summary>Last '-' segment — the revision, per the SHT_TAG_1 assembly in
+        /// ParameterHelpers (PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV).</summary>
+        private static string LastSegment(string docId)
+        {
+            if (string.IsNullOrWhiteSpace(docId)) return null;
+            int i = docId.LastIndexOf('-');
+            return i >= 0 && i < docId.Length - 1 ? docId.Substring(i + 1) : null;
+        }
+
+        /// <summary>Coerce one field to something the alphanumeric charset accepts:
+        /// upper case, and anything outside 0-9 A-Z - . folded to '.'. Never
+        /// percent-encodes — '%' is legal alphanumeric but the escape DIGITS would
+        /// often not be, and an escape triples the length of the thing it escapes.</summary>
+        private static string Seg(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return Blank;
+            var sb = new System.Text.StringBuilder(raw.Length);
+            foreach (char c in raw.Trim().ToUpperInvariant())
+            {
+                if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || c == '-' || c == '.')
+                    sb.Append(c);
+                else if (c == ':' || c == '/' || c == ' ' || c == '_')
+                    sb.Append('.');      // ':' and '/' are structural here; '_' is not in the charset
+            }
+            string s = sb.ToString().Trim('.');
+            return s.Length == 0 ? Blank : s;
         }
 
         /// <summary>Build the URL a QR code should encode for one element.</summary>
@@ -139,6 +355,49 @@ namespace StingTools.Core
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;
             string s = raw.Trim();
+
+            // 0a — DOCUMENT deep link, the rich positional form. Matched first
+            // because it is the most specific, and case-insensitively because the
+            // whole payload is upper-cased to stay in QR alphanumeric mode.
+            string docPrefix = BaseUrl + "/" + DocPath + "/";
+            if (s.StartsWith(docPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var segs = s.Substring(docPrefix.Length)
+                            .Split(new[] { '/' }, StringSplitOptions.None);
+                if (segs.Length == 0 || string.IsNullOrWhiteSpace(segs[0])) return null;
+
+                // Positional. A missing trailing field is absent, not empty-string,
+                // so a caller can tell "not carried" from "carried as blank".
+                string At(int i) =>
+                    i < segs.Length && segs[i] != Blank && !string.IsNullOrWhiteSpace(segs[i])
+                        ? segs[i] : null;
+
+                string docId = segs[0];
+                return new StingQrPayload
+                {
+                    Kind  = StingQrKind.Document,
+                    DocId = docId,
+                    // The identifier is PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV,
+                    // so the project code is its first segment and the revision its
+                    // last. Read them out rather than making every caller re-split.
+                    ProjectCode = FirstSegment(docId),
+                    Revision    = LastSegment(docId),
+                    Facts = new DocFacts
+                    {
+                        Suitability  = At(1),
+                        CdeState     = At(2),
+                        IssueDate    = At(3),
+                        Zone         = At(4),
+                        SheetOfTotal = At(5),
+                        Lod          = At(6),
+                        PaperSize    = At(7),
+                        Scale        = At(8),
+                        Initials     = At(9),
+                        Signature    = At(10),
+                    },
+                    Raw = s
+                };
+            }
 
             // 0 — sheet deep link.
             string sheetPrefix = BaseUrl + "/" + SheetPath + "/";
