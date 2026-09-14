@@ -78,22 +78,22 @@ def resolve(n,desc,depth=0):
     # This must come before the _TAG_ rule so SHT_TAG_1_TXT / SHT_TAG_7_TXT land
     # on Sheets rather than being treated as element tag containers.
     if pre=="SHT": return "SHEET","sheet"
-    # TB_* binds to Title Blocks. Same defect the SHT_ note above records, one
-    # prefix along: it sat in the excluded tuple as "title-block metadata", which
-    # read as "metadata ABOUT a title block, held elsewhere" when it is in fact
-    # metadata ON one. All 33 TB_ parameters therefore bound nowhere.
+    # TB_* stays excluded, and NOT for the reason the SHT_ note above describes.
+    # This was tried: mapping TB_ to "Title Blocks" was committed, regenerated,
+    # deployed and run. All 33 parameters came back skipped, because Revit
+    # refuses the binding -- OST_TitleBlocks answers false to
+    # Category.AllowsBoundParameters, so BuildCategorySet logged "0/1 categories
+    # resolved" 33 times and LoadSharedParams reported them under Skipped/failed.
+    # No project parameter can ever live on that category; it is a Revit rule,
+    # not a gap in this file. (Sheet data belongs on Sheets, which is why SHT_
+    # above works and this does not.)
     #
-    # It went unnoticed because the group TBL_TITLEBLOCK is listed in
-    # LoadSharedParamsCommand.UniversalGroups, so these fall back to the broad
-    # core set instead of failing -- and `universal_categories` in
-    # PARAMETER_REGISTRY.json does not contain "Title Blocks". A parameter that
-    # binds to 143 categories, none of them the one it exists for, looks bound
-    # from every angle except the sheet.
-    #
-    # Caught by Sheet_SetQRAnchor refusing to write TB_QR_ANCHOR_JSON_TXT: the
-    # anchor chain's per-family override could never be set on any title block.
-    if pre=="TB": return "TITLEBLOCK","title-block"
-    if pre in("Qto","VT","TBL","VIEW"): return "NONE","excluded"
+    # Per-title-block state lives in Extensible Storage instead --
+    # Core/Storage/StingQrAnchorSchema.cs, the same answer StingViewCropSchema
+    # reached for crop stamps. A family CAN still carry TB_QR_ANCHOR_JSON_TXT as
+    # a FAMILY parameter authored into the .rfa, and the stamper still prefers
+    # that; it just cannot come from here.
+    if pre in("Qto","VT","TB","TBL","VIEW"): return "NONE","excluded"
     # A classification code is a property of the thing, not of a discipline, so every
     # classification axis binds universally. CSI was here alone; UNICLASS (Pr/Ss/EF),
     # NBS and the per-element RFI URL are the other four ClassificationReader.Read()

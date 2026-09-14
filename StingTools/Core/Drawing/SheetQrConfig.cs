@@ -37,6 +37,12 @@ namespace StingTools.Core.Drawing
     {
         /// <summary>TB_QR_ANCHOR_JSON_TXT on the title-block instance.</summary>
         FamilyParameter,
+        /// <summary>Extensible Storage on this one title-block INSTANCE — a per-sheet
+        /// nudge that overrides whatever the family says.</summary>
+        StoredOnInstance,
+        /// <summary>Extensible Storage on the title-block TYPE — what Sheet_SetQRAnchor
+        /// writes, inherited by every sheet using that title block.</summary>
+        StoredOnType,
         /// <summary>A `qr-code` entry in the family's own TB_VIEWPORT_SLOTS_JSON_TXT.</summary>
         FamilySlotMap,
         /// <summary>A `qr-code` slot in STING_TITLE_BLOCKS.json, by family id.</summary>

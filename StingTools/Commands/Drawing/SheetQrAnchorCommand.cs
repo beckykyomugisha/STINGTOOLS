@@ -23,8 +23,14 @@ namespace StingTools.Commands.Drawing
     //
     //  Editing STING_TITLE_BLOCKS.json is not the answer for those: they are not in
     //  it, and a project should not have to edit a corporate catalogue to say where
-    //  its own cell is. This writes TB_QR_ANCHOR_JSON_TXT onto the title block
-    //  instance, which the stamper prefers above everything else.
+    //  its own cell is. This records the cell in Extensible Storage on the
+    //  title-block TYPE, which the stamper prefers above the catalogue.
+    //
+    //  It is stored rather than written to TB_QR_ANCHOR_JSON_TXT because Revit
+    //  will not bind a project parameter to OST_TitleBlocks — the category
+    //  answers false to AllowsBoundParameters — so that parameter can only ever
+    //  exist on a family authored with it. Storing works on every title block,
+    //  including the vendor and hand-drawn ones this command exists for.
     //
     //  Pick two opposite corners of the cell and it records the square that fits.
     // ══════════════════════════════════════════════════════════════════════
@@ -70,8 +76,8 @@ namespace StingTools.Commands.Drawing
                         "Click two opposite corners of it and the QR will be stamped there from now on.\n\n" +
                         $"Title block : {TitleBlockName(doc, tb)}\n" +
                         $"Current     : {(existing == null ? "nothing declared — falling back to a corner" : existing.ToString())}\n\n" +
-                        "The value is written to " + ParamRegistry.TB_QR_ANCHOR + " on this title block " +
-                        "instance. Every sheet using a title block with the same value gets the same cell.",
+                        "The cell is recorded on this title-block TYPE, so every sheet using " +
+                        "it gets the same cell. No shared parameter, no Load Params step.",
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Ok,
                 };
@@ -101,8 +107,7 @@ namespace StingTools.Commands.Drawing
                     // cell was set and find a corner stamp on the plot.
                     TaskDialog.Show("STING — QR Anchor",
                         $"That cell is {size:F1} mm, under the {SheetQrPlacement.MinScannableMm:F0} mm a printed " +
-                        "code needs to stay scannable.\n\nNothing was written. Pick a larger cell, or set " +
-                        ParamRegistry.TB_QR_ANCHOR + " by hand if you know what you are doing.");
+                        "code needs to stay scannable.\n\nNothing was written. Pick a larger cell.");
                     return Result.Cancelled;
                 }
 
@@ -111,39 +116,52 @@ namespace StingTools.Commands.Drawing
                 double cx = x0 + w / 2.0, cy = y0 + h / 2.0;
                 double ax = cx - size / 2.0, ay = cy - size / 2.0;
 
-                string json = string.Format(CultureInfo.InvariantCulture,
-                    "{{\"x\":{0:0.##},\"y\":{1:0.##},\"size\":{2:0.##}}}", ax, ay, size);
+                string shown = string.Format(CultureInfo.InvariantCulture,
+                    "x {0:0.##} · y {1:0.##} · {2:0.##} mm square", ax, ay, size);
+
+                // Written to Extensible Storage on the title-block TYPE, not to a
+                // parameter. OST_TitleBlocks answers false to
+                // Category.AllowsBoundParameters, so a project parameter can never
+                // hold this — LoadSharedParams skips every TB_ parameter aimed at
+                // that category, which is what made this command refuse on every
+                // title block it was ever pointed at. Storing it means this works on
+                // ANY family: STING-authored, vendor, or hand-drawn, with no shared
+                // parameter and no Load Params step.
+                //
+                // On the TYPE so one pick covers every sheet using that title block,
+                // which is the unit an operator thinks in.
+                var tbType = doc.GetElement(tb.GetTypeId());
+                if (tbType == null)
+                {
+                    TaskDialog.Show("STING — QR Anchor",
+                        "This title block has no resolvable type, so there is nothing to " +
+                        "record the cell against. Nothing was written.");
+                    return Result.Failed;
+                }
 
                 using (var t = new Transaction(doc, "STING Set QR Anchor"))
                 {
                     t.Start();
-                    var p = tb.LookupParameter(ParamRegistry.TB_QR_ANCHOR);
-                    if (p == null)
+                    if (!Core.Storage.StingQrAnchorSchema.Write(tbType, ax, ay, size))
                     {
                         t.RollBack();
                         TaskDialog.Show("STING — QR Anchor",
-                            $"This title block has no {ParamRegistry.TB_QR_ANCHOR} parameter.\n\n" +
-                            "Run CREATE → Setup → Load Params to bind it, then try again. " +
-                            "It is an instance TEXT parameter on Title Blocks.");
+                            "The QR cell could not be recorded on this title-block type.\n\n" +
+                            "Nothing was written — see the STING log for the reason. Reporting " +
+                            "success here would leave you expecting a cell that is not stored.");
                         return Result.Failed;
                     }
-                    if (p.IsReadOnly)
-                    {
-                        t.RollBack();
-                        TaskDialog.Show("STING — QR Anchor", $"{ParamRegistry.TB_QR_ANCHOR} is read-only on this title block.");
-                        return Result.Failed;
-                    }
-                    p.Set(json);
                     t.Commit();
                 }
 
-                StingLog.Info($"Sheet_SetQRAnchor: '{sheet.SheetNumber}' anchor set to {json}");
+                StingLog.Info($"Sheet_SetQRAnchor: '{sheet.SheetNumber}' anchor stored on type " +
+                    $"'{TitleBlockName(doc, tb)}' — {shown}");
 
                 var done = new TaskDialog("STING — QR Anchor")
                 {
                     MainInstruction = "QR cell recorded",
                     MainContent =
-                        $"{json}\n\n" +
+                        $"{shown}\n\n" +
                         $"({ax:F0}, {ay:F0}) mm from the sheet origin, {size:F0} mm square.\n\n" +
                         "Stamp it now to see it in place.",
                     CommonButtons = TaskDialogCommonButtons.Ok,

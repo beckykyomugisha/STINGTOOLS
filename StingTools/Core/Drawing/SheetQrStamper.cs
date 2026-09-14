@@ -417,22 +417,30 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Find the QR cell, most specific source first.
         ///
-        /// 1. <c>TB_QR_ANCHOR_JSON_TXT</c> on the title-block INSTANCE — works for any
-        ///    family, needs no spec entry, and is what a project uses for its own
-        ///    hand-authored title blocks.
-        /// 2. A <c>qr-code</c> entry in the family's own <c>TB_VIEWPORT_SLOTS_JSON_TXT</c>
+        /// 1. <c>TB_QR_ANCHOR_JSON_TXT</c> on the title-block INSTANCE — only ever
+        ///    present when a family carries it as a FAMILY parameter authored into the
+        ///    .rfa. It is first because it is the only form of this value that travels
+        ///    with the family into another project, so a project that has gone to that
+        ///    trouble keeps its answer. It can NOT be supplied by a project parameter:
+        ///    OST_TitleBlocks answers false to Category.AllowsBoundParameters, so
+        ///    LoadSharedParams can never bind it (see StingQrAnchorSchema's header).
+        /// 2. Extensible Storage on this title-block INSTANCE — a per-sheet nudge.
+        /// 3. Extensible Storage on the title-block TYPE — what Sheet_SetQRAnchor
+        ///    writes. Works on ANY family, STING-authored or not, with no shared
+        ///    parameter and no Load Params step.
+        /// 4. A <c>qr-code</c> entry in the family's own <c>TB_VIEWPORT_SLOTS_JSON_TXT</c>
         ///    slot map, which a STING-authored title block already carries.
-        /// 3. A <c>qr-code</c> slot in <c>STING_TITLE_BLOCKS.json</c>, matched by family id.
-        /// 4. Nothing — the caller falls back to a corner and says so loudly.
+        /// 5. A <c>qr-code</c> slot in <c>STING_TITLE_BLOCKS.json</c>, matched by family id.
+        /// 6. Nothing — the caller falls back to a corner and says so loudly.
         ///
-        /// The order is "what this specific family says" before "what the catalogue
-        /// says about families like it". A project that has moved its QR cell must not
-        /// be overruled by a spec entry it never edited.</summary>
+        /// The order is "what this specific sheet says" before "what this family says"
+        /// before "what the catalogue says about families like it". A project that has
+        /// moved its QR cell must not be overruled by a spec entry it never edited.</summary>
         internal static QrAnchor ResolveAnchor(Document doc, ViewSheet sheet, Element tb)
         {
             double defaultSize = ResolveSizeMm(tb);
 
-            // 1 — the instance parameter.
+            // 1 — a real family parameter in the .rfa, if this family has one.
             try
             {
                 var raw = tb.LookupParameter(ParamRegistry.TB_QR_ANCHOR)?.AsString();
@@ -444,7 +452,28 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"SheetQrStamper: reading {ParamRegistry.TB_QR_ANCHOR}: {ex.Message}");
             }
 
-            // 2 — the family's own slot map.
+            // 2/3 — stored state: this sheet first, then the title block it sits on.
+            foreach (var (el, src) in new[]
+                     {
+                         (tb, QrAnchorSource.StoredOnInstance),
+                         (doc?.GetElement(tb.GetTypeId()), QrAnchorSource.StoredOnType),
+                     })
+            {
+                if (el == null) continue;
+                var stored = Storage.StingQrAnchorSchema.Read(el);
+                if (stored == null) continue;
+                return new QrAnchor
+                {
+                    XMm = stored.XMm,
+                    YMm = stored.YMm,
+                    // A stored anchor carries its own size; TB_QR_SIZE_MM_TXT only
+                    // supplies one when the store does not.
+                    SizeMm = stored.SizeMm > 0 ? stored.SizeMm : defaultSize,
+                    Source = src,
+                };
+            }
+
+            // 4 — the family's own slot map.
             try
             {
                 var raw = tb.LookupParameter("TB_VIEWPORT_SLOTS_JSON_TXT")?.AsString();
@@ -456,7 +485,7 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"SheetQrStamper: reading the family slot map: {ex.Message}");
             }
 
-            // 3 — the corporate catalogue, by family id.
+            // 5 — the corporate catalogue, by family id.
             try
             {
                 var slots = Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
