@@ -277,6 +277,48 @@ export function transitionCDE(
   });
 }
 
+// ── Sheet Lookup (scanned title-block QR) ──
+
+/** What the server answers for a scanned sheet code. */
+export interface SheetLookupResult {
+  sheetNumber: string;
+  requestedRevision: string | null;
+  /**
+   * TRUE when the scanned ?r= revision actually matched documents, so `items`
+   * are that revision. FALSE when it did not, so `items` are EVERY revision of
+   * the sheet — the server keeps the wider answer rather than narrowing to
+   * nothing, because an empty result on site reads as "this drawing does not
+   * exist". The screen must say which of the two it is showing.
+   */
+  revisionNarrowed: boolean;
+  /** Total matches before `limit` — `items.length` can be smaller. */
+  matched: number;
+  /**
+   * PUBLISHED first, then SHARED, then WIP, newest within each. The top row is
+   * what a person on site should be building from; do not re-sort.
+   */
+  items: DocumentRecord[];
+}
+
+/**
+ * Resolve a sheet number stamped into a title-block QR
+ * (`https://app.planscape.build/s/{project}/{sheet}`) to its documents.
+ *
+ * There is no sheet entity on the server — a sheet number lives inside the ISO
+ * 19650 document NAME — so this matches on file name. An empty `items` means
+ * nothing matched, and the caller must show that as an empty result rather than
+ * substituting anything.
+ */
+export function lookupSheet(
+  projectId: string,
+  sheetNumber: string,
+  revision?: string | null
+): Promise<SheetLookupResult> {
+  const q = new URLSearchParams({ number: sheetNumber });
+  if (revision) q.set('revision', revision);
+  return apiFetch(`/api/projects/${projectId}/documents/by-sheet?${q.toString()}`);
+}
+
 // ── Tag Sync / Element Lookup ──
 
 export function lookupElement(

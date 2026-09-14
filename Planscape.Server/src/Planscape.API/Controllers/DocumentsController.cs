@@ -308,6 +308,102 @@ public class DocumentsController : ControllerBase
         return Ok(new { items = docs, total, page, pageSize });
     }
 
+
+    /// <summary>
+    /// Resolve a SHEET NUMBER to the documents that carry it — the endpoint a scanned
+    /// title-block QR needs.
+    ///
+    /// WHY IT EXISTS
+    /// -------------
+    /// The plugin stamps sheets with `https://app.planscape.build/s/{project}/{sheet}`
+    /// (SheetQrStamper). Until this endpoint, the mobile scanner could parse that code
+    /// and then had nothing to call: there is no sheet entity on this server, so a sheet
+    /// number only exists inside an ISO 19650 document NAME.
+    ///
+    /// So that is what this matches. A site operative scanning the code on a printed
+    /// drawing wants the current PDF of that drawing, which is exactly a DocumentRecord
+    /// whose FileName carries the sheet number.
+    ///
+    /// WHAT IT DELIBERATELY DOES NOT DO
+    /// --------------------------------
+    /// It does not invent a document when none matches. An empty list is returned as an
+    /// empty list with `matched: 0`, never as a placeholder row — a fabricated result a
+    /// user can act on is worse than a blank screen, and this codebase has shipped that
+    /// mistake before (a Create-issue handler that inserted a stand-in on failure and
+    /// reported success).
+    ///
+    /// ORDERING IS THE FEATURE. A sheet number typically matches several revisions. They
+    /// come back PUBLISHED first, then SHARED, then WIP, newest within each — so the top
+    /// row is the one a person on site should be building from. A scan that surfaced a
+    /// superseded WIP drawing above the published one would be worse than no answer.
+    /// </summary>
+    [HttpGet("by-sheet")]
+    public async Task<ActionResult> GetDocumentsBySheetNumber(
+        Guid projectId,
+        [FromQuery] string number,
+        [FromQuery] string? revision = null,
+        [FromQuery] int limit = 20)
+    {
+        if (string.IsNullOrWhiteSpace(number) || number.Trim().Length < 2)
+            return BadRequest(new { error = "Query parameter 'number' must be at least 2 characters." });
+
+        var sheet = number.Trim();
+        limit = Math.Clamp(limit, 1, 100);
+        var tenantId = GetTenantId();
+
+        var query = _db.Documents
+            .Where(d => d.ProjectId == projectId && d.Project!.TenantId == tenantId)
+            .Where(d => d.FileName.Contains(sheet));
+
+        // A revision from the QR's ?r= narrows the answer, but ONLY when it actually
+        // matches something. Narrowing to nothing would turn a good answer into an empty
+        // one, which on site reads as "this drawing does not exist" — so the unfiltered
+        // result is kept and the client is told the revision did not narrow it.
+        var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
+        query = Planscape.API.Authorization.ProjectMemberAcl.ApplyTo(query, acl);
+
+        var all = await query.ToListAsync();
+
+        bool revisionNarrowed = false;
+        var considered = all;
+        if (!string.IsNullOrWhiteSpace(revision))
+        {
+            var byRev = all.Where(d => string.Equals(d.Revision, revision, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (byRev.Count > 0) { considered = byRev; revisionNarrowed = true; }
+        }
+
+        var ordered = considered
+            .OrderBy(d => CdeRank(d.CdeStatus))
+            .ThenByDescending(d => d.UploadedAt)
+            .Take(limit)
+            .ToList();
+
+        foreach (var d in ordered) WithAllowedTransitions(d);
+
+        return Ok(new
+        {
+            sheetNumber = sheet,
+            requestedRevision = revision,
+            // The client MUST be able to tell "the revision you scanned is not here, so
+            // these are every revision" from "these are the revision you scanned".
+            revisionNarrowed,
+            matched = considered.Count,
+            items = ordered,
+        });
+    }
+
+    /// <summary>CDE sort order for a scanned lookup: what a person on site should be
+    /// building from, first. Unknown states sort last rather than first — an
+    /// unrecognised status is not evidence of being authoritative.</summary>
+    private static int CdeRank(string? cdeStatus) => (cdeStatus ?? "").ToUpperInvariant() switch
+    {
+        "PUBLISHED" => 0,
+        "SHARED" => 1,
+        "WIP" => 2,
+        "ARCHIVE" => 3,
+        _ => 4,
+    };
+
     [HttpPost]
     public async Task<ActionResult> CreateDocument(Guid projectId, [FromBody] CreateDocumentRequest req)
     {

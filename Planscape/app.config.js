@@ -74,11 +74,23 @@ module.exports = ({ config }) => ({
         {
           action: 'VIEW',
           autoVerify: true,
+          // Kept in step with APP_LINK_PATHS in
+          // planscape-web/app/.well-known/apple-app-site-association/route.ts —
+          // two hand-maintained lists of the same paths is how they drift, so
+          // planscape-web/lib/appLinks.test.ts compares them.
+          //
+          // NOTE: autoVerify only takes effect once
+          // https://<host>/.well-known/assetlinks.json serves a real fingerprint.
+          // That file did not exist at all until the QR work; these four filters
+          // have therefore never verified, and have been falling back to a browser.
           data: [
             { scheme: 'https', host, pathPrefix: '/accept-invitation' },
             { scheme: 'https', host, pathPrefix: '/reset-password' },
             { scheme: 'https', host, pathPrefix: '/issues' },
             { scheme: 'https', host, pathPrefix: '/documents' },
+            // STING QR codes: /e/{project}/{tag} element, /s/{project}/{sheet} sheet.
+            { scheme: 'https', host, pathPrefix: '/e/' },
+            { scheme: 'https', host, pathPrefix: '/s/' },
           ],
           category: ['BROWSABLE', 'DEFAULT'],
         },

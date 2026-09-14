@@ -14,7 +14,13 @@ import {
   Modal,
 } from 'react-native';
 import { theme, getRAGColor } from '@/utils/theme';
-import { listProjects, lookupElement, listIssues, _getBaseUrl } from '@/api/endpoints';
+import {
+  listProjects,
+  lookupElement,
+  lookupSheet,
+  listIssues,
+  _getBaseUrl,
+} from '@/api/endpoints';
 import type { Project, TaggedElement, BimIssue } from '@/types/api';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { parseQr } from '@/services/qrParser';
@@ -80,23 +86,12 @@ export default function ScannerScreen() {
       Alert.alert('Unrecognised code', `Scanned: ${result.data}`);
       return;
     }
-    // A SHEET code (the title-block stamp) names a drawing, not an element.
-    // Running it through the element search would return nothing and read as
-    // "that element is not in this project" — a wrong answer, not an empty one.
-    // Say what it is and stop, until there is a sheet lookup to call.
+    // A SHEET code (the title-block stamp) names a drawing, not an element, so it
+    // goes to the sheet lookup. Running it through the element search would return
+    // nothing and read as "that element is not in this project" — a wrong answer,
+    // not an empty one.
     if (parsed.type === 'sheet') {
-      setQuery(parsed.sheetNumber ?? parsed.id);
-      Alert.alert(
-        `Sheet ${parsed.sheetNumber}`,
-        [
-          parsed.projectCode ? `Project: ${parsed.projectCode}` : null,
-          parsed.revision ? `Revision: ${parsed.revision}` : null,
-          '',
-          'This is a drawing-sheet code. Opening sheets from a scan is not built yet — search the Documents tab by this number.',
-        ]
-          .filter(Boolean)
-          .join('\n'),
-      );
+      await resolveScannedSheet(parsed);
       return;
     }
 
@@ -120,6 +115,98 @@ export default function ScannerScreen() {
       } finally {
         setSearching(false);
       }
+    }
+  }
+
+  /**
+   * Resolve a scanned title-block QR to the sheet's documents.
+   *
+   * Four outcomes, kept distinct on purpose — the failure this codebase produces
+   * is a no-op that reads like a success:
+   *   - no project selected -> say so; a sheet number is only unique within one
+   *   - nothing matched     -> an EMPTY result, said plainly. Never a stand-in row
+   *   - lookup failed       -> the error, NOT "no match". Different answers
+   *   - matched             -> open the top document (PUBLISHED first, newest),
+   *                            and warn when the scanned revision is not the one
+   *                            being shown, because the print in their hand is
+   *                            then superseded
+   */
+  async function resolveScannedSheet(parsed: ReturnType<typeof parseQr>) {
+    const sheetNumber = parsed.sheetNumber ?? parsed.id ?? '';
+    setQuery(sheetNumber);
+
+    if (!activeProject) {
+      Alert.alert(
+        `Sheet ${sheetNumber}`,
+        'Choose a project first — a sheet number is only unique within one.',
+      );
+      return;
+    }
+
+    setSearching(true);
+    setError(null);
+    try {
+      const result = await lookupSheet(activeProject.id, sheetNumber, parsed.revision);
+      setHistory(prev => [
+        {
+          query: sheetNumber,
+          resultCount: result.matched,
+          timestamp: new Date().toISOString(),
+        },
+        ...prev.slice(0, 19),
+      ]);
+
+      if (result.items.length === 0) {
+        Alert.alert(
+          `Sheet ${sheetNumber}`,
+          [
+            parsed.projectCode ? `Stamped project: ${parsed.projectCode}` : null,
+            parsed.revision ? `Stamped revision: ${parsed.revision}` : null,
+            '',
+            `No document in ${activeProject.name} carries this sheet number.`,
+            'If the drawing was issued from another project, switch to it and scan again.',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        );
+        return;
+      }
+
+      const top = result.items[0];
+      const staleRevision =
+        parsed.revision && !result.revisionNarrowed
+          ? `\n\nThe code says revision ${parsed.revision}, which is not in the register. ` +
+            `Showing ${top.revision || 'the latest'} instead — the print in your hand may be superseded.`
+          : '';
+
+      Alert.alert(
+        top.fileName,
+        [
+          `Sheet ${sheetNumber}`,
+          `Status: ${top.cdeStatus}${top.revision ? ` · Rev ${top.revision}` : ''}`,
+          result.matched > 1 ? `${result.matched} revisions on file` : null,
+        ]
+          .filter(Boolean)
+          .join('\n') + staleRevision,
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Open',
+            onPress: () => router.push(`/documents/markup?id=${top.id}`),
+          },
+        ],
+      );
+    } catch (err) {
+      // A failed lookup is NOT an empty one. Say which happened.
+      setError(err instanceof Error ? err.message : 'Sheet lookup failed');
+      Alert.alert(
+        `Sheet ${sheetNumber}`,
+        `Could not reach the document register.\n\n${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    } finally {
+      setSearching(false);
     }
   }
 
