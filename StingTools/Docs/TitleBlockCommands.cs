@@ -120,6 +120,55 @@ namespace StingTools.Docs
         /// Find the title-block FamilyInstance placed on the given sheet.
         /// Returns null when the sheet has no title block (empty sheet).
         /// </summary>
+        /// <summary>"Yes"/"1"/"true"/"y" -> 1, anything else 0. One copy, on the
+        /// engine, because both the CSV populate path and the dual-home writer need
+        /// it and two copies of a yes/no rule is how they come to disagree.</summary>
+        internal static int ParseYesNo(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return 0;
+            string s = v.Trim().ToLowerInvariant();
+            return (s == "1" || s == "yes" || s == "true" || s == "y") ? 1 : 0;
+        }
+
+        /// <summary>Write a title-block value to EVERY home the name has — the sheet's
+        /// parameter and the title block's — because nothing in the API says which one
+        /// the family's label is bound to.
+        ///
+        /// Measured on a live model: 29 of 29 title-block parameter names existed BOTH
+        /// on the sheet (as project parameters) and on the title-block family, and the
+        /// labels were bound to the SHEET's copy. Every STING command wrote to the
+        /// title block's. So Populate reported "8 fields updated", Count Sheets
+        /// reported "3 pagination cells written", both were telling the truth, and the
+        /// drawing showed "?" in those cells for as long as anyone cared to look.
+        ///
+        /// Writing one and hoping is what produced that. Writing both cannot produce
+        /// it: whichever copy the label reads, it now has the value, and the two can
+        /// no longer disagree with each other on the same drawing.
+        ///
+        /// Returns true if ANY home took the value. `homes` reports how many did, so a
+        /// caller can tell "written once" from "written to both" without guessing.</summary>
+        internal static bool SetOnSheetAndTitleBlock(
+            ViewSheet sheet, Element tb, string paramName, string value, bool isBool, out int homes)
+        {
+            homes = 0;
+            foreach (Element target in new Element[] { sheet, tb })
+            {
+                if (target == null) continue;
+                try
+                {
+                    bool ok = isBool
+                        ? ParameterHelpers.SetInt(target, paramName, ParseYesNo(value), overwrite: true)
+                        : ParameterHelpers.SetString(target, paramName, value, overwrite: true);
+                    if (ok) homes++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TB: writing '{paramName}' to {target.Id}: {ex.Message}");
+                }
+            }
+            return homes > 0;
+        }
+
         internal static FamilyInstance GetTitleBlockOnSheet(Document doc, ViewSheet sheet)
         {
             if (doc == null || sheet == null) return null;
@@ -422,6 +471,7 @@ namespace StingTools.Docs
             string stampUser = Environment.UserName ?? "unknown";
 
             var multiTbSheets = new List<string>();
+            int bothHomes = 0;
             var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             using (var tx = new Transaction(doc, "STING Title Block Populate"))
@@ -504,11 +554,10 @@ namespace StingTools.Docs
                             continue;
                         }
 
-                        bool ok;
-                        if (ParamRegistry.TitleBlockBoolParams.Contains(paramName))
-                            ok = ParameterHelpers.SetInt(tb, paramName, ParseYesNo(val), overwrite: true);
-                        else
-                            ok = ParameterHelpers.SetString(tb, paramName, val, overwrite: true);
+                        bool isBool = ParamRegistry.TitleBlockBoolParams.Contains(paramName);
+                        bool ok = TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, paramName, val, isBool, out int homes);
+                        if (homes == 2) bothHomes++;
 
                         if (ok) paramsWrittenThisSheet++;
                         else
@@ -554,6 +603,7 @@ namespace StingTools.Docs
                 .Metric("Sheets skipped (no title block)", noTbSkipped.ToString())
                 .Metric("Parameter write failures", paramFails.ToString())
                 .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
+                .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
                 .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
                 .Metric("CSV path", csvPath ?? "<default>")
@@ -592,13 +642,6 @@ namespace StingTools.Docs
                 .Show();
 
             return Result.Succeeded;
-        }
-
-        private static int ParseYesNo(string v)
-        {
-            if (string.IsNullOrEmpty(v)) return 0;
-            string s = v.Trim().ToLowerInvariant();
-            return (s == "1" || s == "yes" || s == "true" || s == "y") ? 1 : 0;
         }
 
         internal static string ResolveCsvPath(Document doc, string name)
@@ -1207,8 +1250,12 @@ namespace StingTools.Docs
 
                     string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
                     string tot = total.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
-                    if (ParameterHelpers.SetString(tb, "PRJ_SHEET_OF_TOTAL_TXT",
-                        $"{seq} / {tot}", overwrite: true))
+                    // Both homes — the label is bound to one of them and the API does
+                    // not say which. Writing only the title block is what made this
+                    // report "3 pagination cells written" onto a drawing showing "?".
+                    if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            counted[i], tb, "PRJ_SHEET_OF_TOTAL_TXT",
+                            $"{seq} / {tot}", isBool: false, out _))
                         paginationWritten++;
                 }
 

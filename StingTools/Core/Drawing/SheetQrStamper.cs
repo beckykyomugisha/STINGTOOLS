@@ -675,9 +675,9 @@ namespace StingTools.Core.Drawing
             {
                 // Suitability code first; the deliverable-status field is a distant
                 // fallback so a project that only fills that one still carries something.
-                Suitability  = NullIfBlank(SafeParam(tb, PSuitability))
-                               ?? NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS)),
-                CdeState     = NullIfBlank(SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE)),
+                Suitability  = Printed(sheet, tb, PSuitability)
+                               ?? Printed(sheet, tb, ParamRegistry.TB_DELIVERABLE_STATUS),
+                CdeState     = Printed(sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE),
                 // The date the code was STAMPED -- an honest fact about this print,
                 // which is what a scanner needs in order to judge whether it is holding
                 // a current sheet, unlike a "status" that goes stale on the paper.
@@ -688,28 +688,46 @@ namespace StingTools.Core.Drawing
                 // can tell that came from a timezone rather than a backdated issue.
                 IssueDate    = DateTime.Now.ToString("yyyyMMdd"),
                 Zone         = null,   // no sheet-level zone parameter exists yet
-                // On the TITLE BLOCK, not the sheet -- that is where the sheet-count
-                // paginator writes it (TitleBlockCommands.cs). Reading the sheet found
-                // nothing while "25 OF 100" was printed on the drawing.
-                SheetOfTotal = SheetQrConfig.NormaliseSheetOfTotal(SafeParam(tb, PSheetOfTotal)),
-                Lod          = SheetQrConfig.NormaliseLod(SafeParam(tb, PLod)),
-                PaperSize    = NullIfBlank(SafeParam(tb, PPaperSize)),
-                Scale        = NullIfBlank(SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE)),
-                Initials     = ReadInitials(tb),
+                SheetOfTotal = SheetQrConfig.NormaliseSheetOfTotal(Printed(sheet, tb, PSheetOfTotal)),
+                Lod          = SheetQrConfig.NormaliseLod(Printed(sheet, tb, PLod)),
+                PaperSize    = Printed(sheet, tb, PPaperSize),
+                Scale        = Printed(sheet, tb, ParamRegistry.TB_SCALE_OVERRIDE),
+                Initials     = ReadInitials(sheet, tb),
                 // Signature stays null until a signing key exists. A field that LOOKS
                 // like a signature but is not one is worse than no field at all.
                 Signature    = null,
             };
         }
 
+        /// <summary>The value the DRAWING ACTUALLY PRINTS, which is the only one the
+        /// QR is allowed to assert.
+        ///
+        /// Nearly every title-block parameter name exists TWICE: once on the sheet (a
+        /// project parameter) and once on the title-block family. Measured on a live
+        /// model, 29 of 29 names existed in both places -- and the labels bind to the
+        /// SHEET's copy. The two disagreed:
+        ///
+        ///     sheet   S4 / FOR APROVAL / LOD 350 / A1 / AS SHOWN   <- what is printed
+        ///     block   (empty) / Shared, Non-contractual / LOD 300 / (empty) / (empty)
+        ///
+        /// Reading the title block first therefore encoded LOD 300 into a code printed
+        /// on a sheet that says LOD 350. A QR that contradicts the drawing it is
+        /// printed on is worse than no QR: the paper and the scan are both evidence,
+        /// and they cannot both be right.
+        ///
+        /// So: the sheet wins. The title block is the fallback, for the parameters a
+        /// project has only bound there.</summary>
+        private static string Printed(ViewSheet sheet, Element tb, string name)
+            => NullIfBlank(SafeParam(sheet, name)) ?? NullIfBlank(SafeParam(tb, name));
+
         /// <summary>DRW.CHK.APR -- who signed it off, as initials. Omitted entirely
         /// unless at least one is present, and a missing one holds its place so the
         /// three never shift and read as each other.</summary>
-        private static string ReadInitials(Element tb)
+        private static string ReadInitials(ViewSheet sheet, Element tb)
         {
-            string d = SafeParam(tb, PDrawnBy);
-            string c = SafeParam(tb, PCheckedBy);
-            string a = SafeParam(tb, PApprovedBy);
+            string d = Printed(sheet, tb, PDrawnBy);
+            string c = Printed(sheet, tb, PCheckedBy);
+            string a = Printed(sheet, tb, PApprovedBy);
             if (string.IsNullOrWhiteSpace(d) && string.IsNullOrWhiteSpace(c) && string.IsNullOrWhiteSpace(a))
                 return null;
             return Dash(d) + "." + Dash(c) + "." + Dash(a);
