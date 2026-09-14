@@ -471,6 +471,17 @@ internal static class PlatformSchemaPatcher
             ON ""CommissioningRecords"" (""ProjectId"", ""ElementUniqueId"", ""RecordedAt"")",
         @"CREATE INDEX IF NOT EXISTS ""IX_CommissioningRecords_ProjectId_RecordedAt""
             ON ""CommissioningRecords"" (""ProjectId"", ""RecordedAt"")",
+
+        // ── SUS-QR — sustainability on the scanned element ──
+        // Additive and nullable. NULL means UNKNOWN, never 0 kgCO2e: a default of
+        // zero would be a claim about the world where there is simply no data, and
+        // it would flow straight into a carbon rollup as a real measurement.
+        //
+        // Per ADR 0001 the patcher, not a migration, is how these reach an existing
+        // production database.
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EpdRef"" text",
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""EmbodiedCarbonKg"" double precision",
+        @"ALTER TABLE ""TaggedElements"" ADD COLUMN IF NOT EXISTS ""MaterialName"" text",
     };
 
     public static async Task ApplyAsync(DbConnection conn)

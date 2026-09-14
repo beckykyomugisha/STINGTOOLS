@@ -21,6 +21,8 @@ const NAMES = [
   'fulfilChecklistItem', 'createDeliverable', 'updateDeliverable',
   'transitionDeliverable', 'postMgasVerification', 'postPressureLog',
   'postAntiLigatureAudit',
+  // QR-8 — a commissioning step taken on a scan with no signal.
+  'advanceCommissioning',
 ];
 
 const impl = {};
@@ -48,3 +50,4 @@ export const transitionDeliverable = impl.transitionDeliverable;
 export const postMgasVerification = impl.postMgasVerification;
 export const postPressureLog = impl.postPressureLog;
 export const postAntiLigatureAudit = impl.postAntiLigatureAudit;
+export const advanceCommissioning = impl.advanceCommissioning;

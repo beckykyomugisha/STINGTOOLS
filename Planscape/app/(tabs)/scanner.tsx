@@ -29,6 +29,8 @@ import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-ca
 import { parseQr } from '@/services/qrParser';
 import { crashReporter } from '@/services/crashReporter';
 import { useAuthStore } from '@/stores/authStore';
+import { isOnline } from '@/utils/connectivity';
+import { enqueue } from '@/utils/offlineQueue';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -153,22 +155,36 @@ export default function ScannerScreen() {
         return;
       }
 
+      // QR-9 — COMMISSIONED needs a witness, which an Alert cannot collect. It used
+      // to be refused outright: honest, but useless on the one step that most needs
+      // recording while you are standing at the asset. It now opens a form.
       const needsWitness = state.witnessRequiredNext;
       Alert.alert(
         element.tag1 || 'Asset',
         `Commissioning: ${state.currentState} → ${state.nextState}` +
           (needsWitness
-            ? '\n\nThis step declares the asset fit for use and needs a witness, so it has to be recorded on a device where you can type one.'
+            ? '\n\nThis step declares the asset fit for use, so it needs a witness as well as your name.'
             : ''),
-        needsWitness
-          ? [{ text: 'OK', style: 'cancel' }]
-          : [
-              { text: 'Not now', style: 'cancel' },
-              {
+        [
+          { text: 'Not now', style: 'cancel' },
+          needsWitness
+            ? {
+                text: 'Sign off…',
+                onPress: () =>
+                  router.push(
+                    `/commissioning/signoff?projectId=${activeProject.id}` +
+                      `&uid=${encodeURIComponent(uniqueId)}` +
+                      `&tag=${encodeURIComponent(element.tag1 ?? '')}` +
+                      `&name=${encodeURIComponent(element.familyName ?? '')}` +
+                      `&from=${encodeURIComponent(state.currentState)}` +
+                      `&to=${encodeURIComponent(state.nextState ?? '')}`,
+                  ),
+              }
+            : {
                 text: `Record ${state.nextState}`,
                 onPress: () => void recordCommissioningStep(uniqueId, element, state),
               },
-            ],
+        ],
       );
     } catch (err) {
       // Never block the scan result on this. The element WAS found; failing to
@@ -200,14 +216,32 @@ export default function ScannerScreen() {
       return;
     }
 
+    // QR-8 — commissioning happens in basement plant rooms, which is exactly where
+    // there is no signal. Queue rather than lose the sign-off: the operative walked
+    // to the asset once and should not have to again.
+    const body = {
+      elementUniqueId: uniqueId,
+      operative,
+      elementTag: element.tag1,
+      elementName: element.familyName,
+      source: 'mobile-scan',
+      occurredAt: new Date().toISOString(),
+    };
+
+    if (!(await isOnline())) {
+      await enqueue('COMMISSIONING_ADVANCE', { projectId: activeProject.id, payload: body });
+      Alert.alert(
+        element.tag1 || 'Asset',
+        `Saved offline: ${state.currentState} → ${state.nextState}.\n\n` +
+          'It will be sent when you have signal. Until then it is NOT on the server, ' +
+          'so nobody else can see it.',
+      );
+      return;
+    }
+
     try {
       const result = await advanceCommissioning(activeProject.id, {
-        elementUniqueId: uniqueId,
-        operative,
-        elementTag: element.tag1,
-        elementName: element.familyName,
-        source: 'mobile-scan',
-        occurredAt: new Date().toISOString(),
+        ...body,
         // What we just showed the user. If someone else advanced it in between,
         // the server answers 409 rather than recording the same step twice under
         // two names.
@@ -720,6 +754,27 @@ function ElementDetail({
       <DetailField label="Type" value={element.typeName} />
       <DetailField label="Status" value={element.status ?? ''} />
       <DetailField label="Revision" value={element.rev ?? ''} />
+
+      {/* Sustainability (SUS-QR).
+          Rendered ONLY when there is something to say. An "Embodied carbon: —"
+          row on every element trains people to ignore the section; worse, a
+          "0 kgCO₂e" default would assert a measurement nobody made and read as
+          a genuinely zero-carbon asset. Absent data is absent. */}
+      {(element.epdRef || element.embodiedCarbonKg != null || element.materialName) && (
+        <>
+          <Text style={styles.detailSectionTitle}>Sustainability</Text>
+          {!!element.materialName && <DetailField label="Material" value={element.materialName} />}
+          {element.embodiedCarbonKg != null && (
+            <DetailField
+              label="Embodied carbon"
+              value={`${element.embodiedCarbonKg.toLocaleString(undefined, {
+                maximumFractionDigits: 1,
+              })} kgCO₂e (A1–A3)`}
+            />
+          )}
+          {!!element.epdRef && <DetailField label="EPD" value={element.epdRef} />}
+        </>
+      )}
 
       {/* Spatial */}
       {(element.roomName || element.gridRef) && (

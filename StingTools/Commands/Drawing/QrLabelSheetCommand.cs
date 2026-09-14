@@ -108,6 +108,8 @@ namespace StingTools.Commands.Drawing
                 int placed = 0;
                 var warnings = new List<string>();
 
+                var ordered = byTag.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToList();
+
                 using (var tg = new TransactionGroup(doc, "STING QR Label Sheets"))
                 {
                     tg.Start();
@@ -115,25 +117,37 @@ namespace StingTools.Commands.Drawing
                     {
                         t.Start();
 
-                        ViewSheet sheet = null;
-                        double cursorX = 0, cursorY = 0, usableW = 0;
-                        int perSheet = 0;
+                        // Measure the paper before placing anything, from a first sheet
+                        // that is kept and used. The grid is then computed ONCE — the
+                        // naive version started a row whenever the cursor was above the
+                        // bottom margin, so the last row could begin with less than a
+                        // cell of height left and run off the plot. A clipped QR is
+                        // unreadable while still looking like a usable label.
+                        var first = NewLabelSheet(doc, titleBlockId, 1, projectCode);
+                        sheets.Add(first);
+                        var extent = SheetExtentMm(doc, first);
+                        var grid = QrLabelLayout.PlanGrid(extent.w, extent.h, CodeMm, GutterMm, MarginMm);
 
-                        foreach (var kv in byTag.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                        if (grid.PerSheet <= 0)
                         {
-                            if (sheet == null || cursorY < MarginMm)
-                            {
-                                sheet = NewLabelSheet(doc, titleBlockId, sheets.Count + 1, projectCode);
-                                sheets.Add(sheet);
-                                var extent = SheetExtentMm(doc, sheet);
-                                usableW = extent.w - 2 * MarginMm;
-                                cursorX = MarginMm;
-                                // Fill top-down: a plotted sheet reads that way, and a
-                                // half-full last sheet then has its blank space at the
-                                // bottom where it is easy to trim off.
-                                cursorY = extent.h - MarginMm - CodeMm;
-                                perSheet = 0;
-                            }
+                            t.RollBack();
+                            tg.RollBack();
+                            TaskDialog.Show("STING — QR Label Sheet",
+                                $"A {extent.w:F0} x {extent.h:F0} mm sheet cannot carry a {CodeMm:F0} mm label " +
+                                $"with {MarginMm:F0} mm margins.\n\nNothing was created. Use a larger title block.");
+                            return Result.Cancelled;
+                        }
+
+                        var cells = QrLabelLayout.Place(ordered.Count, grid);
+
+                        for (int i = 0; i < ordered.Count; i++)
+                        {
+                            var kv = ordered[i];
+                            var cell = cells[i];
+
+                            while (sheets.Count <= cell.SheetIndex)
+                                sheets.Add(NewLabelSheet(doc, titleBlockId, sheets.Count + 1, projectCode));
+                            var sheet = sheets[cell.SheetIndex];
 
                             string url = StingQrFormat.BuildElementUrl(projectCode, kv.Key, kv.Value.UniqueId);
                             string png = Path.Combine(qrDir, SanitiseFileName(kv.Key) + ".png");
@@ -141,9 +155,8 @@ namespace StingTools.Commands.Drawing
                             try
                             {
                                 StingQRHelper.SaveQRPng(url, png, 800);
-                                PlaceLabel(doc, sheet, png, kv.Key, cursorX, cursorY);
+                                PlaceLabel(doc, sheet, png, kv.Key, cell.XMm, cell.YMm);
                                 placed++;
-                                perSheet++;
                             }
                             catch (Exception ex)
                             {
@@ -151,14 +164,6 @@ namespace StingTools.Commands.Drawing
                                 // going to arrive on site without a label.
                                 warnings.Add($"{kv.Key}: {ex.Message}");
                                 StingLog.Error($"QrLabelSheet: '{kv.Key}' failed", ex);
-                            }
-
-                            cursorX += CodeMm + GutterMm;
-                            if (cursorX + CodeMm > MarginMm + usableW)
-                            {
-                                cursorX = MarginMm;
-                                // Leave room under each code for its tag caption.
-                                cursorY -= CodeMm + GutterMm + 6.0;
                             }
                         }
 
@@ -241,7 +246,8 @@ namespace StingTools.Commands.Drawing
                 if (textType != null)
                 {
                     TextNote.Create(doc, sheet.Id,
-                        new XYZ(centre.X, (yMm - 3.0) / MmPerFoot, 0), tag, textType.Id);
+                        new XYZ(centre.X, (yMm - QrLabelLayout.CaptionBandMm / 2.0) / MmPerFoot, 0),
+                        tag, textType.Id);
                 }
                 else
                 {

@@ -615,6 +615,16 @@ public class TagSyncController : ControllerBase
         entity.CategoryName = dto.CategoryName; entity.FamilyName = dto.FamilyName;
         entity.Status = dto.Status; entity.Rev = dto.Rev;
         entity.IsComplete = dto.IsComplete; entity.IsFullyResolved = dto.IsFullyResolved;
+
+        // ── Sustainability (SUS-QR) ──
+        // Written ONLY when the push carries a value, the same rule IfcGlobalId
+        // follows above. An older plugin build omits these fields entirely, and a
+        // blind assignment would blank an EPD reference that took someone an
+        // afternoon to source — silently, on every sync from an un-upgraded seat.
+        if (!string.IsNullOrWhiteSpace(dto.EpdRef)) entity.EpdRef = dto.EpdRef;
+        if (dto.EmbodiedCarbonKg.HasValue) entity.EmbodiedCarbonKg = dto.EmbodiedCarbonKg;
+        if (!string.IsNullOrWhiteSpace(dto.MaterialName)) entity.MaterialName = dto.MaterialName;
+
         entity.SyncedAt = DateTime.UtcNow; entity.SyncedBy = userName;
         // UNDELETE, centralised: this method is only reached for an element the
         // client reports as LIVE (the tombstone branch never calls it), so

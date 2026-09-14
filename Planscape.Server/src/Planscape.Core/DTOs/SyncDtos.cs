@@ -69,6 +69,16 @@ public record TagElementDto
     /// </summary>
     public DateTime? LastModifiedUtc { get; init; }
 
+    // ── Sustainability (SUS-QR) ──
+    // All nullable: an older plugin omits them entirely, and an element with no
+    // EPD has none. Absent must never arrive as 0 — that is a claim, not a gap.
+    /// <summary>SUS_EPD_REF_TXT.</summary>
+    public string? EpdRef { get; init; }
+    /// <summary>STING_MAT_EMB_CARBON, kgCO2e (A1-A3). Null = unknown.</summary>
+    public double? EmbodiedCarbonKg { get; init; }
+    /// <summary>Material the carbon figure describes.</summary>
+    public string? MaterialName { get; init; }
+
     /// <summary>
     /// Tombstone flag — true when the authoring tool reports this element as
     /// DELETED from the model. The server soft-deletes the matching row

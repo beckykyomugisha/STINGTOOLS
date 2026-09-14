@@ -101,6 +101,13 @@ namespace StingTools.Core.Sync
                 IsFullyResolved = isFullyResolved,
                 IsDeleted       = false,
                 LastModifiedUtc = ResolveLastModifiedUtc(el),
+
+                // SUS-QR — carried so a scanned label can show the asset's EPD and
+                // embodied carbon. Null when the element carries no value: an
+                // element with no EPD has none, and 0 kgCO₂e would be a claim.
+                EpdRef           = Blank(Get(ParamRegistry.SUS_EPD_REF)),
+                EmbodiedCarbonKg = ReadOptionalNumber(el, ParamRegistry.MAT_EMB_CARBON),
+                MaterialName     = Blank(ReadMaterialName(doc, el)),
             };
 
             if (hydrateTiers) HydrateTiers(doc, el, row, cat);
@@ -202,5 +209,58 @@ namespace StingTools.Core.Sync
         }
 
         private static string Blank(string s) => string.IsNullOrEmpty(s) ? null : s;
+
+        /// <summary>Read a numeric parameter, or null when it is absent or unset.
+        ///
+        /// The null matters more than the number. Revit reports an unset double as
+        /// 0.0, so returning the raw value would turn "nobody has assessed this"
+        /// into "this element emits nothing" — a measurement, arriving in a carbon
+        /// rollup, that no one ever made.</summary>
+        private static double? ReadOptionalNumber(Element el, string paramName)
+        {
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return null;
+                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                if (p.StorageType == StorageType.String)
+                {
+                    var raw = p.AsString();
+                    if (string.IsNullOrWhiteSpace(raw)) return null;
+                    return double.TryParse(raw, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : (double?)null;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagElementSyncMapper: reading '{paramName}' on {el?.Id.Value}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>The element's structural material name, when it has one, so a
+        /// scanned carbon figure says WHAT it is about rather than being a bare
+        /// number. Null rather than a guess when the element has no material.</summary>
+        private static string ReadMaterialName(Document doc, Element el)
+        {
+            try
+            {
+                var ids = el?.GetMaterialIds(false);
+                if (ids == null || ids.Count == 0) return null;
+                foreach (var id in ids)
+                {
+                    var m = doc?.GetElement(id) as Material;
+                    if (m != null && !string.IsNullOrWhiteSpace(m.Name)) return m.Name;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagElementSyncMapper: material on {el?.Id.Value}: {ex.Message}");
+                return null;
+            }
+        }
     }
 }

@@ -232,6 +232,17 @@ export interface TaggedElement {
   status?: string | null; // NEW/EXISTING/DEMOLISHED/TEMPORARY
   rev?: string | null;
   gridRef?: string | null;
+
+  // ── Sustainability (SUS-QR) ──
+  // NULL MEANS UNKNOWN, never zero. A screen that renders a missing
+  // embodiedCarbonKg as "0 kgCO₂e" asserts something nobody measured — every
+  // consumer must branch on null rather than defaulting.
+  /** SUS_EPD_REF_TXT — the EPD this element's material cites. */
+  epdRef?: string | null;
+  /** STING_EMB_CARBON_NR — embodied carbon A1–A3, kgCO₂e. */
+  embodiedCarbonKg?: number | null;
+  /** The material the carbon figure describes. */
+  materialName?: string | null;
   roomName?: string | null;
   level?: string | null; // level NAME — distinct from `lvl` above
 
@@ -289,7 +300,11 @@ export interface OfflineAction {
     // HC-11 — Healthcare Pack mobile screens: queued when network is absent.
     | 'HC_MGAS_VERIFICATION'
     | 'HC_PRESSURE_LOG'
-    | 'HC_ANTI_LIGATURE_AUDIT';
+    | 'HC_ANTI_LIGATURE_AUDIT'
+    // QR-8 — a commissioning step recorded from a scan. Commissioning happens
+    // in basement plant rooms, which is exactly where there is no signal, so a
+    // sign-off taken there has to survive until there is.
+    | 'COMMISSIONING_ADVANCE';
   payload: Record<string, unknown>;
   createdAt: string;
   synced: boolean;

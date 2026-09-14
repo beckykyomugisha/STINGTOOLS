@@ -362,7 +362,25 @@ public class DocumentsController : ControllerBase
         var acl = await Planscape.API.Authorization.ProjectMemberAcl.ResolveAsync(_db, projectId, User);
         query = Planscape.API.Authorization.ProjectMemberAcl.ApplyTo(query, acl);
 
-        var all = await query.ToListAsync();
+        var candidates = await query.ToListAsync();
+
+        // QR-10 — the LIKE above is a PREFILTER, not the answer. A bare substring
+        // match means a sheet numbered "M-1" also matches "M-101", "M-10" and
+        // "M-1A", and the scan would then present someone else's drawing as yours.
+        // Re-filter in memory on a TOKEN match: the number has to sit between ISO
+        // 19650 delimiters, not merely appear inside a longer run of characters.
+        //
+        // Kept as a two-stage filter rather than a SQL regex so the index-assisted
+        // LIKE still does the heavy lifting; the candidate set is small by then.
+        var all = candidates.Where(d => ContainsSheetToken(d.FileName, sheet)).ToList();
+
+        // If tokenising leaves nothing but the substring matched something, say the
+        // looser answer rather than an empty one — with `exactTokenMatch: false`, so
+        // the client can show it as "nothing matched exactly; these are close".
+        // Silently returning empty would tell a site operative the drawing does not
+        // exist when in fact only its numbering is unconventional.
+        bool exactTokenMatch = all.Count > 0;
+        if (all.Count == 0) all = candidates;
 
         bool revisionNarrowed = false;
         var considered = all;
@@ -387,10 +405,46 @@ public class DocumentsController : ControllerBase
             // The client MUST be able to tell "the revision you scanned is not here, so
             // these are every revision" from "these are the revision you scanned".
             revisionNarrowed,
+            // FALSE means the sheet number matched only as a substring, not as a
+            // delimited token — so "M-1" fell back to matching inside "M-101". The
+            // client must present those as near misses, never as "your drawing".
+            exactTokenMatch,
             matched = considered.Count,
             items = ordered,
         });
     }
+
+    /// <summary>Does this ISO 19650 file name carry <paramref name="sheet"/> as a
+    /// whole token?
+    ///
+    /// "Whole token" means bounded by a delimiter or the ends of the name, so
+    /// PRJ-ZZ-XX-DR-A-M-1.pdf matches "M-1" and PRJ-ZZ-XX-DR-A-M-101.pdf does not.
+    /// Without this a project numbering sheets 1, 2, 3 would have every scan return
+    /// most of the register with an arbitrary row on top.</summary>
+    internal static bool ContainsSheetToken(string fileName, string sheet)
+    {
+        if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(sheet)) return false;
+
+        int from = 0;
+        while (true)
+        {
+            int i = fileName.IndexOf(sheet, from, StringComparison.OrdinalIgnoreCase);
+            if (i < 0) return false;
+
+            bool leftOk = i == 0 || IsDelimiter(fileName[i - 1]);
+            int end = i + sheet.Length;
+            bool rightOk = end >= fileName.Length || IsDelimiter(fileName[end]);
+            if (leftOk && rightOk) return true;
+
+            from = i + 1;
+        }
+    }
+
+    /// <summary>Characters that separate fields in a document name. The file
+    /// extension's "." counts, so a sheet number at the very end of the stem still
+    /// reads as a whole token.</summary>
+    private static bool IsDelimiter(char c) =>
+        c == '-' || c == '_' || c == '.' || c == ' ' || c == '(' || c == ')' || c == '[' || c == ']';
 
     /// <summary>CDE sort order for a scanned lookup: what a person on site should be
     /// building from, first. Unknown states sort last rather than first — an

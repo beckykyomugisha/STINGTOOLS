@@ -43,6 +43,12 @@ interface TaggedElementRow {
   familyName?: string;
   level?: string;
   disc?: string;
+  // Sustainability (SUS-QR). NULL means UNKNOWN, never zero — rendering a
+  // missing embodiedCarbonKg as "0 kgCO2e" would assert a measurement nobody
+  // made, and it would read as a genuinely zero-carbon asset.
+  epdRef?: string | null;
+  embodiedCarbonKg?: number | null;
+  materialName?: string | null;
 }
 
 interface SheetLookupRow {
@@ -199,6 +205,18 @@ export function ScanLanding({
                       {e.categoryName ? ` · ${e.categoryName}` : ''}
                       {e.familyName ? ` · ${e.familyName}` : ''}
                       {e.level ? ` · ${e.level}` : ''}
+                      {/* Shown only when present. An always-visible "—" trains
+                          people to ignore the line. */}
+                      {(e.materialName || e.embodiedCarbonKg != null || e.epdRef) && (
+                        <div style={{ fontSize: '0.9em', opacity: 0.85, marginTop: 2 }}>
+                          {e.materialName}
+                          {e.embodiedCarbonKg != null &&
+                            `${e.materialName ? ' · ' : ''}${e.embodiedCarbonKg.toLocaleString(undefined, {
+                              maximumFractionDigits: 1,
+                            })} kgCO₂e (A1–A3)`}
+                          {e.epdRef && ` · EPD ${e.epdRef}`}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

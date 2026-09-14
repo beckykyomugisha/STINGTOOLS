@@ -73,6 +73,58 @@ public class DocumentBySheetTests : IClassFixture<PlanscapeWebApplicationFactory
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
+    // ── QR-10: a sheet number must match as a TOKEN, not a substring ──────────
+
+    [Theory]
+    // Whole token, bounded by ISO 19650 delimiters or the ends of the name.
+    [InlineData("PRJ-ZZ-XX-DR-A-M-1.pdf", "M-1", true)]
+    [InlineData("PRJ-ZZ-XX-DR-A-M-1-S2-P01.pdf", "M-1", true)]
+    [InlineData("M-1.pdf", "M-1", true)]
+    [InlineData("PRJ_ZZ_XX_DR_A_M-1_S2.pdf", "M-1", true)]
+    [InlineData("PRJ ZZ XX DR A M-1 S2.pdf", "M-1", true)]
+    [InlineData("PRJ-ZZ-XX-DR-A-(M-1).pdf", "M-1", true)]
+    // NOT a token — these are the ones that would hand someone the wrong drawing.
+    [InlineData("PRJ-ZZ-XX-DR-A-M-101-S2-P01.pdf", "M-1", false)]
+    [InlineData("PRJ-ZZ-XX-DR-A-M-10.pdf", "M-1", false)]
+    [InlineData("PRJ-ZZ-XX-DR-A-M-1A.pdf", "M-1", false)]
+    [InlineData("PRJ-ZZ-XX-DR-A-XM-1.pdf", "M-1", false)]
+    public void A_sheet_number_matches_only_as_a_whole_token(string fileName, string sheet, bool expected)
+        => Assert.Equal(expected, Planscape.API.Controllers.DocumentsController.ContainsSheetToken(fileName, sheet));
+
+    [Fact]
+    public async Task A_short_sheet_number_does_not_drag_in_its_longer_neighbours()
+    {
+        // The real-world shape of QR-10: a project numbering sheets 1, 2, 3 would
+        // otherwise have every scan return most of the register with an arbitrary
+        // row on top.
+        Seed("BS-TOKEN-PRJ-ZZ-XX-DR-A-T1.pdf", "PUBLISHED", "C01", DateTime.UtcNow);
+        Seed("BS-TOKEN-PRJ-ZZ-XX-DR-A-T101.pdf", "PUBLISHED", "C01", DateTime.UtcNow);
+        Seed("BS-TOKEN-PRJ-ZZ-XX-DR-A-T10.pdf", "PUBLISHED", "C01", DateTime.UtcNow);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var body = await GetAsync(client, $"{Base}/by-sheet?number=T1");
+        var names = Names(body);
+
+        Assert.True(body.GetProperty("exactTokenMatch").GetBoolean());
+        Assert.Single(names);
+        Assert.Equal("BS-TOKEN-PRJ-ZZ-XX-DR-A-T1.pdf", names[0]);
+    }
+
+    [Fact]
+    public async Task When_nothing_matches_as_a_token_the_looser_answer_is_returned_and_flagged()
+    {
+        // Unconventional numbering must not read as "this drawing does not exist".
+        // The near misses come back with exactTokenMatch:false so the client can say
+        // so — a silently empty result would be a wrong answer, not an empty one.
+        Seed("BS-LOOSE-DRAWINGXYZ999ABC.pdf", "PUBLISHED", "C01", DateTime.UtcNow);
+        var client = await _factory.CreateAuthenticatedClientAsync();
+
+        var body = await GetAsync(client, $"{Base}/by-sheet?number=XYZ999");
+
+        Assert.False(body.GetProperty("exactTokenMatch").GetBoolean());
+        Assert.Equal(1, body.GetProperty("matched").GetInt32());
+    }
+
     // ── Ordering: what a person on site should build from ─────────────────────
 
     [Fact]

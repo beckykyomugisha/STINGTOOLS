@@ -2,6 +2,107 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 282 — flexibility proved by three real sheets, sustainability on the scan, QR-8 to QR-12)
+
+**Three sheets exported from a live project on 2026-09-14 proved the stamper was
+too rigid to use.** All three title blocks ALREADY reserve a QR cell — drawn,
+labelled "SCAN · VERIFY ISSUE" and "SCAN CURRENT ISSUE", with an empty square
+waiting for the code — and the cell is somewhere different on each:
+
+    cover   x 196-224 mm   y 403-407 mm
+    001     x 767-799 mm   y 109-113 mm
+    002     x 591-622 mm   y  34- 38 mm
+
+`raster images on page: 0` on all three. None of those families is in
+`STING_TITLE_BLOCKS.json`, so the slot lookup finds nothing and the corner
+fallback would have missed every one — on drawings already exported to a shared
+CDE folder.
+
+The title-block guide has always promised the opposite: *"the QR-code stamper …
+never needs a hard-coded fallback — they read the family."* Now it does.
+`SheetQrStamper.ResolveAnchor` tries, most specific first:
+`TB_QR_ANCHOR_JSON_TXT` on the instance, then a `qr-code` entry in the family's
+own `TB_VIEWPORT_SLOTS_JSON_TXT`, then the spec slot by family id, then the
+corner — which now names what would have fixed it. **What this family says beats
+what the catalogue says about families like it.**
+
+`Sheet_SetQRAnchor` writes that anchor by picking the two corners of the cell.
+It REFUSES a cell under the scannable floor rather than writing an anchor the
+stamper will later reject: believing the cell was set and finding a corner stamp
+on the plot is worse than being told no.
+
+Two more per-project decisions without a code change: `TB_QR_SIZE_MM_TXT` (A3
+wants a smaller code than A0) and `TB_QR_PAYLOAD_TEMPLATE_TXT`, with `{url}`
+available so a client can WRAP the STING link rather than replace it. Unset means
+the STING deep link, deliberately: a template applied by accident would produce
+codes our own scanner rejects, which is the defect this feature began as.
+
+Accepting `701,85,24` and `701 85 24` as well as JSON is not politeness — nobody
+types JSON into a Revit parameter box, and rejecting those would mean the feature
+only works for people who already know it works.
+
+A test caught a real bug while writing it: `{"x":701}` deserialised to y = 0, the
+sheet's bottom edge — a plausible-looking position nobody wrote. Both keys must
+now be PRESENT, not merely deserialisable.
+
+**SUS-QR — a scanned asset now answers "what is this made of, and what did it
+cost the planet".** `EpdRef` / `EmbodiedCarbonKg` / `MaterialName` flow from the
+Revit element through TagSync to the element scan, on mobile and web. The QR
+label on a duct is the only interface a site operative has to the model, and
+embodied carbon is otherwise locked in a spreadsheet nobody on site opens.
+
+**One rule holds the whole thing up: NULL MEANS UNKNOWN, NEVER ZERO.** Revit
+reports an unset double as 0.0, so the lazy version turns "nobody assessed this"
+into "this element emits nothing" — a measurement, arriving in a carbon rollup,
+that no one ever made. It would not error and would not look wrong; it would just
+make a building's footprint smaller with every un-assessed element added to it.
+`ReadOptionalNumber` checks `HasValue`, the ingest writes only when the push
+carries a value, and both screens render the section only when there is something
+to say. A **genuine** zero — a timber element really assessed at ~0 — is stored
+and is distinguishable from unknown; the test that a re-assessment DOWN to zero
+still overwrites exists because `carbon > 0` would have silently kept the higher
+figure and hidden the improvement.
+
+**QR-8 — a scan with no signal survives.** Commissioning happens in basement
+plant rooms, which is exactly where there is no signal; the operative walked down
+three flights and should not have to again. `COMMISSIONING_ADVANCE` joins the
+offline queue. `expectedCurrentState` is deliberately NOT replayed — it is a
+claim about a live screen, stale by construction hours later, and replaying it
+would 409 every offline sign-off. Logged as QR-13.
+
+**QR-9 — COMMISSIONED can be recorded at the asset.** It needs a witness, which
+an `Alert` cannot collect, so it was refused outright: honest, and useless on the
+one step that most needs recording while you are standing there.
+`/commissioning/signoff` is that form. It does not re-implement the rule — the
+server's `witnessRequiredNext` drives it, so a rule change keeps working.
+
+**QR-10 — `M-1` no longer matches `M-101`.** The LIKE is now a prefilter; a
+token match (bounded by ISO 19650 delimiters) decides. A project numbering sheets
+1, 2, 3 would otherwise have had every scan return most of the register with an
+arbitrary row on top. When tokenising finds nothing but the substring found
+something, the looser answer comes back with `exactTokenMatch: false` — near
+misses, not "your drawing", and never a silent empty.
+
+**QR-12 — the label grid fits.** MaxRects was the logged suggestion and would buy
+nothing: every label is the same size, and for equal squares a uniform grid is
+already optimal. The real bug was simpler — a row was started whenever the cursor
+was above the bottom margin, so the last row could begin with less than a cell of
+height left and run off the plot. A clipped QR is unreadable while still looking
+like a usable label. `QrLabelLayout` computes the grid that fits, centres it, and
+returns zero cells for a sheet too small — which the command reports instead of
+placing one label off the edge.
+
+Gates: plugin 0/0 with **1,233 tests**; server **81** QR/TagSync tests;
+planscape-web **115** + `next build`; mobile tsc + full suite. Wiring (Tier 4 and
+6 both 0), path-discipline and param-contract all OK. Readership unchanged at 386
+— the three new parameters are declared in `MR_PARAMETERS.txt`/`.csv` and
+`RESOLVED_BINDINGS.csv`, so they add no violations.
+
+Still open and listed rather than glossed: QR-1 (needs Revit), QR-11 (needs the
+signing secrets and a redeploy), QR-13 (offline double-sign-off), QR-14 (carbon
+reaches the scan, not a rollup), QR-15 (A3 portrait verified by model, not on
+paper). See `ROADMAP.md`.
+
 #### Completed (Phase 281 — closing the QR gaps: QR-2 through QR-7)
 
 Phase 280 made the QR chain work and logged seven gaps. Six are closed; the

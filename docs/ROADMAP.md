@@ -2,37 +2,30 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
-## QR chain (2026-09-14, Phase 280)
+## QR chain (2026-09-14, Phases 280-282)
 
-QR-2 through QR-7 are **CLOSED** — see `CHANGELOG.md` Phase 280. What remains is
-QR-1, which cannot be closed from here, plus the honest residue of the ones that
-were closed.
+QR-2 through QR-12 are **CLOSED**. QR-1 cannot be closed from a build machine and
+QR-11 is a deploy action, not code. See `CHANGELOG.md` Phases 280-282.
 
 | ID | Status | Detail |
 |---|---|---|
-| QR-1 | **OPEN — needs Revit** | The placement DECISION is now Revit-free and unit-tested (`SheetQrPlacement`, 15 tests, both off-paper regressions pinned by their exact numbers). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge, on a real project:** `Sheet_StampQR` on an A1 sheet -> a QR appears bottom-right of the info strip, clear of the SCALE / APPROVED BY cells; run it twice -> exactly one image, not two; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own placed images alone; scan it -> the camera offers `app.planscape.build/s/…`. Also check one A0 and one A3 PORTRAIT — the two sizes the first placement cut got wrong, and A3 portrait is also the one whose slot `TitleBlockQrSlotTests` later caught sitting on `PRJ_TB_PAPER_SZ_TXT`. Then `QR_LabelSheet` on a handful of tagged elements, and `TitleBlock_CreateAll` to confirm the two new params reach the families. |
-| QR-2 | ✅ closed | `GET /api/projects/{id}/documents/by-sheet`, ordered PUBLISHED → SHARED → WIP so the top row is what to build from. 13 tests. |
-| QR-3 | ✅ closed | `CommissioningRecord` + `CommissioningController`, with the state machine moved to `Planscape.Shared` so the plugin and the API share one copy. 38 tests. |
-| QR-4 | ✅ closed | All 21 slot-declaring families carry a `qr-code` slot, verified against text EXTENTS by `TitleBlockQrSlotTests`. |
-| QR-5 | ✅ closed | `TitleBlockRevisionSyncer` refreshes existing stamps after the revision lands. **Refresh, never mint** — see below. |
-| QR-6 | ✅ closed | `/e/…` and `/s/…` routes on planscape-web; `.well-known` files that fail closed. |
-| QR-7 | ✅ closed | `QR_LabelSheet` places element codes on a plottable sheet with tag captions. |
+| QR-1 | **OPEN — needs Revit** | The placement DECISION is Revit-free and unit-tested (`SheetQrPlacement`, 15 tests; both off-paper regressions pinned by their exact numbers). The Revit API call is not: `ImageType.Create` / `ImageInstance.Create` is the first image-placement code in the plugin and is confirmed only by the compiler. **Before merge, on a real project:** open a sheet, run `Sheet_SetQRAnchor` and pick the two corners of the SCAN cell the title block already draws; `Sheet_StampQR` -> the code lands in that cell; run it twice -> exactly one image; `Sheet_InspectQR` reports it; `Sheet_ClearQR` removes it and leaves your own images alone; scan it with a phone. Then `QR_LabelSheet` on a handful of tagged elements, and `TitleBlock_CreateAll` to confirm the new params reach the families. |
+| QR-11 | **OPEN — a deploy action** | The code is done and fails closed. App links stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on the `planscape-web` service **and it is redeployed** — bindings are captured at deploy time (see "merged is not deployed" in CLAUDE.md). Until then every deep link, including the four that predate this work, opens a browser instead of the app. I cannot do this; it needs the signing fingerprint and the Apple Team ID. |
+| QR-2 … QR-10, QR-12 | ✅ closed | Sheet lookup, commissioning API, all 21 families, revision refresh, web routes, label sheet, offline queue, witness form, token matching, grid layout. |
 
-**Residue from the closures — real, and not papered over:**
+**Residue, and it is small:**
 
 | ID | Gap | Detail |
 |---|---|---|
-| QR-8 | **A scan taken with no signal is lost** | `advanceCommissioning` posts directly. A basement plant room is exactly where commissioning happens and exactly where there is no signal. The app already has an offline queue (`src/utils/offlineQueue.ts`) and an `IdempotencyRecord` table exists server-side; wiring the commissioning POST through both is the fix. Until then the operative sees the error and retries — which is honest, but not good enough for the job. |
-| QR-9 | **COMMISSIONED cannot be recorded on the phone** | It needs a witness, and the scan flow uses `Alert`, which cannot collect two names. The app refuses that step and says why rather than posting something the server will reject. Needs a real form screen. |
-| QR-10 | **The sheet lookup matches on file NAME** | There is no sheet entity on the server, so `by-sheet` does `FileName LIKE '%M-101%'`. A sheet numbered `M-1` would match `M-101`, `M-10` and `M-1`. Acceptable for ISO 19650 names, which are long and structured; wrong for a project numbering sheets `1`, `2`, `3`. A real fix is a sheet register synced from the plugin's `DrawingRegisterSync`. |
-| QR-11 | **App-link verification is configured but not switched on** | `assetlinks.json` and `apple-app-site-association` are served and fail closed. They stay 404 until `ANDROID_CERT_SHA256` and `IOS_TEAM_ID` are set on the `planscape-web` service **and it is redeployed** (bindings are captured at deploy time — see the "merged is not deployed" section in CLAUDE.md). Until then every deep link, including the four that predate this work, opens a browser rather than the app. |
-| QR-12 | **The label sheet does not bin-pack** | `QR_LabelSheet` lays out a naive grid and starts a new sheet when the current one fills. `SheetManagerEngineExt` already has MaxRects; using it would fit more labels per plot. Cosmetic, and cheap to do later. |
+| QR-13 | **A queued commissioning step drops its concurrency guard** | `expectedCurrentState` is deliberately NOT replayed from the offline queue: it is a claim about a live screen, and hours later it is stale by construction, so replaying it would 409 every offline sign-off taken while someone else worked the same asset. The ladder still refuses a regression or a skip, which is the protection that matters. But two people signing off the same asset offline, in the same window, will both record — and only the audit trail shows it. A server-side dedupe on (element, toState, occurredAt-window) would close it. |
+| QR-14 | **Carbon reaches the scan; it does not reach a rollup** | `EmbodiedCarbonKg` / `EpdRef` / `MaterialName` now sync per element and show on a scan. Nothing aggregates them — `EdgeKpiSnapshot` still computes `MaterialCarbonKgM2` from its own path. Joining the two means deciding which is authoritative when they disagree, which is a design decision, not a wiring job. Until then the scan figure is per-element evidence, not a project total. |
+| QR-15 | **The A3-portrait QR cell is in the spec, not measured on a plot** | Every other slot was verified against text extents by `TitleBlockQrSlotTests`, which caught the original A3-portrait collision. Its replacement at (216,10) passes the same check — but "passes the extent model" is not "looked right on paper", and A3 portrait is the tightest sheet in the catalogue. Worth a visual check when QR-1 is run. |
 
 **Pre-existing, found while running the gates and NOT fixed here:**
 `tools/validate_param_readership.py` reports **386 violations against a baseline of 384** on a
-clean tree, before any of this work — measured by stashing. Phase 280 is readership-neutral
-(386 before, 386 after). Whoever introduced the 2 should raise the ceiling with a reason or fix
-them; raising it on their behalf would defeat the ratchet.
+clean tree, before any of this work — measured by stashing. Phases 280-282 are readership-neutral
+(386 throughout, including after three new declared parameters). Whoever introduced the 2 should
+raise the ceiling with a reason or fix them; raising it on their behalf would defeat the ratchet.
 
 ## Workflow conditions (2026-09-10)
 
