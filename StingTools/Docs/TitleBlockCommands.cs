@@ -492,6 +492,8 @@ namespace StingTools.Docs
             int bothHomes = 0;
             int derived = 0;
             var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var replaced = new List<string>();
             var suitUnknown = new List<string>();
             var descMismatch = new List<string>();
             var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -586,6 +588,22 @@ namespace StingTools.Docs
                         }
 
                         bool isBool = ParamRegistry.TitleBlockBoolParams.Contains(paramName);
+
+                        // What is there BEFORE the write. Populate uses overwrite:true,
+                        // which is right for a bulk fill from the CSV and wrong for a
+                        // value someone set deliberately on one sheet — and from inside
+                        // this loop the two look identical. It cannot decide, so it
+                        // reports: a per-sheet name replaced by a project default is
+                        // exactly the kind of loss nobody notices until an issue.
+                        string before = isBool ? null : ParameterHelpers.GetString(tb, paramName);
+                        if (!isBool
+                            && !string.IsNullOrWhiteSpace(before)
+                            && !string.Equals(before.Trim(), val.Trim(), StringComparison.Ordinal))
+                        {
+                            replaced.Add($"{sheet.SheetNumber}  {paramName}: "
+                                + $"\"{before.Trim()}\" -> \"{val.Trim()}\"");
+                        }
+
                         bool ok = TitleBlockEngine.SetOnSheetAndTitleBlock(
                             sheet, tb, paramName, val, isBool, out int homes);
                         if (homes == 2) bothHomes++;
@@ -600,6 +618,17 @@ namespace StingTools.Docs
                     }
 
                     // Stamp audit fields on every successfully-populated sheet
+                    // What this sheet ends up showing for the two fields a drawing set
+                    // is most often inconsistent about. Collected AFTER the CSV pass so
+                    // it reflects the value that will actually print.
+                    string lodNow = ParameterHelpers.GetString(tb, ParamRegistry.DWG_LOIN_LOD);
+                    if (string.IsNullOrWhiteSpace(lodNow))
+                        lodNow = ParameterHelpers.GetString(sheet, ParamRegistry.DWG_LOIN_LOD);
+                    string lodKey = string.IsNullOrWhiteSpace(lodNow) ? "(empty)" : lodNow.Trim();
+                    if (!lodSeen.TryGetValue(lodKey, out var lodSheets))
+                        lodSeen[lodKey] = lodSheets = new List<string>();
+                    lodSheets.Add(sheet.SheetNumber);
+
                     // ── Derive what follows from the suitability code ────────────
                     //
                     // A title block printed STATUS "S2 / WIP", SUITABILITY
@@ -702,6 +731,7 @@ namespace StingTools.Docs
                 .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
                 .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
                 .Metric("CDE state derived from the suitability code", derived.ToString())
+                .Metric("Per-sheet values replaced by the CSV", replaced.Count.ToString())
                 .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
                 .Metric("CSV path", csvPath ?? "<default>")
@@ -711,6 +741,34 @@ namespace StingTools.Docs
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
                 // A sheet with two title blocks explains the whole "it says it wrote and
                 // the cell is blank" class of report, so it goes ABOVE the failures.
+                // A drawing set showing 200 on some sheets and 350 on others is a
+                // real inconsistency, and the only way anyone found it before was by
+                // flipping through the set. One value = fine; more than one = say so.
+                .AddSection("Per-Sheet Values Replaced By The CSV")
+                .Text(replaced.Count == 0
+                    ? "(none — nothing that differed from the CSV was overwritten)"
+                    : string.Join("\n", replaced.Take(25).Select(r => "  " + r))
+                      + (replaced.Count > 25 ? $"\n  … and {replaced.Count - 25} more" : "")
+                      + "\n\nThese sheets held a DIFFERENT value and now hold the CSV's. That is "
+                      + "what Populate is for when the CSV is the source of truth — but a name "
+                      + "typed onto one sheet on purpose is gone. Revit's Undo reverses the whole "
+                      + "run. To keep a per-sheet value, leave that parameter's CSV cell EMPTY: "
+                      + "Populate skips empty cells and will not touch the sheet.")
+                .AddSection("LOD / LOIN Across This Set")
+                .Text(lodSeen.Count <= 1
+                    ? (lodSeen.Count == 0
+                        ? "(no sheets scanned)"
+                        : "All sheets show " + lodSeen.Keys.First() + ".")
+                    : "THESE SHEETS DISAGREE:\n"
+                      + string.Join("\n", lodSeen.OrderByDescending(kv => kv.Value.Count)
+                          .Select(kv => $"  {kv.Key,-10} {kv.Value.Count} sheet(s): "
+                                        + string.Join(", ", kv.Value.Take(8))
+                                        + (kv.Value.Count > 8 ? ", …" : "")))
+                      + "\n\nNothing wrote this field until now — it was in neither "
+                      + "TITLE_BLOCK.csv nor the list Populate iterates, so each sheet kept "
+                      + "whatever was typed into it or inherited from its family. Set "
+                      + "PRJ_DWG_LOIN_LOD_TXT per discipline in TITLE_BLOCK.csv (Edit CSV...) "
+                      + "and re-run Populate to make the set agree.")
                 .AddSection("Written By Another Command, Not Populate")
                 .Text(auditFields.Count == 0
                     ? "(none)"

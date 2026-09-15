@@ -597,6 +597,23 @@ namespace StingTools.Core
         /// being conflated because TITLE_BLOCK.csv shipped "WIP" as the default for two
         /// of them, so two different cells on the same drawing printed the same word.</summary>
         public const string PRJ_STATUS_COD               = "PRJ_STATUS_COD_TXT";
+
+        /// <summary>LOD / LOIN cell — "300", "350".
+        ///
+        /// Nothing wrote this. It was in neither TITLE_BLOCK.csv nor
+        /// AllTitleBlockParams and no command set it, so every sheet showed whatever
+        /// had been typed into it or inherited from whichever family it came from —
+        /// which is how one drawing set ended up with 200, 300 and 350 across it.
+        /// Per DISCIPLINE, not per project: the CSV's discipline columns are the right
+        /// shape for this, because architectural and MEP deliverables genuinely differ.</summary>
+        public const string DWG_LOIN_LOD                 = "PRJ_DWG_LOIN_LOD_TXT";
+
+        /// <summary>ISO 19650 suitability CODE — the input the description and the CDE
+        /// state are both derived from (see Iso19650Suitability).</summary>
+        public const string DWG_SUITABILITY_COD          = "PRJ_DWG_SUITABILITY_COD_TXT";
+
+        /// <summary>Suitability description, in the standard's wording.</summary>
+        public const string DWG_SUITABILITY_DESC         = "PRJ_DWG_SUITABILITY_DESC_TXT";
         public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
@@ -611,6 +628,7 @@ namespace StingTools.Core
         public static readonly string[] AllTitleBlockParams = new[]
         {
             PRJ_STATUS_COD,
+            DWG_LOIN_LOD,
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
             TB_SHOW_REV_TABLE,
