@@ -165,6 +165,34 @@ namespace StingTools.Docs
             return "";
         }
 
+        /// <summary>Title-block fields that Revit ALREADY has a built-in sheet
+        /// parameter for. Writing the STING name alone is not enough for these.
+        ///
+        /// A title block showed DRAWN BY "Author", CHECKED BY "Checker" and
+        /// APPROVED BY "Approver" -- Revit's stock defaults for SHEET_DRAWN_BY /
+        /// SHEET_CHECKED_BY / SHEET_APPROVED_BY. Those labels were bound to the
+        /// BUILT-IN parameters, which is the normal thing for a title block to do
+        /// and what every stock Autodesk template does. So the CSV was edited,
+        /// Populate wrote PRJ_TB_DRAWN_BY_TXT to both of its homes, reported
+        /// success -- and the cell kept printing "Author", because nothing had
+        /// written the parameter the label actually draws.
+        ///
+        /// This is the THIRD home, and it is the one a title block authored
+        /// outside STING will use. Eleven places in this codebase already READ
+        /// these built-ins; nothing wrote them.</summary>
+        private static readonly Dictionary<string, BuiltInParameter> BuiltInSheetHomes =
+            new Dictionary<string, BuiltInParameter>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PRJ_TB_DRAWN_BY_TXT",   BuiltInParameter.SHEET_DRAWN_BY },
+                { "PRJ_TB_CHECKED_BY_TXT", BuiltInParameter.SHEET_CHECKED_BY },
+                { "PRJ_TB_APVD_BY_TXT",    BuiltInParameter.SHEET_APPROVED_BY },
+                // Only names that actually exist. PRJ_TB_DESIGNED_BY_TXT and
+                // PRJ_TB_ISSUE_DATE_TXT are declared nowhere, so rows for them would
+                // be two entries that can never match anything -- the same
+                // list-restating-nothing problem check_title_block_surfaces.py exists
+                // to catch. Add them here the day they are added to the CSV.
+            };
+
         internal static bool SetOnSheetAndTitleBlock(
             ViewSheet sheet, Element tb, string paramName, string value, bool isBool, out int homes)
         {
@@ -184,7 +212,51 @@ namespace StingTools.Docs
                     StingLog.Warn($"TB: writing '{paramName}' to {target.Id}: {ex.Message}");
                 }
             }
+
+            // The built-in home, when this field has one. Written LAST and never
+            // instead of the others: a STING-authored title block binds the shared
+            // parameter, a stock one binds the built-in, and which of the two is in
+            // front of you is not knowable from here. Writing both is the only
+            // answer that does not depend on knowing.
+            if (!isBool && sheet != null && BuiltInSheetHomes.TryGetValue(paramName, out BuiltInParameter bip))
+            {
+                try
+                {
+                    Parameter p = sheet.get_Parameter(bip);
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && p.Set(value ?? ""))
+                        homes++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TB: writing built-in for '{paramName}' on "
+                        + $"'{sheet.SheetNumber}': {ex.Message}");
+                }
+            }
+
             return homes > 0;
+        }
+
+        /// <summary>True when Revit has a built-in sheet parameter for this field,
+        /// so a report can say the label may be bound to it rather than to the
+        /// shared parameter.</summary>
+        internal static bool HasBuiltInSheetHome(string paramName)
+            => paramName != null && BuiltInSheetHomes.ContainsKey(paramName);
+
+        /// <summary>What Revit's own built-in sheet parameter holds for this field,
+        /// or null. Read so a report can show it beside the shared parameter's value:
+        /// the two disagreeing is the whole explanation for a cell that will not
+        /// change no matter what is written to it.</summary>
+        internal static string ReadBuiltInSheetHome(ViewSheet sheet, string paramName)
+        {
+            if (sheet == null || paramName == null) return null;
+            if (!BuiltInSheetHomes.TryGetValue(paramName, out BuiltInParameter bip)) return null;
+            try { return sheet.get_Parameter(bip)?.AsString(); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TB: built-in read '{paramName}' on '{sheet.SheetNumber}': {ex.Message}");
+                return null;
+            }
         }
 
         internal static FamilyInstance GetTitleBlockOnSheet(Document doc, ViewSheet sheet)
@@ -516,6 +588,7 @@ namespace StingTools.Docs
             var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var replaced = new List<string>();
             var cdeRefNoId = new List<string>();
+            var cdeRefNoRev = new List<string>();
             int cdeRefWritten = 0;
             var suitUnknown = new List<string>();
             var descMismatch = new List<string>();
@@ -754,6 +827,16 @@ namespace StingTools.Docs
                         var refParts = new List<string> { cdeDocId.Trim() };
                         if (!string.IsNullOrEmpty(suitCode)) refParts.Add(suitCode);
 
+                        // Revision, from whichever home holds one.
+                        //
+                        // SHEET_CURRENT_REVISION is the honest first choice -- it is
+                        // what the revision box prints, so a CDE reference built from
+                        // it cannot contradict the drawing. But it is EMPTY until a
+                        // Revit revision is created and assigned to the sheet, and a
+                        // set issued at P01 without Revit revisions in play is normal.
+                        // The reference then read "...-0002-S4" with the revision
+                        // silently missing -- and a CDE reference without a revision
+                        // does not identify an issue, which is the one thing it is for.
                         string sheetRev = null;
                         try
                         {
@@ -763,7 +846,14 @@ namespace StingTools.Docs
                         {
                             StingLog.Warn($"TB Populate: revision read on '{sheet.SheetNumber}': {ex.Message}");
                         }
-                        if (!string.IsNullOrWhiteSpace(sheetRev)) refParts.Add(sheetRev.Trim());
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                            sheetRev = ParameterHelpers.GetString(tb, "PRJ_TB_REVISION_NR_TXT");
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                            sheetRev = ParameterHelpers.GetString(sheet, "PRJ_TB_REVISION_NR_TXT");
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                            cdeRefNoRev.Add(sheet.SheetNumber);
+                        else
+                            refParts.Add(sheetRev.Trim());
 
                         if (TitleBlockEngine.SetOnSheetAndTitleBlock(
                                 sheet, tb, ParamRegistry.TB_CDE_REF,
@@ -839,6 +929,16 @@ namespace StingTools.Docs
                     + $"Written on {cdeRefWritten} sheet(s), as "
                     + "<document identifier>-<suitability>-<revision> — the tail of the "
                     + "published filename, so the printed sheet says where to find itself.\n\n"
+                    + (cdeRefNoRev.Count == 0
+                        ? ""
+                        : $"{cdeRefNoRev.Count} sheet(s) have NO revision, in either "
+                          + "Revit's revision schedule or PRJ_TB_REVISION_NR_TXT, so their "
+                          + "reference ends at the suitability code. A CDE reference without "
+                          + "a revision does not identify an issue. Set PRJ_TB_REVISION_NR_TXT "
+                          + "in TITLE_BLOCK.csv (\"P01\") or assign a Revit revision:\n"
+                          + string.Join(", ", cdeRefNoRev.Take(20))
+                          + (cdeRefNoRev.Count > 20 ? $", \u2026 and {cdeRefNoRev.Count - 20} more" : "")
+                          + "\n\n")
                     + (cdeRefNoId.Count == 0
                         ? "Every sheet scanned carried an ISO 19650 identifier."
                         : $"{cdeRefNoId.Count} sheet(s) carry NO ISO 19650 identifier, so nothing "

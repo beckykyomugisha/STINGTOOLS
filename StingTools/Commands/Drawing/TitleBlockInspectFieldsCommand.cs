@@ -128,6 +128,23 @@ namespace StingTools.Commands.Drawing
                         + (p != null ? "   — AND the title block has its own copy" : ""));
                 }
 
+                // THE THIRD HOME. Some title-block cells are drawn by a label bound
+                // to Revit's OWN built-in sheet parameter, not to a shared parameter
+                // at all -- every stock Autodesk template does it that way. A cell
+                // printing "Author" / "Checker" / "Approver" is printing the built-in
+                // defaults, and no amount of writing PRJ_TB_DRAWN_BY_TXT will change
+                // it. That is invisible unless something reports it, which is exactly
+                // what this inspector is for and what it could not previously see.
+                if (StingTools.Docs.TitleBlockEngine.HasBuiltInSheetHome(name))
+                {
+                    string bv = null;
+                    try { bv = StingTools.Docs.TitleBlockEngine.ReadBuiltInSheetHome(sheet, name); }
+                    catch (Exception ex) { StingLog.Warn($"InspectFields built-in '{name}': {ex.Message}"); }
+                    sheetHomes.Add($"  {name,-42} Revit built-in holds: "
+                        + (string.IsNullOrWhiteSpace(bv) ? "(empty)" : Trim(bv))
+                        + "   — if the cell shows THIS, the label is bound to the built-in");
+                }
+
                 if (p == null)
                 {
                     absent++;
