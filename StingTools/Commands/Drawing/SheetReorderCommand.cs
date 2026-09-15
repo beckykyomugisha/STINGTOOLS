@@ -181,6 +181,32 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
 
+            // Which of these have already gone out, asked while it is still a
+            // decision rather than reported afterwards.
+            var issuedSet = SheetIssueHistory.IssuedNumbers(doc);
+            var issuedRows = new List<KeyValuePair<string, List<SheetIssueHistory.Evidence>>>();
+            foreach (var c in plan)
+            {
+                var ev = SheetIssueHistory.For(doc, c.Sheet,
+                    TitleBlockLock.FindTitleBlock(doc, c.Sheet), issuedSet);
+                if (ev.Count > 0)
+                    issuedRows.Add(new KeyValuePair<string, List<SheetIssueHistory.Evidence>>(c.Old, ev));
+            }
+            string issuedWarning = SheetIssueHistory.WarningFor(issuedRows);
+
+            if (issuedRows.Count > 0)
+            {
+                var warn = new TaskDialog("STING — Reorder Sheets")
+                {
+                    MainInstruction = $"{issuedRows.Count} of these {plan.Count} sheet(s) "
+                        + "have already been issued. Renumber anyway?",
+                    MainContent = issuedWarning,
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No
+                };
+                if (warn.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+            }
+
             var result = SheetNumbering.Apply(doc, plan, "STING Reorder Sheets");
 
             StingLog.Info($"Reorder: scope={scope}, {result.Done} renumbered, {result.Failed} failed");
@@ -199,6 +225,8 @@ namespace StingTools.Commands.Drawing
                 .Metric("Skipped (full ISO identifier)", assembled.Count.ToString())
                 .Metric("Failed", result.Failed.ToString())
                 .Metric("Pattern", pattern)
+                .Metric("Of those renumbered, already issued", issuedRows.Count.ToString())
+                .Metric("Old numbers recorded in", result.HistoryPath ?? "(not written — see the log)")
                 .AddSection("New Order")
                 .Text(string.Join("\n", plan.Select(c => $"  {c.Old,-18} ->  {c.New}")))
                 .AddSection("Failures")
@@ -207,13 +235,18 @@ namespace StingTools.Commands.Drawing
                 .Text(lockedNames.Count == 0 ? "(none)" : string.Join(", ", lockedNames)
                     + "\n\nPRJ_TB_LOCK_BOOL is set on these, so they kept both their place and "
                     + "their number. Clear it with 'Unlock TBs' and re-run to include them.")
+                .AddSection("Sheets That Had Already Been Issued")
+                .Text(issuedRows.Count == 0
+                    ? "(none found — but a set exported straight to PDF without a transmittal "
+                      + "leaves no trace in the model, so this is 'no evidence', not 'never issued')"
+                    : issuedWarning)
                 .AddSection("Next")
                 .Text("Run Tag Sheets so the ISO 19650 identifier picks up the new numbers, then "
                     + "Populate.\n\nView reference tags (sections, elevations, callouts) update "
                     + "themselves — they read the sheet number live. Anything ALREADY exported "
-                    + "does not: PDFs and transmittals issued under the old numbers still say the "
-                    + "old numbers, which is why this is worth doing before an issue and awkward "
-                    + "after one.")
+                    + "does not, and Revit keeps no record of a sheet's old number, so the "
+                    + "old -> new pairs are written to sheet_number_history.json. That file is "
+                    + "the answer to \"this PDF says A-001, what is that sheet called now?\"")
                 .Show();
 
             return Result.Succeeded;

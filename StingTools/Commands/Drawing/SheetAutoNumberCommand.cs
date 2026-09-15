@@ -174,10 +174,27 @@ namespace StingTools.Commands.Drawing
             if (assembled.Count > 0)
                 preview.AppendLine($"{assembled.Count} sheet(s) carry a full ISO identifier and are not touched.");
 
+            // Which of these have already gone out. Asked BEFORE the confirmation,
+            // because "renumbering breaks the link to issued PDFs" is only useful
+            // while it is still a decision.
+            var issuedSet = SheetIssueHistory.IssuedNumbers(doc);
+            var issuedRows = new List<KeyValuePair<string, List<SheetIssueHistory.Evidence>>>();
+            foreach (var r in changing)
+            {
+                var ev = SheetIssueHistory.For(doc, r.Sheet,
+                    TitleBlockLock.FindTitleBlock(doc, r.Sheet), issuedSet);
+                if (ev.Count > 0)
+                    issuedRows.Add(new KeyValuePair<string, List<SheetIssueHistory.Evidence>>(r.Old, ev));
+            }
+            string issuedWarning = SheetIssueHistory.WarningFor(issuedRows);
+
             var td = new TaskDialog("STING — Auto-Number Sheets")
             {
-                MainInstruction = $"Renumber {changing.Count} of {sheets.Count} sheet(s)?",
-                MainContent = preview.ToString()
+                MainInstruction = issuedRows.Count > 0
+                    ? $"Renumber {changing.Count} sheet(s) — {issuedRows.Count} ALREADY ISSUED?"
+                    : $"Renumber {changing.Count} of {sheets.Count} sheet(s)?",
+                MainContent = (issuedWarning.Length > 0 ? issuedWarning + "\n" : "")
+                    + preview.ToString()
                     + "\nThe sheet number is what elevation, section and callout tags print, and "
                     + "what exported filenames are built from. One Undo reverses the whole run.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
@@ -210,6 +227,8 @@ namespace StingTools.Commands.Drawing
                 .Metric("Skipped (title block locked)", locked.Count.ToString())
                 .Metric("Skipped (full ISO identifier)", assembled.Count.ToString())
                 .Metric("Failed", failed.ToString())
+                .Metric("Of those renumbered, already issued", issuedRows.Count.ToString())
+                .Metric("Old numbers recorded in", result.HistoryPath ?? "(not written — see the log)")
                 .AddSection("What Changed")
                 .Text(changing.Count == 0
                     ? "(nothing)"
@@ -224,6 +243,11 @@ namespace StingTools.Commands.Drawing
                     + "{orig} originator · {seq:D3} zero-padded sequence.\n"
                     + "A token that resolves to nothing takes its separator with it, so a "
                     + "project with no level code gets A-001 rather than A--001.")
+                .AddSection("Sheets That Had Already Been Issued")
+                .Text(issuedRows.Count == 0
+                    ? "(none found — but a set exported straight to PDF without a transmittal "
+                      + "leaves no trace in the model, so this is 'no evidence', not 'never issued')"
+                    : issuedWarning)
                 .AddSection("How The Discipline Was Decided")
                 .Text("Sheet NUMBER prefix first (A-001 -> A), then whole words in the sheet "
                     + "TITLE (\"GROUND FLOOR PLAN\" -> A), then GEN.\n\n"

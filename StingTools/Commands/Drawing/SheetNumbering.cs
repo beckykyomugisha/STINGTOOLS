@@ -28,7 +28,18 @@ namespace StingTools.Commands.Drawing
             public int Done;
             public int Failed;
             public List<string> Failures = new List<string>();
+
+            /// <summary>Where the old -> new pairs were recorded, or null when they
+            /// could not be. Null is reported, not hidden: an operator told a trail
+            /// exists when it does not is worse off than one told nothing.</summary>
+            public string HistoryPath;
         }
+
+        /// <summary>The file Sheet_NumberFromIso, Tidy and Restore already append to.
+        /// One file, because the question it answers -- "this PDF says A-001, what is
+        /// that sheet called now?" -- does not care which command did the renaming,
+        /// and three separate logs would each hold a third of the answer.</summary>
+        internal const string HistoryFile = "sheet_number_history.json";
 
         /// <summary>The number pattern, from TITLE_BLOCK.csv's DefaultValue column.
         ///
@@ -101,7 +112,73 @@ namespace StingTools.Commands.Drawing
                 tx.Commit();
             }
 
+            outcome.HistoryPath = RecordHistory(doc, plan, outcome, transactionName);
             return outcome;
+        }
+        /// <summary>Append what changed to sheet_number_history.json.
+        ///
+        /// This is the answer to the one question a renumber creates: somebody is
+        /// holding a PDF that says A-001 and needs to know what that sheet is called
+        /// now. Revit keeps no record -- the old number is simply gone -- so if this
+        /// is not written, the link between an issued drawing and the model is lost
+        /// with nothing anywhere admitting it.
+        ///
+        /// Only sheets that actually took their new number are logged. Recording a
+        /// rename that failed would send the reader to a sheet number that does not
+        /// exist.</summary>
+        private static string RecordHistory(Document doc, List<Change> plan,
+                                            Outcome outcome, string source)
+        {
+            try
+            {
+                if (doc == null || doc.IsFamilyDocument || string.IsNullOrEmpty(doc.PathName))
+                    return null;
+
+                var applied = new List<Change>();
+                foreach (var c in plan)
+                {
+                    bool failed = outcome.Failures.Exists(f =>
+                        f.TrimStart().StartsWith(c.Old + " ", StringComparison.Ordinal)
+                        || f.TrimStart().StartsWith(c.Old + ":", StringComparison.Ordinal));
+                    if (!failed) applied.Add(c);
+                }
+                if (applied.Count == 0) return null;
+
+                string path = StingPaths.MetaFile(doc, "_BIM_COORD", HistoryFile);
+                if (string.IsNullOrEmpty(path)) return null;
+
+                Newtonsoft.Json.Linq.JArray log;
+                try
+                {
+                    log = System.IO.File.Exists(path)
+                        ? Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(path))
+                        : new Newtonsoft.Json.Linq.JArray();
+                }
+                catch (Exception ex)
+                {
+                    // A corrupt log must not cost us THIS run's record, and must not
+                    // be silently replaced either.
+                    StingLog.Warn($"SheetNumbering: {HistoryFile} unreadable, starting a new "
+                        + $"one beside it: {ex.Message}");
+                    log = new Newtonsoft.Json.Linq.JArray();
+                }
+
+                log.Add(Newtonsoft.Json.Linq.JObject.FromObject(new
+                {
+                    when = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    source,
+                    changes = applied.ConvertAll(c => new { from = c.Old, to = c.New }),
+                }));
+
+                System.IO.File.WriteAllText(path,
+                    Newtonsoft.Json.JsonConvert.SerializeObject(log, Newtonsoft.Json.Formatting.Indented));
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetNumbering: could not write {HistoryFile}: {ex.Message}");
+                return null;
+            }
         }
     }
 }
