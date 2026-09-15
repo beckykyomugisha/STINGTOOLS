@@ -1651,6 +1651,7 @@ namespace StingTools.UI
                 ("Transmittal",    "Transmittal"),
                 ("Swap Title Block","SwapTitleBlock"),
                 ("Set Variant",    "TitleBlockSetVariant"),
+                ("Auto-Number Sheets", "Sheet_AutoNumber"),
                 ("Sheet No ← ISO", "Sheet_NumberFromIso"),
                 ("Tidy Sheet Nos", "Sheet_NumberTidy"),
                 ("Restore Sheet Nos", "Sheet_NumberRestore"),

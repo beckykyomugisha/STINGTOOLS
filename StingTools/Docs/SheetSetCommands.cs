@@ -333,8 +333,24 @@ namespace StingTools.Docs
             {
                 tx.Start();
                 int renamed = SheetManagerEngineExt.BatchRenumberSheets(doc, disc);
-                tx.Commit();
 
+                // -1 is the engine's conflict signal, and it was being printed as a
+                // sheet count: "Renumbered -1 sheets in discipline 'A'." The run had
+                // done nothing, and the message said it had done something, which is
+                // the one report worse than no report at all.
+                if (renamed < 0)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("Batch Renumber",
+                        $"Nothing was renumbered.\n\nThe numbers this would produce for '{disc}' "
+                        + "are already used by sheets OUTSIDE that discipline, so the run was "
+                        + "stopped before it could half-finish. See StingTools.log for which.\n\n"
+                        + "Auto-Number Sheets (Drawing Types -> Title Block) handles every "
+                        + "discipline in one pass and routes around numbers that are taken.");
+                    return Result.Cancelled;
+                }
+
+                tx.Commit();
                 TaskDialog.Show("Batch Renumber", $"Renumbered {renamed} sheets in discipline '{disc}'.");
             }
             return Result.Succeeded;

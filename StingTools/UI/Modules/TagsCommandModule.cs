@@ -89,6 +89,7 @@ namespace StingTools.UI.Modules
             registry.Register("TitleBlock_Unlock",      app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockUnlockCommand>(app));
             registry.Register("TitleBlock_InspectFields", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockInspectFieldsCommand>(app));
             registry.Register("TitleBlock_PushFields", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockPushFieldsCommand>(app));
+            registry.Register("Sheet_AutoNumber", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetAutoNumberCommand>(app));
             registry.Register("Sheet_NumberFromIso", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetNumberFromIsoCommand>(app));
             registry.Register("Sheet_NumberRestore", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetNumberRestoreCommand>(app));
             registry.Register("Sheet_NumberTidy", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetNumberTidyCommand>(app));
