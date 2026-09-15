@@ -472,6 +472,9 @@ namespace StingTools.Docs
 
             var multiTbSheets = new List<string>();
             int bothHomes = 0;
+            int derived = 0;
+            var suitUnknown = new List<string>();
+            var descMismatch = new List<string>();
             var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             using (var tx = new Transaction(doc, "STING Title Block Populate"))
@@ -569,6 +572,72 @@ namespace StingTools.Docs
                     }
 
                     // Stamp audit fields on every successfully-populated sheet
+                    // ── Derive what follows from the suitability code ────────────
+                    //
+                    // A title block printed STATUS "S2 / WIP", SUITABILITY
+                    // "S4 - FOR APROVAL" and CDE REF "WIP" at the same time: four
+                    // cells, two facts, and a contradiction, because each was typed
+                    // independently. ISO 19650 has ONE input here -- the suitability
+                    // code -- and the description and the CDE container FOLLOW from
+                    // it. Derived, they cannot disagree.
+                    //
+                    // The code is read from either cell and may arrive as
+                    // "S4 - FOR APROVAL", so it is extracted rather than compared.
+                    string suitRaw = ParameterHelpers.GetString(sheet, "PRJ_DWG_SUITABILITY_COD_TXT");
+                    if (string.IsNullOrWhiteSpace(suitRaw))
+                        suitRaw = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_COD_TXT");
+                    if (string.IsNullOrWhiteSpace(suitRaw))
+                        suitRaw = ParameterHelpers.GetString(tb, ParamRegistry.PRJ_STATUS_COD);
+
+                    string suitCode = StingTools.Core.Drawing.Iso19650Suitability.ExtractCode(suitRaw);
+                    if (!string.IsNullOrEmpty(suitCode))
+                    {
+                        // The code itself, normalised, in both of its homes -- so a
+                        // label bound to either cannot show a different code.
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, "PRJ_DWG_SUITABILITY_COD_TXT", suitCode, false, out _);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.PRJ_STATUS_COD, suitCode, false, out _);
+
+                        // The CDE container. This is what the STATUS cell should show:
+                        // SHARED / PUBLISHED / WIP -- information the suitability cell
+                        // does NOT already carry.
+                        string state = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(suitCode);
+                        if (state != null)
+                        {
+                            TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE, state, false, out _);
+                            derived++;
+                        }
+                        else
+                        {
+                            // An unrecognised code must not file the drawing anywhere.
+                            // PUBLISHED is a contractual statement, not a default.
+                            suitUnknown.Add($"{sheet.SheetNumber}: suitability '{suitRaw}' is not an "
+                                + "ISO 19650 code, so the CDE state was left alone");
+                        }
+
+                        // The description, in the standard's wording -- but only when
+                        // the cell is EMPTY. A project that has written its own wording
+                        // keeps it; overwriting would be presumptuous. A mismatch is
+                        // reported instead so "FOR APROVAL" is visible as a typo rather
+                        // than silently corrected or silently kept.
+                        string isoDesc = StingTools.Core.Drawing.Iso19650Suitability.DescriptionFor(suitCode);
+                        string curDesc = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_DESC_TXT");
+                        if (string.IsNullOrWhiteSpace(curDesc))
+                        {
+                            if (isoDesc != null)
+                                TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                    sheet, tb, "PRJ_DWG_SUITABILITY_DESC_TXT", isoDesc, false, out _);
+                        }
+                        else if (isoDesc != null
+                                 && !string.Equals(curDesc.Trim(), isoDesc, StringComparison.OrdinalIgnoreCase))
+                        {
+                            descMismatch.Add($"{sheet.SheetNumber}: {suitCode} reads \"{curDesc.Trim()}\" "
+                                + $"but ISO 19650 says \"{isoDesc}\"");
+                        }
+                    }
+
                     if (paramsWrittenThisSheet > 0)
                     {
                         ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_SYNC,
@@ -604,6 +673,7 @@ namespace StingTools.Docs
                 .Metric("Parameter write failures", paramFails.ToString())
                 .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
                 .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
+                .Metric("CDE state derived from the suitability code", derived.ToString())
                 .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
                 .Metric("CSV path", csvPath ?? "<default>")
@@ -613,6 +683,16 @@ namespace StingTools.Docs
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
                 // A sheet with two title blocks explains the whole "it says it wrote and
                 // the cell is blank" class of report, so it goes ABOVE the failures.
+                .AddSection("Suitability")
+                .Text(suitUnknown.Count == 0 && descMismatch.Count == 0
+                    ? "Every suitability code is an ISO 19650 code, and every description "
+                      + "matches it.\n\nSUITABILITY shows the code and its meaning; STATUS shows "
+                      + "the CDE container that code puts the drawing in (WIP / SHARED / "
+                      + "PUBLISHED). They are derived from one value, so they cannot disagree."
+                    : string.Join("\n", suitUnknown.Concat(descMismatch))
+                      + "\n\nAn unrecognised code leaves the CDE state alone rather than filing "
+                      + "the drawing somewhere plausible. A description that differs from the "
+                      + "standard's wording is KEPT — this only reports it.")
                 .AddSection("Sheets With More Than One Title Block")
                 .Text(multiTbSheets.Count == 0
                     ? "(none — every sheet has exactly one)"
