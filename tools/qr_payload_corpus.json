@@ -219,13 +219,13 @@
       }
     },
     {
-      "name": "document link, full issue record (the 31mm form)",
-      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-L02-DR-A-A-L1-001-P02/S4/PUB/20260914/-/25.100/350/A1/1.100/DRW.CHK.APR",
+      "name": "document link, full issue record incl. revision (the 31mm form)",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001/S4/PUB/20260914/-/25.100/350/A1/1.100/DRW.CHK.APR/-/P02",
       "expect": {
         "ok": true,
         "kind": "document",
         "projectCode": "PROJECTN",
-        "docId": "PROJECTN-PLNS-L02-DR-A-A-L1-001-P02",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
         "revision": "P02",
         "tag": null,
         "uniqueId": null,
@@ -239,19 +239,20 @@
           "paperSize": "A1",
           "scale": "1.100",
           "initials": "DRW.CHK.APR",
-          "signature": null
+          "signature": null,
+          "revision": "P02"
         }
       }
     },
     {
       "name": "document link, identifier only (a small cell shed every fact)",
-      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-L02-DR-A-A-L1-001-P02",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001",
       "expect": {
         "ok": true,
         "kind": "document",
         "projectCode": "PROJECTN",
-        "docId": "PROJECTN-PLNS-L02-DR-A-A-L1-001-P02",
-        "revision": "P02",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
+        "revision": null,
         "tag": null,
         "uniqueId": null,
         "facts": {
@@ -264,19 +265,20 @@
           "paperSize": null,
           "scale": null,
           "initials": null,
-          "signature": null
+          "signature": null,
+          "revision": null
         }
       }
     },
     {
       "name": "document link, suitability only (the 24mm degradation)",
-      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-L02-DR-A-A-L1-001-P02/S4",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001/S4",
       "expect": {
         "ok": true,
         "kind": "document",
         "projectCode": "PROJECTN",
-        "docId": "PROJECTN-PLNS-L02-DR-A-A-L1-001-P02",
-        "revision": "P02",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
+        "revision": null,
         "tag": null,
         "uniqueId": null,
         "facts": {
@@ -289,7 +291,8 @@
           "paperSize": null,
           "scale": null,
           "initials": null,
-          "signature": null
+          "signature": null,
+          "revision": null
         }
       }
     },

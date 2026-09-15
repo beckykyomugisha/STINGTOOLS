@@ -13,9 +13,11 @@ namespace StingTools.Tags.Tests
     /// cheap to reconsider: the moment someone adds one.</summary>
     public class SheetQrDocPayloadTests
     {
-        // The identifier ParameterHelpers assembles into SHT_TAG_1_TXT:
-        // PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
-        private const string DocId = "PROJECTN-PLNS-L02-DR-A-A-L1-001-P02";
+        // The identifier Iso19650DocumentCode assembles into SHT_TAG_1_TXT:
+        // Project-Originator-Volume-Level-Type-Role-Number. NO revision -- that is
+        // a carried fact, because a document's identity does not change when it is
+        // revised.
+        private const string DocId = "PROJECTN-PLNS-ZZ-02-DR-A-0001";
 
         private static StingQrFormat.DocFacts FullFacts() => new StingQrFormat.DocFacts
         {
@@ -29,6 +31,7 @@ namespace StingTools.Tags.Tests
             Scale        = "1.100",
             Initials     = "DRW.CHK.APR",
             Signature    = "7F3K9A2B4C6D",
+            Revision     = "P02",
         };
 
         // ── What it builds ──────────────────────────────────────────────────
@@ -91,15 +94,30 @@ namespace StingTools.Tags.Tests
             Assert.Equal(facts.Scale,        back.Facts.Scale);
             Assert.Equal(facts.Initials,     back.Facts.Initials);
             Assert.Equal(facts.Signature,    back.Facts.Signature);
+            Assert.Equal(facts.Revision,     back.Facts.Revision);
         }
 
         [Fact]
-        public void Project_and_revision_are_read_out_of_the_identifier()
+        public void The_project_comes_from_the_identifier_and_the_revision_does_not()
         {
             var back = StingQrFormat.Parse(StingQrFormat.BuildDocUrl(DocId, FullFacts()));
 
             Assert.Equal("PROJECTN", back.ProjectCode);
+            // The revision is a CARRIED FACT now. Reading it off the end of the
+            // identifier would report "0001" -- the number -- as the revision.
             Assert.Equal("P02", back.Revision);
+            Assert.Equal("P02", back.Facts.Revision);
+            Assert.DoesNotContain("P02", back.DocId);
+        }
+
+        [Fact]
+        public void A_code_with_no_revision_fact_reports_no_revision()
+        {
+            var back = StingQrFormat.Parse(StingQrFormat.BuildDocUrl(DocId,
+                new StingQrFormat.DocFacts { Suitability = "S4" }));
+
+            Assert.Null(back.Revision);
+            Assert.Equal("0001", back.DocId.Split('-')[6]);   // the number, not a revision
         }
 
         [Fact]

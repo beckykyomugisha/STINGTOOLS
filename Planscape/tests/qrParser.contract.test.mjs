@@ -50,7 +50,7 @@ for (const c of corpus.cases) {
       const f = c.expect.facts ?? {};
       for (const key of [
         'suitability', 'cdeState', 'issueDate', 'zone', 'sheetOfTotal',
-        'lod', 'paperSize', 'scale', 'initials', 'signature',
+        'lod', 'paperSize', 'scale', 'initials', 'signature', 'revision',
       ]) {
         assert.equal((got.facts ?? {})[key] ?? null, f[key] ?? null, `facts.${key}`);
       }

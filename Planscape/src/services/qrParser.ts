@@ -62,6 +62,12 @@ export interface QrDocFacts {
   /** "DRW.CHK.APR" — drawn, checked, approved. */
   initials?: string;
   signature?: string;
+  /** Sheet revision. A FACT, not part of the identifier: ISO keeps revision
+   *  as metadata beside the identity, and the identifier's last field is now
+   *  the four-digit Number. Reading the revision off the end would report
+   *  that number as the revision. Appended last -- the field order is a
+   *  printed contract and may only grow at the end. */
+  revision?: string;
 }
 
 /** Deep-link host. Mirrors StingQrFormat.BaseUrl + ElementPath. */
@@ -136,19 +142,21 @@ export function parseQr(raw: string): QrPayload {
       return v && v !== BLANK ? v : undefined;
     };
 
-    // PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV, per the SHT_TAG_1
-    // assembly in ParameterHelpers. Read the ends out rather than making
-    // every caller re-split the identifier.
+    // Project-Originator-Volume-Level-Type-Role-Number -- SEVEN fields, fixed,
+    // assembled by Iso19650DocumentCode. The project is the first; the REVISION
+    // is not in it at all and arrives as a carried fact. Reading the last field
+    // as a revision would report the four-digit Number instead.
     const parts = docId.split('-');
-    // The NUMBER itself may contain '-' (A-L1-001), so the sheet number is
-    // everything between the discipline and the revision, not a fixed index.
     return {
       type: 'document',
       id: docId,
       docId,
       projectCode: parts.length > 1 ? parts[0] : undefined,
-      revision: parts.length > 1 ? parts[parts.length - 1] : undefined,
-      sheetNumber: parts.length > 6 ? parts.slice(5, -1).join('-') : undefined,
+      revision: at(10),
+      // The Number field is not the SHEET number -- the sheet keeps its own short
+      // number, which is the whole point of the arrangement. Nothing here can
+      // recover it, so nothing here pretends to.
+      sheetNumber: undefined,
       facts: {
         suitability: at(0),
         cdeState: at(1),
@@ -160,6 +168,7 @@ export function parseQr(raw: string): QrPayload {
         scale: at(7),
         initials: at(8),
         signature: at(9),
+        revision: at(10),
       },
       raw: trimmed,
     };

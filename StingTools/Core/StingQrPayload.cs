@@ -146,6 +146,18 @@ namespace StingTools.Core
             /// <summary>Truncated HMAC proving the print came from the issue process.
             /// Null until a signing key is configured.</summary>
             public string Signature { get; set; }
+            /// <summary>Sheet revision.
+            ///
+            /// A FACT, not part of the identifier. It used to be the identifier's last
+            /// segment, which made every revision mint a new "document" and, once the
+            /// identifier became seven proper ISO fields, would have reported the
+            /// NUMBER as the revision. ISO keeps revision as metadata beside the
+            /// identity, and so does this.
+            ///
+            /// Appended last because the field order is a printed contract: a code
+            /// already on paper reads its fields positionally, so the list may only
+            /// ever grow at the end.</summary>
+            public string Revision { get; set; }
         }
 
         /// <summary>Build the RICH document deep link, keyed by the full ISO 19650
@@ -185,6 +197,7 @@ namespace StingTools.Core
                 parts.Add(Seg(facts.Scale));
                 parts.Add(Seg(facts.Initials));
                 parts.Add(Seg(facts.Signature));
+                parts.Add(Seg(facts.Revision));
             }
 
             // Drop trailing blanks only. An INTERIOR blank must stay as "-", or every
@@ -292,15 +305,6 @@ namespace StingTools.Core
             return i > 0 ? docId.Substring(0, i) : null;
         }
 
-        /// <summary>Last '-' segment — the revision, per the SHT_TAG_1 assembly in
-        /// ParameterHelpers (PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV).</summary>
-        private static string LastSegment(string docId)
-        {
-            if (string.IsNullOrWhiteSpace(docId)) return null;
-            int i = docId.LastIndexOf('-');
-            return i >= 0 && i < docId.Length - 1 ? docId.Substring(i + 1) : null;
-        }
-
         /// <summary>Coerce one field to something the alphanumeric charset accepts:
         /// upper case, and anything outside 0-9 A-Z - . folded to '.'. Never
         /// percent-encodes — '%' is legal alphanumeric but the escape DIGITS would
@@ -377,11 +381,12 @@ namespace StingTools.Core
                 {
                     Kind  = StingQrKind.Document,
                     DocId = docId,
-                    // The identifier is PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV,
-                    // so the project code is its first segment and the revision its
-                    // last. Read them out rather than making every caller re-split.
+                    // The identifier is Project-Originator-Volume-Level-Type-Role-Number.
+                    // The project code is its first segment; the REVISION is not in it
+                    // at all any more and arrives as a carried fact instead. Reading
+                    // the last segment would now report the NUMBER as the revision.
                     ProjectCode = FirstSegment(docId),
-                    Revision    = LastSegment(docId),
+                    Revision    = At(11),
                     Facts = new DocFacts
                     {
                         Suitability  = At(1),
@@ -394,6 +399,7 @@ namespace StingTools.Core
                         Scale        = At(8),
                         Initials     = At(9),
                         Signature    = At(10),
+                        Revision     = At(11),
                     },
                     Raw = s
                 };

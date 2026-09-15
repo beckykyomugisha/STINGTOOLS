@@ -3404,37 +3404,33 @@ namespace StingTools.Core
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_REV, rev);
 
-            // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
-            // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
+            // 6. Assemble SHT_TAG_1 — the ISO 19650 document identifier.
             //
-            // THE NUMBER SEGMENT IS sheet.SheetNumber, SO THIS CAN EAT ITS OWN OUTPUT.
-            // Sheet_NumberFromIso exists to put this identifier INTO the sheet number.
-            // Once it has, re-running this would assemble
-            //     PROJECT-ORIG-...-{PROJECT-ORIG-...-A-L1-001-1}-REV
-            // and every further run would nest it again. A real export filename after
-            // one round already read
-            //     SAH--ZZ-L01-DR-PROJECTN-PROJECTN-ORGANI-L01-LG-COORD-A-L1-001-1-S2-P01
-            // with the project code in twice.
+            // Project-Originator-Volume-Level-Type-Role-Number, seven fields, no
+            // revision. The assembly lives in Core/Drawing/Iso19650DocumentCode.cs
+            // because it is pure string work and belongs under test: the old inline
+            // version put "L01" and "COORD" on an issued drawing, dropped the volume
+            // field entirely, and used the whole sheet number as the Number segment.
             //
-            // So: if the sheet number ALREADY begins with this project's own
-            // "{project}-{originator}-" prefix, it is an assembled code rather than a
-            // short number, and re-assembling would compound it. Keep what is there and
-            // say so. Trying to strip the prefix back off would be a guess -- the NUMBER
-            // segment contains hyphens of its own (A-L1-001), so the split is ambiguous
-            // and a wrong guess silently renames the drawing.
-            string sheetNum = sheet.SheetNumber ?? "00000";
-            string selfPrefix = $"{projectCode}-{originator}-";
-            if (!string.IsNullOrEmpty(projectCode) && !string.IsNullOrEmpty(originator)
-                && sheetNum.StartsWith(selfPrefix, StringComparison.OrdinalIgnoreCase))
+            // The Number comes from the SHEET NUMBER's trailing digits, so short
+            // sheet numbers stay the source of truth and the identifier is derived
+            // from them -- never the other way round. That direction is what stops
+            // the code eating its own output.
+            string sheetNum = sheet.SheetNumber ?? "";
+            if (StingTools.Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheetNum))
             {
+                // The sheet number is already an identifier (Sheet_NumberFromIso has
+                // run). Re-deriving would nest it. Leave SHT_TAG_1 alone and say so.
                 StingLog.Warn($"TagSheet '{sheetNum}': the sheet number is already an assembled "
-                    + $"ISO code (starts with '{selfPrefix}'). {ParamRegistry.SHT_TAG_1} left as it "
-                    + "is rather than nesting the code inside itself. Restore the short sheet number "
-                    + "(Drawing Type Editor -> Title Block -> Restore Sheet Nos) if this was not intended.");
+                    + $"ISO identifier, so {ParamRegistry.SHT_TAG_1} was left as it is rather than "
+                    + "nesting the code inside itself. Restore a short sheet number "
+                    + "(Drawing Type Editor -> Title Block -> Restore Sheet Nos) to have it rebuilt.");
             }
             else
             {
-                string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
+                string volume = ParameterHelpers.GetString(sheet, "PRJ_SHEET_VOLUME_TXT");
+                string tag1 = StingTools.Core.Drawing.Iso19650DocumentCode.Assemble(
+                    projectCode, originator, volume, level, form, disc, sheetNum);
                 written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
             }
 

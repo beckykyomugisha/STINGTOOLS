@@ -94,6 +94,7 @@ namespace StingTools.Tags.Tests
                 Assert.Equal((string)f["scale"],        got.Facts.Scale);
                 Assert.Equal((string)f["initials"],     got.Facts.Initials);
                 Assert.Equal((string)f["signature"],    got.Facts.Signature);
+                Assert.Equal((string)f["revision"],     got.Facts.Revision);
                 return;
             }
 

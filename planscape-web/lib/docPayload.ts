@@ -34,15 +34,24 @@ export interface DocFacts {
   /** "DRW.CHK.APR" — drawn, checked, approved. */
   initials?: string;
   signature?: string;
+  /** Sheet revision. A FACT, not part of the identifier: ISO keeps revision
+   *  as metadata beside the identity, and the identifier's last field is now
+   *  the four-digit Number. Reading the revision off the end would report
+   *  that number as the revision. Appended last -- the field order is a
+   *  printed contract and may only grow at the end. */
+  revision?: string;
 }
 
 export interface DocPayload {
-  /** Full ISO 19650 identifier: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV. */
+  /** Full ISO 19650 identifier:
+   *  Project-Originator-Volume-Level-Type-Role-Number. Seven fields, no revision. */
   docId: string;
   projectCode?: string;
   revision?: string;
-  /** The sheet number, recovered from the identifier — everything between the
-   *  discipline and the revision. Used to hit the by-sheet register lookup. */
+  /** Always undefined now. The identifier's Number field is NOT the sheet
+   *  number — the sheet keeps its own short number, which is the point of the
+   *  arrangement — and nothing can recover one from the other. Kept so callers
+   *  that branch on it still compile, and so the absence is explicit. */
   sheetNumber?: string;
   facts: DocFacts;
 }
@@ -53,7 +62,7 @@ const BLANK = '-';
  *  code already printed on paper. */
 const FIELDS: (keyof DocFacts)[] = [
   'suitability', 'cdeState', 'issueDate', 'zone', 'sheetOfTotal',
-  'lod', 'paperSize', 'scale', 'initials', 'signature',
+  'lod', 'paperSize', 'scale', 'initials', 'signature', 'revision',
 ];
 
 function safeDecode(value: string): string {
@@ -84,13 +93,18 @@ export function parseDocPath(parts: string[]): DocPayload | null {
     if (v && v !== BLANK) facts[key] = v;
   });
 
-  // PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV, per the SHT_TAG_1 assembly
-  // in ParameterHelpers.cs. The NUMBER itself may contain '-' (A-L1-001), so it
-  // is everything between the 5th segment and the last, not a fixed index.
+  // Project-Originator-Volume-Level-Type-Role-Number -- SEVEN fixed fields,
+  // assembled by Iso19650DocumentCode. The revision is NOT in it; it arrives as
+  // a carried fact, because a document's identity does not change when it is
+  // revised. Reading the last field as a revision would report the Number.
+  //
+  // The Number is also not the SHEET number: the sheet keeps its own short one,
+  // which is the entire point of the arrangement, and nothing here can recover
+  // it from the identifier -- so nothing here pretends to.
   const seg = docId.split('-');
   const projectCode = seg.length > 1 ? seg[0] : undefined;
-  const revision = seg.length > 1 ? seg[seg.length - 1] : undefined;
-  const sheetNumber = seg.length > 6 ? seg.slice(5, -1).join('-') : undefined;
+  const revision = facts.revision;
+  const sheetNumber = undefined;
 
   return { docId, projectCode, revision, sheetNumber, facts };
 }

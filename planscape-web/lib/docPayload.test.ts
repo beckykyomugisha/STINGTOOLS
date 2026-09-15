@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocPath, prettyScale, prettySheetOfTotal } from './docPayload';
 
-const DOCID = 'PROJECTN-PLNS-L02-DR-A-A-L1-001-P02';
+const DOCID = 'PROJECTN-PLNS-ZZ-02-DR-A-0001';
 
 describe('parseDocPath', () => {
   it('reads every fact out of the full 31mm payload', () => {
@@ -37,13 +37,22 @@ describe('parseDocPath', () => {
     expect(p!.facts.sheetOfTotal).toBe('25.100');
   });
 
-  it('recovers a sheet number that contains hyphens', () => {
-    // A-L1-001 has two of its own, so the sheet number is everything between the
-    // discipline and the revision — not a fixed index.
-    const p = parseDocPath([DOCID]);
+  it('reads the project from the identifier and the revision from the facts', () => {
+    // The identifier is seven fixed fields ending in the four-digit Number, so
+    // reading its last field as a revision would report "0001".
+    const p = parseDocPath([DOCID, 'S4', '-', '-', '-', '-', '-', '-', '-', '-', '-', 'P02']);
     expect(p!.projectCode).toBe('PROJECTN');
     expect(p!.revision).toBe('P02');
-    expect(p!.sheetNumber).toBe('A-L1-001');
+    expect(p!.facts.revision).toBe('P02');
+    expect(p!.docId).not.toContain('P02');
+  });
+
+  it('does not invent a sheet number from the identifier', () => {
+    // The Number field is not the sheet number; the sheet keeps its own short
+    // one. Returning the Number here would send the register lookup somewhere
+    // real and wrong, which is worse than not looking.
+    const p = parseDocPath([DOCID]);
+    expect(p!.sheetNumber).toBeUndefined();
   });
 
   it('carries no facts when the cell only fitted the identifier', () => {

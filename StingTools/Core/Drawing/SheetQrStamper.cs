@@ -696,6 +696,10 @@ namespace StingTools.Core.Drawing
                 // Signature stays null until a signing key exists. A field that LOOKS
                 // like a signature but is not one is worse than no field at all.
                 Signature    = null,
+                // Carried, because "is the print in my hand superseded?" is the one
+                // question worth answering with no network, and the identifier no
+                // longer holds the revision.
+                Revision     = NullIfBlank(ReadRevision(sheet)),
             };
         }
 
