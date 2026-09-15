@@ -100,7 +100,7 @@ namespace StingTools.Commands.Drawing
             // The pattern is a project setting, not a constant. "{disc}-{seq:D3}"
             // is the default and gives A-001; a project numbering by level sets
             // "{disc}-{lvl}-{seq:D3}" and gets A-01-001 without a code change.
-            string pattern = ReadPattern(doc);
+            string pattern = SheetNumbering.ReadPattern(doc);
             string projectCode = ParameterHelpers.GetString(
                 doc.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE);
             string originator = ParameterHelpers.GetString(
@@ -121,7 +121,7 @@ namespace StingTools.Commands.Drawing
             foreach (var g in byDisc)
             {
                 int n = 1;
-                foreach (var r in g.OrderBy(x => x.Old, NaturalOrder.Instance))
+                foreach (var r in g.OrderBy(x => x.Old, SheetReorderDialog.NaturalOrder.Instance))
                 {
                     if (r.Locked) continue;
                     string proposed;
@@ -187,46 +187,14 @@ namespace StingTools.Commands.Drawing
 
             // ── Two passes. Revit refuses a duplicate sheet number even for an
             // instant, so every sheet parks on a unique temporary number first.
-            int done = 0, failed = 0;
-            var failures = new List<string>();
-
-            using (var tx = new Transaction(doc, "STING Auto-Number Sheets"))
+            var plan = changing.Select(r => new SheetNumbering.Change
             {
-                tx.Start();
+                Sheet = r.Sheet, Old = r.Old, New = r.New
+            }).ToList();
 
-                var parked = new List<Row>();
-                foreach (var r in changing)
-                {
-                    try
-                    {
-                        r.Sheet.SheetNumber = $"__STING_TEMP_{r.Sheet.Id.Value}";
-                        parked.Add(r);
-                    }
-                    catch (Exception ex)
-                    {
-                        failed++;
-                        failures.Add($"  {r.Old}: could not park — {ex.Message}");
-                        StingLog.Warn($"AutoNumber park '{r.Old}': {ex.Message}");
-                    }
-                }
-
-                foreach (var r in parked)
-                {
-                    try { r.Sheet.SheetNumber = r.New; done++; }
-                    catch (Exception ex)
-                    {
-                        failed++;
-                        failures.Add($"  {r.Old} -> {r.New}: {ex.Message}");
-                        StingLog.Warn($"AutoNumber set '{r.New}': {ex.Message}");
-                        // Put it back rather than leaving it on __STING_TEMP_*, which
-                        // would be a worse number than the one it started with.
-                        try { r.Sheet.SheetNumber = r.Old; }
-                        catch (Exception ex2) { StingLog.Warn($"AutoNumber restore '{r.Old}': {ex2.Message}"); }
-                    }
-                }
-
-                tx.Commit();
-            }
+            var result = SheetNumbering.Apply(doc, plan, "STING Auto-Number Sheets");
+            int done = result.Done, failed = result.Failed;
+            var failures = result.Failures;
 
             StingLog.Info($"AutoNumber: {done} renumbered, {failed} failed, "
                 + $"{locked.Count} locked, {assembled.Count} already ISO-assembled");
@@ -270,60 +238,8 @@ namespace StingTools.Commands.Drawing
             return Result.Succeeded;
         }
 
-        /// <summary>The pattern, from TITLE_BLOCK.csv's DefaultValue column.
-        ///
-        /// Read through the same loader Populate uses, so a project-local CSV wins
-        /// over the shipped one exactly as it does everywhere else -- a second way of
-        /// finding the same file is how two commands come to disagree about it.</summary>
-        private static string ReadPattern(Document doc)
-        {
-            try
-            {
-                string path = TitleBlockPopulateCommand.ResolveCsvPath(doc, "TITLE_BLOCK.csv");
-                var csv = TitleBlockCsv.Load(path);
-                string p = csv.ValueFor(ParamRegistry.TB_SHEET_NUMBER_PATTERN, "");
-                if (!string.IsNullOrWhiteSpace(p)) return p.Trim();
-            }
-            catch (Exception ex) { StingLog.Warn($"AutoNumber pattern read: {ex.Message}"); }
-            return "{disc}-{seq:D3}";
-        }
-
         private static string Trim(string s, int max)
             => string.IsNullOrEmpty(s) ? "" : (s.Length <= max ? s : s.Substring(0, max - 1) + "…");
 
-        /// <summary>Orders "A-2" before "A-10". Plain string ordering puts 10 first,
-        /// which would silently reshuffle a set whose order was the one thing the
-        /// operator wanted kept.</summary>
-        private sealed class NaturalOrder : IComparer<string>
-        {
-            public static readonly NaturalOrder Instance = new NaturalOrder();
-
-            public int Compare(string a, string b)
-            {
-                a ??= ""; b ??= "";
-                int i = 0, j = 0;
-                while (i < a.Length && j < b.Length)
-                {
-                    if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
-                    {
-                        int si = i, sj = j;
-                        while (i < a.Length && char.IsDigit(a[i])) i++;
-                        while (j < b.Length && char.IsDigit(b[j])) j++;
-                        string da = a.Substring(si, i - si).TrimStart('0');
-                        string db = b.Substring(sj, j - sj).TrimStart('0');
-                        if (da.Length != db.Length) return da.Length - db.Length;
-                        int c = string.CompareOrdinal(da, db);
-                        if (c != 0) return c;
-                    }
-                    else
-                    {
-                        int c = char.ToUpperInvariant(a[i]).CompareTo(char.ToUpperInvariant(b[j]));
-                        if (c != 0) return c;
-                        i++; j++;
-                    }
-                }
-                return (a.Length - i) - (b.Length - j);
-            }
-        }
     }
 }
