@@ -147,6 +147,24 @@ namespace StingTools.Docs
         ///
         /// Returns true if ANY home took the value. `homes` reports how many did, so a
         /// caller can tell "written once" from "written to both" without guessing.</summary>
+        /// <summary>Which command writes an audit field Populate refuses to.
+        /// Named rather than left to the reader: "Populate skipped it" is only half an
+        /// answer, and the other half is what to run instead.</summary>
+        internal static string WhoWrites(string paramName)
+        {
+            if (paramName == ParamRegistry.TB_LAST_TRANSMITTAL
+                || paramName == ParamRegistry.TB_LAST_TRANSMITTAL_DATE)
+                return "   <- written by 'Stamp TX' when a transmittal is issued";
+            if (paramName == ParamRegistry.TB_LAST_SYNC
+                || paramName == ParamRegistry.TB_LAST_SYNC_BY)
+                return "   <- stamped by Populate itself, after the CSV pass";
+            if (paramName == ParamRegistry.TB_NOTES_LEGEND_REF)
+                return "   <- written by 'Legend Bind'";
+            if (paramName == ParamRegistry.TB_LOCK)
+                return "   <- set by hand; cleared with 'Unlock TBs'";
+            return "";
+        }
+
         internal static bool SetOnSheetAndTitleBlock(
             ViewSheet sheet, Element tb, string paramName, string value, bool isBool, out int homes)
         {
@@ -473,6 +491,7 @@ namespace StingTools.Docs
             var multiTbSheets = new List<string>();
             int bothHomes = 0;
             int derived = 0;
+            var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var suitUnknown = new List<string>();
             var descMismatch = new List<string>();
             var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -536,14 +555,23 @@ namespace StingTools.Docs
 
                     foreach (string paramName in ParamRegistry.AllTitleBlockParams)
                     {
-                        // Never let the CSV overwrite sync/transmittal audit fields
+                        // Never let the CSV overwrite sync/transmittal audit fields.
+                        //
+                        // These were skipped SILENTLY -- before the value check, so they
+                        // appeared in neither the failures nor the "no CSV value" list.
+                        // A label bound to one therefore printed "?" forever with nothing
+                        // anywhere saying why, which is exactly what happened when CDE REF
+                        // was pointed at PRJ_TB_LAST_TRANSMITTAL_TXT. Record them.
                         if (paramName == ParamRegistry.TB_LAST_SYNC
                             || paramName == ParamRegistry.TB_LAST_SYNC_BY
                             || paramName == ParamRegistry.TB_LAST_TRANSMITTAL
                             || paramName == ParamRegistry.TB_LAST_TRANSMITTAL_DATE
                             || paramName == ParamRegistry.TB_NOTES_LEGEND_REF
                             || paramName == ParamRegistry.TB_LOCK)
+                        {
+                            auditFields.Add(paramName);
                             continue;
+                        }
 
                         string val = csv.ValueFor(paramName, disc);
                         if (string.IsNullOrEmpty(val))
@@ -683,6 +711,15 @@ namespace StingTools.Docs
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
                 // A sheet with two title blocks explains the whole "it says it wrote and
                 // the cell is blank" class of report, so it goes ABOVE the failures.
+                .AddSection("Written By Another Command, Not Populate")
+                .Text(auditFields.Count == 0
+                    ? "(none)"
+                    : string.Join("\n", auditFields.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                        .Select(n => "  " + n + TitleBlockEngine.WhoWrites(n)))
+                      + "\n\nPopulate deliberately does not touch these -- they are audit "
+                      + "fields, and letting a CSV default overwrite them would erase a record "
+                      + "of what actually happened. If a title-block label is bound to one and "
+                      + "prints \"?\", it is waiting on that command, not on Populate.")
                 .AddSection("Suitability")
                 .Text(suitUnknown.Count == 0 && descMismatch.Count == 0
                     ? "Every suitability code is an ISO 19650 code, and every description "
@@ -1443,20 +1480,28 @@ namespace StingTools.Docs
                     int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
                     if (locked != 0) continue;
 
-                    ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_TRANSMITTAL, txId, overwrite: true);
-                    ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_TRANSMITTAL_DATE, txDate, overwrite: true);
+                    // BOTH homes. Nearly every title-block parameter name exists twice
+                    // -- once on the sheet as a project parameter, once on the family --
+                    // and the label binds to one of them without saying which. Writing
+                    // only the title block is why CDE REF printed "?" on a sheet whose
+                    // title block held the value: Populate and Count Sheets were fixed
+                    // for this and the transmittal stamp was not.
+                    TitleBlockEngine.SetOnSheetAndTitleBlock(
+                        sheet, tb, ParamRegistry.TB_LAST_TRANSMITTAL, txId, false, out _);
+                    TitleBlockEngine.SetOnSheetAndTitleBlock(
+                        sheet, tb, ParamRegistry.TB_LAST_TRANSMITTAL_DATE, txDate, false, out _);
                     if (!string.IsNullOrEmpty(deliverableDataDrop))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_DATADROP,
-                            deliverableDataDrop, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_DATADROP, deliverableDataDrop, false, out _);
                     if (!string.IsNullOrEmpty(deliverableStatus))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_STATUS,
-                            deliverableStatus, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_STATUS, deliverableStatus, false, out _);
                     if (!string.IsNullOrEmpty(deliverableDue))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_DUE,
-                            deliverableDue, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_DUE, deliverableDue, false, out _);
                     if (!string.IsNullOrEmpty(deliverableCde))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_CDE,
-                            deliverableCde, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE, deliverableCde, false, out _);
 
                     StingLog.Info($"TB TxStamp: {sheet.SheetNumber} ← TX={txId} " +
                         $"(suit={suitability}, status={deliverableStatus}, cde={deliverableCde})");
