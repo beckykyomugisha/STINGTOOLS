@@ -6836,7 +6836,8 @@
           "break": true,
           "style": "NOM",
           "color": "BLACK",
-          "size": "2.0"
+          "size": "2.0",
+          "note": "For Rooms this row carries the ROOM NAME. NativeParamMapper.MapRoomNameNumber fills ASS_DESCRIPTION_TXT from BuiltInParameter.ROOM_NAME (SetIfEmpty, so a hand-typed description wins). Do NOT add a separate BLE_ROOM_NAME_TXT row to tier 2 — it would display the name twice, and the Revit API cannot author label rows anyway (TagFamilyCreatorCommand.cs:1496), so it would mean manual Family Editor work plus renumbering every 'Show Tier 2 - N' calculated value."
         },
         {
           "param": "ASS_ROOM_AREA_TXT",
