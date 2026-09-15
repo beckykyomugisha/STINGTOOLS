@@ -19023,6 +19023,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_TB_SHEET_NUMBER_PATTERN_TXT",
+      "guid": "8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48",
+      "description": "Pattern Auto-Number Sheets builds a sheet number from. Tokens: {disc} discipline code, {lvl} level code, {seq} or {seq:D2}/{seq:D3}/{seq:D4} zero-padded sequence, {proj} project code, {orig} originator code. Default \"{disc}-{seq:D3}\" gives A-001. An empty token leaves no stray separator [ISO 19650-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "STING",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_DWG_LOIN_LOD_TXT",
       "guid": "3a2b846f-94ae-5dfd-8ab2-aa5800d48f92",
       "description": "Level of Information Need / Level of Detail at issue -- e.g. \"LOD 300\" / \"LOIN-3\" / \"LOD 350\" [BS EN 17412-1:2020]",

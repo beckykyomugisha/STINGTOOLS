@@ -647,6 +647,18 @@ namespace StingTools.Core
         /// which is why this is a setting and not a decision baked into the code.</summary>
         public const string TB_CDE_REF_FORMAT            = "PRJ_TB_CDE_REF_FORMAT_TXT";
         public const string TB_CDE_REF_FORMAT_GUID       = "5f2c9a71-4b63-53d8-9e07-1c8a4f62db35";
+
+        /// <summary>The pattern Auto-Number Sheets builds a number from —
+        /// "{disc}-{seq:D3}" by default, giving A-001.
+        ///
+        /// Hard-coding the shape was the flexibility gap: a project that numbers by
+        /// level ("A-01-001"), prefixes the project code, or wants four digits had to
+        /// renumber by hand, while the rest of this system has been data-driven since
+        /// Phase 113. DrawingType.SheetNumberPattern already used these tokens; this
+        /// is the same grammar for projects that are not driving production through
+        /// drawing types.</summary>
+        public const string TB_SHEET_NUMBER_PATTERN      = "PRJ_TB_SHEET_NUMBER_PATTERN_TXT";
+        public const string TB_SHEET_NUMBER_PATTERN_GUID = "8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
         public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";

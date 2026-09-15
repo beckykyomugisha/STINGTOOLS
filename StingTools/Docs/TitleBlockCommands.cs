@@ -346,31 +346,38 @@ namespace StingTools.Docs
         /// discipline prefix in the sheet number (&quot;A-101&quot; → &quot;ARCH&quot;).
         /// </summary>
         internal static string ResolveDiscipline(ViewSheet sheet)
+            => ResolveDiscipline(sheet, null);
+
+        /// <summary>Which TITLE_BLOCK.csv column fills this sheet.
+        ///
+        /// `columns` is the CSV's actual header. Pass it and a project that adds its
+        /// own discipline column gets that column used; pass null and the shipped set
+        /// applies. The header was always read dynamically while this method tested
+        /// against a hard-coded array, so an added column could never be reached.
+        ///
+        /// The old version read the FIRST CHARACTER of the sheet number when SHT_DISC
+        /// did not match a column name — and after SHT_DISC started holding short codes
+        /// ("A" rather than "ARCH"), that fallback ran for every sheet. On a number
+        /// rewritten to a full ISO identifier, "SAH-PLNS-ZZ-01-DR-A-0001", the first
+        /// character is S: an architectural drawing filled from the STRUCTURAL column,
+        /// reported as success.</summary>
+        internal static string ResolveDiscipline(ViewSheet sheet, ICollection<string> columns)
         {
             if (sheet == null) return "GEN";
+
+            var available = (columns != null && columns.Count > 0)
+                ? columns
+                : (ICollection<string>)SupportedDisciplines;
+
             string tagged = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
             if (!string.IsNullOrWhiteSpace(tagged))
-            {
-                string norm = tagged.Trim().ToUpperInvariant();
-                if (SupportedDisciplines.Contains(norm)) return norm;
-            }
-            string num = sheet.SheetNumber ?? "";
-            if (num.Length >= 1)
-            {
-                char c = char.ToUpperInvariant(num[0]);
-                switch (c)
-                {
-                    case 'A': return "ARCH";
-                    case 'S': return "STR";
-                    case 'M': return "MEP";
-                    case 'E': return "ELE";
-                    case 'P': return "PLM";
-                    case 'F': return "FP";
-                    case 'L': return "LV";
-                    case 'C': return "COORD";
-                }
-            }
-            return "GEN";
+                return StingTools.Core.Drawing.SheetDisciplineResolver.ToCsvColumn(tagged, available);
+
+            // No tag yet. Ask the sheet what it is, by the same rule Tag Sheets uses,
+            // rather than by a second private guess that can disagree with it.
+            string derived = StingTools.Core.Drawing.SheetDisciplineResolver
+                .Resolve(sheet.SheetNumber, sheet.Name, null);
+            return StingTools.Core.Drawing.SheetDisciplineResolver.ToCsvColumn(derived, available);
         }
     }
 }
@@ -655,7 +662,7 @@ namespace StingTools.Docs
                         continue;
                     }
 
-                    string disc = TitleBlockEngine.ResolveDiscipline(sheet);
+                    string disc = TitleBlockEngine.ResolveDiscipline(sheet, csv.Disciplines);
                     int paramsWrittenThisSheet = 0;
 
                     // Every row the CSV has, plus the registry's own names for the

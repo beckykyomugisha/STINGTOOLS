@@ -40,6 +40,7 @@ namespace StingTools.Commands.Drawing
         {
             public ViewSheet Sheet;
             public string Disc;
+            public string Level;
             public string Old;
             public string New;
             public bool Locked;
@@ -89,11 +90,21 @@ namespace StingTools.Commands.Drawing
                 {
                     Sheet = s,
                     Disc = SheetDisciplineResolver.Resolve(s.SheetNumber, s.Name, null),
+                    Level = ParameterHelpers.GetString(s, ParamRegistry.SHT_LEVEL),
                     Old = s.SheetNumber ?? "",
                     Locked = TitleBlockLock.FindTitleBlock(doc, s) is Element tb
                              && TitleBlockLock.Probe(doc, tb) != TitleBlockLock.LockHeldOn.None,
                 })
                 .ToList();
+
+            // The pattern is a project setting, not a constant. "{disc}-{seq:D3}"
+            // is the default and gives A-001; a project numbering by level sets
+            // "{disc}-{lvl}-{seq:D3}" and gets A-01-001 without a code change.
+            string pattern = ReadPattern(doc);
+            string projectCode = ParameterHelpers.GetString(
+                doc.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE);
+            string originator = ParameterHelpers.GetString(
+                doc.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE);
 
             var byDisc = rows.GroupBy(r => r.Disc, StringComparer.OrdinalIgnoreCase)
                              .OrderBy(g => g.Key, StringComparer.Ordinal)
@@ -114,7 +125,12 @@ namespace StingTools.Commands.Drawing
                 {
                     if (r.Locked) continue;
                     string proposed;
-                    do { proposed = $"{r.Disc}-{n:D3}"; n++; }
+                    do
+                    {
+                        proposed = SheetDisciplineResolver.FormatNumber(
+                            pattern, r.Disc, r.Level, projectCode, originator, n);
+                        n++;
+                    }
                     while (taken.Contains(proposed));
                     taken.Add(proposed);
                     r.New = proposed;
@@ -234,6 +250,12 @@ namespace StingTools.Commands.Drawing
                         .Take(300)))
                 .AddSection("Failures")
                 .Text(failures.Count == 0 ? "(none)" : string.Join("\n", failures))
+                .AddSection("Number Pattern")
+                .Text($"{pattern}   (PRJ_TB_SHEET_NUMBER_PATTERN_TXT in TITLE_BLOCK.csv)\n\n"
+                    + "Tokens: {disc} discipline · {lvl} level · {proj} project code · "
+                    + "{orig} originator · {seq:D3} zero-padded sequence.\n"
+                    + "A token that resolves to nothing takes its separator with it, so a "
+                    + "project with no level code gets A-001 rather than A--001.")
                 .AddSection("How The Discipline Was Decided")
                 .Text("Sheet NUMBER prefix first (A-001 -> A), then whole words in the sheet "
                     + "TITLE (\"GROUND FLOOR PLAN\" -> A), then GEN.\n\n"
@@ -246,6 +268,24 @@ namespace StingTools.Commands.Drawing
                 .Show();
 
             return Result.Succeeded;
+        }
+
+        /// <summary>The pattern, from TITLE_BLOCK.csv's DefaultValue column.
+        ///
+        /// Read through the same loader Populate uses, so a project-local CSV wins
+        /// over the shipped one exactly as it does everywhere else -- a second way of
+        /// finding the same file is how two commands come to disagree about it.</summary>
+        private static string ReadPattern(Document doc)
+        {
+            try
+            {
+                string path = TitleBlockPopulateCommand.ResolveCsvPath(doc, "TITLE_BLOCK.csv");
+                var csv = TitleBlockCsv.Load(path);
+                string p = csv.ValueFor(ParamRegistry.TB_SHEET_NUMBER_PATTERN, "");
+                if (!string.IsNullOrWhiteSpace(p)) return p.Trim();
+            }
+            catch (Exception ex) { StingLog.Warn($"AutoNumber pattern read: {ex.Message}"); }
+            return "{disc}-{seq:D3}";
         }
 
         private static string Trim(string s, int max)

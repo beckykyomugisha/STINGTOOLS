@@ -16105,6 +16105,7 @@ STING_BOX_LOCATION_ID,Project Information,Instance,True
 PRJ_TB_FEDERATION_STATUS_TXT,Project Information,Instance,True
 PRJ_TB_CDE_REF_TXT,Project Information,Instance,True
 PRJ_TB_CDE_REF_FORMAT_TXT,Sheets,Instance,True
+PRJ_TB_SHEET_NUMBER_PATTERN_TXT,Sheets,Instance,True
 PRJ_DWG_LOIN_LOD_TXT,Project Information,Instance,True
 STING_NOGGIN_REQUIRED,Generic Models,Instance,True
 PRJ_SHEET_BIM_MODE_TXT,Sheets,Instance,True

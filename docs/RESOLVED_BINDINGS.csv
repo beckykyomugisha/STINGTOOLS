@@ -2200,6 +2200,7 @@ PRJ_TB_REVISION_NR_TXT,13,sheet-identity,Sheets,"Revision number or code (e.g. P
 PRJ_TB_SCALE_OVERRIDE_TXT,13,sheet-identity,Sheets,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]"
 PRJ_TB_SCHEMA_VERSION_TXT,13,sheet-identity,Sheets,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018]
 PRJ_TB_SHEET_NR_TXT,13,sheet-identity,Sheets,Sheet number string (may differ from Revit native sheet number for custom formats) [ISO 19650-1:2018]
+PRJ_TB_SHEET_NUMBER_PATTERN_TXT,13,sheet-identity,Sheets,"Pattern Auto-Number Sheets builds a sheet number from. Tokens: {disc} discipline code, {lvl} level code, {seq} or {seq:D2}/{seq:D3}/{seq:D4} zero-padded sequence, {proj} project code, {orig} originator code. Default ""{disc}-{seq:D3}"" gives A-001. An empty token leaves no stray separator [ISO 19650-2:2018]"
 PRJ_TB_SHOW_COMPANY_STRIP_BOOL,26,sheet-identity,Sheets,Visibility toggle for company info strip logo address contacts [STING TB v1]
 PRJ_TB_SHOW_DISCBAND_BOOL,13,sheet-identity,Sheets,LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]
 PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,26,sheet-identity,Sheets,Visibility toggle for discipline color strip [STING TB v1]
