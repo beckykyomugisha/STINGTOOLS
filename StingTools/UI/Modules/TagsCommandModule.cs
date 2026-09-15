@@ -88,6 +88,7 @@ namespace StingTools.UI.Modules
             registry.Register("TitleBlock_InspectLock", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockInspectLockCommand>(app));
             registry.Register("TitleBlock_Unlock",      app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockUnlockCommand>(app));
             registry.Register("TitleBlock_InspectFields", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockInspectFieldsCommand>(app));
+            registry.Register("Sheet_NumberFromIso", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.SheetNumberFromIsoCommand>(app));
             registry.Register("QR_LabelSheet",             app => StingCommandHandler.RunCommandPublic<Commands.Drawing.QrLabelSheetCommand>(app));
             registry.Register("QR_ScanCommission",         app => StingCommandHandler.RunCommandPublic<V6.QRScanCommissioningCommand>(app));
             // "PrintQRTags" registration retired (Group 3 QR collapse — button removed; it ran the

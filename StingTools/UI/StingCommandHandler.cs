@@ -695,6 +695,7 @@ namespace StingTools.UI
                     case "TitleBlock_InspectLock": RunCommand<Commands.Drawing.TitleBlockInspectLockCommand>(app); break;
                     case "TitleBlock_Unlock":     RunCommand<Commands.Drawing.TitleBlockUnlockCommand>(app); break;
                     case "TitleBlock_InspectFields": RunCommand<Commands.Drawing.TitleBlockInspectFieldsCommand>(app); break;
+                    case "Sheet_NumberFromIso": RunCommand<Commands.Drawing.SheetNumberFromIsoCommand>(app); break;
                     // QR-7 — element QR codes onto a plottable sheet, so the PNGs
                     // stop being loose files nobody places.
                     case "QR_LabelSheet":       RunCommand<Commands.Drawing.QrLabelSheetCommand>(app); break;

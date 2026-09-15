@@ -1651,6 +1651,7 @@ namespace StingTools.UI
                 ("Transmittal",    "Transmittal"),
                 ("Swap Title Block","SwapTitleBlock"),
                 ("Set Variant",    "TitleBlockSetVariant"),
+                ("Sheet No ← ISO", "Sheet_NumberFromIso"),
             }));
 
             // ── QR on the sheet ──
