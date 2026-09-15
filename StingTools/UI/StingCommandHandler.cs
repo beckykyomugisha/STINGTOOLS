@@ -692,6 +692,16 @@ namespace StingTools.UI
                     case "Sheet_ClearQR":       RunCommand<Commands.Drawing.SheetClearQrCommand>(app); break;
                     case "Sheet_InspectQR":     RunCommand<Commands.Drawing.SheetInspectQrCommand>(app); break;
                     case "Sheet_SetQRAnchor":   RunCommand<Commands.Drawing.SheetSetQrAnchorCommand>(app); break;
+                    case "TitleBlock_InspectLock": RunCommand<Commands.Drawing.TitleBlockInspectLockCommand>(app); break;
+                    case "TitleBlock_Unlock":     RunCommand<Commands.Drawing.TitleBlockUnlockCommand>(app); break;
+                    case "TitleBlock_InspectFields": RunCommand<Commands.Drawing.TitleBlockInspectFieldsCommand>(app); break;
+                    case "TitleBlock_PushFields": RunCommand<Commands.Drawing.TitleBlockPushFieldsCommand>(app); break;
+                    case "Sheet_AutoNumber": RunCommand<Commands.Drawing.SheetAutoNumberCommand>(app); break;
+                    case "Sheet_DisciplinesReload": RunCommand<Commands.Drawing.SheetDisciplineReloadCommand>(app); break;
+                    case "Sheet_Reorder": RunCommand<Commands.Drawing.SheetReorderCommand>(app); break;
+                    case "Sheet_NumberFromIso": RunCommand<Commands.Drawing.SheetNumberFromIsoCommand>(app); break;
+                    case "Sheet_NumberRestore": RunCommand<Commands.Drawing.SheetNumberRestoreCommand>(app); break;
+                    case "Sheet_NumberTidy": RunCommand<Commands.Drawing.SheetNumberTidyCommand>(app); break;
                     // QR-7 — element QR codes onto a plottable sheet, so the PNGs
                     // stop being loose files nobody places.
                     case "QR_LabelSheet":       RunCommand<Commands.Drawing.QrLabelSheetCommand>(app); break;

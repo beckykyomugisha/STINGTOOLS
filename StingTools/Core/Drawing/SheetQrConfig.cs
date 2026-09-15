@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
 namespace StingTools.Core.Drawing
@@ -37,6 +38,12 @@ namespace StingTools.Core.Drawing
     {
         /// <summary>TB_QR_ANCHOR_JSON_TXT on the title-block instance.</summary>
         FamilyParameter,
+        /// <summary>Extensible Storage on this one title-block INSTANCE — a per-sheet
+        /// nudge that overrides whatever the family says.</summary>
+        StoredOnInstance,
+        /// <summary>Extensible Storage on the title-block TYPE — what Sheet_SetQRAnchor
+        /// writes, inherited by every sheet using that title block.</summary>
+        StoredOnType,
         /// <summary>A `qr-code` entry in the family's own TB_VIEWPORT_SLOTS_JSON_TXT.</summary>
         FamilySlotMap,
         /// <summary>A `qr-code` slot in STING_TITLE_BLOCKS.json, by family id.</summary>
@@ -69,6 +76,50 @@ namespace StingTools.Core.Drawing
         /// defect in the family — the operator authored something this cannot read,
         /// and the stamp then lands in a corner. That has to be sayable.</summary>
         public static Action<string> Warn { get; set; } = _ => { };
+
+        /// <summary>Render an anchor to the canonical JSON that <see cref="ParseAnchor"/>
+        /// reads back. The two are a pair and must stay reciprocal: this is the form
+        /// stored in Extensible Storage AND the form TB_QR_ANCHOR_JSON_TXT carries, so a
+        /// drift between writer and reader would strand every anchor ever recorded.
+        /// Round-tripped in the unit tests for exactly that reason.
+        ///
+        /// Invariant culture is not cosmetic — a machine with a comma decimal separator
+        /// would otherwise emit {"x":701,5} and silently produce unparseable JSON.</summary>
+        public static string FormatAnchor(double xMm, double yMm, double sizeMm) =>
+            string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "{{\"x\":{0:0.##},\"y\":{1:0.##},\"size\":{2:0.##}}}", xMm, yMm, sizeMm);
+
+        /// <summary>"025 / 100" -> "25.100". The paginator writes a zero-padded,
+        /// space-and-slash form for PRINTING; the payload wants the two numbers and
+        /// nothing else. Left raw, Seg() would fold each space and slash to '.' and
+        /// emit "025...100" -- six wasted characters out of a budget measured in
+        /// tens, and unreadable at the far end.</summary>
+        public static string NormaliseSheetOfTotal(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var nums = Regex.Matches(raw, @"\d+");
+            if (nums.Count < 2) return NullIfBlankLocal(raw);
+            // TrimStart('0') on "000" would leave nothing, so fall back to "0".
+            string n = nums[0].Value.TrimStart('0');
+            string t = nums[1].Value.TrimStart('0');
+            return (n.Length == 0 ? "0" : n) + "." + (t.Length == 0 ? "0" : t);
+        }
+
+        /// <summary>"LOD 300" -> "300". The printed cell repeats the word because a
+        /// human reads it next to other codes; the payload does not need it, and four
+        /// characters is real money at this size.</summary>
+        public static string NormaliseLod(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var m = Regex.Match(raw, @"\d+");
+            return m.Success ? m.Value : NullIfBlankLocal(raw);
+        }
+
+
+        /// <summary>Null rather than an empty or whitespace string, so "not carried"
+        /// and "carried as blank" stay distinguishable at the far end.</summary>
+        private static string NullIfBlankLocal(string s) =>
+            string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         /// <summary>Parse TB_QR_ANCHOR_JSON_TXT.
         ///

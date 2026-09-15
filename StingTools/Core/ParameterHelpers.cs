@@ -7,6 +7,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 
+using StingTools.Core.Drawing;
+
 namespace StingTools.Core
 {
     /// <summary>
@@ -3351,13 +3353,35 @@ namespace StingTools.Core
         /// </summary>
         public static int TagSheet(Document doc, ViewSheet sheet,
             string originator, string projectCode, string rev)
+            => TagSheet(doc, sheet, originator, projectCode, rev, reDerive: false);
+
+        /// <summary>Tag a sheet, optionally RE-DERIVING the tokens that come from the
+        /// sheet number.
+        ///
+        /// Normally these use SetIfEmpty so a correction somebody typed survives a
+        /// re-run. After a RENUMBER that is exactly wrong: SHT_NUMBER, SHT_DISC,
+        /// SHT_FORM and SHT_LEVEL were derived FROM the old number, so the renumber
+        /// is the event that invalidates them. Preserving them leaves a sheet
+        /// numbered A-001 still carrying discipline COORD, and the identifier built
+        /// from it still reading role Z -- a drawing that contradicts itself, with
+        /// the browser showing the new number and the title block the old one.
+        ///
+        /// reDerive is passed only by the renumber commands, and only for the sheets
+        /// they actually changed. Nothing else overwrites a token a person set.</summary>
+        public static int TagSheet(Document doc, ViewSheet sheet,
+            string originator, string projectCode, string rev, bool reDerive)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int written = 0;
 
+            // One helper, so the six call sites below cannot disagree about which
+            // mode they are in.
+            Func<ViewSheet, string, string, int> Put = (sh, name, value) =>
+                reDerive ? SetStr(sh, name, value) : SetIfEmptyStr(sh, name, value);
+
             // 1. Map native sheet number/name
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
+            written += Put(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
+            written += Put(sheet, ParamRegistry.SHT_NAME, sheet.Name);
 
             // P-01/A-01: Hoist GetAllViewports() + view resolution once for all derive methods
             ICollection<ElementId> vpIds = null;
@@ -3383,32 +3407,71 @@ namespace StingTools.Core
             // D-03: Source tokens use SetIfEmptyStr to preserve user corrections
             // 2. Derive DISC from viewport element discipline majority vote
             string disc = DeriveSheetDiscipline(doc, sheet, vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_DISC, disc);
+            written += Put(sheet, ParamRegistry.SHT_DISC, disc);
             // Re-read actual stored value for TAG1 assembly (may differ if user-set)
             disc = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
             if (string.IsNullOrEmpty(disc)) disc = "GEN";
 
             // 3. Derive FORM from viewport view types
-            string form = DeriveSheetForm(vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_FORM, form);
+            string form = DeriveSheetForm(sheet, vpViews);
+            written += Put(sheet, ParamRegistry.SHT_FORM, form);
             form = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_FORM);
             if (string.IsNullOrEmpty(form)) form = "DR";
 
             // 4. Derive LEVEL from viewport view associated levels
-            string level = DeriveSheetLevel(vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_LEVEL, level);
+            string level = DeriveSheetLevel(doc, vpViews);
+            written += Put(sheet, ParamRegistry.SHT_LEVEL, level);
             level = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_LEVEL);
-            if (string.IsNullOrEmpty(level)) level = "XX";
+            if (string.IsNullOrEmpty(level)) level = IsoLevelCode.NotApplicable;
 
             // 5. Write project-level tokens
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
+            // SetIfEmpty is right for a GUESS and wrong for a project-level setting.
+            // Half a set was tagged while the originator was being guessed as "ORGANI"
+            // and the rest after it was set to "PLNS"; SetIfEmpty then preserved both,
+            // so one drawing set carried two originators and no re-run could
+            // reconcile it. An explicitly configured originator overwrites.
+            written += (reDerive || OriginatorIsExplicit(doc))
+                ? SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator)
+                : SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_REV, rev);
 
-            // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
-            // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
-            string sheetNum = sheet.SheetNumber ?? "00000";
-            string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
-            written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+            // 6. Assemble SHT_TAG_1 — the ISO 19650 document identifier.
+            //
+            // Project-Originator-Volume-Level-Type-Role-Number, seven fields, no
+            // revision. The assembly lives in Core/Drawing/Iso19650DocumentCode.cs
+            // because it is pure string work and belongs under test: the old inline
+            // version put "L01" and "COORD" on an issued drawing, dropped the volume
+            // field entirely, and used the whole sheet number as the Number segment.
+            //
+            // The Number comes from the SHEET NUMBER's trailing digits, so short
+            // sheet numbers stay the source of truth and the identifier is derived
+            // from them -- never the other way round. That direction is what stops
+            // the code eating its own output.
+            string sheetNum = sheet.SheetNumber ?? "";
+            if (StingTools.Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheetNum))
+            {
+                // The sheet number is already an identifier (Sheet_NumberFromIso has
+                // run). Re-deriving would nest it. Leave SHT_TAG_1 alone and say so.
+                StingLog.Warn($"TagSheet '{sheetNum}': the sheet number is already an assembled "
+                    + $"ISO identifier, so {ParamRegistry.SHT_TAG_1} was left as it is rather than "
+                    + "nesting the code inside itself. Restore a short sheet number "
+                    + "(Drawing Type Editor -> Title Block -> Restore Sheet Nos) to have it rebuilt.");
+
+                // The identifier was left alone, but its decomposition must still
+                // match it. A sheet whose number IS the identifier still carries the
+                // seven segment parameters, and leaving them on an older split is the
+                // same contradiction one level down.
+                written += StampSegments(sheet,
+                    ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1));
+            }
+            else
+            {
+                string volume = ParameterHelpers.GetString(sheet, "PRJ_SHEET_VOLUME_TXT");
+                string tag1 = StingTools.Core.Drawing.Iso19650DocumentCode.Assemble(
+                    projectCode, originator, volume, level, form, disc, sheetNum);
+                written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+                written += StampSegments(sheet, tag1);
+            }
 
             // 7. Build SHT_TAG_7 narrative
             string tag7 = BuildSheetNarrative(sheet, disc, form, level, rev, vpViews.Count);
@@ -3422,6 +3485,39 @@ namespace StingTools.Core
             return written;
         }
 
+        /// <summary>Write the seven PRJ_SHEET_* segments, and their join, from the
+        /// assembled identifier.
+        ///
+        /// These were written ONLY by DrawingProducer, at sheet creation, from its own
+        /// tokens — so a sheet produced one way and tagged another carried two
+        /// versions of the same seven facts with nothing keeping them in step. On a
+        /// real drawing PRJ_SHEET_ROLE_TXT read "A" while the identifier printed on
+        /// that same sheet read role "Z".
+        ///
+        /// Derived, so they cannot contradict their source: overwritten every time the
+        /// identifier is, and skipped entirely when there is no identifier to split
+        /// rather than being cleared — an untagged sheet keeps whatever DrawingProducer
+        /// gave it.</summary>
+        private static int StampSegments(ViewSheet sheet, string identifier)
+        {
+            var seg = StingTools.Core.Drawing.Iso19650DocumentCode.Decompose(identifier);
+            if (seg == null) return 0;
+
+            int n = 0;
+            n += SetStr(sheet, "PRJ_SHEET_PROJECT_TXT", seg.Project);
+            n += SetStr(sheet, "PRJ_SHEET_ORIG_TXT", seg.Originator);
+            n += SetStr(sheet, "PRJ_SHEET_VOLUME_TXT", seg.Volume);
+            n += SetStr(sheet, "PRJ_SHEET_LEVEL_TXT", seg.Level);
+            n += SetStr(sheet, "PRJ_SHEET_TYPE_TXT", seg.Type);
+            n += SetStr(sheet, "PRJ_SHEET_ROLE_TXT", seg.Role);
+            n += SetStr(sheet, "PRJ_SHEET_SEQ_TXT", seg.Number);
+
+            // The join, by definition. Leaving it holding an older join while its
+            // seven parts move on is the same defect this method exists to remove.
+            n += SetStr(sheet, "PRJ_SHEET_FULL_REF_TXT", identifier);
+            return n;
+        }
+
         /// <summary>Extract originator code from Project Information.</summary>
         public static string DetectOriginator(Document doc)
         {
@@ -3430,7 +3526,27 @@ namespace StingTools.Core
                 var pi = doc.ProjectInformation;
                 if (pi == null) return "XX";
 
-                // Check for explicit originator parameter
+                // PRJ_ORG_ORIGINATOR_CODE_TXT FIRST. It is the declared home for this
+                // -- the template engine, DocumentIdentityGenerator and
+                // TokenContext.FromDeliverable all read it, and it ships defaulted to
+                // "PLNS".
+                //
+                // This method used to skip it entirely and truncate Revit's built-in
+                // "Organization Name" to six characters instead. On a project whose
+                // Organization Name still held the stock placeholder, that produced
+                // "ORGANI" -- a code that appears nowhere, means nothing, and went
+                // onto issued drawings. The originator typed into the STING field was
+                // ignored, so filling it in correctly changed nothing, which is not a
+                // failure anyone can debug from the outside.
+                //
+                // The old behaviour survives as the LAST resort, because a truncated
+                // company name is still better than "XX" when nothing else is set --
+                // but it is a guess, it is logged as one, and it no longer outranks
+                // the field that exists for the purpose.
+                string code = ParameterHelpers.GetString(pi, ParamRegistry.ORG_ORIGINATOR_CODE);
+                if (!string.IsNullOrWhiteSpace(code))
+                    return Codify(code, 6);
+
                 Parameter orgP = pi.LookupParameter("Organization Name")
                     ?? pi.LookupParameter("Client Name")
                     ?? pi.LookupParameter("Author");
@@ -3439,16 +3555,43 @@ namespace StingTools.Core
                     string val = orgP.AsString();
                     if (!string.IsNullOrWhiteSpace(val))
                     {
-                        // Take first 3-6 uppercase chars as code
-                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
-                        return clean.Length <= 6
-                            ? clean.ToUpperInvariant()
-                            : clean.Substring(0, 6).ToUpperInvariant();
+                        string guess = Codify(val, 6);
+                        StingLog.Warn($"DetectOriginator: {ParamRegistry.ORG_ORIGINATOR_CODE} is empty, "
+                            + $"so the originator was GUESSED as '{guess}' by truncating "
+                            + $"'{val}'. Set {ParamRegistry.ORG_ORIGINATOR_CODE} on Project "
+                            + "Information to control it.");
+                        return guess;
                     }
                 }
+                StingLog.Warn($"DetectOriginator: nothing to go on -- set "
+                    + $"{ParamRegistry.ORG_ORIGINATOR_CODE} on Project Information.");
                 return "XX";
             }
             catch (Exception ex) { StingLog.Warn($"DetectOriginator: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>True when the originator was CONFIGURED rather than guessed.
+        /// A configured value is a project-level decision and outranks whatever an
+        /// earlier run left on a sheet; a guess does not, and must not stomp a
+        /// correction somebody typed.</summary>
+        public static bool OriginatorIsExplicit(Document doc)
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(
+                    ParameterHelpers.GetString(doc?.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE));
+            }
+            catch (Exception ex) { StingLog.Warn($"OriginatorIsExplicit: {ex.Message}"); return false; }
+        }
+
+        /// <summary>Letters and digits only, upper-cased, capped. One copy, because
+        /// the originator and the project code were doing this separately and could
+        /// drift apart.</summary>
+        private static string Codify(string raw, int max)
+        {
+            string clean = new string((raw ?? "").Where(char.IsLetterOrDigit).ToArray());
+            if (clean.Length == 0) return "XX";
+            return (clean.Length <= max ? clean : clean.Substring(0, max)).ToUpperInvariant();
         }
 
         /// <summary>Extract project code from Project Information.</summary>
@@ -3459,17 +3602,18 @@ namespace StingTools.Core
                 var pi = doc.ProjectInformation;
                 if (pi == null) return "PR01";
 
+                // Same rule as the originator, and the same order SheetQrStamper
+                // already used: the declared parameter first, Revit's own field
+                // second. The two disagreeing is how one sheet's QR and its printed
+                // DRG NO. end up naming different projects.
+                string code = ParameterHelpers.GetString(pi, ParamRegistry.ORG_PROJECT_CODE);
+                if (!string.IsNullOrWhiteSpace(code)) return Codify(code, 8);
+
                 Parameter numP = pi.LookupParameter("Project Number");
                 if (numP != null && numP.HasValue)
                 {
                     string val = numP.AsString();
-                    if (!string.IsNullOrWhiteSpace(val))
-                    {
-                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
-                        return clean.Length <= 8
-                            ? clean.ToUpperInvariant()
-                            : clean.Substring(0, 8).ToUpperInvariant();
-                    }
+                    if (!string.IsNullOrWhiteSpace(val)) return Codify(val, 8);
                 }
                 return "PR01";
             }
@@ -3485,6 +3629,15 @@ namespace StingTools.Core
         {
             try
             {
+                // What the sheet SAYS beats what it CONTAINS, so a sheet that states
+                // its discipline needs no census at all -- and a general arrangement
+                // plan, which mixes trades on purpose, stops being classified by the
+                // mixture. See SheetDisciplineResolver for why that ordering.
+                string stated = StingTools.Core.Drawing.SheetDisciplineResolver
+                    .FromSheetNumber(sheet.SheetNumber)
+                    ?? StingTools.Core.Drawing.SheetDisciplineResolver.FromTitle(sheet.Name);
+                if (stated != null) return stated;
+
                 if (vpViews == null || vpViews.Count == 0) return DeriveDiscFromSheetName(sheet);
 
                 var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -3544,57 +3697,70 @@ namespace StingTools.Core
                     return DeriveDiscFromSheetName(sheet);
                 }
 
-                // If multiple disciplines with significant presence → COORD
-                var sorted = discCounts.OrderByDescending(kv => kv.Value).ToList();
-                if (sorted.Count >= 2)
-                {
-                    double total = sorted.Sum(kv => kv.Value);
-                    double topPct = sorted[0].Value / total;
-                    if (topPct < 0.75) return "COORD"; // No single discipline dominates
-                }
-
-                return sorted[0].Key;
+                return StingTools.Core.Drawing.SheetDisciplineResolver
+                    .FromCensus(discCounts) ?? DeriveDiscFromSheetName(sheet);
             }
             catch (Exception ex) { StingLog.Warn($"DeriveSheetDiscipline: {ex.Message}"); return "GEN"; }
         }
 
         /// <summary>
-        /// Derive document form code from view types on the sheet.
-        /// DR=Drawing, SH=Schedule, M3=3D Model, SP=Specification, LG=Legend.
+        /// The ISO 19650 form code for a sheet: DR drawing, SH schedule, M3 3D
+        /// model, LG legend.
+        ///
+        /// This counted DraftingView as a LEGEND and let ANY match win, so a site
+        /// plan with three detail views on it was issued as
+        /// SAH-PLNS-ZZ-01-LG-A-0001. Both halves were wrong: a drafting view is
+        /// where details are drawn, which makes it a drawing, and one legend beside
+        /// eight plans does not make a sheet a legend. The rule asked "is there a
+        /// legend anywhere" when the question is "what is this sheet".
+        ///
+        /// The decision itself now lives in SheetFormResolver, Revit-free and under
+        /// test. This half does the one thing that needs Revit: turning a ViewType
+        /// into a form code.
         /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetForm(List<View> vpViews)
+        private static string DeriveSheetForm(ViewSheet sheet, List<View> vpViews)
         {
             try
             {
-                if (vpViews == null || vpViews.Count == 0) return "DR";
-
-                bool hasSchedule = false, has3D = false, hasLegend = false;
-
-                foreach (View view in vpViews)
+                var census = new Dictionary<string, int>(StringComparer.Ordinal);
+                if (vpViews != null)
                 {
-                    switch (view.ViewType)
+                    foreach (View view in vpViews)
                     {
-                        case ViewType.Schedule:
-                            hasSchedule = true;
-                            break;
-                        case ViewType.ThreeD:
-                            has3D = true;
-                            break;
-                        case ViewType.Legend:
-                        case ViewType.DraftingView:
-                            hasLegend = true;
-                            break;
+                        if (view == null) continue;
+                        string form;
+                        switch (view.ViewType)
+                        {
+                            case ViewType.Schedule:
+                            case ViewType.ColumnSchedule:
+                            case ViewType.PanelSchedule:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Schedule;
+                                break;
+                            case ViewType.ThreeD:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Model3D;
+                                break;
+                            case ViewType.Legend:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Legend;
+                                break;
+                            default:
+                                // Everything else -- plans, sections, elevations,
+                                // details and DRAFTING VIEWS -- is a drawing.
+                                form = StingTools.Core.Drawing.SheetFormResolver.Drawing;
+                                break;
+                        }
+                        census.TryGetValue(form, out int c);
+                        census[form] = c + 1;
                     }
                 }
 
-                // Priority: Schedule > 3D > Legend > Drawing
-                if (hasSchedule) return "SH";
-                if (has3D) return "M3";
-                if (hasLegend) return "LG";
-                return "DR";
+                return StingTools.Core.Drawing.SheetFormResolver.Resolve(sheet?.Name, census);
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveSheetForm: {ex.Message}"); return "DR"; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DeriveSheetForm: {ex.Message}");
+                return StingTools.Core.Drawing.SheetFormResolver.Drawing;
+            }
         }
 
         /// <summary>
@@ -3602,35 +3768,93 @@ namespace StingTools.Core
         /// Returns the most common level code, or "XX" if mixed/none.
         /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetLevel(List<View> vpViews)
+        private static string DeriveSheetLevel(Document doc, List<View> vpViews)
         {
             try
             {
-                if (vpViews == null || vpViews.Count == 0) return "XX";
+                if (vpViews == null || vpViews.Count == 0) return IsoLevelCode.NotApplicable;
+
+                // The code for a storey depends on where it sits in the STACK, so the
+                // map is built from EVERY level in the model, not from the ones on
+                // this sheet. You cannot tell whether a level is 01 or 02 by looking
+                // at it alone -- which is why the old name-only rule turned "L1" into
+                // "01" on a ground-floor plan.
+                var map = BuildLevelMap(doc);
 
                 var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
                 foreach (View view in vpViews)
                 {
-                    // Get associated level via the view's GenLevel property
                     Level lvl = view.GenLevel;
                     if (lvl == null) continue;
 
-                    string lvlCode = DeriveLevelCodeFromName(lvl.Name);
-                    if (!string.IsNullOrEmpty(lvlCode))
-                    {
-                        levelCounts.TryGetValue(lvlCode, out int c);
-                        levelCounts[lvlCode] = c + 1;
-                    }
+                    string code = (map != null && map.TryGetValue(lvl.Name, out string m))
+                        ? m
+                        : IsoLevelCode.FromNameOnly(lvl.Name);
+                    if (string.IsNullOrEmpty(code)) continue;
+
+                    levelCounts.TryGetValue(code, out int c);
+                    levelCounts[code] = c + 1;
                 }
 
-                if (levelCounts.Count == 0) return "XX";
+                if (levelCounts.Count == 0) return IsoLevelCode.NotApplicable;
                 if (levelCounts.Count == 1) return levelCounts.Keys.First();
 
-                // Multiple levels — return most common
-                return levelCounts.OrderByDescending(kv => kv.Value).First().Key;
+                // A sheet drawing several storeys is ZZ -- "applies to more than one
+                // level" -- and that is a real ISO code, not a fallback. Naming the
+                // most common one would state that the sheet covers that storey and
+                // silently drop the others.
+                return IsoLevelCode.Multiple;
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveSheetLevel: {ex.Message}"); return "XX"; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DeriveSheetLevel: {ex.Message}");
+                return IsoLevelCode.NotApplicable;
+            }
+        }
+
+        /// <summary>Every level in the model, as ISO 19650 level codes.
+        ///
+        /// Cached per document for the length of one tagging run: TagSheet is called
+        /// per sheet and a 300-sheet project would otherwise collect every Level 300
+        /// times.</summary>
+        private static Dictionary<string, string> _levelMap;
+        private static string _levelMapDocKey;
+
+        internal static void InvalidateLevelMap() { _levelMap = null; _levelMapDocKey = null; }
+
+        private static Dictionary<string, string> BuildLevelMap(Document doc)
+        {
+            if (doc == null) return null;
+            string key = doc.PathName + "|" + doc.GetHashCode();
+            if (_levelMap != null && _levelMapDocKey == key) return _levelMap;
+
+            try
+            {
+                var storeys = new List<StoreyDatum>();
+                foreach (Level lvl in new FilteredElementCollector(doc)
+                             .OfClass(typeof(Level)).Cast<Level>())
+                {
+                    if (lvl == null || string.IsNullOrWhiteSpace(lvl.Name)) continue;
+                    storeys.Add(new StoreyDatum
+                    {
+                        Name = lvl.Name,
+                        // Revit's internal unit is decimal FEET; the resolver reasons
+                        // in millimetres because its ground tolerance is a real
+                        // physical distance, not a unitless number.
+                        ElevationMm = UnitUtils.ConvertFromInternalUnits(
+                            lvl.Elevation, UnitTypeId.Millimeters),
+                    });
+                }
+
+                _levelMap = IsoLevelCode.BuildMap(storeys);
+                _levelMapDocKey = key;
+                return _levelMap;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildLevelMap: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>Build human-readable sheet narrative for SHT_TAG_7.
@@ -3703,16 +3927,13 @@ namespace StingTools.Core
         /// </summary>
         private static string DeriveDiscFromSheetName(ViewSheet sheet)
         {
-            string combined = $"{sheet.SheetNumber} {sheet.Name}".ToUpperInvariant();
-            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") || combined.StartsWith("M-") || combined.StartsWith("M ")) return "M";
-            if (combined.Contains("ELECTRICAL") || combined.Contains("LIGHTING") || combined.StartsWith("E-") || combined.StartsWith("E ")) return "E";
-            if (combined.Contains("PLUMBING") || combined.Contains("SANITARY") || combined.StartsWith("P-") || combined.StartsWith("P ")) return "P";
-            if (combined.Contains("ARCHITECTURAL") || combined.Contains("ARCH") || combined.StartsWith("A-") || combined.StartsWith("A ")) return "A";
-            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCT") || combined.StartsWith("S-") || combined.StartsWith("S ")) return "S";
-            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER") || combined.StartsWith("FP")) return "FP";
-            if (combined.Contains("LOW VOLTAGE") || combined.Contains("DATA") || combined.Contains("SECURITY")) return "LV";
-            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") || combined.Contains("MULTI")) return "COORD";
-            return "GEN";
+            // One resolver, used by both callers. This used to be a second, looser
+            // copy of the same idea: it matched SUBSTRINGS, so "ARCH" matched ARCHIVE,
+            // "FIRE" matched FIREPLACE and "DATA" matched DATA SHEET -- each quietly
+            // filing a drawing under a discipline nobody chose. Two copies of a rule
+            // is how they come to disagree.
+            return StingTools.Core.Drawing.SheetDisciplineResolver
+                .Resolve(sheet?.SheetNumber, sheet?.Name, null);
         }
 
         /// <summary>Derive level code from level name string (same logic as GetLevelCode but from name).</summary>

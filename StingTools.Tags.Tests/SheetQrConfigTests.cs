@@ -253,5 +253,110 @@ namespace StingTools.Tags.Tests
             // A 0 would place an invisible stamp — indistinguishable from no stamp.
             Assert.Null(SheetQrConfig.ParseSize(raw));
         }
+
+        // ── FormatAnchor ↔ ParseAnchor ───────────────────────────────────────
+        //
+        // These two are a pair. FormatAnchor is what StingQrAnchorSchema stores in
+        // Extensible Storage, ParseAnchor is what SheetQrStamper reads back, and a
+        // drift between them would strand every anchor ever recorded — the operator
+        // picks a cell, is told it was saved, and the stamp still lands in a corner.
+        // The Revit half cannot be tested here, so the CONTRACT is tested instead.
+
+        [Theory]
+        [InlineData(701.0, 85.0, 24.0)]
+        [InlineData(0.0, 0.0, 12.0)]
+        [InlineData(1153.25, 10.5, 26.0)]
+        [InlineData(216.0, 10.0, 20.0)]
+        public void A_formatted_anchor_parses_back_to_itself(double x, double y, double size)
+        {
+            var back = SheetQrConfig.ParseAnchor(SheetQrConfig.FormatAnchor(x, y, size), 0.0);
+
+            Assert.NotNull(back);
+            Assert.Equal(x, back.XMm, 2);
+            Assert.Equal(y, back.YMm, 2);
+            Assert.Equal(size, back.SizeMm, 2);
+        }
+
+        [Fact]
+        public void A_formatted_anchor_carries_its_own_size_not_the_default()
+        {
+            // Read with a default of 0: if FormatAnchor ever stopped emitting "size",
+            // this would come back 0 and the stamper would refuse it as unusable
+            // rather than quietly substituting the planner default.
+            var back = SheetQrConfig.ParseAnchor(SheetQrConfig.FormatAnchor(50, 60, 18), 0.0);
+
+            Assert.NotNull(back);
+            Assert.Equal(18.0, back.SizeMm, 2);
+        }
+
+        // ── Fact normalisers ─────────────────────────────────────────────────
+        //
+        // Both exist because the PRINTED form of a value and its PAYLOAD form are
+        // different things. The sheet says "025 / 100" and "LOD 300" because a human
+        // reads those next to other codes; the QR wants the numbers. Left raw, the
+        // producer's alphanumeric folding turns every space and slash into '.', so
+        // "025 / 100" would ship as "025...100" — six wasted characters out of a
+        // budget measured in tens.
+
+        [Theory]
+        [InlineData("025 / 100", "25.100")]
+        [InlineData("25 OF 100", "25.100")]
+        [InlineData("1/12", "1.12")]
+        [InlineData("007 / 009", "7.9")]
+        public void The_sheet_position_becomes_two_bare_numbers(string raw, string expected)
+            => Assert.Equal(expected, SheetQrConfig.NormaliseSheetOfTotal(raw));
+
+        [Fact]
+        public void A_zero_padded_sheet_position_does_not_become_empty()
+        {
+            // TrimStart('0') on "000" leaves nothing at all; the result must still be
+            // a number rather than a stray separator.
+            Assert.Equal("0.100", SheetQrConfig.NormaliseSheetOfTotal("000 / 100"));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void An_absent_sheet_position_is_null(string raw)
+            => Assert.Null(SheetQrConfig.NormaliseSheetOfTotal(raw));
+
+        [Fact]
+        public void A_sheet_position_with_only_one_number_is_passed_through()
+        {
+            // Better to carry something a person can interpret than to invent a total.
+            Assert.Equal("25", SheetQrConfig.NormaliseSheetOfTotal("25"));
+        }
+
+        [Theory]
+        [InlineData("LOD 300", "300")]
+        [InlineData("LOD350", "350")]
+        [InlineData("200", "200")]
+        [InlineData(" lod 400 ", "400")]
+        public void The_lod_becomes_the_number_alone(string raw, string expected)
+            => Assert.Equal(expected, SheetQrConfig.NormaliseLod(raw));
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public void An_absent_lod_is_null(string raw)
+            => Assert.Null(SheetQrConfig.NormaliseLod(raw));
+
+        [Fact]
+        public void A_non_numeric_lod_is_passed_through_not_dropped()
+            => Assert.Equal("TBC", SheetQrConfig.NormaliseLod("TBC"));
+
+        [Fact]
+        public void A_formatted_anchor_uses_a_dot_decimal_separator()
+        {
+            // On a comma-decimal locale a culture-sensitive format would emit
+            // {"x":701,5} — valid-looking, unparseable, and only reproducible on
+            // machines nobody tests on.
+            var json = SheetQrConfig.FormatAnchor(701.5, 85.25, 24.0);
+
+            Assert.Contains("701.5", json);
+            Assert.Contains("85.25", json);
+            Assert.DoesNotContain("701,5", json);
+        }
     }
 }

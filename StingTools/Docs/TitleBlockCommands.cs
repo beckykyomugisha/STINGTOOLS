@@ -120,6 +120,145 @@ namespace StingTools.Docs
         /// Find the title-block FamilyInstance placed on the given sheet.
         /// Returns null when the sheet has no title block (empty sheet).
         /// </summary>
+        /// <summary>"Yes"/"1"/"true"/"y" -> 1, anything else 0. One copy, on the
+        /// engine, because both the CSV populate path and the dual-home writer need
+        /// it and two copies of a yes/no rule is how they come to disagree.</summary>
+        internal static int ParseYesNo(string v)
+        {
+            if (string.IsNullOrEmpty(v)) return 0;
+            string s = v.Trim().ToLowerInvariant();
+            return (s == "1" || s == "yes" || s == "true" || s == "y") ? 1 : 0;
+        }
+
+        /// <summary>Write a title-block value to EVERY home the name has — the sheet's
+        /// parameter and the title block's — because nothing in the API says which one
+        /// the family's label is bound to.
+        ///
+        /// Measured on a live model: 29 of 29 title-block parameter names existed BOTH
+        /// on the sheet (as project parameters) and on the title-block family, and the
+        /// labels were bound to the SHEET's copy. Every STING command wrote to the
+        /// title block's. So Populate reported "8 fields updated", Count Sheets
+        /// reported "3 pagination cells written", both were telling the truth, and the
+        /// drawing showed "?" in those cells for as long as anyone cared to look.
+        ///
+        /// Writing one and hoping is what produced that. Writing both cannot produce
+        /// it: whichever copy the label reads, it now has the value, and the two can
+        /// no longer disagree with each other on the same drawing.
+        ///
+        /// Returns true if ANY home took the value. `homes` reports how many did, so a
+        /// caller can tell "written once" from "written to both" without guessing.</summary>
+        /// <summary>Which command writes an audit field Populate refuses to.
+        /// Named rather than left to the reader: "Populate skipped it" is only half an
+        /// answer, and the other half is what to run instead.</summary>
+        internal static string WhoWrites(string paramName)
+        {
+            if (paramName == ParamRegistry.TB_LAST_TRANSMITTAL
+                || paramName == ParamRegistry.TB_LAST_TRANSMITTAL_DATE)
+                return "   <- written by 'Stamp TX' when a transmittal is issued";
+            if (paramName == ParamRegistry.TB_LAST_SYNC
+                || paramName == ParamRegistry.TB_LAST_SYNC_BY)
+                return "   <- stamped by Populate itself, after the CSV pass";
+            if (paramName == ParamRegistry.TB_NOTES_LEGEND_REF)
+                return "   <- written by 'Legend Bind'";
+            if (paramName == ParamRegistry.TB_LOCK)
+                return "   <- set by hand; cleared with 'Unlock TBs'";
+            return "";
+        }
+
+        /// <summary>Title-block fields that Revit ALREADY has a built-in sheet
+        /// parameter for. Writing the STING name alone is not enough for these.
+        ///
+        /// A title block showed DRAWN BY "Author", CHECKED BY "Checker" and
+        /// APPROVED BY "Approver" -- Revit's stock defaults for SHEET_DRAWN_BY /
+        /// SHEET_CHECKED_BY / SHEET_APPROVED_BY. Those labels were bound to the
+        /// BUILT-IN parameters, which is the normal thing for a title block to do
+        /// and what every stock Autodesk template does. So the CSV was edited,
+        /// Populate wrote PRJ_TB_DRAWN_BY_TXT to both of its homes, reported
+        /// success -- and the cell kept printing "Author", because nothing had
+        /// written the parameter the label actually draws.
+        ///
+        /// This is the THIRD home, and it is the one a title block authored
+        /// outside STING will use. Eleven places in this codebase already READ
+        /// these built-ins; nothing wrote them.</summary>
+        private static readonly Dictionary<string, BuiltInParameter> BuiltInSheetHomes =
+            new Dictionary<string, BuiltInParameter>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "PRJ_TB_DRAWN_BY_TXT",   BuiltInParameter.SHEET_DRAWN_BY },
+                { "PRJ_TB_CHECKED_BY_TXT", BuiltInParameter.SHEET_CHECKED_BY },
+                { "PRJ_TB_APVD_BY_TXT",    BuiltInParameter.SHEET_APPROVED_BY },
+                // Only names that actually exist. PRJ_TB_DESIGNED_BY_TXT and
+                // PRJ_TB_ISSUE_DATE_TXT are declared nowhere, so rows for them would
+                // be two entries that can never match anything -- the same
+                // list-restating-nothing problem check_title_block_surfaces.py exists
+                // to catch. Add them here the day they are added to the CSV.
+            };
+
+        internal static bool SetOnSheetAndTitleBlock(
+            ViewSheet sheet, Element tb, string paramName, string value, bool isBool, out int homes)
+        {
+            homes = 0;
+            foreach (Element target in new Element[] { sheet, tb })
+            {
+                if (target == null) continue;
+                try
+                {
+                    bool ok = isBool
+                        ? ParameterHelpers.SetInt(target, paramName, ParseYesNo(value), overwrite: true)
+                        : ParameterHelpers.SetString(target, paramName, value, overwrite: true);
+                    if (ok) homes++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TB: writing '{paramName}' to {target.Id}: {ex.Message}");
+                }
+            }
+
+            // The built-in home, when this field has one. Written LAST and never
+            // instead of the others: a STING-authored title block binds the shared
+            // parameter, a stock one binds the built-in, and which of the two is in
+            // front of you is not knowable from here. Writing both is the only
+            // answer that does not depend on knowing.
+            if (!isBool && sheet != null && BuiltInSheetHomes.TryGetValue(paramName, out BuiltInParameter bip))
+            {
+                try
+                {
+                    Parameter p = sheet.get_Parameter(bip);
+                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String
+                        && p.Set(value ?? ""))
+                        homes++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"TB: writing built-in for '{paramName}' on "
+                        + $"'{sheet.SheetNumber}': {ex.Message}");
+                }
+            }
+
+            return homes > 0;
+        }
+
+        /// <summary>True when Revit has a built-in sheet parameter for this field,
+        /// so a report can say the label may be bound to it rather than to the
+        /// shared parameter.</summary>
+        internal static bool HasBuiltInSheetHome(string paramName)
+            => paramName != null && BuiltInSheetHomes.ContainsKey(paramName);
+
+        /// <summary>What Revit's own built-in sheet parameter holds for this field,
+        /// or null. Read so a report can show it beside the shared parameter's value:
+        /// the two disagreeing is the whole explanation for a cell that will not
+        /// change no matter what is written to it.</summary>
+        internal static string ReadBuiltInSheetHome(ViewSheet sheet, string paramName)
+        {
+            if (sheet == null || paramName == null) return null;
+            if (!BuiltInSheetHomes.TryGetValue(paramName, out BuiltInParameter bip)) return null;
+            try { return sheet.get_Parameter(bip)?.AsString(); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TB: built-in read '{paramName}' on '{sheet.SheetNumber}': {ex.Message}");
+                return null;
+            }
+        }
+
         internal static FamilyInstance GetTitleBlockOnSheet(Document doc, ViewSheet sheet)
         {
             if (doc == null || sheet == null) return null;
@@ -207,31 +346,38 @@ namespace StingTools.Docs
         /// discipline prefix in the sheet number (&quot;A-101&quot; → &quot;ARCH&quot;).
         /// </summary>
         internal static string ResolveDiscipline(ViewSheet sheet)
+            => ResolveDiscipline(sheet, null);
+
+        /// <summary>Which TITLE_BLOCK.csv column fills this sheet.
+        ///
+        /// `columns` is the CSV's actual header. Pass it and a project that adds its
+        /// own discipline column gets that column used; pass null and the shipped set
+        /// applies. The header was always read dynamically while this method tested
+        /// against a hard-coded array, so an added column could never be reached.
+        ///
+        /// The old version read the FIRST CHARACTER of the sheet number when SHT_DISC
+        /// did not match a column name — and after SHT_DISC started holding short codes
+        /// ("A" rather than "ARCH"), that fallback ran for every sheet. On a number
+        /// rewritten to a full ISO identifier, "SAH-PLNS-ZZ-01-DR-A-0001", the first
+        /// character is S: an architectural drawing filled from the STRUCTURAL column,
+        /// reported as success.</summary>
+        internal static string ResolveDiscipline(ViewSheet sheet, ICollection<string> columns)
         {
             if (sheet == null) return "GEN";
+
+            var available = (columns != null && columns.Count > 0)
+                ? columns
+                : (ICollection<string>)SupportedDisciplines;
+
             string tagged = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
             if (!string.IsNullOrWhiteSpace(tagged))
-            {
-                string norm = tagged.Trim().ToUpperInvariant();
-                if (SupportedDisciplines.Contains(norm)) return norm;
-            }
-            string num = sheet.SheetNumber ?? "";
-            if (num.Length >= 1)
-            {
-                char c = char.ToUpperInvariant(num[0]);
-                switch (c)
-                {
-                    case 'A': return "ARCH";
-                    case 'S': return "STR";
-                    case 'M': return "MEP";
-                    case 'E': return "ELE";
-                    case 'P': return "PLM";
-                    case 'F': return "FP";
-                    case 'L': return "LV";
-                    case 'C': return "COORD";
-                }
-            }
-            return "GEN";
+                return StingTools.Core.Drawing.SheetDisciplineResolver.ToCsvColumn(tagged, available);
+
+            // No tag yet. Ask the sheet what it is, by the same rule Tag Sheets uses,
+            // rather than by a second private guess that can disagree with it.
+            string derived = StingTools.Core.Drawing.SheetDisciplineResolver
+                .Resolve(sheet.SheetNumber, sheet.Name, null);
+            return StingTools.Core.Drawing.SheetDisciplineResolver.ToCsvColumn(derived, available);
         }
     }
 }
@@ -256,6 +402,19 @@ namespace StingTools.Docs
 
         public int RowCount { get; private set; }
         public string SourcePath { get; private set; }
+
+        /// <summary>Every parameter the CSV has a row for, in file order.
+        ///
+        /// Populate used to iterate ParamRegistry.AllTitleBlockParams instead -- a
+        /// hard-coded array of 22 names -- while the CSV shipped 38 rows. The 16 it
+        /// did not name were edited in the CSV editor, saved, and then silently
+        /// ignored: PRJ_TB_DRAWN_BY_TXT and PRJ_TB_CHECKED_BY_TXT among them, which
+        /// is why "I set them in the CSV and ran Populate" changed nothing and the
+        /// only route left was typing onto one sheet at a time.
+        ///
+        /// A list restating a data file is right until the data file moves. The CSV
+        /// is the data; this is read from it.</summary>
+        public List<string> ParamNames { get; } = new List<string>();
 
         public static TitleBlockCsv Load(string path)
         {
@@ -287,6 +446,7 @@ namespace StingTools.Docs
                     string pname = cols[0].Trim();
                     if (string.IsNullOrEmpty(pname)) continue;
                     string dflt = cols.Length > 1 ? cols[1] : "";
+                    if (!csv.DefaultValues.ContainsKey(pname)) csv.ParamNames.Add(pname);
                     csv.DefaultValues[pname] = dflt;
                     for (int i = 0; i < discCols.Count; i++)
                     {
@@ -421,6 +581,59 @@ namespace StingTools.Docs
                 CultureInfo.InvariantCulture);
             string stampUser = Environment.UserName ?? "unknown";
 
+            var multiTbSheets = new List<string>();
+            int bothHomes = 0;
+            int derived = 0;
+            var csvDrivenNames = new List<string>(csv.ParamNames);
+            {
+                var seen = new HashSet<string>(csv.ParamNames, StringComparer.OrdinalIgnoreCase);
+                foreach (string n in ParamRegistry.AllTitleBlockParams)
+                    if (seen.Add(n)) csvDrivenNames.Add(n);
+            }
+
+            var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var replaced = new List<string>();
+            // One read, project-wide. The CSV's DefaultValue column carries it;
+            // anything unrecognised falls back to CONTAINER rather than producing a
+            // silently different cell.
+            string cdeFormat = (csv.ValueFor(ParamRegistry.TB_CDE_REF_FORMAT, "") ?? "")
+                .Trim().ToUpperInvariant();
+            if (cdeFormat != "FULL" && cdeFormat != "SUFFIX") cdeFormat = "CONTAINER";
+
+            // The PRJ_ORG_* values, read ONCE from their single home.
+            //
+            // The title-block families carry 20 of these as family parameters and
+            // NOTHING ever wrote them: they live on ProjectInformation, Populate did
+            // not touch them (no CSV row, not in AllTitleBlockParams), and no other
+            // command copies them across. So a label bound to
+            // PRJ_ORG_ORIGINATOR_CODE_TXT printed blank for ever no matter what was
+            // typed into Project Information -- and the blank looked exactly like an
+            // unconfigured project, which is how I misread one.
+            //
+            // Copied, never authored: ProjectInformation stays the only place these
+            // are SET. Giving them CSV rows would create a second source of truth for
+            // a project-wide fact, which is the defect this file has spent its
+            // history removing.
+            var orgValues = new List<KeyValuePair<string, string>>();
+            foreach (string name in ParamRegistry.AllOrganisationParams)
+            {
+                string v = ParameterHelpers.GetString(doc.ProjectInformation, name);
+                if (!string.IsNullOrWhiteSpace(v))
+                    orgValues.Add(new KeyValuePair<string, string>(name, v.Trim()));
+            }
+            int orgMirrored = 0;
+            var orgUnset = ParamRegistry.AllOrganisationParams
+                .Where(n => !orgValues.Any(kv => string.Equals(kv.Key, n, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            var cdeRefNoId = new List<string>();
+            var cdeRefNoRev = new List<string>();
+            int cdeRefWritten = 0;
+            var suitUnknown = new List<string>();
+            var descMismatch = new List<string>();
+            var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             using (var tx = new Transaction(doc, "STING Title Block Populate"))
             {
                 tx.Start();
@@ -438,6 +651,34 @@ namespace StingTools.Docs
                         continue;
                     }
 
+                    // WHICH title block was written to. "the" title block is whichever
+                    // the collector yields first, and that order is not a documented
+                    // guarantee -- so on a sheet carrying two, this can write to one
+                    // while the drawing displays the other. Every write then reports
+                    // success and the cell stays blank. Recording the id makes that
+                    // answerable from the log instead of by guesswork.
+                    int tbCount = 0;
+                    try
+                    {
+                        tbCount = new FilteredElementCollector(doc, sheet.Id)
+                            .OfCategory(BuiltInCategory.OST_TitleBlocks)
+                            .WhereElementIsNotElementType()
+                            .GetElementCount();
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TB Populate: counting title blocks on '{sheet.SheetNumber}': {ex.Message}"); }
+
+                    if (tbCount > 1)
+                    {
+                        string warn = $"{sheet.SheetNumber}: {tbCount} title blocks on this sheet — "
+                            + $"wrote to id {tb.Id}; the drawing may be showing another one";
+                        StingLog.Warn("TB Populate: " + warn);
+                        multiTbSheets.Add(warn);
+                    }
+                    else
+                    {
+                        StingLog.Info($"TB Populate: '{sheet.SheetNumber}' -> title block id {tb.Id}");
+                    }
+
                     // Lock gate — skip sheets the user has explicitly frozen
                     int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
                     if (locked != 0)
@@ -447,28 +688,71 @@ namespace StingTools.Docs
                         continue;
                     }
 
-                    string disc = TitleBlockEngine.ResolveDiscipline(sheet);
+                    string disc = TitleBlockEngine.ResolveDiscipline(sheet, csv.Disciplines);
                     int paramsWrittenThisSheet = 0;
 
-                    foreach (string paramName in ParamRegistry.AllTitleBlockParams)
+                    // Every row the CSV has, plus the registry's own names for the
+                    // audit fields below (which have no CSV row and must still be
+                    // reported rather than passed over in silence). Union, in CSV
+                    // order first, so an operator reading the report sees it in the
+                    // same order as the editor they just used.
+                    foreach (string paramName in csvDrivenNames)
                     {
-                        // Never let the CSV overwrite sync/transmittal audit fields
+                        // Never let the CSV overwrite sync/transmittal audit fields.
+                        //
+                        // These were skipped SILENTLY -- before the value check, so they
+                        // appeared in neither the failures nor the "no CSV value" list.
+                        // A label bound to one therefore printed "?" forever with nothing
+                        // anywhere saying why, which is exactly what happened when CDE REF
+                        // was pointed at PRJ_TB_LAST_TRANSMITTAL_TXT. Record them.
                         if (paramName == ParamRegistry.TB_LAST_SYNC
                             || paramName == ParamRegistry.TB_LAST_SYNC_BY
                             || paramName == ParamRegistry.TB_LAST_TRANSMITTAL
                             || paramName == ParamRegistry.TB_LAST_TRANSMITTAL_DATE
                             || paramName == ParamRegistry.TB_NOTES_LEGEND_REF
                             || paramName == ParamRegistry.TB_LOCK)
+                        {
+                            auditFields.Add(paramName);
                             continue;
+                        }
 
                         string val = csv.ValueFor(paramName, disc);
-                        if (string.IsNullOrEmpty(val)) continue;
+                        if (string.IsNullOrEmpty(val))
+                        {
+                            // NOT a failure -- the CSV simply has nothing to say for
+                            // this parameter and discipline. But it is not a success
+                            // either, and reporting only "8 fields written" left the
+                            // operator unable to tell "no value in the CSV" from
+                            // "the write failed", which are opposite problems.
+                            noValue.Add(paramName);
+                            continue;
+                        }
 
-                        bool ok;
-                        if (ParamRegistry.TitleBlockBoolParams.Contains(paramName))
-                            ok = ParameterHelpers.SetInt(tb, paramName, ParseYesNo(val), overwrite: true);
-                        else
-                            ok = ParameterHelpers.SetString(tb, paramName, val, overwrite: true);
+                        // The registry's set names the six it knows; the _BOOL suffix
+                        // covers a row the CSV grows before anyone adds a constant.
+                        // Writing "Yes" into a YESNO parameter as text fails silently,
+                        // so guessing wrong here is another blank cell with no message.
+                        bool isBool = ParamRegistry.TitleBlockBoolParams.Contains(paramName)
+                            || paramName.EndsWith("_BOOL", StringComparison.OrdinalIgnoreCase);
+
+                        // What is there BEFORE the write. Populate uses overwrite:true,
+                        // which is right for a bulk fill from the CSV and wrong for a
+                        // value someone set deliberately on one sheet — and from inside
+                        // this loop the two look identical. It cannot decide, so it
+                        // reports: a per-sheet name replaced by a project default is
+                        // exactly the kind of loss nobody notices until an issue.
+                        string before = isBool ? null : ParameterHelpers.GetString(tb, paramName);
+                        if (!isBool
+                            && !string.IsNullOrWhiteSpace(before)
+                            && !string.Equals(before.Trim(), val.Trim(), StringComparison.Ordinal))
+                        {
+                            replaced.Add($"{sheet.SheetNumber}  {paramName}: "
+                                + $"\"{before.Trim()}\" -> \"{val.Trim()}\"");
+                        }
+
+                        bool ok = TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, paramName, val, isBool, out int homes);
+                        if (homes == 2) bothHomes++;
 
                         if (ok) paramsWrittenThisSheet++;
                         else
@@ -480,6 +764,189 @@ namespace StingTools.Docs
                     }
 
                     // Stamp audit fields on every successfully-populated sheet
+                    // What this sheet ends up showing for the two fields a drawing set
+                    // is most often inconsistent about. Collected AFTER the CSV pass so
+                    // it reflects the value that will actually print.
+                    string lodNow = ParameterHelpers.GetString(tb, ParamRegistry.DWG_LOIN_LOD);
+                    if (string.IsNullOrWhiteSpace(lodNow))
+                        lodNow = ParameterHelpers.GetString(sheet, ParamRegistry.DWG_LOIN_LOD);
+                    string lodKey = string.IsNullOrWhiteSpace(lodNow) ? "(empty)" : lodNow.Trim();
+                    if (!lodSeen.TryGetValue(lodKey, out var lodSheets))
+                        lodSeen[lodKey] = lodSheets = new List<string>();
+                    lodSheets.Add(sheet.SheetNumber);
+
+                    // ── Derive what follows from the suitability code ────────────
+                    //
+                    // A title block printed STATUS "S2 / WIP", SUITABILITY
+                    // "S4 - FOR APROVAL" and CDE REF "WIP" at the same time: four
+                    // cells, two facts, and a contradiction, because each was typed
+                    // independently. ISO 19650 has ONE input here -- the suitability
+                    // code -- and the description and the CDE container FOLLOW from
+                    // it. Derived, they cannot disagree.
+                    //
+                    // The code is read from either cell and may arrive as
+                    // "S4 - FOR APROVAL", so it is extracted rather than compared.
+                    string suitRaw = ParameterHelpers.GetString(sheet, "PRJ_DWG_SUITABILITY_COD_TXT");
+                    if (string.IsNullOrWhiteSpace(suitRaw))
+                        suitRaw = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_COD_TXT");
+                    if (string.IsNullOrWhiteSpace(suitRaw))
+                        suitRaw = ParameterHelpers.GetString(tb, ParamRegistry.PRJ_STATUS_COD);
+
+                    string suitCode = StingTools.Core.Drawing.Iso19650Suitability.ExtractCode(suitRaw);
+                    if (!string.IsNullOrEmpty(suitCode))
+                    {
+                        // The code itself, normalised, in both of its homes -- so a
+                        // label bound to either cannot show a different code.
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, "PRJ_DWG_SUITABILITY_COD_TXT", suitCode, false, out _);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.PRJ_STATUS_COD, suitCode, false, out _);
+
+                        // The CDE container. This is what the STATUS cell should show:
+                        // SHARED / PUBLISHED / WIP -- information the suitability cell
+                        // does NOT already carry.
+                        string state = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(suitCode);
+                        if (state != null)
+                        {
+                            TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE, state, false, out _);
+                            derived++;
+                        }
+                        else
+                        {
+                            // An unrecognised code must not file the drawing anywhere.
+                            // PUBLISHED is a contractual statement, not a default.
+                            suitUnknown.Add($"{sheet.SheetNumber}: suitability '{suitRaw}' is not an "
+                                + "ISO 19650 code, so the CDE state was left alone");
+                        }
+
+                        // The description, in the standard's wording -- but only when
+                        // the cell is EMPTY. A project that has written its own wording
+                        // keeps it; overwriting would be presumptuous. A mismatch is
+                        // reported instead so "FOR APROVAL" is visible as a typo rather
+                        // than silently corrected or silently kept.
+                        string isoDesc = StingTools.Core.Drawing.Iso19650Suitability.DescriptionFor(suitCode);
+                        string curDesc = ParameterHelpers.GetString(tb, "PRJ_DWG_SUITABILITY_DESC_TXT");
+                        if (string.IsNullOrWhiteSpace(curDesc))
+                        {
+                            if (isoDesc != null)
+                                TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                    sheet, tb, "PRJ_DWG_SUITABILITY_DESC_TXT", isoDesc, false, out _);
+                        }
+                        else if (isoDesc != null
+                                 && !string.Equals(curDesc.Trim(), isoDesc, StringComparison.OrdinalIgnoreCase))
+                        {
+                            descMismatch.Add($"{sheet.SheetNumber}: {suitCode} reads \"{curDesc.Trim()}\" "
+                                + $"but ISO 19650 says \"{isoDesc}\"");
+                        }
+                    }
+
+                    // Project-wide facts onto this sheet and its title block, from
+                    // the one place they are set.
+                    foreach (var kv in orgValues)
+                    {
+                        if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, kv.Key, kv.Value, false, out _))
+                        {
+                            orgMirrored++;
+                            paramsWrittenThisSheet++;
+                        }
+                    }
+
+                    // ── The CDE REFERENCE cell ───────────────────────────────────
+                    //
+                    // The one string that lets someone holding the paper find the file
+                    // in the CDE: document identifier + suitability + revision, which is
+                    // exactly the tail of the published filename. Derived here rather
+                    // than read from the CSV because it is per-sheet by definition.
+                    //
+                    // The identifier is SHT_TAG_1_TXT (assembled by Tag Sheets), or the
+                    // sheet number itself once that number IS the identifier. With
+                    // neither, nothing is written -- a partial reference points at a
+                    // file that does not exist, which is worse than a blank cell -- and
+                    // the sheet is named so the fix is Tag Sheets, not a mystery.
+                    string cdeDocId = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
+                    if (string.IsNullOrWhiteSpace(cdeDocId)
+                        && StingTools.Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber))
+                        cdeDocId = sheet.SheetNumber;
+
+                    if (string.IsNullOrWhiteSpace(cdeDocId))
+                    {
+                        cdeRefNoId.Add(sheet.SheetNumber);
+                    }
+                    else
+                    {
+                        var refParts = new List<string>();
+                        if (cdeFormat == "FULL") refParts.Add(cdeDocId.Trim());
+                        if (!string.IsNullOrEmpty(suitCode) && cdeFormat != "CONTAINER")
+                            refParts.Add(suitCode);
+
+                        // Revision, from whichever home holds one.
+                        //
+                        // SHEET_CURRENT_REVISION is the honest first choice -- it is
+                        // what the revision box prints, so a CDE reference built from
+                        // it cannot contradict the drawing. But it is EMPTY until a
+                        // Revit revision is created and assigned to the sheet, and a
+                        // set issued at P01 without Revit revisions in play is normal.
+                        // The reference then read "...-0002-S4" with the revision
+                        // silently missing -- and a CDE reference without a revision
+                        // does not identify an issue, which is the one thing it is for.
+                        string sheetRev = null;
+                        try
+                        {
+                            sheetRev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TB Populate: revision read on '{sheet.SheetNumber}': {ex.Message}");
+                        }
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                            sheetRev = ParameterHelpers.GetString(tb, "PRJ_TB_REVISION_NR_TXT");
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                            sheetRev = ParameterHelpers.GetString(sheet, "PRJ_TB_REVISION_NR_TXT");
+                        if (string.IsNullOrWhiteSpace(sheetRev))
+                        {
+                            if (cdeFormat != "CONTAINER") cdeRefNoRev.Add(sheet.SheetNumber);
+                        }
+                        else if (cdeFormat != "CONTAINER")
+                        {
+                            refParts.Add(sheetRev.Trim());
+                        }
+
+                        // CONTAINER: the CDE folder this deliverable lives in, which is
+                        // the one thing the sheet does not already print. State comes
+                        // from the suitability code, so it cannot contradict the STATUS
+                        // cell; discipline and type come from the identifier's own
+                        // segments, so it cannot contradict DRG NO. either.
+                        string cdeRefValue;
+                        if (cdeFormat == "CONTAINER")
+                        {
+                            string state = StingTools.Core.Drawing.Iso19650Suitability
+                                .CdeStateFor(suitCode) ?? "WIP";
+                            var segs = cdeDocId.Trim().Split('-');
+                            // Project-Originator-Volume-Level-Type-Role-Number:
+                            // Type is index 4, Role index 5.
+                            string type = segs.Length > 4 ? segs[4] : null;
+                            string role = segs.Length > 5 ? segs[5] : null;
+                            var path = new List<string> { state };
+                            if (!string.IsNullOrWhiteSpace(role)) path.Add(role);
+                            if (!string.IsNullOrWhiteSpace(type)) path.Add(type);
+                            cdeRefValue = string.Join("/", path);
+                        }
+                        else
+                        {
+                            cdeRefValue = string.Join("-", refParts);
+                        }
+
+                        if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, ParamRegistry.TB_CDE_REF,
+                                cdeRefValue, false, out _))
+                        {
+                            cdeRefWritten++;
+                            paramsWrittenThisSheet++;
+                        }
+                    }
+
                     if (paramsWrittenThisSheet > 0)
                     {
                         ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_SYNC,
@@ -513,12 +980,128 @@ namespace StingTools.Docs
                 .Metric("Sheets skipped (locked)", lockedSkipped.ToString())
                 .Metric("Sheets skipped (no title block)", noTbSkipped.ToString())
                 .Metric("Parameter write failures", paramFails.ToString())
+                .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
+                .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
+                .Metric("CDE state derived from the suitability code", derived.ToString())
+                .Metric("CDE reference written", cdeRefWritten.ToString())
+                .Metric("Project-wide values mirrored onto sheets", orgMirrored.ToString())
+                .Metric("Per-sheet values replaced by the CSV", replaced.Count.ToString())
+                .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
                 .Metric("CSV path", csvPath ?? "<default>")
                 .AddSection("Updated Sheets")
                 .Text(updatedSheets.Count == 0 ? "(none)" : string.Join("\n", updatedSheets))
                 .AddSection("Skipped Sheets")
                 .Text(skippedSheets.Count == 0 ? "(none)" : string.Join("\n", skippedSheets))
+                // A sheet with two title blocks explains the whole "it says it wrote and
+                // the cell is blank" class of report, so it goes ABOVE the failures.
+                // A drawing set showing 200 on some sheets and 350 on others is a
+                // real inconsistency, and the only way anyone found it before was by
+                // flipping through the set. One value = fine; more than one = say so.
+                .AddSection("Per-Sheet Values Replaced By The CSV")
+                .Text(replaced.Count == 0
+                    ? "(none — nothing that differed from the CSV was overwritten)"
+                    : string.Join("\n", replaced.Take(25).Select(r => "  " + r))
+                      + (replaced.Count > 25 ? $"\n  … and {replaced.Count - 25} more" : "")
+                      + "\n\nThese sheets held a DIFFERENT value and now hold the CSV's. That is "
+                      + "what Populate is for when the CSV is the source of truth — but a name "
+                      + "typed onto one sheet on purpose is gone. Revit's Undo reverses the whole "
+                      + "run. To keep a per-sheet value, leave that parameter's CSV cell EMPTY: "
+                      + "Populate skips empty cells and will not touch the sheet.")
+                .AddSection("Project-Wide Values (PRJ_ORG_*)")
+                .Text((orgValues.Count == 0
+                        ? "NONE are set on Project Information, so nothing was copied."
+                        : "Copied from Project Information onto every sheet and title block:\n"
+                          + string.Join("\n", orgValues.Select(kv => $"    {kv.Key} = \"{kv.Value}\"")))
+                    + (orgUnset.Count == 0
+                        ? ""
+                        : "\n\nNot set, so not copied:\n"
+                          + string.Join("\n", orgUnset.Select(n => "    " + n)))
+                    + "\n\nThese are SET on Project Information and only there. The title-block "
+                    + "families carry their own copies as family parameters, and nothing used to "
+                    + "fill them — so a label bound to one printed blank whatever was typed into "
+                    + "Project Information, and the blank looked exactly like an unconfigured "
+                    + "project. They are copied here, never authored here: a CSV row for a "
+                    + "project-wide fact would be a second place to set it.")
+                .AddSection("CDE Reference")
+                .Text($"Format: {cdeFormat}   (PRJ_TB_CDE_REF_FORMAT_TXT in TITLE_BLOCK.csv)\n\n"
+                    + "  CONTAINER  SHARED/Z/DR   — where in the CDE the file sits. The default, "
+                    + "because it is the one fact the sheet does not already print.\n"
+                    + "  SUFFIX     S4-P01        — suitability and revision only.\n"
+                    + "  FULL       SAH-PLNS-ZZ-01-DR-Z-0002-S4-P01 — the whole published "
+                    + "filename, searchable in the CDE, and a near-repeat of the DRG NO. cell.\n\n"
+                    + $"Written on {cdeRefWritten} sheet(s). Bind the CDE REF label to "
+                    + "PRJ_TB_CDE_REF_TXT.\n\n"
+                    + (cdeRefNoRev.Count == 0
+                        ? ""
+                        : $"{cdeRefNoRev.Count} sheet(s) have NO revision, in either Revit's "
+                          + "revision schedule or PRJ_TB_REVISION_NR_TXT, so their reference ends "
+                          + "at the suitability code. Set PRJ_TB_REVISION_NR_TXT in TITLE_BLOCK.csv "
+                          + "(\"P01\") or assign a Revit revision:\n"
+                          + string.Join(", ", cdeRefNoRev.Take(20))
+                          + (cdeRefNoRev.Count > 20 ? $", \u2026 and {cdeRefNoRev.Count - 20} more" : "")
+                          + "\n\n")
+                    + (cdeRefNoId.Count == 0
+                        ? "Every sheet scanned carried an ISO 19650 identifier."
+                        : $"{cdeRefNoId.Count} sheet(s) carry NO ISO 19650 identifier, so nothing "
+                          + "was written for them — a reference missing its document id points at "
+                          + "no file at all. Run Tag Sheets on:\n"
+                          + string.Join(", ", cdeRefNoId.Take(20))
+                          + (cdeRefNoId.Count > 20 ? $", \u2026 and {cdeRefNoId.Count - 20} more" : ""))
+                    + "\n\nIf the cell still prints \"?\" after this, the family does not yet "
+                    + "have the parameter: load STING_TITLE_BLOCK_PARAMETERS.txt (Manage > Shared "
+                    + "Parameters), add PRJ_TB_CDE_REF_TXT to the title-block family as an "
+                    + "INSTANCE parameter, and point the label at it.")
+                .AddSection("LOD / LOIN Across This Set")
+                .Text(lodSeen.Count <= 1
+                    ? (lodSeen.Count == 0
+                        ? "(no sheets scanned)"
+                        : "All sheets show " + lodSeen.Keys.First() + ".")
+                    : "THESE SHEETS DISAGREE:\n"
+                      + string.Join("\n", lodSeen.OrderByDescending(kv => kv.Value.Count)
+                          .Select(kv => $"  {kv.Key,-10} {kv.Value.Count} sheet(s): "
+                                        + string.Join(", ", kv.Value.Take(8))
+                                        + (kv.Value.Count > 8 ? ", …" : "")))
+                      + "\n\nNothing wrote this field until now — it was in neither "
+                      + "TITLE_BLOCK.csv nor the list Populate iterates, so each sheet kept "
+                      + "whatever was typed into it or inherited from its family. Set "
+                      + "PRJ_DWG_LOIN_LOD_TXT per discipline in TITLE_BLOCK.csv (Edit CSV...) "
+                      + "and re-run Populate to make the set agree.")
+                .AddSection("Written By Another Command, Not Populate")
+                .Text(auditFields.Count == 0
+                    ? "(none)"
+                    : string.Join("\n", auditFields.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                        .Select(n => "  " + n + TitleBlockEngine.WhoWrites(n)))
+                      + "\n\nPopulate deliberately does not touch these -- they are audit "
+                      + "fields, and letting a CSV default overwrite them would erase a record "
+                      + "of what actually happened. If a title-block label is bound to one and "
+                      + "prints \"?\", it is waiting on that command, not on Populate.")
+                .AddSection("Suitability")
+                .Text(suitUnknown.Count == 0 && descMismatch.Count == 0
+                    ? "Every suitability code is an ISO 19650 code, and every description "
+                      + "matches it.\n\nSUITABILITY shows the code and its meaning; STATUS shows "
+                      + "the CDE container that code puts the drawing in (WIP / SHARED / "
+                      + "PUBLISHED). They are derived from one value, so they cannot disagree."
+                    : string.Join("\n", suitUnknown.Concat(descMismatch))
+                      + "\n\nAn unrecognised code leaves the CDE state alone rather than filing "
+                      + "the drawing somewhere plausible. A description that differs from the "
+                      + "standard's wording is KEPT — this only reports it.")
+                .AddSection("Sheets With More Than One Title Block")
+                .Text(multiTbSheets.Count == 0
+                    ? "(none — every sheet has exactly one)"
+                    : string.Join("\n", multiTbSheets)
+                      + "\n\nEvery command writes to whichever title block the collector yields"
+                      + "\nfirst, and that order is not guaranteed. A value written to one will"
+                      + "\nnot appear on a drawing that displays the other. Delete the spare and"
+                      + "\nre-run Populate.")
+                .AddSection("Parameters With No CSV Value (not a failure)")
+                .Text(noValue.Count == 0
+                    ? "(none — every title-block parameter had a value to write)"
+                    : string.Join("\n", noValue.OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                        .Select(n => "  " + n))
+                      + "\n\nThese were SKIPPED, not failed: TITLE_BLOCK.csv has no value for them"
+                      + "\nunder this sheet's discipline and no DefaultValue. Fill the cell in"
+                      + "\nTITLE_BLOCK.csv (Edit CSV...) if the sheet should show one.")
                 .AddSection("Parameter Write Failures")
                 .Text(failsByParam.Count == 0
                     ? "(none)"
@@ -532,13 +1115,6 @@ namespace StingTools.Docs
                 .Show();
 
             return Result.Succeeded;
-        }
-
-        private static int ParseYesNo(string v)
-        {
-            if (string.IsNullOrEmpty(v)) return 0;
-            string s = v.Trim().ToLowerInvariant();
-            return (s == "1" || s == "yes" || s == "true" || s == "y") ? 1 : 0;
         }
 
         internal static string ResolveCsvPath(Document doc, string name)
@@ -1147,8 +1723,12 @@ namespace StingTools.Docs
 
                     string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
                     string tot = total.ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
-                    if (ParameterHelpers.SetString(tb, "PRJ_SHEET_OF_TOTAL_TXT",
-                        $"{seq} / {tot}", overwrite: true))
+                    // Both homes — the label is bound to one of them and the API does
+                    // not say which. Writing only the title block is what made this
+                    // report "3 pagination cells written" onto a drawing showing "?".
+                    if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            counted[i], tb, "PRJ_SHEET_OF_TOTAL_TXT",
+                            $"{seq} / {tot}", isBool: false, out _))
                         paginationWritten++;
                 }
 
@@ -1256,20 +1836,28 @@ namespace StingTools.Docs
                     int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
                     if (locked != 0) continue;
 
-                    ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_TRANSMITTAL, txId, overwrite: true);
-                    ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_TRANSMITTAL_DATE, txDate, overwrite: true);
+                    // BOTH homes. Nearly every title-block parameter name exists twice
+                    // -- once on the sheet as a project parameter, once on the family --
+                    // and the label binds to one of them without saying which. Writing
+                    // only the title block is why CDE REF printed "?" on a sheet whose
+                    // title block held the value: Populate and Count Sheets were fixed
+                    // for this and the transmittal stamp was not.
+                    TitleBlockEngine.SetOnSheetAndTitleBlock(
+                        sheet, tb, ParamRegistry.TB_LAST_TRANSMITTAL, txId, false, out _);
+                    TitleBlockEngine.SetOnSheetAndTitleBlock(
+                        sheet, tb, ParamRegistry.TB_LAST_TRANSMITTAL_DATE, txDate, false, out _);
                     if (!string.IsNullOrEmpty(deliverableDataDrop))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_DATADROP,
-                            deliverableDataDrop, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_DATADROP, deliverableDataDrop, false, out _);
                     if (!string.IsNullOrEmpty(deliverableStatus))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_STATUS,
-                            deliverableStatus, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_STATUS, deliverableStatus, false, out _);
                     if (!string.IsNullOrEmpty(deliverableDue))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_DUE,
-                            deliverableDue, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_DUE, deliverableDue, false, out _);
                     if (!string.IsNullOrEmpty(deliverableCde))
-                        ParameterHelpers.SetString(tb, ParamRegistry.TB_DELIVERABLE_CDE,
-                            deliverableCde, overwrite: true);
+                        TitleBlockEngine.SetOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE, deliverableCde, false, out _);
 
                     StingLog.Info($"TB TxStamp: {sheet.SheetNumber} ← TX={txId} " +
                         $"(suit={suitability}, status={deliverableStatus}, cde={deliverableCde})");

@@ -36,6 +36,24 @@ for (const c of corpus.cases) {
         'unknown',
         `must be rejected, got type=${got.type} id=${got.id}`,
       );
+    } else if (c.expect.kind === 'document') {
+      assert.equal(got.type, 'document', 'must resolve to a document');
+      assert.equal(got.docId ?? null, c.expect.docId ?? null, 'docId');
+      assert.equal(got.projectCode ?? null, c.expect.projectCode ?? null, 'projectCode');
+      assert.equal(got.revision ?? null, c.expect.revision ?? null, 'revision');
+      assert.equal(got.tag ?? null, null, 'a document payload carries no tag');
+      assert.ok(got.id, 'id (the lookup key) must be set');
+
+      // Every fact, individually. The '-' placeholder for an absent interior
+      // field must read back as undefined, never as the literal dash — a UI
+      // would otherwise print "-" where it should print nothing at all.
+      const f = c.expect.facts ?? {};
+      for (const key of [
+        'suitability', 'cdeState', 'issueDate', 'zone', 'sheetOfTotal',
+        'lod', 'paperSize', 'scale', 'initials', 'signature', 'revision',
+      ]) {
+        assert.equal((got.facts ?? {})[key] ?? null, f[key] ?? null, `facts.${key}`);
+      }
     } else if (c.expect.kind === 'sheet') {
       assert.equal(got.type, 'sheet', 'must resolve to a sheet');
       assert.equal(got.sheetNumber ?? null, c.expect.sheetNumber ?? null, 'sheetNumber');

@@ -777,21 +777,46 @@ namespace StingTools.Tags
                 return Result.Succeeded;
             }
 
-            var confirm = new TaskDialog("STING — Tag Sheets");
-            confirm.MainInstruction = $"Tag {sheetCount} sheets with ISO 19650 document codes?";
-            confirm.MainContent =
-                "This will scan viewport contents on each sheet to derive:\n\n" +
-                "• SHT_DISC — Discipline (majority vote from elements)\n" +
-                "• SHT_FORM — Document form (DR/SH/M3/LG)\n" +
-                "• SHT_LEVEL — Level code (from viewport views)\n" +
-                "• SHT_ORIGINATOR — From Project Information\n" +
-                "• SHT_REV — Current project revision\n" +
-                "• SHT_TAG_1 — Assembled ISO 19650 document code\n" +
-                "• SHT_TAG_7 — Rich narrative description\n\n" +
-                "Existing sheet token values will be overwritten.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel)
+            // The old dialog said "Existing sheet token values will be overwritten."
+            // They were not: SHT_DISC, SHT_FORM and SHT_LEVEL are written with
+            // SetIfEmpty so a correction somebody typed survives a re-run. So a sheet
+            // carrying discipline COORD from an earlier run kept COORD for ever, the
+            // identifier kept role Z, and the dialog had told the operator the
+            // opposite would happen. Re-running it -- the obvious remedy -- confirmed
+            // the wrong belief by changing nothing.
+            //
+            // Both behaviours are legitimate, so it is now a choice rather than a
+            // claim, and each option says what it actually does.
+            var confirm = new TaskDialog("STING — Tag Sheets")
+            {
+                MainInstruction = $"Tag {sheetCount} sheets with ISO 19650 document codes?",
+                MainContent =
+                    "Derived from the sheet's number, its title and its viewports:\n\n" +
+                    "• SHT_DISC — discipline\n" +
+                    "• SHT_FORM — document form (DR / SH / M3 / LG)\n" +
+                    "• SHT_LEVEL — level code\n" +
+                    "• SHT_ORIGINATOR, SHT_REV — from Project Information\n" +
+                    "• SHT_TAG_1 — the assembled ISO 19650 identifier, always rewritten\n" +
+                    "• the seven PRJ_SHEET_* segments — split from that identifier\n\n" +
+                    "The identifier and its segments are rewritten either way. The "
+                    + "question is what to do with the three tokens it is built FROM.",
+                AllowCancellation = true,
+            };
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                "Fill gaps only",
+                "Keeps SHT_DISC, SHT_FORM and SHT_LEVEL wherever they already hold a "
+                + "value. Choose this when someone has corrected a sheet by hand.");
+            confirm.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                "Re-derive everything",
+                "Overwrites those three from what the sheet says now. Choose this after "
+                + "renaming or renumbering sheets outside STING — a sheet renumbered to "
+                + "A-001 while still holding discipline COORD keeps printing role Z until "
+                + "this runs.");
+
+            TaskDialogResult choice = confirm.Show();
+            if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
                 return Result.Cancelled;
+            bool reDerive = choice == TaskDialogResult.CommandLink2;
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -799,6 +824,12 @@ namespace StingTools.Tags
             using (Transaction tx = new Transaction(doc, "STING Tag Sheets"))
             {
                 tx.Start();
+
+                // The level map is cached for the length of a run so a 300-sheet
+                // project does not re-collect every Level 300 times. Drop it first,
+                // or a run started after somebody added or moved a level would
+                // number the whole set off a stale stack.
+                NativeParamMapper.SheetTagger.InvalidateLevelMap();
 
                 // Map native sheet params first
                 NativeParamMapper.MapSheets(doc);
@@ -829,7 +860,8 @@ namespace StingTools.Tags
 
                         pDlg.Increment($"Tagging sheet {sheet.SheetNumber}...");
 
-                        int written = NativeParamMapper.SheetTagger.TagSheet(doc, sheet, originator, projectCode, rev);
+                        int written = NativeParamMapper.SheetTagger.TagSheet(
+                            doc, sheet, originator, projectCode, rev, reDerive);
                         tokensWritten += written;
                         sheetsProcessed++;
                     }

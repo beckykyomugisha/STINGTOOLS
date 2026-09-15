@@ -1651,7 +1651,45 @@ namespace StingTools.UI
                 ("Transmittal",    "Transmittal"),
                 ("Swap Title Block","SwapTitleBlock"),
                 ("Set Variant",    "TitleBlockSetVariant"),
+                ("Auto-Number Sheets", "Sheet_AutoNumber"),
+                ("Reorder Sheets…", "Sheet_Reorder"),
+                ("Disciplines…", "Sheet_DisciplinesReload"),
+                ("Sheet No ← ISO", "Sheet_NumberFromIso"),
+                ("Tidy Sheet Nos", "Sheet_NumberTidy"),
+                ("Restore Sheet Nos", "Sheet_NumberRestore"),
             }));
+
+            // ── QR on the sheet ──
+            //
+            // These live here, not on the BIM tab, because where the code lands is a
+            // title-block decision: the cell comes from the family's TB_QR_ANCHOR, and
+            // falls back to a sheet corner only when the family does not declare one.
+            stack.Children.Add(SectionCardRich("QR code (title-block slot → sheet)",
+                "Stamp a scannable https://app.planscape.build link onto sheets. The cell is read " +
+                "from the title-block family's TB_QR_ANCHOR; 'Set QR Cell' writes that by picking " +
+                "two corners. Stamping twice replaces rather than stacks.",
+                new (string,string,string)[]
+                {
+                    ("Set QR Cell",  "Sheet_SetQRAnchor",
+                        "Pick two corners on the active sheet to define the QR cell, and write it to the " +
+                        "title-block family's TB_QR_ANCHOR so every sheet on that family inherits it. " +
+                        "Refuses a cell under 12 mm — smaller than that will not scan reliably."),
+                    ("Stamp QR",     "Sheet_StampQR",
+                        "Place the QR on the active sheet. Encodes the sheet deep link " +
+                        "(https://app.planscape.build/s/{project}/{sheet}). Re-running replaces the existing " +
+                        "code rather than stacking a second one on top."),
+                    ("Stamp QR — all sheets", "Sheet_StampQRAll",
+                        "Same, across every sheet in the project, in one transaction group."),
+                    ("Inspect QR",   "Sheet_InspectQR",
+                        "Read-only: report which sheets carry a QR, where the cell came from (family slot, " +
+                        "corner fallback, or last resort) and what payload each one encodes. Writes nothing."),
+                    ("Clear QR",     "Sheet_ClearQR",
+                        "Remove STING-placed QR images from the active sheet. Matches on the " +
+                        "'STING QR - ' image-name prefix, so hand-placed images are never touched."),
+                    ("QR Label Sheet", "QR_LabelSheet",
+                        "Different output: a printable grid of element QR labels (one per tagged element) " +
+                        "on its own sheet, for sticking onto plant. Not a title-block stamp."),
+                }));
 
             // ── Revision tools that stamp the title block ──
             stack.Children.Add(SectionCard("Revision (writes to PRJ_TB_REVISION_*)", new (string,string)[]
@@ -1669,12 +1707,36 @@ namespace StingTools.UI
             }));
 
             // ── Repair / first-aid ──
-            stack.Children.Add(SectionCard("Repair & first-aid", new (string,string)[]
-            {
-                ("Reset Position",   "TitleBlockReset"),
-                ("Rescue",           "TitleBlockRescue"),
-                ("Transmittal Gate", "TransmittalGateCheck"),
-            }));
+            stack.Children.Add(SectionCardRich("Repair & first-aid",
+                "A locked title block (PRJ_TB_LOCK_BOOL) is skipped by QR stamping, parameter " +
+                "fill, revision sync, heal, pagination and swap — each reporting \"left untouched\". " +
+                "These two are how you see and clear that.",
+                new (string,string,string)[]
+                {
+                    ("Fields?",          "TitleBlock_InspectFields",
+                        "Read-only: every title-block field on the ACTIVE sheet — what it holds, whether " +
+                        "it lives on the instance or the type, and whether the family's parameter is the " +
+                        "same shared parameter STING writes. Answers \"Populate said it wrote and the cell " +
+                        "is still blank\": either no label draws it, or the family has a same-named " +
+                        "parameter with a different GUID."),
+                    ("Push Fields",      "TitleBlock_PushFields",
+                        "Copy title-block values from the ACTIVE sheet to other sheets. DRAWN BY and " +
+                        "CHECKED BY are INSTANCE parameters, so editing them in Properties changes one " +
+                        "sheet and nothing else — that is Revit working correctly, not a bug. Tick the " +
+                        "fields, see how many sheets each would change, confirm, then one Undo reverses " +
+                        "the lot. Use this when a sheet is the source of truth; use TITLE_BLOCK.csv + " +
+                        "Populate when the CSV is."),
+                    ("Locked?",          "TitleBlock_InspectLock",
+                        "Read-only: which sheets carry PRJ_TB_LOCK_BOOL, and whether the flag sits on the " +
+                        "title-block instance or on its TYPE. A type-held lock came from the family itself, " +
+                        "so every sheet placed from it arrives locked. Writes nothing."),
+                    ("Unlock TBs",       "TitleBlock_Unlock",
+                        "Clear PRJ_TB_LOCK_BOOL — this sheet, or every locked sheet. Names what it will " +
+                        "change first, because a lock is sometimes a deliberate freeze on an issued drawing."),
+                    ("Reset Position",   "TitleBlockReset",   null),
+                    ("Rescue",           "TitleBlockRescue",  null),
+                    ("Transmittal Gate", "TransmittalGateCheck", null),
+                }));
 
             // ── Built catalogue (file map + nested-family pointers) ──
             stack.Children.Add(InfoCard(

@@ -217,6 +217,91 @@
       "expect": {
         "ok": false
       }
+    },
+    {
+      "name": "document link, full issue record incl. revision (the 31mm form)",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001/S4/PUB/20260914/-/25.100/350/A1/1.100/DRW.CHK.APR/-/P02",
+      "expect": {
+        "ok": true,
+        "kind": "document",
+        "projectCode": "PROJECTN",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
+        "revision": "P02",
+        "tag": null,
+        "uniqueId": null,
+        "facts": {
+          "suitability": "S4",
+          "cdeState": "PUB",
+          "issueDate": "20260914",
+          "zone": null,
+          "sheetOfTotal": "25.100",
+          "lod": "350",
+          "paperSize": "A1",
+          "scale": "1.100",
+          "initials": "DRW.CHK.APR",
+          "signature": null,
+          "revision": "P02"
+        }
+      }
+    },
+    {
+      "name": "document link, identifier only (a small cell shed every fact)",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001",
+      "expect": {
+        "ok": true,
+        "kind": "document",
+        "projectCode": "PROJECTN",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
+        "revision": null,
+        "tag": null,
+        "uniqueId": null,
+        "facts": {
+          "suitability": null,
+          "cdeState": null,
+          "issueDate": null,
+          "zone": null,
+          "sheetOfTotal": null,
+          "lod": null,
+          "paperSize": null,
+          "scale": null,
+          "initials": null,
+          "signature": null,
+          "revision": null
+        }
+      }
+    },
+    {
+      "name": "document link, suitability only (the 24mm degradation)",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/PROJECTN-PLNS-ZZ-02-DR-A-0001/S4",
+      "expect": {
+        "ok": true,
+        "kind": "document",
+        "projectCode": "PROJECTN",
+        "docId": "PROJECTN-PLNS-ZZ-02-DR-A-0001",
+        "revision": null,
+        "tag": null,
+        "uniqueId": null,
+        "facts": {
+          "suitability": "S4",
+          "cdeState": null,
+          "issueDate": null,
+          "zone": null,
+          "sheetOfTotal": null,
+          "lod": null,
+          "paperSize": null,
+          "scale": null,
+          "initials": null,
+          "signature": null,
+          "revision": null
+        }
+      }
+    },
+    {
+      "name": "document link with no identifier resolves to nothing",
+      "raw": "HTTPS://APP.PLANSCAPE.BUILD/D/",
+      "expect": {
+        "ok": false
+      }
     }
   ]
 }

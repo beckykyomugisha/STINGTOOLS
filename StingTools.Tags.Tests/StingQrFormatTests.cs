@@ -74,6 +74,30 @@ namespace StingTools.Tags.Tests
             Assert.Equal(raw.Trim(), got.Raw);
             Assert.Equal((string)expect["projectCode"], got.ProjectCode);
 
+            if ((string)expect["kind"] == "document")
+            {
+                Assert.Equal(StingQrKind.Document, got.Kind);
+                Assert.Equal((string)expect["docId"], got.DocId);
+                Assert.Equal((string)expect["revision"], got.Revision);
+                // A document payload must not masquerade as an element either.
+                Assert.Null(got.Tag);
+
+                var f = expect["facts"];
+                Assert.NotNull(got.Facts);
+                Assert.Equal((string)f["suitability"],  got.Facts.Suitability);
+                Assert.Equal((string)f["cdeState"],     got.Facts.CdeState);
+                Assert.Equal((string)f["issueDate"],    got.Facts.IssueDate);
+                Assert.Equal((string)f["zone"],         got.Facts.Zone);
+                Assert.Equal((string)f["sheetOfTotal"], got.Facts.SheetOfTotal);
+                Assert.Equal((string)f["lod"],          got.Facts.Lod);
+                Assert.Equal((string)f["paperSize"],    got.Facts.PaperSize);
+                Assert.Equal((string)f["scale"],        got.Facts.Scale);
+                Assert.Equal((string)f["initials"],     got.Facts.Initials);
+                Assert.Equal((string)f["signature"],    got.Facts.Signature);
+                Assert.Equal((string)f["revision"],     got.Facts.Revision);
+                return;
+            }
+
             if ((string)expect["kind"] == "sheet")
             {
                 Assert.Equal(StingQrKind.Sheet, got.Kind);

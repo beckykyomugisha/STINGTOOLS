@@ -50,6 +50,45 @@ else
     echo "  WARNING: No data files found to copy."
 fi
 
+# ── Copy title-block seed families ────────────────────────────────
+# TitleBlockFactory looks for a seed at
+#   <root>/Families/TitleBlocks/_seeds/<spec.Id>.rfa
+# probing the open project's directory first, then the ADDIN DIRECTORY —
+# which is this deploy dir. Nothing copied them here, so the "shipped
+# beside the addin" half of that contract never existed: a seed could
+# only ever be found via a project-local copy.
+#
+# That matters because Revit 2025 removed FamilyItemFactory.NewLabel, so a
+# family built without a seed has no labels and every value cell on the
+# produced sheet prints BLANK. The factory logs one warning and reports a
+# successful build, which is exactly the failure this codebase specialises
+# in — it looks like it worked until someone reads the paper.
+echo "  Copying title-block seeds..."
+SEED_SRC="$SCRIPT_DIR/Families/TitleBlocks/_seeds"
+SEED_DST="$DEPLOY_DIR/Families/TitleBlocks/_seeds"
+if [ -d "$SEED_SRC" ]; then
+    mkdir -p "$SEED_DST"
+    # *.rfa only — the README beside them is documentation, not content — and
+    # NOT Revit's own <name>.0001.rfa backups, which it leaves on every save in
+    # the Family Editor. They match no spec id so the factory would ignore them,
+    # but shipping them is ~1 MB of noise each and would make the seed count
+    # below overstate how many families are really seeded.
+    seeds_copied=0
+    for seed in "$SEED_SRC"/*.rfa; do
+        [ -e "$seed" ] || continue
+        case "$(basename "$seed")" in
+            *.[0-9][0-9][0-9][0-9].rfa) continue ;;
+        esac
+        cp -f "$seed" "$SEED_DST/"
+        seeds_copied=$((seeds_copied + 1))
+    done
+    if [ "$seeds_copied" = "0" ]; then
+        echo "  NOTE: no seed .rfa present — title blocks will build without labels."
+    fi
+else
+    echo "  NOTE: no _seeds directory — title blocks will build without labels."
+fi
+
 # ── Write addin manifest with the ACTUAL deploy path ─────────────
 # The checked-in StingTools.addin has a placeholder path
 # (C:\Dev\STINGTOOLS\...). We generate a stamped copy at deploy
@@ -147,6 +186,7 @@ fi
 # ── Report ────────────────────────────────────────────────────────
 DLL_COUNT=$(find "$DEPLOY_DIR" -maxdepth 1 -name "*.dll" | wc -l)
 DATA_COUNT=$(find "$DEPLOY_DIR/data" -type f 2>/dev/null | wc -l)
+SEED_COUNT=$(find "$DEPLOY_DIR/Families/TitleBlocks/_seeds" -name "*.rfa" 2>/dev/null | wc -l)
 
 echo ""
 echo "═══════════════════════════════════════════════════"
@@ -156,6 +196,7 @@ echo ""
 echo "  CompiledPlugin: $DEPLOY_DIR"
 echo "  DLLs:           $DLL_COUNT"
 echo "  Data files:     $DATA_COUNT"
+echo "  TB seeds:       $SEED_COUNT"
 echo ""
 echo "  Manual deploy (if auto-install was skipped):"
 echo "    1. Create folder: %AppData%\\Autodesk\\Revit\\Addins\\STING\\"

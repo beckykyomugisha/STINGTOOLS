@@ -245,7 +245,8 @@ namespace StingTools.Core.Drawing
                 {
                     result.SheetsSkipped++;
                     result.Warnings.Add(
-                        $"Sheet '{sheet.SheetNumber}' title block is locked ({ParamRegistry.TB_LOCK}); " +
+                        $"Sheet '{sheet.SheetNumber}' title block is locked ({ParamRegistry.TB_LOCK}); "
+                        + Commands.Drawing.TitleBlockLock.HowToClear + " " +
                         "revision box left untouched (sheet-level revision stamps still updated).");
                     continue;
                 }

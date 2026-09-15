@@ -171,7 +171,8 @@ namespace StingTools.Core.Drawing
                     if (TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
                     {
                         r.LockedSkipped++;
-                        r.Warnings.Add($"Sheet '{sheet.SheetNumber}': title block locked ({ParamRegistry.TB_LOCK}); left untouched.");
+                        r.Warnings.Add($"Sheet '{sheet.SheetNumber}': title block locked ({ParamRegistry.TB_LOCK}); "
+                            + "left untouched. " + Commands.Drawing.TitleBlockLock.HowToClear);
                         continue;
                     }
 
@@ -417,22 +418,30 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Find the QR cell, most specific source first.
         ///
-        /// 1. <c>TB_QR_ANCHOR_JSON_TXT</c> on the title-block INSTANCE — works for any
-        ///    family, needs no spec entry, and is what a project uses for its own
-        ///    hand-authored title blocks.
-        /// 2. A <c>qr-code</c> entry in the family's own <c>TB_VIEWPORT_SLOTS_JSON_TXT</c>
+        /// 1. <c>TB_QR_ANCHOR_JSON_TXT</c> on the title-block INSTANCE — only ever
+        ///    present when a family carries it as a FAMILY parameter authored into the
+        ///    .rfa. It is first because it is the only form of this value that travels
+        ///    with the family into another project, so a project that has gone to that
+        ///    trouble keeps its answer. It can NOT be supplied by a project parameter:
+        ///    OST_TitleBlocks answers false to Category.AllowsBoundParameters, so
+        ///    LoadSharedParams can never bind it (see StingQrAnchorSchema's header).
+        /// 2. Extensible Storage on this title-block INSTANCE — a per-sheet nudge.
+        /// 3. Extensible Storage on the title-block TYPE — what Sheet_SetQRAnchor
+        ///    writes. Works on ANY family, STING-authored or not, with no shared
+        ///    parameter and no Load Params step.
+        /// 4. A <c>qr-code</c> entry in the family's own <c>TB_VIEWPORT_SLOTS_JSON_TXT</c>
         ///    slot map, which a STING-authored title block already carries.
-        /// 3. A <c>qr-code</c> slot in <c>STING_TITLE_BLOCKS.json</c>, matched by family id.
-        /// 4. Nothing — the caller falls back to a corner and says so loudly.
+        /// 5. A <c>qr-code</c> slot in <c>STING_TITLE_BLOCKS.json</c>, matched by family id.
+        /// 6. Nothing — the caller falls back to a corner and says so loudly.
         ///
-        /// The order is "what this specific family says" before "what the catalogue
-        /// says about families like it". A project that has moved its QR cell must not
-        /// be overruled by a spec entry it never edited.</summary>
+        /// The order is "what this specific sheet says" before "what this family says"
+        /// before "what the catalogue says about families like it". A project that has
+        /// moved its QR cell must not be overruled by a spec entry it never edited.</summary>
         internal static QrAnchor ResolveAnchor(Document doc, ViewSheet sheet, Element tb)
         {
             double defaultSize = ResolveSizeMm(tb);
 
-            // 1 — the instance parameter.
+            // 1 — a real family parameter in the .rfa, if this family has one.
             try
             {
                 var raw = tb.LookupParameter(ParamRegistry.TB_QR_ANCHOR)?.AsString();
@@ -444,7 +453,28 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"SheetQrStamper: reading {ParamRegistry.TB_QR_ANCHOR}: {ex.Message}");
             }
 
-            // 2 — the family's own slot map.
+            // 2/3 — stored state: this sheet first, then the title block it sits on.
+            foreach (var (el, src) in new[]
+                     {
+                         (tb, QrAnchorSource.StoredOnInstance),
+                         (doc?.GetElement(tb.GetTypeId()), QrAnchorSource.StoredOnType),
+                     })
+            {
+                if (el == null) continue;
+                var stored = Storage.StingQrAnchorSchema.Read(el);
+                if (stored == null) continue;
+                return new QrAnchor
+                {
+                    XMm = stored.XMm,
+                    YMm = stored.YMm,
+                    // A stored anchor carries its own size; TB_QR_SIZE_MM_TXT only
+                    // supplies one when the store does not.
+                    SizeMm = stored.SizeMm > 0 ? stored.SizeMm : defaultSize,
+                    Source = src,
+                };
+            }
+
+            // 4 — the family's own slot map.
             try
             {
                 var raw = tb.LookupParameter("TB_VIEWPORT_SLOTS_JSON_TXT")?.AsString();
@@ -456,7 +486,7 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"SheetQrStamper: reading the family slot map: {ex.Message}");
             }
 
-            // 3 — the corporate catalogue, by family id.
+            // 5 — the corporate catalogue, by family id.
             try
             {
                 var slots = Commands.Drawing.TitleBlockSlotUtils.ReadSlotBoundsFromTitleBlock(doc, tb);
@@ -536,7 +566,36 @@ namespace StingTools.Core.Drawing
                                            string projectCode, SheetQrResult r)
         {
             string rev = ReadRevision(sheet);
-            string standard = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, rev);
+
+            // The DOCUMENT link is preferred when the sheet carries its assembled
+            // ISO 19650 identifier (SHT_TAG_1_TXT, written by TagSheet). It is keyed
+            // by that identifier rather than the bare sheet number, and carries the
+            // issue facts IN the code so a scan reads them with no network -- which is
+            // the state a site operative is usually in.
+            //
+            // Falls back to the sheet link when the identifier is absent, because a
+            // document link with no document id identifies nothing. TagSheet has not
+            // necessarily been run, and a QR is not the place to find that out.
+            // The payload is chosen against the PRINTED CELL, not in the abstract.
+            // A richer code that does not scan is worse than a plain one that does,
+            // and the difference is invisible until someone is holding the paper.
+            double cellMm = ResolveAnchor(doc, sheet, tb)?.SizeMm ?? SheetQrPlacement.DefaultSizeMm;
+
+            string docId = SafeParam(sheet, ParamRegistry.SHT_TAG_1);
+            string standard = null;
+            if (!string.IsNullOrWhiteSpace(docId))
+            {
+                standard = StingQrFormat.BuildDocUrlWithin(docId, ReadDocFacts(sheet, tb), cellMm);
+                if (standard == null)
+                {
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}': the {cellMm:F0} mm QR cell is too small for the " +
+                        "ISO 19650 document link, so the short sheet link was encoded instead. " +
+                        "Widen the cell (Set QR Cell) to about 31 mm to carry the full issue record.");
+                }
+            }
+            if (standard == null)
+                standard = StingQrFormat.BuildSheetUrl(projectCode, sheet.SheetNumber, rev);
 
             string template = null;
             try { template = tb.LookupParameter(ParamRegistry.TB_QR_PAYLOAD_TEMPLATE)?.AsString(); }
@@ -553,6 +612,23 @@ namespace StingTools.Core.Drawing
                 ["suitability"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_STATUS),
                 ["date"] = DateTime.UtcNow.ToString("yyyy-MM-dd"),
                 ["url"] = standard,
+
+                // Everything the title block itself carries, so a project can compose
+                // any payload it wants without a code change.
+                ["docid"] = docId,
+                ["originator"] = SafeParam(sheet, ParamRegistry.SHT_ORIGINATOR),
+                ["level"] = SafeParam(sheet, ParamRegistry.SHT_LEVEL),
+                ["form"] = SafeParam(sheet, ParamRegistry.SHT_FORM),
+                ["disc"] = SafeParam(sheet, ParamRegistry.SHT_DISC),
+                ["cde"] = SafeParam(tb, ParamRegistry.TB_DELIVERABLE_CDE),
+                ["lod"] = SafeParam(tb, PLod),
+                ["suitability_code"] = SafeParam(tb, PSuitability),
+                ["paper"] = SafeParam(tb, PPaperSize),
+                ["scale"] = SafeParam(tb, ParamRegistry.TB_SCALE_OVERRIDE),
+                ["sheetoftotal"] = SafeParam(tb, PSheetOfTotal),
+                ["drawn"] = SafeParam(tb, PDrawnBy),
+                ["checked"] = SafeParam(tb, PCheckedBy),
+                ["approved"] = SafeParam(tb, PApprovedBy),
             };
 
             var rendered = SheetQrConfig.RenderTemplate(template, tokens);
@@ -569,6 +645,101 @@ namespace StingTools.Core.Drawing
             StingLog.Info($"SheetQrStamper: '{sheet.SheetNumber}' using a custom payload template.");
             return rendered;
         }
+
+        // These five are declared in MR_PARAMETERS.txt but have no ParamRegistry
+        // constant. Named here rather than inline so the read path has one spelling,
+        // and so a rename shows up as one edit instead of four scattered literals.
+        // Same precedent as TB_VIEWPORT_SLOTS_JSON_TXT in ResolveAnchor.
+        private const string PDrawnBy      = "PRJ_TB_DRAWN_BY_TXT";
+        private const string PCheckedBy    = "PRJ_TB_CHECKED_BY_TXT";
+        private const string PApprovedBy   = "PRJ_TB_APVD_BY_TXT";
+        private const string PPaperSize    = "PRJ_TB_PAPER_SZ_TXT";
+        private const string PSheetOfTotal = "PRJ_SHEET_OF_TOTAL_TXT";
+        private const string PLod          = "PRJ_DWG_LOIN_LOD_TXT";
+        // The ISO 19650 SUITABILITY CODE (S0..S7 / A1..A5) -- the "S4" cell on the
+        // sheet. NOT PRJ_TB_DELIVERABLE_STATUS_TXT, which is a separate
+        // deliverable-tracking field and was what the first cut read: the payload
+        // carried an empty suitability while "S4 FOR CONSTRUCTION" was printed two
+        // inches away. Suitability is the single most useful fact to carry, because
+        // it is what lets an offline scan say the print is superseded.
+        private const string PSuitability  = "PRJ_DWG_SUITABILITY_COD_TXT";
+
+        /// <summary>Gather the issue facts the rich document link carries.
+        ///
+        /// Every one is READ, never derived: a QR that states a fact the drawing does
+        /// not is worse than one that omits it, because the reader cannot tell which
+        /// happened. An absent parameter yields null and the field is not carried.</summary>
+        private static StingQrFormat.DocFacts ReadDocFacts(ViewSheet sheet, Element tb)
+        {
+            return new StingQrFormat.DocFacts
+            {
+                // Suitability code first; the deliverable-status field is a distant
+                // fallback so a project that only fills that one still carries something.
+                Suitability  = Printed(sheet, tb, PSuitability)
+                               ?? Printed(sheet, tb, ParamRegistry.TB_DELIVERABLE_STATUS),
+                CdeState     = Printed(sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE),
+                // The date the code was STAMPED -- an honest fact about this print,
+                // which is what a scanner needs in order to judge whether it is holding
+                // a current sheet, unlike a "status" that goes stale on the paper.
+                //
+                // LOCAL date, not UTC. The first cut used UtcNow and stamped 20260914
+                // onto a sheet plotted at 01:30 on the 15th in Kampala (UTC+3): a
+                // drawing dated the day before it was issued. Nobody reading the paper
+                // can tell that came from a timezone rather than a backdated issue.
+                IssueDate    = DateTime.Now.ToString("yyyyMMdd"),
+                Zone         = null,   // no sheet-level zone parameter exists yet
+                SheetOfTotal = SheetQrConfig.NormaliseSheetOfTotal(Printed(sheet, tb, PSheetOfTotal)),
+                Lod          = SheetQrConfig.NormaliseLod(Printed(sheet, tb, PLod)),
+                PaperSize    = Printed(sheet, tb, PPaperSize),
+                Scale        = Printed(sheet, tb, ParamRegistry.TB_SCALE_OVERRIDE),
+                Initials     = ReadInitials(sheet, tb),
+                // Signature stays null until a signing key exists. A field that LOOKS
+                // like a signature but is not one is worse than no field at all.
+                Signature    = null,
+                // Carried, because "is the print in my hand superseded?" is the one
+                // question worth answering with no network, and the identifier no
+                // longer holds the revision.
+                Revision     = NullIfBlank(ReadRevision(sheet)),
+            };
+        }
+
+        /// <summary>The value the DRAWING ACTUALLY PRINTS, which is the only one the
+        /// QR is allowed to assert.
+        ///
+        /// Nearly every title-block parameter name exists TWICE: once on the sheet (a
+        /// project parameter) and once on the title-block family. Measured on a live
+        /// model, 29 of 29 names existed in both places -- and the labels bind to the
+        /// SHEET's copy. The two disagreed:
+        ///
+        ///     sheet   S4 / FOR APROVAL / LOD 350 / A1 / AS SHOWN   <- what is printed
+        ///     block   (empty) / Shared, Non-contractual / LOD 300 / (empty) / (empty)
+        ///
+        /// Reading the title block first therefore encoded LOD 300 into a code printed
+        /// on a sheet that says LOD 350. A QR that contradicts the drawing it is
+        /// printed on is worse than no QR: the paper and the scan are both evidence,
+        /// and they cannot both be right.
+        ///
+        /// So: the sheet wins. The title block is the fallback, for the parameters a
+        /// project has only bound there.</summary>
+        private static string Printed(ViewSheet sheet, Element tb, string name)
+            => NullIfBlank(SafeParam(sheet, name)) ?? NullIfBlank(SafeParam(tb, name));
+
+        /// <summary>DRW.CHK.APR -- who signed it off, as initials. Omitted entirely
+        /// unless at least one is present, and a missing one holds its place so the
+        /// three never shift and read as each other.</summary>
+        private static string ReadInitials(ViewSheet sheet, Element tb)
+        {
+            string d = Printed(sheet, tb, PDrawnBy);
+            string c = Printed(sheet, tb, PCheckedBy);
+            string a = Printed(sheet, tb, PApprovedBy);
+            if (string.IsNullOrWhiteSpace(d) && string.IsNullOrWhiteSpace(c) && string.IsNullOrWhiteSpace(a))
+                return null;
+            return Dash(d) + "." + Dash(c) + "." + Dash(a);
+        }
+
+        private static string Dash(string s) => string.IsNullOrWhiteSpace(s) ? "-" : s.Trim();
+
+        private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         private static string SafeParam(Element el, string name)
         {

@@ -101,7 +101,29 @@ export default function ScannerScreen() {
       return;
     }
 
-    // Treat element/issue/document QR payloads as element tag lookup
+    // A DOCUMENT code (/d/) names a drawing too, and carries its issue record.
+    // It must NOT fall through to the element search below: that would look up
+    // the ISO 19650 identifier as an element tag, find nothing, and report "no
+    // element in this project" — a wrong answer rather than an empty one.
+    //
+    // `docId` distinguishes it from the older planscape://document/{id} form,
+    // which carries an id and no facts and has no sheet number to resolve.
+    if (parsed.type === 'document' && parsed.docId) {
+      showCarriedFacts(parsed);
+      if (parsed.sheetNumber) {
+        await resolveScannedSheet(parsed);
+      } else {
+        Alert.alert(
+          parsed.docId,
+          'This code carries a document identifier that does not split into a sheet ' +
+            'number, so the register was not searched. The issue record above came ' +
+            'out of the code itself.',
+        );
+      }
+      return;
+    }
+
+    // Treat element/issue QR payloads as element tag lookup
     setQuery(parsed.id);
     if (activeProject) {
       setSearching(true);
@@ -129,6 +151,44 @@ export default function ScannerScreen() {
         setSearching(false);
       }
     }
+  }
+
+  /**
+   * Show what the code itself says, before any lookup.
+   *
+   * This is the reason the facts are IN the payload: a site operative is usually
+   * somewhere with no signal, holding a print they need to trust. Suitability,
+   * CDE state and issue date answer "is this sheet still current?" without the
+   * network, and the register lookup that follows is enrichment, not the point.
+   */
+  function showCarriedFacts(parsed: ReturnType<typeof parseQr>) {
+    const f = parsed.facts;
+    if (!f) return;
+
+    const lines = [
+      f.suitability ? `Suitability: ${f.suitability}` : null,
+      f.cdeState ? `CDE state: ${f.cdeState}` : null,
+      f.issueDate ? `Issued: ${formatStampDate(f.issueDate)}` : null,
+      f.sheetOfTotal ? `Sheet: ${f.sheetOfTotal.replace('.', ' of ')}` : null,
+      f.lod ? `LOD: ${f.lod}` : null,
+      f.paperSize ? `Paper: ${f.paperSize}` : null,
+      f.scale ? `Scale: ${f.scale.replace('.', ':')}` : null,
+      f.initials ? `Drawn/checked/approved: ${f.initials.replace(/\./g, ' / ')}` : null,
+    ].filter(Boolean);
+
+    // Nothing carried is not an error — a small printed cell sheds facts by
+    // design. Say that, rather than showing an empty box.
+    if (lines.length === 0) return;
+
+    Alert.alert(
+      parsed.sheetNumber ? `Sheet ${parsed.sheetNumber}` : parsed.docId ?? 'Drawing',
+      ['Printed on this drawing (read from the code, no network):', '', ...lines].join('\n'),
+    );
+  }
+
+  /** yyyyMMdd -> yyyy-MM-dd. Anything else is shown as-is, never guessed at. */
+  function formatStampDate(v: string): string {
+    return /^\d{8}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : v;
   }
 
   /**

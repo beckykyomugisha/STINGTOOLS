@@ -14,14 +14,7 @@
     "  unresolved- nobody has decided yet. Allowed in the baseline, never for a",
     "              parameter added after this gate landed.",
     "",
-    "Adding a parameter to this file is not a fix. It is a decision, recorded.",
-    "",
-    "ROLE PROVENANCE. 59 of these entries name a consumer found in data — 58 in",
-    "MR_SCHEDULES.csv Fields, 1 in the IFC pset map. The other 194 are REASONED",
-    "DEFAULTS, not discovered consumers: read-with-no-writer was called `input` on the",
-    "grounds that a person fills it, and written-with-no-reader was called `reference`.",
-    "Each of those reasons says so. A `reference` entry is data produced for nobody —",
-    "that list is the backlog, not a clean bill of health."
+    "Adding a parameter to this file is not a fix. It is a decision, recorded."
   ],
   "params": {
     "ACO_RW_DB": {
@@ -984,10 +977,10 @@
       "role": "export",
       "reason": "Consumed by 81 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Accessibility Schedule\". A schedule is a real reader; this scan only sees C#."
     },
-    "PRJ_DWG_SUITABILITY_COD_TXT": {
+    "PRJ_DWG_LOIN_LOD_TXT": {
       "state": "read_only",
-      "role": "input",
-      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+      "role": "pipeline",
+      "reason": "Written by Title Block Populate from TITLE_BLOCK.csv, where the parameter name is a LOOP VARIABLE -- so the producer is real but invisible to this scan. Read back by Populate's LOD consistency report and by SheetQrStamper."
     },
     "PRJ_GRID_REF_TXT": {
       "state": "read_only",
@@ -1039,10 +1032,45 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "PRJ_SHEET_LEVEL_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
     "PRJ_SHEET_OF_TOTAL_TXT": {
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PRJ_SHEET_ORIG_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
+    "PRJ_SHEET_PROJECT_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
+    "PRJ_SHEET_ROLE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
+    "PRJ_SHEET_SEQ_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
+    "PRJ_SHEET_TYPE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
+    },
+    "PRJ_TB_CDE_REF_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by Title Block Populate and consumed by the CDE REF label in the title-block family. Derived from the ISO 19650 identifier plus suitability and revision; there is no reader in C# by design."
     },
     "PRJ_TB_DELIVERABLE_CDE_TXT": {
       "state": "write_only",
@@ -1083,6 +1111,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "PRJ_TB_REVISION_NR_TXT": {
+      "state": "read_only",
+      "role": "pipeline",
+      "reason": "Same: written by Populate from TITLE_BLOCK.csv through the loop, read back as the revision half of the CDE reference when Revit's own current revision is empty."
     },
     "PRJ_TB_TOTAL_NO_SHEETS_TXT": {
       "state": "write_only",

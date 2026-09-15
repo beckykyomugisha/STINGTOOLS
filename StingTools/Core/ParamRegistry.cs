@@ -589,7 +589,76 @@ namespace StingTools.Core
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
         public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+
+        /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
+        ///
+        /// Distinct from TB_DELIVERABLE_STATUS (a deliverable-tracking field) and from
+        /// TB_DELIVERABLE_CDE (the CDE state: WIP / SHARED / PUBLISHED). All three were
+        /// being conflated because TITLE_BLOCK.csv shipped "WIP" as the default for two
+        /// of them, so two different cells on the same drawing printed the same word.</summary>
+        public const string PRJ_STATUS_COD               = "PRJ_STATUS_COD_TXT";
+
+        /// <summary>LOD / LOIN cell — "300", "350".
+        ///
+        /// Nothing wrote this. It was in neither TITLE_BLOCK.csv nor
+        /// AllTitleBlockParams and no command set it, so every sheet showed whatever
+        /// had been typed into it or inherited from whichever family it came from —
+        /// which is how one drawing set ended up with 200, 300 and 350 across it.
+        /// Per DISCIPLINE, not per project: the CSV's discipline columns are the right
+        /// shape for this, because architectural and MEP deliverables genuinely differ.</summary>
+        public const string DWG_LOIN_LOD                 = "PRJ_DWG_LOIN_LOD_TXT";
+
+        /// <summary>ISO 19650 suitability CODE — the input the description and the CDE
+        /// state are both derived from (see Iso19650Suitability).</summary>
+        public const string DWG_SUITABILITY_COD          = "PRJ_DWG_SUITABILITY_COD_TXT";
+
+        /// <summary>Suitability description, in the standard's wording.</summary>
+        public const string DWG_SUITABILITY_DESC         = "PRJ_DWG_SUITABILITY_DESC_TXT";
         public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
+
+        /// <summary>The CDE REFERENCE cell — the string that locates this exact issue
+        /// in the common data environment: ISO 19650 document identifier + suitability
+        /// code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". It is the tail of
+        /// the published filename, so someone holding the paper can find the file.
+        ///
+        /// It exists because the CDE REF cell had nothing honest to bind to. Pointed at
+        /// TB_LAST_TRANSMITTAL it printed "?" on every sheet until a transmittal was
+        /// issued — Populate refuses to write that field, deliberately, because it is an
+        /// audit record. Pointed at TB_DELIVERABLE_CDE it repeated the STATUS cell's
+        /// word. This one is derived on every Populate run, from facts the sheet already
+        /// carries, and duplicates no other cell.
+        ///
+        /// Derived, never read from TITLE_BLOCK.csv — a per-sheet identifier has no
+        /// project-wide default — which is why it is NOT in AllTitleBlockParams,
+        /// the same as DWG_SUITABILITY_COD / DWG_SUITABILITY_DESC.</summary>
+        public const string TB_CDE_REF                   = "PRJ_TB_CDE_REF_TXT";
+        public const string TB_CDE_REF_GUID              = "f30f7a36-8d82-5385-a215-ae1eec90df2b";
+
+        /// <summary>How the CDE REF cell is composed — CONTAINER / SUFFIX / FULL.
+        ///
+        /// FULL was the first behaviour and it printed the whole published filename:
+        /// "SAH-PLNS-ZZ-01-DR-Z-0002-S4-P01". On a drawing that already prints the
+        /// document identifier in DRG NO., the suitability in SUITABILITY and the
+        /// state in STATUS, that cell repeated three cells and overflowed its box.
+        ///
+        /// CONTAINER is the default because it is the one fact the sheet does not
+        /// already carry: WHERE in the CDE the file sits. It is also short enough to
+        /// fit. A project that wants the searchable filename can still ask for FULL —
+        /// which is why this is a setting and not a decision baked into the code.</summary>
+        public const string TB_CDE_REF_FORMAT            = "PRJ_TB_CDE_REF_FORMAT_TXT";
+        public const string TB_CDE_REF_FORMAT_GUID       = "5f2c9a71-4b63-53d8-9e07-1c8a4f62db35";
+
+        /// <summary>The pattern Auto-Number Sheets builds a number from —
+        /// "{disc}-{seq:D3}" by default, giving A-001.
+        ///
+        /// Hard-coding the shape was the flexibility gap: a project that numbers by
+        /// level ("A-01-001"), prefixes the project code, or wants four digits had to
+        /// renumber by hand, while the rest of this system has been data-driven since
+        /// Phase 113. DrawingType.SheetNumberPattern already used these tokens; this
+        /// is the same grammar for projects that are not driving production through
+        /// drawing types.</summary>
+        public const string TB_SHEET_NUMBER_PATTERN      = "PRJ_TB_SHEET_NUMBER_PATTERN_TXT";
+        public const string TB_SHEET_NUMBER_PATTERN_GUID = "8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
         public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";
@@ -602,6 +671,8 @@ namespace StingTools.Core
         /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
+            PRJ_STATUS_COD,
+            DWG_LOIN_LOD,
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
             TB_SHOW_REV_TABLE,

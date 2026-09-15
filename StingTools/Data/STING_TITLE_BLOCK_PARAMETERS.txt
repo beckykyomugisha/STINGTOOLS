@@ -39,6 +39,9 @@ PARAM	037ae428-4007-53eb-93b8-bc37c82fed37	PRJ_TB_DATE_APVD_TXT	TEXT		2	1	Date d
 PARAM	85f04e61-409b-5fae-bd4f-e4414e9d69b5	PRJ_TB_DATE_CHECKED_TXT	TEXT		2	1	Date drawing was checked (DD-Mon-YYYY) [ISO 19650-1:2018]	1	0
 PARAM	da584dc6-c3ae-5ae9-97e9-fdc9286ccb55	PRJ_TB_DATE_DRAWN_TXT	TEXT		2	1	Date drawing was first created or last redrawn (DD-Mon-YYYY) [ISO 19650-1:2018]	1	0
 PARAM	0d917e49-c6f6-5951-b2b7-7a00bdb3b0df	PRJ_TB_DELIVERABLE_CDE_TXT	TEXT		2	1	CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]	1	0
+PARAM	f30f7a36-8d82-5385-a215-ae1eec90df2b	PRJ_TB_CDE_REF_TXT	TEXT		2	1	CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]	1	0
+PARAM	5f2c9a71-4b63-53d8-9e07-1c8a4f62db35	PRJ_TB_CDE_REF_FORMAT_TXT	TEXT		2	1	How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. "SHARED/A/DR"), SUFFIX (suitability + revision, e.g. "S4-P01") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]	1	0
+PARAM	8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48	PRJ_TB_SHEET_NUMBER_PATTERN_TXT	TEXT		2	1	Pattern Auto-Number Sheets builds a sheet number from. Tokens: {disc} discipline code, {lvl} level code, {seq} or {seq:D2}/{seq:D3}/{seq:D4} zero-padded sequence, {proj} project code, {orig} originator code. Default "{disc}-{seq:D3}" gives A-001. An empty token leaves no stray separator [ISO 19650-2:2018]	1	0
 PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT		2	1	ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]	1	0
 PARAM	525f8b24-26eb-52ae-8760-c6aa1621815a	PRJ_TB_DELIVERABLE_DUE_TXT	TEXT		2	1	Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]	1	0
 PARAM	5fea853a-6ed7-505e-a677-50fb83f435b0	PRJ_TB_DELIVERABLE_STATUS_TXT	TEXT		2	1	Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]	1	0
@@ -63,8 +66,14 @@ PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS
 PARAM	deb67fc4-80aa-505c-b25f-760a26c6c4ec	PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT	TEXT		2	1	Structural engineering consultant firm name [ISO 19650-1:2018]	1	0
 PARAM	e534fdd7-7c80-5a60-ba13-ff7715184000	PRJ_TB_TOTAL_NO_SHEETS_TXT	TEXT		2	1	Total number of sheets in this drawing package or issue [ISO 19650-1:2018]	1	0
 PARAM	e4c060c3-1c31-5860-b0d0-ef9472016895	PRJ_TB_VARIANT_TXT	TEXT		2	1	Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]	1	0
+PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	PRJ_TB_SHOW_KEY_PLAN_BOOL	YESNO		2	1	Visibility toggle for nested key plan [STING TB v1]	1	0
+PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	PRJ_TB_SHOW_SCALE_BAR_BOOL	YESNO		2	1	Visibility toggle for nested scale bar [STING TB v1]	1	0
+PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	PRJ_TB_SHOW_NORTH_ARROW_BOOL	YESNO		2	1	Visibility toggle for nested north arrow [STING TB v1]	1	0
+PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL	YESNO		2	1	Visibility toggle for discipline color strip [STING TB v1]	1	0
+PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	PRJ_TB_SHOW_REV_TABLE_BOOL	YESNO		2	1	Visibility toggle for embedded revision schedule [STING TB v1]	1	0
 PARAM	a3bf9281-16ad-5bc3-a389-da4fa300b2d4	PRJ_DWG_ISSUE_PURPOSE_TXT	TEXT		3	1	Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]	1	0
 PARAM	2e8087b2-691d-5882-a589-4e25a6e4a777	PRJ_DWG_SUITABILITY_COD_TXT	TEXT		3	1	Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]	1	0
+PARAM	a1b2c3d4-505e-4a01-b001-000000000194	PRJ_STATUS_COD_TXT	TEXT		3	1	ISO 19650 document status code	1	0
 PARAM	972024c1-53c5-5b57-b9f7-98e89fa53572	PRJ_SHEET_SYSTEM_TXT	TEXT		4	1	MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]	1	0
 PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		5	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1	0
 PARAM	380b2001-f9db-5977-be90-a98d214353cc	PRJ_TB_AUTHORISED_DATE_TXT	TEXT		5	1	Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]	1	0
