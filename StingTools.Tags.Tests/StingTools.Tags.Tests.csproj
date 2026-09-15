@@ -26,6 +26,9 @@
     <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\StingTools\Data\STING_SHEET_DISCIPLINES.json" Link="Data\STING_SHEET_DISCIPLINES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- KUT-11: the two classification maps, asserted against the resolvers that read
          them. Not copied to the output — SystemFamilyFallbackTests walks up to
          StingTools/Data so a stale copy cannot pass while the shipped file is wrong. -->
@@ -84,6 +87,8 @@
     <Compile Include="..\StingTools\Core\Drawing\QrLabelLayout.cs" Link="Core\Drawing\QrLabelLayout.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650DocumentCode.cs" Link="Core\Drawing\Iso19650DocumentCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetDisciplineResolver.cs" Link="Core\Drawing\SheetDisciplineResolver.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetDisciplineDefaults.cs" Link="Core\Drawing\SheetDisciplineDefaults.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetDisciplineConfig.cs" Link="Core\Drawing\SheetDisciplineConfig.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value

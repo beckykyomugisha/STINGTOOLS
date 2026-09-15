@@ -1270,6 +1270,21 @@ namespace StingTools.Core
                 try
                 {
                     Planscape.Docs.Templates.EmbeddedTemplates.ExtractIfMissing(e.Document);
+
+                    // The discipline vocabulary, before anything asks for a discipline.
+                    // Without this the built-in defaults answer every question until
+                    // someone happens to open the Disciplines dialog, so a project
+                    // override would appear to work only after a command nobody knew
+                    // to run.
+                    try
+                    {
+                        StingTools.Commands.Drawing.SheetDisciplineLoader.Load(
+                            e.Document, out _, out _);
+                    }
+                    catch (Exception exDisc)
+                    {
+                        StingLog.Warn($"SheetDisciplines load on open: {exDisc.Message}");
+                    }
                 }
                 catch (Exception tEx)
                 {

@@ -1652,6 +1652,7 @@ namespace StingTools.UI
                 ("Swap Title Block","SwapTitleBlock"),
                 ("Set Variant",    "TitleBlockSetVariant"),
                 ("Auto-Number Sheets", "Sheet_AutoNumber"),
+                ("Disciplines…", "Sheet_DisciplinesReload"),
                 ("Sheet No ← ISO", "Sheet_NumberFromIso"),
                 ("Tidy Sheet Nos", "Sheet_NumberTidy"),
                 ("Restore Sheet Nos", "Sheet_NumberRestore"),

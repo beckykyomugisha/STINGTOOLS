@@ -140,6 +140,16 @@ namespace StingTools.Core.Drawing
             string v = Clean(raw);
             if (v.Length == 0) return "Z";
 
+            // A project may say which ISO letter ITS discipline code means -- "FS"
+            // for fire safety, say -- in STING_SHEET_DISCIPLINES.json. What it may
+            // NOT do is invent a letter: SheetDisciplineConfig rejects any target
+            // outside ISO 19650's alphabet and names it, so an invalid one never
+            // reaches this method. The table below stays in code because those
+            // letters belong to the standard, not to a project.
+            var aliases = SheetDisciplineConfig.RoleLetters;
+            if (aliases != null && aliases.TryGetValue(v, out string configured))
+                return configured;
+
             switch (v)
             {
                 case "A": case "ARCH": case "ARCHITECTURAL":      return "A";

@@ -62,7 +62,8 @@ namespace StingTools.Core.Drawing
             // a sheet merely NAMED "PLAN" would read as discipline "PLAN".
             if (prefix.Length == n.Length) return null;
 
-            return NumberPrefixes.TryGetValue(prefix, out string disc) ? disc : null;
+            return SheetDisciplineConfig.NumberPrefixes.TryGetValue(prefix, out string disc)
+                ? disc : null;
         }
 
         /// <summary>The discipline a sheet TITLE declares, or null.
@@ -81,10 +82,11 @@ namespace StingTools.Core.Drawing
                 StringComparer.Ordinal);
 
             // Ordered, because a title can name more than one thing and the first
-            // match must be predictable rather than dictionary-order.
-            foreach (var rule in TitleKeywords)
-                if (rule.Value.Any(words.Contains))
-                    return rule.Key;
+            // match must be predictable rather than dictionary-order. That is why the
+            // configured form is a LIST and not a map.
+            foreach (var rule in SheetDisciplineConfig.TitleKeywords)
+                if (rule.Words != null && rule.Words.Any(words.Contains))
+                    return rule.Discipline;
 
             return null;
         }
@@ -156,7 +158,8 @@ namespace StingTools.Core.Drawing
             // the CSV with its own discipline and has it honoured without a code change.
             if (Have(d) && (available != null && available.Count > 0)) return d;
 
-            if (CsvColumns.TryGetValue(d, out string mapped) && Have(mapped)) return mapped;
+            if (SheetDisciplineConfig.CsvColumns.TryGetValue(d, out string mapped) && Have(mapped))
+                return mapped;
 
             // No column for this discipline. GEN is the honest answer: it means "the
             // project-wide defaults", which is true. Folding Civil into Structural or
@@ -246,69 +249,11 @@ namespace StingTools.Core.Drawing
             return sb.ToString().Trim();
         }
 
-        private static readonly Dictionary<string, string> CsvColumns =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "A", "ARCH" }, { "ARCH", "ARCH" },
-                { "S", "STR" }, { "STR", "STR" },
-                { "M", "MEP" }, { "MEP", "MEP" },
-                { "E", "ELE" }, { "ELE", "ELE" },
-                { "P", "PLM" }, { "PLM", "PLM" },
-                { "FP", "FP" }, { "LV", "LV" },
-                { "COORD", "COORD" }, { "GEN", "GEN" },
-            };
 
         private static readonly char[] Separators =
             { ' ', '-', '_', ',', '.', '/', '(', ')', '&', ':', ';', '\t' };
 
         /// <summary>Sheet-number prefixes, as drawing sets actually number them.</summary>
-        private static readonly Dictionary<string, string> NumberPrefixes =
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                { "A", "A" }, { "AR", "A" }, { "ARCH", "A" },
-                { "S", "S" }, { "ST", "S" }, { "STR", "S" },
-                { "M", "M" }, { "MEC", "M" }, { "MECH", "M" }, { "H", "M" }, { "HVAC", "M" },
-                { "E", "E" }, { "EL", "E" }, { "ELE", "E" }, { "ELEC", "E" },
-                { "P", "P" }, { "PL", "P" }, { "PLM", "P" }, { "PH", "P" },
-                { "C", "C" }, { "CIV", "C" },
-                { "L", "L" }, { "LA", "L" },
-                { "FP", "FP" }, { "FA", "FP" },
-                { "LV", "LV" }, { "ICT", "LV" }, { "IT", "LV" },
-                { "I", "I" }, { "ID", "I" },
-                { "CO", "COORD" }, { "CD", "COORD" }, { "COORD", "COORD" },
-                { "G", "GEN" }, { "GEN", "GEN" },
-            };
 
-        /// <summary>Whole words in a sheet title, in decision order.</summary>
-        private static readonly List<KeyValuePair<string, string[]>> TitleKeywords =
-            new List<KeyValuePair<string, string[]>>
-            {
-                // Explicitly multidisciplinary beats every single-discipline word,
-                // because "COORDINATED SERVICES PLAN" names both.
-                new KeyValuePair<string, string[]>("COORD",
-                    new[] { "COORDINATION", "COORDINATED", "COMBINED", "COMPOSITE", "MULTIDISCIPLINARY" }),
-                new KeyValuePair<string, string[]>("FP",
-                    new[] { "SPRINKLER", "SPRINKLERS", "FIREFIGHTING", "HYDRANT", "SUPPRESSION" }),
-                new KeyValuePair<string, string[]>("LV",
-                    new[] { "SECURITY", "CCTV", "TELECOMS", "TELECOM", "STRUCTURED", "AUDIOVISUAL" }),
-                new KeyValuePair<string, string[]>("M",
-                    new[] { "MECHANICAL", "HVAC", "DUCTWORK", "VENTILATION", "REFRIGERATION" }),
-                new KeyValuePair<string, string[]>("E",
-                    new[] { "ELECTRICAL", "LIGHTING", "POWER", "SMALL" }),
-                new KeyValuePair<string, string[]>("P",
-                    new[] { "PLUMBING", "SANITARY", "DRAINAGE", "ABOVE", "BELOW" }),
-                new KeyValuePair<string, string[]>("S",
-                    new[] { "STRUCTURAL", "FOUNDATION", "FOUNDATIONS", "REBAR", "REINFORCEMENT", "FRAMING" }),
-                new KeyValuePair<string, string[]>("C",
-                    new[] { "CIVIL", "EARTHWORKS", "ROADS", "HIGHWAY", "HIGHWAYS" }),
-                new KeyValuePair<string, string[]>("L",
-                    new[] { "LANDSCAPE", "LANDSCAPING", "PLANTING", "SOFTWORKS" }),
-                new KeyValuePair<string, string[]>("I",
-                    new[] { "INTERIOR", "INTERIORS", "JOINERY", "FF&E", "FFE" }),
-                new KeyValuePair<string, string[]>("A",
-                    new[] { "ARCHITECTURAL", "ARCHITECTURE", "ELEVATION", "ELEVATIONS",
-                            "SECTION", "SECTIONS", "FLOOR", "ROOF", "DOOR", "DOORS",
-                            "WINDOW", "WINDOWS", "FINISHES", "GA" }),
-            };
     }
 }

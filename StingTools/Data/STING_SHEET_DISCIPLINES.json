@@ -1,0 +1,70 @@
+{
+  "_comment": [
+    "STING sheet discipline vocabulary — how a sheet's discipline is decided, and",
+    "what that discipline means downstream.",
+    "",
+    "This is the CORPORATE BASELINE. A project overrides it by dropping a file named",
+    "sheet_disciplines.json into its _BIM_COORD folder; project entries win by key.",
+    "Run 'Reload Disciplines' (Drawing Types -> Title Block) to pick up an edit",
+    "without restarting Revit.",
+    "",
+    "numberPrefixes  the letters before the first digit or separator in a sheet",
+    "                number. 'AR-101' -> AR -> A. This is the strongest signal",
+    "                there is, because a sheet number is chosen deliberately.",
+    "titleKeywords   WHOLE WORDS in the sheet title, tested IN ORDER. Order is part",
+    "                of the rule: 'COORDINATED SERVICES PLAN' names two things, and",
+    "                the first rule that matches decides. Declaring any rules here",
+    "                REPLACES the list rather than appending to it, because rules",
+    "                appended after the shipped ones could never be reached.",
+    "csvColumns      which TITLE_BLOCK.csv column fills a sheet of this discipline.",
+    "                A discipline with no column gets GEN, the project-wide defaults.",
+    "roleLetters     this discipline's ISO 19650 ROLE letter, for the role segment of",
+    "                the document identifier. The letters themselves are the",
+    "                standard's, not yours: a value outside ABCDEFGHIKLMPQSTWXYZ is",
+    "                REJECTED and named in the reload report, because an invalid role",
+    "                letter looks perfectly ordinary printed on a title block."
+  ],
+
+  "numberPrefixes": {
+    "A": "A", "AR": "A", "ARCH": "A",
+    "S": "S", "ST": "S", "STR": "S",
+    "M": "M", "MEC": "M", "MECH": "M", "H": "M", "HVAC": "M",
+    "E": "E", "EL": "E", "ELE": "E", "ELEC": "E",
+    "P": "P", "PL": "P", "PLM": "P", "PH": "P",
+    "C": "C", "CIV": "C",
+    "L": "L", "LA": "L",
+    "FP": "FP", "FA": "FP",
+    "LV": "LV", "ICT": "LV", "IT": "LV",
+    "I": "I", "ID": "I",
+    "CO": "COORD", "CD": "COORD", "COORD": "COORD",
+    "G": "GEN", "GEN": "GEN"
+  },
+
+  "titleKeywords": [
+    { "discipline": "COORD", "words": ["COORDINATION", "COORDINATED", "COMBINED", "COMPOSITE", "MULTIDISCIPLINARY"] },
+    { "discipline": "FP",    "words": ["SPRINKLER", "SPRINKLERS", "FIREFIGHTING", "HYDRANT", "SUPPRESSION"] },
+    { "discipline": "LV",    "words": ["SECURITY", "CCTV", "TELECOMS", "TELECOM", "STRUCTURED", "AUDIOVISUAL"] },
+    { "discipline": "M",     "words": ["MECHANICAL", "HVAC", "DUCTWORK", "VENTILATION", "REFRIGERATION"] },
+    { "discipline": "E",     "words": ["ELECTRICAL", "LIGHTING", "POWER", "SMALL"] },
+    { "discipline": "P",     "words": ["PLUMBING", "SANITARY", "DRAINAGE", "ABOVE", "BELOW"] },
+    { "discipline": "S",     "words": ["STRUCTURAL", "FOUNDATION", "FOUNDATIONS", "REBAR", "REINFORCEMENT", "FRAMING"] },
+    { "discipline": "C",     "words": ["CIVIL", "EARTHWORKS", "ROADS", "HIGHWAY", "HIGHWAYS"] },
+    { "discipline": "L",     "words": ["LANDSCAPE", "LANDSCAPING", "PLANTING", "SOFTWORKS"] },
+    { "discipline": "I",     "words": ["INTERIOR", "INTERIORS", "JOINERY", "FF&E", "FFE"] },
+    { "discipline": "A",     "words": ["ARCHITECTURAL", "ARCHITECTURE", "ELEVATION", "ELEVATIONS", "SECTION", "SECTIONS", "FLOOR", "ROOF", "DOOR", "DOORS", "WINDOW", "WINDOWS", "FINISHES", "GA"] }
+  ],
+
+  "csvColumns": {
+    "A": "ARCH", "ARCH": "ARCH",
+    "S": "STR", "STR": "STR",
+    "M": "MEP", "MEP": "MEP",
+    "E": "ELE", "ELE": "ELE",
+    "P": "PLM", "PLM": "PLM",
+    "FP": "FP",
+    "LV": "LV",
+    "COORD": "COORD",
+    "GEN": "GEN"
+  },
+
+  "roleLetters": {}
+}
