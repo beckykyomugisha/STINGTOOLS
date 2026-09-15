@@ -64,8 +64,14 @@ PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS
 PARAM	deb67fc4-80aa-505c-b25f-760a26c6c4ec	PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT	TEXT		2	1	Structural engineering consultant firm name [ISO 19650-1:2018]	1	0
 PARAM	e534fdd7-7c80-5a60-ba13-ff7715184000	PRJ_TB_TOTAL_NO_SHEETS_TXT	TEXT		2	1	Total number of sheets in this drawing package or issue [ISO 19650-1:2018]	1	0
 PARAM	e4c060c3-1c31-5860-b0d0-ef9472016895	PRJ_TB_VARIANT_TXT	TEXT		2	1	Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]	1	0
+PARAM	9a64e982-1b97-5922-9831-0948aaf1cf76	PRJ_TB_SHOW_KEY_PLAN_BOOL	YESNO		2	1	Visibility toggle for nested key plan [STING TB v1]	1	0
+PARAM	afcd0647-42e0-537f-bd18-5f46ed1871df	PRJ_TB_SHOW_SCALE_BAR_BOOL	YESNO		2	1	Visibility toggle for nested scale bar [STING TB v1]	1	0
+PARAM	0981c0a9-7805-568a-8fee-abb012f6239c	PRJ_TB_SHOW_NORTH_ARROW_BOOL	YESNO		2	1	Visibility toggle for nested north arrow [STING TB v1]	1	0
+PARAM	fcd1f7f2-8b64-5cd7-9d27-982d604a231e	PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL	YESNO		2	1	Visibility toggle for discipline color strip [STING TB v1]	1	0
+PARAM	da7b6ce4-8e29-5985-9211-2c5a917bbc4b	PRJ_TB_SHOW_REV_TABLE_BOOL	YESNO		2	1	Visibility toggle for embedded revision schedule [STING TB v1]	1	0
 PARAM	a3bf9281-16ad-5bc3-a389-da4fa300b2d4	PRJ_DWG_ISSUE_PURPOSE_TXT	TEXT		3	1	Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]	1	0
 PARAM	2e8087b2-691d-5882-a589-4e25a6e4a777	PRJ_DWG_SUITABILITY_COD_TXT	TEXT		3	1	Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]	1	0
+PARAM	a1b2c3d4-505e-4a01-b001-000000000194	PRJ_STATUS_COD_TXT	TEXT		3	1	ISO 19650 document status code	1	0
 PARAM	972024c1-53c5-5b57-b9f7-98e89fa53572	PRJ_SHEET_SYSTEM_TXT	TEXT		4	1	MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]	1	0
 PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		5	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1	0
 PARAM	380b2001-f9db-5977-be90-a98d214353cc	PRJ_TB_AUTHORISED_DATE_TXT	TEXT		5	1	Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]	1	0

@@ -324,6 +324,19 @@ namespace StingTools.Docs
         public int RowCount { get; private set; }
         public string SourcePath { get; private set; }
 
+        /// <summary>Every parameter the CSV has a row for, in file order.
+        ///
+        /// Populate used to iterate ParamRegistry.AllTitleBlockParams instead -- a
+        /// hard-coded array of 22 names -- while the CSV shipped 38 rows. The 16 it
+        /// did not name were edited in the CSV editor, saved, and then silently
+        /// ignored: PRJ_TB_DRAWN_BY_TXT and PRJ_TB_CHECKED_BY_TXT among them, which
+        /// is why "I set them in the CSV and ran Populate" changed nothing and the
+        /// only route left was typing onto one sheet at a time.
+        ///
+        /// A list restating a data file is right until the data file moves. The CSV
+        /// is the data; this is read from it.</summary>
+        public List<string> ParamNames { get; } = new List<string>();
+
         public static TitleBlockCsv Load(string path)
         {
             var csv = new TitleBlockCsv { SourcePath = path };
@@ -354,6 +367,7 @@ namespace StingTools.Docs
                     string pname = cols[0].Trim();
                     if (string.IsNullOrEmpty(pname)) continue;
                     string dflt = cols.Length > 1 ? cols[1] : "";
+                    if (!csv.DefaultValues.ContainsKey(pname)) csv.ParamNames.Add(pname);
                     csv.DefaultValues[pname] = dflt;
                     for (int i = 0; i < discCols.Count; i++)
                     {
@@ -491,6 +505,13 @@ namespace StingTools.Docs
             var multiTbSheets = new List<string>();
             int bothHomes = 0;
             int derived = 0;
+            var csvDrivenNames = new List<string>(csv.ParamNames);
+            {
+                var seen = new HashSet<string>(csv.ParamNames, StringComparer.OrdinalIgnoreCase);
+                foreach (string n in ParamRegistry.AllTitleBlockParams)
+                    if (seen.Add(n)) csvDrivenNames.Add(n);
+            }
+
             var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var replaced = new List<string>();
@@ -557,7 +578,12 @@ namespace StingTools.Docs
                     string disc = TitleBlockEngine.ResolveDiscipline(sheet);
                     int paramsWrittenThisSheet = 0;
 
-                    foreach (string paramName in ParamRegistry.AllTitleBlockParams)
+                    // Every row the CSV has, plus the registry's own names for the
+                    // audit fields below (which have no CSV row and must still be
+                    // reported rather than passed over in silence). Union, in CSV
+                    // order first, so an operator reading the report sees it in the
+                    // same order as the editor they just used.
+                    foreach (string paramName in csvDrivenNames)
                     {
                         // Never let the CSV overwrite sync/transmittal audit fields.
                         //
@@ -589,7 +615,12 @@ namespace StingTools.Docs
                             continue;
                         }
 
-                        bool isBool = ParamRegistry.TitleBlockBoolParams.Contains(paramName);
+                        // The registry's set names the six it knows; the _BOOL suffix
+                        // covers a row the CSV grows before anyone adds a constant.
+                        // Writing "Yes" into a YESNO parameter as text fails silently,
+                        // so guessing wrong here is another blank cell with no message.
+                        bool isBool = ParamRegistry.TitleBlockBoolParams.Contains(paramName)
+                            || paramName.EndsWith("_BOOL", StringComparison.OrdinalIgnoreCase);
 
                         // What is there BEFORE the write. Populate uses overwrite:true,
                         // which is right for a bulk fill from the CSV and wrong for a
