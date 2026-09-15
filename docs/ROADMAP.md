@@ -2,6 +2,20 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Rooms (2026-09-15, Phase 285)
+
+The mis-wired room parameter, the missing renumber and tag-placement commands, and
+`AutoCreateRooms`' non-idempotency are **CLOSED** — see `CHANGELOG.md` Phase 285.
+These remain.
+
+| ID | Status | Detail |
+|---|---|---|
+| ROOM-1 | **OPEN — needs Revit** | Every decision in the renumber path is Revit-free and unit-tested (`RoomNumberPlanner`, 24 tests), but the Revit half is confirmed only by the compiler. `NewRoomTag` is the first room-tag placement code in the plugin, and the two-pass park/write in `RoomNumberingEngine.Apply` is the first place STING deliberately writes a throwaway value it intends to overwrite. **Before merge:** on a model with rooms, run `Rooms_NumberingInspect`, then `Rooms_Renumber` over the active view — check the preview lists what you expect, that Cancel writes nothing, and that a cyclic case (renumber 01→02, 02→03) succeeds rather than tripping Revit's duplicate-number rejection. Confirm no room is left on a `~STING` placeholder. Then `Rooms_PlaceTags` twice on the same view — expect one tag per room, not two. |
+| ROOM-2 | **OPEN** | `STING_TAG_TOKEN_POLICY.json` **has no loader.** It ships, it documents a MANDATORY / DERIVED / OPTIONAL level and a fallback per token, and `TagConfig.cs` names it in two comments — but nothing reads it. The fallbacks it describes are hardcoded at `TagConfig.cs:2440-2446`, so editing the file changes nothing, and the "the fallback is RECORDED, complete-but-assumed is not complete" distinction it defines is not implemented. Either wire it or delete it; a data file that looks authoritative and governs nothing is worse than neither. |
+| ROOM-3 | **OPEN** | `RoomAuditCommand` reports through `TaskDialog` with a 50-issue cap and no element links, so it is a report rather than a fix path. It also tests `name == "Room"` for "unnamed", which is the English default only. Moving it to `StingResultPanel` with `Finding(text, elementId)` rows would make every issue clickable — the same treatment `Rooms_Renumber` now gets. |
+| ROOM-4 | **OPEN** | Room numbering and the ISO 19650 SEQ counter are independent. A room renumbered to `GF07` does not change the `SEQ` of the assets inside it, and nothing asserts the two agree. That is defensible — an asset tag is not a room tag — but it should be a stated contract rather than an accident. |
+| ROOM-5 | **OPEN — pre-existing** | `check_dispatch_parity.ps1` fails on `Hvac_FanStaticReport`, which resolves in `StingHvacCommandHandler` but no shared dispatcher. Present on `main` before this work; noted here so it is not mistaken for room fallout. |
+
 ## QR chain (2026-09-14, Phases 280-283)
 
 QR-2 through QR-15 are **CLOSED**. Two remain, and neither can be closed from a

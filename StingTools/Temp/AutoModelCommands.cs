@@ -390,6 +390,7 @@ namespace StingTools.Temp
 
                 int created = 0;
                 int skipped = 0;
+                int alreadyThere = 0;
                 var report = new StringBuilder();
                 report.AppendLine("Extracted text items:");
 
@@ -417,8 +418,45 @@ namespace StingTools.Temp
                                 continue;
                             }
 
-                            // Create room at the text location
+                            // Idempotency guard. Without it a second run over the same DWG
+                            // silently doubles every room: NewRoom happily creates a second
+                            // room inside an enclosure that already has one, and the pair sits
+                            // exactly on top of each other where nobody sees it. Revit reports
+                            // it later as a "redundant room" warning, by which point the model
+                            // has two of everything.
                             UV point = new UV(item.Position.X, item.Position.Y);
+                            Room existing = null;
+                            try
+                            {
+                                var probe = new XYZ(item.Position.X, item.Position.Y,
+                                                    level.Elevation + 0.1);
+                                existing = phase != null
+                                    ? doc.GetRoomAtPoint(probe, phase)
+                                    : doc.GetRoomAtPoint(probe);
+                            }
+                            catch (Exception probeEx)
+                            {
+                                // A failed probe must not be read as "no room there" — that is
+                                // the silent-double-up case. Skip and say so.
+                                StingLog.Warn($"ExtractRooms probe at ({item.Position.X:F1}, " +
+                                              $"{item.Position.Y:F1}): {probeEx.Message}");
+                                skipped++;
+                                report.AppendLine($"  ? \"{text}\" — could not check for an " +
+                                                  $"existing room here, skipped: {probeEx.Message}");
+                                continue;
+                            }
+
+                            if (existing != null)
+                            {
+                                alreadyThere++;
+                                string exName = existing.get_Parameter(BuiltInParameter.ROOM_NAME)
+                                                        ?.AsString() ?? "";
+                                report.AppendLine($"  = \"{text}\" — a room already occupies this " +
+                                                  $"point (\"{exName}\"), left alone");
+                                continue;
+                            }
+
+                            // Create room at the text location
                             Room room = doc.Create.NewRoom(level, point);
 
                             if (room != null)
@@ -445,8 +483,16 @@ namespace StingTools.Temp
                 var resultTd = new TaskDialog("Extract Rooms — Results");
                 resultTd.MainInstruction = $"Created {created} rooms from {textItems.Count} text items";
                 resultTd.MainContent = report.ToString() +
-                    (skipped > 0 ? $"\n\nSkipped {skipped} text items (dimensions, notes, too short)" : "");
+                    (alreadyThere > 0
+                        ? $"\n\nLeft {alreadyThere} alone — a room already occupied that point. " +
+                          "Re-running this command over the same drawing is safe."
+                        : "") +
+                    (skipped > 0 ? $"\n\nSkipped {skipped} text items (dimensions, notes, too short)" : "") +
+                    "\n\nNote: these rooms carry Revit's automatic numbering. Run Rooms → Renumber " +
+                    "to give them numbers that follow the plan.";
                 resultTd.Show();
+
+                StingLog.Info($"ExtractRooms: created={created} kept={alreadyThere} skipped={skipped}");
 
                 return Result.Succeeded;
             }
