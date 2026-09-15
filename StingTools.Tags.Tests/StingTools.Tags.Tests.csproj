@@ -26,6 +26,13 @@
     <None Include="..\StingTools\Data\MR_PARAMETERS.txt" Link="Data\MR_PARAMETERS.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- The ACTUAL shipped token policy, not a copy. TagTokenPolicyTests round-trips it,
+         so a Newtonsoft silent default in it fails here rather than mid-batch in Revit.
+         This file was read by NOTHING between 2026-08-10 and 2026-09-15; a test that
+         parses it is the cheapest guarantee that it stays wired. -->
+    <None Include="..\StingTools\Data\STING_TAG_TOKEN_POLICY.json" Link="Data\STING_TAG_TOKEN_POLICY.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\StingTools\Data\STING_SHEET_DISCIPLINES.json" Link="Data\STING_SHEET_DISCIPLINES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -47,6 +54,11 @@
          so they compile cleanly against net8.0 with no shims. -->
     <!-- Coordination-log wire format. Revit-free by design so the JSONL contract is
          testable outside Revit. -->
+    <!-- Per-token tag completeness policy. Revit-free by design so the substitution and
+         refusal decisions are testable without a Revit host; TagTokenPolicyRegistry (the
+         Document-keyed cache) is NOT linked, it is the Revit-bound half.
+         TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
+    <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
     <!-- IM Phase 3 warning-snapshot codec: pure JSON + payload shaping, no Revit,
          so the server DTO contract can be asserted without a Revit host. -->

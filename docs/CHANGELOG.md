@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 286 — STING_TAG_TOKEN_POLICY.json starts governing tagging)
+
+**The file governed nothing.** It shipped 2026-08-10 describing all ten ISO 19650 tag
+tokens with a MANDATORY / DERIVED / OPTIONAL level, a per-token fallback and a rationale
+for each, and `TagConfig.cs` named it in two comments. **Nothing read it.** The fallbacks
+were hardcoded literals in `BuildAndWriteTag` (`disc = "A"`, `sys = "GEN"`, …), so editing
+the policy changed no behaviour, and nothing anywhere said so. Valid JSON and a green
+build both agreed the file was fine — the codebase's signature failure mode: an
+authoritative-looking artefact that is inert.
+
+**Now wired.** `Core/TagTokenPolicy.cs` (Revit-free, unit-tested) makes the decisions;
+`Core/TagTokenPolicyRegistry.cs` resolves the two paths and caches per document.
+`BuildAndWriteTag` routes all seven tag segments through it. Corporate baseline +
+project override at `_BIM_COORD/tag_token_policy.json`, project rules winning by token.
+
+**Behaviour is unchanged by design.** `The_shipped_fallbacks_are_the_literals_the_hardcoded_block_used`
+pins every shipped fallback to the exact value the old literals substituted. Wiring a
+loader must not silently re-tag a project.
+
+Two contracts worth knowing:
+- **A null fallback REFUSES.** A token that is blank with no fallback skips the element
+  and counts it, rather than emitting a tag with a bare separator. Every one of the seven
+  segments ships *with* a fallback, so the baseline never refuses — only a project
+  override turns that on. A test asserts the baseline can never refuse, because a
+  corporate edit dropping one fallback would silently stop tagging in every project.
+- **An unrecognised level is DERIVED, not OPTIONAL.** `OPTIONAL` is the enum's zero, so a
+  typo would otherwise downgrade a MANDATORY token to "blank is fine".
+
+**`LVL` now records what it always did.** `GetLevelCode` returns `"XX"` for a levelless
+element and a literal replaced it with `L00`, recording nothing. `XX` is now normalised to
+empty and the policy substitutes the same `L00` — same tag, but counted. The shipped `LVL`
+entry gained `fallback: "L00"` (it said `null`) so this did not turn refusal on; the
+rationale now explains that setting it back to `null` is how a project opts in.
+
+**The gate found a second copy.** `tools/check_token_policy_wired.py` immediately failed on
+`TagConfig.BuildSeqKey(Element)`, which held the same five literals for building the SEQ
+counter key. That is a latent defect, not a tidiness issue: a project overriding DISC's
+fallback would have had `BuildAndWriteTag` composing tags with the new value while
+`BuildSeqKey` kept grouping counters under `"A"` — the counter-group mismatch and duplicate
+SEQ numbers `BuildAndWriteTag` already warns about. Both copies now resolve through the
+policy.
+
+**Per-token attribution.** `AssumedTokenTagCount` said how many tags were assumed but never
+which token, so "312 assumed" gave no clue whether the project is missing LOC codes or
+tagging un-catalogued families. `TaggingStats` now carries `AssumedByToken`,
+`MandatoryAssumedCount` and `RefusedTagCount`, and the result dialog prints them.
+
+**Scope, stated plainly.** The policy governs tag COMPOSITION. The DERIVATION layer
+(`TokenAutoPopulator.PopulateAll`, `SpatialAutoDetect`) keeps its own literals, and because
+it writes LOC/ZONE onto the element first, the policy's fallback *values* for those two are
+usually unreachable through the normal pipeline — their *level* is honoured, nothing is
+refused. The gate REPORTS those seven sites rather than printing a clean bill; a gate that
+claimed full coverage would be repeating the policy file's own mistake. ROADMAP TOKPOL-1.
+
+17 new tests. Build 0/0.
 #### Completed (Phase 285 — Rooms: a room's own number, and the two commands the workflow was missing)
 
 **The parameter mis-wire.** `BLE_ROOM_*` and `ASS_ROOM_*` are deliberately different

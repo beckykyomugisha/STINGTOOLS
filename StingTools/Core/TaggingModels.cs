@@ -185,6 +185,43 @@ namespace StingTools.Core
             else if (anyFallback) AssumedTokenTagCount++;
         }
 
+        // ── Per-token attribution (STING_TAG_TOKEN_POLICY.json) ─────────────
+        //
+        // AssumedTokenTagCount above says HOW MANY tags were assumed. It cannot say
+        // WHICH token was assumed, so "312 assumed" gave no clue whether the project
+        // is missing LOC codes or tagging un-catalogued families. These do.
+
+        /// <summary>How many times each token was substituted from the policy's fallback.</summary>
+        public readonly Dictionary<string, int> AssumedByToken =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Substitutions of a token the policy marks MANDATORY. Counted apart
+        /// from DERIVED ones: falling back on SYS for an architectural element is a real
+        /// answer, falling back on DISC is a project that has not been set up.</summary>
+        public int MandatoryAssumedCount { get; private set; }
+
+        /// <summary>Elements not tagged because a token was blank and the policy offers
+        /// no fallback. These are REFUSALS, not failures — writing a tag with a bare
+        /// separator would have been worse.</summary>
+        public int RefusedTagCount { get; private set; }
+
+        public readonly List<string> RefusedSamples = new List<string>();
+
+        public void RecordTokenSubstitution(string token, bool mandatory)
+        {
+            if (string.IsNullOrEmpty(token)) return;
+            AssumedByToken.TryGetValue(token, out int n);
+            AssumedByToken[token] = n + 1;
+            if (mandatory) MandatoryAssumedCount++;
+        }
+
+        public void RecordTokenRefusal(string reason, long elementId)
+        {
+            RefusedTagCount++;
+            if (RefusedSamples.Count < 10)
+                RefusedSamples.Add($"element {elementId}: {reason}");
+        }
+
         /// <summary>PERF-02: Track empty FUNC/PROD inline during tagging loop to avoid post-loop re-scan.</summary>
         public void RecordEmptyTokens(string func, string prod)
         {
@@ -261,8 +298,28 @@ namespace StingTools.Core
                 if (IncompleteTagCount > IncompleteSamples.Count)
                     sb.AppendLine($"                  … +{IncompleteTagCount - IncompleteSamples.Count:N0} more");
             }
+            if (RefusedTagCount > 0)
+            {
+                sb.AppendLine($"  REFUSED:      {RefusedTagCount:N0} — a token was blank and STING_TAG_TOKEN_POLICY.json gives it no fallback");
+                foreach (var sample in RefusedSamples)
+                    sb.AppendLine($"                  {sample}");
+                if (RefusedTagCount > RefusedSamples.Count)
+                    sb.AppendLine($"                  … +{RefusedTagCount - RefusedSamples.Count:N0} more");
+            }
             if (AssumedTokenTagCount > 0)
+            {
                 sb.AppendLine($"  assumed:      {AssumedTokenTagCount:N0} complete, but one or more segments fell back to a default");
+                if (AssumedByToken.Count > 0)
+                {
+                    // Which token, not just how many — the number is only actionable if you
+                    // know whether to go and declare LOC codes or catalogue a family.
+                    var byToken = AssumedByToken.OrderByDescending(kv => kv.Value)
+                                                .Select(kv => $"{kv.Key} ×{kv.Value:N0}");
+                    sb.AppendLine($"                  {string.Join(", ", byToken)}");
+                }
+                if (MandatoryAssumedCount > 0)
+                    sb.AppendLine($"                  {MandatoryAssumedCount:N0} of these assumed a MANDATORY token — check the project setup");
+            }
             if (TotalOverwritten > 0)
                 sb.AppendLine($"  Overwritten:  {TotalOverwritten:N0}");
             if (TotalCollisions > 0)

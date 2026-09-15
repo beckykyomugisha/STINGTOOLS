@@ -502,12 +502,25 @@ namespace StingTools.Core
             string prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
             string lvl  = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
-            // Normalise empty tokens to avoid key drift
-            if (string.IsNullOrEmpty(disc)) disc = "A";
-            if (string.IsNullOrEmpty(sys))  sys  = "GEN";
-            if (string.IsNullOrEmpty(func)) func = "GEN";
-            if (string.IsNullOrEmpty(prod)) prod = "GEN";
-            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+            // Normalise empty tokens to avoid key drift — through the SAME policy
+            // BuildAndWriteTag uses. These were a second copy of the same literals, which
+            // is a latent SEQ defect: a project that overrides DISC's fallback would have
+            // BuildAndWriteTag composing the tag with the new value while this method kept
+            // keying counters on "A". The counter group and the tag would then disagree,
+            // which is precisely the "Counter group mismatch / duplicate SEQ numbers"
+            // BuildAndWriteTag already warns about.
+            var policy = TagTokenPolicyRegistry.Get(el?.Document);
+            if (lvl == "XX") lvl = "";
+
+            disc = TagTokenPolicy.Resolve(policy, "DISC", disc).Value;
+            sys  = TagTokenPolicy.Resolve(policy, "SYS",  sys).Value;
+            func = TagTokenPolicy.Resolve(policy, "FUNC", func).Value;
+            prod = TagTokenPolicy.Resolve(policy, "PROD", prod).Value;
+            lvl  = TagTokenPolicy.Resolve(policy, "LVL",  lvl).Value;
+
+            // A refused token resolves to "" here rather than skipping: this method only
+            // GROUPS counters, it writes nothing, and a stable empty group is better than
+            // throwing from a key builder. BuildAndWriteTag is where refusal is enforced.
 
             string zoneKey = null;
             if (SeqIncludeZone)
@@ -2367,8 +2380,12 @@ namespace StingTools.Core
                 zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
             }
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            // Guaranteed LVL default: replace unresolved "XX"/"" with "L00" for levelless elements
-            if (string.IsNullOrEmpty(lvl) || lvl == "XX") lvl = "L00";
+            // "XX" is GetLevelCode's "this element has no level". Normalise it to empty and
+            // let the token policy below decide — it substitutes the same "L00" the literal
+            // here used to, but RECORDS the substitution, which this line never did. A
+            // project that would rather refuse to tag a levelless element sets LVL's
+            // fallback to null in _BIM_COORD/tag_token_policy.json.
+            if (lvl == "XX") lvl = "";
 
             // on the non-overwrite path we trust whatever
             // PopulateAll already wrote — reading the element bypasses the
@@ -2425,25 +2442,62 @@ namespace StingTools.Core
                 if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
-            // Validate-before-write. This block GUARANTEES non-empty by substituting
-            // a hardcoded default — which is precisely the behaviour A-1/K-13/G-27
-            // forbid elsewhere: it makes an unresolved token indistinguishable from a
-            // resolved one. It is kept (removing it would emit doubled separators),
-            // but every substitution is now RECORDED so the tag can report that it was
-            // completed by assumption rather than by measurement.
+            // Validate-before-write. This block GUARANTEES non-empty by substituting a
+            // default — which is precisely the behaviour A-1/K-13/G-27 forbid elsewhere:
+            // it makes an unresolved token indistinguishable from a resolved one. It is
+            // kept (removing it would emit doubled separators), but every substitution is
+            // RECORDED, per token, so the tag can report that it was completed by
+            // assumption rather than by measurement.
             //
-            // Which tokens may legitimately fall back, and which must never, is
-            // corporate-baseline DATA — Data/STING_TAG_TOKEN_POLICY.json, overridable
-            // per project — because sectors disagree (a hospital treats ZONE as
-            // mandatory, a single-building lodge does not).
+            // Which tokens may legitimately fall back, which must never, and what value
+            // each falls back TO, is corporate-baseline DATA — Data/STING_TAG_TOKEN_POLICY.json,
+            // overridable per project at _BIM_COORD/tag_token_policy.json — because sectors
+            // disagree (a hospital treats ZONE as mandatory, a single-building lodge does not).
+            //
+            // Until 2026-09 that file shipped, documented all ten tokens, was named in two
+            // comments here, and NOTHING READ IT: the values below were hardcoded literals.
+            // Editing the policy changed nothing. It is now the authority.
+            //
+            // A token the policy gives no fallback is REFUSED, not guessed: the element is
+            // skipped and counted. That is the one path that can stop an element being
+            // tagged, so the shipped baseline gives every one of the seven tag segments a
+            // fallback and only a project override can turn refusal on.
+            var _policy = TagTokenPolicyRegistry.Get(doc);
             bool anyFallback = false;
-            if (string.IsNullOrEmpty(disc)) { disc = "A";    anyFallback = true; }
-            if (string.IsNullOrEmpty(loc))  { loc  = "BLD1"; anyFallback = true; }
-            if (string.IsNullOrEmpty(zone)) { zone = "Z01";  anyFallback = true; }
-            if (string.IsNullOrEmpty(lvl))  { lvl  = "L00";  anyFallback = true; }
-            if (string.IsNullOrEmpty(sys))  { sys  = "GEN";  anyFallback = true; }
-            if (string.IsNullOrEmpty(func)) { func = "GEN";  anyFallback = true; }
-            if (string.IsNullOrEmpty(prod)) { prod = "GEN";  anyFallback = true; }
+
+            bool ResolveToken(string tokenName, ref string slot)
+            {
+                if (!string.IsNullOrEmpty(slot)) return true;
+
+                var r = TagTokenPolicy.Resolve(_policy, tokenName, slot);
+                if (r.Refused)
+                {
+                    string why = $"{tokenName} is blank and the tag token policy offers no "
+                               + $"fallback, so no tag was written for element {el.Id}. "
+                               + (r.Reason ?? "");
+                    StingLog.WarnRateLimited("TokenPolicyRefusal", why);
+                    stats?.RecordTokenRefusal(r.Reason ?? tokenName + " is blank", el.Id?.Value ?? -1);
+                    return false;
+                }
+
+                slot = r.Value;
+                if (r.Substituted)
+                {
+                    anyFallback = true;
+                    stats?.RecordTokenSubstitution(tokenName, r.Level == TagTokenLevel.Mandatory);
+                    if (!string.IsNullOrEmpty(r.Reason))
+                        StingLog.WarnRateLimited("TokenPolicyGap", r.Reason);
+                }
+                return true;
+            }
+
+            if (!ResolveToken("DISC", ref disc)) return false;
+            if (!ResolveToken("LOC",  ref loc))  return false;
+            if (!ResolveToken("ZONE", ref zone)) return false;
+            if (!ResolveToken("LVL",  ref lvl))  return false;
+            if (!ResolveToken("SYS",  ref sys))  return false;
+            if (!ResolveToken("FUNC", ref func)) return false;
+            if (!ResolveToken("PROD", ref prod)) return false;
 
             // Always use DERIVED token values for seqKey, not stored values.
             // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
