@@ -601,6 +601,32 @@ namespace StingTools.Docs
                 .Trim().ToUpperInvariant();
             if (cdeFormat != "FULL" && cdeFormat != "SUFFIX") cdeFormat = "CONTAINER";
 
+            // The PRJ_ORG_* values, read ONCE from their single home.
+            //
+            // The title-block families carry 20 of these as family parameters and
+            // NOTHING ever wrote them: they live on ProjectInformation, Populate did
+            // not touch them (no CSV row, not in AllTitleBlockParams), and no other
+            // command copies them across. So a label bound to
+            // PRJ_ORG_ORIGINATOR_CODE_TXT printed blank for ever no matter what was
+            // typed into Project Information -- and the blank looked exactly like an
+            // unconfigured project, which is how I misread one.
+            //
+            // Copied, never authored: ProjectInformation stays the only place these
+            // are SET. Giving them CSV rows would create a second source of truth for
+            // a project-wide fact, which is the defect this file has spent its
+            // history removing.
+            var orgValues = new List<KeyValuePair<string, string>>();
+            foreach (string name in ParamRegistry.AllOrganisationParams)
+            {
+                string v = ParameterHelpers.GetString(doc.ProjectInformation, name);
+                if (!string.IsNullOrWhiteSpace(v))
+                    orgValues.Add(new KeyValuePair<string, string>(name, v.Trim()));
+            }
+            int orgMirrored = 0;
+            var orgUnset = ParamRegistry.AllOrganisationParams
+                .Where(n => !orgValues.Any(kv => string.Equals(kv.Key, n, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
             var cdeRefNoId = new List<string>();
             var cdeRefNoRev = new List<string>();
             int cdeRefWritten = 0;
@@ -815,6 +841,18 @@ namespace StingTools.Docs
                         }
                     }
 
+                    // Project-wide facts onto this sheet and its title block, from
+                    // the one place they are set.
+                    foreach (var kv in orgValues)
+                    {
+                        if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, kv.Key, kv.Value, false, out _))
+                        {
+                            orgMirrored++;
+                            paramsWrittenThisSheet++;
+                        }
+                    }
+
                     // ── The CDE REFERENCE cell ───────────────────────────────────
                     //
                     // The one string that lets someone holding the paper find the file
@@ -946,6 +984,7 @@ namespace StingTools.Docs
                 .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
                 .Metric("CDE state derived from the suitability code", derived.ToString())
                 .Metric("CDE reference written", cdeRefWritten.ToString())
+                .Metric("Project-wide values mirrored onto sheets", orgMirrored.ToString())
                 .Metric("Per-sheet values replaced by the CSV", replaced.Count.ToString())
                 .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
@@ -969,6 +1008,21 @@ namespace StingTools.Docs
                       + "typed onto one sheet on purpose is gone. Revit's Undo reverses the whole "
                       + "run. To keep a per-sheet value, leave that parameter's CSV cell EMPTY: "
                       + "Populate skips empty cells and will not touch the sheet.")
+                .AddSection("Project-Wide Values (PRJ_ORG_*)")
+                .Text((orgValues.Count == 0
+                        ? "NONE are set on Project Information, so nothing was copied."
+                        : "Copied from Project Information onto every sheet and title block:\n"
+                          + string.Join("\n", orgValues.Select(kv => $"    {kv.Key} = \"{kv.Value}\"")))
+                    + (orgUnset.Count == 0
+                        ? ""
+                        : "\n\nNot set, so not copied:\n"
+                          + string.Join("\n", orgUnset.Select(n => "    " + n)))
+                    + "\n\nThese are SET on Project Information and only there. The title-block "
+                    + "families carry their own copies as family parameters, and nothing used to "
+                    + "fill them — so a label bound to one printed blank whatever was typed into "
+                    + "Project Information, and the blank looked exactly like an unconfigured "
+                    + "project. They are copied here, never authored here: a CSV row for a "
+                    + "project-wide fact would be a second place to set it.")
                 .AddSection("CDE Reference")
                 .Text($"Format: {cdeFormat}   (PRJ_TB_CDE_REF_FORMAT_TXT in TITLE_BLOCK.csv)\n\n"
                     + "  CONTAINER  SHARED/Z/DR   — where in the CDE the file sits. The default, "
