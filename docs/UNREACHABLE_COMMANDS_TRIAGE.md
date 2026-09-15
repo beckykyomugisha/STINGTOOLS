@@ -21,16 +21,17 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-15
 
-- **Total IExternalCommand classes**: **1735**
-- **Reached by a dispatch layer**: **1703**
+- **Total IExternalCommand classes**: **1736**
+- **Reached by a dispatch layer**: **1704**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1735; the script fails if they stop adding up.
+The four buckets partition all 1736; the script fails if they stop adding up.
 
-**+4 since 2026-09-14**, all reached: `TitleBlock_InspectLock`,
-`TitleBlock_Unlock`, `TitleBlock_InspectFields` and `Sheet_NumberFromIso` — PRJ_TB_LOCK_BOOL had six readers that refuse to act
+**+5 since 2026-09-14**, all reached: `TitleBlock_InspectLock`,
+`TitleBlock_Unlock`, `TitleBlock_InspectFields`, `Sheet_NumberFromIso` and
+`Sheet_NumberRestore` — PRJ_TB_LOCK_BOOL had six readers that refuse to act
 and nothing anywhere that could clear it.
 
 **+7 since 2026-09-12**, all reached: the QR work added `Sheet_StampQR`,

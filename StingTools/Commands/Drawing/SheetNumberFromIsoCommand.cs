@@ -137,6 +137,11 @@ namespace StingTools.Commands.Drawing
                     + "file already on the CDE — will no longer match.\n\n"
                     + "Every from -> to pair is written to " + HistoryFile + " in the project's "
                     + "coordination folder, so the move can be reversed.\n\n"
+                    + "IT ALSO FEEDS THE IDENTIFIER BACK INTO ITS OWN INPUT: "
+                    + ParamRegistry.SHT_TAG_1 + " is assembled FROM the sheet number, so after "
+                    + "this, Tag Sheets would nest the code inside itself. That is now refused "
+                    + "rather than compounded, but it means the ISO code stops being rebuilt "
+                    + "from the sheet's tokens — it freezes at whatever it says today.\n\n"
                     + "If you only want the identifier PRINTED, cancel and re-bind the DRG NO. "
                     + "label in the title-block family to " + ParamRegistry.SHT_TAG_1 + " instead "
                     + "— that changes the drawing without changing the key.",

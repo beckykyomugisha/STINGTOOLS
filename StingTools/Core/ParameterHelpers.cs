@@ -3406,9 +3406,37 @@ namespace StingTools.Core
 
             // 6. Assemble SHT_TAG_1 (ISO 19650 document code)
             // Format: PROJECT-ORIGINATOR-LEVEL-FORM-DISC-NUMBER-REV
+            //
+            // THE NUMBER SEGMENT IS sheet.SheetNumber, SO THIS CAN EAT ITS OWN OUTPUT.
+            // Sheet_NumberFromIso exists to put this identifier INTO the sheet number.
+            // Once it has, re-running this would assemble
+            //     PROJECT-ORIG-...-{PROJECT-ORIG-...-A-L1-001-1}-REV
+            // and every further run would nest it again. A real export filename after
+            // one round already read
+            //     SAH--ZZ-L01-DR-PROJECTN-PROJECTN-ORGANI-L01-LG-COORD-A-L1-001-1-S2-P01
+            // with the project code in twice.
+            //
+            // So: if the sheet number ALREADY begins with this project's own
+            // "{project}-{originator}-" prefix, it is an assembled code rather than a
+            // short number, and re-assembling would compound it. Keep what is there and
+            // say so. Trying to strip the prefix back off would be a guess -- the NUMBER
+            // segment contains hyphens of its own (A-L1-001), so the split is ambiguous
+            // and a wrong guess silently renames the drawing.
             string sheetNum = sheet.SheetNumber ?? "00000";
-            string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
-            written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+            string selfPrefix = $"{projectCode}-{originator}-";
+            if (!string.IsNullOrEmpty(projectCode) && !string.IsNullOrEmpty(originator)
+                && sheetNum.StartsWith(selfPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                StingLog.Warn($"TagSheet '{sheetNum}': the sheet number is already an assembled "
+                    + $"ISO code (starts with '{selfPrefix}'). {ParamRegistry.SHT_TAG_1} left as it "
+                    + "is rather than nesting the code inside itself. Restore the short sheet number "
+                    + "(Drawing Type Editor -> Title Block -> Restore Sheet Nos) if this was not intended.");
+            }
+            else
+            {
+                string tag1 = $"{projectCode}-{originator}-{level}-{form}-{disc}-{sheetNum}-{rev}";
+                written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+            }
 
             // 7. Build SHT_TAG_7 narrative
             string tag7 = BuildSheetNarrative(sheet, disc, form, level, rev, vpViews.Count);
