@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -147,16 +147,21 @@ namespace StingTools.UI
 
         private static readonly List<string> IdentityParams = new()
         {
-            "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT", "ASS_DEPARTMENT_TXT",
-            "ASS_LEVEL_NAME_TXT", "ASS_GRID_REF_TXT", "ASS_MANUFACTURER_TXT",
+            // Resolved through ParamRegistry rather than spelled as literals: these
+            // three were "ASS_ROOM_NUMBER_TXT" / "ASS_DEPARTMENT_TXT" /
+            // "ASS_LEVEL_NAME_TXT", none of which exist in MR_PARAMETERS.txt, so the
+            // dialog offered three columns that could only ever export blank. A
+            // registry lookup makes the next such rename a compile error.
+            ParamRegistry.ROOM_NAME, ParamRegistry.ROOM_NUM, ParamRegistry.DEPT,
+            ParamRegistry.LVL, "ASS_GRID_REF_TXT", "ASS_MANUFACTURER_TXT",
             "ASS_MODEL_NR_TXT", "ASS_DESCRIPTION_TXT"
         };
 
         private static readonly List<string> SpatialParams = new()
         {
             ParamRegistry.LOC, ParamRegistry.ZONE, ParamRegistry.LVL,
-            "ASS_GRID_REF_TXT", "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT",
-            "ASS_DEPARTMENT_TXT", "ASS_LEVEL_NAME_TXT"
+            "ASS_GRID_REF_TXT", ParamRegistry.ROOM_NAME, ParamRegistry.ROOM_NUM,
+            ParamRegistry.DEPT
         };
 
         private static readonly List<string> MepParams = new()
@@ -778,8 +783,8 @@ namespace StingTools.UI
             };
             var spatialParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "ASS_GRID_REF_TXT", "ASS_ROOM_NAME_TXT", "ASS_ROOM_NUMBER_TXT",
-                "ASS_DEPARTMENT_TXT", "ASS_LEVEL_NAME_TXT"
+                "ASS_GRID_REF_TXT", ParamRegistry.ROOM_NAME, ParamRegistry.ROOM_NUM,
+                ParamRegistry.DEPT, ParamRegistry.LVL
             };
 
             // Add parameters grouped: Tags first, then STING, then native

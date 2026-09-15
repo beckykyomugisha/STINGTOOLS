@@ -2144,6 +2144,11 @@
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Room Push" Tag="RoomParamPush" Click="Cmd_Click" ToolTip="Push LOC/ZONE from rooms to contained elements" FontWeight="Bold"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Connectivity" Tag="SpatialConnectivityAudit" Click="Cmd_Click" ToolTip="Validate rooms — doors, dead-end corridors, min area per BS 6465"/>
                                 </WrapPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Renumber" Tag="Rooms_Renumber" Click="Cmd_Click" ToolTip="Renumber rooms by position (serpentine / row-major). Previews every change before writing; keeps already-numbered rooms by default."/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Number Schemes" Tag="Rooms_NumberingInspect" Click="Cmd_Click" ToolTip="Read-only — which numbering schemes are available, and what the default would do to this model"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Place Tags" Tag="Rooms_PlaceTags" Click="Cmd_Click" ToolTip="Place room tags on untagged rooms. Safe to re-run — a room already tagged in that view is left alone."/>
+                                </WrapPanel>
                                 <Expander Header="Audits &amp; reports" FontSize="10" Margin="0,4,0,0">
                                     <WrapPanel Margin="0,4">
                                         <Button Style="{StaticResource ActionBtn}" Content="Audit" Tag="RoomAudit" Click="Cmd_Click" ToolTip="Room Audit — completeness + issue scan"/>

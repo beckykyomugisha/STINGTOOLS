@@ -28465,8 +28465,9 @@
       },
       {
         "key": "BLE_ROOM_NUM",
-        "param_name": "ASS_ROOM_NUM_TXT",
-        "description": "Room number (canonical)"
+        "param_name": "BLE_ROOM_NUM_TXT",
+        "categories": ["Rooms"],
+        "description": "The room's OWN number, written onto the Room element. Distinct from ROOM_NUM / ASS_ROOM_NUM_TXT, which is bound <ALL> and records the number of the room an ASSET sits in. Pairs with BLE_ROOM_NAME."
       }
     ],
     "extended_tokens": [

@@ -1,0 +1,71 @@
+{
+  "_comment": "STING room numbering — corporate baseline. Override per project at <project>/_BIM_COORD/room_numbering.json; project schemes win by Id and a project DefaultSchemeId wins outright. Pattern tokens: {lvl} {dept} {seq} {seq:Dn}. Order: Serpentine | RowMajor | ColumnMajor. RowBandMm is the height of one horizontal band in millimetres — rooms whose centres share a band are one row, sorted left to right.",
+  "_warning": "PreserveExistingNumbers defaults to true on every scheme here, and should stay true on anything used after a drawing issue. Renumbering a room silently invalidates every RFI, snag, O&M reference and door schedule entry that names it.",
+  "defaultSchemeId": "level-serpentine",
+
+  "schemes": [
+    {
+      "id": "level-serpentine",
+      "name": "Level + serpentine sequence (GF01, GF02, ...)",
+      "pattern": "{lvl}{seq:D2}",
+      "order": "Serpentine",
+      "rowBandMm": 3000.0,
+      "startAt": 1,
+      "step": 1,
+      "restartPerLevel": true,
+      "restartPerDepartment": false,
+      "preserveExistingNumbers": true
+    },
+    {
+      "id": "level-hundreds",
+      "name": "Level hundreds (101, 102, ... / 201, 202, ...)",
+      "_comment": "The North American convention. The level digit lives in startAt, which the command offsets per level, so the pattern itself carries only the sequence.",
+      "pattern": "{seq:D3}",
+      "order": "Serpentine",
+      "rowBandMm": 3000.0,
+      "startAt": 101,
+      "step": 1,
+      "restartPerLevel": true,
+      "restartPerDepartment": false,
+      "preserveExistingNumbers": true
+    },
+    {
+      "id": "dept-sequence",
+      "name": "Department + sequence (WARD01, THEATRE01, ...)",
+      "_comment": "Healthcare and lab work, where a room's department matters more than its position. Department is stripped to letters and digits — Revit will not accept punctuation in a room number.",
+      "pattern": "{dept}{seq:D2}",
+      "order": "Serpentine",
+      "rowBandMm": 3000.0,
+      "startAt": 1,
+      "step": 1,
+      "restartPerLevel": true,
+      "restartPerDepartment": true,
+      "preserveExistingNumbers": true
+    },
+    {
+      "id": "level-dept-sequence",
+      "name": "Level + department + sequence (GF-WARD-01)",
+      "pattern": "{lvl}-{dept}-{seq:D2}",
+      "order": "Serpentine",
+      "rowBandMm": 3000.0,
+      "startAt": 1,
+      "step": 1,
+      "restartPerLevel": true,
+      "restartPerDepartment": true,
+      "preserveExistingNumbers": true
+    },
+    {
+      "id": "level-rowmajor-tens",
+      "name": "Level + row-major, gaps of 10 (GF010, GF020, ...)",
+      "_comment": "Leaves room to insert a room later without renumbering its neighbours — the reason a step of 10 is worth the wider numbers.",
+      "pattern": "{lvl}{seq:D3}",
+      "order": "RowMajor",
+      "rowBandMm": 3000.0,
+      "startAt": 10,
+      "step": 10,
+      "restartPerLevel": true,
+      "restartPerDepartment": false,
+      "preserveExistingNumbers": true
+    }
+  ]
+}

@@ -2041,6 +2041,17 @@ namespace StingTools.Core
 
                 // Phase 74: Missing resolutions that break sector-specific workflow presets
                 case "RoomSpaceAudit":          return new Temp.RoomAuditCommand();
+                // "RoomAudit" is the tag the SpatialQA preset and the DOCS button both use;
+                // only the "RoomSpaceAudit" spelling resolved, so the preset's first step
+                // could never run. Both spellings now reach the same command.
+                case "RoomAudit":               return new Temp.RoomAuditCommand();
+
+                // Room numbering & tag placement (Commands/Rooms). Resolvable so a preset
+                // can chain them — Renumber previews and asks before it writes, and
+                // PlaceTags is idempotent, so neither is destructive inside a workflow.
+                case "Rooms_Renumber":          return new Commands.Rooms.RoomRenumberCommand();
+                case "Rooms_NumberingInspect":  return new Commands.Rooms.RoomNumberingInspectCommand();
+                case "Rooms_PlaceTags":         return new Commands.Rooms.PlaceRoomTagsCommand();
                 case "HandoverManual":          return new Docs.HandoverManualCommand();
                 case "MEPSizingCheck":          return new Temp.MEPSizingCheckCommand();
 

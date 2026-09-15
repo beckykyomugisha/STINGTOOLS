@@ -3183,6 +3183,13 @@ namespace StingTools.UI
                     case "RoomParamPush": RunCommand<Temp.RoomBasedParamPushCommand>(app); break;
                     case "RoomDataExport": RunCommand<Temp.RoomDataExportCommand>(app); break;
 
+                    // ── Room numbering & tag placement (Commands/Rooms) ──
+                    // Renumber decides everything in RoomNumberPlanner (Revit-free, unit-tested)
+                    // and previews before it writes; PlaceTags is idempotent by construction.
+                    case "Rooms_Renumber": RunCommand<Commands.Rooms.RoomRenumberCommand>(app); break;
+                    case "Rooms_NumberingInspect": RunCommand<Commands.Rooms.RoomNumberingInspectCommand>(app); break;
+                    case "Rooms_PlaceTags": RunCommand<Commands.Rooms.PlaceRoomTagsCommand>(app); break;
+
                     // ── FM Handover Export (HandoverExportCommands.cs, StingTools.Docs) ──
                     case "MaintenanceSchedule": RunCommand<Docs.MaintenanceScheduleExportCommand>(app); break;
                     case "OMManual": RunCommand<Docs.OAndMManualExportCommand>(app); break;
