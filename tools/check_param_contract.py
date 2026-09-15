@@ -57,7 +57,21 @@ BASELINE = os.path.join(ROOT, 'docs', 'PARAM_CONTRACT_BASELINE.json')
 BINDINGS = os.path.join(ROOT, 'StingTools', 'Data', 'CATEGORY_BINDINGS.csv')
 REGISTRY = os.path.join(ROOT, 'StingTools', 'Core', 'ParamRegistry.cs')
 
-WRITE = re.compile(r'\b(SetString|SetInt|SetDouble|SetIfEmpty|SetElementId)\s*\(')
+# Every helper that actually WRITES a parameter.
+#
+# SetStr, SetIfEmptyStr and SetOnSheetAndTitleBlock were missing, and they are the
+# ones the sheet-tagging and title-block paths use -- so four parameters written
+# through them (PRJ_SHEET_VOLUME_TXT, PRJ_DWG_LOIN_LOD_TXT,
+# PRJ_DWG_SUITABILITY_DESC_TXT, PRJ_TB_REVISION_NR_TXT) read as "read_only", which
+# is the opposite of true. Recording them in the baseline would have written a
+# false fact into the file this gate exists to keep honest, and the next reader
+# would have gone looking for a producer that was there all along.
+#
+# SetIfEmpty does NOT match SetIfEmptyStr on its own: the \s*\( requires a paren
+# straight after the name, so the longer helper needs naming explicitly. Ordered
+# longest-first so the alternation cannot match a prefix of a longer name.
+WRITE = re.compile(r'\b(SetOnSheetAndTitleBlock|SetIfEmptyStr|SetIfEmpty'
+                   r'|SetElementId|SetString|SetDouble|SetStr|SetInt)\s*\(')
 READ = re.compile(r'\b(GetString|GetInt|GetDouble|GetElementId|LookupParameter'
                   r'|AsString|AsDouble|AsInteger|AsValueString)\b')
 TABLE_ROW = re.compile(r'^\s*\(\s*Col\w+\s*,')

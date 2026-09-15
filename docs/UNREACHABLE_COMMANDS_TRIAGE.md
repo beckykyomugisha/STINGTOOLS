@@ -21,13 +21,13 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-15
 
-- **Total IExternalCommand classes**: **1737**
-- **Reached by a dispatch layer**: **1705**
+- **Total IExternalCommand classes**: **1741**
+- **Reached by a dispatch layer**: **1709**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1737; the script fails if they stop adding up.
+The four buckets partition all 1741; the script fails if they stop adding up.
 
 **+6 since 2026-09-14**, all reached: `TitleBlock_InspectLock`,
 `TitleBlock_Unlock`, `TitleBlock_InspectFields`, `Sheet_NumberFromIso`,
