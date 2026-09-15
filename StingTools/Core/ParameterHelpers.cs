@@ -7,6 +7,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 
+using StingTools.Core.Drawing;
+
 namespace StingTools.Core
 {
     /// <summary>
@@ -3417,10 +3419,10 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(form)) form = "DR";
 
             // 4. Derive LEVEL from viewport view associated levels
-            string level = DeriveSheetLevel(vpViews);
+            string level = DeriveSheetLevel(doc, vpViews);
             written += Put(sheet, ParamRegistry.SHT_LEVEL, level);
             level = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_LEVEL);
-            if (string.IsNullOrEmpty(level)) level = "XX";
+            if (string.IsNullOrEmpty(level)) level = IsoLevelCode.NotApplicable;
 
             // 5. Write project-level tokens
             // SetIfEmpty is right for a GUESS and wrong for a project-level setting.
@@ -3766,35 +3768,93 @@ namespace StingTools.Core
         /// Returns the most common level code, or "XX" if mixed/none.
         /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetLevel(List<View> vpViews)
+        private static string DeriveSheetLevel(Document doc, List<View> vpViews)
         {
             try
             {
-                if (vpViews == null || vpViews.Count == 0) return "XX";
+                if (vpViews == null || vpViews.Count == 0) return IsoLevelCode.NotApplicable;
+
+                // The code for a storey depends on where it sits in the STACK, so the
+                // map is built from EVERY level in the model, not from the ones on
+                // this sheet. You cannot tell whether a level is 01 or 02 by looking
+                // at it alone -- which is why the old name-only rule turned "L1" into
+                // "01" on a ground-floor plan.
+                var map = BuildLevelMap(doc);
 
                 var levelCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
                 foreach (View view in vpViews)
                 {
-                    // Get associated level via the view's GenLevel property
                     Level lvl = view.GenLevel;
                     if (lvl == null) continue;
 
-                    string lvlCode = DeriveLevelCodeFromName(lvl.Name);
-                    if (!string.IsNullOrEmpty(lvlCode))
-                    {
-                        levelCounts.TryGetValue(lvlCode, out int c);
-                        levelCounts[lvlCode] = c + 1;
-                    }
+                    string code = (map != null && map.TryGetValue(lvl.Name, out string m))
+                        ? m
+                        : IsoLevelCode.FromNameOnly(lvl.Name);
+                    if (string.IsNullOrEmpty(code)) continue;
+
+                    levelCounts.TryGetValue(code, out int c);
+                    levelCounts[code] = c + 1;
                 }
 
-                if (levelCounts.Count == 0) return "XX";
+                if (levelCounts.Count == 0) return IsoLevelCode.NotApplicable;
                 if (levelCounts.Count == 1) return levelCounts.Keys.First();
 
-                // Multiple levels — return most common
-                return levelCounts.OrderByDescending(kv => kv.Value).First().Key;
+                // A sheet drawing several storeys is ZZ -- "applies to more than one
+                // level" -- and that is a real ISO code, not a fallback. Naming the
+                // most common one would state that the sheet covers that storey and
+                // silently drop the others.
+                return IsoLevelCode.Multiple;
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveSheetLevel: {ex.Message}"); return "XX"; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DeriveSheetLevel: {ex.Message}");
+                return IsoLevelCode.NotApplicable;
+            }
+        }
+
+        /// <summary>Every level in the model, as ISO 19650 level codes.
+        ///
+        /// Cached per document for the length of one tagging run: TagSheet is called
+        /// per sheet and a 300-sheet project would otherwise collect every Level 300
+        /// times.</summary>
+        private static Dictionary<string, string> _levelMap;
+        private static string _levelMapDocKey;
+
+        internal static void InvalidateLevelMap() { _levelMap = null; _levelMapDocKey = null; }
+
+        private static Dictionary<string, string> BuildLevelMap(Document doc)
+        {
+            if (doc == null) return null;
+            string key = doc.PathName + "|" + doc.GetHashCode();
+            if (_levelMap != null && _levelMapDocKey == key) return _levelMap;
+
+            try
+            {
+                var storeys = new List<StoreyDatum>();
+                foreach (Level lvl in new FilteredElementCollector(doc)
+                             .OfClass(typeof(Level)).Cast<Level>())
+                {
+                    if (lvl == null || string.IsNullOrWhiteSpace(lvl.Name)) continue;
+                    storeys.Add(new StoreyDatum
+                    {
+                        Name = lvl.Name,
+                        // Revit's internal unit is decimal FEET; the resolver reasons
+                        // in millimetres because its ground tolerance is a real
+                        // physical distance, not a unitless number.
+                        ElevationMm = UnitUtils.ConvertFromInternalUnits(
+                            lvl.Elevation, UnitTypeId.Millimeters),
+                    });
+                }
+
+                _levelMap = IsoLevelCode.BuildMap(storeys);
+                _levelMapDocKey = key;
+                return _levelMap;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildLevelMap: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>Build human-readable sheet narrative for SHT_TAG_7.

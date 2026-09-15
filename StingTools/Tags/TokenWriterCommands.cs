@@ -825,6 +825,12 @@ namespace StingTools.Tags
             {
                 tx.Start();
 
+                // The level map is cached for the length of a run so a 300-sheet
+                // project does not re-collect every Level 300 times. Drop it first,
+                // or a run started after somebody added or moved a level would
+                // number the whole set off a stale stack.
+                NativeParamMapper.SheetTagger.InvalidateLevelMap();
+
                 // Map native sheet params first
                 NativeParamMapper.MapSheets(doc);
 
