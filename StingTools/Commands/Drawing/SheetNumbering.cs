@@ -33,6 +33,12 @@ namespace StingTools.Commands.Drawing
             /// could not be. Null is reported, not hidden: an operator told a trail
             /// exists when it does not is worse off than one told nothing.</summary>
             public string HistoryPath;
+
+            /// <summary>How many sheets had their ISO 19650 identifier rebuilt. A
+            /// renumber that does not rebuild it leaves the title block printing the
+            /// OLD number while the browser shows the new one.</summary>
+            public int Retagged;
+            public List<string> RetagFailures = new List<string>();
         }
 
         /// <summary>The file Sheet_NumberFromIso, Tidy and Restore already append to.
@@ -112,9 +118,75 @@ namespace StingTools.Commands.Drawing
                 tx.Commit();
             }
 
+            Retag(doc, plan, outcome, transactionName);
             outcome.HistoryPath = RecordHistory(doc, plan, outcome, transactionName);
             return outcome;
         }
+        /// <summary>Rebuild the ISO 19650 identifier on every sheet that was
+        /// renumbered.
+        ///
+        /// SHT_TAG_1_TXT is DERIVED from the sheet number, and so are the discipline,
+        /// form and level tokens it is assembled out of. Changing the number without
+        /// rebuilding them leaves derived data contradicting its own source: the
+        /// project browser shows A-001 while the title block still prints
+        /// SAH-PLNS-ZZ-01-LG-Z-0003, and nothing on the drawing admits the two
+        /// disagree. That is not a follow-up step for the operator to remember — it
+        /// is part of renumbering, so it happens here.
+        ///
+        /// A separate transaction, because the rename must be committed before the
+        /// tokens are derived from it. Both are undoable; a second Ctrl+Z reverses
+        /// the rename after the first reverses the re-tag.
+        ///
+        /// Only the renumbered sheets, and only with reDerive — a sheet nobody
+        /// touched keeps every token exactly as it was.</summary>
+        private static void Retag(Document doc, List<Change> plan, Outcome outcome, string source)
+        {
+            if (doc == null || plan == null || plan.Count == 0) return;
+
+            try
+            {
+                string originator = NativeParamMapper.SheetTagger.DetectOriginator(doc);
+                string projectCode = NativeParamMapper.SheetTagger.DetectProjectCode(doc);
+                string rev = PhaseAutoDetect.DetectProjectRevision(doc) ?? "P01";
+
+                using (var tx = new Transaction(doc, source + " — rebuild identifiers"))
+                {
+                    tx.Start();
+                    foreach (var c in plan)
+                    {
+                        if (c.Sheet == null) continue;
+                        // A sheet whose rename failed still holds its OLD number, so
+                        // its tokens are still correct. Re-deriving would be a no-op
+                        // at best and is skipped rather than counted.
+                        if (!string.Equals(c.Sheet.SheetNumber, c.New, StringComparison.Ordinal))
+                            continue;
+
+                        try
+                        {
+                            NativeParamMapper.SheetTagger.TagSheet(
+                                doc, c.Sheet, originator, projectCode, rev, reDerive: true);
+                            outcome.Retagged++;
+                        }
+                        catch (Exception ex)
+                        {
+                            outcome.RetagFailures.Add($"  {c.New}: {ex.Message}");
+                            StingLog.Warn($"SheetNumbering retag '{c.New}': {ex.Message}");
+                        }
+                    }
+                    tx.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Named, not swallowed. The renumber HAS happened; an operator who
+                // believes the identifiers followed and finds they did not would be
+                // chasing the wrong thing entirely.
+                outcome.RetagFailures.Add("  the identifier rebuild failed for the whole run — "
+                    + ex.Message + " — run Tag Sheets to finish it");
+                StingLog.Error("SheetNumbering: identifier rebuild failed", ex);
+            }
+        }
+
         /// <summary>Append what changed to sheet_number_history.json.
         ///
         /// This is the answer to the one question a renumber creates: somebody is

@@ -229,6 +229,7 @@ namespace StingTools.Commands.Drawing
                 .Metric("Failed", failed.ToString())
                 .Metric("Of those renumbered, already issued", issuedRows.Count.ToString())
                 .Metric("Old numbers recorded in", result.HistoryPath ?? "(not written — see the log)")
+                .Metric("Identifiers rebuilt", result.Retagged.ToString())
                 .AddSection("What Changed")
                 .Text(changing.Count == 0
                     ? "(nothing)"
@@ -243,6 +244,18 @@ namespace StingTools.Commands.Drawing
                     + "{orig} originator · {seq:D3} zero-padded sequence.\n"
                     + "A token that resolves to nothing takes its separator with it, so a "
                     + "project with no level code gets A-001 rather than A--001.")
+                .AddSection("ISO 19650 Identifiers")
+                .Text($"Rebuilt on {result.Retagged} sheet(s).\n\n"
+                    + "SHT_TAG_1_TXT is DERIVED from the sheet number, and so are the discipline, "
+                    + "form and level tokens it is assembled from — so a renumber invalidates them "
+                    + "and they are rebuilt here rather than left for a follow-up step. Without "
+                    + "that, the project browser shows the new number while the title block keeps "
+                    + "printing the old one, and nothing on the drawing admits the two disagree.\n\n"
+                    + (result.RetagFailures.Count == 0
+                        ? "The title block follows once Populate runs — CDE REF and DRG NO. both "
+                          + "derive from the identifier."
+                        : "SOME FAILED:\n" + string.Join("\n", result.RetagFailures)
+                          + "\n\nRun Tag Sheets to finish those."))
                 .AddSection("Sheets That Had Already Been Issued")
                 .Text(issuedRows.Count == 0
                     ? "(none found — but a set exported straight to PDF without a transmittal "
@@ -255,8 +268,8 @@ namespace StingTools.Commands.Drawing
                     + "something else — rename it and re-run. Nothing here reads the elements "
                     + "drawn on the sheet: a general arrangement mixes trades on purpose, so "
                     + "counting them classified every GA plan as coordination.\n\n"
-                    + "Next: run Tag Sheets so the ISO 19650 identifier picks up the new numbers, "
-                    + "then Populate.")
+                    + "Next: run Populate — the identifiers were rebuilt as part of this run, and "
+                    + "the title block's DRG NO. and CDE REF both derive from them.")
                 .Show();
 
             return Result.Succeeded;

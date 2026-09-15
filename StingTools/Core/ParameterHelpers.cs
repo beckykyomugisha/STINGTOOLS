@@ -3351,13 +3351,35 @@ namespace StingTools.Core
         /// </summary>
         public static int TagSheet(Document doc, ViewSheet sheet,
             string originator, string projectCode, string rev)
+            => TagSheet(doc, sheet, originator, projectCode, rev, reDerive: false);
+
+        /// <summary>Tag a sheet, optionally RE-DERIVING the tokens that come from the
+        /// sheet number.
+        ///
+        /// Normally these use SetIfEmpty so a correction somebody typed survives a
+        /// re-run. After a RENUMBER that is exactly wrong: SHT_NUMBER, SHT_DISC,
+        /// SHT_FORM and SHT_LEVEL were derived FROM the old number, so the renumber
+        /// is the event that invalidates them. Preserving them leaves a sheet
+        /// numbered A-001 still carrying discipline COORD, and the identifier built
+        /// from it still reading role Z -- a drawing that contradicts itself, with
+        /// the browser showing the new number and the title block the old one.
+        ///
+        /// reDerive is passed only by the renumber commands, and only for the sheets
+        /// they actually changed. Nothing else overwrites a token a person set.</summary>
+        public static int TagSheet(Document doc, ViewSheet sheet,
+            string originator, string projectCode, string rev, bool reDerive)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int written = 0;
 
+            // One helper, so the six call sites below cannot disagree about which
+            // mode they are in.
+            Func<ViewSheet, string, string, int> Put = (sh, name, value) =>
+                reDerive ? SetStr(sh, name, value) : SetIfEmptyStr(sh, name, value);
+
             // 1. Map native sheet number/name
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_NAME, sheet.Name);
+            written += Put(sheet, ParamRegistry.SHT_NUMBER, sheet.SheetNumber);
+            written += Put(sheet, ParamRegistry.SHT_NAME, sheet.Name);
 
             // P-01/A-01: Hoist GetAllViewports() + view resolution once for all derive methods
             ICollection<ElementId> vpIds = null;
@@ -3383,20 +3405,20 @@ namespace StingTools.Core
             // D-03: Source tokens use SetIfEmptyStr to preserve user corrections
             // 2. Derive DISC from viewport element discipline majority vote
             string disc = DeriveSheetDiscipline(doc, sheet, vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_DISC, disc);
+            written += Put(sheet, ParamRegistry.SHT_DISC, disc);
             // Re-read actual stored value for TAG1 assembly (may differ if user-set)
             disc = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_DISC);
             if (string.IsNullOrEmpty(disc)) disc = "GEN";
 
             // 3. Derive FORM from viewport view types
             string form = DeriveSheetForm(vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_FORM, form);
+            written += Put(sheet, ParamRegistry.SHT_FORM, form);
             form = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_FORM);
             if (string.IsNullOrEmpty(form)) form = "DR";
 
             // 4. Derive LEVEL from viewport view associated levels
             string level = DeriveSheetLevel(vpViews);
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_LEVEL, level);
+            written += Put(sheet, ParamRegistry.SHT_LEVEL, level);
             level = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_LEVEL);
             if (string.IsNullOrEmpty(level)) level = "XX";
 
@@ -3406,7 +3428,7 @@ namespace StingTools.Core
             // and the rest after it was set to "PLNS"; SetIfEmpty then preserved both,
             // so one drawing set carried two originators and no re-run could
             // reconcile it. An explicitly configured originator overwrites.
-            written += OriginatorIsExplicit(doc)
+            written += (reDerive || OriginatorIsExplicit(doc))
                 ? SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator)
                 : SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_REV, rev);

@@ -227,6 +227,7 @@ namespace StingTools.Commands.Drawing
                 .Metric("Pattern", pattern)
                 .Metric("Of those renumbered, already issued", issuedRows.Count.ToString())
                 .Metric("Old numbers recorded in", result.HistoryPath ?? "(not written — see the log)")
+                .Metric("Identifiers rebuilt", result.Retagged.ToString())
                 .AddSection("New Order")
                 .Text(string.Join("\n", plan.Select(c => $"  {c.Old,-18} ->  {c.New}")))
                 .AddSection("Failures")
@@ -235,6 +236,18 @@ namespace StingTools.Commands.Drawing
                 .Text(lockedNames.Count == 0 ? "(none)" : string.Join(", ", lockedNames)
                     + "\n\nPRJ_TB_LOCK_BOOL is set on these, so they kept both their place and "
                     + "their number. Clear it with 'Unlock TBs' and re-run to include them.")
+                .AddSection("ISO 19650 Identifiers")
+                .Text($"Rebuilt on {result.Retagged} sheet(s).\n\n"
+                    + "SHT_TAG_1_TXT is DERIVED from the sheet number, and so are the discipline, "
+                    + "form and level tokens it is assembled from — so a renumber invalidates them "
+                    + "and they are rebuilt here rather than left for a follow-up step. Without "
+                    + "that, the project browser shows the new number while the title block keeps "
+                    + "printing the old one, and nothing on the drawing admits the two disagree.\n\n"
+                    + (result.RetagFailures.Count == 0
+                        ? "The title block follows once Populate runs — CDE REF and DRG NO. both "
+                          + "derive from the identifier."
+                        : "SOME FAILED:\n" + string.Join("\n", result.RetagFailures)
+                          + "\n\nRun Tag Sheets to finish those."))
                 .AddSection("Sheets That Had Already Been Issued")
                 .Text(issuedRows.Count == 0
                     ? "(none found — but a set exported straight to PDF without a transmittal "
