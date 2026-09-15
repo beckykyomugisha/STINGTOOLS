@@ -2,7 +2,7 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
-#### Completed (Phase 285 — STING_TAG_TOKEN_POLICY.json starts governing tagging)
+#### Completed (Phase 286 — STING_TAG_TOKEN_POLICY.json starts governing tagging)
 
 **The file governed nothing.** It shipped 2026-08-10 describing all ten ISO 19650 tag
 tokens with a MANDATORY / DERIVED / OPTIONAL level, a per-token fallback and a rationale
@@ -57,6 +57,80 @@ refused. The gate REPORTS those seven sites rather than printing a clean bill; a
 claimed full coverage would be repeating the policy file's own mistake. ROADMAP TOKPOL-1.
 
 17 new tests. Build 0/0.
+#### Completed (Phase 285 — Rooms: a room's own number, and the two commands the workflow was missing)
+
+**The parameter mis-wire.** `BLE_ROOM_*` and `ASS_ROOM_*` are deliberately different
+things, and `RESOLVED_BINDINGS.csv` says so: `ASS_ROOM_*` binds `<ALL>` and records
+the room an ASSET sits in; `BLE_ROOM_*` binds `Rooms` and is the room's own identity.
+The `extended_params` key `BLE_ROOM_NUM` pointed at `ASS_ROOM_NUM_TXT`, so
+`NativeParamMapper.MapRoomNameNumber` wrote a Room's number into the asset-side slot
+(where, on a Room, it self-references), **nothing ever wrote `BLE_ROOM_NUM_TXT`**, and
+the room-number column of every Room schedule naming it exported blank — including the
+shipped `FM_Revit / Acoustic Schedule`. Wrong in both the JSON and the C# fallback;
+both corrected.
+
+**Three columns that could only ever be blank.** `StingExportDialog` offered
+`ASS_ROOM_NUMBER_TXT`, `ASS_DEPARTMENT_TXT` and `ASS_LEVEL_NAME_TXT`. None exists in
+`MR_PARAMETERS.txt` or the registry. They now resolve through `ParamRegistry`, so the
+next such rename is a compile error rather than an empty column nobody notices.
+
+**A gate for the class, not the instance.** `ExtendedParamMapTests` asserts that every
+`extended_params` entry names a parameter `MR_PARAMETERS.txt` declares, and that a key
+named for one parameter family resolves into that family. Both run against shipped
+data, not against the map. Verified RED on the pre-fix registry, GREEN after — the
+family assertion had exactly one violation, which was the bug.
+
+**Room renumbering (`Rooms_Renumber`, `Rooms_NumberingInspect`).** There was no room
+renumbering command anywhere in the tree. `Core/Rooms/RoomNumberPlan.cs` is Revit-free
+and decides everything; the command only harvests, previews and writes. Schemes are
+data — `Data/STING_ROOM_NUMBERING.json` with a project override at
+`_BIM_COORD/room_numbering.json`, five shipped patterns, `{lvl} {dept} {seq:Dn}` tokens,
+serpentine / row-major / column-major walks.
+
+Three contracts worth knowing:
+- **`Plan()` writes nothing; only the command writes.** A plan that would duplicate a
+  number is a BLOCKER, not a warning — it is refused before anything is touched.
+- **`RowBandMm` is a GAP, not a grid.** Banding on `floor(y / band)` is anchored to the
+  project origin, so two rooms 1.2 m apart land in different rows whenever they straddle
+  a multiple of the band height — and *which* rooms those are changes if anyone moves
+  the base point. `ClusterByGap` is origin-independent. Found by a failing test, guarded
+  by `Row_grouping_does_not_move_when_the_project_origin_does`.
+- **Applying is two passes.** Revit rejects a duplicate room number at the moment of the
+  write, so 01→02, 02→03 fails even though the final state is clean. Pass 1 parks every
+  changing room on a `~STING` number; pass 2 writes the real ones. A failed write
+  restores the old number rather than leaving a room parked on a placeholder that looks
+  like a number.
+
+**Room tag placement (`Rooms_PlaceTags`).** `NewRoomTag` appeared nowhere in the
+codebase. STING could BUILD room tag families (`TagFamilyCreator`, including the four
+HBN/HTM clinical ones) and REPOSITION tags that already existed (`Tagging_RoomTagApply`
+→ `MoveRoomTags`), but the step between them was done by hand in Revit. Idempotent by
+construction: a room already tagged **in that view** is skipped, because a stacked
+duplicate tag is invisible until someone drags the top one months later.
+
+**`AutoCreateRooms` is idempotent.** It had no `GetRoomAtPoint` guard, so a second run
+over the same DWG silently doubled every room — `NewRoom` happily creates a second room
+inside an occupied enclosure, and the pair sits exactly on top of each other. A failed
+probe now skips and says so rather than being read as "no room there".
+
+**`SpatialQA`'s first step could never run.** `WorkflowEngine.ResolveCommand` knew
+`RoomSpaceAudit` but not `RoomAudit`, which is the tag both the preset and the DOCS
+button use. Both spellings now reach `RoomAuditCommand`, and the tag came off
+`tools/workflow_reachability_baseline.txt`.
+
+**New test project** `StingTools.Rooms.Tests` — 24 tests, picked up automatically by
+`stingtools-unit-tests.yml` (it globs `StingTools.*.Tests/*.csproj`). Covers the walk
+order, the refusals, preserved numbers, determinism, and a round-trip of the *shipped*
+baseline so a Newtonsoft silent default fails there rather than on a user's Friday.
+
+Build: **0 errors / 0 warnings**. Path-discipline, workflow-wiring, param-contract and
+param-name-target gates all green.
+
+**Retracted during this work.** An earlier review of this area claimed batch-tagging a
+room produced `A-…-GEN-GEN-GEN` because `Rooms` was absent from `SysMap`. It is not:
+`TagConfig.Defaults.cs` maps Rooms to `DISC=A, SYS=ARC, FUNC=FIT, PROD=RM`, so rooms
+already receive a meaningful tag and the Room schedules keyed on `ASS_TAG_1_TXT` are
+correct. No skip-list change was made, and none is needed.
 
 #### Completed (Phase 284 — TB-LINES-1: the A1 border stops being drawn on every other sheet)
 
