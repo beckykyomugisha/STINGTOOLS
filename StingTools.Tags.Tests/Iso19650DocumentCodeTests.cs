@@ -82,7 +82,13 @@ namespace StingTools.Tags.Tests
         [InlineData("ELEC", "E")]
         [InlineData("PLM", "P")]
         [InlineData("MG", "M")]            // medical gas
-        [InlineData("RP", "E")]            // radiation protection
+        // Radiation protection is a SPECIALIST designer (Y), not the electrical
+        // engineer (E). This row asserted E because that is what the code did; the
+        // test agreed with the defect rather than with ISO 19650, which is the one
+        // way a test can make a wrong answer harder to find. Same for fire
+        // protection, which folded to S (Structural).
+        [InlineData("RP", "Y")]            // radiation protection -> specialist
+        [InlineData("FP", "Y")]            // fire protection -> specialist
         [InlineData("", "Z")]
         [InlineData("NONSENSE", "Z")]
         public void The_role_is_one_letter_from_the_iso_alphabet(string raw, string expected)

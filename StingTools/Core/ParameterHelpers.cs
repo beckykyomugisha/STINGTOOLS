@@ -3564,6 +3564,15 @@ namespace StingTools.Core
         {
             try
             {
+                // What the sheet SAYS beats what it CONTAINS, so a sheet that states
+                // its discipline needs no census at all -- and a general arrangement
+                // plan, which mixes trades on purpose, stops being classified by the
+                // mixture. See SheetDisciplineResolver for why that ordering.
+                string stated = StingTools.Core.Drawing.SheetDisciplineResolver
+                    .FromSheetNumber(sheet.SheetNumber)
+                    ?? StingTools.Core.Drawing.SheetDisciplineResolver.FromTitle(sheet.Name);
+                if (stated != null) return stated;
+
                 if (vpViews == null || vpViews.Count == 0) return DeriveDiscFromSheetName(sheet);
 
                 var discCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -3623,16 +3632,8 @@ namespace StingTools.Core
                     return DeriveDiscFromSheetName(sheet);
                 }
 
-                // If multiple disciplines with significant presence → COORD
-                var sorted = discCounts.OrderByDescending(kv => kv.Value).ToList();
-                if (sorted.Count >= 2)
-                {
-                    double total = sorted.Sum(kv => kv.Value);
-                    double topPct = sorted[0].Value / total;
-                    if (topPct < 0.75) return "COORD"; // No single discipline dominates
-                }
-
-                return sorted[0].Key;
+                return StingTools.Core.Drawing.SheetDisciplineResolver
+                    .FromCensus(discCounts) ?? DeriveDiscFromSheetName(sheet);
             }
             catch (Exception ex) { StingLog.Warn($"DeriveSheetDiscipline: {ex.Message}"); return "GEN"; }
         }
@@ -3782,16 +3783,13 @@ namespace StingTools.Core
         /// </summary>
         private static string DeriveDiscFromSheetName(ViewSheet sheet)
         {
-            string combined = $"{sheet.SheetNumber} {sheet.Name}".ToUpperInvariant();
-            if (combined.Contains("MECHANICAL") || combined.Contains("HVAC") || combined.StartsWith("M-") || combined.StartsWith("M ")) return "M";
-            if (combined.Contains("ELECTRICAL") || combined.Contains("LIGHTING") || combined.StartsWith("E-") || combined.StartsWith("E ")) return "E";
-            if (combined.Contains("PLUMBING") || combined.Contains("SANITARY") || combined.StartsWith("P-") || combined.StartsWith("P ")) return "P";
-            if (combined.Contains("ARCHITECTURAL") || combined.Contains("ARCH") || combined.StartsWith("A-") || combined.StartsWith("A ")) return "A";
-            if (combined.Contains("STRUCTURAL") || combined.Contains("STRUCT") || combined.StartsWith("S-") || combined.StartsWith("S ")) return "S";
-            if (combined.Contains("FIRE") || combined.Contains("SPRINKLER") || combined.StartsWith("FP")) return "FP";
-            if (combined.Contains("LOW VOLTAGE") || combined.Contains("DATA") || combined.Contains("SECURITY")) return "LV";
-            if (combined.Contains("COORDINATION") || combined.Contains("COMBINED") || combined.Contains("MULTI")) return "COORD";
-            return "GEN";
+            // One resolver, used by both callers. This used to be a second, looser
+            // copy of the same idea: it matched SUBSTRINGS, so "ARCH" matched ARCHIVE,
+            // "FIRE" matched FIREPLACE and "DATA" matched DATA SHEET -- each quietly
+            // filing a drawing under a discipline nobody chose. Two copies of a rule
+            // is how they come to disagree.
+            return StingTools.Core.Drawing.SheetDisciplineResolver
+                .Resolve(sheet?.SheetNumber, sheet?.Name, null);
         }
 
         /// <summary>Derive level code from level name string (same logic as GetLevelCode but from name).</summary>

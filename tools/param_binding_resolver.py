@@ -141,6 +141,18 @@ def resolve(n,desc,depth=0):
     # dialog that is supposed to hold it showed nothing, it could not be typed in,
     # and every reader of it got an empty string and fell back to a guess.
     if n.startswith("PRJ_ORG_"): return "PROJECT_INFO","project-level"
+    # Title-block and sheet-identity parameters belong on Sheets. Marked <ALL>
+    # they landed on 143 ELEMENT categories -- every wall, duct and door carried
+    # PRJ_TB_DRAWN_BY_TXT in its Properties palette -- and reached Sheets only
+    # because LoadSharedParams inserts OST_Sheets into the core set by hand.
+    #
+    # Sheets is the home that matters and the only one any of these is read from.
+    # This is a NARROWING, so it changes nothing in a project that has already
+    # bound them: the loader adds missing categories and never removes one, since
+    # taking a parameter off elements could break a schedule or tag that depends
+    # on it. New projects and templates get the tight set.
+    if n.startswith(("PRJ_TB_","PRJ_SHEET_","PRJ_DWG_")) or n == "PRJ_STATUS_COD_TXT":
+        return "SHEET","sheet-identity"
     if pre in("PER","RGL","PRJ","STING","MNT","PMT","VAR","CBN"): return "UNIVERSAL","universal-meta"
     if pre=="ASS": return "UNIVERSAL","asset-universal"
     if pre in("ACC","AC","Pset","PST","COBIE","COB"): return "UNIVERSAL","interop-universal"

@@ -2089,11 +2089,11 @@ PRJ_CORPORATE_LIBRARY_VERSION_TXT,13,universal-meta,<ALL>,Stamped library versio
 PRJ_DRAWING_NR_TXT,13,universal-meta,<ALL>,Prj Drawing Nr Txt [ISO 19650-1:2018]
 PRJ_DRAWING_SCALE_TXT,13,universal-meta,<ALL>,Prj Drawing Scale Txt [ISO 19650-1:2018]
 PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>,Prj Drawing Title Txt [ISO 19650-1:2018]
-PRJ_DWG_ISSUE_PURPOSE_TXT,13,universal-meta,<ALL>,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
-PRJ_DWG_LOIN_LOD_TXT,13,universal-meta,<ALL>,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
-PRJ_DWG_SUITABILITY_COD_TXT,13,universal-meta,<ALL>,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
-PRJ_DWG_SUITABILITY_DESC_TXT,13,universal-meta,<ALL>,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
-PRJ_DWG_SUPERSEDES_TXT,13,universal-meta,<ALL>,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
+PRJ_DWG_ISSUE_PURPOSE_TXT,13,sheet-identity,Sheets,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
+PRJ_DWG_LOIN_LOD_TXT,13,sheet-identity,Sheets,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
+PRJ_DWG_SUITABILITY_COD_TXT,13,sheet-identity,Sheets,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
+PRJ_DWG_SUITABILITY_DESC_TXT,13,sheet-identity,Sheets,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
+PRJ_DWG_SUPERSEDES_TXT,13,sheet-identity,Sheets,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
 PRJ_GRID_REF_TXT,13,universal-meta,<ALL>,Prj Grid Ref Txt [ISO 19650-1:2018]
 PRJ_INFORMATION_SPARE_01_TXT,13,universal-meta,<ALL>,Spare parameter 1 for PRJ_INFORMATION group
 PRJ_INFORMATION_SPARE_02_TXT,13,universal-meta,<ALL>,Spare parameter 2 for PRJ_INFORMATION group
@@ -2147,74 +2147,74 @@ PRJ_REFRIG_IDU_MOUNTING_TXT,13,universal-meta,<ALL>,"Default IDU mounting for th
 PRJ_REFRIG_VENDOR_SERIES_TXT,13,universal-meta,<ALL>,"Refrigerant vendor series id for charge-table lookup (e.g. 'Daikin-VRV-5', 'Mitsubishi-CityMulti-R2', 'Toshiba-SHRMe') [Phase 187g]"
 PRJ_REV_COD_TXT,13,universal-meta,<ALL>,ISO 19650 revision code
 PRJ_RTS_CLASS_TXT,13,universal-meta,<ALL>,ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]
-PRJ_SHEET_BIM_MODE_TXT,13,universal-meta,<ALL>,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
-PRJ_SHEET_FULL_REF_TXT,13,universal-meta,<ALL>,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
-PRJ_SHEET_LEVEL_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_OF_TOTAL_TXT,13,universal-meta,<ALL>,"""Sheet n of total"" string for the title block (e.g. ""03 / 12""). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]"
-PRJ_SHEET_ORIG_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_PROJECT_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_ROLE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_SEQUENCE_INT,27,universal-meta,<ALL>,Production sheet sequence number [STING DT v137]
-PRJ_SHEET_SEQ_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_SYSTEM_TXT,13,universal-meta,<ALL>,"MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]"
-PRJ_SHEET_TYPE_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_VOLUME_TXT,13,universal-meta,<ALL>,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_STATUS_COD_TXT,13,universal-meta,<ALL>,ISO 19650 document status code
-PRJ_TB_APVD_BY_TXT,13,universal-meta,<ALL>,Name or initials of person who approved the drawing [ISO 19650-1:2018]
-PRJ_TB_AUTHORISED_BY_TXT,13,universal-meta,<ALL>,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
-PRJ_TB_AUTHORISED_DATE_TXT,13,universal-meta,<ALL>,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
-PRJ_TB_CDE_REF_FORMAT_TXT,13,universal-meta,<ALL>,"How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. ""SHARED/A/DR""), SUFFIX (suitability + revision, e.g. ""S4-P01"") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]"
-PRJ_TB_CDE_REF_TXT,13,universal-meta,<ALL>,"CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. ""SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01"". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]"
-PRJ_TB_CHECKED_BY_TXT,13,universal-meta,<ALL>,Name or initials of person who checked the drawing [ISO 19650-1:2018]
-PRJ_TB_CLIENT_ADDRESS_TXT,13,universal-meta,<ALL>,Client / appointing party address [ISO 19650-1:2018]
-PRJ_TB_CLIENT_NAME_TXT,13,universal-meta,<ALL>,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018]
-PRJ_TB_COMPANY_ADDRESS_TXT,13,universal-meta,<ALL>,Producing company address on title block. Populated from PRJ_ORG_COMPANY_ADDRESS_TXT. [ISO 19650-1:2018]
-PRJ_TB_COMPANY_NAME_TXT,13,universal-meta,<ALL>,Producing company / consultant firm name on title block. Populated from PRJ_ORG_COMPANY_NAME_TXT. [ISO 19650-1:2018]
-PRJ_TB_CONTRACTOR_ADDRESS_TXT,13,universal-meta,<ALL>,Main contractor address for this project [ISO 19650-1:2018]
-PRJ_TB_CONTRACTOR_NAME_TXT,13,universal-meta,<ALL>,Main contractor name for this project [ISO 19650-1:2018]
-PRJ_TB_DATE_APVD_TXT,13,universal-meta,<ALL>,Date drawing was approved (DD-Mon-YYYY) [ISO 19650-1:2018]
-PRJ_TB_DATE_CHECKED_TXT,13,universal-meta,<ALL>,Date drawing was checked (DD-Mon-YYYY) [ISO 19650-1:2018]
-PRJ_TB_DATE_DRAWN_TXT,13,universal-meta,<ALL>,Date drawing was first created or last redrawn (DD-Mon-YYYY) [ISO 19650-1:2018]
-PRJ_TB_DELIVERABLE_CDE_TXT,13,universal-meta,<ALL>,CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]
-PRJ_TB_DELIVERABLE_DATADROP_TXT,13,universal-meta,<ALL>,ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]
-PRJ_TB_DELIVERABLE_DUE_TXT,13,universal-meta,<ALL>,Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]
-PRJ_TB_DELIVERABLE_STATUS_TXT,13,universal-meta,<ALL>,Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]
-PRJ_TB_DESIGN_STAGE_TXT,13,universal-meta,<ALL>,Human-readable design stage label on title block. Populated from PRJ_ORG_PHASE_TXT. [ISO 19650-1:2018]
-PRJ_TB_DISCIPLINE_TXT,13,universal-meta,<ALL>,"Discipline code or label for this drawing sheet (e.g. M, E, Mechanical) [ISO 19650-1:2018]"
-PRJ_TB_DRAWN_BY_TXT,13,universal-meta,<ALL>,Name or initials of drafter who produced this drawing [ISO 19650-1:2018]
-PRJ_TB_FEDERATION_STATUS_TXT,13,universal-meta,<ALL>,"Federation status of the sheet's host model at issue time -- e.g. ""Federated v.4"", ""Discipline-isolated"", ""Coordination-pending"" [ISO 19650-2:2018]"
-PRJ_TB_ISSUE_SUMMARY_TXT,13,universal-meta,<ALL>,"Short free-text summary of the issue purpose (e.g. ""For Construction"") [ISO 19650-1:2018]"
-PRJ_TB_LAST_SYNC_BY_TXT,13,universal-meta,<ALL>,Username who triggered the last Planscape Server sync [ISO 19650-2:2018]
-PRJ_TB_LAST_SYNC_TXT,13,universal-meta,<ALL>,ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]
-PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,13,universal-meta,<ALL>,Date of the last transmittal that included this sheet (ISO 8601) [ISO 19650-2:2018]
-PRJ_TB_LAST_TRANSMITTAL_TXT,13,universal-meta,<ALL>,Transmittal number of the last issue that included this sheet [ISO 19650-2:2018]
-PRJ_TB_LOCK_BOOL,13,universal-meta,<ALL>,"When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]"
-PRJ_TB_LOGO_PATH_TXT,13,universal-meta,<ALL>,File path or URL to company logo image for title block rendering [ISO 19650-1:2018]
-PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,13,universal-meta,<ALL>,MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]
-PRJ_TB_MEP_CONSULTANTS_NAME_TXT,13,universal-meta,<ALL>,MEP engineering consultant firm name [ISO 19650-1:2018]
-PRJ_TB_NOTES_LEGEND_REF_TXT,13,universal-meta,<ALL>,Reference to the notes/legend drawing number applicable to this sheet [ISO 19650-1:2018]
-PRJ_TB_PAPER_SZ_TXT,13,universal-meta,<ALL>,"Paper/sheet size (A0, A1, A2, A3, A4) [ISO 19650-1:2018]"
-PRJ_TB_REVISION_DATE_TXT,13,universal-meta,<ALL>,Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018]
-PRJ_TB_REVISION_DESCRIPTION_TXT,13,universal-meta,<ALL>,Brief description of what changed in the current revision [ISO 19650-1:2018]
-PRJ_TB_REVISION_NR_TXT,13,universal-meta,<ALL>,"Revision number or code (e.g. P1, C2, A) for the current issue [ISO 19650-1:2018]"
-PRJ_TB_SCALE_OVERRIDE_TXT,13,universal-meta,<ALL>,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]"
-PRJ_TB_SCHEMA_VERSION_TXT,13,universal-meta,<ALL>,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018]
-PRJ_TB_SHEET_NR_TXT,13,universal-meta,<ALL>,Sheet number string (may differ from Revit native sheet number for custom formats) [ISO 19650-1:2018]
-PRJ_TB_SHOW_COMPANY_STRIP_BOOL,26,universal-meta,<ALL>,Visibility toggle for company info strip logo address contacts [STING TB v1]
-PRJ_TB_SHOW_DISCBAND_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,26,universal-meta,<ALL>,Visibility toggle for discipline color strip [STING TB v1]
-PRJ_TB_SHOW_KEYPLAN_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_KEY_PLAN_BOOL,26,universal-meta,<ALL>,Visibility toggle for nested key plan [STING TB v1]
-PRJ_TB_SHOW_NORTHARROW_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_NORTH_ARROW_BOOL,26,universal-meta,<ALL>,Visibility toggle for nested north arrow [STING TB v1]
-PRJ_TB_SHOW_QR_CODE_BOOL,26,universal-meta,<ALL>,Visibility toggle for QR code stamp [STING TB v1]
-PRJ_TB_SHOW_REV_TABLE_BOOL,26,universal-meta,<ALL>,Visibility toggle for embedded revision schedule [STING TB v1]
-PRJ_TB_SHOW_SCALEBAR_BOOL,13,universal-meta,<ALL>,LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]
-PRJ_TB_SHOW_SCALE_BAR_BOOL,26,universal-meta,<ALL>,Visibility toggle for nested scale bar [STING TB v1]
-PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,13,universal-meta,<ALL>,Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]
-PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,13,universal-meta,<ALL>,Structural engineering consultant firm name [ISO 19650-1:2018]
-PRJ_TB_TOTAL_NO_SHEETS_TXT,13,universal-meta,<ALL>,Total number of sheets in this drawing package or issue [ISO 19650-1:2018]
-PRJ_TB_VARIANT_TXT,13,universal-meta,<ALL>,"Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]"
+PRJ_SHEET_BIM_MODE_TXT,13,sheet-identity,Sheets,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
+PRJ_SHEET_FULL_REF_TXT,13,sheet-identity,Sheets,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
+PRJ_SHEET_LEVEL_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_OF_TOTAL_TXT,13,sheet-identity,Sheets,"""Sheet n of total"" string for the title block (e.g. ""03 / 12""). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]"
+PRJ_SHEET_ORIG_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_PROJECT_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_ROLE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_SEQUENCE_INT,27,sheet-identity,Sheets,Production sheet sequence number [STING DT v137]
+PRJ_SHEET_SEQ_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_SYSTEM_TXT,13,sheet-identity,Sheets,"MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]"
+PRJ_SHEET_TYPE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_VOLUME_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_STATUS_COD_TXT,13,sheet-identity,Sheets,ISO 19650 document status code
+PRJ_TB_APVD_BY_TXT,13,sheet-identity,Sheets,Name or initials of person who approved the drawing [ISO 19650-1:2018]
+PRJ_TB_AUTHORISED_BY_TXT,13,sheet-identity,Sheets,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
+PRJ_TB_AUTHORISED_DATE_TXT,13,sheet-identity,Sheets,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
+PRJ_TB_CDE_REF_FORMAT_TXT,13,sheet-identity,Sheets,"How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. ""SHARED/A/DR""), SUFFIX (suitability + revision, e.g. ""S4-P01"") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]"
+PRJ_TB_CDE_REF_TXT,13,sheet-identity,Sheets,"CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. ""SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01"". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]"
+PRJ_TB_CHECKED_BY_TXT,13,sheet-identity,Sheets,Name or initials of person who checked the drawing [ISO 19650-1:2018]
+PRJ_TB_CLIENT_ADDRESS_TXT,13,sheet-identity,Sheets,Client / appointing party address [ISO 19650-1:2018]
+PRJ_TB_CLIENT_NAME_TXT,13,sheet-identity,Sheets,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018]
+PRJ_TB_COMPANY_ADDRESS_TXT,13,sheet-identity,Sheets,Producing company address on title block. Populated from PRJ_ORG_COMPANY_ADDRESS_TXT. [ISO 19650-1:2018]
+PRJ_TB_COMPANY_NAME_TXT,13,sheet-identity,Sheets,Producing company / consultant firm name on title block. Populated from PRJ_ORG_COMPANY_NAME_TXT. [ISO 19650-1:2018]
+PRJ_TB_CONTRACTOR_ADDRESS_TXT,13,sheet-identity,Sheets,Main contractor address for this project [ISO 19650-1:2018]
+PRJ_TB_CONTRACTOR_NAME_TXT,13,sheet-identity,Sheets,Main contractor name for this project [ISO 19650-1:2018]
+PRJ_TB_DATE_APVD_TXT,13,sheet-identity,Sheets,Date drawing was approved (DD-Mon-YYYY) [ISO 19650-1:2018]
+PRJ_TB_DATE_CHECKED_TXT,13,sheet-identity,Sheets,Date drawing was checked (DD-Mon-YYYY) [ISO 19650-1:2018]
+PRJ_TB_DATE_DRAWN_TXT,13,sheet-identity,Sheets,Date drawing was first created or last redrawn (DD-Mon-YYYY) [ISO 19650-1:2018]
+PRJ_TB_DELIVERABLE_CDE_TXT,13,sheet-identity,Sheets,CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]
+PRJ_TB_DELIVERABLE_DATADROP_TXT,13,sheet-identity,Sheets,ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]
+PRJ_TB_DELIVERABLE_DUE_TXT,13,sheet-identity,Sheets,Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]
+PRJ_TB_DELIVERABLE_STATUS_TXT,13,sheet-identity,Sheets,Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]
+PRJ_TB_DESIGN_STAGE_TXT,13,sheet-identity,Sheets,Human-readable design stage label on title block. Populated from PRJ_ORG_PHASE_TXT. [ISO 19650-1:2018]
+PRJ_TB_DISCIPLINE_TXT,13,sheet-identity,Sheets,"Discipline code or label for this drawing sheet (e.g. M, E, Mechanical) [ISO 19650-1:2018]"
+PRJ_TB_DRAWN_BY_TXT,13,sheet-identity,Sheets,Name or initials of drafter who produced this drawing [ISO 19650-1:2018]
+PRJ_TB_FEDERATION_STATUS_TXT,13,sheet-identity,Sheets,"Federation status of the sheet's host model at issue time -- e.g. ""Federated v.4"", ""Discipline-isolated"", ""Coordination-pending"" [ISO 19650-2:2018]"
+PRJ_TB_ISSUE_SUMMARY_TXT,13,sheet-identity,Sheets,"Short free-text summary of the issue purpose (e.g. ""For Construction"") [ISO 19650-1:2018]"
+PRJ_TB_LAST_SYNC_BY_TXT,13,sheet-identity,Sheets,Username who triggered the last Planscape Server sync [ISO 19650-2:2018]
+PRJ_TB_LAST_SYNC_TXT,13,sheet-identity,Sheets,ISO 8601 datetime of last sync to Planscape Server for this sheet [ISO 19650-2:2018]
+PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,13,sheet-identity,Sheets,Date of the last transmittal that included this sheet (ISO 8601) [ISO 19650-2:2018]
+PRJ_TB_LAST_TRANSMITTAL_TXT,13,sheet-identity,Sheets,Transmittal number of the last issue that included this sheet [ISO 19650-2:2018]
+PRJ_TB_LOCK_BOOL,13,sheet-identity,Sheets,"When true, prevents TitleBlockParamApplier from overwriting manually set values on this sheet [ISO 19650-1:2018]"
+PRJ_TB_LOGO_PATH_TXT,13,sheet-identity,Sheets,File path or URL to company logo image for title block rendering [ISO 19650-1:2018]
+PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT,13,sheet-identity,Sheets,MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]
+PRJ_TB_MEP_CONSULTANTS_NAME_TXT,13,sheet-identity,Sheets,MEP engineering consultant firm name [ISO 19650-1:2018]
+PRJ_TB_NOTES_LEGEND_REF_TXT,13,sheet-identity,Sheets,Reference to the notes/legend drawing number applicable to this sheet [ISO 19650-1:2018]
+PRJ_TB_PAPER_SZ_TXT,13,sheet-identity,Sheets,"Paper/sheet size (A0, A1, A2, A3, A4) [ISO 19650-1:2018]"
+PRJ_TB_REVISION_DATE_TXT,13,sheet-identity,Sheets,Date of the current revision (DD-Mon-YYYY) [ISO 19650-1:2018]
+PRJ_TB_REVISION_DESCRIPTION_TXT,13,sheet-identity,Sheets,Brief description of what changed in the current revision [ISO 19650-1:2018]
+PRJ_TB_REVISION_NR_TXT,13,sheet-identity,Sheets,"Revision number or code (e.g. P1, C2, A) for the current issue [ISO 19650-1:2018]"
+PRJ_TB_SCALE_OVERRIDE_TXT,13,sheet-identity,Sheets,"Override scale label shown on title block (e.g. ""NTS"", ""1:100""). Empty = use view scale. [ISO 19650-1:2018]"
+PRJ_TB_SCHEMA_VERSION_TXT,13,sheet-identity,Sheets,STING title block data schema version this sheet was stamped with [ISO 19650-1:2018]
+PRJ_TB_SHEET_NR_TXT,13,sheet-identity,Sheets,Sheet number string (may differ from Revit native sheet number for custom formats) [ISO 19650-1:2018]
+PRJ_TB_SHOW_COMPANY_STRIP_BOOL,26,sheet-identity,Sheets,Visibility toggle for company info strip logo address contacts [STING TB v1]
+PRJ_TB_SHOW_DISCBAND_BOOL,13,sheet-identity,Sheets,LEGACY -- prefer PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL (GROUP 26). Show discipline colour band on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL,26,sheet-identity,Sheets,Visibility toggle for discipline color strip [STING TB v1]
+PRJ_TB_SHOW_KEYPLAN_BOOL,13,sheet-identity,Sheets,LEGACY -- prefer PRJ_TB_SHOW_KEY_PLAN_BOOL (GROUP 26). Show key plan element on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_KEY_PLAN_BOOL,26,sheet-identity,Sheets,Visibility toggle for nested key plan [STING TB v1]
+PRJ_TB_SHOW_NORTHARROW_BOOL,13,sheet-identity,Sheets,LEGACY -- prefer PRJ_TB_SHOW_NORTH_ARROW_BOOL (GROUP 26). Show north arrow on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_NORTH_ARROW_BOOL,26,sheet-identity,Sheets,Visibility toggle for nested north arrow [STING TB v1]
+PRJ_TB_SHOW_QR_CODE_BOOL,26,sheet-identity,Sheets,Visibility toggle for QR code stamp [STING TB v1]
+PRJ_TB_SHOW_REV_TABLE_BOOL,26,sheet-identity,Sheets,Visibility toggle for embedded revision schedule [STING TB v1]
+PRJ_TB_SHOW_SCALEBAR_BOOL,13,sheet-identity,Sheets,LEGACY -- prefer PRJ_TB_SHOW_SCALE_BAR_BOOL (GROUP 26). Show scale bar on title block [ISO 19650-1:2018]
+PRJ_TB_SHOW_SCALE_BAR_BOOL,26,sheet-identity,Sheets,Visibility toggle for nested scale bar [STING TB v1]
+PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,13,sheet-identity,Sheets,Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]
+PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,13,sheet-identity,Sheets,Structural engineering consultant firm name [ISO 19650-1:2018]
+PRJ_TB_TOTAL_NO_SHEETS_TXT,13,sheet-identity,Sheets,Total number of sheets in this drawing package or issue [ISO 19650-1:2018]
+PRJ_TB_VARIANT_TXT,13,sheet-identity,Sheets,"Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]"
 PRJ_TEMPLATE_PROFILE_TXT,13,universal-meta,<ALL>,Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]
 PRJ_TRACE_TOLERANCE_PCT,13,universal-meta,<ALL>,Acceptance band (percent) for HvacCompareLoadsCommand vs TRACE / HAP reference loads (default 15%) [Phase 187g]
 PRJ_VOLUME_CODE,13,universal-meta,<ALL>,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m]

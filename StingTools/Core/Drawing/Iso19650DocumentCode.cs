@@ -158,14 +158,24 @@ namespace StingTools.Core.Drawing
                 case "G": case "GIS": case "SURVEY":              return "G";
                 case "T": case "PLANNING":                       return "T";
                 case "B": case "SURVEYOR":                       return "B";
+                case "X": case "SUBCONTRACTOR":                  return "X";
+                case "Y":                                        return "Y";
 
                 // No single-letter role exists for these. Z = General is the honest
                 // answer; inventing "CO" or "FP" would put a non-standard code on an
                 // issued drawing, which is the thing this class exists to stop.
                 case "COORD": case "GEN": case "MULTI": case "ZZ": return "Z";
                 case "MG":                                        return "M";   // medical gas -> mechanical
-                case "RP":                                        return "E";   // radiation protection -> electrical
-                case "FP": case "FIRE":                           return "S";   // fire protection -> structural/other
+
+                // Y = Specialist Designer, which is what these are.
+                //
+                // Fire protection folded to S (Structural) and radiation protection
+                // to E (Electrical). Both were wrong in the way that matters: the
+                // role segment names the PROFESSION accountable for the container, so
+                // a sprinkler layout filed under S attributes it to the structural
+                // engineer. It is a plausible-looking letter that misroutes a
+                // drawing, which is worse than an obviously missing one.
+                case "RP": case "FP": case "FIRE": case "SPECIALIST": return "Y";
             }
 
             // A single letter that is already a role passes through.

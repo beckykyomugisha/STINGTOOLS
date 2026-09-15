@@ -192,18 +192,33 @@ namespace StingTools.Tags
             int totalToBind = 0;
             int alreadyBound = 0;
             int typeConflicts = 0;
+            int rebound = 0, rebindNoop = 0;
             var typeConflictDetails = new List<string>();
             var groupsToProcess = new List<(string groupName, List<ExternalDefinition> defs)>();
+            var rebindCandidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (groupName, defs) in groupDefs)
             {
                 var unbound = new List<ExternalDefinition>();
                 foreach (var d in defs)
                 {
-                    // Skip if already bound by name
+                    // Already bound by NAME is not the same as bound to the right
+                    // CATEGORIES, and this used to treat them as the same thing.
+                    //
+                    // When the 39 PRJ_ORG_* parameters were corrected from <ALL> (143
+                    // element categories, containing no Project Information) to
+                    // "Project Information", a re-run reported "1 bound, 3441 already
+                    // present" and changed nothing: every one of them was already
+                    // bound -- to the wrong categories -- so every one was skipped.
+                    // The fix shipped in the data could not reach a project that had
+                    // ever run this command, which is every project.
+                    //
+                    // So an already-bound parameter is carried forward instead of
+                    // dropped, and the bind loop re-inserts it if its category set is
+                    // missing anything the spec asks for.
                     if (existingBindings.Contains(d.Name))
                     {
                         alreadyBound++;
-                        continue;
+                        rebindCandidates.Add(d.Name);
                     }
 
                     // Skip if a SharedParameterElement already holds this GUID
@@ -528,7 +543,27 @@ namespace StingTools.Tags
                                 }
                                 else { paramBinding = binding; }
 
-                                bool result = doc.ParameterBindings.Insert(
+                                bool result;
+                                if (rebindCandidates.Contains(extDef.Name))
+                                {
+                                    // UNION, never replacement. The spec's categories are
+                                    // added to whatever the project already has; nothing is
+                                    // taken away. Narrowing a live binding would silently
+                                    // drop a parameter off elements a schedule or a tag may
+                                    // depend on, and this command has no way to know which.
+                                    // A project therefore GAINS the missing home and keeps
+                                    // every existing one; only a fresh project or template
+                                    // gets the tight set.
+                                    var merged = UnionWithExisting(doc, extDef, paramBinding);
+                                    if (merged == null) { rebindNoop++; continue; }
+                                    result = doc.ParameterBindings.ReInsert(
+                                        extDef, merged, GroupTypeId.General);
+                                    if (result) { rebound++; continue; }
+                                    skipped++;
+                                    continue;
+                                }
+
+                                result = doc.ParameterBindings.Insert(
                                     extDef, paramBinding, GroupTypeId.General);
 
                                 if (result)
@@ -577,6 +612,7 @@ namespace StingTools.Tags
             // params, in a single batched transaction. Step 6b (duplicate
             // OST_Materials cleanup) was removed — toRemoveMat covers it.
             int matRemoved = 0, matAdded = 0;
+
             try
             {
                 var (r2, a2) = CleanMaterialBindings(doc, app);
@@ -681,6 +717,17 @@ namespace StingTools.Tags
             // and doing it on every job forever. Nothing said so, so it was done on
             // every job.
             report.AppendLine();
+            report.AppendLine($"Re-bound (categories ADDED to an existing binding): {rebound}");
+            report.AppendLine($"Already covered, left alone: {rebindNoop}");
+            if (rebound > 0)
+                report.AppendLine(
+                    "  A parameter bound to the wrong categories reads as \"already present\" "
+                    + "and used to be skipped, so a corrected binding could never reach a "
+                    + "project that had run this before. Missing categories are now added; "
+                    + "nothing is ever removed, because narrowing a live binding could drop a "
+                    + "parameter off elements a schedule or tag depends on.");
+
+            report.AppendLine();
             report.AppendLine("DOING THIS ONCE INSTEAD OF PER PROJECT");
             report.AppendLine(
                 "  Project parameters are stored in the project file, so this command "
@@ -704,6 +751,46 @@ namespace StingTools.Tags
             StingLog.Info($"LoadSharedParams complete: {bound} bound, {alreadyBound} already present, {skipped} skipped");
 
             return Result.Succeeded;
+        }
+
+        /// <summary>The existing binding's categories plus the ones the spec asks
+        /// for, or null when the existing binding already covers them.
+        ///
+        /// Returning null is the "nothing to do" signal, and it is what keeps a
+        /// re-run cheap: only parameters actually missing a category are touched.</summary>
+        private static InstanceBinding UnionWithExisting(
+            Document doc, ExternalDefinition extDef, InstanceBinding wanted)
+        {
+            try
+            {
+                if (wanted == null) return null;
+
+                var existing = doc.ParameterBindings.get_Item(extDef) as ElementBinding;
+                if (existing == null) return null;   // not really bound; let Insert handle it
+
+                var have = new HashSet<long>();
+                foreach (Category c in existing.Categories)
+                    if (c != null) have.Add(c.Id.Value);
+
+                bool missing = false;
+                var merged = new CategorySet();
+                foreach (Category c in existing.Categories)
+                    if (c != null) merged.Insert(c);
+                foreach (Category c in wanted.Categories)
+                {
+                    if (c == null) continue;
+                    if (!have.Contains(c.Id.Value)) missing = true;
+                    merged.Insert(c);
+                }
+
+                if (!missing || merged.Size == 0) return null;
+                return doc.Application.Create.NewInstanceBinding(merged);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"UnionWithExisting '{extDef?.Name}': {ex.Message}");
+                return null;
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
