@@ -3411,7 +3411,7 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(disc)) disc = "GEN";
 
             // 3. Derive FORM from viewport view types
-            string form = DeriveSheetForm(vpViews);
+            string form = DeriveSheetForm(sheet, vpViews);
             written += Put(sheet, ParamRegistry.SHT_FORM, form);
             form = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_FORM);
             if (string.IsNullOrEmpty(form)) form = "DR";
@@ -3702,42 +3702,63 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Derive document form code from view types on the sheet.
-        /// DR=Drawing, SH=Schedule, M3=3D Model, SP=Specification, LG=Legend.
+        /// The ISO 19650 form code for a sheet: DR drawing, SH schedule, M3 3D
+        /// model, LG legend.
+        ///
+        /// This counted DraftingView as a LEGEND and let ANY match win, so a site
+        /// plan with three detail views on it was issued as
+        /// SAH-PLNS-ZZ-01-LG-A-0001. Both halves were wrong: a drafting view is
+        /// where details are drawn, which makes it a drawing, and one legend beside
+        /// eight plans does not make a sheet a legend. The rule asked "is there a
+        /// legend anywhere" when the question is "what is this sheet".
+        ///
+        /// The decision itself now lives in SheetFormResolver, Revit-free and under
+        /// test. This half does the one thing that needs Revit: turning a ViewType
+        /// into a form code.
         /// P-01/A-01: Accepts pre-resolved vpViews to avoid redundant GetAllViewports() calls.
         /// </summary>
-        private static string DeriveSheetForm(List<View> vpViews)
+        private static string DeriveSheetForm(ViewSheet sheet, List<View> vpViews)
         {
             try
             {
-                if (vpViews == null || vpViews.Count == 0) return "DR";
-
-                bool hasSchedule = false, has3D = false, hasLegend = false;
-
-                foreach (View view in vpViews)
+                var census = new Dictionary<string, int>(StringComparer.Ordinal);
+                if (vpViews != null)
                 {
-                    switch (view.ViewType)
+                    foreach (View view in vpViews)
                     {
-                        case ViewType.Schedule:
-                            hasSchedule = true;
-                            break;
-                        case ViewType.ThreeD:
-                            has3D = true;
-                            break;
-                        case ViewType.Legend:
-                        case ViewType.DraftingView:
-                            hasLegend = true;
-                            break;
+                        if (view == null) continue;
+                        string form;
+                        switch (view.ViewType)
+                        {
+                            case ViewType.Schedule:
+                            case ViewType.ColumnSchedule:
+                            case ViewType.PanelSchedule:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Schedule;
+                                break;
+                            case ViewType.ThreeD:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Model3D;
+                                break;
+                            case ViewType.Legend:
+                                form = StingTools.Core.Drawing.SheetFormResolver.Legend;
+                                break;
+                            default:
+                                // Everything else -- plans, sections, elevations,
+                                // details and DRAFTING VIEWS -- is a drawing.
+                                form = StingTools.Core.Drawing.SheetFormResolver.Drawing;
+                                break;
+                        }
+                        census.TryGetValue(form, out int c);
+                        census[form] = c + 1;
                     }
                 }
 
-                // Priority: Schedule > 3D > Legend > Drawing
-                if (hasSchedule) return "SH";
-                if (has3D) return "M3";
-                if (hasLegend) return "LG";
-                return "DR";
+                return StingTools.Core.Drawing.SheetFormResolver.Resolve(sheet?.Name, census);
             }
-            catch (Exception ex) { StingLog.Warn($"DeriveSheetForm: {ex.Message}"); return "DR"; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DeriveSheetForm: {ex.Message}");
+                return StingTools.Core.Drawing.SheetFormResolver.Drawing;
+            }
         }
 
         /// <summary>
