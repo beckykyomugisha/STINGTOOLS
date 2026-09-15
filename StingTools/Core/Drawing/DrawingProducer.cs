@@ -808,6 +808,11 @@ namespace StingTools.Core.Drawing
             try
             {
                 var number = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, seq, tokens);
+                // A known-but-empty token substitutes to "" and leaves both of its
+                // separators — "A-{lvl}-{seq:D3}" with no level produces "A--001".
+                // Collapse before the uniqueness check, so two sheets differing only
+                // by an empty segment are seen as the clash they are.
+                number = SheetNumberTidy.Collapse(number);
                 // Revit rejects a duplicate sheet number outright, and the
                 // catch below would leave the sheet on its default number.
                 sheet.SheetNumber = EnsureUniqueSheetNumber(doc, number, sheet.Id, result);

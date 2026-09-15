@@ -83,6 +83,7 @@
     <Compile Include="..\StingTools\Core\Drawing\SheetQrConfig.cs" Link="Core\Drawing\SheetQrConfig.cs" />
     <Compile Include="..\StingTools\Core\Drawing\QrLabelLayout.cs" Link="Core\Drawing\QrLabelLayout.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650DocumentCode.cs" Link="Core\Drawing\Iso19650DocumentCode.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value
          entered as CFM, stored as l/s and redisplayed - is provable without a host. -->
     <Compile Include="..\StingTools\Core\Units\FlowDisplayUnits.cs" Link="Core\Units\FlowDisplayUnits.cs" />

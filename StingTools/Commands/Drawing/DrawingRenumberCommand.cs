@@ -171,7 +171,14 @@ namespace StingTools.Commands.Drawing
             // build a one-entry profile so Peek does the work, read result.
             var dt = new DrawingType { TitleBlockParams = new Dictionary<string, string> { { "_n", template } } };
             var peek = TitleBlockParamApplier.Peek(doc, dt, tokens);
-            return peek.TryGetValue("_n", out var v) ? v : template;
+            string resolved = peek.TryGetValue("_n", out var v) ? v : template;
+
+            // A KNOWN but EMPTY token substitutes to "" and leaves both of its
+            // separators: "A-{lvl}-{seq:D3}" with no level yields "A--001", which is
+            // exactly what a live project ended up numbered. Collapse the run rather
+            // than shipping an empty segment -- it reaches export filenames and the
+            // Number field of the ISO identifier from here.
+            return StingTools.Core.Drawing.SheetNumberTidy.Collapse(resolved);
         }
     }
 }
