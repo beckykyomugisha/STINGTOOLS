@@ -19011,6 +19011,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_TB_CDE_REF_FORMAT_TXT",
+      "guid": "5f2c9a71-4b63-53d8-9e07-1c8a4f62db35",
+      "description": "How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. \"SHARED/A/DR\"), SUFFIX (suitability + revision, e.g. \"S4-P01\") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "STING",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_DWG_LOIN_LOD_TXT",
       "guid": "3a2b846f-94ae-5dfd-8ab2-aa5800d48f92",
       "description": "Level of Information Need / Level of Detail at issue -- e.g. \"LOD 300\" / \"LOIN-3\" / \"LOD 350\" [BS EN 17412-1:2020]",

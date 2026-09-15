@@ -633,6 +633,20 @@ namespace StingTools.Core
         /// the same as DWG_SUITABILITY_COD / DWG_SUITABILITY_DESC.</summary>
         public const string TB_CDE_REF                   = "PRJ_TB_CDE_REF_TXT";
         public const string TB_CDE_REF_GUID              = "f30f7a36-8d82-5385-a215-ae1eec90df2b";
+
+        /// <summary>How the CDE REF cell is composed — CONTAINER / SUFFIX / FULL.
+        ///
+        /// FULL was the first behaviour and it printed the whole published filename:
+        /// "SAH-PLNS-ZZ-01-DR-Z-0002-S4-P01". On a drawing that already prints the
+        /// document identifier in DRG NO., the suitability in SUITABILITY and the
+        /// state in STATUS, that cell repeated three cells and overflowed its box.
+        ///
+        /// CONTAINER is the default because it is the one fact the sheet does not
+        /// already carry: WHERE in the CDE the file sits. It is also short enough to
+        /// fit. A project that wants the searchable filename can still ask for FULL —
+        /// which is why this is a setting and not a decision baked into the code.</summary>
+        public const string TB_CDE_REF_FORMAT            = "PRJ_TB_CDE_REF_FORMAT_TXT";
+        public const string TB_CDE_REF_FORMAT_GUID       = "5f2c9a71-4b63-53d8-9e07-1c8a4f62db35";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
         public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";

@@ -15,6 +15,7 @@ PRJ_TB_DELIVERABLE_DUE_TXT,,,,,,,,,,
 PRJ_TB_DELIVERABLE_CDE_TXT,,,,,,,,,,
 PRJ_STATUS_COD_TXT,,,,,,,,,,
 PRJ_DWG_LOIN_LOD_TXT,,,,,,,,,,
+PRJ_TB_CDE_REF_FORMAT_TXT,CONTAINER,,,,,,,,,
 PRJ_TB_DISCIPLINE_TXT,,Architectural,Structural,Mechanical,Electrical,Plumbing,Fire Protection,Low Voltage,Coordination,General
 PRJ_TB_CLIENT_ADDRESS_TXT,,,,,,,,,,
 PRJ_TB_CLIENT_NAME_TXT,,,,,,,,,,

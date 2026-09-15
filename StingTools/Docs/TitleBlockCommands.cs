@@ -587,6 +587,13 @@ namespace StingTools.Docs
             var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var replaced = new List<string>();
+            // One read, project-wide. The CSV's DefaultValue column carries it;
+            // anything unrecognised falls back to CONTAINER rather than producing a
+            // silently different cell.
+            string cdeFormat = (csv.ValueFor(ParamRegistry.TB_CDE_REF_FORMAT, "") ?? "")
+                .Trim().ToUpperInvariant();
+            if (cdeFormat != "FULL" && cdeFormat != "SUFFIX") cdeFormat = "CONTAINER";
+
             var cdeRefNoId = new List<string>();
             var cdeRefNoRev = new List<string>();
             int cdeRefWritten = 0;
@@ -824,8 +831,10 @@ namespace StingTools.Docs
                     }
                     else
                     {
-                        var refParts = new List<string> { cdeDocId.Trim() };
-                        if (!string.IsNullOrEmpty(suitCode)) refParts.Add(suitCode);
+                        var refParts = new List<string>();
+                        if (cdeFormat == "FULL") refParts.Add(cdeDocId.Trim());
+                        if (!string.IsNullOrEmpty(suitCode) && cdeFormat != "CONTAINER")
+                            refParts.Add(suitCode);
 
                         // Revision, from whichever home holds one.
                         //
@@ -851,13 +860,42 @@ namespace StingTools.Docs
                         if (string.IsNullOrWhiteSpace(sheetRev))
                             sheetRev = ParameterHelpers.GetString(sheet, "PRJ_TB_REVISION_NR_TXT");
                         if (string.IsNullOrWhiteSpace(sheetRev))
-                            cdeRefNoRev.Add(sheet.SheetNumber);
-                        else
+                        {
+                            if (cdeFormat != "CONTAINER") cdeRefNoRev.Add(sheet.SheetNumber);
+                        }
+                        else if (cdeFormat != "CONTAINER")
+                        {
                             refParts.Add(sheetRev.Trim());
+                        }
+
+                        // CONTAINER: the CDE folder this deliverable lives in, which is
+                        // the one thing the sheet does not already print. State comes
+                        // from the suitability code, so it cannot contradict the STATUS
+                        // cell; discipline and type come from the identifier's own
+                        // segments, so it cannot contradict DRG NO. either.
+                        string cdeRefValue;
+                        if (cdeFormat == "CONTAINER")
+                        {
+                            string state = StingTools.Core.Drawing.Iso19650Suitability
+                                .CdeStateFor(suitCode) ?? "WIP";
+                            var segs = cdeDocId.Trim().Split('-');
+                            // Project-Originator-Volume-Level-Type-Role-Number:
+                            // Type is index 4, Role index 5.
+                            string type = segs.Length > 4 ? segs[4] : null;
+                            string role = segs.Length > 5 ? segs[5] : null;
+                            var path = new List<string> { state };
+                            if (!string.IsNullOrWhiteSpace(role)) path.Add(role);
+                            if (!string.IsNullOrWhiteSpace(type)) path.Add(type);
+                            cdeRefValue = string.Join("/", path);
+                        }
+                        else
+                        {
+                            cdeRefValue = string.Join("-", refParts);
+                        }
 
                         if (TitleBlockEngine.SetOnSheetAndTitleBlock(
                                 sheet, tb, ParamRegistry.TB_CDE_REF,
-                                string.Join("-", refParts), false, out _))
+                                cdeRefValue, false, out _))
                         {
                             cdeRefWritten++;
                             paramsWrittenThisSheet++;
@@ -925,17 +963,20 @@ namespace StingTools.Docs
                       + "run. To keep a per-sheet value, leave that parameter's CSV cell EMPTY: "
                       + "Populate skips empty cells and will not touch the sheet.")
                 .AddSection("CDE Reference")
-                .Text("Bind the CDE REF cell to PRJ_TB_CDE_REF_TXT.\n\n"
-                    + $"Written on {cdeRefWritten} sheet(s), as "
-                    + "<document identifier>-<suitability>-<revision> — the tail of the "
-                    + "published filename, so the printed sheet says where to find itself.\n\n"
+                .Text($"Format: {cdeFormat}   (PRJ_TB_CDE_REF_FORMAT_TXT in TITLE_BLOCK.csv)\n\n"
+                    + "  CONTAINER  SHARED/Z/DR   — where in the CDE the file sits. The default, "
+                    + "because it is the one fact the sheet does not already print.\n"
+                    + "  SUFFIX     S4-P01        — suitability and revision only.\n"
+                    + "  FULL       SAH-PLNS-ZZ-01-DR-Z-0002-S4-P01 — the whole published "
+                    + "filename, searchable in the CDE, and a near-repeat of the DRG NO. cell.\n\n"
+                    + $"Written on {cdeRefWritten} sheet(s). Bind the CDE REF label to "
+                    + "PRJ_TB_CDE_REF_TXT.\n\n"
                     + (cdeRefNoRev.Count == 0
                         ? ""
-                        : $"{cdeRefNoRev.Count} sheet(s) have NO revision, in either "
-                          + "Revit's revision schedule or PRJ_TB_REVISION_NR_TXT, so their "
-                          + "reference ends at the suitability code. A CDE reference without "
-                          + "a revision does not identify an issue. Set PRJ_TB_REVISION_NR_TXT "
-                          + "in TITLE_BLOCK.csv (\"P01\") or assign a Revit revision:\n"
+                        : $"{cdeRefNoRev.Count} sheet(s) have NO revision, in either Revit's "
+                          + "revision schedule or PRJ_TB_REVISION_NR_TXT, so their reference ends "
+                          + "at the suitability code. Set PRJ_TB_REVISION_NR_TXT in TITLE_BLOCK.csv "
+                          + "(\"P01\") or assign a Revit revision:\n"
                           + string.Join(", ", cdeRefNoRev.Take(20))
                           + (cdeRefNoRev.Count > 20 ? $", \u2026 and {cdeRefNoRev.Count - 20} more" : "")
                           + "\n\n")
@@ -945,13 +986,11 @@ namespace StingTools.Docs
                           + "was written for them — a reference missing its document id points at "
                           + "no file at all. Run Tag Sheets on:\n"
                           + string.Join(", ", cdeRefNoId.Take(20))
-                          + (cdeRefNoId.Count > 20 ? $", … and {cdeRefNoId.Count - 20} more" : ""))
+                          + (cdeRefNoId.Count > 20 ? $", \u2026 and {cdeRefNoId.Count - 20} more" : ""))
                     + "\n\nIf the cell still prints \"?\" after this, the family does not yet "
                     + "have the parameter: load STING_TITLE_BLOCK_PARAMETERS.txt (Manage > Shared "
                     + "Parameters), add PRJ_TB_CDE_REF_TXT to the title-block family as an "
-                    + "INSTANCE parameter, and point the label at it. Bound to "
-                    + "PRJ_TB_LAST_TRANSMITTAL_TXT instead, the cell stays blank until a "
-                    + "transmittal is issued — Populate will not write that field, by design.")
+                    + "INSTANCE parameter, and point the label at it.")
                 .AddSection("LOD / LOIN Across This Set")
                 .Text(lodSeen.Count <= 1
                     ? (lodSeen.Count == 0
