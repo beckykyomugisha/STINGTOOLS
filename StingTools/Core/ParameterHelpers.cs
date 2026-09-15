@@ -3401,7 +3401,14 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(level)) level = "XX";
 
             // 5. Write project-level tokens
-            written += SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
+            // SetIfEmpty is right for a GUESS and wrong for a project-level setting.
+            // Half a set was tagged while the originator was being guessed as "ORGANI"
+            // and the rest after it was set to "PLNS"; SetIfEmpty then preserved both,
+            // so one drawing set carried two originators and no re-run could
+            // reconcile it. An explicitly configured originator overwrites.
+            written += OriginatorIsExplicit(doc)
+                ? SetStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator)
+                : SetIfEmptyStr(sheet, ParamRegistry.SHT_ORIGINATOR, originator);
             written += SetIfEmptyStr(sheet, ParamRegistry.SHT_REV, rev);
 
             // 6. Assemble SHT_TAG_1 — the ISO 19650 document identifier.
@@ -3454,7 +3461,27 @@ namespace StingTools.Core
                 var pi = doc.ProjectInformation;
                 if (pi == null) return "XX";
 
-                // Check for explicit originator parameter
+                // PRJ_ORG_ORIGINATOR_CODE_TXT FIRST. It is the declared home for this
+                // -- the template engine, DocumentIdentityGenerator and
+                // TokenContext.FromDeliverable all read it, and it ships defaulted to
+                // "PLNS".
+                //
+                // This method used to skip it entirely and truncate Revit's built-in
+                // "Organization Name" to six characters instead. On a project whose
+                // Organization Name still held the stock placeholder, that produced
+                // "ORGANI" -- a code that appears nowhere, means nothing, and went
+                // onto issued drawings. The originator typed into the STING field was
+                // ignored, so filling it in correctly changed nothing, which is not a
+                // failure anyone can debug from the outside.
+                //
+                // The old behaviour survives as the LAST resort, because a truncated
+                // company name is still better than "XX" when nothing else is set --
+                // but it is a guess, it is logged as one, and it no longer outranks
+                // the field that exists for the purpose.
+                string code = ParameterHelpers.GetString(pi, ParamRegistry.ORG_ORIGINATOR_CODE);
+                if (!string.IsNullOrWhiteSpace(code))
+                    return Codify(code, 6);
+
                 Parameter orgP = pi.LookupParameter("Organization Name")
                     ?? pi.LookupParameter("Client Name")
                     ?? pi.LookupParameter("Author");
@@ -3463,16 +3490,43 @@ namespace StingTools.Core
                     string val = orgP.AsString();
                     if (!string.IsNullOrWhiteSpace(val))
                     {
-                        // Take first 3-6 uppercase chars as code
-                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
-                        return clean.Length <= 6
-                            ? clean.ToUpperInvariant()
-                            : clean.Substring(0, 6).ToUpperInvariant();
+                        string guess = Codify(val, 6);
+                        StingLog.Warn($"DetectOriginator: {ParamRegistry.ORG_ORIGINATOR_CODE} is empty, "
+                            + $"so the originator was GUESSED as '{guess}' by truncating "
+                            + $"'{val}'. Set {ParamRegistry.ORG_ORIGINATOR_CODE} on Project "
+                            + "Information to control it.");
+                        return guess;
                     }
                 }
+                StingLog.Warn($"DetectOriginator: nothing to go on -- set "
+                    + $"{ParamRegistry.ORG_ORIGINATOR_CODE} on Project Information.");
                 return "XX";
             }
             catch (Exception ex) { StingLog.Warn($"DetectOriginator: {ex.Message}"); return "XX"; }
+        }
+
+        /// <summary>True when the originator was CONFIGURED rather than guessed.
+        /// A configured value is a project-level decision and outranks whatever an
+        /// earlier run left on a sheet; a guess does not, and must not stomp a
+        /// correction somebody typed.</summary>
+        public static bool OriginatorIsExplicit(Document doc)
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(
+                    ParameterHelpers.GetString(doc?.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE));
+            }
+            catch (Exception ex) { StingLog.Warn($"OriginatorIsExplicit: {ex.Message}"); return false; }
+        }
+
+        /// <summary>Letters and digits only, upper-cased, capped. One copy, because
+        /// the originator and the project code were doing this separately and could
+        /// drift apart.</summary>
+        private static string Codify(string raw, int max)
+        {
+            string clean = new string((raw ?? "").Where(char.IsLetterOrDigit).ToArray());
+            if (clean.Length == 0) return "XX";
+            return (clean.Length <= max ? clean : clean.Substring(0, max)).ToUpperInvariant();
         }
 
         /// <summary>Extract project code from Project Information.</summary>
@@ -3483,17 +3537,18 @@ namespace StingTools.Core
                 var pi = doc.ProjectInformation;
                 if (pi == null) return "PR01";
 
+                // Same rule as the originator, and the same order SheetQrStamper
+                // already used: the declared parameter first, Revit's own field
+                // second. The two disagreeing is how one sheet's QR and its printed
+                // DRG NO. end up naming different projects.
+                string code = ParameterHelpers.GetString(pi, ParamRegistry.ORG_PROJECT_CODE);
+                if (!string.IsNullOrWhiteSpace(code)) return Codify(code, 8);
+
                 Parameter numP = pi.LookupParameter("Project Number");
                 if (numP != null && numP.HasValue)
                 {
                     string val = numP.AsString();
-                    if (!string.IsNullOrWhiteSpace(val))
-                    {
-                        string clean = new string(val.Where(c => char.IsLetterOrDigit(c)).ToArray());
-                        return clean.Length <= 8
-                            ? clean.ToUpperInvariant()
-                            : clean.Substring(0, 8).ToUpperInvariant();
-                    }
+                    if (!string.IsNullOrWhiteSpace(val)) return Codify(val, 8);
                 }
                 return "PR01";
             }
