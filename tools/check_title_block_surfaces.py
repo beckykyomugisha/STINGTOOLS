@@ -120,6 +120,30 @@ def main():
          "row uses) or add Sheets to its category list. Bound elsewhere, the parameter "
          "exists in the project and no sheet can hold it.")
 
+    # PRJ_ORG_* are project-level facts and live on ProjectInformation. Every one
+    # of them was marked <ALL>, which sounds like "everywhere" and is not:
+    # PARAMETER_REGISTRY.json's universal_categories is 143 ELEMENT categories and
+    # contains neither Project Information nor Sheets. LoadSharedParams inserts
+    # OST_Sheets into the core set by hand; nothing inserts OST_ProjectInformation.
+    #
+    # So PRJ_ORG_ORIGINATOR_CODE_TXT, described in the registry as "Originator code
+    # from Project Information", was bound to walls and ducts and to no
+    # ProjectInformation element at all. The Project Information dialog showed
+    # nothing, it could not be typed in, and DetectOriginator read an empty string
+    # and guessed "ORGANI" off Revit's stock Organization Name -- onto an issued
+    # drawing. Nothing anywhere reported a problem.
+    org = [n for n in mr if n.startswith("PRJ_ORG_")]
+    org_wrong = [
+        n for n in org
+        if n not in bound or bound[n] == "<ALL>"
+        or "Project Information" not in bound[n]
+    ]
+    fail("PRJ_ORG_* parameters not bound to Project Information", org_wrong,
+         "Fix the rule in tools/param_binding_resolver.py and re-run it -- "
+         "RESOLVED_BINDINGS.csv is GENERATED, so editing it by hand is undone by the "
+         "next run. '<ALL>' is not 'everywhere': it is universal_categories, which "
+         "holds no Project Information and no Sheets.")
+
     fail("CSV rows absent from the curated title-block parameter file",
          [n for n in csv if n not in tb],
          "Add the row to StingTools/Data/STING_TITLE_BLOCK_PARAMETERS.txt, copying the "
@@ -153,6 +177,9 @@ def main():
     print(f"  STING_TITLE_BLOCK_PARAMETERS.txt entries  : {len(tb)}")
     print(f"  MR_PARAMETERS.txt definitions             : {len(mr)}")
     print(f"  RESOLVED_BINDINGS.csv bound names         : {len(bound)}")
+    print(f"  PRJ_ORG_* on Project Information           : "
+          f"{sum(1 for n in mr if n.startswith('PRJ_ORG_') and n in bound and bound[n] != '<ALL>' and 'Project Information' in bound[n])}"
+          f" / {sum(1 for n in mr if n.startswith('PRJ_ORG_'))}")
     print(f"  ...of the CSV rows, reaching Sheets        : "
           f"{sum(1 for n in csv if reaches_sheets(n))} / {len(csv)}")
 

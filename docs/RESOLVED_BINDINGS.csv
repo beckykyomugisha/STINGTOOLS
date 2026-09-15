@@ -2090,7 +2090,6 @@ PRJ_DRAWING_NR_TXT,13,universal-meta,<ALL>,Prj Drawing Nr Txt [ISO 19650-1:2018]
 PRJ_DRAWING_SCALE_TXT,13,universal-meta,<ALL>,Prj Drawing Scale Txt [ISO 19650-1:2018]
 PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>,Prj Drawing Title Txt [ISO 19650-1:2018]
 PRJ_DWG_ISSUE_PURPOSE_TXT,13,universal-meta,<ALL>,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
-PRJ_TB_CDE_REF_TXT,<ALL>
 PRJ_DWG_LOIN_LOD_TXT,13,universal-meta,<ALL>,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
 PRJ_DWG_SUITABILITY_COD_TXT,13,universal-meta,<ALL>,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
 PRJ_DWG_SUITABILITY_DESC_TXT,13,universal-meta,<ALL>,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
@@ -2101,45 +2100,45 @@ PRJ_INFORMATION_SPARE_02_TXT,13,universal-meta,<ALL>,Spare parameter 2 for PRJ_I
 PRJ_ISO_STD_TXT,13,universal-meta,<ALL>,Prj Iso Std Txt [ISO 19650-1:2018]
 PRJ_NAME_TXT,13,universal-meta,<ALL>,Prj Name Txt [ISO 19650-1:2018]
 PRJ_NR_TXT,13,universal-meta,<ALL>,Prj Nr Txt [ISO 19650-1:2018]
-PRJ_ORG_AI_EXTRACT_ENABLED_BOOL,13,universal-meta,<ALL>,"Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]"
-PRJ_ORG_APPOINTING_PARTY_TXT,13,universal-meta,<ALL>,ISO 19650 appointing party name [template engine v1.1]
-PRJ_ORG_CLASS_TXT,13,universal-meta,<ALL>,ISO 19650 information class level (default 2) [template engine v1.1]
-PRJ_ORG_CLIENT_NAME_TXT,13,universal-meta,<ALL>,Client name for this engagement [template engine v1.1]
-PRJ_ORG_COMPANY_ADDRESS_TXT,13,universal-meta,<ALL>,"Producing company address (default Kampala, Uganda) [template engine v1.1]"
-PRJ_ORG_COMPANY_NAME_TXT,13,universal-meta,<ALL>,Producing company name (default Planscape Limited) [template engine v1.1]
-PRJ_ORG_COORD_SYSTEM_TXT,13,universal-meta,<ALL>,"Project geodetic coordinate system, e.g. ""OS GB / British National Grid"" / ""WGS 84 UTM 36N"" / ""Uganda Cassini-Soldner"" -- surveyors / GIS reference [BS 7666-2:2006]"
-PRJ_ORG_GROUND_LEVEL_TXT,13,universal-meta,<ALL>,"Project finished ground level reference, e.g. ""+114.250 m AOD"" -- survey datum for the project [BS EN ISO 4463-1:2021]"
-PRJ_ORG_HEALTH_AE_ELEC_TXT,13,universal-meta,<ALL>,Authorising Engineer -- Electrical
-PRJ_ORG_HEALTH_AE_MGAS_TXT,13,universal-meta,<ALL>,Authorising Engineer -- Medical Gas
-PRJ_ORG_HEALTH_AE_VENT_TXT,13,universal-meta,<ALL>,Authorising Engineer -- Ventilation
-PRJ_ORG_HEALTH_AE_WATER_TXT,13,universal-meta,<ALL>,Authorising Engineer -- Water Safety
-PRJ_ORG_HEALTH_AHJ_TXT,13,universal-meta,<ALL>,Authority Having Jurisdiction
-PRJ_ORG_HEALTH_AREA_M2_NR,13,universal-meta,<ALL>,Gross internal area (m2)
-PRJ_ORG_HEALTH_BEDS_INT,13,universal-meta,<ALL>,Bed count
-PRJ_ORG_HEALTH_CODE_BASE_TXT,13,universal-meta,<ALL>,"Code base: HBN/HTM, FGI, iHFG, Other"
-PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,13,universal-meta,<ALL>,Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM
-PRJ_ORG_HEALTH_HTM_REGION_TXT,13,universal-meta,<ALL>,Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI
-PRJ_ORG_HEALTH_ICU_INT,13,universal-meta,<ALL>,ICU bed count
-PRJ_ORG_HEALTH_IHFG_BOOL,13,universal-meta,<ALL>,iHFG (International Health Facility Guidelines) authority applies
-PRJ_ORG_HEALTH_OR_INT,13,universal-meta,<ALL>,Operating room count
-PRJ_ORG_HEALTH_PACK_PROFILE_TXT,13,universal-meta,<ALL>,Healthcare pack profile (acute / community / mental / standalone) for validator gating
-PRJ_ORG_HEALTH_QE_TXT,13,universal-meta,<ALL>,Qualified Expert (radiation)
-PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,13,universal-meta,<ALL>,ISO 19650 lead appointed party (default Planscape Limited) [template engine v1.1]
-PRJ_ORG_ORIGINATOR_CODE_TXT,13,universal-meta,<ALL>,ISO 19650 originator code (default PLNS) [template engine v1.1]
-PRJ_ORG_PARTICIPANTS_TXT,13,universal-meta,<ALL>,Semicolon-separated participants list [template engine v1.1]
-PRJ_ORG_PHASE_TXT,13,universal-meta,<ALL>,ISO 19650 project phase code (default DE) [template engine v1.1]
-PRJ_ORG_PRESSURE_PROFILE_TXT,13,universal-meta,<ALL>,Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]
-PRJ_ORG_PROJECT_ADDRESS_TXT,13,universal-meta,<ALL>,Project / site address shown on the title block [STING Phase 171]
-PRJ_ORG_PROJECT_CODE_TXT,13,universal-meta,<ALL>,Project identifier code (alphanumeric) [template engine v1.1]
-PRJ_ORG_PROJECT_NAME_TXT,13,universal-meta,<ALL>,Project name shown on the title block [STING Phase 171]
-PRJ_ORG_PROJECT_NORTH_TXT,13,universal-meta,<ALL>,"Project north angle relative to true north, e.g. ""12.5deg E of true north"" -- for sheet-level coordination + wayfinding [ISO 19650-1:2018]"
-PRJ_ORG_PROJECT_NUMBER_TXT,13,universal-meta,<ALL>,Project number / job number shown on the title block [STING Phase 171]
-PRJ_ORG_REGION_TXT,13,universal-meta,<ALL>,Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]
-PRJ_ORG_RIBA_STAGE_TXT,13,universal-meta,<ALL>,RIBA work stage (0-7) shown on the title block [STING Phase 171]
-PRJ_ORG_SECURITY_CLASS_TXT,13,universal-meta,<ALL>,"Information security classification, e.g. ""OFFICIAL"" / ""OFFICIAL-SENSITIVE"" / ""SECRET"" / ""PUBLIC"" -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]"
-PRJ_ORG_SIGNATURE_PROVIDER_TXT,13,universal-meta,<ALL>,Signature provider id (empty = signatures disabled) [template engine v1.1]
-PRJ_ORG_UNICLASS_CO_TXT,13,universal-meta,<ALL>,"Project Uniclass 2015 Complex (Co_) classification, e.g. ""Co_25_30 Office buildings"" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]"
-PRJ_ORG_WORKFLOW_PROFILE_TXT,13,universal-meta,<ALL>,"Workflow profile key (default ""default"") [template engine v1.1]"
+PRJ_ORG_AI_EXTRACT_ENABLED_BOOL,13,project-level,Project Information,"Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]"
+PRJ_ORG_APPOINTING_PARTY_TXT,13,project-level,Project Information,ISO 19650 appointing party name [template engine v1.1]
+PRJ_ORG_CLASS_TXT,13,project-level,Project Information,ISO 19650 information class level (default 2) [template engine v1.1]
+PRJ_ORG_CLIENT_NAME_TXT,13,project-level,Project Information,Client name for this engagement [template engine v1.1]
+PRJ_ORG_COMPANY_ADDRESS_TXT,13,project-level,Project Information,"Producing company address (default Kampala, Uganda) [template engine v1.1]"
+PRJ_ORG_COMPANY_NAME_TXT,13,project-level,Project Information,Producing company name (default Planscape Limited) [template engine v1.1]
+PRJ_ORG_COORD_SYSTEM_TXT,13,project-level,Project Information,"Project geodetic coordinate system, e.g. ""OS GB / British National Grid"" / ""WGS 84 UTM 36N"" / ""Uganda Cassini-Soldner"" -- surveyors / GIS reference [BS 7666-2:2006]"
+PRJ_ORG_GROUND_LEVEL_TXT,13,project-level,Project Information,"Project finished ground level reference, e.g. ""+114.250 m AOD"" -- survey datum for the project [BS EN ISO 4463-1:2021]"
+PRJ_ORG_HEALTH_AE_ELEC_TXT,13,project-level,Project Information,Authorising Engineer -- Electrical
+PRJ_ORG_HEALTH_AE_MGAS_TXT,13,project-level,Project Information,Authorising Engineer -- Medical Gas
+PRJ_ORG_HEALTH_AE_VENT_TXT,13,project-level,Project Information,Authorising Engineer -- Ventilation
+PRJ_ORG_HEALTH_AE_WATER_TXT,13,project-level,Project Information,Authorising Engineer -- Water Safety
+PRJ_ORG_HEALTH_AHJ_TXT,13,project-level,Project Information,Authority Having Jurisdiction
+PRJ_ORG_HEALTH_AREA_M2_NR,13,project-level,Project Information,Gross internal area (m2)
+PRJ_ORG_HEALTH_BEDS_INT,13,project-level,Project Information,Bed count
+PRJ_ORG_HEALTH_CODE_BASE_TXT,13,project-level,Project Information,"Code base: HBN/HTM, FGI, iHFG, Other"
+PRJ_ORG_HEALTH_FACILITY_TYPE_TXT,13,project-level,Project Information,Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM
+PRJ_ORG_HEALTH_HTM_REGION_TXT,13,project-level,Project Information,Regional HTM variant: NHS-England / SHTM / WHTM / NHS-NI
+PRJ_ORG_HEALTH_ICU_INT,13,project-level,Project Information,ICU bed count
+PRJ_ORG_HEALTH_IHFG_BOOL,13,project-level,Project Information,iHFG (International Health Facility Guidelines) authority applies
+PRJ_ORG_HEALTH_OR_INT,13,project-level,Project Information,Operating room count
+PRJ_ORG_HEALTH_PACK_PROFILE_TXT,13,project-level,Project Information,Healthcare pack profile (acute / community / mental / standalone) for validator gating
+PRJ_ORG_HEALTH_QE_TXT,13,project-level,Project Information,Qualified Expert (radiation)
+PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,13,project-level,Project Information,ISO 19650 lead appointed party (default Planscape Limited) [template engine v1.1]
+PRJ_ORG_ORIGINATOR_CODE_TXT,13,project-level,Project Information,ISO 19650 originator code (default PLNS) [template engine v1.1]
+PRJ_ORG_PARTICIPANTS_TXT,13,project-level,Project Information,Semicolon-separated participants list [template engine v1.1]
+PRJ_ORG_PHASE_TXT,13,project-level,Project Information,ISO 19650 project phase code (default DE) [template engine v1.1]
+PRJ_ORG_PRESSURE_PROFILE_TXT,13,project-level,Project Information,Active pressure-regime profile id for GeneralPressureRegimeValidator (healthcare-htm03-01 / gmp-annex1 / iso-14644-cleanroom / bs-en-12128-lab) [Phase 183]
+PRJ_ORG_PROJECT_ADDRESS_TXT,13,project-level,Project Information,Project / site address shown on the title block [STING Phase 171]
+PRJ_ORG_PROJECT_CODE_TXT,13,project-level,Project Information,Project identifier code (alphanumeric) [template engine v1.1]
+PRJ_ORG_PROJECT_NAME_TXT,13,project-level,Project Information,Project name shown on the title block [STING Phase 171]
+PRJ_ORG_PROJECT_NORTH_TXT,13,project-level,Project Information,"Project north angle relative to true north, e.g. ""12.5deg E of true north"" -- for sheet-level coordination + wayfinding [ISO 19650-1:2018]"
+PRJ_ORG_PROJECT_NUMBER_TXT,13,project-level,Project Information,Project number / job number shown on the title block [STING Phase 171]
+PRJ_ORG_REGION_TXT,13,project-level,Project Information,Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]
+PRJ_ORG_RIBA_STAGE_TXT,13,project-level,Project Information,RIBA work stage (0-7) shown on the title block [STING Phase 171]
+PRJ_ORG_SECURITY_CLASS_TXT,13,project-level,Project Information,"Information security classification, e.g. ""OFFICIAL"" / ""OFFICIAL-SENSITIVE"" / ""SECRET"" / ""PUBLIC"" -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]"
+PRJ_ORG_SIGNATURE_PROVIDER_TXT,13,project-level,Project Information,Signature provider id (empty = signatures disabled) [template engine v1.1]
+PRJ_ORG_UNICLASS_CO_TXT,13,project-level,Project Information,"Project Uniclass 2015 Complex (Co_) classification, e.g. ""Co_25_30 Office buildings"" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]"
+PRJ_ORG_WORKFLOW_PROFILE_TXT,13,project-level,Project Information,"Workflow profile key (default ""default"") [template engine v1.1]"
 PRJ_ORIGINATOR_COD_TXT,13,universal-meta,<ALL>,ISO 19650 originator code
 PRJ_PHASE_TXT,13,universal-meta,<ALL>,Prj Phase Txt [ISO 19650-1:2018]
 PRJ_PROJECT_COD_TXT,13,universal-meta,<ALL>,ISO 19650 project code
@@ -2164,6 +2163,7 @@ PRJ_STATUS_COD_TXT,13,universal-meta,<ALL>,ISO 19650 document status code
 PRJ_TB_APVD_BY_TXT,13,universal-meta,<ALL>,Name or initials of person who approved the drawing [ISO 19650-1:2018]
 PRJ_TB_AUTHORISED_BY_TXT,13,universal-meta,<ALL>,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
 PRJ_TB_AUTHORISED_DATE_TXT,13,universal-meta,<ALL>,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
+PRJ_TB_CDE_REF_TXT,13,universal-meta,<ALL>,"CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. ""SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01"". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]"
 PRJ_TB_CHECKED_BY_TXT,13,universal-meta,<ALL>,Name or initials of person who checked the drawing [ISO 19650-1:2018]
 PRJ_TB_CLIENT_ADDRESS_TXT,13,universal-meta,<ALL>,Client / appointing party address [ISO 19650-1:2018]
 PRJ_TB_CLIENT_NAME_TXT,13,universal-meta,<ALL>,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018]
