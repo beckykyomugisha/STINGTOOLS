@@ -494,6 +494,8 @@ namespace StingTools.Docs
             var auditFields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var lodSeen = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
             var replaced = new List<string>();
+            var cdeRefNoId = new List<string>();
+            int cdeRefWritten = 0;
             var suitUnknown = new List<string>();
             var descMismatch = new List<string>();
             var noValue = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -695,6 +697,52 @@ namespace StingTools.Docs
                         }
                     }
 
+                    // ── The CDE REFERENCE cell ───────────────────────────────────
+                    //
+                    // The one string that lets someone holding the paper find the file
+                    // in the CDE: document identifier + suitability + revision, which is
+                    // exactly the tail of the published filename. Derived here rather
+                    // than read from the CSV because it is per-sheet by definition.
+                    //
+                    // The identifier is SHT_TAG_1_TXT (assembled by Tag Sheets), or the
+                    // sheet number itself once that number IS the identifier. With
+                    // neither, nothing is written -- a partial reference points at a
+                    // file that does not exist, which is worse than a blank cell -- and
+                    // the sheet is named so the fix is Tag Sheets, not a mystery.
+                    string cdeDocId = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
+                    if (string.IsNullOrWhiteSpace(cdeDocId)
+                        && StingTools.Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber))
+                        cdeDocId = sheet.SheetNumber;
+
+                    if (string.IsNullOrWhiteSpace(cdeDocId))
+                    {
+                        cdeRefNoId.Add(sheet.SheetNumber);
+                    }
+                    else
+                    {
+                        var refParts = new List<string> { cdeDocId.Trim() };
+                        if (!string.IsNullOrEmpty(suitCode)) refParts.Add(suitCode);
+
+                        string sheetRev = null;
+                        try
+                        {
+                            sheetRev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                        }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TB Populate: revision read on '{sheet.SheetNumber}': {ex.Message}");
+                        }
+                        if (!string.IsNullOrWhiteSpace(sheetRev)) refParts.Add(sheetRev.Trim());
+
+                        if (TitleBlockEngine.SetOnSheetAndTitleBlock(
+                                sheet, tb, ParamRegistry.TB_CDE_REF,
+                                string.Join("-", refParts), false, out _))
+                        {
+                            cdeRefWritten++;
+                            paramsWrittenThisSheet++;
+                        }
+                    }
+
                     if (paramsWrittenThisSheet > 0)
                     {
                         ParameterHelpers.SetString(tb, ParamRegistry.TB_LAST_SYNC,
@@ -731,6 +779,7 @@ namespace StingTools.Docs
                 .Metric("Parameters with no CSV value (skipped)", noValue.Count.ToString())
                 .Metric("Writes that reached BOTH sheet and title block", bothHomes.ToString())
                 .Metric("CDE state derived from the suitability code", derived.ToString())
+                .Metric("CDE reference written", cdeRefWritten.ToString())
                 .Metric("Per-sheet values replaced by the CSV", replaced.Count.ToString())
                 .Metric("Sheets with MORE THAN ONE title block", multiTbSheets.Count.ToString())
                 .Metric("Sheets on sheet list (auto-counted)", totalSheetListed.ToString())
@@ -754,6 +803,24 @@ namespace StingTools.Docs
                       + "typed onto one sheet on purpose is gone. Revit's Undo reverses the whole "
                       + "run. To keep a per-sheet value, leave that parameter's CSV cell EMPTY: "
                       + "Populate skips empty cells and will not touch the sheet.")
+                .AddSection("CDE Reference")
+                .Text("Bind the CDE REF cell to PRJ_TB_CDE_REF_TXT.\n\n"
+                    + $"Written on {cdeRefWritten} sheet(s), as "
+                    + "<document identifier>-<suitability>-<revision> — the tail of the "
+                    + "published filename, so the printed sheet says where to find itself.\n\n"
+                    + (cdeRefNoId.Count == 0
+                        ? "Every sheet scanned carried an ISO 19650 identifier."
+                        : $"{cdeRefNoId.Count} sheet(s) carry NO ISO 19650 identifier, so nothing "
+                          + "was written for them — a reference missing its document id points at "
+                          + "no file at all. Run Tag Sheets on:\n"
+                          + string.Join(", ", cdeRefNoId.Take(20))
+                          + (cdeRefNoId.Count > 20 ? $", … and {cdeRefNoId.Count - 20} more" : ""))
+                    + "\n\nIf the cell still prints \"?\" after this, the family does not yet "
+                    + "have the parameter: load STING_TITLE_BLOCK_PARAMETERS.txt (Manage > Shared "
+                    + "Parameters), add PRJ_TB_CDE_REF_TXT to the title-block family as an "
+                    + "INSTANCE parameter, and point the label at it. Bound to "
+                    + "PRJ_TB_LAST_TRANSMITTAL_TXT instead, the cell stays blank until a "
+                    + "transmittal is issued — Populate will not write that field, by design.")
                 .AddSection("LOD / LOIN Across This Set")
                 .Text(lodSeen.Count <= 1
                     ? (lodSeen.Count == 0

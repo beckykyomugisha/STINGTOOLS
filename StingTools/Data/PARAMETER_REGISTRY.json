@@ -18999,6 +18999,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_TB_CDE_REF_TXT",
+      "guid": "f30f7a36-8d82-5385-a215-ae1eec90df2b",
+      "description": "CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. \"SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01\". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "STING",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_DWG_LOIN_LOD_TXT",
       "guid": "3a2b846f-94ae-5dfd-8ab2-aa5800d48f92",
       "description": "Level of Information Need / Level of Detail at issue -- e.g. \"LOD 300\" / \"LOIN-3\" / \"LOD 350\" [BS EN 17412-1:2020]",

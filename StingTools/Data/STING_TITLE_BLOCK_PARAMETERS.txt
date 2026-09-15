@@ -39,6 +39,7 @@ PARAM	037ae428-4007-53eb-93b8-bc37c82fed37	PRJ_TB_DATE_APVD_TXT	TEXT		2	1	Date d
 PARAM	85f04e61-409b-5fae-bd4f-e4414e9d69b5	PRJ_TB_DATE_CHECKED_TXT	TEXT		2	1	Date drawing was checked (DD-Mon-YYYY) [ISO 19650-1:2018]	1	0
 PARAM	da584dc6-c3ae-5ae9-97e9-fdc9286ccb55	PRJ_TB_DATE_DRAWN_TXT	TEXT		2	1	Date drawing was first created or last redrawn (DD-Mon-YYYY) [ISO 19650-1:2018]	1	0
 PARAM	0d917e49-c6f6-5951-b2b7-7a00bdb3b0df	PRJ_TB_DELIVERABLE_CDE_TXT	TEXT		2	1	CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]	1	0
+PARAM	f30f7a36-8d82-5385-a215-ae1eec90df2b	PRJ_TB_CDE_REF_TXT	TEXT		2	1	CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]	1	0
 PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT		2	1	ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018]	1	0
 PARAM	525f8b24-26eb-52ae-8760-c6aa1621815a	PRJ_TB_DELIVERABLE_DUE_TXT	TEXT		2	1	Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]	1	0
 PARAM	5fea853a-6ed7-505e-a677-50fb83f435b0	PRJ_TB_DELIVERABLE_STATUS_TXT	TEXT		2	1	Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]	1	0

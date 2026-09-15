@@ -2090,6 +2090,7 @@ PRJ_DRAWING_NR_TXT,13,universal-meta,<ALL>,Prj Drawing Nr Txt [ISO 19650-1:2018]
 PRJ_DRAWING_SCALE_TXT,13,universal-meta,<ALL>,Prj Drawing Scale Txt [ISO 19650-1:2018]
 PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>,Prj Drawing Title Txt [ISO 19650-1:2018]
 PRJ_DWG_ISSUE_PURPOSE_TXT,13,universal-meta,<ALL>,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
+PRJ_TB_CDE_REF_TXT,<ALL>
 PRJ_DWG_LOIN_LOD_TXT,13,universal-meta,<ALL>,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
 PRJ_DWG_SUITABILITY_COD_TXT,13,universal-meta,<ALL>,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
 PRJ_DWG_SUITABILITY_DESC_TXT,13,universal-meta,<ALL>,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"

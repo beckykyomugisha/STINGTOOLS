@@ -695,6 +695,7 @@ namespace StingTools.UI
                     case "TitleBlock_InspectLock": RunCommand<Commands.Drawing.TitleBlockInspectLockCommand>(app); break;
                     case "TitleBlock_Unlock":     RunCommand<Commands.Drawing.TitleBlockUnlockCommand>(app); break;
                     case "TitleBlock_InspectFields": RunCommand<Commands.Drawing.TitleBlockInspectFieldsCommand>(app); break;
+                    case "TitleBlock_PushFields": RunCommand<Commands.Drawing.TitleBlockPushFieldsCommand>(app); break;
                     case "Sheet_NumberFromIso": RunCommand<Commands.Drawing.SheetNumberFromIsoCommand>(app); break;
                     case "Sheet_NumberRestore": RunCommand<Commands.Drawing.SheetNumberRestoreCommand>(app); break;
                     case "Sheet_NumberTidy": RunCommand<Commands.Drawing.SheetNumberTidyCommand>(app); break;

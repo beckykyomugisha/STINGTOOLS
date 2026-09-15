@@ -1716,6 +1716,13 @@ namespace StingTools.UI
                         "same shared parameter STING writes. Answers \"Populate said it wrote and the cell " +
                         "is still blank\": either no label draws it, or the family has a same-named " +
                         "parameter with a different GUID."),
+                    ("Push Fields",      "TitleBlock_PushFields",
+                        "Copy title-block values from the ACTIVE sheet to other sheets. DRAWN BY and " +
+                        "CHECKED BY are INSTANCE parameters, so editing them in Properties changes one " +
+                        "sheet and nothing else — that is Revit working correctly, not a bug. Tick the " +
+                        "fields, see how many sheets each would change, confirm, then one Undo reverses " +
+                        "the lot. Use this when a sheet is the source of truth; use TITLE_BLOCK.csv + " +
+                        "Populate when the CSV is."),
                     ("Locked?",          "TitleBlock_InspectLock",
                         "Read-only: which sheets carry PRJ_TB_LOCK_BOOL, and whether the flag sits on the " +
                         "title-block instance or on its TYPE. A type-held lock came from the family itself, " +

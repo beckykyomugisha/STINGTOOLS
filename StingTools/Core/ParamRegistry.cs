@@ -615,6 +615,24 @@ namespace StingTools.Core
         /// <summary>Suitability description, in the standard's wording.</summary>
         public const string DWG_SUITABILITY_DESC         = "PRJ_DWG_SUITABILITY_DESC_TXT";
         public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
+
+        /// <summary>The CDE REFERENCE cell — the string that locates this exact issue
+        /// in the common data environment: ISO 19650 document identifier + suitability
+        /// code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". It is the tail of
+        /// the published filename, so someone holding the paper can find the file.
+        ///
+        /// It exists because the CDE REF cell had nothing honest to bind to. Pointed at
+        /// TB_LAST_TRANSMITTAL it printed "?" on every sheet until a transmittal was
+        /// issued — Populate refuses to write that field, deliberately, because it is an
+        /// audit record. Pointed at TB_DELIVERABLE_CDE it repeated the STATUS cell's
+        /// word. This one is derived on every Populate run, from facts the sheet already
+        /// carries, and duplicates no other cell.
+        ///
+        /// Derived, never read from TITLE_BLOCK.csv — a per-sheet identifier has no
+        /// project-wide default — which is why it is NOT in AllTitleBlockParams,
+        /// the same as DWG_SUITABILITY_COD / DWG_SUITABILITY_DESC.</summary>
+        public const string TB_CDE_REF                   = "PRJ_TB_CDE_REF_TXT";
+        public const string TB_CDE_REF_GUID              = "f30f7a36-8d82-5385-a215-ae1eec90df2b";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
         public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";

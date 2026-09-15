@@ -278,6 +278,7 @@ namespace StingTools.Commands.Drawing
             "PRJ_DWG_SUITABILITY_COD_TXT",
             "PRJ_DWG_SUITABILITY_DESC_TXT",
             "PRJ_DWG_LOIN_LOD_TXT",
+            "PRJ_TB_CDE_REF_TXT",
             "PRJ_DWG_ISSUE_PURPOSE_TXT",
             "PRJ_TB_FEDERATION_STATUS_TXT",
             "PRJ_TB_PAPER_SZ_TXT",
