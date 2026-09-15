@@ -52,14 +52,48 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            string path;
-            try { path = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), HistoryFile); }
-            catch (Exception ex)
+            // A FAMILY document has no project, so ProjectFolderEngine.GetDataPath
+            // returns null, StingPaths.Meta returns null, and Path.Combine(null, ...)
+            // throws "Value cannot be null" — which is what this reported instead of
+            // the actual situation. Editing a title-block seed in the Family Editor
+            // and reaching for a sheet command is an easy and reasonable mistake; it
+            // deserves a sentence, not an exception message.
+            if (doc.IsFamilyDocument)
             {
                 TaskDialog.Show("STING — Restore Sheet Numbers",
-                    "Could not resolve the coordination folder: " + ex.Message);
+                    "This is a FAMILY document, not a project.\n\n" +
+                    "Sheet numbers live in a project. Switch to the project window and " +
+                    "run this again.");
+                return Result.Cancelled;
+            }
+            if (string.IsNullOrEmpty(doc.PathName))
+            {
+                TaskDialog.Show("STING — Restore Sheet Numbers",
+                    "This model has never been saved, so it has no project folder to " +
+                    "read or write the change record in.\n\nSave it and run this again.");
+                return Result.Cancelled;
+            }
+
+            string dir = null;
+            try { dir = StingPaths.Meta(doc, "_BIM_COORD"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetNumberRestore: resolving the coordination folder: {ex.Message}");
+            }
+            if (string.IsNullOrEmpty(dir))
+            {
+                // Meta RETURNS NULL rather than throwing when the project root cannot be
+                // resolved, so the old code fed null to Path.Combine and surfaced
+                // "Value cannot be null" — an exception message standing in for a
+                // diagnosis. Say what is actually wrong.
+                TaskDialog.Show("STING — Restore Sheet Numbers",
+                    "This project has no resolvable coordination folder, so there is no " +
+                    "change record to restore from.\n\n" +
+                    "That happens when the model is unsaved or detached. Save it where the " +
+                    "rest of the project lives and run this again.");
                 return Result.Failed;
             }
+            string path = Path.Combine(dir, HistoryFile);
 
             if (!File.Exists(path))
             {

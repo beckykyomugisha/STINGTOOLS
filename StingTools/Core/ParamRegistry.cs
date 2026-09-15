@@ -589,6 +589,14 @@ namespace StingTools.Core
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
         public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+
+        /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
+        ///
+        /// Distinct from TB_DELIVERABLE_STATUS (a deliverable-tracking field) and from
+        /// TB_DELIVERABLE_CDE (the CDE state: WIP / SHARED / PUBLISHED). All three were
+        /// being conflated because TITLE_BLOCK.csv shipped "WIP" as the default for two
+        /// of them, so two different cells on the same drawing printed the same word.</summary>
+        public const string PRJ_STATUS_COD               = "PRJ_STATUS_COD_TXT";
         public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
         public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
@@ -602,6 +610,7 @@ namespace StingTools.Core
         /// schedule created by TitleBlockFactory).</summary>
         public static readonly string[] AllTitleBlockParams = new[]
         {
+            PRJ_STATUS_COD,
             TB_VARIANT, TB_SCHEMA_VERSION, TB_LOGO_PATH, TB_LAST_SYNC, TB_LAST_SYNC_BY,
             TB_LOCK, TB_SHOW_KEYPLAN, TB_SHOW_SCALEBAR, TB_SHOW_NORTHARROW, TB_SHOW_DISCBAND,
             TB_SHOW_REV_TABLE,
