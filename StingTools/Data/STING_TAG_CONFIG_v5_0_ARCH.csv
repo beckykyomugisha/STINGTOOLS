@@ -1,4 +1,4 @@
-#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-06-25,FAMILIES=36,DISCIPLINE=ARCH,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(206_categories)+PARAMETER_REGISTRY.json(3296_params)+TagFamilyConfig.TotalFamilyCount=206,CONSOL=dfd7b4d_struct_dedup+MGS/EV/FOUND_tier2
+﻿#SCHEMA_VERSION=5.6,CREATED=2026-03-16,UPDATED=2026-06-25,FAMILIES=36,DISCIPLINE=ARCH,ADDS=per_family_tier_variation+standards_cited+reuse_check,PREV=tier_1_to_10_rows+style_parameter_catalog_150_params,SYNC=LABEL_DEFINITIONS.json_v5.12(206_categories)+PARAMETER_REGISTRY.json(3296_params)+TagFamilyConfig.TotalFamilyCount=206,CONSOL=dfd7b4d_struct_dedup+MGS/EV/FOUND_tier2
 #
 # SCHEMA v5.2 (2026-04-16) — Added 3 trailing columns: Style,Color,Size
 #   Style  : NOM | BOLD | ITALIC | BOLDITALIC               (default per tier: T1=NOM, T2=NOM, T3=NOM)
@@ -625,6 +625,7 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 
 Tag Family #7: STING - Room Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
+NOTE: row 3 (ASS_DESCRIPTION_TXT) carries the ROOM NAME - NativeParamMapper fills it from BuiltInParameter.ROOM_NAME (SetIfEmpty). Do NOT add a BLE_ROOM_NAME_TXT row: it would show the name twice, and the Revit API cannot author label rows, so it would mean manual Family Editor work plus renumbering every "Show Tier 2 - N".
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
