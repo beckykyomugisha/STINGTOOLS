@@ -61,11 +61,15 @@ def csv_rows(path):
 
 
 def bound_names(path):
-    out = set()
+    """RESOLVED_BINDINGS.csv -> {name: set(category names) or "<ALL>"}."""
+    out = {}
     for line in io.open(path, encoding="utf-8"):
         if line.startswith("#") or "," not in line:
             continue
-        out.add(line.split(",")[0].strip())
+        name, rest = line.split(",", 1)
+        rest = rest.strip()
+        out[name.strip()] = ("<ALL>" if rest == "<ALL>"
+                             else {c.strip() for c in rest.split("|") if c.strip()})
     return out
 
 
@@ -91,6 +95,30 @@ def main():
          [n for n in csv if n in mr and n not in bound],
          "Add '<name>,<ALL>' to StingTools/Data/RESOLVED_BINDINGS.csv beside the other "
          "PRJ_TB_* rows. Unbound, the parameter exists in the file and on no sheet.")
+
+    # "Bound" is not enough -- it must be bound to SHEETS.
+    #
+    # LoadSharedParams sends '<ALL>' parameters to the core category set, into
+    # which it explicitly inserts OST_Sheets (that category is absent from
+    # ParamRegistry's map, so without that line the core set would carry no sheet
+    # coverage at all). A parameter given a SCOPED row instead gets only the
+    # categories that row names, and a title-block parameter scoped to, say, Ducts
+    # is bound, reported as bound, and invisible on every sheet.
+    #
+    # Title blocks themselves cannot be checked here and never will be:
+    # OST_TitleBlocks.AllowsBoundParameters is false, so a project parameter can
+    # never reach them. That home is the family's own shared parameter, which is
+    # what the curated file above exists to supply.
+    def reaches_sheets(n):
+        if n not in bound:
+            return False
+        return bound[n] == "<ALL>" or bool({"Sheets", "Project Information"} & bound[n])
+
+    not_on_sheets = [n for n in csv if n in bound and not reaches_sheets(n)]
+    fail("CSV rows bound, but not to Sheets", not_on_sheets,
+         "Change the RESOLVED_BINDINGS.csv row to '<ALL>' (what every other PRJ_TB_* "
+         "row uses) or add Sheets to its category list. Bound elsewhere, the parameter "
+         "exists in the project and no sheet can hold it.")
 
     fail("CSV rows absent from the curated title-block parameter file",
          [n for n in csv if n not in tb],
@@ -125,6 +153,8 @@ def main():
     print(f"  STING_TITLE_BLOCK_PARAMETERS.txt entries  : {len(tb)}")
     print(f"  MR_PARAMETERS.txt definitions             : {len(mr)}")
     print(f"  RESOLVED_BINDINGS.csv bound names         : {len(bound)}")
+    print(f"  ...of the CSV rows, reaching Sheets        : "
+          f"{sum(1 for n in csv if reaches_sheets(n))} / {len(csv)}")
 
     if not failures:
         print("\n  OK — every CSV row is defined, bound, and offered to the family.")

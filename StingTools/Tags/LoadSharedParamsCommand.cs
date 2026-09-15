@@ -670,6 +670,29 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { StingLog.Warn($"LoadSharedParams ParamRegistry.Reload: {ex.Message}"); }
 
+            // Say where this has to be done ONCE instead of every project.
+            //
+            // Project parameters live in the .rvt, not in the plugin, so this
+            // command is per-document by necessity -- there is no API that binds a
+            // parameter "for all future projects". Revit's own answer is the project
+            // TEMPLATE: bindings in an .rte are inherited by every project started
+            // from it. Running this on the template is the same command on a
+            // different document, and it is the difference between doing this once
+            // and doing it on every job forever. Nothing said so, so it was done on
+            // every job.
+            report.AppendLine();
+            report.AppendLine("DOING THIS ONCE INSTEAD OF PER PROJECT");
+            report.AppendLine(
+                "  Project parameters are stored in the project file, so this command "
+                + "cannot reach projects that do not exist yet. Open your project TEMPLATE "
+                + "(.rte), run this once there, and save: every project started from that "
+                + "template inherits all " + bound.ToString() + " bindings and never needs "
+                + "this command again.");
+            report.AppendLine(
+                "  For projects that already exist, re-running is safe and cheap -- "
+                + "parameters already bound are skipped by name, so only names added since "
+                + "the last run are created.");
+
             var td = new TaskDialog("STING Tools - Load Shared Params");
             td.MainInstruction = requiredMissing > 0
                 ? $"Binding complete — {bound} bound, {requiredMissing} REQUIRED missing!"
