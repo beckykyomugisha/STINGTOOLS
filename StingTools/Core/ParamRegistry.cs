@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -3082,7 +3082,13 @@ namespace StingTools.Core
             _extendedParams["ROOM_NAME"] = "ASS_ROOM_NAME_TXT"; _extendedParams["ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
             _extendedParams["ROOM_AREA"] = "ASS_ROOM_AREA_SQ_M"; _extendedParams["ROOM_VOLUME"] = "ASS_ROOM_VOLUME_CU_M";
             _extendedParams["DEPT"] = "ASS_DEPARTMENT_ASSIGNMENT_TXT"; _extendedParams["GRID_REF"] = "PRJ_GRID_REF_TXT";
-            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "ASS_ROOM_NUM_TXT";
+            // BLE_ROOM_* is the room's OWN identity and binds to Rooms only.
+            // ROOM_* / ASS_ROOM_*_TXT above is bound <ALL> and records the room an
+            // ASSET sits in. Keep the two apart: BLE_ROOM_NUM pointed at
+            // ASS_ROOM_NUM_TXT until 2026-09, which left BLE_ROOM_NUM_TXT unwritten
+            // by anything and blanked the room-number column of every Room schedule
+            // that names it (MR_SCHEDULES.csv "FM_Revit / Acoustic Schedule").
+            _extendedParams["BLE_ROOM_NAME"] = "BLE_ROOM_NAME_TXT"; _extendedParams["BLE_ROOM_NUM"] = "BLE_ROOM_NUM_TXT";
             // Extended tokens
             _extendedParams["ORIGIN"] = "ASS_ORIGIN_TXT"; _extendedParams["PROJECT"] = "ASS_PROJECT_TXT";
             _extendedParams["REV"] = "ASS_REV_TXT"; _extendedParams["VOLUME"] = "ASS_VOL_TXT";

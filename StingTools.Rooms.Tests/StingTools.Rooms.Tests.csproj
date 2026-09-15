@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Pure-logic test project. Does NOT reference the Revit API or WPF; it links the
+         Revit-free half of the room tooling via <Compile Include>, the same pattern
+         StingTools.Visibility.Tests uses. That split is the reason the numbering path is
+         testable at all: RoomNumberingCommands does the Revit harvesting and the writes,
+         RoomNumberPlanner makes the decisions and touches nothing. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Same version as the main plugin to avoid transitive mismatch. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Revit-free files. Neither references Autodesk.Revit.*, so they compile cleanly
+         against net8.0. RoomNumberingCommands / RoomTagPlacer are deliberately NOT linked —
+         they are Revit-bound by design. -->
+    <Compile Include="..\StingTools\Core\Rooms\RoomNumberPlan.cs"     Link="Rooms\RoomNumberPlan.cs" />
+    <Compile Include="..\StingTools\Core\Rooms\RoomNumberingStore.cs" Link="Rooms\RoomNumberingStore.cs" />
+    <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The ACTUAL shipped baseline, not a copy. SchemeLibraryTests round-trips this file,
+         so a Newtonsoft silent-default typo in it fails here rather than on a user's Friday. -->
+    <Content Include="..\StingTools\Data\STING_ROOM_NUMBERING.json"
+             Link="Data\STING_ROOM_NUMBERING.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
