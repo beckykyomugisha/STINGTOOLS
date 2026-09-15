@@ -72,6 +72,48 @@ namespace StingTools.Core.Drawing
             });
         }
 
+        /// <summary>The seven segments of an assembled identifier, or null.
+        ///
+        /// The identifier is the SOURCE and these are its decomposition, never the
+        /// other way round. Two parallel sets of the same seven facts existed --
+        /// SHT_* written by Tag Sheets and PRJ_SHEET_* written by DrawingProducer --
+        /// with nothing keeping them in step, and on a real drawing they diverged:
+        /// PRJ_SHEET_ROLE_TXT read "A" while the identifier printed on the same sheet
+        /// read role "Z", and PRJ_SHEET_PROJECT_TXT read "STG" against the
+        /// identifier's "SAH". Both sat in the Properties palette looking
+        /// authoritative. Splitting one string is the only arrangement in which they
+        /// cannot disagree.</summary>
+        public sealed class Segments
+        {
+            public string Project { get; set; }
+            public string Originator { get; set; }
+            public string Volume { get; set; }
+            public string Level { get; set; }
+            public string Type { get; set; }
+            public string Role { get; set; }
+            public string Number { get; set; }
+        }
+
+        /// <summary>Split an assembled identifier into its seven fields. Returns null
+        /// for anything that is not one — a half-parsed identifier stamped onto a
+        /// sheet would be worse than no stamp, because every field would look
+        /// populated and several would be wrong.</summary>
+        public static Segments Decompose(string identifier)
+        {
+            if (!LooksAssembled(identifier)) return null;
+            var p = identifier.Trim().Split('-');
+            return new Segments
+            {
+                Project = p[0],
+                Originator = p[1],
+                Volume = p[2],
+                Level = p[3],
+                Type = p[4],
+                Role = p[5],
+                Number = p[6],
+            };
+        }
+
         /// <summary>Does this string already look like an assembled identifier?
         ///
         /// Used to refuse re-assembling one that has been written back into the sheet

@@ -3454,6 +3454,13 @@ namespace StingTools.Core
                     + $"ISO identifier, so {ParamRegistry.SHT_TAG_1} was left as it is rather than "
                     + "nesting the code inside itself. Restore a short sheet number "
                     + "(Drawing Type Editor -> Title Block -> Restore Sheet Nos) to have it rebuilt.");
+
+                // The identifier was left alone, but its decomposition must still
+                // match it. A sheet whose number IS the identifier still carries the
+                // seven segment parameters, and leaving them on an older split is the
+                // same contradiction one level down.
+                written += StampSegments(sheet,
+                    ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1));
             }
             else
             {
@@ -3461,6 +3468,7 @@ namespace StingTools.Core
                 string tag1 = StingTools.Core.Drawing.Iso19650DocumentCode.Assemble(
                     projectCode, originator, volume, level, form, disc, sheetNum);
                 written += SetStr(sheet, ParamRegistry.SHT_TAG_1, tag1);
+                written += StampSegments(sheet, tag1);
             }
 
             // 7. Build SHT_TAG_7 narrative
@@ -3473,6 +3481,39 @@ namespace StingTools.Core
                 StingLog.Warn($"TagSheet: {sheet.SheetNumber} took {sw.ElapsedMilliseconds}ms (slow — large viewport element count)");
 
             return written;
+        }
+
+        /// <summary>Write the seven PRJ_SHEET_* segments, and their join, from the
+        /// assembled identifier.
+        ///
+        /// These were written ONLY by DrawingProducer, at sheet creation, from its own
+        /// tokens — so a sheet produced one way and tagged another carried two
+        /// versions of the same seven facts with nothing keeping them in step. On a
+        /// real drawing PRJ_SHEET_ROLE_TXT read "A" while the identifier printed on
+        /// that same sheet read role "Z".
+        ///
+        /// Derived, so they cannot contradict their source: overwritten every time the
+        /// identifier is, and skipped entirely when there is no identifier to split
+        /// rather than being cleared — an untagged sheet keeps whatever DrawingProducer
+        /// gave it.</summary>
+        private static int StampSegments(ViewSheet sheet, string identifier)
+        {
+            var seg = StingTools.Core.Drawing.Iso19650DocumentCode.Decompose(identifier);
+            if (seg == null) return 0;
+
+            int n = 0;
+            n += SetStr(sheet, "PRJ_SHEET_PROJECT_TXT", seg.Project);
+            n += SetStr(sheet, "PRJ_SHEET_ORIG_TXT", seg.Originator);
+            n += SetStr(sheet, "PRJ_SHEET_VOLUME_TXT", seg.Volume);
+            n += SetStr(sheet, "PRJ_SHEET_LEVEL_TXT", seg.Level);
+            n += SetStr(sheet, "PRJ_SHEET_TYPE_TXT", seg.Type);
+            n += SetStr(sheet, "PRJ_SHEET_ROLE_TXT", seg.Role);
+            n += SetStr(sheet, "PRJ_SHEET_SEQ_TXT", seg.Number);
+
+            // The join, by definition. Leaving it holding an older join while its
+            // seven parts move on is the same defect this method exists to remove.
+            n += SetStr(sheet, "PRJ_SHEET_FULL_REF_TXT", identifier);
+            return n;
         }
 
         /// <summary>Extract originator code from Project Information.</summary>

@@ -371,13 +371,27 @@ namespace StingTools.Core.Drawing
                     if (!(vp is Viewport viewport)) continue;
                     if (viewport.ViewId != view.Id) continue;
                     if (!(doc.GetElement(viewport.SheetId) is ViewSheet sheet)) continue;
+                    // The SHEET NUMBER first, not the full reference.
+                    //
+                    // This is an ANNOTATION on a drawing -- "continued on sheet X" --
+                    // and the standard this project works to is a full ISO identifier
+                    // in the sheet-number field and the SHORTEST usable form in
+                    // annotations, because a seven-field identifier inside a match-line
+                    // note is unreadable at any sheet scale. It is the same decision
+                    // already made for elevation, section and callout tags.
+                    //
+                    // PRJ_SHEET_FULL_REF_TXT stays as the fallback for a sheet with no
+                    // number at all, which is the only case where it is the better of
+                    // the two.
+                    if (!string.IsNullOrWhiteSpace(sheet.SheetNumber)) return sheet.SheetNumber;
+
                     var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
                     if (pFull != null && pFull.HasValue)
                     {
                         var v = pFull.AsString();
                         if (!string.IsNullOrEmpty(v)) return v;
                     }
-                    return sheet.SheetNumber ?? "";
+                    return "";
                 }
             }
             catch (Exception ex) { StingLog.Warn($"ResolveSheetRef: {ex.Message}"); }
