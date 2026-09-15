@@ -86,6 +86,15 @@ jobs:
       - name: Parameter contract is current
         run: python3 tools/check_param_contract.py --check
 
+      # STING_TAG_TOKEN_POLICY.json shipped on 2026-08-10 documenting all ten ISO 19650
+      # tag tokens, was named in two TagConfig comments, and was read by NOTHING until
+      # 2026-09-15 — the fallbacks were hardcoded literals, so editing it changed no
+      # behaviour and nothing said so. A unit test cannot catch that: it can prove
+      # TagTokenPolicy.Resolve is correct while no caller invokes it. This asserts the
+      # call sites exist and that the literals have not come back.
+      - name: Tag token policy still governs tagging
+        run: python3 tools/check_token_policy_wired.py --check
+
       # A method that catches an exception, abandons the work and then tells its
       # caller it succeeded. Four of those built a project's whole finish catalogue
       # out of one default layer and reported '168/168 renamed, 0 failed'. This is
