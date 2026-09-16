@@ -21,6 +21,13 @@ papered over.
 | MAPTYPE-2 | ✅ **CLOSED** (Phase 290) | `UnitValueText.StripUnitSuffix` keeps the _TXT mirror a plain number, so a row with its own unit suffix no longer renders `MCB: 100 A A`. Revit-free, 18 unit tests. |
 | MAPTYPE-3 | ✅ **CLOSED** (Phase 291) — measured, not assumed | All **174** container-target parameters reachable through `ParamRegistry.WriteContainers` are declared TEXT, so its `SetString` is correct for every one. The speculation that the true defect count was higher than 57 was wrong: outside the Map* helpers there are **zero** instances. |
 
+## Tag row duplicates and formula inputs (2026-09-16, Phase 292)
+
+| ID | Status | Detail |
+|---|---|---|
+| TAGDUP-1 | ✅ **CLOSED** (Phase 292) | 291 rows printed the same value twice — 290 across tier 2/3 (shown together by 8 of 12 presentation modes) and 1 across tier 1/2. Guarded by `tools/check_tag_row_duplicates.py`, which derives co-displayed tier pairs from `presentation_modes`. |
+| TAGDUP-2 | **OPEN — reported, not a defect list** | 96 of 266 formula inputs in `FORMULAS_WITH_DEPENDENCIES.csv` have no formula and no C# producer. **Most are design inputs by nature** — a human types `BLE_FINISH_PAINT_COATS_NR` and Revit's formula computes — so this is the same caveat `check_param_contract.py` carries: a human is a real producer no scan can see. A minority look genuinely derivable and are worth a look: `BLE_RAMP_HEIGHT_MM` / `BLE_RAMP_LENGTH_MM` block `BLE_RAMP_SLOPE_PCT`, and Revit knows both for a ramp. Deriving the rest without checking each would be guessing. |
+
 ## Tag row bindings (2026-09-16, Phase 288)
 
 **1,019 tag rows still cannot display** (down from 1,161). Tracked by

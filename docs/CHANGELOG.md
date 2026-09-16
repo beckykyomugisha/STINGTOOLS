@@ -2,6 +2,44 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 292 — a review sweep: 291 tags printed the same value twice)
+
+Three sweeps after the binding work, looking for defects of the same SHAPE rather than
+more instances of the same bug. Two came back clean; one did not.
+
+**SWEEP A — a tag row naming a non-TEXT parameter: 0.** The whole `_TXT` mirror mechanism
+exists because a label renders text, so a row pointing straight at a LENGTH or NUMBER
+parameter would be the Phase 289 defect on the READ side. Every one of the 7,929 rows
+names a TEXT parameter. The discipline holds.
+
+**SWEEP B — the same parameter twice on one tag: 291 rows.** The door `Clear:` row was not
+the only one, it was just the only one INSIDE a single tier. Across tiers there were 290
+more: `ASS_DESCRIPTION_TXT` (73 categories), `ASS_MANUFACTURER_TXT` (73),
+`ASS_MODEL_NR_TXT` (68), `ASS_TAG_2_TXT` (75) each appeared in tier 2 AND tier 3 — and
+**eight of the twelve presentation modes show tiers 2 and 3 together**. Those tags printed
+Description, Manufacturer, Model and the short tag twice, one line under the other.
+
+Removing the tier-3 copy loses nothing, and that is checked rather than assumed: every
+presentation mode that shows a higher tier also shows the lower one, so the value is still
+on the tag at the lower depth. The one tier-1/tier-2 case
+(`ELC_PNL_DESIGNATION_NAME_TXT`) is resolved the same way.
+
+**SWEEP C — formula inputs with no producer: 96 of 266, and NOT a defect list.** No
+formula produces them and no C# writes them, but most are design inputs by nature
+(`BLE_FINISH_PAINT_COATS_NR`, `BLE_TILE_JOINT_WIDTH_MM`, `ASS_QA_CERT_TXT`): a human types
+the value and Revit's formula computes. Reported rather than "fixed", for the same reason
+`check_param_contract.py` is declaration-driven — a human is a real producer and no scan
+can see one. A minority (`BLE_RAMP_HEIGHT_MM` / `BLE_RAMP_LENGTH_MM`, which block
+`BLE_RAMP_SLOPE_PCT`) look derivable from Revit and are logged as TAGDUP-2 rather than
+guessed at.
+
+**`tools/check_tag_row_duplicates.py`** covers both shapes and reads `presentation_modes`
+rather than hardcoding which tiers co-display, so adding a mode that shows tiers 2 and 5
+together extends the check to that pair automatically. Verified RED by re-adding a
+duplicate to the door tag, GREEN after.
+
+Build 0/0; Tags 1542, Rooms 24; ten gates green.
+
 #### Completed (Phase 291 — closing seven gaps, and declining two)
 
 **Closed.**
