@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 289 — why a door tag showed no width: 28 mapped writes that silently did nothing)
+
+**The type-contract defect.** Every `NativeParamMapper` Map* helper read a Revit built-in,
+formatted it as a string, and ended at `SetIfEmpty` → `SetString`. `SetString` returns
+**false** the moment the target is not String storage:
+
+```csharp
+if (p.StorageType != StorageType.String) return false;
+```
+
+**28 of the 57 resolvable map targets are declared LENGTH / AREA / NUMBER / CURRENCY** in
+MR_PARAMETERS.txt. Those 28 writes did nothing, returned 0, logged nothing, threw nothing.
+Among them:
+
+| Target | Consequence |
+|---|---|
+| `BLE_DOOR_WIDTH_MM` / `_HEIGHT_MM` | the door tag's `W:` and `H:` rows were blank |
+| `BLE_WINDOW_WIDTH_MM` / `_HEIGHT_MM` | same for windows |
+| `ASS_ROOM_AREA_SQ_M` | the room tag's `Area:` row was blank |
+| `BLE_WALL_THICKNESS_MM`, `BLE_STAIR_RISE_MM` / `_GOING_MM`, `BLE_CEILING_HEIGHT_MM`, `BLE_RAMP_WIDTH_MM`, `PLM_PPE_LENGTH_M` / `_SZ_MM`, `STR_FDN_DEPTH_MM`, 13 `ELC_*` / `HVC_*` / `CST_*` | the same, everywhere |
+
+And it is **two** dead parameters per mapping, not one: the `_TXT` display mirror that a
+Revit tag label must read is written only by `SetDouble`, so it was never written either.
+
+This is the answer to "why the tag doesn't work" — and it is a different defect from Phase
+288's unbound rows. A row can be perfectly bound and still show nothing because its
+producer could not write.
+
+**`WriteMapped`** branches on the TARGET's storage type and carries **both** values:
+
+- the **raw internal** value (decimal feet, square feet) — what a Double target must store,
+  so Revit renders it in project units
+- the **formatted display** string (millimetres) — what the `_TXT` mirror and any String
+  target must carry
+
+The two are not interchangeable. Passing the converted number to a LENGTH parameter would
+store **900 feet** for a 900 mm door, which is why `SetDouble` gained an explicit
+`displayText` rather than formatting the stored value.
+
+All four helpers — `MapDimension`, `MapLookup`, `MapBuiltIn`, `MapStringParam` — now route
+through it. Write semantics are unchanged (`SetIfEmpty`: only writes when the target is
+empty), so this adds values where there were none and overwrites nothing.
+
+**`tools/check_map_target_types.py`** asserts the four helpers still reach `WriteMapped`
+and that `SetDouble` still takes `displayText`. A unit test cannot catch this — the helpers
+need a live Revit `Parameter` and the failure is a silent `false`, not an exception — so
+the call site is the only cheap instrument. Verified RED by reverting `MapDimension` to
+`SetIfEmptyInt`, GREEN after.
+
+Build 0/0; Tags 1523, Rooms 24; nine data gates green.
+
+**Not verified in Revit.** The unit conversion is the part to watch: a Double target now
+receives Revit-internal units. On a tagged door, `W:` should read ~900, not ~2.95 (feet)
+and not 274320 (mm-as-feet). ROADMAP MAPTYPE-1.
+
 #### Completed (Phase 288 — 1,161 tag rows that could never display, and the gate that found them)
 
 **The room-name blank was not one bug.** Chasing its siblings found that **1,161 of 9,118

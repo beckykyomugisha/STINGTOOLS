@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -608,8 +608,13 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"GetDouble({paramName}): {ex.Message}"); return defaultValue; }
         }
 
+        /// <param name="displayText">Exact string for the _TXT mirror. Supply this when the
+        /// mirror must not read like the stored value: a LENGTH parameter stores Revit
+        /// INTERNAL units (decimal feet) while the mirror exists to carry the project-unit
+        /// display string ("900" mm, not "2.953"). Without it the mirror would publish feet
+        /// under a millimetre label.</param>
         public static bool SetDouble(Element el, string paramName, double value,
-            bool overwrite = false, string displayFormat = null)
+            bool overwrite = false, string displayFormat = null, string displayText = null)
         {
             if (el == null || string.IsNullOrEmpty(paramName)) return false;
             Parameter p = CachedLookup(el, paramName);
@@ -620,7 +625,8 @@ namespace StingTools.Core
             try
             {
                 p.Set(value);
-                WriteTxtMirror(el, paramName, value.ToString(displayFormat ?? "G"));
+                WriteTxtMirror(el, paramName,
+                    displayText ?? value.ToString(displayFormat ?? "G"));
                 return true;
             }
             catch (Exception ex)
@@ -3207,6 +3213,56 @@ namespace StingTools.Core
         internal static void InvalidateBipCache() => _bipMissingByCategory.Clear();
 
         /// <summary>Map a built-in dimension parameter with unit conversion.</summary>
+        /// <summary>
+        /// Write a mapped value, respecting the TARGET parameter's storage type.
+        ///
+        /// Every Map* helper here used to end at SetIfEmpty → SetString, which returns
+        /// FALSE the moment the target is not String storage. 28 of the 57 resolvable map
+        /// targets are declared LENGTH / AREA / NUMBER / CURRENCY in MR_PARAMETERS.txt, so
+        /// those 28 writes silently did nothing — and because the _TXT display mirror is
+        /// only written by SetDouble, the mirror the TAG LABEL reads was never written
+        /// either. That is why a door tag showed no width and a room tag showed no area:
+        /// not a binding problem, a type-contract problem, and it never logged a thing.
+        ///
+        /// <paramref name="rawInternal"/> is the value in Revit INTERNAL units (feet, square
+        /// feet) and is what a Double target must store, so Revit renders it in project
+        /// units. <paramref name="formatted"/> is the already-converted display string and is
+        /// what the _TXT mirror and any String target must carry. Passing the converted
+        /// number to a LENGTH parameter would store 900 FEET for a 900 mm door.
+        /// </summary>
+        private static int WriteMapped(Element el, string targetParam,
+            double? rawInternal, string formatted)
+        {
+            if (el == null || string.IsNullOrEmpty(targetParam)) return 0;
+            if (string.IsNullOrEmpty(formatted)) return 0;
+
+            Parameter target = ParameterHelpers.CachedLookup(el, targetParam);
+            if (target == null || target.IsReadOnly)
+                return 0;   // unbound or locked — SetString would have failed here too
+
+            switch (target.StorageType)
+            {
+                case StorageType.Double:
+                    if (!rawInternal.HasValue) return 0;
+                    return ParameterHelpers.SetDouble(el, targetParam, rawInternal.Value,
+                        overwrite: false, displayFormat: null, displayText: formatted) ? 1 : 0;
+
+                case StorageType.Integer:
+                    int iv;
+                    if (int.TryParse(formatted,
+                            System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture, out iv))
+                        return ParameterHelpers.SetInt(el, targetParam, iv) ? 1 : 0;
+                    if (rawInternal.HasValue)
+                        return ParameterHelpers.SetInt(el, targetParam,
+                            (int)Math.Round(rawInternal.Value)) ? 1 : 0;
+                    return 0;
+
+                default:
+                    return SetIfEmptyInt(el, targetParam, formatted);
+            }
+        }
+
         private static int MapDimension(Element el, BuiltInParameter bip,
             string targetParam, double conversionFactor)
         {
@@ -3231,7 +3287,7 @@ namespace StingTools.Core
                     : val.ToString("F2",
                         System.Globalization.CultureInfo.InvariantCulture);
 
-                return SetIfEmptyInt(el, targetParam, formatted);
+                return WriteMapped(el, targetParam, p.AsDouble(), formatted);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
@@ -3252,7 +3308,7 @@ namespace StingTools.Core
 
                 string formatted = Math.Round(val, 0).ToString("F0",
                     System.Globalization.CultureInfo.InvariantCulture);
-                return SetIfEmptyInt(el, targetParam, formatted);
+                return WriteMapped(el, targetParam, p.AsDouble(), formatted);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
@@ -3272,7 +3328,10 @@ namespace StingTools.Core
                     : p.AsValueString();
 
                 if (string.IsNullOrEmpty(val)) return 0;
-                return SetIfEmptyInt(el, targetParam, val);
+                double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
+                            : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
+                            : null;
+                return WriteMapped(el, targetParam, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
@@ -4419,7 +4478,10 @@ namespace StingTools.Core
                 if (string.IsNullOrEmpty(val)) return 0;
 
                 Element writeTarget = target ?? source;
-                return SetIfEmptyInt(writeTarget, targetParamName, val);
+                double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
+                            : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
+                            : null;
+                return WriteMapped(writeTarget, targetParamName, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
