@@ -92,8 +92,42 @@ fire → that audit always passes). These are engines that cannot be exercised h
 are named with line numbers rather than edited. An acoustic or structural calculation is not
 somewhere to apply an unverified fix.
 
+**MAPTYPE-7 fixed rather than reported.** The ten remaining type-scoped built-ins read from
+instances are now routed through one public `ParameterHelpers.GetBip` / `TryGetBipDouble`,
+rather than a type lookup copied into each engine. What they were doing:
+
+* `AcousticAnalysisEngine` — both thickness reads returned null, so Rw was estimated from
+  the 150 mm default on **every** element: a constant wearing the shape of a measurement
+* `StructuralAnalysisEngine` / `StructuralDesignSuite` — slab deflection and fire cover
+  checked at the 200 mm default regardless of the actual slab; and in `StructuralDesignSuite`
+  the `thinSlabs` count tested `thk != null`, which was **always false**, so that QA check
+  could never flag a thin slab
+* `SleeveEngine` — floor thickness reported 0 mm, sizing a sleeve against a zero-thickness slab
+* `EmergencyLightingAuditCommand` — `ALL_MODEL_TYPE_MARK` on a `FamilyInstance` was always
+  null, so the `StartsWith("em")` rule has never once matched
+
+Where a default still applies it now says so in the log, so "measured" and "defaulted" stop
+being indistinguishable.
+
+**GENPH-1 — a sentinel doubling as real data.** Auditing the vocabulary category by category
+turned up `"GEN"` serving as both the `_placeholders` sentinel for "never resolved" and a
+real code in three places, including the `SysMap` key covering **twelve categories**. Every
+element in them produced a tag containing `-GEN-`, which `TagHasPlaceholders` rejects — so
+their tags **could never be complete**. Silently: never skipped, re-derived and rewritten on
+every run with the audit trail churning each time, the idempotency guard dead, and
+`ComplianceScan` scoring them non-compliant for ever — the dashboard could not reach 100%
+whatever anyone did in the model. Real codes are now `GNL` and `GM`; `GEN` means only
+"unresolved". `tools/check_tag_vocabulary.py` guards it, proven RED before GREEN.
+
+**What the audit deliberately did not call a bug.** 93 `LABEL_DEFINITIONS` entries are absent
+from `DiscMap` — they are **spec families** (`family_name: "STING - Bariatric Tag"`), not Revit
+categories, so that is expected. And 25 tagged categories have no `CATEGORY_BINDINGS` rows,
+which looks alarming until you check that the eight ISO tokens bind `<ALL>`: those categories
+do get tags. Both are recorded so the numbers are not re-discovered and mistaken for the
+worse thing they resemble.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
-failed. Six gates green, `check_binding_scope` and `check_token_separator_safety` each
+failed. Seven gates green, `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
 category, not scope). **None of it has been seen on a tag in Revit** — `docs/TAG_TEST_PROTOCOL.md`
 gains T6 (SEQ reaches the tag, and two doors of one type must differ) and T7 (material

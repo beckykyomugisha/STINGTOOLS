@@ -574,6 +574,56 @@ namespace StingTools.Core
                     + $"Use WriteMapped/SetDouble with the raw internal value. (#{n})");
         }
 
+        /// <summary>
+        /// Read a built-in parameter from an element, falling back to its TYPE (MAPTYPE-7).
+        ///
+        /// Several built-ins are declared on the TYPE — `WALL_ATTR_WIDTH_PARAM`,
+        /// `FLOOR_ATTR_THICKNESS_PARAM`, `FAMILY_WIDTH_PARAM`, `ALL_MODEL_TYPE_MARK`.
+        /// `element.get_Parameter(bip)` returns null for those, and callers across the
+        /// analysis engines then fell back to a FABRICATED default — `?? 0.5` for a slab
+        /// thickness, `?? 0` for a sleeve, an empty string for a type mark. A made-up
+        /// number a user can act on is worse than a blank, and these feed acoustic,
+        /// structural and emergency-lighting results.
+        ///
+        /// One helper rather than a type lookup copied into each engine, so a site written
+        /// next year gets it without anyone remembering.
+        /// </summary>
+        public static Parameter GetBip(Element el, BuiltInParameter bip)
+        {
+            if (el == null) return null;
+            try
+            {
+                Parameter p = el.get_Parameter(bip);
+                if (p != null && p.HasValue) return p;
+
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                Parameter tp = typeEl?.get_Parameter(bip);
+                return (tp != null && tp.HasValue) ? tp : p;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetBip({bip}) on {el?.Id}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// <see cref="GetBip"/> as a double, reporting whether a real value was found so
+        /// the caller can tell "measured" from "defaulted" instead of silently conflating
+        /// them.
+        /// </summary>
+        public static bool TryGetBipDouble(Element el, BuiltInParameter bip, out double value)
+        {
+            value = 0;
+            Parameter p = GetBip(el, bip);
+            if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return false;
+            value = p.AsDouble();
+            return true;
+        }
+
         /// <summary>Set only when the parameter is currently empty.</summary>
         public static bool SetIfEmpty(Element el, string paramName, string value)
         {

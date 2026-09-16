@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -479,7 +479,10 @@ namespace StingTools.Core
                 // Structure
                 { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns", "Structural Stiffeners", "Structural Trusses", "Structural Connections", "Structural Beam Systems", "Structural Rebar", "Structural Rebar Couplers", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement", "Analytical Members", "Analytical Nodes", "Analytical Links", "Analytical Openings", "Analytical Panels" } },
                 // Generic
-                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones" } },
+                // GENPH-1: keyed "GEN" until 2026-09-16, which is the unresolved SENTINEL, so all
+                // TWELVE of these categories produced a tag containing "-GEN-" and could
+                // never be judged complete. Renamed to the real code "GNL".
+                { "GNL", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones" } },
             };
         }
 
@@ -564,7 +567,7 @@ namespace StingTools.Core
                 { "Internal Area Loads", "IAL" }, { "Internal Line Loads", "ILL" },
                 { "Internal Point Loads", "IPL" },
                 // Generic
-                { "Generic Models", "GEN" }, { "Specialty Equipment", "SPE" },
+                { "Generic Models", "GM" },   // GENPH-1: was "GEN", the unresolved sentinel { "Specialty Equipment", "SPE" },
                 { "Medical Equipment", "MED" }, { "Mass", "MAS" },
                 { "Parts", "PRT" }, { "Assemblies", "ASM" },
                 { "Detail Items", "DTL" }, { "Model Groups", "GRP" },
@@ -585,7 +588,7 @@ namespace StingTools.Core
                 { "LPS", "LPS" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
-                { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },
+                { "ARC", "FIT" }, { "STR", "STR" }, { "GNL", "GNL" },   // GENPH-1: was GEN/GEN, the sentinel
             };
         }
 

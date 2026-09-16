@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // AcousticAnalysisEngine.cs — Phase 69: Acoustic Performance Analysis
 //
 // Provides BS EN 12354 / Approved Document E acoustic analysis:
@@ -487,15 +487,26 @@ namespace StingTools.Model
             try
             {
                 // Try to get width parameter for mass estimation
-                var widthParam = el.get_Parameter(BuiltInParameter.WALL_ATTR_WIDTH_PARAM);
-                double thicknessFt = widthParam?.AsDouble() ?? 0;
+                // MAPTYPE-7: both of these are TYPE-scoped built-ins. Read straight from
+                // the instance they returned null, so this fell through to the 0.5 ft
+                // (~150 mm) default on EVERY element and the Rw estimate below was a
+                // constant wearing the shape of a measurement.
+                double thicknessFt;
+                if (!StingTools.Core.ParameterHelpers.TryGetBipDouble(
+                        el, BuiltInParameter.WALL_ATTR_WIDTH_PARAM, out thicknessFt)
+                    || thicknessFt <= 0)
+                {
+                    if (!StingTools.Core.ParameterHelpers.TryGetBipDouble(
+                            el, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM, out thicknessFt))
+                        thicknessFt = 0;
+                }
                 if (thicknessFt <= 0)
                 {
-                    var hostObj = el as HostObject;
-                    if (hostObj != null)
-                        thicknessFt = hostObj.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM)?.AsDouble() ?? 0.5;
+                    thicknessFt = 0.5; // documented default ~150mm
+                    StingTools.Core.StingLog.Warn(
+                        $"AcousticAnalysis: no thickness on {el?.Id} - Rw ESTIMATED from the "
+                        + "150mm default, not measured.");
                 }
-                if (thicknessFt <= 0) thicknessFt = 0.5; // default ~150mm
 
                 double thicknessMm = thicknessFt * 304.8;
                 // Estimate density: concrete ~2300, masonry ~1800, timber ~500, plasterboard ~800

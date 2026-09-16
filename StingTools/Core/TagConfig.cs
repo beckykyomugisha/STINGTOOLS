@@ -1783,7 +1783,13 @@ namespace StingTools.Core
                 case "S":  return "STR";
                 case "FP": return "FP";
                 case "LV": return "LV";
-                case "G":  return "GEN"; // Generic Models/Specialty Equipment — not gas-specific
+                // GENPH-1: "GEN" is a SENTINEL (see _placeholders) meaning "unresolved".
+                // Returning it as a REAL sys code made every tag for these categories
+                // permanently incomplete: TagHasPlaceholders sees "-GEN-", TagIsComplete
+                // returns false, so the element is never skipped, is re-derived on every
+                // run, and ComplianceScan counts it non-compliant for ever. "GNL" is a
+                // real code; "GEN" below still means unresolved.
+                case "G":  return "GNL"; // Generic Models/Specialty Equipment — not gas-specific
                 default:   return "GEN";
             }
         }

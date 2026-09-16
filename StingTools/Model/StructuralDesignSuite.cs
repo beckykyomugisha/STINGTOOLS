@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // StructuralDesignSuite.cs — Advanced Structural Design & Validation
 //
 // Production-grade design algorithms:
@@ -638,7 +638,7 @@ namespace StingTools.Model
                 var areaParam = slab.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED);
                 double areaSqM = (areaParam?.AsDouble() ?? 0) * Units.SqFtToSqM;
                 double thickness = 0.2; // Default 200mm
-                var thkParam = slab.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                var thkParam = StingTools.Core.ParameterHelpers.GetBip(slab, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);   // MAPTYPE-7
                 if (thkParam != null) thickness = thkParam.AsDouble() * Units.FeetToMm / 1000.0;
 
                 double vol = areaSqM * thickness;
@@ -1120,7 +1120,7 @@ namespace StingTools.Model
                 .WhereElementIsNotElementType().ToList();
             int thinSlabs = slabs.Count(s =>
             {
-                var thk = s.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                var thk = StingTools.Core.ParameterHelpers.GetBip(s, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);   // MAPTYPE-7: was always null -> thinSlabs always 0
                 return thk != null && thk.AsDouble() * Units.FeetToMm < 100;
             });
             checks.Add(new ValidationCheck

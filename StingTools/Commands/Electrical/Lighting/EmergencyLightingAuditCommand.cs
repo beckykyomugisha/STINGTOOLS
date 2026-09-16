@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -123,7 +123,13 @@ namespace StingTools.Commands.Electrical.Lighting
             {
                 string fname = (fi.Symbol?.FamilyName ?? "").ToLowerInvariant();
                 if (EmergPatterns.Any(p => fname.Contains(p))) return true;
-                string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
+                // MAPTYPE-7: ALL_MODEL_TYPE_MARK is TYPE-scoped. Read from the
+                // FamilyInstance it was always null, so `tm` was always "" and the
+                // StartsWith("em") test below could never fire - a detection rule that
+                // has never once matched.
+                string tm = (StingTools.Core.ParameterHelpers
+                                .GetBip(fi, BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString()
+                             ?? "").ToLowerInvariant();
                 if (tm.StartsWith("em")) return true;
                 // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
                 // is the project-wide fixture type discriminator (Phase 188 fix
