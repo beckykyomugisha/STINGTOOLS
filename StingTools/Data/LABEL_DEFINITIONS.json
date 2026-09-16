@@ -1761,12 +1761,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_CASEWORK_TXT",
           "spaces": 0,
           "break": true,
@@ -1815,13 +1809,6 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
           "param": "ASS_MODEL_NR_TXT",
           "spaces": 0,
           "break": true,
@@ -1834,13 +1821,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -3824,12 +3804,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_FURNITURE_TXT",
           "spaces": 0,
           "break": true,
@@ -3878,13 +3852,6 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
           "param": "ASS_MODEL_NR_TXT",
           "spaces": 0,
           "break": true,
@@ -3897,13 +3864,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -4589,12 +4549,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_FURN_SYS_TXT",
           "spaces": 0,
           "break": true,
@@ -4643,13 +4597,6 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
           "param": "ASS_MODEL_NR_TXT",
           "spaces": 0,
           "break": true,
@@ -4662,13 +4609,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -5195,12 +5135,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PARKING_TXT",
           "spaces": 0,
           "break": true,
@@ -5249,13 +5183,6 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
           "param": "ASS_MODEL_NR_TXT",
           "spaces": 0,
           "break": true,
@@ -5268,13 +5195,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -7037,12 +6957,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_SITE_TXT",
           "spaces": 0,
           "break": true,
@@ -7098,13 +7012,6 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
           "param": "ASS_MODEL_NR_TXT",
           "spaces": 0,
           "break": true,
@@ -7117,13 +7024,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -8963,12 +8863,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_REBAR_TXT",
           "spaces": 0,
           "break": true,
@@ -9031,32 +8925,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -10260,12 +10133,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_COLUMNS_TXT",
           "spaces": 0,
           "break": true,
@@ -10314,32 +10181,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -10849,12 +10695,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_ASSEMBLIES_TXT",
           "spaces": 0,
           "break": true,
@@ -10903,32 +10743,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -11438,12 +11257,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_DETAIL_ITEMS_TXT",
           "spaces": 0,
           "break": true,
@@ -11492,32 +11305,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -12027,12 +11819,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_ENTOURAGE_TXT",
           "spaces": 0,
           "break": true,
@@ -12081,32 +11867,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -12616,12 +12381,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_FOOD_EQUIP_TXT",
           "spaces": 0,
           "break": true,
@@ -12670,32 +12429,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -13214,12 +12952,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_HARDSCAPE_TXT",
           "spaces": 0,
           "break": true,
@@ -13275,32 +13007,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -13810,12 +13521,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_MASS_TXT",
           "spaces": 0,
           "break": true,
@@ -13864,32 +13569,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -14399,12 +14083,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_MODEL_GROUPS_TXT",
           "spaces": 0,
           "break": true,
@@ -14453,32 +14131,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -14988,12 +14645,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PADS_TXT",
           "spaces": 0,
           "break": true,
@@ -15049,32 +14700,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -15584,12 +15214,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PARTS_TXT",
           "spaces": 0,
           "break": true,
@@ -15638,32 +15262,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -16173,12 +15776,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PLANTING_TXT",
           "spaces": 0,
           "break": true,
@@ -16227,32 +15824,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -16762,12 +16338,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PROFILES_TXT",
           "spaces": 0,
           "break": true,
@@ -16816,32 +16386,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -17351,12 +16900,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PROPERTY_LINES_TXT",
           "spaces": 0,
           "break": true,
@@ -17405,32 +16948,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -17940,12 +17462,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_ROADS_TXT",
           "spaces": 0,
           "break": true,
@@ -18001,32 +17517,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -18536,12 +18031,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_SIGNAGE_TXT",
           "spaces": 0,
           "break": true,
@@ -18590,32 +18079,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -19134,12 +18602,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_TOPOSOLID_TXT",
           "spaces": 0,
           "break": true,
@@ -19195,32 +18657,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -19730,12 +19171,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_VERT_CIRC_TXT",
           "spaces": 0,
           "break": true,
@@ -19791,32 +19226,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -20661,12 +20075,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_RVT_LINKS_TXT",
           "spaces": 0,
           "break": true,
@@ -20715,32 +20123,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -21250,12 +20637,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_FASCIA_TXT",
           "spaces": 0,
           "break": true,
@@ -21304,32 +20685,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -21839,12 +21199,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_GUTTER_TXT",
           "spaces": 0,
           "break": true,
@@ -21893,32 +21247,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -22428,12 +21761,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_HANDRAILS_TXT",
           "spaces": 0,
           "break": true,
@@ -22496,32 +21823,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -23040,12 +22346,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_ROOF_SOFFITS_TXT",
           "spaces": 0,
           "break": true,
@@ -23094,32 +22394,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -23638,12 +22917,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_SLAB_EDGES_TXT",
           "spaces": 0,
           "break": true,
@@ -23692,32 +22965,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -24227,12 +23479,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_STAIR_LANDINGS_TXT",
           "spaces": 0,
           "break": true,
@@ -24281,32 +23527,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -24816,12 +24041,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_STAIR_RUNS_TXT",
           "spaces": 0,
           "break": true,
@@ -24884,32 +24103,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -25446,12 +24644,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_STAIR_SUPPORTS_TXT",
           "spaces": 0,
           "break": true,
@@ -25507,32 +24699,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -26042,12 +25213,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_TOP_RAILS_TXT",
           "spaces": 0,
           "break": true,
@@ -26110,32 +25275,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -26654,12 +25798,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "BLE_TAG_7_PARA_WALL_SWEEPS_TXT",
           "spaces": 0,
           "break": true,
@@ -26708,32 +25846,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -28267,12 +27384,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_BEAM_TXT",
           "spaces": 0,
           "break": true,
@@ -28916,12 +28027,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_FABRIC_REINF_TXT",
           "spaces": 0,
           "break": true,
@@ -28977,32 +28082,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -29512,12 +28596,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_ANAL_LINKS_TXT",
           "spaces": 0,
           "break": true,
@@ -29566,32 +28644,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -30101,12 +29158,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_ANAL_MEMBERS_TXT",
           "spaces": 0,
           "break": true,
@@ -30155,32 +29206,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -30690,12 +29720,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_ANAL_NODES_TXT",
           "spaces": 0,
           "break": true,
@@ -30744,32 +29768,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -31279,12 +30282,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_ANAL_OPENINGS_TXT",
           "spaces": 0,
           "break": true,
@@ -31333,32 +30330,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -31868,12 +30844,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_ANAL_PANELS_TXT",
           "spaces": 0,
           "break": true,
@@ -31922,32 +30892,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -32457,12 +31406,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_AREA_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -32511,32 +31454,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -33046,12 +31968,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_LINE_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -33100,32 +32016,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -33635,12 +32530,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_POINT_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -33689,32 +32578,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -34224,12 +33092,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_INT_AREA_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -34278,32 +33140,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -34813,12 +33654,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_INT_LINE_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -34867,32 +33702,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -35402,12 +34216,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_INT_POINT_LOADS_TXT",
           "spaces": 0,
           "break": true,
@@ -35456,32 +34264,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -37642,12 +36429,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_AREA_REINF_TXT",
           "spaces": 0,
           "break": true,
@@ -37703,32 +36484,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -38238,12 +36998,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_PATH_REINF_TXT",
           "spaces": 0,
           "break": true,
@@ -38299,32 +37053,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -38834,12 +37567,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_REBAR_COUPLERS_TXT",
           "spaces": 0,
           "break": true,
@@ -38895,32 +37622,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -39430,12 +38136,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_BEAM_SYSTEMS_TXT",
           "spaces": 0,
           "break": true,
@@ -39484,32 +38184,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -40019,12 +38698,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_STIFFENERS_TXT",
           "spaces": 0,
           "break": true,
@@ -40073,32 +38746,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -40608,12 +39260,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "STR_TAG_7_PARA_STR_TRUSSES_TXT",
           "spaces": 0,
           "break": true,
@@ -40669,32 +39315,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -43549,12 +42174,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_SPEC_TXT",
           "spaces": 0,
           "break": true,
@@ -43610,32 +42229,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -49338,13 +47936,6 @@
           "note": "Short tag heading (FUNC-PROD-SEQ) — underlined in family"
         },
         {
-          "param": "ELC_PNL_DESIGNATION_NAME_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Panel: ",
-          "note": "Panel name"
-        },
-        {
           "param": "ELC_PNL_VLT_TXT",
           "spaces": 0,
           "break": true,
@@ -49536,12 +48127,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "ELC_TAG_7_PARA_PANEL_TXT",
           "spaces": 0,
           "break": true,
@@ -49630,20 +48215,6 @@
           "break": true,
           "prefix_override": " | Rev: ",
           "note": "Revision code"
-        },
-        {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
         },
         {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
@@ -53699,12 +52270,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ICT_TAG_7_PARA_TEL_TXT",
           "spaces": 0,
           "break": true,
@@ -53772,13 +52337,6 @@
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -55000,12 +53558,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading (FUNC-PROD-SEQ) — bold underlined in family"
-        },
-        {
           "param": "ASS_TAG_7_PARA_EQUIPMENT_TXT",
           "spaces": 0,
           "break": true,
@@ -55052,34 +53604,6 @@
           "break": true,
           "prefix_override": " | Rev: ",
           "note": "Revision code"
-        },
-        {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
-          "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Unit Cost: UGX ",
-          "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -56713,12 +55237,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_DUCT_INSULATION_TXT",
           "spaces": 0,
           "break": true,
@@ -56774,32 +55292,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -57309,12 +55806,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_DUCT_LINING_TXT",
           "spaces": 0,
           "break": true,
@@ -57370,32 +55861,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -57911,12 +56381,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "PLM_TAG_7_PARA_PIPE_INSULATION_TXT",
           "spaces": 0,
           "break": true,
@@ -57972,32 +56436,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -58507,12 +56950,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "PLM_TAG_7_PARA_PLM_EQUIP_TXT",
           "spaces": 0,
           "break": true,
@@ -58568,32 +57005,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -59321,12 +57737,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_MECH_CTRL_DEV_TXT",
           "spaces": 0,
           "break": true,
@@ -59375,32 +57785,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -59910,12 +58299,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_MECH_EQUIP_SETS_TXT",
           "spaces": 0,
           "break": true,
@@ -59964,32 +58347,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -60499,12 +58861,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ELC_TAG_7_PARA_ELC_CONNECTORS_TXT",
           "spaces": 0,
           "break": true,
@@ -60553,32 +58909,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -61088,12 +59423,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "FLS_TAG_7_PARA_FIRE_PROT_TXT",
           "spaces": 0,
           "break": true,
@@ -61149,32 +59478,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -61684,12 +59992,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ELC_TAG_7_PARA_FAB_CONTAINMENT_TXT",
           "spaces": 0,
           "break": true,
@@ -61738,32 +60040,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -62273,12 +60554,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_FAB_DUCTWORK_TXT",
           "spaces": 0,
           "break": true,
@@ -62327,32 +60602,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -62862,12 +61116,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "HVC_TAG_7_PARA_FAB_DCT_STIFFENERS_TXT",
           "spaces": 0,
           "break": true,
@@ -62916,32 +61164,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -63464,12 +61691,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "MEP_TAG_7_PARA_FAB_HANGERS_TXT",
           "spaces": 0,
           "break": true,
@@ -63525,32 +61746,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -64060,12 +62260,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "PLM_TAG_7_PARA_FAB_PIPEWORK_TXT",
           "spaces": 0,
           "break": true,
@@ -64114,32 +62308,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -64649,12 +62822,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "PROP_TAG_7_PARA_MATERIALS_TXT",
           "spaces": 0,
           "break": true,
@@ -64703,32 +62870,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -65238,12 +63384,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ICT_TAG_7_PARA_AV_DEV_TXT",
           "spaces": 0,
           "break": true,
@@ -65292,32 +63432,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -65827,12 +63946,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "MED_TAG_7_PARA_MED_EQUIP_TXT",
           "spaces": 0,
           "break": true,
@@ -65881,32 +63994,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -66425,12 +64517,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_PROPERTY_LINE_SEGMENTS_TXT",
           "spaces": 0,
           "break": true,
@@ -66479,32 +64565,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",
@@ -67014,12 +65079,6 @@
       ],
       "tier_3": [
         {
-          "param": "ASS_TAG_2_TXT",
-          "spaces": 0,
-          "break": true,
-          "note": "Short tag heading — bold underlined in family"
-        },
-        {
           "param": "ARCH_TAG_7_PARA_TOPOSOLID_LINKS_TXT",
           "spaces": 0,
           "break": true,
@@ -67068,32 +65127,11 @@
           "note": "Revision code"
         },
         {
-          "param": "ASS_MANUFACTURER_TXT",
-          "spaces": 0,
-          "break": false,
-          "prefix_override": "Mfr: ",
-          "note": "Manufacturer"
-        },
-        {
-          "param": "ASS_MODEL_NR_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | Model: ",
-          "note": "Model number"
-        },
-        {
           "param": "ASS_CST_UNIT_PRICE_UGX_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Unit Cost: UGX ",
           "note": "Unit cost"
-        },
-        {
-          "param": "ASS_DESCRIPTION_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": " | ",
-          "note": "Element description"
         },
         {
           "param": "ASS_PROJECT_COD_TXT",

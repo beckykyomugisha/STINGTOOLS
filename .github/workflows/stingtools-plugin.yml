@@ -111,6 +111,13 @@ jobs:
       - name: Map helpers still respect the target parameter type
         run: python3 tools/check_map_target_types.py --check
 
+      # The same parameter twice on one tag prints the same value twice on the drawing.
+      # 291 rows repeated a tier-2 parameter in tier 3, and 8 of the 12 presentation modes
+      # show those tiers together. Reads presentation_modes rather than assuming which
+      # tiers co-display, so a new mode extends the check automatically.
+      - name: No tag prints the same value twice
+        run: python3 tools/check_tag_row_duplicates.py --check
+
       # A method that catches an exception, abandons the work and then tells its
       # caller it succeeded. Four of those built a project's whole finish catalogue
       # out of one default layer and reported '168/168 renamed, 0 failed'. This is
