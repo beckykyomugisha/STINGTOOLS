@@ -47,7 +47,11 @@ write-only/read-only states and `check_param_contract.py` refused the change unt
 recorded with a role and a reason — six are read by a Revit TAG LABEL (the consumer that
 tool's own header says no C# scan can see) and five have no producer yet (TAGBIND-5).
 
-Build 0/0; Tags 1523, Rooms 24; nine gates green.
+**MAPTYPE-2 closed in the same pass, because this work created it.** Routing `MapStringParam` through `WriteMapped` put `Parameter.AsValueString()` into the _TXT mirror — and that string carries the unit: `"100 A"`, `"18 W"`, `"1200 lm"`. Four shipped tag rows already declare their own unit suffix, so the drawing would have read **`MCB: 100 A A`**. A mirror carries a PLAIN number by convention — MapDimension has always written `"900"`, never `"900 mm"` — so `UnitValueText.StripUnitSuffix` trims it. Trimmed rather than re-formatted from the raw value, because AsValueString also applies the project's display units and the raw internal value does not. Revit-free and unit-tested (18 cases): separators survive when a digit follows them (`"1 200 W"` → `"1 200"`), and a value that is not a quantity (`"By Category"`) is returned untouched rather than truncated to nothing.
+
+**A regeneration gate caught a derived file.** `RESOLVED_BINDINGS.csv` is GENERATED from `CATEGORY_BINDINGS.csv` by `tools/param_binding_resolver.py`, and `binding-spec-drift.yml` fails when regenerating changes anything. Adding 370 bindings moved it; the regenerated outputs are committed. The resolver also NARROWED three `FOUND_*` params from five categories to Structural Foundations alone — its own logic, not mine, and the tag-row gate still reads zero afterwards.
+
+Build 0/0; Tags 1541, Rooms 24; nine gates green.
 
 **Not verified in Revit.** No tag has been looked at. TAGBIND-4 and MAPTYPE-1 are the
 checks, and TAGBIND-5 still applies: a bound row can display, which is not the same as

@@ -1401,9 +1401,9 @@ FLT_USED_IN_TEMPLATES_TXT,11,curated-fallback,Generic Models,Templates using thi
 FOHLIO_CURRENCY_TXT,1,misc-meta,<ALL>,Fohlio quote currency ISO 4217 [e.g. USD]
 FOHLIO_REF_TXT,1,misc-meta,<ALL>,Fohlio item ref [link never duplicate]
 FOHLIO_UNIT_COST_NR,1,misc-meta,<ALL>,Fohlio procurement unit cost in FOHLIO_CURRENCY_TXT [not project currency]
-FOUND_BEAR_UTIL_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Bear Util Txt [STING]
-FOUND_SOIL_CLASS_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Soil Class Txt [STING]
-FOUND_SUMMARY_TXT,16,code-usage,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Found Summary Txt [STING]
+FOUND_BEAR_UTIL_TXT,16,curated-fallback,Structural Foundations,Found Bear Util Txt [STING]
+FOUND_SOIL_CLASS_TXT,16,curated-fallback,Structural Foundations,Found Soil Class Txt [STING]
+FOUND_SUMMARY_TXT,16,curated-fallback,Structural Foundations,Found Summary Txt [STING]
 GEN_HEIGHT_AT_MATURITY_M,3,meta-universal,<ALL>,Plant height at maturity in metres [ISO 19650-1:2018]
 GEN_ROAD_TYPE_TXT,3,meta-universal,<ALL>,Road type classification [ISO 19650-1:2018]
 GEN_SPECIES_TXT,3,meta-universal,<ALL>,Plant species name [ISO 19650-1:2018]
@@ -1565,11 +1565,11 @@ IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
 INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
 IPS_BRANCH_COMPLIANT,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
-LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
+LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
 LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
 LIG_PRESSURE_REL_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Releases under load
-LIG_PRODUCT_RATING_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade)
+LIG_PRODUCT_RATING_TXT,32,curated-fallback,Anti-Ligature (Door)|Anti-Ligature (Lighting Fixture)|Anti-Ligature (Plumbing Fixture)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade)
 LIG_SELF_CLOSE_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Self-closing fitting
 LIG_TAG_7_PARA_TXT,32,tag-container,<ALL>,Anti-ligature TAG7 rich narrative paragraph container
 LS_NAME_TXT,11,curated-fallback,Generic Models,Line style name [ISO 19650-1:2018]
@@ -2446,21 +2446,21 @@ SHT_TAG_1_TXT,13,sheet,Sheets,Sheet ISO 19650 document code assembled from token
 SHT_TAG_7_TXT,13,sheet,Sheets,Sheet rich narrative description [ISO 19650-2:2018]
 SLV_ANNULAR_GAP_MM,19,curated-fallback,Generic Models,Annular gap between service and sleeve in mm
 SLV_FIRESTOP_MFR_TXT,19,curated-fallback,Generic Models,Firestop system manufacturer
-SLV_FIRESTOP_PRODUCT_TXT,19,curated-fallback,Generic Models,Firestop product reference
-SLV_FIRE_RATING_TXT,19,curated-fallback,Generic Models,"Sleeve fire rating (e.g. EI60, EI120)"
-SLV_INSPECTION_DATE_TXT,19,curated-fallback,Generic Models,Last inspection date
-SLV_MAT_TXT,19,curated-fallback,Generic Models,Sleeve material (steel/PVC/cast iron)
+SLV_FIRESTOP_PRODUCT_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Firestop product reference
+SLV_FIRE_RATING_TXT,19,curated-fallback,Generic Models|MEP Sleeve,"Sleeve fire rating (e.g. EI60, EI120)"
+SLV_INSPECTION_DATE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Last inspection date
+SLV_MAT_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve material (steel/PVC/cast iron)
 SLV_REF_TXT,19,curated-fallback,Generic Models,Sleeve reference code
-SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models,Seal type (intumescent/mechanical/composite)
-SLV_SERVICE_TXT,19,curated-fallback,Generic Models,Service passing through sleeve
-SLV_STATUS_TXT,19,curated-fallback,Generic Models,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
+SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Seal type (intumescent/mechanical/composite)
+SLV_SERVICE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Service passing through sleeve
+SLV_STATUS_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
 SLV_SZ_MM,19,curated-fallback,Generic Models,Sleeve size in millimetres
-SLV_SZ_TXT,19,curated-fallback,Generic Models,SLV_SZ_MM display mirror [auto-generated]
+SLV_SZ_TXT,19,curated-fallback,Generic Models|MEP Sleeve,SLV_SZ_MM display mirror [auto-generated]
 SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
 SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
-SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models,"Fire test standard (BS EN 1366-3, ASTM E814)"
+SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models|MEP Sleeve,"Fire test standard (BS EN 1366-3, ASTM E814)"
 SLV_WALL_THICKNESS_MM,19,curated-fallback,Generic Models,Host element thickness in mm
-SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models,Host wall or floor type
+SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Host wall or floor type
 SPARE_PARAM_01_TXT,11,UNRESOLVED(polluted-curated),,Spare parameter 01 for future use [ISO 19650-1:2018]
 SPARE_PARAM_02_TXT,11,UNRESOLVED(polluted-curated),,Spare parameter 02 for future use [ISO 19650-1:2018]
 SPARE_PARAM_03_TXT,11,UNRESOLVED(polluted-curated),,Spare parameter 03 for future use [ISO 19650-1:2018]

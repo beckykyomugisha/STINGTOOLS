@@ -1398,9 +1398,9 @@ FLT_USED_IN_TEMPLATES_TXT,Generic Models
 FOHLIO_CURRENCY_TXT,<ALL>
 FOHLIO_REF_TXT,<ALL>
 FOHLIO_UNIT_COST_NR,<ALL>
-FOUND_BEAR_UTIL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-FOUND_SOIL_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-FOUND_SUMMARY_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+FOUND_BEAR_UTIL_TXT,Structural Foundations
+FOUND_SOIL_CLASS_TXT,Structural Foundations
+FOUND_SUMMARY_TXT,Structural Foundations
 GEN_HEIGHT_AT_MATURITY_M,<ALL>
 GEN_ROAD_TYPE_TXT,<ALL>
 GEN_SPECIES_TXT,<ALL>
@@ -1562,11 +1562,11 @@ IFC_GLOBAL_ID_TXT,<ALL>
 IFC_PSET_OVERRIDE_TXT,<ALL>
 INS_MATERIAL_TXT,<ALL>
 IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-LIG_AREA_OBS_LOS_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_AREA_OBS_LOS_TXT,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_FIT_TAG,<ALL>
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRESSURE_REL_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_PRODUCT_RATING_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_PRODUCT_RATING_TXT,Anti-Ligature (Door)|Anti-Ligature (Lighting Fixture)|Anti-Ligature (Plumbing Fixture)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_SELF_CLOSE_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_TAG_7_PARA_TXT,<ALL>
 LS_NAME_TXT,Generic Models
@@ -2371,21 +2371,21 @@ SHT_TAG_1_TXT,Sheets
 SHT_TAG_7_TXT,Sheets
 SLV_ANNULAR_GAP_MM,Generic Models
 SLV_FIRESTOP_MFR_TXT,Generic Models
-SLV_FIRESTOP_PRODUCT_TXT,Generic Models
-SLV_FIRE_RATING_TXT,Generic Models
-SLV_INSPECTION_DATE_TXT,Generic Models
-SLV_MAT_TXT,Generic Models
+SLV_FIRESTOP_PRODUCT_TXT,Generic Models|MEP Sleeve
+SLV_FIRE_RATING_TXT,Generic Models|MEP Sleeve
+SLV_INSPECTION_DATE_TXT,Generic Models|MEP Sleeve
+SLV_MAT_TXT,Generic Models|MEP Sleeve
 SLV_REF_TXT,Generic Models
-SLV_SEAL_TYPE_TXT,Generic Models
-SLV_SERVICE_TXT,Generic Models
-SLV_STATUS_TXT,Generic Models
+SLV_SEAL_TYPE_TXT,Generic Models|MEP Sleeve
+SLV_SERVICE_TXT,Generic Models|MEP Sleeve
+SLV_STATUS_TXT,Generic Models|MEP Sleeve
 SLV_SZ_MM,Generic Models
-SLV_SZ_TXT,Generic Models
+SLV_SZ_TXT,Generic Models|MEP Sleeve
 SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models
 SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-SLV_TESTED_TO_TXT,Generic Models
+SLV_TESTED_TO_TXT,Generic Models|MEP Sleeve
 SLV_WALL_THICKNESS_MM,Generic Models
-SLV_WALL_TYPE_TXT,Generic Models
+SLV_WALL_TYPE_TXT,Generic Models|MEP Sleeve
 SPC_CEILING_HEIGHT_M,<ALL>
 SPC_FINISH_CEILING_TXT,<ALL>
 SPC_FINISH_FLOOR_TXT,<ALL>

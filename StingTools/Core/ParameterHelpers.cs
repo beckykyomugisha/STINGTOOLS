@@ -3343,9 +3343,21 @@ namespace StingTools.Core
                     : p.AsValueString();
 
                 if (string.IsNullOrEmpty(val)) return 0;
+
                 double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
+
+                // AsValueString appends the unit ("100 A", "18 W"). A _TXT mirror carries a
+                // PLAIN number by convention — MapDimension has always written "900", never
+                // "900 mm" — and the tag row adds the unit through its own suffix. Four
+                // shipped rows declare one (ELC_PNL_MAIN_BRK " A", LTG_FIX_LMP_WATTAGE "W",
+                // CST_FIX_LUMEN_OUTPUT "lm"), so leaving the unit in renders "MCB: 100 A A".
+                // Trimmed rather than re-formatted from raw, because AsValueString also
+                // applies the project's display units and the raw internal value does not.
+                if (raw.HasValue)
+                    val = UnitValueText.StripUnitSuffix(val);
+
                 return WriteMapped(el, targetParam, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
