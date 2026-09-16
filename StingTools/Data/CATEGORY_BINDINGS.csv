@@ -1,3 +1,4 @@
+﻿# v3.11 | 20260916 | +14 bindings for tag rows that could never display: 8 Rooms (headroom/occupancy/ventilation/fire-escape, numeric + _TXT mirror), 4 Doors (type/operation/glazing-type/threshold), 2 Windows (vent area, was bound to Generic Models only). Found by tools/check_tag_row_bindings.py.
 # v3.10 | 20260808 | +2 STING_FINISH_* idempotency-stamp bindings on Floors (finish-floor creator, K-3)
 # v3.9 | 20260808 | +8 room-finish bindings (Rooms/Instance): the 4 BLE_ROOM_FINISH_*_TXT params shipped with NO binding row at all, plus the 4 new *_COD_TXT finish codes (K-2)
 # v3.9 | 20260906 | 1361 rows binding 136 _TXT mirror params to their source categories (Phase 188)
@@ -18887,3 +18888,17 @@ ASSET_RFI_URL_TXT,Furniture Systems,Instance,True
 ASSET_RFI_URL_TXT,Medical Equipment,Instance,True
 ASSET_RFI_URL_TXT,Plumbing Equipment,Instance,True
 ASSET_RFI_URL_TXT,Railings,Instance,True
+BLE_HEADROOM_MM,Rooms,Instance,True
+BLE_HEADROOM_TXT,Rooms,Instance,True
+BLE_ROOM_OCCUPANCY_NR,Rooms,Instance,True
+BLE_ROOM_OCCUPANCY_TXT,Rooms,Instance,True
+BLE_ROOM_VENTILATION_RATE_LPS,Rooms,Instance,True
+BLE_ROOM_VENTILATION_RATE_TXT,Rooms,Instance,True
+BLE_ROOM_FIRE_ESCAPE_CAPACITY_NR,Rooms,Instance,True
+BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT,Rooms,Instance,True
+BLE_DOOR_TYPE_TXT,Doors,Instance,True
+BLE_DOOR_OPERATION_TYPE_TXT,Doors,Instance,True
+BLE_DOOR_GLAZING_TYPE_TXT,Doors,Instance,True
+BLE_DOOR_THRESHOLD_TXT,Doors,Instance,True
+BLE_WINDOW_AREA_SQ_M,Windows,Instance,True
+BLE_WINDOW_AREA_TXT,Windows,Instance,True

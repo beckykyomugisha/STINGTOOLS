@@ -2,6 +2,54 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 288 — 1,161 tag rows that could never display, and the gate that found them)
+
+**The room-name blank was not one bug.** Chasing its siblings found that **1,161 of 9,118
+tag rows (12.7%) name a parameter that is not bound to their category**, across **200 of
+206** categories. An unbound parameter does not throw: Revit has no such parameter on the
+element, the label renders empty, and the tag looks like a tag with nothing to say.
+
+Three distinct shapes, all invisible:
+
+| Shape | Example |
+|---|---|
+| No binding row anywhere | Rooms' `Ht:` `Occ:` `Vent:` `Esc Cap:` — the params exist, nothing bound them |
+| Wrong half of a near-duplicate pair | Rooms' `Floor Fin:` read `BLE_FLR_FINISH_TXT` (the FLOOR's finish) while the room's own `BLE_ROOM_FINISH_FLOOR_TXT` sat bound to Rooms **and already populated** |
+| Project-level metric on an element tag | `HEALTH_SCORE_LAST_TXT`, bound to Project Information, in tier 9 of **130** categories |
+
+`ParamRegistry.cs:522` records the same shape one layer up (K-11): the binder bound a
+title-block toggle nobody read and left the name every title block reads unbound, so nine
+title blocks gated on a parameter that could never resolve.
+
+**Rooms, Doors and Windows are now at zero dead rows.**
+
+- **Rooms** — three tier-3 finish rows retargeted to `BLE_ROOM_FINISH_{FLOOR,WALL,CEILING}_TXT`,
+  which are bound to Rooms and already written by `NativeParamMapper` from
+  `BuiltInParameter.ROOM_FINISH_*`. Eight bindings added (headroom / occupancy /
+  ventilation / fire-escape, each needing both the numeric source AND its `_TXT` mirror —
+  the mapper writes the number, a Revit tag label can only read text).
+- **Doors** — four bindings added; `BLE_DOOR_GLAZING_TXT` retargeted to the real name
+  `BLE_DOOR_GLAZING_TYPE_TXT`. The tier-2 **`Clear:` row was removed**: it was bound to
+  `BLE_DOOR_WIDTH_TXT`, the same parameter as `W:`, so it displayed the **leaf** width
+  under a label meaning **clear** width. Clear width is the Approved Document M / BS 8300
+  dimension, and no parameter for it exists yet (ROADMAP TAGBIND-3). A row that is
+  confidently wrong is worse than one that is blank.
+- **Windows** — vent-area binding added; it was bound to **Generic Models only**.
+
+**The instrument matters more than the 142 rows fixed.** `tools/check_tag_row_bindings.py`
+is a ratchet: it fails when the count RISES, so the backlog is visible and cannot grow
+while the judgement calls are made one at a time. Verified RED by re-adding the wrong
+finish param to the room tag, GREEN after.
+
+**One near-miss worth recording.** The first draft of the audit read
+`RESOLVED_BINDINGS.csv` and reported 1,021. That file is a derived reference; the binder
+reads `CATEGORY_BINDINGS.csv` (`SharedParamGuids.LoadPerParamCategoryBindings`). The real
+figure is 1,161. The tool now takes only the `<ALL>` set from the derived file and says so
+in its header — verifying the instrument before trusting its output, on a codebase where
+the same class of mistake is already documented.
+
+Build 0/0; Tags 1523, Rooms 24; eight data gates green.
+
 #### Completed (Phase 287 — the room tag stops showing a blank where the room name belongs)
 
 **What was wrong.** Tier 2 of `STING - Room Tag` has `ASS_DESCRIPTION_TXT` as its third

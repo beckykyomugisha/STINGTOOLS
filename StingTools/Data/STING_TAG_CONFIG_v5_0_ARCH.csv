@@ -623,6 +623,7 @@ TAG7: ARCH_TAG_7_PARA_WIN_TXT  •  Category: Windows
 4,MEDIUM,WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS,Acoustic rating STC < 30 dB,Building Regs Part E / BS 8233,Common,Text,⚠ Warning: Window Acoustic Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_PER_ACOUSTIC_STC_RATING_NR_WINDOWS, """")"
 5,HIGH,WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS,Safety glass not specified below 800mm,Building Regs Part N / BS EN 12600,Common,Text,⚠ Warning: Safety Glass,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS, """")"
 
+NOTE: door tier-2 "Clear:" row removed 2026-09-16 - it was bound to BLE_DOOR_WIDTH_MM, the same param as "W:", so it displayed the LEAF width under a label meaning clear width. Clear width is the Part M / BS 8300 dimension; no parameter for it exists yet. See ROADMAP TAGBIND-3.
 Tag Family #7: STING - Room Tag
 TAG7: ARCH_TAG_7_PARA_ROOM_TXT  •  Category: Rooms
 NOTE: row 3 (ASS_DESCRIPTION_TXT) carries the ROOM NAME - NativeParamMapper fills it from BuiltInParameter.ROOM_NAME (SetIfEmpty). Do NOT add a BLE_ROOM_NAME_TXT row: it would show the name twice, and the Revit API cannot author label rows, so it would mean manual Family Editor work plus renumbering every "Show Tier 2 - N".
