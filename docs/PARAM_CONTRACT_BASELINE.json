@@ -262,6 +262,11 @@
       "role": "reference",
       "reason": "Register appearance column written by MaterialCommands. Read by the model author in the properties palette, not by code. BLE_APP-IDENTITY-CLASS is the exception below."
     },
+    "BLE_COLUMN_SLENDERNESS": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
+    },
     "BLE_FLR_LD_CAP_KPA": {
       "state": "read_only",
       "role": "input",
@@ -386,6 +391,11 @@
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Finish Schedule\". A schedule is a real reader; this scan only sees C#."
+    },
+    "BLE_STAIR_HEADROOM_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
     },
     "BLE_STRUCT_CONCRETE_GRADE_TXT": {
       "state": "read_only",
@@ -662,6 +672,11 @@
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
+    "ELC_PANEL_SCHEDULE_REF_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
     "ELC_PHOTO_FILE_PATH_TXT": {
       "state": "write_only",
       "role": "reference",
@@ -677,10 +692,25 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "ELC_PNL_IP_RATING_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "ELC_PNL_SHORT_CIRCUIT_KA": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
+    },
     "ELC_WIRE_BEND_COUNT_INT": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "FAB_HANGER_LOAD_KN": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
     },
     "FLS_SFTY_COVERAGE_AREA_SQ_M": {
       "state": "read_only",
@@ -1262,6 +1292,26 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "STR_AREA_LOAD_KN_M2": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_BEAM_DEFLECTION_LIM_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_BEAM_DEPTH_MM": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_BEAM_SECTION_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
     "STR_BEAM_TORSION_KNM": {
       "state": "write_only",
       "role": "reference",
@@ -1276,6 +1326,16 @@
       "state": "write_only",
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
+    "STR_COL_SIZE_MM": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_CONN_CAPACITY_KN": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
     },
     "STR_CONN_DETAIL_TXT": {
       "state": "write_only",
@@ -1297,6 +1357,11 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "STR_FDN_SIZE_MM": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
     "STR_FRAME_M_KNM": {
       "state": "write_only",
       "role": "reference",
@@ -1311,6 +1376,11 @@
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "STR_LOAD_AXIAL_KN": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
     },
     "STR_PUNCH_UTIL_PCT": {
       "state": "write_only",
@@ -1327,6 +1397,11 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "STR_REBAR_SIZE_MM": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
     "STR_ROBUST_STATUS_TXT": {
       "state": "write_only",
       "role": "reference",
@@ -1336,6 +1411,11 @@
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "STR_SLAB_DEFLECTION_LIMIT_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
     },
     "STR_SOIL_BEARING_KPA": {
       "state": "write_only",

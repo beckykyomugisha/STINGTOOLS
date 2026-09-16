@@ -2454,7 +2454,7 @@ SLV_REF_TXT,19,curated-fallback,Generic Models,Sleeve reference code
 SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Seal type (intumescent/mechanical/composite)
 SLV_SERVICE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Service passing through sleeve
 SLV_STATUS_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
-SLV_SZ_MM,19,curated-fallback,Generic Models,Sleeve size in millimetres
+SLV_SZ_MM,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve size in millimetres
 SLV_SZ_TXT,19,curated-fallback,Generic Models|MEP Sleeve,SLV_SZ_MM display mirror [auto-generated]
 SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
 SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
