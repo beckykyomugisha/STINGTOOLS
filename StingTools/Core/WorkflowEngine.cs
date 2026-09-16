@@ -1626,6 +1626,9 @@ namespace StingTools.Core
                 case "ComCheck_Export":
                 case "Lite_ComCheck":   return new Commands.Electrical.Lighting.ComCheckExportCommand();
                 case "Hvac_LifeCycleCompare": return new Commands.Hvac.HvacLifeCycleCompareCommand();
+                // Resolved in StingHvacCommandHandler but in no shared dispatcher, so
+                // check_dispatch_parity flagged it and no workflow preset could call it.
+                case "Hvac_FanStaticReport": return new Commands.Hvac.HvacFanStaticReportCommand();
                 case "PrototypeDrift_Report": return new BIMManager.PrototypeDriftCommand();
 
                 // ── KUT-2: commands that existed in a panel handler but had no

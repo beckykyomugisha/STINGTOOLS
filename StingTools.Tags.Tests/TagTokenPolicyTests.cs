@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -132,6 +132,34 @@ namespace StingTools.Tags.Tests
                 Assert.False(res.Substituted);   // silent — blank is a real answer
                 Assert.Equal("", res.Value);
             }
+        }
+
+        [Fact]
+        public void The_file_claims_governance_only_for_the_tokens_that_are_actually_resolved()
+        {
+            // The policy file spent a month describing behaviour nothing implemented. The
+            // same over-claim in miniature would be listing ten tokens as governed when
+            // BuildAndWriteTag resolves seven. governedByResolve has to match TagSegments.
+            var root = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(BaselinePath()));
+            var tokens = (Newtonsoft.Json.Linq.JArray)root["tokens"];
+
+            var claimed = new List<string>();
+            foreach (var t in tokens)
+            {
+                string name = (string)t["token"];
+                string governed = (string)t["governedByResolve"];
+                Assert.False(string.IsNullOrWhiteSpace(governed),
+                    name + " does not say whether it is governed by TagTokenPolicy.Resolve.");
+                if (governed == "yes") claimed.Add(name);
+                else
+                    Assert.False(string.IsNullOrWhiteSpace((string)t["governedNote"]),
+                        name + " claims it is not governed but does not say why. A reader " +
+                        "needs the reason, not the verdict.");
+            }
+
+            Assert.Equal(
+                TagSegments.OrderBy(x => x, StringComparer.Ordinal).ToArray(),
+                claimed.OrderBy(x => x, StringComparer.Ordinal).ToArray());
         }
 
         // ── Resolve ─────────────────────────────────────────────────────────

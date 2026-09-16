@@ -313,6 +313,17 @@ namespace StingTools.Commands.Rooms
                 preview.MetricWarn("Skipped", skippedUnplaced.ToString(CultureInfo.InvariantCulture),
                                    "unplaced or unbounded — no position to walk");
 
+            // ROOM-4: state the contract rather than leave it to be discovered. A room
+            // number and the SEQ of the assets inside it are independent counters; nothing
+            // reconciles them and nothing should. An asset's tag identifies the ASSET, and
+            // it does not become wrong because the room around it was renumbered.
+            preview.AddSection("What this does not touch")
+                   .Text("Room numbers and the ISO 19650 SEQ counter are independent. "
+                       + "Renumbering a room does NOT renumber the assets inside it: their "
+                       + "tags identify the asset, not the room, and stay valid.")
+                   .Text("The LVL token does come from the same level code this scheme uses, "
+                       + "so a room number and the assets in it cannot disagree about level.");
+
             if (warnings.Count > 0)
             {
                 preview.AddSection("Warnings");
