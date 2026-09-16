@@ -30,8 +30,9 @@ and passed while four others stayed dead; its docstring now says so. A list only
 checks what its author already knew about.
 
 So the target set is read out of the source: every `ParamRegistry.X` or ALL_CAPS literal
-appearing as an argument to a `Map*` / `Write*` / `Set*` call in ParameterHelpers.cs and
-TagConfig.cs. Sources do not match — they are `BuiltInParameter.*` or MixedCase names like
+appearing as an argument to a `Map*` / `Write*` / `Set*` call anywhere in the plugin — all
+1,656 .cs files, not just the two where the defect happened to surface. Sources do not
+match — they are `BuiltInParameter.*` or MixedCase names like
 "Fire Rating". A parameter that becomes a write target tomorrow is covered tomorrow.
 
 WHAT THIS DOES NOT CLAIM
@@ -64,10 +65,27 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIND = os.path.join(ROOT, 'StingTools', 'Data', 'CATEGORY_BINDINGS.csv')
 REG = os.path.join(ROOT, 'StingTools', 'Data', 'PARAMETER_REGISTRY.json')
 BASELINE = os.path.join(ROOT, 'docs', 'BINDING_SCOPE_BASELINE.json')
-SOURCES = [
-    os.path.join(ROOT, 'StingTools', 'Core', 'ParameterHelpers.cs'),
-    os.path.join(ROOT, 'StingTools', 'Core', 'TagConfig.cs'),
-]
+def source_files():
+    """Every plugin .cs file, excluding build output.
+
+    The first version of this gate read TWO files — ParameterHelpers.cs and TagConfig.cs —
+    because that is where the defect was found. Widening it to the tree found **188 more
+    rows across 41 parameters** in engines it had never looked at: ELC_VLT_DROP_PCT and
+    ELC_CBL_SZ_MM (AutoUpsizeWiresCommand), ELC_CKT_CUR_A and HVC_DUCT_FLOWRATE_M3H
+    (MepCrossStampOrchestrator), MNT_WARRANTY_EXPIRY_TXT (IoTMaintenanceCommands),
+    PLM_RECIRC_PUMP_DUTY_LPM (RecircLoopBalancer), and more.
+
+    That is the third time in one session that an instrument here was narrower than the
+    defect it was built for: a hardcoded helper list in Phase 293, a key resolver that read
+    only JSON earlier in this phase, and this. Scanning everything costs a second.
+    """
+    out = []
+    for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, 'StingTools')):
+        dirnames[:] = [d for d in dirnames if d not in ('obj', 'bin')]
+        for fn in filenames:
+            if fn.endswith('.cs'):
+                out.append(os.path.join(dirpath, fn))
+    return out
 
 CALL = re.compile(
     r'\b(?:Map[A-Za-z]*|Write(?:Mapped|Quantity)|'
@@ -114,8 +132,11 @@ def registry_keys():
 def write_targets():
     key2name = registry_keys()
     src = ''
-    for f in SOURCES:
-        src += io.open(f, encoding='utf-8-sig', errors='replace').read()
+    for f in source_files():
+        try:
+            src += io.open(f, encoding='utf-8-sig', errors='replace').read()
+        except Exception:
+            continue
 
     targets = set()
     for m in CALL.finditer(src):

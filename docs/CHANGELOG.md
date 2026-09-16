@@ -28,7 +28,7 @@ stamp one element's value onto every sibling — the fix for one defect causing 
 `-215` and was **greyed** in Properties — type-scoped, therefore unreachable through
 `element.get_Parameter()`, therefore `SetString(el, ParamRegistry.SEQ, …)` returned false
 in silence. Wrong on its own terms too: every door of that type would share one sequence
-number. **1,010 rows** flipped Type → Instance, derived by `tools/check_binding_scope.py`
+number. **1,198 rows** flipped Type → Instance, derived by `tools/check_binding_scope.py`
 from *if the code writes it per element, it must be Instance* — not hand-listed, because a
 hand-listed set is what failed in Phase 293.
 
@@ -61,6 +61,36 @@ have none, so every cell was skipped and an injected `DR-GLZ` passed without a w
 obvious repair collides with the standards citations the same files carry (`HTM-02`,
 `BS-EN`). The half is removed and the residual risk recorded as TAGPROD-2 instead. A gate
 that cannot be made precise is a claim of coverage that is not there.
+
+**A pre-test sweep for the same class, before anyone opens Revit.** The four defects above
+share a shape no data-vs-data gate can see: they live where the shipped data meets the Revit
+API. Sweeping for siblings found three more things and one of them was in the gate written
+an hour earlier.
+
+*The new gate was too narrow.* `check_binding_scope.py` scanned two source files — the two
+where the defect surfaced. Widened to all 1,656, it found **188 more rows across 41
+parameters** in engines it had never looked at: `ELC_VLT_DROP_PCT`, `ELC_CBL_SZ_MM`,
+`ELC_CKT_CUR_A`, `HVC_DUCT_FLOWRATE_M3H`, `MNT_WARRANTY_EXPIRY_TXT`,
+`PLM_RECIRC_PUMP_DUTY_LPM`. Total flipped: **1,198 rows in three passes**, and every pass
+came from widening the derivation rather than from new data. Three times in one session an
+instrument here was narrower than the defect it was built for.
+
+*MAPTYPE-6 — 52 dead writes, tree-wide.* `SetString` on a non-String target was a bare
+`return false`. 36 parameters declared NUMBER or YESNO receive a formatted string: a voltage
+drop, a conduit fill, a panel fault rating, three HVAC block-load stamps and an
+emergency-lighting coverage flag, none of which ever reached the model. Now writes Integer /
+YesNo / unitless Double — and **refuses the unit trap rather than guessing**: a LENGTH target
+is logged and declined, because storing the millimetre display string "900" into a parameter
+Revit keeps in feet is MAPTYPE-1 reintroduced by a convenience.
+
+*MAPTYPE-7 — reported, deliberately not changed.* The same signature appears outside the tag
+system, paired with a fabricated fallback, which is worse than a blank:
+`AcousticAnalysisEngine.cs:490,496` (`?? 0.5`), `SleeveEngine.cs:430` (`?? 0`),
+`StructuralAnalysisEngine.cs:549,4171,4433`, and `EmergencyLightingAuditCommand.cs:126`
+(`ALL_MODEL_TYPE_MARK` read from a `FamilyInstance` → empty → the keyword match can never
+fire → that audit always passes). These are engines that cannot be exercised here, so they
+are named with line numbers rather than edited. An acoustic or structural calculation is not
+somewhere to apply an unverified fix.
 
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Six gates green, `check_binding_scope` and `check_token_separator_safety` each

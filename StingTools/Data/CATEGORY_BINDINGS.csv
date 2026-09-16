@@ -1,4 +1,5 @@
-﻿# BINDSCOPE-1 | 20260916 | 1010 rows Type -> Instance (740 + 270 in two passes; the second pass followed widening the key resolver, which had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT because those constants are C# property initialisers rather than JSON). A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
+﻿# BINDSCOPE-1 | 20260916 | 1198 rows Type -> Instance, in three passes (740 + 270 + 188). Each pass followed WIDENING THE DERIVATION, not new data: pass 2 after the key resolver was taught to read C# property initialisers (it had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT, the two parameters that caused the broken tag), pass 3 after the scan was widened from 2 source files to all 1,656. A parameter the code writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
+# BINDSCOPE-1 | 20260916 | 1010 rows Type -> Instance (740 + 270 in two passes; the second pass followed widening the key resolver, which had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT because those constants are C# property initialisers rather than JSON). A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
 # BINDSCOPE-1 | 20260916 | 740 rows Type -> Instance. A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence (this is why a new door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ), and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed.
 # v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
 # v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
@@ -625,20 +626,20 @@ ASS_TAG_3_TXT,Sprinklers,Type,True
 ASS_TAG_3_TXT,Stairs,Type,True
 ASS_TAG_3_TXT,Walls,Type,True
 ASS_TAG_3_TXT,Windows,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Air Terminals,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Cable Trays,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Casework,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Conduits,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Electrical Equipment,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Electrical Fixtures,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Furniture,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Generic Models,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Lighting Fixtures,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Mechanical Equipment,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Plumbing Equipment,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Plumbing Fixtures,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Specialty Equipment,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Sprinklers,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Air Terminals,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Cable Trays,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Casework,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Conduits,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Electrical Equipment,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Electrical Fixtures,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Furniture,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Generic Models,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Lighting Fixtures,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Mechanical Equipment,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Plumbing Equipment,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Plumbing Fixtures,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Specialty Equipment,Instance,True
+MNT_WARRANTY_EXPIRY_TXT,Sprinklers,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Air Terminals,Type,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Cable Trays,Type,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Casework,Type,True
@@ -1031,9 +1032,9 @@ BLE_WINDOW_WIDTH_MM,Windows,Instance,True
 CBL_TYPE_TXT,Cable Trays,Type,True
 CBL_TYPE_TXT,Conduits,Type,True
 CBL_TYPE_TXT,Generic Models,Type,True
-COLOR_B_INT,Generic Models,Type,True
-COLOR_G_INT,Generic Models,Type,True
-COLOR_R_INT,Generic Models,Type,True
+COLOR_B_INT,Generic Models,Instance,True
+COLOR_G_INT,Generic Models,Instance,True
+COLOR_R_INT,Generic Models,Instance,True
 COM_BMS_RANGE_TXT,Generic Models,Type,True
 COM_C_DEV_BACNET_INSTANCE_INT,Electrical Equipment,Type,True
 COM_C_DEV_BACNET_INSTANCE_INT,Generic Models,Type,True
@@ -4220,9 +4221,9 @@ DS_TICK_MARK_TXT,Generic Models,Type,True
 DS_TICK_SIZE_NR,Generic Models,Type,True
 DS_TYPE_TXT,Generic Models,Type,True
 DS_UNITS_FORMAT_TXT,Generic Models,Type,True
-ELC_CBL_AMPACITY_A,Cable Trays,Type,True
-ELC_CBL_AMPACITY_A,Conduits,Type,True
-ELC_CBL_AMPACITY_A,Generic Models,Type,True
+ELC_CBL_AMPACITY_A,Cable Trays,Instance,True
+ELC_CBL_AMPACITY_A,Conduits,Instance,True
+ELC_CBL_AMPACITY_A,Generic Models,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Cable Trays,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Conduits,Type,True
 ELC_CBL_COND_SZ_SQ_MM,Generic Models,Type,True
@@ -4232,12 +4233,12 @@ ELC_CBL_DERATING_FCT_NR,Generic Models,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Cable Trays,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Conduits,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Generic Models,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Cable Trays,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Conduits,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Generic Models,Type,True
-ELC_CBL_INS_TYPE_TXT,Cable Trays,Type,True
-ELC_CBL_INS_TYPE_TXT,Conduits,Type,True
-ELC_CBL_INS_TYPE_TXT,Generic Models,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Cable Trays,Instance,True
+ELC_CBL_INSTALL_METHOD_TXT,Conduits,Instance,True
+ELC_CBL_INSTALL_METHOD_TXT,Generic Models,Instance,True
+ELC_CBL_INS_TYPE_TXT,Cable Trays,Instance,True
+ELC_CBL_INS_TYPE_TXT,Conduits,Instance,True
+ELC_CBL_INS_TYPE_TXT,Generic Models,Instance,True
 ELC_CBL_LENGTH_M,Cable Trays,Type,True
 ELC_CBL_LENGTH_M,Conduits,Type,True
 ELC_CBL_LENGTH_M,Generic Models,Type,True
@@ -4250,26 +4251,26 @@ ELC_CBL_NUM_OF_CORES_NR,Generic Models,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Cable Trays,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Conduits,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Generic Models,Type,True
-ELC_CBL_SZ_MM,Cable Trays,Type,True
-ELC_CBL_SZ_MM,Conduits,Type,True
-ELC_CBL_SZ_MM,Generic Models,Type,True
+ELC_CBL_SZ_MM,Cable Trays,Instance,True
+ELC_CBL_SZ_MM,Conduits,Instance,True
+ELC_CBL_SZ_MM,Generic Models,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Cable Trays,Type,True
 ELC_CBL_SZ_PER_CORE_MM,Conduits,Type,True
 ELC_CBL_SZ_PER_CORE_MM,Generic Models,Type,True
-ELC_CKT_BRK_RATING_A,Electrical Equipment,Type,True
-ELC_CKT_BRK_RATING_A,Electrical Fixtures,Type,True
-ELC_CKT_BRK_RATING_A,Generic Models,Type,True
-ELC_CKT_BRK_RATING_A,Lighting Fixtures,Type,True
+ELC_CKT_BRK_RATING_A,Electrical Equipment,Instance,True
+ELC_CKT_BRK_RATING_A,Electrical Fixtures,Instance,True
+ELC_CKT_BRK_RATING_A,Generic Models,Instance,True
+ELC_CKT_BRK_RATING_A,Lighting Fixtures,Instance,True
 ELC_CKT_CBL_SZ_MM,Cable Trays,Type,True
 ELC_CKT_CBL_SZ_MM,Conduits,Type,True
 ELC_CKT_CBL_SZ_MM,Generic Models,Type,True
 ELC_CKT_CBL_TYPE_TXT,Cable Trays,Type,True
 ELC_CKT_CBL_TYPE_TXT,Conduits,Type,True
 ELC_CKT_CBL_TYPE_TXT,Generic Models,Type,True
-ELC_CKT_CUR_A,Electrical Equipment,Type,True
-ELC_CKT_CUR_A,Electrical Fixtures,Type,True
-ELC_CKT_CUR_A,Generic Models,Type,True
-ELC_CKT_CUR_A,Lighting Fixtures,Type,True
+ELC_CKT_CUR_A,Electrical Equipment,Instance,True
+ELC_CKT_CUR_A,Electrical Fixtures,Instance,True
+ELC_CKT_CUR_A,Generic Models,Instance,True
+ELC_CKT_CUR_A,Lighting Fixtures,Instance,True
 ELC_CKT_FINAL_TXT,Electrical Equipment,Type,True
 ELC_CKT_FINAL_TXT,Electrical Fixtures,Type,True
 ELC_CKT_FINAL_TXT,Generic Models,Type,True
@@ -4278,10 +4279,10 @@ ELC_CKT_IDENTIFICATION_TXT,Electrical Equipment,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Electrical Fixtures,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Generic Models,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Lighting Fixtures,Type,True
-ELC_CKT_LENGTH_M,Electrical Equipment,Type,True
-ELC_CKT_LENGTH_M,Electrical Fixtures,Type,True
-ELC_CKT_LENGTH_M,Generic Models,Type,True
-ELC_CKT_LENGTH_M,Lighting Fixtures,Type,True
+ELC_CKT_LENGTH_M,Electrical Equipment,Instance,True
+ELC_CKT_LENGTH_M,Electrical Fixtures,Instance,True
+ELC_CKT_LENGTH_M,Generic Models,Instance,True
+ELC_CKT_LENGTH_M,Lighting Fixtures,Instance,True
 ELC_CKT_NR,Electrical Equipment,Instance,True
 ELC_CKT_NR,Electrical Fixtures,Instance,True
 ELC_CKT_NR,Generic Models,Instance,True
@@ -4342,8 +4343,8 @@ ELC_PNL_NUM_OF_WAYS_NR,Electrical Equipment,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Generic Models,Instance,True
 ELC_PNL_PHS_COUNT_NR,Electrical Equipment,Type,True
 ELC_PNL_PHS_COUNT_NR,Generic Models,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Electrical Equipment,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Generic Models,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Electrical Equipment,Instance,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Generic Models,Instance,True
 ELC_PNL_VLT_V,Electrical Equipment,Type,True
 ELC_PNL_VLT_V,Generic Models,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Cable Trays,Type,True
@@ -4370,12 +4371,12 @@ ELC_SPARE_WAYS_NR,Electrical Equipment,Type,True
 ELC_SPARE_WAYS_NR,Electrical Fixtures,Type,True
 ELC_SPARE_WAYS_NR,Generic Models,Type,True
 ELC_SPARE_WAYS_NR,Lighting Fixtures,Type,True
-ELC_VLT_DROP_PCT,Cable Trays,Type,True
-ELC_VLT_DROP_PCT,Conduits,Type,True
-ELC_VLT_DROP_PCT,Electrical Equipment,Type,True
-ELC_VLT_DROP_PCT,Electrical Fixtures,Type,True
-ELC_VLT_DROP_PCT,Generic Models,Type,True
-ELC_VLT_DROP_PCT,Lighting Fixtures,Type,True
+ELC_VLT_DROP_PCT,Cable Trays,Instance,True
+ELC_VLT_DROP_PCT,Conduits,Instance,True
+ELC_VLT_DROP_PCT,Electrical Equipment,Instance,True
+ELC_VLT_DROP_PCT,Electrical Fixtures,Instance,True
+ELC_VLT_DROP_PCT,Generic Models,Instance,True
+ELC_VLT_DROP_PCT,Lighting Fixtures,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Cable Trays,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Conduits,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Electrical Equipment,Instance,True
@@ -4571,7 +4572,7 @@ FLT_LINE_COLOR_G_INT,Generic Models,Type,True
 FLT_LINE_COLOR_R_INT,Generic Models,Type,True
 FLT_LINE_WEIGHT_INT,Generic Models,Type,True
 FLT_NAME_TXT,Generic Models,Type,True
-FLT_RULES_TXT,Generic Models,Type,True
+FLT_RULES_TXT,Generic Models,Instance,True
 FLT_STATUS_TXT,Generic Models,Type,True
 FLT_SURFACE_PATTERN_TXT,Generic Models,Type,True
 FLT_TRANSPARENCY_INT,Generic Models,Type,True
@@ -4613,9 +4614,9 @@ HVC_DUCT_AREA_SQ_M,Generic Models,Type,True
 HVC_DUCT_CLASS_TXT,Air Terminals,Type,True
 HVC_DUCT_CLASS_TXT,Ducts,Type,True
 HVC_DUCT_CLASS_TXT,Generic Models,Type,True
-HVC_DUCT_FLOWRATE_M3H,Air Terminals,Type,True
-HVC_DUCT_FLOWRATE_M3H,Ducts,Type,True
-HVC_DUCT_FLOWRATE_M3H,Generic Models,Type,True
+HVC_DUCT_FLOWRATE_M3H,Air Terminals,Instance,True
+HVC_DUCT_FLOWRATE_M3H,Ducts,Instance,True
+HVC_DUCT_FLOWRATE_M3H,Generic Models,Instance,True
 HVC_DUCT_LINING_TXT,Air Terminals,Type,True
 HVC_DUCT_LINING_TXT,Ducts,Type,True
 HVC_DUCT_LINING_TXT,Generic Models,Type,True
@@ -4623,10 +4624,10 @@ HVC_EFF_RATIO_NR,Air Terminals,Instance,True
 HVC_EFF_RATIO_NR,Ducts,Instance,True
 HVC_EFF_RATIO_NR,Generic Models,Instance,True
 HVC_EFF_RATIO_NR,Mechanical Equipment,Instance,True
-HVC_PIPE_FLOWRATE_LPS,Air Terminals,Type,True
-HVC_PIPE_FLOWRATE_LPS,Ducts,Type,True
-HVC_PIPE_FLOWRATE_LPS,Generic Models,Type,True
-HVC_PIPE_FLOWRATE_LPS,Mechanical Equipment,Type,True
+HVC_PIPE_FLOWRATE_LPS,Air Terminals,Instance,True
+HVC_PIPE_FLOWRATE_LPS,Ducts,Instance,True
+HVC_PIPE_FLOWRATE_LPS,Generic Models,Instance,True
+HVC_PIPE_FLOWRATE_LPS,Mechanical Equipment,Instance,True
 HVC_PIPE_LENGTH_M,Air Terminals,Type,True
 HVC_PIPE_LENGTH_M,Ducts,Type,True
 HVC_PIPE_LENGTH_M,Generic Models,Type,True
@@ -6257,7 +6258,7 @@ PRJ_TB_REVISION_DESCRIPTION_TXT,Generic Models,Type,True
 PRJ_TB_REVISION_NR_TXT,Generic Models,Type,True
 PRJ_TB_SHEET_NR_TXT,Generic Models,Type,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Generic Models,Type,True
-PRJ_TB_TOTAL_NO_SHEETS_TXT,Generic Models,Type,True
+PRJ_TB_TOTAL_NO_SHEETS_TXT,Generic Models,Instance,True
 PROP_ACOUSTIC_ABS,Materials,Instance,True
 PROP_CARBON_KG_M3,Materials,Instance,True
 PROP_COMP_STRENGTH_MPA,Materials,Instance,True
@@ -7285,14 +7286,14 @@ ELC_CDT_SZ_MM,Conduits,Type,True
 ELC_CDT_SZ_MM,Conduit Fittings,Type,True
 ELC_CDT_MAT_TXT,Conduits,Type,True
 ELC_CDT_MAT_TXT,Conduit Fittings,Type,True
-ELC_CDT_INSTALL_METHOD_TXT,Conduits,Type,True
-ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
-ELC_CDT_CBL_FILL_PCT,Conduits,Type,True
+ELC_CDT_INSTALL_METHOD_TXT,Conduits,Instance,True
+ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Instance,True
+ELC_CDT_CBL_FILL_PCT,Conduits,Instance,True
 ELC_CDT_BEND_ANGLE_DEG,Conduits,Type,True
 ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
-ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
-ELC_CDT_RUN_LENGTH_M,Conduits,Type,True
-ELC_CDT_CABLE_COUNT_NR,Conduits,Type,True
+ELC_CDT_BEND_COUNT_NR,Conduits,Instance,True
+ELC_CDT_RUN_LENGTH_M,Conduits,Instance,True
+ELC_CDT_CABLE_COUNT_NR,Conduits,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Electrical Equipment,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Electrical Fixtures,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Lighting Fixtures,Instance,True
@@ -7300,7 +7301,7 @@ ELC_CIRCUIT_GROUP_TXT,Lighting Devices,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Fire Alarm Devices,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Communication Devices,Instance,True
 ELC_CIRCUIT_GROUP_TXT,Data Devices,Instance,True
-ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Type,True
+ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment,Instance,True
 STING_WALL_ROUTING_FLAG,Walls,Type,True
 STING_SLAB_ROUTING_FLAG,Floors,Type,True
 STING_PENETRATION_REF_TXT,Conduits,Instance,True
@@ -8077,17 +8078,17 @@ ELC_PNL_DESIGNATION_NAME_TXT,Electrical Circuits,Instance,True
 ELC_CKT_PWR_KW,Electrical Circuits,Instance,True
 ELC_CKT_VLT_V,Electrical Circuits,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Electrical Circuits,Instance,True
-ELC_CKT_CUR_A,Electrical Circuits,Type,True
-ELC_CKT_BRK_RATING_A,Electrical Circuits,Type,True
+ELC_CKT_CUR_A,Electrical Circuits,Instance,True
+ELC_CKT_BRK_RATING_A,Electrical Circuits,Instance,True
 ELC_CKT_CBL_SZ_MM,Electrical Circuits,Type,True
 ELC_CKT_CBL_TYPE_TXT,Electrical Circuits,Type,True
-ELC_CKT_LENGTH_M,Electrical Circuits,Type,True
-ELC_VLT_DROP_PCT,Electrical Circuits,Type,True
+ELC_CKT_LENGTH_M,Electrical Circuits,Instance,True
+ELC_VLT_DROP_PCT,Electrical Circuits,Instance,True
 ELC_DIV_FCT_NR,Electrical Circuits,Type,True
 ELC_CKT_FINAL_TXT,Electrical Circuits,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Electrical Circuits,Type,True
 PRJ_COMMENTS_TXT,Electrical Circuits,Instance,True
-ELC_CBL_INS_TYPE_TXT,Electrical Equipment,Type,True
+ELC_CBL_INS_TYPE_TXT,Electrical Equipment,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Electrical Equipment,Type,True
 ELC_CBL_LENGTH_M,Electrical Equipment,Type,True
 PRJ_AREA_NAME_TXT,Electrical Equipment,Type,True
@@ -8113,7 +8114,7 @@ FLS_SFTY_COVERAGE_AREA_SQ_M,Fire Alarm Devices,Type,True
 PRJ_COMMENTS_TXT,Fire Alarm Devices,Instance,True
 HVC_DCT_FLW_CFM,Mechanical Equipment,Instance,True
 ASS_SYSTEM_TYPE_TXT,Pipes,Instance,True
-HVC_PIPE_FLOWRATE_LPS,Pipes,Type,True
+HVC_PIPE_FLOWRATE_LPS,Pipes,Instance,True
 HVC_VEL_MPS,Pipes,Instance,True
 HVC_PIPE_PRESSURE_KPA,Pipes,Type,True
 HVC_DCT_MAT_TXT,Pipes,Type,True
@@ -8121,7 +8122,7 @@ HVC_PIPE_LENGTH_M,Pipes,Type,True
 CBL_TYPE_TXT,Electrical Equipment,Type,True
 ASS_MANUFACTURER_TXT,Pipe Fittings,Instance,True
 BLE_FINISH_PAINT_AREA_SQ_M,Windows,Type,True
-ELC_CBL_SZ_MM,Electrical Fixtures,Type,True
+ELC_CBL_SZ_MM,Electrical Fixtures,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Conduit Fittings,Type,True
 LTG_FIX_LMP_WATTAGE_W,Lighting Devices,Instance,True
 BLE_FACADE_TYPE_TXT,Doors,Type,True
@@ -8175,7 +8176,7 @@ ELC_DIV_FCT_NR,Conduit Fittings,Type,True
 HVC_DCT_PROPERTY_TXT,Duct Fittings,Type,True
 BLE_WALL_LENGTH_MM,Windows,Instance,True
 BLE_STRUCT_FOUNDATION_TYPE_TXT,Doors,Type,True
-ELC_CBL_INS_TYPE_TXT,Conduit Fittings,Type,True
+ELC_CBL_INS_TYPE_TXT,Conduit Fittings,Instance,True
 ASS_OANDM_MANUALS_PROVIDED_TXT,Specialty Equipment,Type,True
 BLE_ROOM_NAME_TXT,Doors,Instance,True
 ASS_OANDM_MANUALS_PROVIDED_TXT,Mechanical Equipment,Type,True
@@ -8200,7 +8201,7 @@ BLE_CEILING_GRID_SZ_MM,Doors,Type,True
 LTG_EFFICACY_LM_W,Electrical Fixtures,Type,True
 PER_ENVIRONMENTAL_RAINFALL_ANNUAL_MM,Structural Columns,Type,True
 BLE_FACADE_CLR_TXT,Windows,Type,True
-ELC_CBL_AMPACITY_A,Conduit Fittings,Type,True
+ELC_CBL_AMPACITY_A,Conduit Fittings,Instance,True
 BLE_STAIR_TREAD_FINISH_TXT,Duct Accessories,Type,True
 ASS_PMT_INV_UNIT_TXT,Electrical Equipment,Type,True
 PER_ACOUSTICS_IIC_RATING_TXT,Structural Framing,Type,True
@@ -8222,7 +8223,7 @@ HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT,Mechanical Equipment,Type,True
 PER_ENVIRONMENTAL_ALTITUDE_M,Structural Columns,Type,True
 BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Doors,Type,True
 HVC_VEL_MPS,Duct Fittings,Instance,True
-ELC_CBL_SZ_MM,Electrical Equipment,Type,True
+ELC_CBL_SZ_MM,Electrical Equipment,Instance,True
 BLE_ELE_AREA_SQ_M,Doors,Instance,True
 ELC_CBL_NUM_OF_CORES_NR,Electrical Fixtures,Type,True
 PER_THERM_NATURAL_VENT_TXT,Structural Columns,Type,True
@@ -8256,7 +8257,7 @@ ELC_PNL_CONNECTED_LOAD_KW,Conduits,Instance,True
 BLE_STAIR_TREAD_FINISH_TXT,Duct Fittings,Type,True
 BLE_CEILING_LIGHT_REFLECTANCE_PCT,Windows,Type,True
 ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Fixtures,Type,True
-ELC_CBL_INS_TYPE_TXT,Cable Tray Fittings,Type,True
+ELC_CBL_INS_TYPE_TXT,Cable Tray Fittings,Instance,True
 ASS_ROOM_AREA_SQ_M,Specialty Equipment,Instance,True
 ASS_ROOM_AREA_SQ_M,Mechanical Equipment,Instance,True
 ELC_CBL_NR_TXT,Electrical Equipment,Type,True
@@ -8266,7 +8267,7 @@ ASS_ROOM_FUNCTION_USE_TXT,Specialty Equipment,Type,True
 CBL_TYPE_TXT,Cable Tray Fittings,Type,True
 BLE_FLR_MOISTURE_BARRIER_REQUIRED_BOOL,Doors,Type,True
 PER_ENVIRONMENTAL_CORROSION_PROT_TXT,Structural Columns,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Electrical Fixtures,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Electrical Fixtures,Instance,True
 PER_ACOUSTICS_ISOLATION_REQ_BOOL,Structural Framing,Type,True
 HVC_DCT_EQUIVALENT_DIAMETER_IN,Duct Fittings,Type,True
 BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Windows,Type,True
@@ -8279,7 +8280,7 @@ PER_ACOUSTICS_STC_RATING_TXT,Structural Framing,Type,True
 BLE_CEILING_HEIGHT_MM,Doors,Instance,True
 PER_ENVIRONMENTAL_TEMP_DESIGN_C,Structural Columns,Type,True
 BLE_STRUCT_FOUNDATION_TYPE_TXT,Windows,Type,True
-ELC_CBL_AMPACITY_A,Cable Tray Fittings,Type,True
+ELC_CBL_AMPACITY_A,Cable Tray Fittings,Instance,True
 COM_C_NETWORK_ADDRESS_TXT,Data Devices,Type,True
 COM_C_PROTOCOL_TXT,Telephone Devices,Type,True
 PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Structural Columns,Type,True
@@ -8340,7 +8341,7 @@ ELC_SPARE_WAYS_NR,Cable Tray Fittings,Type,True
 ASS_PMT_INV_UNIT_TXT,Casework,Type,True
 COM_C_NETWORK_ADDRESS_TXT,Nurse Call Devices,Type,True
 ELC_PNL_DESIGNATION_NAME_TXT,Conduit Fittings,Instance,True
-ELC_CBL_SZ_MM,Cable Tray Fittings,Type,True
+ELC_CBL_SZ_MM,Cable Tray Fittings,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Conduit Fittings,Instance,True
 MNT_HGT_MM,Cable Tray Fittings,Type,True
 COM_C_DEV_CONTROLLER_NAME_TXT,Telephone Devices,Type,True
@@ -8367,7 +8368,7 @@ BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Doors,Type,True
 ELC_CBL_SZ_PER_CORE_MM,Electrical Fixtures,Type,True
 ELC_PNL_NUM_OF_WAYS_NR,Cable Trays,Instance,True
 COM_C_MEASUREMENT_RANGE_TXT,Communication Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Electrical Equipment,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Electrical Equipment,Instance,True
 HVC_DCT_EQUIVALENT_DIAMETER_IN,Mechanical Equipment,Type,True
 ASS_PMT_CST_TOTAL_CST_UGX_NR,Casework,Type,True
 ELC_CBL_NR_TXT,Cable Tray Fittings,Type,True
@@ -8422,7 +8423,7 @@ COM_C_DEV_CONTROLLER_NAME_TXT,Data Devices,Type,True
 ELC_PNL_FED_FROM_PNL_TXT,Cable Tray Fittings,Instance,True
 BLE_STRUCT_STEEL_GRADE_TXT,Doors,Type,True
 ASS_ROOM_VOLUME_CU_M,Furniture,Instance,True
-ELC_CBL_INS_TYPE_TXT,Electrical Fixtures,Type,True
+ELC_CBL_INS_TYPE_TXT,Electrical Fixtures,Instance,True
 COM_C_MEASUREMENT_RANGE_TXT,Data Devices,Type,True
 PER_ENVIRONMENTAL_TEMP_DESIGN_C,Structural Framing,Type,True
 PER_ENVIRONMENTAL_DUST_PROT_REQ_BOOL,Structural Framing,Type,True
@@ -8436,12 +8437,12 @@ HVC_DCT_SOUNDLVL_DB,Duct Fittings,Type,True
 HVC_CAP_KW,Duct Accessories,Type,True
 ELC_PNL_PHS_COUNT_NR,Cable Trays,Type,True
 ASS_PMT_PRO_PO_NR_TXT,Specialty Equipment,Type,True
-ELC_CBL_AMPACITY_A,Electrical Fixtures,Type,True
+ELC_CBL_AMPACITY_A,Electrical Fixtures,Instance,True
 ASS_PMT_PRO_DELIVERY_DATE_TXT,Specialty Equipment,Type,True
 CST_ENERGY_ANNUAL_UGX_NUM_NR,Windows,Type,True
 BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,Doors,Type,True
 BLE_FLR_PERIMETER_DETAIL_TYPE_TXT,Windows,Type,True
-ELC_CBL_SZ_MM,Conduit Fittings,Type,True
+ELC_CBL_SZ_MM,Conduit Fittings,Instance,True
 ASS_PMT_QTY_ORDERED_NR,Plumbing Fixtures,Type,True
 ASS_PMT_INV_UNIT_TXT,Mechanical Equipment,Type,True
 ELC_PNL_CONNECTED_LOAD_KW,Cable Trays,Instance,True
@@ -8465,7 +8466,7 @@ ELC_PWR_KW,Conduit Fittings,Type,True
 BLE_WINDOW_HEIGHT_MM,Doors,Instance,True
 CBL_TYPE_TXT,Communication Devices,Type,True
 ELC_EQUIPMENT_TYPE_TXT,Cable Tray Fittings,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Cable Tray Fittings,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Cable Tray Fittings,Instance,True
 BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Doors,Type,True
 BLE_FLR_LD_CAP_KPA,Doors,Type,True
 ASS_PMT_INV_UNIT_TXT,Plumbing Fixtures,Type,True
@@ -8527,7 +8528,7 @@ BLE_FACADE_FINISH_TXT,Windows,Type,True
 ELC_CBL_NR_TXT,Electrical Fixtures,Type,True
 PER_SUST_RECYCLED_CONTENT_PCT,Structural Columns,Type,True
 BLE_FLR_SLIP_RESISTANCE_RATING_NR,Doors,Type,True
-ELC_CBL_AMPACITY_A,Electrical Equipment,Type,True
+ELC_CBL_AMPACITY_A,Electrical Equipment,Instance,True
 BLE_FLR_TYPE_CLASSIFICATION_TXT,Windows,Type,True
 BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,Doors,Instance,True
 BLE_ROOF_OVERHANG_MM,Doors,Type,True
@@ -8567,7 +8568,7 @@ PER_THERM_SHADING_DEVICE_TXT,Structural Columns,Type,True
 MEP_TYPE_TXT,Pipe Accessories,Type,True
 HVC_VLT_V,Duct Accessories,Type,True
 ELC_VLT_PRIMARY_RATING_V,Conduit Fittings,Instance,True
-ELC_CBL_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Conduit Fittings,Instance,True
 ELC_CBL_DESTINATION_TO_TXT,Cable Tray Fittings,Type,True
 BLE_FINISH_ADHESIVE_WEIGHT_KG,Windows,Type,True
 BLE_WALL_FUNCTION_TXT,Windows,Type,True
@@ -8705,26 +8706,26 @@ ASS_TAG_3_TXT,Communication Devices,Type,True
 ASS_TAG_4_TXT,Communication Devices,Type,True
 ASS_TAG_5_TXT,Communication Devices,Type,True
 ASS_TAG_6_TXT,Communication Devices,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Communication Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Communication Devices,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Communication Devices,Type,True
 ASS_ZONE_TXT,Communication Devices,Instance,True
-ELC_CBL_AMPACITY_A,Communication Devices,Type,True
+ELC_CBL_AMPACITY_A,Communication Devices,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Communication Devices,Type,True
 ELC_CBL_DERATING_FCT_NR,Communication Devices,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Communication Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Communication Devices,Type,True
-ELC_CBL_INS_TYPE_TXT,Communication Devices,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Communication Devices,Instance,True
+ELC_CBL_INS_TYPE_TXT,Communication Devices,Instance,True
 ELC_CBL_LENGTH_M,Communication Devices,Type,True
 ELC_CBL_NR_TXT,Communication Devices,Type,True
 ELC_CBL_NUM_OF_CORES_NR,Communication Devices,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Communication Devices,Type,True
-ELC_CBL_SZ_MM,Communication Devices,Type,True
+ELC_CBL_SZ_MM,Communication Devices,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Communication Devices,Type,True
-ELC_CKT_BRK_RATING_A,Communication Devices,Type,True
-ELC_CKT_CUR_A,Communication Devices,Type,True
+ELC_CKT_BRK_RATING_A,Communication Devices,Instance,True
+ELC_CKT_CUR_A,Communication Devices,Instance,True
 ELC_CKT_FINAL_TXT,Communication Devices,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Communication Devices,Type,True
-ELC_CKT_LENGTH_M,Communication Devices,Type,True
+ELC_CKT_LENGTH_M,Communication Devices,Instance,True
 ELC_CKT_NR,Communication Devices,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Communication Devices,Instance,True
 ELC_CKT_PWR_KW,Communication Devices,Instance,True
@@ -8745,7 +8746,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Communication Devices,Instance,True
 ELC_PNL_MAIN_BRK_A,Communication Devices,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Communication Devices,Instance,True
 ELC_PNL_PHS_COUNT_NR,Communication Devices,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Communication Devices,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Communication Devices,Instance,True
 ELC_PNL_VLT_V,Communication Devices,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Communication Devices,Type,True
 ELC_PWR_CONNECTED_LOAD_KW,Communication Devices,Type,True
@@ -8753,7 +8754,7 @@ ELC_PWR_KW,Communication Devices,Type,True
 ELC_PWR_SPARE_01_TXT,Communication Devices,Type,True
 ELC_PWR_SPARE_02_TXT,Communication Devices,Type,True
 ELC_SPARE_WAYS_NR,Communication Devices,Type,True
-ELC_VLT_DROP_PCT,Communication Devices,Type,True
+ELC_VLT_DROP_PCT,Communication Devices,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Communication Devices,Instance,True
 COM_BMS_RANGE_TXT,Communication Devices,Type,True
 COM_DAT_SPARE_01_TXT,Communication Devices,Type,True
@@ -8812,26 +8813,26 @@ ASS_TAG_3_TXT,Telephone Devices,Type,True
 ASS_TAG_4_TXT,Telephone Devices,Type,True
 ASS_TAG_5_TXT,Telephone Devices,Type,True
 ASS_TAG_6_TXT,Telephone Devices,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Telephone Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Telephone Devices,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Telephone Devices,Type,True
 ASS_ZONE_TXT,Telephone Devices,Instance,True
-ELC_CBL_AMPACITY_A,Telephone Devices,Type,True
+ELC_CBL_AMPACITY_A,Telephone Devices,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Telephone Devices,Type,True
 ELC_CBL_DERATING_FCT_NR,Telephone Devices,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Telephone Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Telephone Devices,Type,True
-ELC_CBL_INS_TYPE_TXT,Telephone Devices,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Telephone Devices,Instance,True
+ELC_CBL_INS_TYPE_TXT,Telephone Devices,Instance,True
 ELC_CBL_LENGTH_M,Telephone Devices,Type,True
 ELC_CBL_NR_TXT,Telephone Devices,Type,True
 ELC_CBL_NUM_OF_CORES_NR,Telephone Devices,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Telephone Devices,Type,True
-ELC_CBL_SZ_MM,Telephone Devices,Type,True
+ELC_CBL_SZ_MM,Telephone Devices,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Telephone Devices,Type,True
-ELC_CKT_BRK_RATING_A,Telephone Devices,Type,True
-ELC_CKT_CUR_A,Telephone Devices,Type,True
+ELC_CKT_BRK_RATING_A,Telephone Devices,Instance,True
+ELC_CKT_CUR_A,Telephone Devices,Instance,True
 ELC_CKT_FINAL_TXT,Telephone Devices,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Telephone Devices,Type,True
-ELC_CKT_LENGTH_M,Telephone Devices,Type,True
+ELC_CKT_LENGTH_M,Telephone Devices,Instance,True
 ELC_CKT_NR,Telephone Devices,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Telephone Devices,Instance,True
 ELC_CKT_PWR_KW,Telephone Devices,Instance,True
@@ -8852,7 +8853,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Telephone Devices,Instance,True
 ELC_PNL_MAIN_BRK_A,Telephone Devices,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Telephone Devices,Instance,True
 ELC_PNL_PHS_COUNT_NR,Telephone Devices,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Telephone Devices,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Telephone Devices,Instance,True
 ELC_PNL_VLT_V,Telephone Devices,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Telephone Devices,Type,True
 ELC_PWR_CONNECTED_LOAD_KW,Telephone Devices,Type,True
@@ -8860,7 +8861,7 @@ ELC_PWR_KW,Telephone Devices,Type,True
 ELC_PWR_SPARE_01_TXT,Telephone Devices,Type,True
 ELC_PWR_SPARE_02_TXT,Telephone Devices,Type,True
 ELC_SPARE_WAYS_NR,Telephone Devices,Type,True
-ELC_VLT_DROP_PCT,Telephone Devices,Type,True
+ELC_VLT_DROP_PCT,Telephone Devices,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Telephone Devices,Instance,True
 ICT_PORT_NR_TXT,Telephone Devices,Type,True
 ICT_PATCH_PANEL_TXT,Telephone Devices,Type,True
@@ -8918,26 +8919,26 @@ ASS_TAG_3_TXT,Data Devices,Type,True
 ASS_TAG_4_TXT,Data Devices,Type,True
 ASS_TAG_5_TXT,Data Devices,Type,True
 ASS_TAG_6_TXT,Data Devices,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Data Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Data Devices,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Data Devices,Type,True
 ASS_ZONE_TXT,Data Devices,Instance,True
-ELC_CBL_AMPACITY_A,Data Devices,Type,True
+ELC_CBL_AMPACITY_A,Data Devices,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Data Devices,Type,True
 ELC_CBL_DERATING_FCT_NR,Data Devices,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Data Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Data Devices,Type,True
-ELC_CBL_INS_TYPE_TXT,Data Devices,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Data Devices,Instance,True
+ELC_CBL_INS_TYPE_TXT,Data Devices,Instance,True
 ELC_CBL_LENGTH_M,Data Devices,Type,True
 ELC_CBL_NR_TXT,Data Devices,Type,True
 ELC_CBL_NUM_OF_CORES_NR,Data Devices,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Data Devices,Type,True
-ELC_CBL_SZ_MM,Data Devices,Type,True
+ELC_CBL_SZ_MM,Data Devices,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Data Devices,Type,True
-ELC_CKT_BRK_RATING_A,Data Devices,Type,True
-ELC_CKT_CUR_A,Data Devices,Type,True
+ELC_CKT_BRK_RATING_A,Data Devices,Instance,True
+ELC_CKT_CUR_A,Data Devices,Instance,True
 ELC_CKT_FINAL_TXT,Data Devices,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Data Devices,Type,True
-ELC_CKT_LENGTH_M,Data Devices,Type,True
+ELC_CKT_LENGTH_M,Data Devices,Instance,True
 ELC_CKT_NR,Data Devices,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Data Devices,Instance,True
 ELC_CKT_PWR_KW,Data Devices,Instance,True
@@ -8958,7 +8959,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Data Devices,Instance,True
 ELC_PNL_MAIN_BRK_A,Data Devices,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Data Devices,Instance,True
 ELC_PNL_PHS_COUNT_NR,Data Devices,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Data Devices,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Data Devices,Instance,True
 ELC_PNL_VLT_V,Data Devices,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Data Devices,Type,True
 ELC_PWR_CONNECTED_LOAD_KW,Data Devices,Type,True
@@ -8966,7 +8967,7 @@ ELC_PWR_KW,Data Devices,Type,True
 ELC_PWR_SPARE_01_TXT,Data Devices,Type,True
 ELC_PWR_SPARE_02_TXT,Data Devices,Type,True
 ELC_SPARE_WAYS_NR,Data Devices,Type,True
-ELC_VLT_DROP_PCT,Data Devices,Type,True
+ELC_VLT_DROP_PCT,Data Devices,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Data Devices,Instance,True
 ASS_CAT_TXT,Security Devices,Instance,True
 ASS_CRITICALITY_RATING_NR,Security Devices,Type,True
@@ -9022,26 +9023,26 @@ ASS_TAG_3_TXT,Security Devices,Type,True
 ASS_TAG_4_TXT,Security Devices,Type,True
 ASS_TAG_5_TXT,Security Devices,Type,True
 ASS_TAG_6_TXT,Security Devices,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Security Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Security Devices,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Security Devices,Type,True
 ASS_ZONE_TXT,Security Devices,Instance,True
-ELC_CBL_AMPACITY_A,Security Devices,Type,True
+ELC_CBL_AMPACITY_A,Security Devices,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Security Devices,Type,True
 ELC_CBL_DERATING_FCT_NR,Security Devices,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Security Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Security Devices,Type,True
-ELC_CBL_INS_TYPE_TXT,Security Devices,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Security Devices,Instance,True
+ELC_CBL_INS_TYPE_TXT,Security Devices,Instance,True
 ELC_CBL_LENGTH_M,Security Devices,Type,True
 ELC_CBL_NR_TXT,Security Devices,Type,True
 ELC_CBL_NUM_OF_CORES_NR,Security Devices,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Security Devices,Type,True
-ELC_CBL_SZ_MM,Security Devices,Type,True
+ELC_CBL_SZ_MM,Security Devices,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Security Devices,Type,True
-ELC_CKT_BRK_RATING_A,Security Devices,Type,True
-ELC_CKT_CUR_A,Security Devices,Type,True
+ELC_CKT_BRK_RATING_A,Security Devices,Instance,True
+ELC_CKT_CUR_A,Security Devices,Instance,True
 ELC_CKT_FINAL_TXT,Security Devices,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Security Devices,Type,True
-ELC_CKT_LENGTH_M,Security Devices,Type,True
+ELC_CKT_LENGTH_M,Security Devices,Instance,True
 ELC_CKT_NR,Security Devices,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Security Devices,Instance,True
 ELC_CKT_PWR_KW,Security Devices,Instance,True
@@ -9062,7 +9063,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Security Devices,Instance,True
 ELC_PNL_MAIN_BRK_A,Security Devices,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Security Devices,Instance,True
 ELC_PNL_PHS_COUNT_NR,Security Devices,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Security Devices,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Security Devices,Instance,True
 ELC_PNL_VLT_V,Security Devices,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Security Devices,Type,True
 ELC_PWR_CONNECTED_LOAD_KW,Security Devices,Type,True
@@ -9070,7 +9071,7 @@ ELC_PWR_KW,Security Devices,Type,True
 ELC_PWR_SPARE_01_TXT,Security Devices,Type,True
 ELC_PWR_SPARE_02_TXT,Security Devices,Type,True
 ELC_SPARE_WAYS_NR,Security Devices,Type,True
-ELC_VLT_DROP_PCT,Security Devices,Type,True
+ELC_VLT_DROP_PCT,Security Devices,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Security Devices,Instance,True
 ASS_CAT_TXT,Nurse Call Devices,Instance,True
 ASS_CRITICALITY_RATING_NR,Nurse Call Devices,Type,True
@@ -9126,26 +9127,26 @@ ASS_TAG_3_TXT,Nurse Call Devices,Type,True
 ASS_TAG_4_TXT,Nurse Call Devices,Type,True
 ASS_TAG_5_TXT,Nurse Call Devices,Type,True
 ASS_TAG_6_TXT,Nurse Call Devices,Type,True
-MNT_WARRANTY_EXPIRY_TXT,Nurse Call Devices,Type,True
+MNT_WARRANTY_EXPIRY_TXT,Nurse Call Devices,Instance,True
 ASS_WARRANTY_DURATION_PARTS_YRS,Nurse Call Devices,Type,True
 ASS_ZONE_TXT,Nurse Call Devices,Instance,True
-ELC_CBL_AMPACITY_A,Nurse Call Devices,Type,True
+ELC_CBL_AMPACITY_A,Nurse Call Devices,Instance,True
 ELC_CBL_COND_SZ_SQ_MM,Nurse Call Devices,Type,True
 ELC_CBL_DERATING_FCT_NR,Nurse Call Devices,Type,True
 ELC_CBL_DESTINATION_TO_TXT,Nurse Call Devices,Type,True
-ELC_CBL_INSTALL_METHOD_TXT,Nurse Call Devices,Type,True
-ELC_CBL_INS_TYPE_TXT,Nurse Call Devices,Type,True
+ELC_CBL_INSTALL_METHOD_TXT,Nurse Call Devices,Instance,True
+ELC_CBL_INS_TYPE_TXT,Nurse Call Devices,Instance,True
 ELC_CBL_LENGTH_M,Nurse Call Devices,Type,True
 ELC_CBL_NR_TXT,Nurse Call Devices,Type,True
 ELC_CBL_NUM_OF_CORES_NR,Nurse Call Devices,Type,True
 ELC_CBL_SOURCE_FROM_TXT,Nurse Call Devices,Type,True
-ELC_CBL_SZ_MM,Nurse Call Devices,Type,True
+ELC_CBL_SZ_MM,Nurse Call Devices,Instance,True
 ELC_CBL_SZ_PER_CORE_MM,Nurse Call Devices,Type,True
-ELC_CKT_BRK_RATING_A,Nurse Call Devices,Type,True
-ELC_CKT_CUR_A,Nurse Call Devices,Type,True
+ELC_CKT_BRK_RATING_A,Nurse Call Devices,Instance,True
+ELC_CKT_CUR_A,Nurse Call Devices,Instance,True
 ELC_CKT_FINAL_TXT,Nurse Call Devices,Type,True
 ELC_CKT_IDENTIFICATION_TXT,Nurse Call Devices,Type,True
-ELC_CKT_LENGTH_M,Nurse Call Devices,Type,True
+ELC_CKT_LENGTH_M,Nurse Call Devices,Instance,True
 ELC_CKT_NR,Nurse Call Devices,Instance,True
 ELC_CKT_PHASE_COUNT_NR,Nurse Call Devices,Instance,True
 ELC_CKT_PWR_KW,Nurse Call Devices,Instance,True
@@ -9166,7 +9167,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Nurse Call Devices,Instance,True
 ELC_PNL_MAIN_BRK_A,Nurse Call Devices,Instance,True
 ELC_PNL_NUM_OF_WAYS_NR,Nurse Call Devices,Instance,True
 ELC_PNL_PHS_COUNT_NR,Nurse Call Devices,Type,True
-ELC_PNL_SHORT_CIRCUIT_RATING_KA,Nurse Call Devices,Type,True
+ELC_PNL_SHORT_CIRCUIT_RATING_KA,Nurse Call Devices,Instance,True
 ELC_PNL_VLT_V,Nurse Call Devices,Type,True
 ELC_PWR_CIR_LOAD_TYPE_TXT,Nurse Call Devices,Type,True
 ELC_PWR_CONNECTED_LOAD_KW,Nurse Call Devices,Type,True
@@ -9174,7 +9175,7 @@ ELC_PWR_KW,Nurse Call Devices,Type,True
 ELC_PWR_SPARE_01_TXT,Nurse Call Devices,Type,True
 ELC_PWR_SPARE_02_TXT,Nurse Call Devices,Type,True
 ELC_SPARE_WAYS_NR,Nurse Call Devices,Type,True
-ELC_VLT_DROP_PCT,Nurse Call Devices,Type,True
+ELC_VLT_DROP_PCT,Nurse Call Devices,Instance,True
 ELC_VLT_PRIMARY_RATING_V,Nurse Call Devices,Instance,True
 ASS_CAT_TXT,Flex Ducts,Instance,True
 ASS_DESCRIPTION_TXT,Flex Ducts,Instance,True
@@ -9281,7 +9282,7 @@ HVC_DCT_PROPERTY_TXT,Flex Ducts,Type,True
 HVC_DCT_SOUNDLVL_DB,Flex Ducts,Type,True
 HVC_DUCT_AREA_SQ_M,Flex Ducts,Type,True
 HVC_DUCT_CLASS_TXT,Flex Ducts,Type,True
-HVC_DUCT_FLOWRATE_M3H,Flex Ducts,Type,True
+HVC_DUCT_FLOWRATE_M3H,Flex Ducts,Instance,True
 HVC_DUCT_LINING_TXT,Flex Ducts,Type,True
 HVC_EFF_RATIO_NR,Flex Ducts,Instance,True
 HVC_PWR_KW,Flex Ducts,Type,True
@@ -9462,7 +9463,7 @@ CST_S_REI_WEIGHT_WASTAGE_KG,Duct Accessories,Type,True
 CST_S_REI_WIRE_WEIGHT_KG,Duct Accessories,Type,True
 HVC_DUCT_AREA_SQ_M,Duct Accessories,Type,True
 HVC_DUCT_CLASS_TXT,Duct Accessories,Type,True
-HVC_DUCT_FLOWRATE_M3H,Duct Accessories,Type,True
+HVC_DUCT_FLOWRATE_M3H,Duct Accessories,Instance,True
 HVC_DUCT_LINING_TXT,Duct Accessories,Type,True
 HVC_EFF_RATIO_NR,Duct Accessories,Instance,True
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,Duct Accessories,Type,True
@@ -9638,7 +9639,7 @@ CST_S_REI_WEIGHT_WASTAGE_KG,Duct Fittings,Type,True
 CST_S_REI_WIRE_WEIGHT_KG,Duct Fittings,Type,True
 HVC_DUCT_AREA_SQ_M,Duct Fittings,Type,True
 HVC_DUCT_CLASS_TXT,Duct Fittings,Type,True
-HVC_DUCT_FLOWRATE_M3H,Duct Fittings,Type,True
+HVC_DUCT_FLOWRATE_M3H,Duct Fittings,Instance,True
 HVC_DUCT_LINING_TXT,Duct Fittings,Type,True
 HVC_EFF_RATIO_NR,Duct Fittings,Instance,True
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,Duct Fittings,Type,True
@@ -9744,7 +9745,7 @@ PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Project Information,Type,True
 PRJ_TB_DATE_DRAWN_TXT,Project Information,Type,True
 PRJ_ADDRESS_2_TXT,Project Information,Type,True
 PRJ_TB_CLIENT_ADDRESS_TXT,Project Information,Type,True
-PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Type,True
+PRJ_TB_TOTAL_NO_SHEETS_TXT,Project Information,Instance,True
 PRJ_PHASE_TXT,Project Information,Type,True
 PRJ_TB_SHEET_NR_TXT,Project Information,Type,True
 PRJ_TB_PAPER_SZ_TXT,Project Information,Type,True
@@ -15921,14 +15922,14 @@ ELC_BUSBAR_FILL_PCT,Cable Trays,Instance,True
 ELC_CONDUIT_ROUTE_TXT,Conduits,Instance,True
 ELC_PHOTO_LUX_CALC,Rooms,Instance,True
 ELC_PHOTO_UGR_CALC,Rooms,Instance,True
-ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures,Type,True
-ELC_PHOTO_LUMENS_NR,Lighting Fixtures,Type,True
-ELC_PHOTO_WATTS_NR,Lighting Fixtures,Type,True
-ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures,Type,True
-ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures,Type,True
-ELC_PHOTO_CCT_K,Lighting Fixtures,Type,True
-ELC_PHOTO_CRI_NR,Lighting Fixtures,Type,True
-ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures,Type,True
+ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures,Instance,True
+ELC_PHOTO_LUMENS_NR,Lighting Fixtures,Instance,True
+ELC_PHOTO_WATTS_NR,Lighting Fixtures,Instance,True
+ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures,Instance,True
+ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures,Instance,True
+ELC_PHOTO_CCT_K,Lighting Fixtures,Instance,True
+ELC_PHOTO_CRI_NR,Lighting Fixtures,Instance,True
+ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures,Instance,True
 ELC_PHOTO_LUX_DIALUX_NR,Rooms,Instance,True
 ELC_PHOTO_LUX_ELUMTOOLS_NR,Rooms,Instance,True
 ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
@@ -16241,12 +16242,12 @@ ASS_TRACE_SEQ_NR,Generic Models,Instance,True
 ASS_TRACE_SEQ_NR,Pipe Accessories,Instance,True
 ASS_TRACE_SEQ_NR,Pipe Fittings,Instance,True
 ASS_TRACE_SEQ_NR,Pipes,Instance,True
-HVC_DCT_INSULATION_THK_MM,Air Terminals,Type,True
-HVC_DCT_INSULATION_THK_MM,Duct Accessories,Type,True
-HVC_DCT_INSULATION_THK_MM,Duct Fittings,Type,True
-HVC_DCT_INSULATION_THK_MM,Ducts,Type,True
-HVC_DCT_INSULATION_THK_MM,Flex Ducts,Type,True
-HVC_DCT_INSULATION_THK_MM,Generic Models,Type,True
+HVC_DCT_INSULATION_THK_MM,Air Terminals,Instance,True
+HVC_DCT_INSULATION_THK_MM,Duct Accessories,Instance,True
+HVC_DCT_INSULATION_THK_MM,Duct Fittings,Instance,True
+HVC_DCT_INSULATION_THK_MM,Ducts,Instance,True
+HVC_DCT_INSULATION_THK_MM,Flex Ducts,Instance,True
+HVC_DCT_INSULATION_THK_MM,Generic Models,Instance,True
 MEC_SYS_TXT,Air Terminals,Instance,True
 MEC_SYS_TXT,Duct Accessories,Instance,True
 MEC_SYS_TXT,Duct Fittings,Instance,True
@@ -16584,53 +16585,53 @@ STR_IMPORTANCE_CLASS_TXT,Project Information,Instance,Yes
 STR_Q_FACTOR_NR,Project Information,Instance,Yes
 STR_Q_FACTOR_NR,Structural Framing,Type,Yes
 STR_RAIN_INTENSITY_MMH,Project Information,Instance,Yes
-STR_REBAR_DETAIL_TXT,Floors,Type,Yes
-STR_REBAR_DETAIL_TXT,Structural Columns,Type,Yes
-STR_REBAR_DETAIL_TXT,Structural Foundations,Type,Yes
-STR_REBAR_DETAIL_TXT,Structural Framing,Type,Yes
-STR_REBAR_DETAIL_TXT,Walls,Type,Yes
+STR_REBAR_DETAIL_TXT,Floors,Instance,Yes
+STR_REBAR_DETAIL_TXT,Structural Columns,Instance,Yes
+STR_REBAR_DETAIL_TXT,Structural Foundations,Instance,Yes
+STR_REBAR_DETAIL_TXT,Structural Framing,Instance,Yes
+STR_REBAR_DETAIL_TXT,Walls,Instance,Yes
 STR_ROBUST_STATUS_TXT,Structural Columns,Type,Yes
 STR_SEISMIC_AGR,Project Information,Instance,Yes
 STR_SOIL_BEARING_KPA,Project Information,Instance,Yes
 STR_SOIL_BEARING_KPA,Structural Foundations,Type,Yes
 STR_WIND_BASIC_MPS,Project Information,Instance,Yes
 STR_WIND_DIRECTIONAL_NR,Project Information,Instance,Yes
-STR_WIND_PRESSURE_PA,Floors,Type,Yes
-STR_WIND_PRESSURE_PA,Roofs,Type,Yes
-STR_WIND_PRESSURE_PA,Structural Columns,Type,Yes
-STR_WIND_PRESSURE_PA,Structural Foundations,Type,Yes
-STR_WIND_PRESSURE_PA,Structural Framing,Type,Yes
-STR_WIND_PRESSURE_PA,Walls,Type,Yes
+STR_WIND_PRESSURE_PA,Floors,Instance,Yes
+STR_WIND_PRESSURE_PA,Roofs,Instance,Yes
+STR_WIND_PRESSURE_PA,Structural Columns,Instance,Yes
+STR_WIND_PRESSURE_PA,Structural Foundations,Instance,Yes
+STR_WIND_PRESSURE_PA,Structural Framing,Instance,Yes
+STR_WIND_PRESSURE_PA,Walls,Instance,Yes
 STR_WIND_TERRAIN_CAT_TXT,Project Information,Instance,Yes
-WARN_STR_FND_BLACK_COTTON,Structural Foundations,Type,Yes
-PLM_RECIRC_DRV_KV,Flex Pipes,Type,Yes
-PLM_RECIRC_DRV_KV,Pipe Accessories,Type,Yes
-PLM_RECIRC_DRV_KV,Pipe Fittings,Type,Yes
-PLM_RECIRC_DRV_KV,Pipes,Type,Yes
-PLM_RECIRC_DRV_KV,Plumbing Equipment,Type,Yes
-PLM_RECIRC_DRV_KV,Plumbing Fixtures,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Flex Pipes,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Pipe Accessories,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Pipe Fittings,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Pipes,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Equipment,Type,Yes
-PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Fixtures,Type,Yes
+WARN_STR_FND_BLACK_COTTON,Structural Foundations,Instance,Yes
+PLM_RECIRC_DRV_KV,Flex Pipes,Instance,Yes
+PLM_RECIRC_DRV_KV,Pipe Accessories,Instance,Yes
+PLM_RECIRC_DRV_KV,Pipe Fittings,Instance,Yes
+PLM_RECIRC_DRV_KV,Pipes,Instance,Yes
+PLM_RECIRC_DRV_KV,Plumbing Equipment,Instance,Yes
+PLM_RECIRC_DRV_KV,Plumbing Fixtures,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Flex Pipes,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipe Accessories,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipe Fittings,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Pipes,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Equipment,Instance,Yes
+PLM_RECIRC_PUMP_DUTY_LPM,Plumbing Fixtures,Instance,Yes
 PLM_STACK_CAP_DU,Pipes,Type,Yes
 PLM_STACK_CAP_DU,Pipe Fittings,Type,Yes
 PLM_STACK_CAP_DU,Pipe Accessories,Type,Yes
-PLM_STACK_UTIL_PCT,Pipes,Type,Yes
-PLM_STACK_UTIL_PCT,Pipe Fittings,Type,Yes
-PLM_STACK_UTIL_PCT,Pipe Accessories,Type,Yes
-STR_BEAM_TORSION_KNM,Structural Framing,Type,Yes
-STR_BEAM_TORSION_KNM,Structural Columns,Type,Yes
-STR_CONN_DETAIL_TXT,Structural Framing,Type,Yes
-STR_CONN_DETAIL_TXT,Structural Columns,Type,Yes
-STR_CONN_DETAIL_TXT,Structural Foundations,Type,Yes
+PLM_STACK_UTIL_PCT,Pipes,Instance,Yes
+PLM_STACK_UTIL_PCT,Pipe Fittings,Instance,Yes
+PLM_STACK_UTIL_PCT,Pipe Accessories,Instance,Yes
+STR_BEAM_TORSION_KNM,Structural Framing,Instance,Yes
+STR_BEAM_TORSION_KNM,Structural Columns,Instance,Yes
+STR_CONN_DETAIL_TXT,Structural Framing,Instance,Yes
+STR_CONN_DETAIL_TXT,Structural Columns,Instance,Yes
+STR_CONN_DETAIL_TXT,Structural Foundations,Instance,Yes
 STR_CONN_RATING_KN,Structural Framing,Type,Yes
 STR_CONN_RATING_KN,Structural Columns,Type,Yes
 STR_CONN_RATING_KN,Structural Foundations,Type,Yes
-STR_ECC_CONN_MM,Structural Framing,Type,Yes
-STR_ECC_CONN_MM,Structural Columns,Type,Yes
+STR_ECC_CONN_MM,Structural Framing,Instance,Yes
+STR_ECC_CONN_MM,Structural Columns,Instance,Yes
 STR_FAB_TOLERANCE_MM,Structural Framing,Type,Yes
 STR_FAB_TOLERANCE_MM,Structural Columns,Type,Yes
 ACO_RW_DB,Walls,Type,Yes

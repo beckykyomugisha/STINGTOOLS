@@ -436,7 +436,7 @@ namespace StingTools.Core
                 return false;
             }
             if (p.StorageType != StorageType.String)
-                return false;
+                return SetStringToTypedTarget(el, p, paramName, value, overwrite);
 
             string existing = p.AsString() ?? string.Empty;
             if (existing.Length > 0 && !overwrite)
@@ -460,6 +460,118 @@ namespace StingTools.Core
                 StingLog.Warn($"SetString '{paramName}' on {el.Id} failed: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// SetString landing on a NON-String target (MAPTYPE-6).
+        ///
+        /// This used to be a bare `return false`. 52 write sites across 36 parameters —
+        /// measured tree-wide, not guessed — pass a formatted string to a target declared
+        /// NUMBER or YESNO in MR_PARAMETERS.txt, so every one of them did nothing, returned
+        /// false, logged nothing and threw nothing. Among them: ELC_VLT_DROP_PCT,
+        /// ELC_CDT_CBL_FILL_PCT, ELC_PNL_SHORT_CIRCUIT_RATING_KA, HVC_PEAK_SENS_W /
+        /// _LAT_W / HVC_OA_LS, and ELC_EMERG_COVERED_BOOL — a voltage drop, a conduit
+        /// fill, a panel fault rating, a block load and an emergency-lighting coverage
+        /// flag, none of which ever reached the model.
+        ///
+        /// (CLAUDE.md states the block-load "HVC_PEAK_* stamps are TEXT-typed". They are
+        /// declared NUMBER. The doc is describing the write, not the parameter.)
+        ///
+        /// Strictly additive: anything that already worked is untouched, because this path
+        /// was previously unreachable-by-definition. Where the value cannot be converted
+        /// safely it returns false exactly as before — but says why.
+        ///
+        /// THE UNIT TRAP IS REFUSED, NOT GUESSED. StorageType.Double covers both a
+        /// unitless NUMBER and a LENGTH, and Revit stores LENGTH in decimal FEET. Writing
+        /// the display string "900" into a LENGTH parameter would store 900 feet for a
+        /// 900 mm door — MAPTYPE-1's failure mode, reintroduced by a convenience. So a
+        /// Double target is written only when its spec is unitless; anything else is
+        /// logged and refused, and the caller must go through WriteMapped, which carries
+        /// the raw internal value alongside the display text.
+        /// </summary>
+        private static bool SetStringToTypedTarget(Element el, Parameter p,
+            string paramName, string value, bool overwrite)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            string v = value.Trim();
+
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.Integer:
+                    {
+                        if (!overwrite && p.HasValue && p.AsInteger() != 0) return false;
+
+                        bool isYesNo = false;
+                        try { isYesNo = p.Definition?.GetDataType() == SpecTypeId.Boolean.YesNo; }
+                        catch { /* older API surface — fall through to int parsing */ }
+
+                        if (isYesNo)
+                        {
+                            if (bool.TryParse(v, out bool b)) { p.Set(b ? 1 : 0); return true; }
+                            if (v == "1" || v == "0") { p.Set(v == "1" ? 1 : 0); return true; }
+                            if (v.Equals("Yes", StringComparison.OrdinalIgnoreCase)) { p.Set(1); return true; }
+                            if (v.Equals("No", StringComparison.OrdinalIgnoreCase)) { p.Set(0); return true; }
+                            return false;
+                        }
+
+                        if (int.TryParse(v, System.Globalization.NumberStyles.Integer, ci, out int iv))
+                        { p.Set(iv); return true; }
+                        return false;
+                    }
+
+                    case StorageType.Double:
+                    {
+                        if (!double.TryParse(v, System.Globalization.NumberStyles.Float, ci,
+                                             out double dv))
+                            return false;
+
+                        bool unitless;
+                        try
+                        {
+                            var spec = p.Definition?.GetDataType();
+                            unitless = spec == SpecTypeId.Number || spec == SpecTypeId.Currency;
+                        }
+                        catch { unitless = false; }
+
+                        if (!unitless)
+                        {
+                            LogUnitRefusal(paramName, el, v);
+                            return false;
+                        }
+
+                        if (!overwrite && p.HasValue && Math.Abs(p.AsDouble()) > 1e-9) return false;
+                        p.Set(dv);
+                        return true;
+                    }
+
+                    default:
+                        return false;   // ElementId and anything new — not ours to guess at
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el?.Id} (typed target, "
+                              + $"{p.StorageType}) failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static int _unitRefusalCount;
+
+        private static void LogUnitRefusal(string paramName, Element el, string v)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _unitRefusalCount);
+            if (n <= 5 || n % 100 == 0)
+                StingLog.Warn(
+                    $"SetString '{paramName}' on {el?.Id}: target is a UNIT-BEARING Double "
+                    + $"and the caller supplied only the display string '{v}'. Refused "
+                    + "rather than stored — Revit keeps LENGTH in feet, so writing a "
+                    + "millimetre display value here would store a number ~304x too large. "
+                    + $"Use WriteMapped/SetDouble with the raw internal value. (#{n})");
         }
 
         /// <summary>Set only when the parameter is currently empty.</summary>
