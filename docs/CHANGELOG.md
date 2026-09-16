@@ -2,6 +2,57 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 290 — TAGBIND-1 and TAGBIND-2: every tag row can now display)
+
+**1,161 → 0.** `tools/check_tag_row_bindings.py` holds at zero and is no longer a ratchet
+in practice — any new dead row fails CI.
+
+**TAGBIND-2 — Areas, Spaces and Zones stop wearing the asset template.** All three carried
+the generic ASSET rows (15-row tier 2, 42-row tier 3: Manufacturer, Model, Type Mark,
+Family Name, Host Element, MEP System). A spatial element has no loadable family, so
+`GetTypeId()` is invalid and every `ALL_MODEL_*` mapping in `MapAll` finds nothing. Rooms
+had been given a bespoke template; these three never were.
+
+| | rows before | rows after |
+|---|---|---|
+| Areas | 57 | 9 |
+| Spaces | 58 | 11 |
+| Zones | 57 | 9 |
+
+New `MapSpatialElement` / `MapZoneElement` cases write what a spatial element can actually
+answer — name → `ASS_DESCRIPTION_TXT` (the same reasoning as Rooms in Phase 287), number,
+area, and volume for Spaces and Zones. Read through the `SpatialElement` / `Zone` API
+rather than `BuiltInParameter`, because the id carrying "area" is not the same across
+Rooms, Areas and Spaces and a wrong id fails the way everything else here failed: silently.
+
+Every parameter in the three new templates is already bound `<ALL>`, so no new binding and
+no new shared parameter was needed for them.
+
+**TAGBIND-1 — 624 rows of template spillage removed, 370 authored rows bound.** The eight
+discipline-scoped parameters (`MEP_SYSTEM_NAME/ABBREVIATION`, `MEP_UP/DOWNSTREAM_ELEMENT`,
+`COM_COMMISSION_STATUS/TEST_CERT_REF`, `STR_STRUCTURAL_USAGE/MATERIAL_GRADE`) appeared in
+**78 category tags each**. A handrail has no MEP system, no upstream element and no
+structural usage, so the rows were **removed** rather than the bindings widened — widening
+would put "MEP System" on rebar and add 624 bound parameters to every model.
+
+The remaining 370 were the opposite case: **2–30 categories each, authored per-category**,
+naming parameters that all **exist** in MR_PARAMETERS.txt and were simply never bound
+(`CEQ_CATEGORY_TXT` on 30 clinical-equipment tags, `MGS_GAS_TYPE_TXT` on 11 med-gas tags,
+the `HVC_SIZE_*` auto-size stamps). There the tag spec is the statement of intent, so the
+bindings were **added**. The distinction between spraying and authoring is the count: 78
+categories is a template, 11 is a decision.
+
+**The contract gate did its job.** Adding the bindings moved 11 parameters into
+write-only/read-only states and `check_param_contract.py` refused the change until each was
+recorded with a role and a reason — six are read by a Revit TAG LABEL (the consumer that
+tool's own header says no C# scan can see) and five have no producer yet (TAGBIND-5).
+
+Build 0/0; Tags 1523, Rooms 24; nine gates green.
+
+**Not verified in Revit.** No tag has been looked at. TAGBIND-4 and MAPTYPE-1 are the
+checks, and TAGBIND-5 still applies: a bound row can display, which is not the same as
+having something to display.
+
 #### Completed (Phase 289 — why a door tag showed no width: 28 mapped writes that silently did nothing)
 
 **The type-contract defect.** Every `NativeParamMapper` Map* helper read a Revit built-in,
