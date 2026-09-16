@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -113,14 +113,15 @@ namespace StingTools.Organise
                     // NG4: Full pipeline — TypeTokenInherit → PopulateAll → NativeMapper
                     // → Formulas → BuildTag → Containers → TAG7 → GridRef
                     bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                    var _tagRpt3 = new StingTools.Core.TagConfig.TagWriteReport();
                     bool pipelineOk = TagPipelineHelper.RunFullPipeline(
                         doc, elem, tsPopCtx, tagIndex, seqCounters,
                         tsFormulas, tsGridLines,
                         overwrite: collisionMode == TagCollisionMode.Overwrite,
                         skipComplete: skipComplete,
                         collisionMode: collisionMode,
-                        stats: stats);
-                    if (!pipelineOk)
+                        stats: stats, report: _tagRpt3);
+                    if (!pipelineOk && !_tagRpt3.IsDeliberateSkip)
                         StingLog.Warn($"TagSelected: pipeline returned false for element {elem?.Id}");
                     // RunFullPipeline already handles TAG7 + containers — no double-write needed
 

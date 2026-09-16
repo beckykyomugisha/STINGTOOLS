@@ -2,6 +2,74 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 294 — four defects one door in Revit found, none of them visible to five gates)
+
+The first Revit session against Phases 287–293. It took one door and the log to find four
+real defects, and **not one of them was reachable by any gate built so far** — every gate
+checked data against data, and these live in the join between data and the Revit API.
+
+**MAPTYPE-1 is answered, and it was not the bug.** On a tagged `M_Door-Passage-Single-Flush
+750 x 2000mm`, `BLE_DOOR_WIDTH_MM` read **blank** — not `274320`, not `2.95`. The
+raw/formatted arguments are the right way round. A blank is the less dangerous failure: a
+wrong number is worse than none.
+
+**MAPTYPE-4 — a type built-in read from the instance.** The same screenshot was an
+accidental controlled experiment: `BLE_DOOR_HEAD_HEIGHT_MM` = 2000
+(`INSTANCE_HEAD_HEIGHT_PARAM`) sitting beside `BLE_DOOR_WIDTH_MM` = empty
+(`FAMILY_WIDTH_PARAM`, type-scoped). `el.get_Parameter(bip)` returns null for a type
+built-in, so the mapping wrote nothing — and `MarkBipMissing` then **cached** the miss for
+the session. Fixed once in `ReadBipInstanceOrType` / `ReadNamedInstanceOrType` rather than
+per call site, so every helper and every future category is covered. `CachedLookup` was
+deliberately left alone: it also resolves **write** targets, and a type-aware write would
+stamp one element's value onto every sibling — the fix for one defect causing another.
+
+**BINDSCOPE-1 — per-element values bound to the type.** A new door tagged
+`A-BLD1-Z01-L01-ARC-FIT-DR-`: seven tokens and a trailing separator. `ASS_SEQ_NUM_TXT` read
+`-215` and was **greyed** in Properties — type-scoped, therefore unreachable through
+`element.get_Parameter()`, therefore `SetString(el, ParamRegistry.SEQ, …)` returned false
+in silence. Wrong on its own terms too: every door of that type would share one sequence
+number. **1,010 rows** flipped Type → Instance, derived by `tools/check_binding_scope.py`
+from *if the code writes it per element, it must be Instance* — not hand-listed, because a
+hand-listed set is what failed in Phase 293.
+
+The derivation was itself wrong on the first pass: it flipped 740 rows and left
+`ASS_SEQ_NUM_TXT` and `ASS_TAG_1_TXT` — the two parameters that produced the broken tag —
+untouched, because those constants are C# property initialisers rather than JSON entries
+and the key resolver only read JSON. Widening it found the other 270. **A derivation is
+only as wide as the places it looks.**
+
+**TAGLOG-1 — 278 deliberate skips logged as failures.** `TagCollisionMode.Skip` returns
+`false` on purpose for an already-complete tag, and the caller logged every false as
+`BuildAndWriteTag failed`. A clean run of 332 elements produced 278 such warnings around
+**one** genuine fault — a 278:1 noise ratio that buried the line that mattered. Fixed with
+an optional `TagWriteReport`: every existing return value is unchanged, so the eleven call
+sites that ignore the bool keep their exact behaviour, and the five that log now warn only
+on `Failed`.
+
+**TAGPROD-1 — two subsystems disagreeing in silence.** `GetFamilyAwareProdCode` minted
+`$"{baseProd}-{suffix}"` → `FSP-CON`, `DR-GLZ`. `-` is the tag separator, so
+`SanitiseSourceTokenWrite` — which exists to stop corrupt values reaching a token —
+truncated it straight back to `FSP` on every write. One half of the codebase minting what
+the other half is built to reject: **no material suffix has ever reached a tag.** Now joined
+via `ProdSuffixJoin()`, which picks the first candidate that is not the active separator,
+so the collision cannot return when a project overrides `Separator`.
+
+**A gate half was dropped rather than shipped vacuous.** `check_token_separator_safety.py`
+also scanned the 13 `*TAG_CONFIG*.csv` files for vocabulary codes containing `-`. It
+reported 0 — and would have reported 0 for ever: it looked for a header row and those files
+have none, so every cell was skipped and an injected `DR-GLZ` passed without a word. The
+obvious repair collides with the standards citations the same files carry (`HTM-02`,
+`BS-EN`). The half is removed and the residual risk recorded as TAGPROD-2 instead. A gate
+that cannot be made precise is a claim of coverage that is not there.
+
+**Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
+failed. Six gates green, `check_binding_scope` and `check_token_separator_safety` each
+proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
+category, not scope). **None of it has been seen on a tag in Revit** — `docs/TAG_TEST_PROTOCOL.md`
+gains T6 (SEQ reaches the tag, and two doors of one type must differ) and T7 (material
+suffix survives), and BINDSCOPE-2 records that editing the CSV does **not** re-bind an
+existing project.
+
 #### Completed (Phase 293 — the universal-tag question, and four helpers my own gate missed)
 
 **My gate in Phase 289 was incomplete, and it passed anyway.** It named four helpers —

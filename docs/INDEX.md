@@ -17,6 +17,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 | [`CHANGELOG.md`](CHANGELOG.md) | Phase-by-phase history. Append completed work here. |
 | [`ROADMAP.md`](ROADMAP.md) | Open gaps and future work. The living backlog. |
 | [`SYSTEM_STATUS.md`](SYSTEM_STATUS.md) | What has been runtime-verified vs. written-but-unrun. |
+| [`TAG_TEST_PROTOCOL.md`](TAG_TEST_PROTOCOL.md) | The five Revit tests that close Phases 287-293, with where each button is. Method only; results go in `ROADMAP.md`. |
 | [`TESTING_GUIDE.md`](TESTING_GUIDE.md) | How to test the plugin and server. |
 
 ## Folder structure & ISO 19650 consolidation

@@ -3283,6 +3283,48 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Read a built-in parameter from the instance, falling back to its TYPE.
+        ///
+        /// MAPTYPE-4. Several of the built-ins the Map* helpers read are declared on the
+        /// TYPE, not the instance — FAMILY_WIDTH_PARAM and FAMILY_HEIGHT_PARAM above all.
+        /// <c>el.get_Parameter(bip)</c> returns null for those, so the mapping wrote
+        /// nothing, MarkBipMissing then CACHED the miss, and the target stayed empty for
+        /// the rest of the session. A 900 mm door reported no width at all.
+        ///
+        /// The differential that proved it, on one door in Revit (2026-09-16):
+        ///   BLE_DOOR_HEAD_HEIGHT_MM = 2000   (INSTANCE_HEAD_HEIGHT_PARAM — instance)
+        ///   BLE_DOOR_WIDTH_MM       = empty  (FAMILY_WIDTH_PARAM        — type)
+        ///
+        /// Fixing it here rather than at the Doors/Windows call sites covers every helper
+        /// and every category, including ones not written yet. Only the SOURCE moves to
+        /// the type; the value is still written to the instance, because that is where a
+        /// per-element value belongs (see BINDSCOPE-1).
+        /// </summary>
+        private static Parameter ReadBipInstanceOrType(Element el, BuiltInParameter bip)
+        {
+            if (el == null) return null;
+
+            Parameter p = el.get_Parameter(bip);
+            if (p != null && p.HasValue) return p;
+
+            try
+            {
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                Parameter tp = typeEl?.get_Parameter(bip);
+                if (tp != null && tp.HasValue) return tp;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadBipInstanceOrType: type lookup failed for {bip}: {ex.Message}");
+            }
+
+            return p;   // null or valueless — caller decides
+        }
+
         private static int MapDimension(Element el, BuiltInParameter bip,
             string targetParam, double conversionFactor)
         {
@@ -3291,7 +3333,7 @@ namespace StingTools.Core
                 // Skip BIPs known to be missing for this category
                 if (IsBipKnownMissing(el, bip)) return 0;
 
-                Parameter p = el.get_Parameter(bip);
+                Parameter p = ReadBipInstanceOrType(el, bip);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double)
                 {
                     if (p == null) MarkBipMissing(el, bip);
@@ -3313,6 +3355,45 @@ namespace StingTools.Core
         }
 
         /// <summary>Map a named lookup parameter with unit conversion.</summary>
+        /// <summary>
+        /// Read a NAMED parameter from the instance, falling back to its TYPE.
+        ///
+        /// MAPTYPE-4, the named half. "Fire Rating", "Thickness" and "Clear Width" are
+        /// TYPE parameters on most families; <c>LookupParameter</c> on an instance does
+        /// not see them, and CachedLookup then caches the miss for the session.
+        ///
+        /// This is deliberately NOT folded into CachedLookup. CachedLookup also resolves
+        /// WRITE targets (WriteMapped calls it), and a type-aware write would stamp one
+        /// element's value onto every other instance of that type — the same defect as
+        /// BINDSCOPE-1, caused by the fix for MAPTYPE-4. Sources may come from the type;
+        /// targets stay on the instance.
+        /// </summary>
+        private static Parameter ReadNamedInstanceOrType(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return null;
+
+            Parameter p = ParameterHelpers.CachedLookup(el, paramName);
+            if (p != null && p.HasValue) return p;
+
+            try
+            {
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                if (typeEl == null) return p;
+
+                Parameter tp = ParameterHelpers.CachedLookup(typeEl, paramName);
+                if (tp != null && tp.HasValue) return tp;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadNamedInstanceOrType: type lookup failed for '{paramName}': {ex.Message}");
+            }
+
+            return p;
+        }
+
         private static int MapLookup(Element el, string paramName,
             string targetParam, double conversionFactor)
         {
@@ -3320,7 +3401,7 @@ namespace StingTools.Core
             {
                 // PERF: MapLookup is called dozens of times per element from NativeParamMapper.
                 // Route through the ParameterHelpers cache so repeated types hit the definition cache.
-                Parameter p = ParameterHelpers.CachedLookup(el, paramName);
+                Parameter p = ReadNamedInstanceOrType(el, paramName);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
 
                 double val = p.AsDouble() * conversionFactor;
@@ -3340,7 +3421,7 @@ namespace StingTools.Core
             {
                 // PERF: same hot path as MapLookup — definition cache short-circuits
                 // the per-element O(n) parameter scan at batch tagging scale.
-                Parameter p = ParameterHelpers.CachedLookup(el, sourceName);
+                Parameter p = ReadNamedInstanceOrType(el, sourceName);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -4074,7 +4155,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(bip);
+                Parameter p = ReadBipInstanceOrType(el, bip);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -4092,7 +4173,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.FUNCTION_PARAM);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.FUNCTION_PARAM);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.AsValueString(); // "Interior", "Exterior", etc.
@@ -4108,7 +4189,7 @@ namespace StingTools.Core
             try
             {
                 // Try FLOOR_ATTR_THICKNESS_PARAM first
-                Parameter p = el.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
                 if (p != null && p.HasValue && p.StorageType == StorageType.Double)
                 {
                     double mm = p.AsDouble() * 304.8;
@@ -4128,7 +4209,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.ROOF_SLOPE);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.ROOF_SLOPE);
                 if (p != null && p.HasValue && p.StorageType == StorageType.Double)
                 {
                     // Revit stores slope as rise/12 ratio
@@ -4149,7 +4230,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.STAIRS_ATTR_TREAD_WIDTH);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.STAIRS_ATTR_TREAD_WIDTH);
                 if (p == null || !p.HasValue)
                     p = el.LookupParameter("Actual Run Width");
 
@@ -4788,7 +4869,8 @@ namespace StingTools.Core
             bool overwrite,
             bool skipComplete,
             TagCollisionMode collisionMode,
-            TaggingStats stats = null)
+            TaggingStats stats = null,
+            TagConfig.TagWriteReport report = null)
         {
             try
             {
@@ -4799,16 +4881,27 @@ namespace StingTools.Core
                 // on a 50K batch. PostTagCleanup still resets at batch boundary.
 
                 string catName = ParameterHelpers.GetCategoryName(el);
-                if (string.IsNullOrEmpty(catName)) return false;
+                if (string.IsNullOrEmpty(catName))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
+                    return false;
+                }
 
                 // G1.1: Category skip list
-                if (TagConfig.CategorySkipList.Contains(catName)) return false;
+                if (TagConfig.CategorySkipList.Contains(catName))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
+                    return false;
+                }
 
                 // Early SKIP check from CategoryTokenOverrides — before expensive TypeTokenInherit/PopulateAll
                 if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var earlyOverrides)
                     && earlyOverrides.TryGetValue("SKIP", out string earlySkipVal)
                     && earlySkipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
                     return false;
+                }
 
                 // Capture previous tag value for audit trail (READ only — write deferred to after BuildAndWriteTag)
                 // All audit trail writes (PREV_TXT, MODIFIED_DT, MODIFIED_BY)
@@ -4972,6 +5065,10 @@ namespace StingTools.Core
                 // the freshly-built token array back instead of doing our own
                 // ReadTokenValues below. Two reads × 8 params per element saved.
                 string[] tokenVals = new string[8];
+                // TAGLOG-1: ask for the OUTCOME, not just the bool. A deliberate skip and
+                // a real fault both return false, and logging both as "failed" produced
+                // 278 false alarms around a single genuine one.
+                var tagReport = report ?? new TagConfig.TagWriteReport();
                 bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
@@ -4981,10 +5078,12 @@ namespace StingTools.Core
                     cachedPhases: ctx?.CachedPhases,
                     lastPhaseId: ctx?.LastPhaseId,
                     prevTagHint: _prevTag,
-                    tokenValuesOut: tokenVals);
+                    tokenValuesOut: tokenVals,
+                    report: tagReport);
                 if (!tagWriteOk)
                 {
-                    StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    if (!tagReport.IsDeliberateSkip)
+                        StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7 (outcome={tagReport.Outcome})");
                     // Phase 79b: Balanced hook call — notify plugins that tagging failed (null tag)
                     StingPluginHooks.FireAfterTag(doc, el, null);
                     return false;
