@@ -1,5 +1,5 @@
 {
   "_comment": "Tag rows whose parameter is not bound to that category. May shrink, never grow. See tools/check_tag_row_bindings.py.",
-  "dead_rows": 1019,
-  "categories_affected": 189
+  "dead_rows": 0,
+  "categories_affected": 0
 }

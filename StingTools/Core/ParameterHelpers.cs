@@ -3174,6 +3174,21 @@ namespace StingTools.Core
                         written += MapBuiltInString(el, BuiltInParameter.ROOM_FINISH_BASE,
                             ParamRegistry.ROOM_FINISH_BASE);
                         break;
+
+                    // Areas / Spaces / Zones are spatial: no loadable family, so
+                    // GetTypeId() is invalid and every ALL_MODEL_* mapping in MapAll finds
+                    // nothing. Until 2026-09 they had no per-category case at all and wore
+                    // the generic ASSET tag template — Manufacturer, Model, Type Mark, Host
+                    // Element, MEP System — none of which a spatial element can answer.
+                    // These three cases give them the same treatment Rooms already had.
+                    case "Areas":
+                    case "Spaces":
+                        written += MapSpatialElement(el, sqFtToSqM, cuFtToCuM);
+                        break;
+
+                    case "Zones":
+                        written += MapZoneElement(el, sqFtToSqM, cuFtToCuM);
+                        break;
                 }
 
                 // Category name (all elements)
@@ -3328,9 +3343,21 @@ namespace StingTools.Core
                     : p.AsValueString();
 
                 if (string.IsNullOrEmpty(val)) return 0;
+
                 double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
+
+                // AsValueString appends the unit ("100 A", "18 W"). A _TXT mirror carries a
+                // PLAIN number by convention — MapDimension has always written "900", never
+                // "900 mm" — and the tag row adds the unit through its own suffix. Four
+                // shipped rows declare one (ELC_PNL_MAIN_BRK " A", LTG_FIX_LMP_WATTAGE "W",
+                // CST_FIX_LUMEN_OUTPUT "lm"), so leaving the unit in renders "MCB: 100 A A".
+                // Trimmed rather than re-formatted from raw, because AsValueString also
+                // applies the project's display units and the raw internal value does not.
+                if (raw.HasValue)
+                    val = UnitValueText.StripUnitSuffix(val);
+
                 return WriteMapped(el, targetParam, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
@@ -4167,6 +4194,92 @@ namespace StingTools.Core
         }
 
         /// <summary>Map Room Name and Number for Room elements.</summary>
+        /// <summary>
+        /// The identity a spatial element can actually answer: its name, its number, and
+        /// the quantities Revit computes for it.
+        ///
+        /// Read through the SpatialElement API rather than BuiltInParameter, because the
+        /// built-in that carries "area" is not the same id across Rooms, Areas and Spaces
+        /// and a wrong id here fails the way everything else in this file failed — silently.
+        /// SpatialElement.Area and Space.Volume are the same properties Revit shows in the
+        /// palette, in internal units.
+        /// </summary>
+        private static int MapSpatialElement(Element el, double sqFtToSqM, double cuFtToCuM)
+        {
+            int written = 0;
+            var se = el as SpatialElement;
+            if (se == null) return 0;
+
+            // Name → DESC. Same reasoning as Rooms: tier 2 of every STING tag carries
+            // ASS_DESCRIPTION_TXT, and for a spatial element the name IS the description.
+            // SetIfEmpty, so a typed description outranks it.
+            try
+            {
+                string name = se.Name;
+                if (!string.IsNullOrWhiteSpace(name))
+                    written += SetIfEmptyInt(el, ParamRegistry.DESC, name.Trim());
+            }
+            catch (Exception ex) { StingLog.Warn($"MapSpatialElement name on {el.Id}: {ex.Message}"); }
+
+            try
+            {
+                string num = el.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString();
+                if (!string.IsNullOrWhiteSpace(num))
+                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, num);
+            }
+            catch (Exception ex) { StingLog.Warn($"MapSpatialElement number on {el.Id}: {ex.Message}"); }
+
+            written += WriteQuantity(el, se.Area, sqFtToSqM, ParamRegistry.ROOM_AREA);
+
+            var space = el as Autodesk.Revit.DB.Mechanical.Space;
+            if (space != null)
+                written += WriteQuantity(el, space.Volume, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
+
+            return written;
+        }
+
+        /// <summary>An HVAC Zone is not a SpatialElement, so it needs its own accessor.</summary>
+        private static int MapZoneElement(Element el, double sqFtToSqM, double cuFtToCuM)
+        {
+            int written = 0;
+            var zone = el as Autodesk.Revit.DB.Mechanical.Zone;
+            if (zone == null) return 0;
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(zone.Name))
+                    written += SetIfEmptyInt(el, ParamRegistry.DESC, zone.Name.Trim());
+            }
+            catch (Exception ex) { StingLog.Warn($"MapZoneElement name on {el.Id}: {ex.Message}"); }
+
+            written += WriteQuantity(el, zone.Area, sqFtToSqM, ParamRegistry.ROOM_AREA);
+            written += WriteQuantity(el, zone.Volume, cuFtToCuM, ParamRegistry.ROOM_VOLUME);
+            return written;
+        }
+
+        /// <summary>
+        /// Write one computed quantity through <see cref="WriteMapped"/>, so a Double target
+        /// stores the internal value and the _TXT mirror the tag reads gets the converted
+        /// display string. <paramref name="rawInternal"/> is in Revit internal units.
+        /// </summary>
+        private static int WriteQuantity(Element el, double rawInternal,
+            double conversionFactor, string targetParam)
+        {
+            try
+            {
+                if (rawInternal <= 1e-9) return 0;   // unplaced / unenclosed: no quantity
+                double converted = rawInternal * conversionFactor;
+                string formatted = converted.ToString("F2",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                return WriteMapped(el, targetParam, rawInternal, formatted);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"WriteQuantity '{targetParam}' on {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
         private static int MapRoomNameNumber(Element el)
         {
             int written = 0;

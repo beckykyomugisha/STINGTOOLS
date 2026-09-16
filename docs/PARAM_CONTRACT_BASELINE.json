@@ -692,15 +692,40 @@
       "role": "export",
       "reason": "Consumed by 4 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Filter Schedule\". A schedule is a real reader; this scan only sees C#."
     },
+    "FOUND_BEAR_UTIL_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
+    "FOUND_SOIL_CLASS_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
+    "FOUND_SUMMARY_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
     "HVC_DCT_MAT_TXT": {
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Duct Schedule\". A schedule is a real reader; this scan only sees C#."
     },
+    "HVC_DCT_SEAM_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 because that category's tag row in LABEL_DEFINITIONS.json asks for it. The READER is the tag label; there is no producer yet, so the row renders blank until a user types a value or a mapper is written. Tracked as ROADMAP TAGBIND-5."
+    },
     "HVC_DCT_SOUNDLVL_DB": {
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Terminal Schedule\". A schedule is a real reader; this scan only sees C#."
+    },
+    "HVC_DCT_SZ_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 because that category's tag row in LABEL_DEFINITIONS.json asks for it. The READER is the tag label; there is no producer yet, so the row renders blank until a user types a value or a mapper is written. Tracked as ROADMAP TAGBIND-5."
     },
     "HVC_DUCT_FLOWRATE_M3H": {
       "state": "write_only",
@@ -1182,6 +1207,31 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "SHT_DISC_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 because that category's tag row in LABEL_DEFINITIONS.json asks for it. The READER is the tag label; there is no producer yet, so the row renders blank until a user types a value or a mapper is written. Tracked as ROADMAP TAGBIND-5."
+    },
+    "SHT_FORM_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 because that category's tag row in LABEL_DEFINITIONS.json asks for it. The READER is the tag label; there is no producer yet, so the row renders blank until a user types a value or a mapper is written. Tracked as ROADMAP TAGBIND-5."
+    },
+    "SHT_LEVEL_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 because that category's tag row in LABEL_DEFINITIONS.json asks for it. The READER is the tag label; there is no producer yet, so the row renders blank until a user types a value or a mapper is written. Tracked as ROADMAP TAGBIND-5."
+    },
+    "SHT_ORIGINATOR_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
+    "SHT_TAG_7_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
     "STING_COMPOUND_PARENT_ID": {
       "state": "read_only",
       "role": "input",
@@ -1221,6 +1271,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "STR_COL_SECTION_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
     },
     "STR_CONN_DETAIL_TXT": {
       "state": "write_only",
