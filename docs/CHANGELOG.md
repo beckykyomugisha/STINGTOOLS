@@ -126,8 +126,40 @@ which looks alarming until you check that the eight ISO tokens bind `<ALL>`: tho
 do get tags. Both are recorded so the numbers are not re-discovered and mistaken for the
 worse thing they resemble.
 
+**ISO19650DISC-1 — the standard code was already in the repo, contradicting itself.** Asked
+to use real standard codes rather than letters I had picked, the answer turned out not to
+need research: `Core/Drawing/Iso19650Vocabulary.cs` carries the **BS EN ISO 19650-2 §A.5**
+role table, and has all along. It says **`G` = GIS / Land Surveyor** and **`Z` = General /
+multi-disciplinary**. `TagConfig.DiscMap` was using `G` to mean "generic" for twelve
+categories. Two subsystems in one codebase, one standard code, two meanings — the same shape
+as `GEN` being both sentinel and code, and as `FSP-CON` being minted by one half and rejected
+by the other.
+
+Now `Z`. Sequenced deliberately: those twelve categories could never produce a complete tag
+before GENPH-1, so **no correct tag exists for them yet and there is nothing to migrate** —
+the cheapest moment this change will ever have. `DrawingDispatcher` also mapped `civil` → `G`;
+civil is `C`. `check_tag_vocabulary.py` now compares DiscMap against the vocabulary FILE
+rather than a list re-typed into the gate, so the two cannot drift apart again.
+
+**The honest limit on "ISO codes".** ISO 19650 does **not** define product codes. It defines
+the container *role* field, which is DISC — and `A`/`S`/`M`/`E`/`P` were already right. The
+standard for products is **Uniclass 2015 `Pr_`**, which STING already carries in a separate
+parameter. So the PROD mnemonics are a house layer *on top of* the standard, not a substitute
+for it. The real standards gap is that 18 of 45 categories have no Uniclass entry; that is a
+data edit, and `Pr_` codes have **not** been written from memory, because a wrong
+classification is worse than a missing one.
+
+**A defect this phase introduced, and the gate that failed to catch it.** The GENPH-1 commit
+appended its explanatory comment to the end of a line in a dense map initialiser, and the `//`
+swallowed the entry that followed it — `{ "Specialty Equipment", "SPE" }` was commented out,
+leaving that category with no product code and therefore permanently incomplete tags: exactly
+the defect the commit was fixing, relocated. `check_tag_vocabulary.py` reported "0 categories
+with no PROD" throughout, because it was reading the pair out of the comment. Both fixed: the
+entry is restored on its own line, and the gate strips comments before parsing. **A gate that
+parses commented-out code as live data confirms whatever it is shown.**
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
-failed. Seven gates green, `check_binding_scope` and `check_token_separator_safety` each
+failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
 category, not scope). **None of it has been seen on a tag in Revit** — `docs/TAG_TEST_PROTOCOL.md`
 gains T6 (SEQ reaches the tag, and two doors of one type must differ) and T7 (material

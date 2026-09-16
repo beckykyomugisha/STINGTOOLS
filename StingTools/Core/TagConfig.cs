@@ -1789,7 +1789,8 @@ namespace StingTools.Core
                 // returns false, so the element is never skipped, is re-derived on every
                 // run, and ComplianceScan counts it non-compliant for ever. "GNL" is a
                 // real code; "GEN" below still means unresolved.
-                case "G":  return "GNL"; // Generic Models/Specialty Equipment — not gas-specific
+                case "Z":  return "GNL"; // ISO19650DISC-1: Z = General / multi-disciplinary
+                case "G":  return "GNL"; // legacy tags coded G (GIS in the standard) still resolve
                 default:   return "GEN";
             }
         }

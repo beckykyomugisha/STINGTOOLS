@@ -344,6 +344,13 @@ namespace StingTools.Core
 
         private static Dictionary<string, string> DefaultDiscMap()
         {
+            // ISO19650DISC-1: twelve categories were coded "G". Per BS EN ISO
+            // 19650-2 A.5 -- and per this repo's own Core/Drawing/Iso19650Vocabulary.cs,
+            // which has said so all along -- "G" is GIS / Land Surveyor and "Z" is
+            // General / multi-disciplinary. Two subsystems in one codebase were giving
+            // the same standard code two different meanings. Changed now, before the
+            // GENPH-1 fix lets these categories produce a complete tag for the first
+            // time, so there is no migration: no correct tag exists for them yet.
             return new Dictionary<string, string>
             {
                 // MEP — Mechanical
@@ -423,12 +430,12 @@ namespace StingTools.Core
                 { "Internal Area Loads", "S" }, { "Internal Line Loads", "S" },
                 { "Internal Point Loads", "S" },
                 // Generic
-                { "Generic Models", "G" }, { "Specialty Equipment", "G" },
-                { "Medical Equipment", "G" }, { "Mass", "G" },
-                { "Parts", "G" }, { "Assemblies", "G" },
-                { "Detail Items", "G" }, { "Model Groups", "G" },
-                { "Materials", "G" }, { "Profiles", "G" },
-                { "RVT Links", "G" }, { "Zones", "G" },
+                { "Generic Models", "Z" }, { "Specialty Equipment", "Z" },
+                { "Medical Equipment", "Z" }, { "Mass", "Z" },
+                { "Parts", "Z" }, { "Assemblies", "Z" },
+                { "Detail Items", "Z" }, { "Model Groups", "Z" },
+                { "Materials", "Z" }, { "Profiles", "Z" },
+                { "RVT Links", "Z" }, { "Zones", "Z" },
             };
         }
 
@@ -567,7 +574,8 @@ namespace StingTools.Core
                 { "Internal Area Loads", "IAL" }, { "Internal Line Loads", "ILL" },
                 { "Internal Point Loads", "IPL" },
                 // Generic
-                { "Generic Models", "GM" },   // GENPH-1: was "GEN", the unresolved sentinel { "Specialty Equipment", "SPE" },
+                // GENPH-1: "Generic Models" was "GEN", the unresolved sentinel.
+                { "Generic Models", "GM" }, { "Specialty Equipment", "SPE" },
                 { "Medical Equipment", "MED" }, { "Mass", "MAS" },
                 { "Parts", "PRT" }, { "Assemblies", "ASM" },
                 { "Detail Items", "DTL" }, { "Model Groups", "GRP" },

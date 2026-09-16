@@ -57,9 +57,21 @@ PAIR = re.compile(r'\{\s*"([^"]+)"\s*,\s*"([^"]*)"\s*\}')
 LIST = re.compile(r'\{\s*"([^"]+)"\s*,\s*new\s+List<string>\s*\{([^}]*)\}\s*\}')
 
 
+def strip_comments(text):
+    """Drop // comments before parsing.
+
+    Not cosmetic. An edit to this very repo moved `{ "Specialty Equipment", "SPE" },` onto
+    the end of a `//` line, commenting the entry out — and this gate still reported
+    "0 categories with no PROD", because it was reading the pair out of the COMMENT. A gate
+    that parses commented-out code as live data confirms whatever it is shown, which is the
+    one thing a gate must never do.
+    """
+    return re.sub(r'//[^\n]*', '', text)
+
+
 def block(src, name):
     m = re.search(r'Default' + name + r'\(\)\s*\{(.*?)\n        \}', src, re.S)
-    return m.group(1) if m else ''
+    return strip_comments(m.group(1)) if m else ''
 
 
 def placeholders(src):
@@ -108,6 +120,37 @@ def main():
                 'GetDiscDefaultSysCode returns the sentinel "%s" as a real sys code. Use a '
                 'distinct code; the sentinel must only ever mean "unresolved".' % m.group(1))
 
+    # 1b. Single-letter discipline codes must agree with BS EN ISO 19650-2 A.5.
+    #
+    # The repo already carries that table, in Core/Drawing/Iso19650Vocabulary.cs. It said
+    # "G" = GIS / Land Surveyor and "Z" = General / multi-disciplinary the whole time that
+    # TagConfig.DiscMap was using "G" to mean "generic" for twelve categories — two
+    # subsystems in one codebase giving one standard code two meanings. The vocabulary file
+    # is the authority; this compares against it rather than against a list re-typed here,
+    # so the two cannot drift.
+    #
+    # Multi-letter codes (LV, FP, FLS, MG, RP) are house extensions beyond the single-letter
+    # role table. They cannot collide with it, so they are allowed and simply reported.
+    vocab_path = os.path.join(ROOT, 'StingTools', 'Core', 'Drawing', 'Iso19650Vocabulary.cs')
+    house = []
+    if os.path.exists(vocab_path):
+        vsrc = io.open(vocab_path, encoding='utf-8-sig', errors='replace').read()
+        m = re.search(r'DisciplineCodes\s*=\s*\{(.*?)\};', vsrc, re.S)
+        std = set(re.findall(r'"([A-Z*])"', m.group(1))) if m else set()
+        if len(std) < 15:
+            raise SystemExit('Parsed %d ISO discipline codes from Iso19650Vocabulary.cs — '
+                             'too few to compare against.' % len(std))
+        labels = dict(re.findall(r'\{\s*"([A-Z*])"\s*,\s*"([^"]+)"\s*\}', vsrc))
+        for code in sorted(set(disc.values())):
+            if len(code) == 1 and code not in std:
+                findings.append(
+                    'DiscMap uses the single-letter code "%s", which is not in '
+                    'Iso19650Vocabulary.DisciplineCodes (BS EN ISO 19650-2 A.5).' % code)
+            elif len(code) > 1:
+                house.append(code)
+    else:
+        house = sorted(set(c for c in disc.values() if len(c) > 1))
+
     # 2. every tagged category needs a product code
     missing = sorted(set(disc) - set(prod))
     for c in missing[:20]:
@@ -136,6 +179,8 @@ def main():
     print('  DiscMap %d  ProdMap %d  SysMap %d  FuncMap %d'
           % (len(disc), len(prod), len(sysm), len(func)))
     print('  categories with no PROD  : %d' % len(missing))
+    print('  house discipline codes   : %s'
+          % (', '.join(sorted(set(house))) if house else 'none'))
 
     if findings:
         print('\nTAG VOCABULARY GATE FAILED — %d finding(s):' % len(findings))

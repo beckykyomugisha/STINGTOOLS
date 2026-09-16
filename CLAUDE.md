@@ -2110,7 +2110,13 @@ the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
 5. **Climate site list ships 42 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
-7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
+7. ~~**Block-load `HVC_PEAK_*` stamps are TEXT-typed.**~~ **Corrected 2026-09-16 (DOCDRIFT-1).**
+   They are declared **NUMBER** in `MR_PARAMETERS.txt`. This row was describing the *write*
+   (`SetString`), not the parameter — and because `SetString` returned `false` for any
+   non-String target, **those writes did nothing at all**: no exception, no log line, no
+   value. The same was true of 35 other parameters across the plugin. Fixed in Phase 294
+   (MAPTYPE-6): `SetString` now writes Integer / YesNo / unitless Double targets, and
+   refuses a unit-bearing Double rather than storing a display value as feet.
 
 ---
 

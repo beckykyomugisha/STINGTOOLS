@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager
+﻿// StingTools — Drawing Template Manager
 //
 // DrawingDispatcher turns a (discipline, phase, docType) triple into a
 // resolved DrawingType via the routing rules loaded by
@@ -253,7 +253,7 @@ namespace StingTools.Core.Drawing
                 { "architectural", "A" }, { "architecture", "A" }, { "structural", "S" },
                 { "mechanical", "M" }, { "electrical", "E" }, { "plumbing", "P" },
                 { "public health", "P" }, { "fire protection", "FP" }, { "fire", "FP" },
-                { "comms", "LV" }, { "communications", "LV" }, { "civil", "G" },
+                { "comms", "LV" }, { "communications", "LV" }, { "civil", "C" },   // ISO19650DISC-1: C = Civil Engineer; G is GIS / Land Surveyor
                 { "healthcare", "H" }, { "medical gas", "MG" }, { "radiation protection", "RP" },
             };
 
