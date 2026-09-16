@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 287 — the room tag stops showing a blank where the room name belongs)
+
+**What was wrong.** Tier 2 of `STING - Room Tag` has `ASS_DESCRIPTION_TXT` as its third
+row. For a Room that row rendered **blank**, every time: `DESC` is populated from
+`BuiltInParameter.ALL_MODEL_DESCRIPTION`, a loadable-family parameter that a spatial
+element does not have. So a placed STING room tag showed the ISO code, then a gap, then
+the area — and the room's name appeared nowhere except inside the tier-3 TAG7 paragraph
+("Located in Toilet 2 (Room GF07)…").
+
+**The fix is one mapping, not a new label row.** `NativeParamMapper.MapRoomNameNumber`
+now fills `ASS_DESCRIPTION_TXT` from `BuiltInParameter.ROOM_NAME`. A room's name *is* its
+description, the row already exists in all 206 built `.rfa` files, and it was empty — so
+the name appears in tier 2 with no family authoring at all.
+
+`SetIfEmpty`, never overwrite: a description typed by hand outranks the room name, and
+re-running the pipeline must not undo it.
+
+**Why not a `BLE_ROOM_NAME_TXT` row in tier 2.** Because this plugin cannot deliver one.
+**The Revit API cannot author label rows** (`TagFamilyCreatorCommand.cs:1496`) — adding a
+row to `LABEL_DEFINITIONS.json` adds the *parameter* to the family but renders nothing.
+The row itself is manual Family Editor work, and inserting one into tier 2 would renumber
+every `"Show Tier 2 - N"` calculated value in the `.rfa`. A spec edit that looks like a
+feature and displays nothing is the failure mode this codebase already specialises in.
+
+Both spec surfaces now record the decision so nobody adds the duplicate row later: a
+`note` on the JSON row, and a `NOTE:` line in the Room Tag block of
+`STING_TAG_CONFIG_v5_0_ARCH.csv`. The CSV note parses to 3 columns, below
+`TagConfigCsvReader.MinColumns` (14), so the reader discards it before the tier check —
+verified rather than assumed.
+
+Build 0/0; Tags 1523, Rooms 24 green. **Not verified in Revit:** that the tier-2 row
+renders the name on a placed tag. It is a parameter write into an existing label row, so
+the risk is low, but it has not been seen on screen. ROADMAP ROOM-6.
+
 #### Completed (Phase 286 — STING_TAG_TOKEN_POLICY.json starts governing tagging)
 
 **The file governed nothing.** It shipped 2026-08-10 describing all ten ISO 19650 tag

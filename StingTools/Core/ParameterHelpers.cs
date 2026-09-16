@@ -4125,6 +4125,29 @@ namespace StingTools.Core
                 if (dept != null && dept.HasValue)
                     written += SetIfEmptyInt(el, ParamRegistry.DEPT,
                         dept.AsString() ?? "");
+
+                // Tier 2 of the STING Room Tag carries ASS_DESCRIPTION_TXT as its third
+                // row, and for a Room that row rendered BLANK: DESC is populated from
+                // ALL_MODEL_DESCRIPTION, which is a loadable-family parameter a spatial
+                // element does not have. So the room tag showed the ISO code and an empty
+                // gap where the human-readable name belongs, and the name surfaced only
+                // inside the tier-3 TAG7 paragraph.
+                //
+                // A room's name IS its description, so fill that existing row rather than
+                // adding a new one. The alternative — a BLE_ROOM_NAME_TXT row in tier 2 —
+                // cannot be delivered by this plugin at all: the Revit API cannot author
+                // label rows (TagFamilyCreatorCommand.cs:1496), so it would need manual
+                // Family Editor work on the .rfa and would renumber the existing
+                // "Show Tier 2 - N" calculated values.
+                //
+                // SetIfEmpty, never overwrite: a description typed by hand outranks the
+                // name, and re-running the pipeline must not undo it.
+                if (name != null && name.HasValue)
+                {
+                    string roomName = name.AsString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(roomName))
+                        written += SetIfEmptyInt(el, ParamRegistry.DESC, roomName);
+                }
             }
             catch (Exception ex) { StingLog.Warn($"Room name/number mapping failed: {ex.Message}"); }
             return written;
