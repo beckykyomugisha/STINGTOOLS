@@ -102,6 +102,15 @@ jobs:
       - name: No new tag rows that can never display
         run: python3 tools/check_tag_row_bindings.py --check
 
+      # Every NativeParamMapper helper used to end at SetString, which returns false the
+      # moment the target is not String storage. 28 of 57 map targets are declared
+      # LENGTH/AREA/NUMBER/CURRENCY, so those writes did nothing and logged nothing — a
+      # door tag with no width, a room tag with no area. A unit test cannot reach this
+      # (it needs a live Revit Parameter and the failure is a silent false return), so
+      # the call site is the instrument.
+      - name: Map helpers still respect the target parameter type
+        run: python3 tools/check_map_target_types.py --check
+
       # A method that catches an exception, abandons the work and then tells its
       # caller it succeeded. Four of those built a project's whole finish catalogue
       # out of one default layer and reported '168/168 renamed, 0 failed'. This is
