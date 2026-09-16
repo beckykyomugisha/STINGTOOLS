@@ -3101,6 +3101,11 @@ namespace StingTools.Core
                         written += MapFunctionParam(el, ParamRegistry.DOOR_FUNC);
                         written += MapStringParam(el, "Fire Rating",
                             ParamRegistry.FIRE_RATING);
+                        // The door tag's "Type:" row was bound in Phase 288 and had no
+                        // producer (TAGBIND-5). The type NAME is what a door schedule calls
+                        // the door type, so it is the honest source — SetIfEmpty, so a
+                        // curated value outranks it.
+                        written += MapTypeNameTo(el, "BLE_DOOR_TYPE_TXT");
                         break;
 
                     case "Windows":
@@ -4276,6 +4281,23 @@ namespace StingTools.Core
             catch (Exception ex)
             {
                 StingLog.Warn($"WriteQuantity '{targetParam}' on {el?.Id}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>Write the element's TYPE name into a STING parameter. SetIfEmpty, so a
+        /// curated value already on the element wins.</summary>
+        private static int MapTypeNameTo(Element el, string targetParam)
+        {
+            try
+            {
+                string typeName = ParameterHelpers.GetFamilySymbolName(el);
+                if (string.IsNullOrWhiteSpace(typeName)) return 0;
+                return SetIfEmptyInt(el, targetParam, typeName.Trim());
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MapTypeNameTo '{targetParam}' on {el?.Id}: {ex.Message}");
                 return 0;
             }
         }

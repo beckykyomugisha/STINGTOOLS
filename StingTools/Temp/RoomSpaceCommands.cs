@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +8,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.UI;
 
 namespace StingTools.Temp
 {
@@ -49,7 +50,10 @@ namespace StingTools.Temp
             int redundant = 0;
             var levelCounts = new Dictionary<string, int>();
             var deptCounts = new Dictionary<string, int>();
-            var issues = new List<string>();
+            // ROOM-3: carry the ELEMENT ID with each issue so the report can select it.
+            // A 50-line TaskDialog naming rooms the reader then has to hunt for by hand
+            // is a report; a clickable row is a fix path.
+            var issues = new List<Tuple<string, long>>();
 
             foreach (var room in rooms)
             {
@@ -74,8 +78,8 @@ namespace StingTools.Temp
                 if (room.Location == null)
                 {
                     unplaced++;
-                    if (issues.Count < 50)
-                        issues.Add($"  UNPLACED: Room '{name}' ({number})");
+                    if (issues.Count < 300)
+                        issues.Add(Tuple.Create($"UNPLACED: '{name}' ({number})", room.Id.Value));
                     continue;
                 }
 
@@ -83,23 +87,23 @@ namespace StingTools.Temp
                 if (area <= 0)
                 {
                     unbounded++;
-                    if (issues.Count < 50)
-                        issues.Add($"  UNBOUNDED: Room '{name}' ({number}) on {levelName}");
+                    if (issues.Count < 300)
+                        issues.Add(Tuple.Create($"UNBOUNDED: '{name}' ({number}) on {levelName}", room.Id.Value));
                     continue;
                 }
 
                 if (area < 0.1) // Less than ~0.1 sq ft
                 {
                     zeroArea++;
-                    if (issues.Count < 50)
-                        issues.Add($"  ZERO-AREA: Room '{name}' ({number}) — {area:F2} sq ft");
+                    if (issues.Count < 300)
+                        issues.Add(Tuple.Create($"ZERO-AREA: '{name}' ({number}) — {area:F2} sq ft", room.Id.Value));
                 }
 
                 if (string.IsNullOrWhiteSpace(name) || name == "Room")
                 {
                     unnamed++;
-                    if (issues.Count < 50)
-                        issues.Add($"  UNNAMED: Room #{number} on {levelName}");
+                    if (issues.Count < 300)
+                        issues.Add(Tuple.Create($"UNNAMED: #{number} on {levelName}", room.Id.Value));
                 }
 
                 if (string.IsNullOrEmpty(dept))
@@ -119,54 +123,69 @@ namespace StingTools.Temp
             foreach (var g in numberGroups)
             {
                 redundant += g.Count() - 1;
-                if (issues.Count < 50)
-                    issues.Add($"  DUPLICATE NUMBER: '{g.Key}' appears {g.Count()} times");
+                if (issues.Count < 300)
+                    issues.Add(Tuple.Create($"DUPLICATE NUMBER: '{g.Key}' appears {g.Count()} times", g.First().Id.Value));
             }
 
-            // Build report
-            var sb = new StringBuilder();
-            sb.AppendLine("Room Audit Report");
-            sb.AppendLine(new string('═', 50));
-            sb.AppendLine($"  Total rooms: {rooms.Count}");
-            sb.AppendLine($"  Placed & bounded: {rooms.Count - unplaced - unbounded}");
-            sb.AppendLine();
-            sb.AppendLine("Issues:");
-            sb.AppendLine($"  Unplaced: {unplaced}");
-            sb.AppendLine($"  Unbounded: {unbounded}");
-            sb.AppendLine($"  Zero-area: {zeroArea}");
-            sb.AppendLine($"  Unnamed/generic: {unnamed}");
-            sb.AppendLine($"  No department: {noDepartment}");
-            sb.AppendLine($"  No number: {noNumber}");
-            sb.AppendLine($"  Duplicate numbers: {redundant}");
+            int totalIssues = unplaced + unbounded + zeroArea + unnamed
+                            + noDepartment + noNumber + redundant;
 
-            sb.AppendLine();
-            sb.AppendLine("By Level:");
-            foreach (var kvp in levelCounts.OrderBy(k => k.Key))
-                sb.AppendLine($"  {kvp.Key,-25} {kvp.Value,4} rooms");
+            // ROOM-3: a result panel with selectable rows, not a TaskDialog. Every finding
+            // carries its element id, so clicking a line selects that room — the difference
+            // between a report and a fix path. The plain-text form is kept as RawText so the
+            // clipboard copy and any report parser still see what they always saw.
+            var panel = StingResultPanel.Create("Room Audit")
+                .SetSubtitle(totalIssues == 0
+                    ? $"{rooms.Count} room(s), no issues."
+                    : $"{rooms.Count} room(s), {totalIssues} issue(s).")
+                .AddSection("Summary")
+                .Metric("Total rooms", rooms.Count.ToString())
+                .Metric("Placed & bounded", (rooms.Count - unplaced - unbounded).ToString());
 
-            if (deptCounts.Count > 0)
+            void Count(string label, int n, string note = null)
             {
-                sb.AppendLine();
-                sb.AppendLine("By Department:");
-                foreach (var kvp in deptCounts.OrderByDescending(k => k.Value))
-                    sb.AppendLine($"  {kvp.Key,-25} {kvp.Value,4} rooms");
+                if (n > 0) panel.MetricWarn(label, n.ToString(), note);
+                else panel.Metric(label, "0");
             }
+            Count("Unplaced", unplaced, "no position — cannot be tagged or renumbered");
+            Count("Unbounded", unbounded, "zero area — the enclosure is not closed");
+            Count("Zero-area", zeroArea);
+            Count("Unnamed / generic", unnamed);
+            Count("No department", noDepartment, "ZONE derivation reads this first");
+            Count("No number", noNumber, "Rooms → Renumber can assign these");
+            Count("Duplicate numbers", redundant, "two rooms cannot share a number");
 
             if (issues.Count > 0)
             {
-                sb.AppendLine();
-                sb.AppendLine("Details:");
-                foreach (string issue in issues)
-                    sb.AppendLine(issue);
-                if (issues.Count >= 50)
-                    sb.AppendLine("  ... (limited to 50 entries)");
+                panel.AddSection($"Findings ({issues.Count}) — click a row to select the room");
+                foreach (var issue in issues)
+                    panel.Finding(issue.Item1, issue.Item2);
+                if (issues.Count >= 300)
+                    panel.Text("… list capped at 300. Fix these, then re-run.");
             }
 
-            int totalIssues = unplaced + unbounded + zeroArea + unnamed + noDepartment + noNumber + redundant;
-            sb.AppendLine();
-            sb.AppendLine(totalIssues == 0 ? "All rooms are valid." : $"Total issues: {totalIssues}");
+            panel.AddSection("By level");
+            foreach (var kvp in levelCounts.OrderBy(k => k.Key))
+                panel.Metric(kvp.Key, $"{kvp.Value} rooms");
 
-            TaskDialog.Show("Room Audit", sb.ToString());
+            if (deptCounts.Count > 0)
+            {
+                panel.AddSection("By department");
+                foreach (var kvp in deptCounts.OrderByDescending(k => k.Value))
+                    panel.Metric(kvp.Key, $"{kvp.Value} rooms");
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Room Audit Report");
+            sb.AppendLine($"  Total rooms: {rooms.Count}");
+            sb.AppendLine($"  Unplaced: {unplaced}   Unbounded: {unbounded}   Zero-area: {zeroArea}");
+            sb.AppendLine($"  Unnamed: {unnamed}   No dept: {noDepartment}   No number: {noNumber}");
+            sb.AppendLine($"  Duplicate numbers: {redundant}");
+            foreach (var issue in issues) sb.AppendLine("  " + issue.Item1);
+            sb.AppendLine(totalIssues == 0 ? "All rooms are valid." : $"Total issues: {totalIssues}");
+            panel.SetRawText(sb.ToString());
+
+            panel.Show();
             StingLog.Info($"Room audit: {rooms.Count} rooms, {totalIssues} issues");
             return Result.Succeeded;
         }

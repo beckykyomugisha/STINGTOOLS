@@ -2,6 +2,41 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 291 — closing seven gaps, and declining two)
+
+**Closed.**
+
+| | |
+|---|---|
+| ROOM-2 | The token-policy loader landed in #958; `check_token_policy_wired.py` keeps it wired. |
+| ROOM-3 | Room Audit reports through `StingResultPanel`: one **clickable row per finding** (click selects the room), amber metrics for non-zero counts, cap raised 50 → 300. Plain text kept as `RawText`, so the clipboard copy is unchanged. A report became a fix path. |
+| ROOM-4 | The renumber preview now **states** that room numbers and the ISO SEQ counter are independent — renumbering a room does not renumber the assets in it, because their tags identify the asset — and that LVL comes from the same level code, so the two cannot disagree about level. A contract, not an accident. |
+| ROOM-5 | `Hvac_FanStaticReport` resolves in `WorkflowEngine.ResolveCommand`; dispatch parity is clean. |
+| TOKPOL-3 | Every token carries `governedByResolve`; the three that are not carry a `governedNote`. A test asserts the claimed set equals the seven segments `BuildAndWriteTag` resolves, so the file cannot over-claim — the mistake it made for a month. |
+| MAPTYPE-3 | **Measured, and the speculation was wrong.** All **174** container-target parameters reachable through `WriteContainers` are declared TEXT, so its `SetString` is correct for every one. Outside the Map* helpers there are **zero** further instances of the type defect. |
+| TAGBIND-5 | Closed by classification plus one writer. `BLE_DOOR_TYPE_TXT` maps from the door's type name. `BLE_DOOR_AREA_SQ_M` / `BLE_WINDOW_AREA_SQ_M` already had a producer — the FormulaEngine computes them from width × height, which were themselves dead until Phase 289, so the formula was **starved, not missing**. The rest are genuine design inputs, recorded in `PARAM_CONTRACT_BASELINE.json` with role `input` rather than left looking unfinished. |
+
+**Declined, with the measurement behind each.**
+
+**TOKPOL-1** — routing the derivation layer through the policy is the right design and is
+**22 call sites across 12 files**, several comparing the result against a literal or writing
+it straight to a parameter. The failure mode of getting one wrong is a silently blank token
+on every tagging path — the exact class this phase removed — and none of it is exercisable
+outside Revit. A half-measure was considered and rejected: comparing `zoneFromSpatial`
+against the policy fallback rather than `"Z01"` is correct only while `DetectZone` still
+returns `"Z01"` internally, so it would break precisely for the project that overrode the
+fallback.
+
+**TAGBIND-3** — adding `BLE_DOOR_CLEAR_WIDTH_MM` was attempted and stopped. Revit has no
+native door clear width, so the writer would read a family parameter most families do not
+declare and produce a bound, writable, **empty** row. Deriving it needs family geometry
+STING does not have, and guessing is what created the original defect. And the GUID
+convention in MR_PARAMETERS.txt is **not** `uuid5` under `transform_mr_params.py`'s
+namespace — checked against three existing parameters — so minting one would invent a house
+rule. Where clear width comes from is a standards question, not a coding one.
+
+Build 0/0; Tags 1542, Rooms 24; nine gates + dispatch parity green.
+
 #### Completed (Phase 290 — TAGBIND-1 and TAGBIND-2: every tag row can now display)
 
 **1,161 → 0.** `tools/check_tag_row_bindings.py` holds at zero and is no longer a ratchet
