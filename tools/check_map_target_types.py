@@ -46,8 +46,34 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'StingTools', 'Core', 'ParameterHelpers.cs')
 
-# Helpers that write a mapped value onto a target parameter. Each must reach WriteMapped.
-HELPERS = ['MapDimension', 'MapLookup', 'MapBuiltIn', 'MapStringParam']
+# The helper list is DERIVED, not written down. The first version of this gate named four
+# helpers and passed while MapFloorThickness, MapRoofSlope, MapStairWidth and MapRampSlope
+# still wrote LENGTH/NUMBER targets through SetString — floor thickness, roof slope, stair
+# width and ramp slope stayed dead, and the gate said OK. A hardcoded list only ever checks
+# what its author already knew about.
+#
+# So: find every `private static int Map*(...)` in the file, and require each one that
+# writes a target to reach WriteMapped. A new helper is covered the day it is written.
+HELPER_PATTERN = re.compile(r'private static int (Map[A-Za-z]*)\s*\(')
+
+# Helpers that legitimately never write a target: they only dispatch to others, or their
+# targets are always TEXT by construction. Each needs a reason, not just an entry.
+EXEMPT = {
+    'MapDimensionalParams': 'dispatcher — calls MapDimension/MapLookup, writes nothing itself',
+    'MapMepParams':         'dispatcher — calls MapBuiltIn/MapStringParam, writes nothing itself',
+    'MapSheets':            'writes sheet TEXT parameters only',
+    'MapAll':               'dispatcher',
+    'MapFromType':          'delegates to MapBuiltIn with the type as source',
+    'MapBuiltInString':     'source and target are both strings by construction',
+    'MapFunctionParam':     'writes the Function enum name, a string',
+    'MapStructuralType':    'writes the type name, a string',
+    'MapTypeNameTo':        'writes the type name, a string',
+    'MapRoomNameNumber':    'writes room name/number/department, all strings',
+    'MapDefaults':          'writes status/phase defaults, all strings',
+    'MapSpatialElement':    'name/number are strings; area and volume go through WriteQuantity',
+    'MapZoneElement':       'name is a string; area and volume go through WriteQuantity',
+    'MapQuantity':          'helper for WriteMapped',
+}
 
 
 def body_of(src, name):
@@ -81,20 +107,32 @@ def main():
             'STORED value, which for a LENGTH parameter is decimal feet under a '
             'millimetre label — a wrong number is worse than a blank one.')
 
-    for h in HELPERS:
+    helpers = sorted(set(HELPER_PATTERN.findall(src)))
+    checked = 0
+    for h in helpers:
+        if h in EXEMPT:
+            continue
         body = body_of(src, h)
         if body is None:
-            findings.append('%s not found — renamed or removed; this gate no longer '
-                            'covers it.' % h)
             continue
-        if 'WriteMapped(' not in body:
+        # Only helpers that actually write are in scope.
+        writes = ('SetIfEmptyInt(' in body or 'SetIfEmpty(' in body
+                  or 'WriteMapped(' in body or 'WriteQuantity(' in body)
+        if not writes:
+            continue
+        checked += 1
+        if 'WriteMapped(' not in body and 'WriteQuantity(' not in body:
             findings.append(
-                '%s does not call WriteMapped. It writes through SetString, so every '
-                'LENGTH / AREA / NUMBER / CURRENCY target it names silently keeps its '
-                'old value and the _TXT mirror the tag reads stays empty.' % h)
+                '%s writes a target but never reaches WriteMapped. It goes through '
+                'SetString, so every LENGTH / AREA / NUMBER / CURRENCY target it names '
+                'silently keeps its old value and the _TXT mirror the tag reads stays '
+                'empty. Route it through WriteMapped, or add it to EXEMPT with the '
+                'reason its targets are all TEXT.' % h)
 
     print('Map target types')
-    print('  helpers checked            : %d' % len(HELPERS))
+    print('  Map* helpers found         : %d' % len(helpers))
+    print('  exempt (with a reason)     : %d' % len([h for h in helpers if h in EXEMPT]))
+    print('  writing helpers checked    : %d' % checked)
     print('  WriteMapped call sites     : %d' % src.count('WriteMapped('))
 
     if findings:

@@ -2,6 +2,49 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 293 — the universal-tag question, and four helpers my own gate missed)
+
+**My gate in Phase 289 was incomplete, and it passed anyway.** It named four helpers —
+`MapDimension`, `MapLookup`, `MapBuiltIn`, `MapStringParam` — and reported OK while
+`MapFloorThickness`, `MapRoofSlope`, `MapStairWidth` and `MapRampSlope` still wrote
+LENGTH/NUMBER targets through `SetString`. Floor thickness, roof slope, stair width and
+ramp slope stayed dead for four more phases. **A hardcoded list only ever checks what its
+author already knew about.**
+
+All four are routed now, and `check_map_target_types.py` **derives** its helper list from
+`private static int Map*(` instead of carrying one: 19 helpers found, 11 exempt with a
+stated reason, 8 checked. A new helper is covered the day it is written. Verified by
+reverting `MapRampSlope` — the helper the old gate never looked at — and watching the new
+one fail.
+
+**"Do we need to get back to the universal tag?" Yes, and it does not escape the problem.**
+
+The universal-tag plan is the only feasible route to the drawing: the Revit API cannot
+author label rows, cross-category label paste is blocked ("Can't paste Labels across
+Families of different Categories"), and bespoke per-category labels would be thousands of
+hand-authored rows across 206 families. `Propagate_UniversalTag` is built, dispatched, and
+proven to preserve label rows across a recategorisation (Air Terminal → Duct, live).
+
+But it moves discipline data **off the tag and into per-category schedules**, and that
+relocates this defect rather than removing it: **117 of the 583 schedule-field parameters
+in `SCHEDULE_SPEC_all_disciplines.json` were bound to nothing**. The pivot would have
+started with 117 empty columns — the same failure, one surface across.
+
+All 117 exist in MR_PARAMETERS.txt; none was a ghost. **355 bindings added across 215
+parameters**, category resolved the same way `ScheduleDisciplineTagExpanderCommand`
+resolves it. **117 → 1**, and the one left (`STR_BRACE_LENGTH_MM`) belongs to one of 8 spec
+families whose truncated names do not resolve unambiguously — reported, not guessed,
+because binding a parameter to the wrong category is worse than an empty column.
+
+`check_tag_row_bindings.py` now audits **both** surfaces, so the pivot cannot reintroduce
+it. Verified RED by dropping one Casework binding.
+
+The contract gate again refused the change until 16 newly role-changed parameters carried a
+reason: eleven are read by a Revit **schedule** (the consumer it says no C# scan can see),
+five are design inputs whose entry surface IS the schedule.
+
+Build 0/0; Tags 1542, Rooms 24; ten gates + dispatch parity green.
+
 #### Completed (Phase 292 — a review sweep: 291 tags printed the same value twice)
 
 Three sweeps after the binding work, looking for defects of the same SHAPE rather than

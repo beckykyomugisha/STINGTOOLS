@@ -1,4 +1,5 @@
-﻿# v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
+﻿# v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
+# v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
 # v3.11 | 20260916 | +14 bindings for tag rows that could never display: 8 Rooms (headroom/occupancy/ventilation/fire-escape, numeric + _TXT mirror), 4 Doors (type/operation/glazing-type/threshold), 2 Windows (vent area, was bound to Generic Models only). Found by tools/check_tag_row_bindings.py.
 # v3.10 | 20260808 | +2 STING_FINISH_* idempotency-stamp bindings on Floors (finish-floor creator, K-3)
 # v3.9 | 20260808 | +8 room-finish bindings (Rooms/Instance): the 4 BLE_ROOM_FINISH_*_TXT params shipped with NO binding row at all, plus the 4 new *_COD_TXT finish codes (K-2)
@@ -19273,3 +19274,358 @@ WARN_STR_TRUSS_SPAN,Structural Trusses,Instance,True
 WARN_STR_WIR_TENSILE_MPA,Wire,Instance,True
 WARN_STR_WLD_STRENGTH_MPA,Weld,Instance,True
 WARN_STR_WLD_THROAT_MM,Weld,Instance,True
+BLE_CASEWORK_ACCESSIBLE_BOOL,Casework,Instance,True
+BLE_CASEWORK_COUNTERTOP_TXT,Casework,Instance,True
+BLE_CASEWORK_HARDWARE_TXT,Casework,Instance,True
+BLE_CASEWORK_MATERIAL_TXT,Casework,Instance,True
+BLE_CASEWORK_TYPE_TXT,Casework,Instance,True
+BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,Cable Tray Fittings,Instance,True
+BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,MEP Fabrication Containment,Instance,True
+BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,Cable Tray Fittings,Instance,True
+BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,MEP Fabrication Containment,Instance,True
+BLE_CEILING_FINISH_TXT,Rooms,Instance,True
+BLE_CEILING_MAT_TXT,Roof Soffits,Instance,True
+BLE_COLUMN_SLENDERNESS,Architectural Column,Instance,True
+BLE_DOOR_GLAZING_BOOL,Doors,Instance,True
+BLE_FINISH_TXT,Architectural Column,Instance,True
+BLE_FLOOR_LOAD_KN_M2,Floors,Instance,True
+BLE_FLR_AREA_SQ_M,Floors,Instance,True
+BLE_FLR_FINISH_MAT_TXT,Slab Edges,Instance,True
+BLE_FLR_FINISH_TXT,Rooms,Instance,True
+BLE_FLR_THICKNESS_MM,Slab Edges,Instance,True
+BLE_FLR_TYPE_TXT,Slab Edges,Instance,True
+BLE_FURNITURE_FINISH_TXT,Furniture,Instance,True
+BLE_FURNITURE_FINISH_TXT,Furniture Systems,Instance,True
+BLE_MATERIAL_TXT,Architectural Column,Instance,True
+BLE_MAT_ELEM_TYPE_TXT,Toposolid,Instance,True
+BLE_MULLION_DEPTH_MM,Curtain Wall Mullion,Instance,True
+BLE_MULLION_FINISH_TXT,Curtain Wall Mullion,Instance,True
+BLE_MULLION_MATERIAL_TXT,Curtain Wall Mullion,Instance,True
+BLE_PANEL_GLASS_TYPE_TXT,Curtain Panel,Instance,True
+BLE_PANEL_GLASS_TYPE_TXT,Curtain Wall Mullion,Instance,True
+BLE_PANEL_HEIGHT_MM,Curtain Panel,Instance,True
+BLE_PANEL_HEIGHT_MM,Curtain Wall Mullion,Instance,True
+BLE_PANEL_WIDTH_MM,Curtain Panel,Instance,True
+BLE_PANEL_WIDTH_MM,Curtain Wall Mullion,Instance,True
+BLE_PARK_ACCESSIBLE_BOOL,Parking,Instance,True
+BLE_PARK_BAY_LENGTH_MM,Parking,Instance,True
+BLE_PARK_BAY_WIDTH_MM,Parking,Instance,True
+BLE_PARK_EV_CHARGING_BOOL,Parking,Instance,True
+BLE_PARK_TYPE_TXT,Parking,Instance,True
+BLE_RAILING_BALUSTER_SPACING_MM,Railing,Instance,True
+BLE_RAILING_HEIGHT_MM,Handrails,Instance,True
+BLE_RAILING_HEIGHT_MM,Railing,Instance,True
+BLE_RAILING_HEIGHT_MM,Top Rails,Instance,True
+BLE_RAILING_INFILL_TXT,Railing,Instance,True
+BLE_RAILING_MATERIAL_TXT,Handrails,Instance,True
+BLE_RAILING_MATERIAL_TXT,Railing,Instance,True
+BLE_RAILING_MATERIAL_TXT,Stair Supports,Instance,True
+BLE_RAILING_MATERIAL_TXT,Top Rails,Instance,True
+BLE_RAILING_TYPE_TXT,Handrails,Instance,True
+BLE_RAILING_TYPE_TXT,Railing,Instance,True
+BLE_RAMP_HANDRAIL_BOOL,Ramps,Instance,True
+BLE_RAMP_LENGTH_MM,Ramps,Instance,True
+BLE_ROOF_AREA_SQ_M,Roofs,Instance,True
+BLE_ROOF_COVERING_MAT_TXT,Fascia,Instance,True
+BLE_ROOF_COVERING_MAT_TXT,Gutter,Instance,True
+BLE_ROOF_PLM_DRN_SYSTEM_TYPE_TXT,Gutter,Instance,True
+BLE_ROOF_THICKNESS_MM,Roofs,Instance,True
+BLE_ROOM_OCCUPANCY_NR,Spaces,Instance,True
+BLE_ROOM_VENTILATION_RATE_LPS,Spaces,Instance,True
+BLE_SIGN_ILLUMINATED_BOOL,Signage,Instance,True
+BLE_SIGN_TYPE_TXT,Signage,Instance,True
+BLE_STAIR_GOING_MM,Stair Runs,Instance,True
+BLE_STAIR_HEADROOM_MM,Stairs,Instance,True
+BLE_STAIR_RISE_MM,Stair Runs,Instance,True
+BLE_STAIR_TREAD_FINISH_TXT,Stair Landings,Instance,True
+BLE_STAIR_TREAD_FINISH_TXT,Stair Runs,Instance,True
+BLE_STAIR_WIDTH_MM,Stair Landings,Instance,True
+BLE_STAIR_WIDTH_MM,Stair Runs,Instance,True
+BLE_STRUCT_COLUMN_SZ_TXT,Architectural Column,Instance,True
+BLE_STRUCT_SLAB_THICKNESS_MM,Structural Slab,Instance,True
+BLE_STRUCT_STEEL_GRADE_TXT,Structural Slab,Instance,True
+BLE_STRUCT_STEEL_GRADE_TXT,Structural Stiffeners,Instance,True
+BLE_STRUCT_STEEL_GRADE_TXT,Structural Trusses,Instance,True
+BLE_STRUCT_STEEL_GRADE_TXT,Structural Wall,Instance,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Fascia,Instance,True
+BLE_WALL_EXTERIOR_FINISH_TXT,Hardscape,Instance,True
+BLE_WALL_FINISH_TXT,Rooms,Instance,True
+BLE_WALL_INTERIOR_FINISH_TXT,Roof Soffits,Instance,True
+BLE_WALL_PRIMARY_WALL_MAT_TXT,Wall Sweeps,Instance,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Ceilings,Instance,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Floors,Instance,True
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,Structural Slab,Instance,True
+BLE_WALL_THICKNESS_MM,Hardscape,Instance,True
+BLE_WALL_THICKNESS_MM,Pads,Instance,True
+BLE_WALL_THICKNESS_MM,Roads,Instance,True
+BLE_WALL_THICKNESS_MM,Structural Wall,Instance,True
+BLE_WALL_TYPE_CLASSIFICATION_TXT,Wall Sweeps,Instance,True
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,Curtain Panel,Instance,True
+CLN_BARI_DESIGN_KG_NR,Bariatric,Instance,True
+CLN_BARI_DESIGN_KG_NR,Hoist Track,Instance,True
+CLN_DESIGN_ACH_INT,Clinical Room,Instance,True
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Clinical Room,Instance,True
+CLN_DESIGN_RH_PCT_INT,Clinical Room,Instance,True
+CLN_DESIGN_TEMP_C_DBL,Clinical Room,Instance,True
+CLN_HOIST_TRACK_BOOL,Hoist Track,Instance,True
+CLN_MRI_ZONE_INT,5-Gauss Marker,Instance,True
+CLN_MRI_ZONE_INT,MRI Faraday Cage,Instance,True
+CLN_MRI_ZONE_INT,MRI Zone,Instance,True
+CLN_NOISE_NR_NR,Clinical Room,Instance,True
+CST_S_REI_COVER_MM,Structural Area Reinforcement,Instance,True
+CST_S_REI_COVER_MM,Structural Fabric Reinforcement,Instance,True
+CST_S_REI_COVER_MM,Structural Path Reinforcement,Instance,True
+CST_S_REI_COVER_MM,Structural Rebar,Instance,True
+CST_S_REI_GRADE_TXT,Structural Area Reinforcement,Instance,True
+CST_S_REI_GRADE_TXT,Structural Rebar,Instance,True
+CST_S_REI_GRADE_TXT,Structural Rebar Couplers,Instance,True
+CST_S_REI_OVERLAP_LENGTH_MM,Structural Path Reinforcement,Instance,True
+CST_S_REI_OVERLAP_LENGTH_MM,Structural Rebar,Instance,True
+CST_S_REI_SPACING_MM,Structural Area Reinforcement,Instance,True
+CST_S_REI_SPACING_MM,Structural Fabric Reinforcement,Instance,True
+CST_S_REI_SPACING_MM,Structural Path Reinforcement,Instance,True
+CST_S_REI_SPACING_MM,Structural Rebar,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Columns,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Connection,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Fabric Reinforcement,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Foundations,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Rebar,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Stiffeners,Instance,True
+CST_S_REI_WEIGHT_KG,Structural Trusses,Instance,True
+ELC_CBL_FEEDER_SZ_MM2,Electrical Equipment,Instance,True
+ELC_CBL_INS_TYPE_TXT,Wire,Instance,True
+ELC_CBT_SHOP_DRAWING_REQ_BOOL,Cable Trays,Instance,True
+ELC_CBT_SUPPORT_SPACING_MM,Cable Trays,Instance,True
+ELC_CDT_BEND_RADIUS_MM,Conduits,Instance,True
+ELC_CDT_SUPPORT_SPACING_MM,Conduits,Instance,True
+ELC_CKT_BRK_RATING_A,Electrical Connectors,Instance,True
+ELC_CKT_NR,Conduits,Instance,True
+ELC_CKT_NR,Lighting Devices,Instance,True
+ELC_CKT_PHASE_COUNT_NR,Conduits,Instance,True
+ELC_FACTORY_QR_TXT,Electrical Equipment,Instance,True
+ELC_FAT_CERT_REF_TXT,Electrical Equipment,Instance,True
+ELC_LPS_AIR_TERMINAL_COUNT_NR,LPS Air Terminal,Instance,True
+ELC_LPS_BOND_TYPE_TXT,LPS Bond,Instance,True
+ELC_LPS_BOND_TYPE_TXT,LPS Foundation Earth (Structural Reuse),Instance,True
+ELC_LPS_BOND_TYPE_TXT,LPS Natural Air Termination (Architectural Reuse),Instance,True
+ELC_LPS_BOND_TYPE_TXT,LPS SPD,Instance,True
+ELC_LPS_CERT_REF_TXT,LPS Air Terminal,Instance,True
+ELC_LPS_CERT_REF_TXT,LPS Earth Electrode,Instance,True
+ELC_LPS_CERT_REF_TXT,LPS Foundation Earth (Structural Reuse),Instance,True
+ELC_LPS_CERT_REF_TXT,LPS Test Clamp,Instance,True
+ELC_LPS_COMPLIANCE_STATUS_TXT,LPS Air Terminal,Instance,True
+ELC_LPS_COMPLIANCE_STATUS_TXT,LPS Generic Component,Instance,True
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,LPS Bond,Instance,True
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,LPS Down Conductor,Instance,True
+ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,LPS Natural Air Termination (Architectural Reuse),Instance,True
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,LPS Air Terminal,Instance,True
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,LPS Down Conductor,Instance,True
+ELC_LPS_CONDUCTOR_MATERIAL_TXT,LPS Natural Air Termination (Architectural Reuse),Instance,True
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,LPS Down Conductor,Instance,True
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,LPS Earth Electrode,Instance,True
+ELC_LPS_EARTH_RESISTANCE_OHM,LPS Earth Electrode,Instance,True
+ELC_LPS_EARTH_RESISTANCE_OHM,LPS Foundation Earth (Structural Reuse),Instance,True
+ELC_LPS_EARTH_RESISTANCE_OHM,LPS Test Clamp,Instance,True
+ELC_LPS_EARTH_TYPE_TXT,LPS Earth Electrode,Instance,True
+ELC_LPS_EARTH_TYPE_TXT,LPS Foundation Earth (Structural Reuse),Instance,True
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,LPS Air Terminal,Instance,True
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,LPS Earth Electrode,Instance,True
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,LPS Test Clamp,Instance,True
+ELC_LPS_MESH_SIZE_M,LPS Air Terminal,Instance,True
+ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,LPS Air Terminal,Instance,True
+ELC_LPS_PROTECTION_ANGLE_DEG,LPS Air Terminal,Instance,True
+ELC_LPS_RISK_ASSESSMENT_TXT,LPS Air Terminal,Instance,True
+ELC_LPS_RISK_ASSESSMENT_TXT,LPS Natural Air Termination (Architectural Reuse),Instance,True
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,LPS Air Terminal,Instance,True
+ELC_LPS_SEPARATION_DISTANCE_MM,LPS Down Conductor,Instance,True
+ELC_LPS_SURGE_PROTECTION_LVL_TXT,LPS SPD,Instance,True
+ELC_LPS_TEST_DATE_TXT,LPS Earth Electrode,Instance,True
+ELC_LPS_TEST_DATE_TXT,LPS Foundation Earth (Structural Reuse),Instance,True
+ELC_LPS_TEST_DATE_TXT,LPS Test Clamp,Instance,True
+ELC_LPS_ZONE_TXT,LPS Bond,Instance,True
+ELC_LPS_ZONE_TXT,LPS Down Conductor,Instance,True
+ELC_LPS_ZONE_TXT,LPS Generic Component,Instance,True
+ELC_LPS_ZONE_TXT,LPS Natural Air Termination (Architectural Reuse),Instance,True
+ELC_PANEL_SCHEDULE_REF_TXT,Electrical Equipment,Instance,True
+ELC_PNL_IP_RATING_TXT,Electrical Equipment,Instance,True
+ELC_PNL_RATED_KW,Electrical Equipment,Instance,True
+ELC_PNL_SHORT_CIRCUIT_KA,Electrical Equipment,Instance,True
+ELC_PNL_SPARE_WAYS_NR,Electrical Equipment,Instance,True
+ELC_VOLTAGE_V,Electrical Equipment,Instance,True
+ELC_VOLTAGE_V,Electrical Fixtures,Instance,True
+ELC_VOLTAGE_V,Wire,Instance,True
+ELC_WIRE_SIZE_TXT,Wire,Instance,True
+FAB_DCT_H_MM,MEP Fabrication Ductwork Stiffeners,Instance,True
+FAB_DCT_W_MM,MEP Fabrication Ductwork Stiffeners,Instance,True
+FAB_HANGER_LOAD_KN,MEP Fabrication Hangers,Instance,True
+FLS_ALARM_CIRCUIT_COUNT_NR,Fire Alarm Devices,Instance,True
+FLS_DETECTION_COST_UGX,Fire Alarm Devices,Instance,True
+FLS_DETECTION_COST_UGX,Sprinklers,Instance,True
+FLS_DETECTOR_COUNT_NR,Fire Alarm Devices,Instance,True
+FLS_DETECTOR_COUNT_NR,Sprinklers,Instance,True
+FLS_EVACUATION_TIME_MIN,Fire Protection,Instance,True
+FLS_EXIT_TRAVEL_DIST_M,Fire Protection,Instance,True
+FLS_PROT_CORROSION_PROT_LVL_NR,Fire Protection,Instance,True
+FLS_PROT_FLS_ESCAPE_STAIR_TXT,Fire Protection,Instance,True
+FLS_PROT_FLS_RESISTANCE_MINUTES_CALC,Fire Protection,Instance,True
+FLS_PROT_PRODUCT_TXT,Fire Protection,Instance,True
+FLS_SFTY_HEADS_OPERATING_NR,Sprinklers,Instance,True
+HVC_AIR_CHANGES_PER_HR,Ducts,Instance,True
+HVC_AIR_CHANGES_PER_HR,Spaces,Instance,True
+HVC_BMS_CONTROL_TYPE_TXT,Mechanical Equipment,Instance,True
+HVC_BMS_CONTROL_TYPE_TXT,Zones,Instance,True
+HVC_CAPACITY_KW,Mechanical Equipment Sets,Instance,True
+HVC_CONTROL_TYPE_TXT,Zones,Instance,True
+HVC_DCT_INSULATION_THK_MM_DISP_TXT,Duct Lining,Instance,True
+HVC_DCT_INSULATION_THK_MM_DISP_TXT,MEP Fabrication Ductwork,Instance,True
+HVC_DCT_INSULATION_THK_MM_DISP_TXT,MEP Fabrication Ductwork Stiffeners,Instance,True
+HVC_DCT_SHOP_DRAWING_REQ_BOOL,Ducts,Instance,True
+HVC_DCT_SUPPORTS_SPACING_MM,Ducts,Instance,True
+HVC_FACTORY_FLASH_TEST_DATE_TXT,Mechanical Equipment,Instance,True
+HVC_FACTORY_FLASH_TEST_DATE_TXT,Mechanical Equipment Sets,Instance,True
+HVC_FACTORY_QR_TXT,Mechanical Equipment,Instance,True
+HVC_FACTORY_QR_TXT,Mechanical Equipment Sets,Instance,True
+HVC_PIPE_SERVICE_TXT,Pipe Insulation,Instance,True
+HVC_PRESSURE_CLASS_TXT,Duct Insulation,Instance,True
+HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT,Mechanical Equipment,Instance,True
+HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT,Mechanical Equipment Sets,Instance,True
+HVC_REFRIGERANT_KG_NR,Mechanical Equipment Sets,Instance,True
+HVC_REFRIGERANT_TYPE_TXT,Mechanical Equipment Sets,Instance,True
+HVC_SEGMENT_ROLE_TXT,Duct Insulation,Instance,True
+HVC_SIZE_MODIFIED_DT,Duct Insulation,Instance,True
+HVC_SIZE_MODIFIED_DT,Mechanical Equipment Sets,Instance,True
+HVC_SIZE_MODIFIED_DT,Pipe Insulation,Instance,True
+HVC_SIZE_PREV_TXT,Duct Insulation,Instance,True
+HVC_SIZE_PREV_TXT,Mechanical Equipment Sets,Instance,True
+HVC_SIZE_PREV_TXT,Pipe Insulation,Instance,True
+HVC_SIZE_RULE_ID_TXT,Duct Insulation,Instance,True
+HVC_SIZE_RULE_ID_TXT,Mechanical Equipment Sets,Instance,True
+HVC_SIZE_RULE_ID_TXT,Pipe Insulation,Instance,True
+HVC_SIZE_STALE_BOOL,Air Terminals,Instance,True
+HVC_SIZE_STALE_BOOL,Duct Accessories,Instance,True
+HVC_SIZE_STALE_BOOL,Duct Fittings,Instance,True
+HVC_SIZE_STALE_BOOL,Duct Insulation,Instance,True
+HVC_SIZE_STALE_BOOL,Flex Pipes,Instance,True
+HVC_SIZE_STALE_BOOL,Mechanical Equipment,Instance,True
+HVC_SIZE_STALE_BOOL,Mechanical Equipment Sets,Instance,True
+HVC_SIZE_STALE_BOOL,Pipe Accessories,Instance,True
+HVC_SIZE_STALE_BOOL,Pipe Fittings,Instance,True
+HVC_SIZE_STALE_BOOL,Pipe Insulation,Instance,True
+HVC_SIZE_STALE_BOOL,Pipes,Instance,True
+HVC_SIZE_STALE_BOOL,Plumbing Fixtures,Instance,True
+ICT_TEL_OUTLET_QTY_NR,Telephone Devices,Instance,True
+LTG_DESIGN_ILLUMINANCE_LUX,Lighting Fixtures,Instance,True
+PLM_EQP_CAPACITY_L,Plumbing Equipment,Instance,True
+PLM_EQP_PRESSURE_KPA,Plumbing Equipment,Instance,True
+PLM_PPE_LENGTH_M,Flex Pipes,Instance,True
+PLM_PPE_SHOP_DRAWING_REQ_BOOL,Pipes,Instance,True
+PLM_PPE_SUPPORTS_SPACING_MM,Pipes,Instance,True
+PLM_PPE_SZ_MM,Flex Pipes,Instance,True
+PLM_PPE_SZ_MM,Medical Gas Pipeline,Instance,True
+PLM_PRESSURE_TEST_REF_TXT,MEP Fabrication Pipework,Instance,True
+PLM_PRESSURE_TEST_REF_TXT,Plumbing Equipment,Instance,True
+PLM_SYS_TXT,Flex Pipes,Instance,True
+PLM_SYS_TXT,MEP Fabrication Pipework,Instance,True
+PLM_SYS_TXT,Pipe Insulation,Instance,True
+PLM_WELD_MAP_REF_TXT,MEP Fabrication Pipework,Instance,True
+PLM_WELD_MAP_REF_TXT,Plumbing Equipment,Instance,True
+RAD_LEAD_MM_NR,Imaging Modality,Instance,True
+RAD_LEAD_MM_NR,Linac Maze,Instance,True
+RAD_LEAD_MM_NR,X-ray Barrier,Instance,True
+RAD_LEAD_MM_NR,X-ray Door,Instance,True
+RAD_LEAD_MM_NR,X-ray Window,Instance,True
+SLV_SZ_MM,MEP Sleeve,Instance,True
+STR_AREA_LOAD_KN_M2,Area Loads,Instance,True
+STR_AREA_LOAD_KN_M2,Internal Area Loads,Instance,True
+STR_BAR_MARK_TXT,Structural Area Reinforcement,Instance,True
+STR_BAR_MARK_TXT,Structural Fabric Reinforcement,Instance,True
+STR_BAR_MARK_TXT,Structural Path Reinforcement,Instance,True
+STR_BAR_MARK_TXT,Structural Rebar,Instance,True
+STR_BAR_MARK_TXT,Structural Rebar Couplers,Instance,True
+STR_BEAM_CAMBER_MM,Structural Framing,Instance,True
+STR_BEAM_CONNECTION_TYPE_TXT,Structural Framing,Instance,True
+STR_BEAM_DEFLECTION_LIM_TXT,Structural Beam Systems,Instance,True
+STR_BEAM_DEFLECTION_LIM_TXT,Structural Framing,Instance,True
+STR_BEAM_DEFLECTION_LIM_TXT,Structural Trusses,Instance,True
+STR_BEAM_DEPTH_MM,Structural Framing,Instance,True
+STR_BEAM_MATERIAL_TXT,Structural Framing,Instance,True
+STR_BEAM_MATERIAL_TXT,Structural Stiffeners,Instance,True
+STR_BEAM_MATERIAL_TXT,Structural Trusses,Instance,True
+STR_BEAM_MOMENT_CAPACITY_KNM,Structural Framing,Instance,True
+STR_BEAM_SECTION_TXT,Structural Beam Systems,Instance,True
+STR_BEAM_SECTION_TXT,Structural Framing,Instance,True
+STR_BEAM_SECTION_TXT,Structural Stiffeners,Instance,True
+STR_BEAM_SECTION_TXT,Structural Trusses,Instance,True
+STR_BEAM_SPAN_MM,Structural Beam Systems,Instance,True
+STR_BEAM_SPAN_MM,Structural Framing,Instance,True
+STR_BEAM_SPAN_MM,Structural Trusses,Instance,True
+STR_BEAM_WEB_OPENING_TXT,Structural Framing,Instance,True
+STR_BEARING_CAPACITY_KN_M2,Pads,Instance,True
+STR_BEND_SCHEDULE_REF_TXT,Structural Area Reinforcement,Instance,True
+STR_BEND_SCHEDULE_REF_TXT,Structural Fabric Reinforcement,Instance,True
+STR_BEND_SCHEDULE_REF_TXT,Structural Path Reinforcement,Instance,True
+STR_BEND_SCHEDULE_REF_TXT,Structural Rebar,Instance,True
+STR_BEND_SCHEDULE_REF_TXT,Structural Rebar Couplers,Instance,True
+STR_BOLT_DIAMETER_MM,Bolt,Instance,True
+STR_BOLT_GRADE_TXT,Bolt,Instance,True
+STR_BOLT_TORQUE_NM_NR_DISP_TXT,Structural Connection,Instance,True
+STR_COL_HEIGHT_MM,Structural Columns,Instance,True
+STR_COL_MATERIAL_TXT,Columns,Instance,True
+STR_COL_MOMENT_CAPACITY_KNM,Structural Columns,Instance,True
+STR_COL_SECTION_TXT,Columns,Instance,True
+STR_COL_SIZE_MM,Structural Columns,Instance,True
+STR_CONN_BOLT_SIZE_TXT,Structural Connection,Instance,True
+STR_CONN_CAPACITY_KN,Structural Connection,Instance,True
+STR_CONN_PLATE_THICKNESS_MM,Structural Connection,Instance,True
+STR_CONN_ROTATION_CAPACITY_TXT,Structural Connection,Instance,True
+STR_CONN_TYPE_TXT,Structural Connection,Instance,True
+STR_CONN_WELD_TYPE_TXT,Structural Connection,Instance,True
+STR_CUTTING_LIST_REF_TXT,Structural Area Reinforcement,Instance,True
+STR_CUTTING_LIST_REF_TXT,Structural Fabric Reinforcement,Instance,True
+STR_CUTTING_LIST_REF_TXT,Structural Path Reinforcement,Instance,True
+STR_CUTTING_LIST_REF_TXT,Structural Rebar,Instance,True
+STR_CUTTING_LIST_REF_TXT,Structural Rebar Couplers,Instance,True
+STR_FDN_BEARING_KN_M2,Structural Foundations,Instance,True
+STR_FDN_COVER_MM,Structural Foundations,Instance,True
+STR_FDN_DEPTH_MM,Structural Foundations,Instance,True
+STR_FDN_SETTLEMENT_MM,Structural Foundations,Instance,True
+STR_FDN_SIZE_MM,Structural Foundations,Instance,True
+STR_FIRE_PROTECTION_TYPE_TXT,Columns,Instance,True
+STR_FIRE_PROTECTION_TYPE_TXT,Structural Connection,Instance,True
+STR_FIRE_PROTECTION_TYPE_TXT,Structural Trusses,Instance,True
+STR_LINE_LOAD_KN_M,Internal Line Loads,Instance,True
+STR_LINE_LOAD_KN_M,Line Loads,Instance,True
+STR_LOAD_AXIAL_KN,Structural Columns,Instance,True
+STR_LOAD_AXIAL_KN,Structural Wall,Instance,True
+STR_LOAD_CASE_TXT,Area Loads,Instance,True
+STR_LOAD_CASE_TXT,Internal Area Loads,Instance,True
+STR_LOAD_CASE_TXT,Internal Line Loads,Instance,True
+STR_LOAD_CASE_TXT,Internal Point Loads,Instance,True
+STR_LOAD_CASE_TXT,Line Loads,Instance,True
+STR_LOAD_CASE_TXT,Point Loads,Instance,True
+STR_LOAD_UDL_KN_M,Structural Beam Systems,Instance,True
+STR_LOAD_UDL_KN_M,Structural Framing,Instance,True
+STR_MATERIAL_GRADE_TXT,Analytical Members,Instance,True
+STR_MATERIAL_GRADE_TXT,Analytical Panels,Instance,True
+STR_POINT_LOAD_KN,Internal Point Loads,Instance,True
+STR_POINT_LOAD_KN,Point Loads,Instance,True
+STR_REBAR_HOOK_TYPE_TXT,Structural Rebar,Instance,True
+STR_REBAR_SHAPE_TXT,Structural Rebar,Instance,True
+STR_REBAR_SIZE_MM,Structural Area Reinforcement,Instance,True
+STR_REBAR_SIZE_MM,Structural Fabric Reinforcement,Instance,True
+STR_REBAR_SIZE_MM,Structural Path Reinforcement,Instance,True
+STR_REBAR_SIZE_MM,Structural Rebar,Instance,True
+STR_REBAR_SIZE_MM,Structural Rebar Couplers,Instance,True
+STR_SECTION_PROFILE_TXT,Analytical Members,Instance,True
+STR_SLAB_COVER_MM,Structural Slab,Instance,True
+STR_SLAB_DEFLECTION_LIMIT_TXT,Structural Slab,Instance,True
+STR_SLAB_LOAD_KN_M2,Structural Slab,Instance,True
+STR_SLAB_MESH_TXT,Structural Slab,Instance,True
+STR_SLAB_REBAR_TXT,Structural Slab,Instance,True
+STR_SLAB_TYPE_TXT,Structural Slab,Instance,True
+STR_WALL_COVER_MM,Structural Wall,Instance,True
+STR_WALL_REBAR_TXT,Structural Wall,Instance,True
+STR_WALL_TYPE_TXT,Structural Wall,Instance,True
+STR_WELD_PROCEDURE_REF_TXT,Structural Connection,Instance,True
+STR_WELD_SIZE_MM,Weld,Instance,True
+STR_WELD_TYPE_TXT,Weld,Instance,True

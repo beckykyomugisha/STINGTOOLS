@@ -21,6 +21,15 @@ papered over.
 | MAPTYPE-2 | ✅ **CLOSED** (Phase 290) | `UnitValueText.StripUnitSuffix` keeps the _TXT mirror a plain number, so a row with its own unit suffix no longer renders `MCB: 100 A A`. Revit-free, 18 unit tests. |
 | MAPTYPE-3 | ✅ **CLOSED** (Phase 291) — measured, not assumed | All **174** container-target parameters reachable through `ParamRegistry.WriteContainers` are declared TEXT, so its `SetString` is correct for every one. The speculation that the true defect count was higher than 57 was wrong: outside the Map* helpers there are **zero** instances. |
 
+## Universal tag readiness (2026-09-16, Phase 293)
+
+| ID | Status | Detail |
+|---|---|---|
+| UNITAG-1 | ✅ **CLOSED** (Phase 293) | 117 of 583 schedule-field parameters were bound to nothing, so the universal-tag pivot would have started with 117 empty columns. 355 bindings added; 117 → 1. `check_tag_row_bindings.py` now audits the schedule spec as well as the tag tiers. |
+| UNITAG-2 | **OPEN — the actual blocker, and it is manual** | `Propagate_UniversalTag` is built and dispatched, and recategorisation is proven to preserve label rows. It is blocked on a human building ONE universal label (~62 rows, `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`) in a single Edit Label session, then the **Duct smoke test** before scaling to 206. Nothing in this repo can do that step: the Revit API cannot author label rows. |
+| UNITAG-3 | **OPEN** | 8 spec families do not resolve to a Revit category — `Healthcare Warnings`, `Brace - Truss`, and six `Tie-In Point (… — …)` entries whose names are truncated mid-word in the spec. Their schedule columns cannot be bound until the names are repaired. One parameter (`STR_BRACE_LENGTH_MM`) is unbound solely because of this. |
+| UNITAG-4 | **OPEN — worth deciding before the pivot** | The universal label is discipline-AGNOSTIC (62 generic rows; all T3 and every discipline parameter dropped). Phases 288-292 made the per-category tiers accurate and dead-row-free. Those two directions disagree: one tag for 206 categories with data in schedules, versus bespoke tiers that are now correct but unbuildable at scale. The universal route is the feasible one, and the spec work is its prerequisite rather than an alternative — the bindings and writes feed the schedules too. Worth stating as a decision rather than letting it resolve by default. |
+
 ## Tag row duplicates and formula inputs (2026-09-16, Phase 292)
 
 | ID | Status | Detail |

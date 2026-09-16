@@ -37,6 +37,15 @@ CATEGORY_BINDINGS.csv is the file the binder actually reads
 reference and is used here ONLY for the <ALL> set — an audit built on it alone reports a
 different, wrong number, which is how the first draft of this tool came out at 1,021.
 
+SCHEDULES ARE THE SAME SURFACE
+==============================
+The universal-tag plan moves discipline data OFF the tag and INTO per-category schedules
+(SCHEDULE_SPEC_all_disciplines.json, read by ScheduleDisciplineTagExpanderCommand). That
+does not escape this defect, it RELOCATES it: a schedule column whose parameter is not
+bound to the category is an empty column instead of an empty label line. 117 of the 583
+schedule-field parameters were in exactly that state. So this gate checks both surfaces —
+otherwise the pivot to schedules would start with 117 blank columns.
+
 RATCHET, NOT A ZERO
 ===================
 There are too many to fix at once, and several need a judgement about which parameter the
@@ -61,6 +70,8 @@ LABELS = os.path.join(ROOT, 'StingTools', 'Data', 'LABEL_DEFINITIONS.json')
 BOUND = os.path.join(ROOT, 'StingTools', 'Data', 'CATEGORY_BINDINGS.csv')
 RESOLVED = os.path.join(ROOT, 'StingTools', 'Data', 'RESOLVED_BINDINGS.csv')
 BASELINE = os.path.join(ROOT, 'docs', 'TAG_ROW_BINDING_BASELINE.json')
+SCHED = os.path.join(ROOT, 'StingTools', 'Data', 'SCHEDULE_SPEC_all_disciplines.json')
+LABELS_FOR_CATS = LABELS
 
 
 def load_universal():
@@ -133,6 +144,76 @@ def audit():
     return findings, total_rows, len(cats)
 
 
+def schedule_audit(universal, bound):
+    """Schedule columns whose parameter is not bound to the category the schedule is for.
+
+    Category resolution mirrors ScheduleDisciplineTagExpanderCommand: index
+    category_labels by the plural display name, the family_name suffix and any
+    csv_family_alias, then accept an UNAMBIGUOUS prefix hit for the spec's truncated
+    family names. A family that does not resolve is REPORTED, not guessed at — binding a
+    parameter to the wrong category is worse than leaving the column empty.
+    """
+    if not os.path.exists(SCHED):
+        return [], ['SCHEDULE_SPEC_all_disciplines.json not found.']
+
+    spec = json.load(io.open(SCHED, encoding='utf-8-sig'))
+    labels = (json.load(io.open(LABELS_FOR_CATS, encoding='utf-8-sig'))
+              .get('category_labels') or {})
+
+    def strip_family(fam):
+        if not fam:
+            return None
+        f = fam.strip()
+        if f.upper().startswith('STING - '):
+            f = f[8:]
+        if f.upper().endswith(' TAG'):
+            f = f[:-4]
+        return f.strip()
+
+    fam_to_cat = {}
+    for cat, v in labels.items():
+        if not isinstance(v, dict):
+            continue
+        for key in (cat, strip_family(v.get('family_name'))):
+            if key:
+                fam_to_cat.setdefault(key, cat)
+        alias = v.get('csv_family_alias')
+        for a in ([alias] if isinstance(alias, str) else (alias or [])):
+            if isinstance(a, str):
+                fam_to_cat.setdefault(a, cat)
+
+    def resolve(fam):
+        if not fam:
+            return None
+        if fam in fam_to_cat:
+            return fam_to_cat[fam]
+        hits = {v for k, v in fam_to_cat.items() if k.startswith(fam)}
+        return next(iter(hits)) if len(hits) == 1 else None
+
+    KEYS = ('col1_tag', 'col2_desc', 'sheet_columns', 'full_columns')
+    dead, unresolved = [], []
+    for _, v in spec.items():
+        if not isinstance(v, dict):
+            continue
+        cat = resolve(v.get('family'))
+        if cat is None:
+            unresolved.append(v.get('family'))
+            continue
+        cols = set()
+        for kk in KEYS:
+            val = v.get(kk)
+            if isinstance(val, str):
+                cols.add(val)
+            elif isinstance(val, list):
+                cols.update(x for x in val if isinstance(x, str))
+        for c in sorted(cols):
+            if not (c.isupper() and '_' in c) or c in universal:
+                continue
+            if cat not in bound.get(c, set()):
+                dead.append((cat, c))
+    return dead, unresolved
+
+
 def main():
     check = '--check' in sys.argv
     write = '--write' in sys.argv
@@ -140,12 +221,23 @@ def main():
     findings, total_rows, n_cats = audit()
     dead = sum(len(v) for v in findings.values())
 
+    sched_dead, sched_unresolved = schedule_audit(load_universal(), load_bindings())
+    dead += len(sched_dead)
+
     print('Tag row bindings')
     print('  categories                  : %d' % n_cats)
     print('  tag rows inspected          : %d' % total_rows)
     print('  rows that can never display : %d  (%.1f%%)'
           % (dead, 100.0 * dead / max(total_rows, 1)))
     print('  categories affected         : %d' % len(findings))
+    print('  schedule columns that can never fill : %d' % len(sched_dead))
+    for cat, c in sched_dead[:10]:
+        print('      %-28s %s' % (cat, c))
+    if sched_unresolved:
+        print('  spec families that resolve to no category : %d (reported, not guessed)'
+              % len(sched_unresolved))
+        for f in sched_unresolved[:8]:
+            print('      %s' % f)
 
     by_param = collections.Counter()
     for rows in findings.values():

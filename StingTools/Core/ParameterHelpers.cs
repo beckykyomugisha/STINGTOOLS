@@ -4113,7 +4113,7 @@ namespace StingTools.Core
                 {
                     double mm = p.AsDouble() * 304.8;
                     if (mm > 0.1)
-                        return SetIfEmptyInt(el, targetParam,
+                        return WriteMapped(el, targetParam, p.AsDouble(),
                             Math.Round(mm, 0).ToString("F0",
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
@@ -4135,7 +4135,7 @@ namespace StingTools.Core
                     double slope = p.AsDouble();
                     double degrees = Math.Atan(slope) * 180.0 / Math.PI;
                     if (degrees > 0)
-                        return SetIfEmptyInt(el, targetParam,
+                        return WriteMapped(el, targetParam, degrees,
                             degrees.ToString("F1",
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
@@ -4157,7 +4157,7 @@ namespace StingTools.Core
                 {
                     double mm = p.AsDouble() * 304.8;
                     if (mm > 0)
-                        return SetIfEmptyInt(el, targetParam,
+                        return WriteMapped(el, targetParam, p.AsDouble(),
                             Math.Round(mm, 0).ToString("F0",
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
@@ -4176,7 +4176,7 @@ namespace StingTools.Core
                 {
                     double slopePct = p.AsDouble() * 100.0;
                     if (slopePct > 0)
-                        return SetIfEmptyInt(el, targetParam,
+                        return WriteMapped(el, targetParam, slopePct,
                             slopePct.ToString("F1",
                                 System.Globalization.CultureInfo.InvariantCulture));
                 }
