@@ -254,7 +254,7 @@ namespace StingTools.Core.Drawing
                 { "mechanical", "M" }, { "electrical", "E" }, { "plumbing", "P" },
                 { "public health", "P" }, { "fire protection", "FP" }, { "fire", "FP" },
                 { "comms", "LV" }, { "communications", "LV" }, { "civil", "C" },   // ISO19650DISC-1: C = Civil Engineer; G is GIS / Land Surveyor
-                { "healthcare", "H" }, { "medical gas", "MG" }, { "radiation protection", "RP" },
+                { "healthcare", "HC" }, { "medical gas", "MG" }, { "radiation protection", "RP" },   // ISO19650DISC-3: "H" is Heating & Ventilation
             };
 
         private static string DisciplineCode(string s)

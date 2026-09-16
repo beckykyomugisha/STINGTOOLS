@@ -158,6 +158,45 @@ with no PROD" throughout, because it was reading the pair out of the comment. Bo
 entry is restored on its own line, and the gate strips comments before parsing. **A gate that
 parses commented-out code as live data confirms whatever it is shown.**
 
+**A retraction: the binding-scope CSV edit does nothing at runtime.** Asked to fix the
+migrations, tracing the binder end to end showed that
+`SharedParamGuids.LoadPerParamCategoryBindings` reads `cols[0]` and `cols[1]` and **never
+reads `cols[2]`**, and that `LoadSharedParamsCommand` calls `NewInstanceBinding`
+unconditionally. The 1,198 rows flipped Type → Instance are therefore accurate documentation
+and nothing more. The defect is real — a type-bound `ASS_SEQ_NUM_TXT`, greyed, reading `-215`,
+on a door tagged `A-BLD1-Z01-L01-ARC-FIT-DR-` — but it came from a template, a manually loaded
+shared-parameter file or an earlier binder, and editing that column could never have moved it.
+**Second time this phase a fix was asserted before its mechanism was traced end to end.**
+
+**BINDSCOPE-2 — the migration that can actually do it.**
+`Tags/MigrateBindingScopeCommand.cs` adds **Scope Audit** (ReadOnly) and **Fix Scope**
+(Manual) on the SETUP tab beside **Load Params**: the first walks
+`Document.ParameterBindings` and names STING per-element parameters held by a `TypeBinding`,
+the second re-inserts them as `InstanceBinding` over the same categories. ⚠️ Re-binding
+Type → Instance **discards values held on types** — Revit keeps the two scopes separately and
+gives no API to carry values across. For a sequence number or a location token that is the
+point, but it is a real loss, so the count is shown and confirmed before anything is written,
+and the result says plainly that a re-tag is still required: the migration makes the
+per-element write possible, it does not perform it.
+
+**ISO19650DISC-3 — closed, and my scoping of it was wrong twice over.** I had recorded it as
+touching "the healthcare pack's 60 tag families", taken from CLAUDE.md's claim of "3 new
+disciplines (`H` Healthcare…)" rather than from measurement. Measured: **`DiscMap` has no `H`,
+`MG` or `RP` entry at all**, and three call sites already treated `H` correctly as Heating &
+Ventilation. The real surface was the drawing layer — 10 drawing types and 6 routing rules —
+and the real consequence was worse than a naming clash: `Iso19650DocumentCode` folds `H` → `M`,
+so **every healthcare drawing was filed under Mechanical**, attributing it to the M&E engineer.
+That is precisely the failure that file's own comment describes for fire protection under `S`:
+a plausible letter that misroutes an issued drawing. Healthcare is now `HC`, mapping to role
+`Y` (Specialist Designer) beside `RP` and `FP`, with its own sheet prefix instead of inheriting
+`M`. Drawing-type checksums re-stamped — exactly 10 drifted, every one round-trip verified.
+
+**ISO19650DISC-4 — examined and deliberately not migrated.** `LV`, `FP` and `FLS` are
+multi-letter, so unlike `G` and `H` they cannot collide with the single-letter role table, and
+`Iso19650DocumentCode` already folds them to standard roles on issue. Issued containers are
+already compliant; changing the internal codes would lose the system distinction STING routes
+on and gain nothing. What is left is a sentence in the BEP, not a migration.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records

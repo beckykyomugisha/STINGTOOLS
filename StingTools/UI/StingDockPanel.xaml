@@ -2381,6 +2381,8 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Scope Audit" Tag="AuditBindingScope" Click="Cmd_Click" ToolTip="Read-only — STING parameters bound to the TYPE that are written per element. A type-bound SEQ is why a tag can end in a separator with no number."/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="Fix Scope" Tag="MigrateBindingScope" Click="Cmd_Click" ToolTip="Re-bind those parameters as Instance. DISCARDS values held on types — confirms first. Re-tag afterwards."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Mint STING tag families (shell + params + type variants) for all categories. Then run 'Propagate Universal' to apply the universal label, and 'Set depth' for the tier count. Label rows are not authored here."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>

@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · the ISO 19650 document identifier
+﻿// StingTools — Drawing Template Manager · the ISO 19650 document identifier
 //
 // WHY THIS FILE EXISTS
 // --------------------
@@ -228,6 +228,12 @@ namespace StingTools.Core.Drawing
                 // engineer. It is a plausible-looking letter that misroutes a
                 // drawing, which is worse than an obviously missing one.
                 case "RP": case "FP": case "FIRE": case "SPECIALIST": return "Y";
+                // ISO19650DISC-3. Healthcare used the code "H", which this switch
+                // (correctly) folds to "M" -- so every healthcare drawing was filed
+                // under MECHANICAL, attributing it to the M&E engineer. Same failure the
+                // comment above describes for FP under S: a plausible letter that
+                // misroutes an issued drawing. Healthcare is specialist design, so Y.
+                case "HC": case "HEALTHCARE":                     return "Y";
             }
 
             // A single letter that is already a role passes through.

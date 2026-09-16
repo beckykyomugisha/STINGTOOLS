@@ -26,6 +26,9 @@ namespace StingTools.Core.Drawing
                 { "A", "A" }, { "AR", "A" }, { "ARCH", "A" },
                 { "S", "S" }, { "ST", "S" }, { "STR", "S" },
                 { "M", "M" }, { "MEC", "M" }, { "MECH", "M" }, { "H", "M" }, { "HVAC", "M" },
+                // ISO19650DISC-3: healthcare had no entry, so it fell through "H" to the
+                // mechanical prefix and healthcare sheets were numbered as M sheets.
+                { "HC", "HC" }, { "HEALTHCARE", "HC" },
                 { "E", "E" }, { "EL", "E" }, { "ELE", "E" }, { "ELEC", "E" },
                 { "P", "P" }, { "PL", "P" }, { "PLM", "P" }, { "PH", "P" },
                 { "C", "C" }, { "CIV", "C" },
