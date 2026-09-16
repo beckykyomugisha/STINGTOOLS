@@ -2398,17 +2398,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -2799,17 +2788,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -2972,16 +2950,6 @@
           "size": "2.0"
         },
         {
-          "param": "BLE_DOOR_WIDTH_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Clear:",
-          "suffix_override": "mm",
-          "style": "NOM",
-          "color": "BLACK",
-          "size": "2.0"
-        },
-        {
           "param": "RGL_STD_TXT",
           "spaces": 0,
           "break": true,
@@ -3018,13 +2986,14 @@
           "size": "2.0"
         },
         {
-          "param": "BLE_DOOR_GLAZING_TXT",
+          "param": "BLE_DOOR_GLAZING_TYPE_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Glazed:",
           "style": "NOM",
           "color": "BLACK",
-          "size": "2.0"
+          "size": "2.0",
+          "note": "Retargeted from BLE_DOOR_GLAZING_TXT — that parameter is bound to the host ELEMENT category, not to Doors, so the row could never display. This one is bound and already populated."
         },
         {
           "param": "BLE_DOOR_THRESHOLD_TXT",
@@ -3244,17 +3213,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -3699,17 +3657,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -4571,17 +4518,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -5263,17 +5199,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -5937,17 +5862,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -6301,17 +6215,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -6723,17 +6626,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -6917,31 +6809,34 @@
           "size": "2.0"
         },
         {
-          "param": "BLE_FLR_FINISH_TXT",
+          "param": "BLE_ROOM_FINISH_FLOOR_TXT",
           "spaces": 0,
           "break": false,
           "prefix_override": "Floor Fin:",
           "style": "NOM",
           "color": "BLACK",
-          "size": "2.0"
+          "size": "2.0",
+          "note": "Retargeted from BLE_FLR_FINISH_TXT — that parameter is bound to the host ELEMENT category, not to Rooms, so the row could never display. This one is bound and already populated."
         },
         {
-          "param": "BLE_WALL_FINISH_TXT",
+          "param": "BLE_ROOM_FINISH_WALL_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Wall Fin:",
           "style": "NOM",
           "color": "BLACK",
-          "size": "2.0"
+          "size": "2.0",
+          "note": "Retargeted from BLE_WALL_FINISH_TXT — that parameter is bound to the host ELEMENT category, not to Rooms, so the row could never display. This one is bound and already populated."
         },
         {
-          "param": "BLE_CEILING_FINISH_TXT",
+          "param": "BLE_ROOM_FINISH_CEILING_TXT",
           "spaces": 0,
           "break": true,
           "prefix_override": "| Ceil Fin:",
           "style": "NOM",
           "color": "BLACK",
-          "size": "2.0"
+          "size": "2.0",
+          "note": "Retargeted from BLE_CEILING_FINISH_TXT — that parameter is bound to the host ELEMENT category, not to Rooms, so the row could never display. This one is bound and already populated."
         },
         {
           "param": "BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT",
@@ -7152,17 +7047,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -7884,17 +7768,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -8267,17 +8140,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -8770,17 +8632,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -9234,17 +9085,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -9918,17 +9758,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -10593,17 +10422,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -11254,17 +11072,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -11921,17 +11728,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -12575,17 +12371,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -13235,17 +13020,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -13892,17 +13666,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -14546,17 +14309,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -15222,17 +14974,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -15879,17 +15620,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -16533,17 +16263,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -17200,17 +16919,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -17854,17 +17562,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -18514,17 +18211,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -19171,17 +18857,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -19825,17 +19500,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -20492,17 +20156,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -21146,17 +20799,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -21822,17 +21464,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -22483,17 +22114,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -23152,17 +22772,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -23806,17 +23415,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -24466,17 +24064,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -25120,17 +24707,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -25794,17 +25370,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -26457,17 +26022,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -27126,17 +26680,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -27780,17 +27323,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -28451,17 +27983,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -29145,17 +28666,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -29816,17 +29326,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -30482,17 +29981,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -30946,17 +30434,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -31459,17 +30936,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -32227,17 +31693,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -32909,17 +32364,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -33563,17 +33007,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -34223,17 +33656,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -34877,17 +34299,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -35537,17 +34948,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -36191,17 +35591,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -36851,17 +36240,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -37505,17 +36883,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -38165,17 +37532,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -38819,17 +38175,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -39479,17 +38824,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -40136,17 +39470,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -40746,17 +40069,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -41369,17 +40681,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -41988,17 +41289,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -42655,17 +41945,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -43316,17 +42595,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -43983,17 +43251,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -44640,17 +43897,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -45294,17 +44540,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -45961,17 +45196,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -46538,17 +45762,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -46907,17 +46120,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -47289,17 +46491,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -47867,17 +47058,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -48276,17 +47456,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -49248,17 +48417,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -49647,17 +48805,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -50008,17 +49155,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -50391,17 +49527,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -50944,17 +50069,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -51613,17 +50727,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -52045,17 +51148,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -52634,17 +51726,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -52951,17 +52032,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -53501,17 +52571,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -53812,17 +52871,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -54411,17 +53459,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -55387,17 +54424,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -55962,17 +54988,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -56308,17 +55323,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -56917,17 +55921,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -57446,17 +56439,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -57908,17 +56890,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -58360,17 +57331,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -58824,17 +57784,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -59643,17 +58592,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -60188,17 +59126,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -61023,17 +59950,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -61524,17 +60440,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -62009,17 +60914,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -62692,17 +61586,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -63353,17 +62236,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -64023,17 +62895,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -64881,17 +63742,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -65565,17 +64415,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -66222,17 +65061,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -66876,17 +65704,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -67543,17 +66360,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -68197,17 +67003,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -68857,17 +67652,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -69511,17 +68295,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -70191,17 +68964,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -70845,17 +69607,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -71505,17 +70256,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -72162,17 +70902,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -72816,17 +71545,6 @@
           "break": false,
           "prefix_override": "on ",
           "note": "T9 Reality-capture snapshot date",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -73485,17 +72203,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -74142,17 +72849,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "note": "T9 Last computed model health score",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -74434,16 +73130,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -74802,16 +73488,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -75166,16 +73842,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -75503,16 +74169,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -75836,16 +74492,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -76183,16 +74829,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -76541,16 +75177,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -76819,16 +75445,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -77143,16 +75759,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -78128,16 +76734,6 @@
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
         }
       ],
       "tier_10": [
@@ -78406,16 +77002,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"
@@ -78705,16 +77291,6 @@
           "spaces": 0,
           "break": false,
           "prefix_override": "on",
-          "style": "ITALIC",
-          "color": "GREY",
-          "size": "2.0"
-        },
-        {
-          "param": "HEALTH_SCORE_LAST_TXT",
-          "spaces": 0,
-          "break": true,
-          "prefix_override": "Health:",
-          "suffix_override": "/100",
           "style": "ITALIC",
           "color": "GREY",
           "size": "2.0"

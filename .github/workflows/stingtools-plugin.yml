@@ -95,6 +95,13 @@ jobs:
       - name: Tag token policy still governs tagging
         run: python3 tools/check_token_policy_wired.py --check
 
+      # A tag row whose parameter is not bound to that category renders EMPTY. It does
+      # not throw and nothing logs it — the STING room tag showed a blank where the room
+      # name belongs for as long as it existed, and 1,019 more rows are in the same state.
+      # A ratchet, not a zero: it fails when the count RISES.
+      - name: No new tag rows that can never display
+        run: python3 tools/check_tag_row_bindings.py --check
+
       # A method that catches an exception, abandons the work and then tells its
       # caller it succeeded. Four of those built a project's whole finish catalogue
       # out of one default layer and reported '168/168 renamed, 0 failed'. This is
