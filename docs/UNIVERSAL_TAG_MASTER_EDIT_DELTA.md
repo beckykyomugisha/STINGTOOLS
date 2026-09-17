@@ -14,7 +14,8 @@ Measured 2026-09-17 against `UNIVERSAL_TAG_MASTER_BUILD.xlsx` and the build shee
 |---|---|---|
 | `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Label Rows* | 65 | ✅ |
 | `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` → Step 2 | 65 | ✅ param-for-param |
-| `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Parameters* | 74 | ✅ |
+| `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Parameters* | ~~74~~ **75** | ⚠️ `ASS_DISPLAY_TXT` was missing, added 2026-09-17 |
+| `UNIVERSAL_TAG_MASTER_PARAMS.txt` | ~~74~~ **75** | ⚠️ same — the kit could not build row 1 |
 | `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Delete first* | 14 | ✅ |
 | `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` → Part 1 | 14 | ✅ |
 | ~~`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` → Step 1~~ | ~~9~~ → **14** | ⚠️ **was wrong, corrected 2026-09-17** |
@@ -26,6 +27,38 @@ reported difference is row 1, where the xlsx names `ASS_TAG_1_TXT` and the markd
 **So: aligned, with one fix applied.** Step 1 of the build sheet listed 9 removals and omitted
 the 5 warning-text rows. The 65-row target contains no `WARN_*` rows, so 14 is correct; 9
 would have left you on 70 rows.
+
+---
+
+## A2 · Row 1 is `ASS_DISPLAY_TXT` — the build kit was wrong, the master is right
+
+Found 2026-09-17 by reviewing a screenshot of the live master against the kit.
+
+`ASS_DISPLAY_TXT` is the ON-DRAWING tag: the display-mode + segment-mask resolved rendering
+of the canonical `ASS_TAG_1_TXT` (`TagConfig.cs:2727`, written by `BuildDisplayTag`). Putting
+`ASS_TAG_1_TXT` on the label bypasses `STING_DISPLAY_MODE` and every mask
+(`TAG_SEG_MASK_TXT` / `STING_VIEW_TOKEN_MASK_TXT` / the UI "TokenMask"), so every tag prints
+all eight segments in every view regardless of the mask.
+
+The error ran through the whole kit, and all three are now fixed:
+
+| Artifact | Was | Now |
+|---|---|---|
+| `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md` row 1 | `ASS_TAG_1_TXT` | `ASS_DISPLAY_TXT` |
+| `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Label Rows* row 1 | `ASS_TAG_1_TXT` | `ASS_DISPLAY_TXT` |
+| `UNIVERSAL_TAG_MASTER_BUILD.xlsx` → *Parameters* | absent | added (75) |
+| `UNIVERSAL_TAG_MASTER_PARAMS.txt` | absent | added, group 17, GUID `6954e197-0524-5620-a2bb-aea7f274475a` |
+
+**The kit could not have produced a correct row 1**: `ASS_DISPLAY_TXT` was in neither the
+Parameters sheet nor the trimmed shared-parameter file, so it would never have appeared in
+the Edit Label field list. Anyone rebuilding from the kit would have shipped the downgrade to
+all 206 families via propagation.
+
+`ASS_TAG_1_TXT` is left in both files. It is no longer used by any row, but it is the
+canonical key and is harmless in the field list.
+
+⚠️ **Your working copy at `C:\Dev\TAGS 210626\` is now stale** — it was byte-identical to
+the repo copy before these edits. Re-copy both files from `docs/` before using them.
 
 ---
 
