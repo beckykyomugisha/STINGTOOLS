@@ -88,7 +88,7 @@ here rather than at row 70.
 | 19 | T5 | Show T5 - Cost - FX to Base | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")` | FX: |  | no |
 | 20 | T5 | Show T5 - Cost - FX Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, "")` | FX date: |  | no |
 | 21 | T5 | Show T5 - Cost - As-of Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, "")` | As of: |  | YES |
-| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, "")` | Stale: |  | no |
+| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_TXT, "")` | Stale: |  | no |
 | 23 | T5 | Show T5 - Cost - Stale Reason | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, "")` | - |  | YES |
 | 24 | T5 | Show T5 - Payment - % Complete | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")` | Cmpl: | % | no |
 | 25 | T5 | Show T5 - Payment - Cert No | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, "")` | Cert#: |  | no |
@@ -116,7 +116,7 @@ here rather than at row 70.
 | 47 | T8 | Show T8 - Clash - Triage Severity | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")` | Sev: | /5 | no |
 | 48 | T8 | Show T8 - Clash - Triage Category | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, "")` |  |  | no |
 | 49 | T8 | Show T8 - Clash - Resolution Status | `if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, "")` | Res: |  | YES |
-| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, "")` | Crit: | /5 | no |
+| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_TXT, "")` | Crit: | /5 | no |
 | 51 | T8 | Show T8 - Coordination - ASS_ZONE_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, "")` | Zone: |  | no |
 | 52 | T8 | Show T8 - Coordination - ASS_LVL_COD_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, "")` | Lvl: |  | YES |
 | 53 | T9 | Show T9 - As-built - Deviation | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, "")` | Δ: | mm | no |

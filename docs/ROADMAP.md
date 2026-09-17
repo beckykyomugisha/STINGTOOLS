@@ -21,6 +21,20 @@ papered over.
 | MAPTYPE-2 | ✅ **CLOSED** (Phase 290) | `UnitValueText.StripUnitSuffix` keeps the _TXT mirror a plain number, so a row with its own unit suffix no longer renders `MCB: 100 A A`. Revit-free, 18 unit tests. |
 | MAPTYPE-3 | ✅ **CLOSED** (Phase 291) — measured, not assumed | All **174** container-target parameters reachable through `ParamRegistry.WriteContainers` are declared TEXT, so its `SetString` is correct for every one. The speculation that the true defect count was higher than 57 was wrong: outside the Map* helpers there are **zero** instances. |
 
+## Shared-parameter type conflicts and display mirrors (2026-09-17, Phase 296)
+
+`STING_Tag_Universal.rfa` would not load into a project: 12 Revit errors, each a shared
+parameter being added as TEXT whose GUID the project already defines as
+Number/Currency/Length/Yes-No. Revit keys a shared parameter on its GUID, so same GUID +
+different type is a hard load block.
+
+| ID | Status | Detail |
+|---|---|---|
+| PARAMTYPE-1 | **CLOSED 2026-09-17** | Two of the twelve came from `docs/UNIVERSAL_TAG_MASTER_PARAMS.txt`, which typed `ASS_CRITICALITY_RATING_NR` TEXT (MR: NUMBER) and `ASS_CST_STALE_BOOL` TEXT (MR: YESNO) under MR's own GUIDs. Both label rows now use the TEXT display mirrors that already existed (`ASS_CRITICALITY_RATING_TXT`, `ASS_CST_STALE_TXT`). All 65 label rows now reference a TEXT parameter; measured, was 63 of 65. `tools/check_shared_param_types.py` gates it. |
+| PARAMTYPE-2 | **OPEN — needs the family open in Revit** | The other ten (`PER_*`, `HVC_DCT_SOUNDLVL_DB`, `HVC_DCT_FLW_CFM`, `HVC_VEL_MPS`, `MNT_HGT_MM`, `ASS_CST_UNIT_PRICE_UGX_NR`, `PER_REPLACEMENT_COST_UGX`, `ASS_ELEVATION_M`) are in **neither the kit nor the label** — orphan family parameters inherited from the Air Terminal ancestry. Deleting a label ROW does not delete the family PARAMETER, and no gate can see inside an `.rfa`. Delete them in Family Types before propagating, or all 206 inherit them. |
+| MIRROR-1 | **OPEN — measured 2026-09-17** | **217 parameters in `MR_PARAMETERS.txt` are described as a display mirror; only 24 have a formula in `FORMULAS_WITH_DEPENDENCIES.csv`. 193 are bound parameters that nothing populates** — they exist, they bind, they read as real, and they render blank forever. This is the repo's signature failure mode at scale. Wiring them is a data job (one CSV row each) for any mirror whose source is numeric. |
+| MIRROR-2 | **OPEN — blocks part of MIRROR-1** | `EvaluateTextLegacy` (`Temp/FormulaEvaluatorCommand.cs:815`) supports only `+` concatenation, quoted literals, `format(PARAM)` and bare parameter references, and its final branch **silently skips anything it does not recognise**. So a TEXT formula containing `if(...)` evaluates to nothing rather than failing — an unevaluable formula is indistinguishable from an empty one. Any YESNO-sourced mirror (e.g. `ASS_CST_STALE_TXT`, which wants `if(ASS_CST_STALE_BOOL, "STALE", "")`) needs `if()` support added there first. Until then `ASS_CST_STALE_TXT` has no formula and row 22 renders blank. |
+
 ## Universal tag readiness (2026-09-16, Phase 293)
 
 | ID | Status | Detail |
