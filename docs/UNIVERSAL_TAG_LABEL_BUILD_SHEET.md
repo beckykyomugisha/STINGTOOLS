@@ -56,7 +56,18 @@ here rather than at row 70.
 
 | # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break |
 |---|---|---|---|---|---|---|
-| 1 | T1 | --- | - |  |  | YES |
+| 1 | T1 | **`ASS_DISPLAY_TXT`** (add directly, not a calc value) | - |  |  | YES |
+
+> **Row 1 corrected 2026-09-17: it is `ASS_DISPLAY_TXT`, not `ASS_TAG_1_TXT`.**
+> `ASS_DISPLAY_TXT` is the ON-DRAWING tag — the display-mode + segment-mask resolved
+> rendering of the canonical `ASS_TAG_1_TXT` (`TagConfig.cs:2727`, written by
+> `BuildDisplayTag`). Putting `ASS_TAG_1_TXT` on the label bypasses
+> `STING_DISPLAY_MODE` and every segment mask (`TAG_SEG_MASK_TXT` /
+> `STING_VIEW_TOKEN_MASK_TXT` / the UI "TokenMask"), so the tag would print all eight
+> segments in every view regardless of the mask. It never goes blank either:
+> `BuildAndWriteTag` falls back to writing the full canonical tag into
+> `ASS_DISPLAY_TXT` when `BuildDisplayTag` yields nothing.
+
 | 2 | T2 | Show Tier 2 - 2 | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` |  |  | YES |
 | 3 | T2 | Show Tier 2 - 3 | `if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, "")` |  |  | YES |
 | 4 | T2 | Show T2 - Status | `if(TAG_PARA_STATE_2_BOOL, ASS_STATUS_TXT, "")` | Status: |  | YES |
