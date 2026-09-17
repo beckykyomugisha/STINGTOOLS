@@ -18,14 +18,39 @@ Every non-T1 row is a Calculated Value (fx): Name, Type=Text, paste Formula. The
 
 ---
 
-## STEP 1 - REMOVE from current master (9 rows)
+## STEP 1 - REMOVE from current master (14 rows)
+
+> **Corrected 2026-09-17: this said 9 and listed only the first two groups.** The 65-row
+> table in Step 2 contains no `WARN_*` rows, so the 5 warning-text rows must come out as
+> well or you finish on 70. The `Delete first` sheet of `UNIVERSAL_TAG_MASTER_BUILD.xlsx`
+> and Part 1 of `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` both already said 14; this file was
+> the odd one out.
 
 Select row, click left-arrow (remove-from-label):
 
+**T2 discipline rows (3)** - data moves to per-category schedules
 - HVC_DCT_FLW_CFM (T2)
 - HVC_VEL_MPS (T2)
 - MNT_HGT_MM (T2)
-- all 6 T3 rows (Show Tier 3 - 8 ... 3 - 13)
+
+**T3 - all 6 rows** (Show Tier 3 - 8 ... 3 - 13) - T3 was the per-family engineering block
+- HVC_TAG_7_PARA_AT_TXT
+- HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT
+- HVC_DCT_TERMINAL_SZ_TXT
+- HVC_TERMINAL_MAT_TXT
+- HVC_TERMINAL_FINISH_TXT
+- ASS_CST_TOTAL_UGX_NR
+
+**Warning text rows (5)** - replaced by the Step 4 badges
+- WARN_HVC_NOISE_NC_AIR_TERMINALS
+- WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS
+- WARN_HVC_THROW_DISTANCE_AIR_TERMINALS
+- WARN_HVC_PRESSURE_DROP_AIR_TERMINALS
+- WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS
+
+⚠️ If you are **not** building the badges yet, removing the 5 warning rows leaves you with
+no warnings at all until you do. That is a deliberate choice, not an oversight - decide it
+here rather than at row 70.
 
 ## STEP 2 - Full universal row list (build/verify all in order)
 
