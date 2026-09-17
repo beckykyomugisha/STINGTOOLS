@@ -1,4 +1,4 @@
-// StingTools v4 MVP — ShopDrawingComposer.
+﻿// StingTools v4 MVP — ShopDrawingComposer.
 //
 // Creates a ViewSheet using the discipline-specific title block,
 // places the 5 views from AssemblyViewSet at fixed slot positions
@@ -59,7 +59,7 @@ namespace StingTools.Core.Fabrication
             { "Duct",       "M"  },
             { "Electrical", "E"  },
             { "Hanger",     "HG" },
-            { "Generic",    "G"  }
+            { "Generic",    "Z"  }   // ISO19650DISC-1: Z = General / multi-disciplinary
         };
 
         // Session-scoped sequence per (discipline, level) bucket — ensures

@@ -1685,10 +1685,59 @@ namespace StingTools.Core
         /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
         /// For categories with multiple valid systems (e.g., Pipes), returns the first match.
         /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
+        /// <summary>
+        /// SYS code for a category when nothing element-specific is known (SYSAMB-1).
+        ///
+        /// 25 categories are legitimately listed under more than one system code, and for
+        /// most of them that is correct: `Pipes` really can be DCW, DHW, FP, GAS, HVAC, HWS,
+        /// RWD or SAN, and `GetMepSystemAwareSysCode` resolves it per element from the MEP
+        /// system. This is the FALLBACK for when that fails.
+        ///
+        /// It used to return `list[0]` — the first key encountered iterating a Dictionary,
+        /// which C# does not contract. Every remaining ambiguity is an OVERLAY system sitting
+        /// on top of a primary discipline: LPS (lightning protection) is listed against
+        /// Walls, Roofs, Gutters, Structural Rebar, Conduits and Electrical Equipment,
+        /// because any of those CAN carry lightning protection. If LPS had happened to be
+        /// enumerated first, every wall in the model would have tagged as lightning
+        /// protection — and nothing would have said so.
+        ///
+        /// So an overlay never wins the fallback. Lightning protection is asserted per
+        /// element (that is what `LpsMarkElementTypesCommand` is for); it is never the
+        /// default reading of a wall.
+        /// </summary>
+        private static readonly HashSet<string> _overlaySysCodes =
+            new HashSet<string>(StringComparer.Ordinal) { "LPS" };
+
+        private static readonly HashSet<string> _ambiguityReported =
+            new HashSet<string>(StringComparer.Ordinal);
+
         public static string GetSysCode(string categoryName)
         {
             var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out var list) && list.Count > 0 ? list[0] : string.Empty;
+            if (!reverse.TryGetValue(categoryName, out var list) || list.Count == 0)
+                return string.Empty;
+
+            if (list.Count == 1) return list[0];
+
+            string chosen = null;
+            foreach (string code in list)
+            {
+                if (!_overlaySysCodes.Contains(code)) { chosen = code; break; }
+            }
+            if (chosen == null) chosen = list[0];   // all overlays — honour the declaration
+
+            // Once per category per session, not once per element. At batch-tag volume the
+            // per-element version would be the noise that hid the one real fault in TAGLOG-1.
+            lock (_ambiguityReported)
+            {
+                if (_ambiguityReported.Add(categoryName))
+                    StingLog.Info(
+                        $"SysMap: '{categoryName}' is listed under {list.Count} system codes "
+                        + $"({string.Join("/", list)}); no element context was available, so "
+                        + $"'{chosen}' was used. Element-specific codes come from "
+                        + "GetMepSystemAwareSysCode or an explicit ASS_SYSTEM_TYPE_TXT.");
+            }
+            return chosen;
         }
 
         /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
@@ -1783,7 +1832,14 @@ namespace StingTools.Core
                 case "S":  return "STR";
                 case "FP": return "FP";
                 case "LV": return "LV";
-                case "G":  return "GEN"; // Generic Models/Specialty Equipment — not gas-specific
+                // GENPH-1: "GEN" is a SENTINEL (see _placeholders) meaning "unresolved".
+                // Returning it as a REAL sys code made every tag for these categories
+                // permanently incomplete: TagHasPlaceholders sees "-GEN-", TagIsComplete
+                // returns false, so the element is never skipped, is re-derived on every
+                // run, and ComplianceScan counts it non-compliant for ever. "GNL" is a
+                // real code; "GEN" below still means unresolved.
+                case "Z":  return "GNL"; // ISO19650DISC-1: Z = General / multi-disciplinary
+                case "G":  return "GNL"; // legacy tags coded G (GIS in the standard) still resolve
                 default:   return "GEN";
             }
         }
@@ -2072,6 +2128,22 @@ namespace StingTools.Core
         /// to the base PROD code. Falls through to the legacy behaviour
         /// when no material rule matches.
         /// </summary>
+        /// <summary>
+        /// Joining character for a material-suffixed PROD code (TAGPROD-1).
+        ///
+        /// Must never equal the active tag separator, or the suffixed code becomes an
+        /// extra tag segment and SetString's source-token guard truncates it away. The
+        /// preference order is tried in turn and the first one that is not the separator
+        /// wins, so this stays correct when a project overrides Separator.
+        /// </summary>
+        internal static string ProdSuffixJoin()
+        {
+            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
+            foreach (string c in new[] { "_", ".", "+" })
+                if (!string.Equals(c, sep, StringComparison.Ordinal)) return c;
+            return "";   // every candidate is the separator — concatenate rather than corrupt
+        }
+
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
             => GetFamilyAwareProdCode(el, categoryName, out _);
 
@@ -2089,12 +2161,21 @@ namespace StingTools.Core
                 string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
                 if (string.IsNullOrEmpty(suffix)) return baseProd;
                 if (string.IsNullOrEmpty(baseProd)) return suffix;
-                // Avoid double-suffixing when an explicit CSV PROD already
-                // ends with the same material code (e.g. "STL" → "STL-STL").
-                if (baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
+                // TAGPROD-1. This used to join with "-", which is the DEFAULT TAG
+                // SEPARATOR. PROD is one segment of an 8-segment tag, so a hyphenated
+                // code is a ninth segment: SetString's source-token guard truncated
+                // "FSP-CON" back to "FSP" on every write and logged it as malformed.
+                // Two subsystems disagreeing — one minting the code, the other rejecting
+                // it — which is why no material suffix has ever reached a tag.
+                //
+                // The join must be a character the active separator is not, or the same
+                // collision returns the moment a project reconfigures Separator.
+                string join = ProdSuffixJoin();
+                if (baseProd.EndsWith(join + suffix, StringComparison.OrdinalIgnoreCase) ||
+                    baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
                     baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                     return baseProd;
-                return $"{baseProd}-{suffix}";
+                return $"{baseProd}{join}{suffix}";
             }
             catch (Exception ex) { StingLog.Warn($"GetFamilyAwareProdCode material suffix: {ex.Message}"); }
             return baseProd;
@@ -2287,6 +2368,41 @@ namespace StingTools.Core
         /// skips the per-element FilteredElementCollector call in PhaseAutoDetect.DetectProjectRevision,
         /// improving batch performance from O(n²) to O(n).</param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
+        /// <summary>
+        /// Why BuildAndWriteTag returned what it returned.
+        ///
+        /// TAGLOG-1. The bool says "was this element tagged", and the caller logged every
+        /// false as "BuildAndWriteTag failed". But TagCollisionMode.Skip returns false on
+        /// purpose for an element that already carries a complete tag — so a clean run of
+        /// 332 elements emitted 278 WARN lines claiming failure and 0 real ones. Noise at
+        /// that ratio is worse than no logging: it buries the one line that matters. In
+        /// the run that found this, exactly one element had a genuine fault and it sat
+        /// inside 278 false alarms.
+        ///
+        /// The report is OPTIONAL and additive. Every existing return value is unchanged,
+        /// so the eleven call sites that ignore the bool keep their exact behaviour; only
+        /// RunFullPipeline passes a report, and it now warns solely on Failed.
+        /// </summary>
+        public enum TagWriteOutcome
+        {
+            Tagged,
+            AlreadyCurrent,
+            SkippedComplete,
+            NotTaggable,
+            Failed,
+        }
+
+        /// <summary>Optional out-channel for <see cref="TagWriteOutcome"/>.</summary>
+        public sealed class TagWriteReport
+        {
+            public TagWriteOutcome Outcome { get; private set; } = TagWriteOutcome.Failed;
+            public void Set(TagWriteOutcome o) { Outcome = o; }
+            public bool IsDeliberateSkip =>
+                Outcome == TagWriteOutcome.SkippedComplete
+                || Outcome == TagWriteOutcome.AlreadyCurrent
+                || Outcome == TagWriteOutcome.NotTaggable;
+        }
+
         public static bool BuildAndWriteTag(Document doc, Element el,
             Dictionary<string, int> sequenceCounters, bool skipComplete = true,
             HashSet<string> existingTags = null,
@@ -2296,12 +2412,16 @@ namespace StingTools.Core
             List<Phase> cachedPhases = null,
             ElementId lastPhaseId = null,
             string prevTagHint = null,
-            string[] tokenValuesOut = null)
+            string[] tokenValuesOut = null,
+            TagWriteReport report = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
+            {
+                report?.Set(TagWriteOutcome.NotTaggable);
                 return false;
+            }
 
             // RunFullPipeline already read TAG1 once — accept
             // the value via the new prevTagHint parameter to avoid a second read.
@@ -2320,6 +2440,7 @@ namespace StingTools.Core
                     && string.Equals(prev, existingTag, StringComparison.Ordinal))
                 {
                     stats?.RecordSkipped(catName);
+                    report?.Set(TagWriteOutcome.AlreadyCurrent);
                     return true;
                 }
             }
@@ -2330,11 +2451,13 @@ namespace StingTools.Core
                 {
                     case TagCollisionMode.Skip:
                         stats?.RecordSkipped(catName);
+                        report?.Set(TagWriteOutcome.SkippedComplete);
                         return false; // Never touch existing complete tags
                     case TagCollisionMode.AutoIncrement:
                         if (skipComplete)
                         {
                             stats?.RecordSkipped(catName);
+                            report?.Set(TagWriteOutcome.SkippedComplete);
                             return false; // Default: skip complete tags
                         }
                         break;
@@ -2558,6 +2681,7 @@ namespace StingTools.Core
                 if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);
                 else StingLog.Warn(why);
                 stats?.RecordWarning(why);
+                report?.Set(TagWriteOutcome.Failed);
                 return false; // AssignNext already rolled the counter back
             }
 
@@ -2611,7 +2735,10 @@ namespace StingTools.Core
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
                 _cachedReadTokens = actualTokens;
                 if (actualTokens.Length < 8)
+                {
+                    report?.Set(TagWriteOutcome.Failed);
                     return false;
+                }
                 // Remove the derived-value tag from collision index (it may differ from actual)
                 string removedTag = null;
                 if (existingTags != null && !string.IsNullOrEmpty(tag))
@@ -2661,6 +2788,7 @@ namespace StingTools.Core
                 {
                     StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
                     stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    report?.Set(TagWriteOutcome.Failed);
                     return false;
                 }
             }
@@ -2672,6 +2800,7 @@ namespace StingTools.Core
                 sequenceCounters[seqKey] = seqPreAlloc;
                 StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
+                report?.Set(TagWriteOutcome.Failed);
                 return false;
             }
 
@@ -2803,6 +2932,7 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(displayModeSentinel))
             {
                 stats?.RecordTagged(catName, disc, sys, lvl);
+                report?.Set(TagWriteOutcome.Tagged);
                 return true;
             }
             try
@@ -2970,6 +3100,7 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
+            report?.Set(TagWriteOutcome.Tagged);
             return true;
         }
 

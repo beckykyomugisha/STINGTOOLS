@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -191,6 +191,9 @@ namespace StingTools.Core
 
             // paramName → ordered distinct BuiltInCategory list
             var acc = new Dictionary<string, List<BuiltInCategory>>(StringComparer.Ordinal);
+            var unresolved = new HashSet<string>(StringComparer.Ordinal);
+            var badEnum = new HashSet<string>(StringComparer.Ordinal);
+            int unresolvedRows = 0;
             var seen = new Dictionary<string, HashSet<BuiltInCategory>>(StringComparer.Ordinal);
 
             foreach (string raw in File.ReadAllLines(path))
@@ -204,8 +207,30 @@ namespace StingTools.Core
                     continue;
                 if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
-                if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+                // CATBIND-2: these two lines drop a binding row. Until 2026-09-17 they did it
+                // in SILENCE, and 242 rows across 85 category names were being discarded on
+                // every load with nothing to show for it. Four of those names were singular
+                // where Revit is plural -- an ordinary typo that cost 29 bindings and was
+                // invisible because the loader had no opinion about names it did not know.
+                //
+                // The rows are not necessarily wrong: most of the 85 are spec-family names
+                // ("Clinical Room", "MEP Sleeve", "Architectural Sheet") that were never Revit
+                // categories, and guessing a category for those would be worse than dropping
+                // them. So this still drops -- it just says so, which is the whole difference
+                // between a known gap and a silent one.
+                if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr))
+                {
+                    unresolved.Add(catName);
+                    unresolvedRows++;
+                    continue;
+                }
+                if (!Enum.TryParse(enumStr, out BuiltInCategory bic))
+                {
+                    if (badEnum.Add(enumStr))
+                        StingLog.Warn($"CATEGORY_BINDINGS: '{catName}' maps to '{enumStr}', "
+                                      + "which is not a BuiltInCategory. Row dropped.");
+                    continue;
+                }
 
                 if (!acc.TryGetValue(param, out var list))
                 {
@@ -214,6 +239,23 @@ namespace StingTools.Core
                     seen[param] = new HashSet<BuiltInCategory>();
                 }
                 if (seen[param].Add(bic)) list.Add(bic);
+            }
+
+            if (unresolvedRows > 0)
+            {
+                // One summary line, not 242. A per-row warning at this volume is the noise
+                // that hid the one real fault in TAGLOG-1.
+                var sample = new List<string>(unresolved);
+                sample.Sort(StringComparer.Ordinal);
+                if (sample.Count > 12) sample.RemoveRange(12, sample.Count - 12);
+                StingLog.Warn(
+                    $"CATEGORY_BINDINGS: {unresolvedRows} row(s) dropped across "
+                    + $"{unresolved.Count} category name(s) that CategoryEnumMap does not "
+                    + $"know, so those parameters are NOT bound there. Names: "
+                    + string.Join(", ", sample)
+                    + (unresolved.Count > sample.Count ? ", …" : "")
+                    + ". Most are spec families rather than Revit categories; a singular/"
+                    + "plural mismatch is the one to check first.");
             }
 
             foreach (var kvp in acc)

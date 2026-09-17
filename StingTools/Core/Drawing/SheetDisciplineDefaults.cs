@@ -1,4 +1,4 @@
-// StingTools — Drawing Template Manager · the built-in discipline vocabulary
+﻿// StingTools — Drawing Template Manager · the built-in discipline vocabulary
 //
 // These are the FALLBACK, not the source of truth: SheetDisciplineConfig layers
 // Data/STING_SHEET_DISCIPLINES.json and a per-project file on top, and the
@@ -26,6 +26,9 @@ namespace StingTools.Core.Drawing
                 { "A", "A" }, { "AR", "A" }, { "ARCH", "A" },
                 { "S", "S" }, { "ST", "S" }, { "STR", "S" },
                 { "M", "M" }, { "MEC", "M" }, { "MECH", "M" }, { "H", "M" }, { "HVAC", "M" },
+                // ISO19650DISC-3: healthcare had no entry, so it fell through "H" to the
+                // mechanical prefix and healthcare sheets were numbered as M sheets.
+                { "HC", "HC" }, { "HEALTHCARE", "HC" },
                 { "E", "E" }, { "EL", "E" }, { "ELE", "E" }, { "ELEC", "E" },
                 { "P", "P" }, { "PL", "P" }, { "PLM", "P" }, { "PH", "P" },
                 { "C", "C" }, { "CIV", "C" },
@@ -34,7 +37,7 @@ namespace StingTools.Core.Drawing
                 { "LV", "LV" }, { "ICT", "LV" }, { "IT", "LV" },
                 { "I", "I" }, { "ID", "I" },
                 { "CO", "COORD" }, { "CD", "COORD" }, { "COORD", "COORD" },
-                { "G", "GEN" }, { "GEN", "GEN" },
+                { "G", "GEN" }, { "Z", "GEN" }, { "GEN", "GEN" },   // ISO19650DISC-1
             };
 
         /// <summary>Whole words in a sheet title, in decision order.</summary>

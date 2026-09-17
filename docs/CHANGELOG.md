@@ -2,6 +2,366 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 294 — four defects one door in Revit found, none of them visible to five gates)
+
+The first Revit session against Phases 287–293. It took one door and the log to find four
+real defects, and **not one of them was reachable by any gate built so far** — every gate
+checked data against data, and these live in the join between data and the Revit API.
+
+**MAPTYPE-1 is answered, and it was not the bug.** On a tagged `M_Door-Passage-Single-Flush
+750 x 2000mm`, `BLE_DOOR_WIDTH_MM` read **blank** — not `274320`, not `2.95`. The
+raw/formatted arguments are the right way round. A blank is the less dangerous failure: a
+wrong number is worse than none.
+
+**MAPTYPE-4 — a type built-in read from the instance.** The same screenshot was an
+accidental controlled experiment: `BLE_DOOR_HEAD_HEIGHT_MM` = 2000
+(`INSTANCE_HEAD_HEIGHT_PARAM`) sitting beside `BLE_DOOR_WIDTH_MM` = empty
+(`FAMILY_WIDTH_PARAM`, type-scoped). `el.get_Parameter(bip)` returns null for a type
+built-in, so the mapping wrote nothing — and `MarkBipMissing` then **cached** the miss for
+the session. Fixed once in `ReadBipInstanceOrType` / `ReadNamedInstanceOrType` rather than
+per call site, so every helper and every future category is covered. `CachedLookup` was
+deliberately left alone: it also resolves **write** targets, and a type-aware write would
+stamp one element's value onto every sibling — the fix for one defect causing another.
+
+**BINDSCOPE-1 — per-element values bound to the type.** A new door tagged
+`A-BLD1-Z01-L01-ARC-FIT-DR-`: seven tokens and a trailing separator. `ASS_SEQ_NUM_TXT` read
+`-215` and was **greyed** in Properties — type-scoped, therefore unreachable through
+`element.get_Parameter()`, therefore `SetString(el, ParamRegistry.SEQ, …)` returned false
+in silence. Wrong on its own terms too: every door of that type would share one sequence
+number. **1,198 rows** flipped Type → Instance, derived by `tools/check_binding_scope.py`
+from *if the code writes it per element, it must be Instance* — not hand-listed, because a
+hand-listed set is what failed in Phase 293.
+
+The derivation was itself wrong on the first pass: it flipped 740 rows and left
+`ASS_SEQ_NUM_TXT` and `ASS_TAG_1_TXT` — the two parameters that produced the broken tag —
+untouched, because those constants are C# property initialisers rather than JSON entries
+and the key resolver only read JSON. Widening it found the other 270. **A derivation is
+only as wide as the places it looks.**
+
+**TAGLOG-1 — 278 deliberate skips logged as failures.** `TagCollisionMode.Skip` returns
+`false` on purpose for an already-complete tag, and the caller logged every false as
+`BuildAndWriteTag failed`. A clean run of 332 elements produced 278 such warnings around
+**one** genuine fault — a 278:1 noise ratio that buried the line that mattered. Fixed with
+an optional `TagWriteReport`: every existing return value is unchanged, so the eleven call
+sites that ignore the bool keep their exact behaviour, and the five that log now warn only
+on `Failed`.
+
+**TAGPROD-1 — two subsystems disagreeing in silence.** `GetFamilyAwareProdCode` minted
+`$"{baseProd}-{suffix}"` → `FSP-CON`, `DR-GLZ`. `-` is the tag separator, so
+`SanitiseSourceTokenWrite` — which exists to stop corrupt values reaching a token —
+truncated it straight back to `FSP` on every write. One half of the codebase minting what
+the other half is built to reject: **no material suffix has ever reached a tag.** Now joined
+via `ProdSuffixJoin()`, which picks the first candidate that is not the active separator,
+so the collision cannot return when a project overrides `Separator`.
+
+**A gate half was dropped rather than shipped vacuous.** `check_token_separator_safety.py`
+also scanned the 13 `*TAG_CONFIG*.csv` files for vocabulary codes containing `-`. It
+reported 0 — and would have reported 0 for ever: it looked for a header row and those files
+have none, so every cell was skipped and an injected `DR-GLZ` passed without a word. The
+obvious repair collides with the standards citations the same files carry (`HTM-02`,
+`BS-EN`). The half is removed and the residual risk recorded as TAGPROD-2 instead. A gate
+that cannot be made precise is a claim of coverage that is not there.
+
+**A pre-test sweep for the same class, before anyone opens Revit.** The four defects above
+share a shape no data-vs-data gate can see: they live where the shipped data meets the Revit
+API. Sweeping for siblings found three more things and one of them was in the gate written
+an hour earlier.
+
+*The new gate was too narrow.* `check_binding_scope.py` scanned two source files — the two
+where the defect surfaced. Widened to all 1,656, it found **188 more rows across 41
+parameters** in engines it had never looked at: `ELC_VLT_DROP_PCT`, `ELC_CBL_SZ_MM`,
+`ELC_CKT_CUR_A`, `HVC_DUCT_FLOWRATE_M3H`, `MNT_WARRANTY_EXPIRY_TXT`,
+`PLM_RECIRC_PUMP_DUTY_LPM`. Total flipped: **1,198 rows in three passes**, and every pass
+came from widening the derivation rather than from new data. Three times in one session an
+instrument here was narrower than the defect it was built for.
+
+*MAPTYPE-6 — 52 dead writes, tree-wide.* `SetString` on a non-String target was a bare
+`return false`. 36 parameters declared NUMBER or YESNO receive a formatted string: a voltage
+drop, a conduit fill, a panel fault rating, three HVAC block-load stamps and an
+emergency-lighting coverage flag, none of which ever reached the model. Now writes Integer /
+YesNo / unitless Double — and **refuses the unit trap rather than guessing**: a LENGTH target
+is logged and declined, because storing the millimetre display string "900" into a parameter
+Revit keeps in feet is MAPTYPE-1 reintroduced by a convenience.
+
+*MAPTYPE-7 — reported, deliberately not changed.* The same signature appears outside the tag
+system, paired with a fabricated fallback, which is worse than a blank:
+`AcousticAnalysisEngine.cs:490,496` (`?? 0.5`), `SleeveEngine.cs:430` (`?? 0`),
+`StructuralAnalysisEngine.cs:549,4171,4433`, and `EmergencyLightingAuditCommand.cs:126`
+(`ALL_MODEL_TYPE_MARK` read from a `FamilyInstance` → empty → the keyword match can never
+fire → that audit always passes). These are engines that cannot be exercised here, so they
+are named with line numbers rather than edited. An acoustic or structural calculation is not
+somewhere to apply an unverified fix.
+
+**MAPTYPE-7 fixed rather than reported.** The ten remaining type-scoped built-ins read from
+instances are now routed through one public `ParameterHelpers.GetBip` / `TryGetBipDouble`,
+rather than a type lookup copied into each engine. What they were doing:
+
+* `AcousticAnalysisEngine` — both thickness reads returned null, so Rw was estimated from
+  the 150 mm default on **every** element: a constant wearing the shape of a measurement
+* `StructuralAnalysisEngine` / `StructuralDesignSuite` — slab deflection and fire cover
+  checked at the 200 mm default regardless of the actual slab; and in `StructuralDesignSuite`
+  the `thinSlabs` count tested `thk != null`, which was **always false**, so that QA check
+  could never flag a thin slab
+* `SleeveEngine` — floor thickness reported 0 mm, sizing a sleeve against a zero-thickness slab
+* `EmergencyLightingAuditCommand` — `ALL_MODEL_TYPE_MARK` on a `FamilyInstance` was always
+  null, so the `StartsWith("em")` rule has never once matched
+
+Where a default still applies it now says so in the log, so "measured" and "defaulted" stop
+being indistinguishable.
+
+**GENPH-1 — a sentinel doubling as real data.** Auditing the vocabulary category by category
+turned up `"GEN"` serving as both the `_placeholders` sentinel for "never resolved" and a
+real code in three places, including the `SysMap` key covering **twelve categories**. Every
+element in them produced a tag containing `-GEN-`, which `TagHasPlaceholders` rejects — so
+their tags **could never be complete**. Silently: never skipped, re-derived and rewritten on
+every run with the audit trail churning each time, the idempotency guard dead, and
+`ComplianceScan` scoring them non-compliant for ever — the dashboard could not reach 100%
+whatever anyone did in the model. Real codes are now `GNL` and `GM`; `GEN` means only
+"unresolved". `tools/check_tag_vocabulary.py` guards it, proven RED before GREEN.
+
+**What the audit deliberately did not call a bug.** 93 `LABEL_DEFINITIONS` entries are absent
+from `DiscMap` — they are **spec families** (`family_name: "STING - Bariatric Tag"`), not Revit
+categories, so that is expected. And 25 tagged categories have no `CATEGORY_BINDINGS` rows,
+which looks alarming until you check that the eight ISO tokens bind `<ALL>`: those categories
+do get tags. Both are recorded so the numbers are not re-discovered and mistaken for the
+worse thing they resemble.
+
+**ISO19650DISC-1 — the standard code was already in the repo, contradicting itself.** Asked
+to use real standard codes rather than letters I had picked, the answer turned out not to
+need research: `Core/Drawing/Iso19650Vocabulary.cs` carries the **BS EN ISO 19650-2 §A.5**
+role table, and has all along. It says **`G` = GIS / Land Surveyor** and **`Z` = General /
+multi-disciplinary**. `TagConfig.DiscMap` was using `G` to mean "generic" for twelve
+categories. Two subsystems in one codebase, one standard code, two meanings — the same shape
+as `GEN` being both sentinel and code, and as `FSP-CON` being minted by one half and rejected
+by the other.
+
+Now `Z`. Sequenced deliberately: those twelve categories could never produce a complete tag
+before GENPH-1, so **no correct tag exists for them yet and there is nothing to migrate** —
+the cheapest moment this change will ever have. `DrawingDispatcher` also mapped `civil` → `G`;
+civil is `C`. `check_tag_vocabulary.py` now compares DiscMap against the vocabulary FILE
+rather than a list re-typed into the gate, so the two cannot drift apart again.
+
+**The honest limit on "ISO codes".** ISO 19650 does **not** define product codes. It defines
+the container *role* field, which is DISC — and `A`/`S`/`M`/`E`/`P` were already right. The
+standard for products is **Uniclass 2015 `Pr_`**, which STING already carries in a separate
+parameter. So the PROD mnemonics are a house layer *on top of* the standard, not a substitute
+for it. The real standards gap is that 18 of 45 categories have no Uniclass entry; that is a
+data edit, and `Pr_` codes have **not** been written from memory, because a wrong
+classification is worse than a missing one.
+
+**A defect this phase introduced, and the gate that failed to catch it.** The GENPH-1 commit
+appended its explanatory comment to the end of a line in a dense map initialiser, and the `//`
+swallowed the entry that followed it — `{ "Specialty Equipment", "SPE" }` was commented out,
+leaving that category with no product code and therefore permanently incomplete tags: exactly
+the defect the commit was fixing, relocated. `check_tag_vocabulary.py` reported "0 categories
+with no PROD" throughout, because it was reading the pair out of the comment. Both fixed: the
+entry is restored on its own line, and the gate strips comments before parsing. **A gate that
+parses commented-out code as live data confirms whatever it is shown.**
+
+**A retraction: the binding-scope CSV edit does nothing at runtime.** Asked to fix the
+migrations, tracing the binder end to end showed that
+`SharedParamGuids.LoadPerParamCategoryBindings` reads `cols[0]` and `cols[1]` and **never
+reads `cols[2]`**, and that `LoadSharedParamsCommand` calls `NewInstanceBinding`
+unconditionally. The 1,198 rows flipped Type → Instance are therefore accurate documentation
+and nothing more. The defect is real — a type-bound `ASS_SEQ_NUM_TXT`, greyed, reading `-215`,
+on a door tagged `A-BLD1-Z01-L01-ARC-FIT-DR-` — but it came from a template, a manually loaded
+shared-parameter file or an earlier binder, and editing that column could never have moved it.
+**Second time this phase a fix was asserted before its mechanism was traced end to end.**
+
+**BINDSCOPE-2 — the migration that can actually do it.**
+`Tags/MigrateBindingScopeCommand.cs` adds **Scope Audit** (ReadOnly) and **Fix Scope**
+(Manual) on the SETUP tab beside **Load Params**: the first walks
+`Document.ParameterBindings` and names STING per-element parameters held by a `TypeBinding`,
+the second re-inserts them as `InstanceBinding` over the same categories. ⚠️ Re-binding
+Type → Instance **discards values held on types** — Revit keeps the two scopes separately and
+gives no API to carry values across. For a sequence number or a location token that is the
+point, but it is a real loss, so the count is shown and confirmed before anything is written,
+and the result says plainly that a re-tag is still required: the migration makes the
+per-element write possible, it does not perform it.
+
+**ISO19650DISC-3 — closed, and my scoping of it was wrong twice over.** I had recorded it as
+touching "the healthcare pack's 60 tag families", taken from CLAUDE.md's claim of "3 new
+disciplines (`H` Healthcare…)" rather than from measurement. Measured: **`DiscMap` has no `H`,
+`MG` or `RP` entry at all**, and three call sites already treated `H` correctly as Heating &
+Ventilation. The real surface was the drawing layer — 10 drawing types and 6 routing rules —
+and the real consequence was worse than a naming clash: `Iso19650DocumentCode` folds `H` → `M`,
+so **every healthcare drawing was filed under Mechanical**, attributing it to the M&E engineer.
+That is precisely the failure that file's own comment describes for fire protection under `S`:
+a plausible letter that misroutes an issued drawing. Healthcare is now `HC`, mapping to role
+`Y` (Specialist Designer) beside `RP` and `FP`, with its own sheet prefix instead of inheriting
+`M`. Drawing-type checksums re-stamped — exactly 10 drifted, every one round-trip verified.
+
+**ISO19650DISC-4 — examined and deliberately not migrated.** `LV`, `FP` and `FLS` are
+multi-letter, so unlike `G` and `H` they cannot collide with the single-letter role table, and
+`Iso19650DocumentCode` already folds them to standard roles on issue. Issued containers are
+already compliant; changing the internal codes would lose the system distinction STING routes
+on and gain nothing. What is left is a sentence in the BEP, not a migration.
+
+**A third sweep, and the gate stopped me making it worse.** `LoadPerParamCategoryBindings`
+skips any category name `CategoryEnumMap` does not know — no log line, the binding simply
+never happens — and **89 of the 194 names in `CATEGORY_BINDINGS.csv` were in that state**.
+Four were singular where Revit is plural, silently dropping 29 binding rows: `Structural
+Connection`, `Curtain Wall Mullion`, `Curtain Panel`, `Railing`. The same four the label-spec
+audit had flagged as tagged-but-unspecified, which is what a half-existing category looks
+like from two directions.
+
+Renaming them in the CSV was the obvious fix, and it was wrong: `check_tag_row_bindings`
+went red immediately, because `LABEL_DEFINITIONS.json` and the schedule spec key off the
+**singular** names. The rename would have killed 29 tag rows and 25 schedule columns to save
+29 bindings. Fixed instead as four aliases in `category_enum_map`, so both spellings resolve
+to the same `BuiltInCategory` and neither consumer moves. **This is the first time this phase
+that an existing gate caught a regression before it shipped** rather than after.
+
+**Checked clean, and recorded so it is not re-audited.** Across 3,604 declared shared
+parameters: **0** GUIDs reused by more than one name, **0** names carrying more than one
+GUID, and **0** disagreements between `PARAMETER_REGISTRY.json` and `MR_PARAMETERS.txt`
+across the 384 registry entries that carry one. The identity layer is sound — worth knowing,
+because a duplicate GUID would make Revit treat two parameters as one.
+
+**Reported rather than changed.** 85 further category names are spec families, not Revit
+categories (`Clinical Room`, `LPS Air Terminal`, `MEP Sleeve`), leaving **242 inert binding
+rows** — some look like they should map, but binding to the wrong category is worse than not
+binding. 206 duplicate (parameter, category) pairs exist and are harmless because the loader
+dedups. And `GetSysCode` resolves an ambiguous category by returning `list[0]` — the first
+key encountered iterating a `Dictionary`, an order C# does not contract; 27 categories are
+ambiguous, `Pipes` under all eight water/air codes.
+
+**Closing the three that had been reported rather than fixed.** Each needed a different
+answer, and only one of the three was really about the rows.
+
+*CATBIND-2 — the defect was the silence.* 85 category names resolve to no Revit category and
+their 242 binding rows are discarded on every load. Mapping them would mean guessing, and
+binding a parameter to the wrong category is worse than leaving it unbound — so the rows
+stay. What changed is that the loader now says so: **one summary line** naming the count,
+the distinct names and a sample. One line, not 242, because per-row warnings at that volume
+are precisely the noise that hid the single real fault in TAGLOG-1. This silence is why an
+ordinary singular/plural typo survived long enough to cost 29 bindings.
+
+*CATBIND-3 — checked before deleting.* 207 duplicate rows removed, 19,616 → 19,409. **0 of
+the duplicate pairs disagreed with each other**, which is what made the deletion safe; a pair
+with different scopes would have been a conflict to resolve, not noise to tidy.
+
+*SYSAMB-1 — two problems under one symptom.* `FLS` was a strict **subset** of `FP` — both
+`Fire Alarm Devices` and `Fire Protection` sat in each — so which code an element received
+depended on `Dictionary` enumeration order. Split on the domain line: detection is FLS,
+suppression is FP, 27 ambiguous categories → 25.
+
+The remaining 25 are genuine, and every one is an **overlay**: `LPS` is listed against Walls,
+Roofs, Gutters, Structural Rebar, Conduits and Electrical Equipment because any of those
+*can* carry lightning protection. `GetSysCode` returned `list[0]`. **Had LPS happened to
+enumerate first, every wall in the model would have tagged as lightning protection — and
+nothing would have said so.** An overlay now never wins the fallback; lightning protection is
+asserted per element by `LpsMarkElementTypesCommand`, never assumed to be the default reading
+of a wall. Ambiguous resolutions log once per category per session.
+
+**TOKPOL-1 closed — declined twice, and the reason for declining turned out to be avoidable.**
+The policy has governed the tag STRING since Phase 288, but never the **derivation**:
+`DetectZone` and `DetectLoc` returned the literals `"Z01"` and `"BLD1"` straight from
+`ParameterHelpers.cs`. A project that overrode those fallbacks in its policy still got the
+hardcoded pair written onto every element, so the tag and the parameter it came from could
+disagree about the same thing.
+
+It was declined twice because routing the derivation layer through the policy meant touching
+22 call sites across 12 files, several of which compare the result against a literal or write
+it straight to a parameter — and the failure mode of getting one wrong is a silently blank
+token on every tagging path. That framing was wrong. `PolicyFallback(doc, token, legacy)` sits
+at the two points where the literals were: the signatures do not change, no call site moves,
+and the result is never empty, so the blank-token risk does not arise at all. The legacy value
+survives only as a floor beneath the policy.
+
+**The gate for it was vacuous, and then it cried wolf.** Asserting `PolicyFallback\(` appears
+in the file passed with every CALL to it deleted — the regex matched the method *definition*.
+That is the third assertion this phase satisfied by the existence of a thing rather than its
+use. Replacing it with a negative assertion (the literal must not be returned) then failed on
+a correct tree, because `ParseZoneCode` legitimately maps "NORTH" to Z01 — a parsed result,
+not a fallback. The check is now scoped to the method body, and was proven RED and GREEN in
+both directions.
+
+**The test protocol now covers the manual build.** `UNITAG-2` was listed as out of scope;
+section **U** covers it: the 65-row shape (T5 alone is 21 rows, there is no T3), the four
+mechanics that cost a session if missed — one Edit Label sitting, Spaces=0 *before* Break,
+Type=Text throughout, a YESNO written bare or Revit answers "Inconsistent Units" — the order
+of work from the 9 removals to propagation, and what propagation cannot fix. The 65 formulas
+are **deliberately not duplicated** into the protocol: two copies drift, and the one someone
+reads is then the wrong one, so it points at `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`.
+
+**LIGHTGRID-1 — a command that did nothing, successfully.** `LightingGridCommand` collected
+`OST_Rooms` only. On an MEP model, where the lighting designer works in Spaces rather than
+Rooms, it found nothing to light, placed no fixtures and reported success. The house failure
+mode, in a command nobody had reason to doubt.
+
+The fix was small because the engines were already wider than the command that called them:
+`LightingGridCalculator.Compute` and `ObstructionIndex.BuildForRoom` both take a
+`SpatialElement`. Only the collector and the plan’s field type were narrower — which is
+precisely why the limitation was invisible from either end. It now collects Rooms and MEP
+Spaces, de-duplicated, Rooms first so an architectural model behaves exactly as before. One
+Room-specific read needed care: `ROOM_NAME` is a Room built-in and is null on a Space, so the
+label falls through to `SpatialElement.Name`, which both carry.
+
+**And the sweep it prompted.** 86 files collect `OST_Rooms` and never `OST_MEPSpaces`. Most
+are legitimately about Rooms. The subset that is not is the lighting suite: **all seven
+commands are hard-locked to `OfType<Room>()` with zero `SpatialElement` usage**, so each is
+the same silent no-op on an MEP model. They are deliberately **not** bulk-fixed — each has
+its own downstream use of `Room` that must be checked for Space-safety individually, and
+seven untested edits would be worth less than one proven template. Logged as LIGHTGRID-2.
+
+**LIGHTGRID-2 — the whole lighting suite now sees Spaces.** All seven remaining commands
+converted, one at a time with a build between each: `ComCheckExport`,
+`EmergencyLightingAudit`, `LightingCalcSheet`, `LightingControlZone`, `LightingPowerDensity`,
+`QuickLuxEstimate`, `PhotometricDesignReview`. Every one of them previously found nothing on
+an MEP model and reported success.
+
+The work is in `Core/Placement/SpatialCompat.cs`, because Room and Space differ in **five**
+places and every one of them fails silently and plausibly:
+
+| | Why it bites |
+|---|---|
+| `Number` | Declared on Room and on Space separately; there is no `SpatialElement.Number` |
+| Name | `BuiltInParameter.ROOM_NAME` returns null on a Space — labels become element ids |
+| `FamilyInstance.Room` vs `.Space` | Checking one finds no fixture in any Space |
+| `IsPointInRoom` vs `IsPointInSpace` | Separate methods, no shared base |
+| `GetRoomAtElement` | Returns a Room and nothing else, so a caller cannot see a Space |
+
+Writing those inline eight times is how a fix of this shape goes wrong; `LightingGridCommand`
+was folded onto the same helper so there is one implementation rather than two.
+
+**Not verified in Revit.** This needs a Spaces-based model. The compiler and the gates confirm
+only that nothing regressed — which is exactly the claim this repo has learned not to
+overstate.
+
+**What was deliberately left.** 79 further files collect `OST_Rooms` only and are mostly
+correct to: finishes, room data sheets, architectural QA, COBie zones. Converting a command
+that is genuinely room-scoped would be a regression, not a fix. Logged as LIGHTGRID-3 with the
+helper available if one turns out to need it.
+
+**LIGHTGRID-4 — the tagging pipeline, and a correction to my own description of it.** I had
+recorded that `BuildRoomIndex` drives `DetectLoc` / `DetectZone`. It does not. That index is
+keyed by **room id** and looked up by **element id**, so for any normal element it always
+misses and falls through; it is a cache and an "are there rooms at all" flag, not the
+resolver. The real resolver is `GetRoomAtElement`, Room-only at every step —
+`FamilyInstance.Room`, then `Document.GetRoomAtPoint` — and both detectors open by calling
+it. The conclusion held; the mechanism I gave for it did not.
+
+On a Spaces-based model that meant LOC and ZONE could never be derived for **any** tagged
+element, both falling through to the policy fallback and looking exactly like a project that
+had simply not set its location codes.
+
+`GetSpatialAtElement` now tries the Room path first and falls back to `FamilyInstance.Space`
+and `Document.GetSpaceAtPoint`. `DetectLoc`, `DetectZone` and `MapRoomNameNumber` use it.
+**Rooms are tried first and still win** — that ordering is the entire safety argument: an
+architectural model, or a mixed model carrying Rooms and MEP Spaces over the same floor area,
+resolves exactly as before, because a Space is only consulted where a Room produced nothing.
+This can add a derivation; it cannot change one. `GetRoomAtElement` is deliberately untouched,
+so its 26 call sites across 18 files are unaffected.
+
+**Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
+failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
+proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
+category, not scope). **None of it has been seen on a tag in Revit** — `docs/TAG_TEST_PROTOCOL.md`
+gains T6 (SEQ reaches the tag, and two doors of one type must differ) and T7 (material
+suffix survives), and BINDSCOPE-2 records that editing the CSV does **not** re-bind an
+existing project.
+
 #### Completed (Phase 293 — the universal-tag question, and four helpers my own gate missed)
 
 **My gate in Phase 289 was incomplete, and it passed anyway.** It named four helpers —

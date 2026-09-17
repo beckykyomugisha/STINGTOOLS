@@ -1584,6 +1584,10 @@ namespace StingTools.UI
 
                     // ── Setup ──
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+                    // BINDSCOPE-2: the CSV scope column is documentation; only a re-bind
+                    // inside Revit can move a per-element parameter off the TYPE.
+                    case "AuditBindingScope": RunCommand<Tags.AuditBindingScopeCommand>(app); break;
+                    case "MigrateBindingScope": RunCommand<Tags.MigrateBindingScopeCommand>(app); break;
                     case "ScaffoldTiers": RunCommand<Tags.ScaffoldTiersCommand>(app); break;
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "Bindings_PruneToSpec": RunCommand<Tags.PruneBindingsToSpecCommand>(app); break;
@@ -5096,10 +5100,11 @@ namespace StingTools.UI
                     var (tagIdx, seqCtrs) = Core.TagConfig.BuildTagIndexAndCounters(doc);
                     var formulas = Core.TagPipelineHelper.LoadFormulas();
                     var grids = Core.TagPipelineHelper.LoadGridLines(doc);
+                    var _tagRpt4 = new StingTools.Core.TagConfig.TagWriteReport();
                     bool previewOk = Core.TagPipelineHelper.RunFullPipeline(doc, el, ctx, tagIdx, seqCtrs,
                         formulas, grids, overwrite: true, skipComplete: false,
-                        collisionMode: Core.TagCollisionMode.AutoIncrement);
-                    if (!previewOk)
+                        collisionMode: Core.TagCollisionMode.AutoIncrement, report: _tagRpt4);
+                    if (!previewOk && !_tagRpt4.IsDeliberateSkip)
                         Core.StingLog.Warn($"PreviewTag: pipeline returned false for element {el?.Id}");
                     predictedTag = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.TAG1) ?? "(empty)";
                     string disc  = Core.ParameterHelpers.GetString(el, Core.ParamRegistry.DISC);

@@ -436,7 +436,7 @@ namespace StingTools.Core
                 return false;
             }
             if (p.StorageType != StorageType.String)
-                return false;
+                return SetStringToTypedTarget(el, p, paramName, value, overwrite);
 
             string existing = p.AsString() ?? string.Empty;
             if (existing.Length > 0 && !overwrite)
@@ -460,6 +460,168 @@ namespace StingTools.Core
                 StingLog.Warn($"SetString '{paramName}' on {el.Id} failed: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// SetString landing on a NON-String target (MAPTYPE-6).
+        ///
+        /// This used to be a bare `return false`. 52 write sites across 36 parameters —
+        /// measured tree-wide, not guessed — pass a formatted string to a target declared
+        /// NUMBER or YESNO in MR_PARAMETERS.txt, so every one of them did nothing, returned
+        /// false, logged nothing and threw nothing. Among them: ELC_VLT_DROP_PCT,
+        /// ELC_CDT_CBL_FILL_PCT, ELC_PNL_SHORT_CIRCUIT_RATING_KA, HVC_PEAK_SENS_W /
+        /// _LAT_W / HVC_OA_LS, and ELC_EMERG_COVERED_BOOL — a voltage drop, a conduit
+        /// fill, a panel fault rating, a block load and an emergency-lighting coverage
+        /// flag, none of which ever reached the model.
+        ///
+        /// (CLAUDE.md states the block-load "HVC_PEAK_* stamps are TEXT-typed". They are
+        /// declared NUMBER. The doc is describing the write, not the parameter.)
+        ///
+        /// Strictly additive: anything that already worked is untouched, because this path
+        /// was previously unreachable-by-definition. Where the value cannot be converted
+        /// safely it returns false exactly as before — but says why.
+        ///
+        /// THE UNIT TRAP IS REFUSED, NOT GUESSED. StorageType.Double covers both a
+        /// unitless NUMBER and a LENGTH, and Revit stores LENGTH in decimal FEET. Writing
+        /// the display string "900" into a LENGTH parameter would store 900 feet for a
+        /// 900 mm door — MAPTYPE-1's failure mode, reintroduced by a convenience. So a
+        /// Double target is written only when its spec is unitless; anything else is
+        /// logged and refused, and the caller must go through WriteMapped, which carries
+        /// the raw internal value alongside the display text.
+        /// </summary>
+        private static bool SetStringToTypedTarget(Element el, Parameter p,
+            string paramName, string value, bool overwrite)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            string v = value.Trim();
+
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.Integer:
+                    {
+                        if (!overwrite && p.HasValue && p.AsInteger() != 0) return false;
+
+                        bool isYesNo = false;
+                        try { isYesNo = p.Definition?.GetDataType() == SpecTypeId.Boolean.YesNo; }
+                        catch { /* older API surface — fall through to int parsing */ }
+
+                        if (isYesNo)
+                        {
+                            if (bool.TryParse(v, out bool b)) { p.Set(b ? 1 : 0); return true; }
+                            if (v == "1" || v == "0") { p.Set(v == "1" ? 1 : 0); return true; }
+                            if (v.Equals("Yes", StringComparison.OrdinalIgnoreCase)) { p.Set(1); return true; }
+                            if (v.Equals("No", StringComparison.OrdinalIgnoreCase)) { p.Set(0); return true; }
+                            return false;
+                        }
+
+                        if (int.TryParse(v, System.Globalization.NumberStyles.Integer, ci, out int iv))
+                        { p.Set(iv); return true; }
+                        return false;
+                    }
+
+                    case StorageType.Double:
+                    {
+                        if (!double.TryParse(v, System.Globalization.NumberStyles.Float, ci,
+                                             out double dv))
+                            return false;
+
+                        bool unitless;
+                        try
+                        {
+                            var spec = p.Definition?.GetDataType();
+                            unitless = spec == SpecTypeId.Number || spec == SpecTypeId.Currency;
+                        }
+                        catch { unitless = false; }
+
+                        if (!unitless)
+                        {
+                            LogUnitRefusal(paramName, el, v);
+                            return false;
+                        }
+
+                        if (!overwrite && p.HasValue && Math.Abs(p.AsDouble()) > 1e-9) return false;
+                        p.Set(dv);
+                        return true;
+                    }
+
+                    default:
+                        return false;   // ElementId and anything new — not ours to guess at
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el?.Id} (typed target, "
+                              + $"{p.StorageType}) failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static int _unitRefusalCount;
+
+        private static void LogUnitRefusal(string paramName, Element el, string v)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _unitRefusalCount);
+            if (n <= 5 || n % 100 == 0)
+                StingLog.Warn(
+                    $"SetString '{paramName}' on {el?.Id}: target is a UNIT-BEARING Double "
+                    + $"and the caller supplied only the display string '{v}'. Refused "
+                    + "rather than stored — Revit keeps LENGTH in feet, so writing a "
+                    + "millimetre display value here would store a number ~304x too large. "
+                    + $"Use WriteMapped/SetDouble with the raw internal value. (#{n})");
+        }
+
+        /// <summary>
+        /// Read a built-in parameter from an element, falling back to its TYPE (MAPTYPE-7).
+        ///
+        /// Several built-ins are declared on the TYPE — `WALL_ATTR_WIDTH_PARAM`,
+        /// `FLOOR_ATTR_THICKNESS_PARAM`, `FAMILY_WIDTH_PARAM`, `ALL_MODEL_TYPE_MARK`.
+        /// `element.get_Parameter(bip)` returns null for those, and callers across the
+        /// analysis engines then fell back to a FABRICATED default — `?? 0.5` for a slab
+        /// thickness, `?? 0` for a sleeve, an empty string for a type mark. A made-up
+        /// number a user can act on is worse than a blank, and these feed acoustic,
+        /// structural and emergency-lighting results.
+        ///
+        /// One helper rather than a type lookup copied into each engine, so a site written
+        /// next year gets it without anyone remembering.
+        /// </summary>
+        public static Parameter GetBip(Element el, BuiltInParameter bip)
+        {
+            if (el == null) return null;
+            try
+            {
+                Parameter p = el.get_Parameter(bip);
+                if (p != null && p.HasValue) return p;
+
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                Parameter tp = typeEl?.get_Parameter(bip);
+                return (tp != null && tp.HasValue) ? tp : p;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetBip({bip}) on {el?.Id}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// <see cref="GetBip"/> as a double, reporting whether a real value was found so
+        /// the caller can tell "measured" from "defaulted" instead of silently conflating
+        /// them.
+        /// </summary>
+        public static bool TryGetBipDouble(Element el, BuiltInParameter bip, out double value)
+        {
+            value = 0;
+            Parameter p = GetBip(el, bip);
+            if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return false;
+            value = p.AsDouble();
+            return true;
         }
 
         /// <summary>Set only when the parameter is currently empty.</summary>
@@ -621,7 +783,29 @@ namespace StingTools.Core
             if (p == null || p.IsReadOnly) return false;
             if (p.StorageType != StorageType.Double) return false;
             double existing = p.AsDouble();
-            if (!overwrite && Math.Abs(existing) > 1e-12) return false;
+            if (!overwrite && Math.Abs(existing) > 1e-12)
+            {
+                // MIRROR-1. The early return used to skip WriteTxtMirror as well, which
+                // left a permanently blank mirror on any element whose value was written by
+                // an earlier run — and the TAG LABEL READS THE MIRROR, not this parameter.
+                // Observed in Revit 2026-09-17: BLE_DOOR_WIDTH_MM = 750 with
+                // BLE_DOOR_WIDTH_TXT empty, so the door tag's "W:" row rendered blank while
+                // the data behind it was correct. Re-tagging could never heal it, because
+                // the value being already present is exactly what skipped the mirror.
+                //
+                // Writing the mirror here is idempotent and costs one parameter set; it
+                // makes the mirror converge on the stored value instead of recording only
+                // whoever happened to write it first.
+                //
+                // ONLY when the caller supplied displayText. `existing` is the RAW INTERNAL
+                // value — decimal FEET for a LENGTH — so falling back to it here would
+                // publish "2.4606" under a millimetre label. That is MAPTYPE-1 exactly, and
+                // re-introducing it while fixing a blank would trade a missing number for a
+                // wrong one, which is the worse of the two.
+                if (displayText != null)
+                    WriteTxtMirror(el, paramName, displayText);
+                return false;
+            }
             try
             {
                 p.Set(value);
@@ -959,6 +1143,87 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>
+        /// The Room OR MEP Space an element sits in (LIGHTGRID-4).
+        ///
+        /// `GetRoomAtElement` is Room-only at every step: `FamilyInstance.Room`, then
+        /// `Document.GetRoomAtPoint`. Both `SpatialAutoDetect.DetectLoc` and `DetectZone`
+        /// open by calling it, so on a model that uses MEP Spaces rather than Rooms neither
+        /// token could ever be derived and both fell through to the policy fallback — on
+        /// EVERY tagged element, silently, looking exactly like a project that had not set
+        /// its location codes.
+        ///
+        /// ROOMS ARE TRIED FIRST AND STILL WIN. That ordering is the whole safety argument:
+        /// an architectural model, or a mixed model carrying both architectural Rooms and
+        /// MEP Spaces over the same floor area, resolves exactly as it did before. A Space
+        /// is only consulted where a Room produced nothing, so this can add a derivation
+        /// but never change one.
+        ///
+        /// `GetRoomAtElement` itself is deliberately untouched — it has 26 call sites across
+        /// 18 files, and widening its return type would be a far larger change than the
+        /// defect warrants.
+        /// </summary>
+        private static int _spaceResolveCount;
+
+        /// <summary>
+        /// Records that a token was derived from a SPACE rather than a Room (LIGHTGRID-5).
+        ///
+        /// The whole of LIGHTGRID-1..4 is verified by a compiler, 1,542 tests and seven
+        /// gates, none of which can see a Revit Space. The only check that counts happens in
+        /// Revit, and without this the tester has to INFER from a filled-in token whether the
+        /// Space path ran at all — and an absent side effect never tells you why. One line,
+        /// the first time it happens, turns that inference into evidence.
+        ///
+        /// Once per session, not once per element: at batch-tag volume the per-element
+        /// version is the noise that hid the single real fault in TAGLOG-1.
+        /// </summary>
+        private static SpatialElement ViaSpace(SpatialElement sp, Element el)
+        {
+            if (sp == null) return null;
+            if (System.Threading.Interlocked.Increment(ref _spaceResolveCount) == 1)
+                StingLog.Info(
+                    $"LIGHTGRID-4 LIVE: element {el?.Id} resolved to MEP Space '{sp.Name}' "
+                    + "because no Room contained it. LOC / ZONE / room name+number are being "
+                    + "derived from Spaces on this model. (Logged once per session.)");
+            return sp;
+        }
+
+        public static SpatialElement GetSpatialAtElement(Document doc, Element el)
+        {
+            if (doc == null || el == null) return null;
+            try
+            {
+                Room room = GetRoomAtElement(doc, el);
+                if (room != null) return room;
+
+                if (el is FamilyInstance fi)
+                {
+                    var sp = fi.Space;
+                    if (sp != null) return ViaSpace(sp, el);
+                }
+
+                Phase elPhase = GetElementPhase(doc, el);
+
+                LocationPoint lp = el.Location as LocationPoint;
+                if (lp != null)
+                    return ViaSpace(elPhase != null ? doc.GetSpaceAtPoint(lp.Point, elPhase)
+                                                    : doc.GetSpaceAtPoint(lp.Point), el);
+
+                LocationCurve lc = el.Location as LocationCurve;
+                if (lc != null)
+                {
+                    XYZ mid = lc.Curve.Evaluate(0.5, true);
+                    return ViaSpace(elPhase != null ? doc.GetSpaceAtPoint(mid, elPhase)
+                                                    : doc.GetSpaceAtPoint(mid), el);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetSpatialAtElement failed for {el?.Id}: {ex.Message}");
+            }
+            return null;
+        }
+
         private static string ExtractDigits(string s)
         {
             var sb = new System.Text.StringBuilder();
@@ -1149,16 +1414,17 @@ namespace StingTools.Core
         {
             try
             {
-                Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+                // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
+                SpatialElement room = ParameterHelpers.GetSpatialAtElement(doc, el);
                 if (room != null)
                 {
                     // Check room name for building/location patterns
-                    string roomName = room.Name ?? "";
+                    string roomName = StingTools.Core.Placement.SpatialCompat.NameOf(room);
                     string loc = ParseLocCode(roomName, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
 
                     // Check room number prefix (e.g., "B1-101" → BLD1)
-                    string roomNum = room.Number ?? "";
+                    string roomNum = StingTools.Core.Placement.SpatialCompat.NumberOf(room);
                     loc = ParseLocCode(roomNum, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
@@ -1192,7 +1458,8 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            // TOKPOL-1: a detected project LOC still wins; only the last resort is policy-driven.
+            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : PolicyFallback(doc, "LOC", "BLD1");
         }
 
         // ScopeBoxLoc (plan-rectangle + most-specific selection) lives in the
@@ -1267,6 +1534,55 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Fallback for a token the detection layer could not derive (TOKPOL-1).
+        ///
+        /// `STING_TAG_TOKEN_POLICY.json` is the single place that decides what an
+        /// underivable token becomes — `TagConfig.BuildAndWriteTag` has resolved the TAG
+        /// STRING through it since Phase 288. The DERIVATION layer never learned: it
+        /// returned the literals `"Z01"` and `"BLD1"` straight from this file, so a project
+        /// that overrode those fallbacks in its policy still got the hardcoded pair written
+        /// onto every element, and the tag and the parameter could disagree.
+        ///
+        /// Routing it here rather than at the 22 call sites was deliberate. Those callers
+        /// (audits, wizards, legends, the auto-tagger) compare the result against literals
+        /// or write it straight to a parameter, and the failure mode of getting one wrong is
+        /// a silently blank token on every tagging path — the exact class this phase spent
+        /// itself removing. So the signature does not change and the result is never empty:
+        /// the policy decides, and `legacy` is only the floor beneath it.
+        /// </summary>
+        private static string PolicyFallback(Document doc, string token, string legacy)
+        {
+            try
+            {
+                var lib = TagTokenPolicyRegistry.Get(doc);
+                var res = TagTokenPolicy.Resolve(lib, token, null);
+                if (res != null && !res.Refused && !string.IsNullOrEmpty(res.Value))
+                {
+                    if (!string.Equals(res.Value, legacy, StringComparison.Ordinal)
+                        && _policyFallbackReported.Add(token))
+                        StingLog.Info(
+                            $"Token policy: '{token}' could not be derived; using the policy "
+                            + $"fallback '{res.Value}' instead of the legacy default "
+                            + $"'{legacy}'.");
+                    return res.Value;
+                }
+
+                // Refused, or no fallback declared. The detection layer has no way to skip an
+                // element, so it cannot honour a refusal — BuildAndWriteTag does that, and it
+                // re-resolves this token anyway. Returning the legacy value keeps the
+                // parameter non-empty; the refusal still takes effect where it can.
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PolicyFallback('{token}'): {ex.Message}");
+            }
+            return legacy;
+        }
+
+        private static readonly HashSet<string> _policyFallbackReported =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
         /// Detect ZONE code from room data. Checks room name, number, and
         /// Department parameter for zone patterns (Z01-Z04, Wing A/B/C/D, etc.).
         /// </summary>
@@ -1275,7 +1591,8 @@ namespace StingTools.Core
         {
             try
             {
-                Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+                // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
+                SpatialElement room = ParameterHelpers.GetSpatialAtElement(doc, el);
                 if (room != null)
                 {
                     // Check room Department parameter (commonly used for zone assignment)
@@ -1307,7 +1624,7 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectZone: {ex.Message}");
             }
 
-            return "Z01"; // Safe default
+            return PolicyFallback(doc, "ZONE", "Z01");   // TOKPOL-1: policy decides, Z01 is only the floor
         }
 
         /// <summary>
@@ -2984,17 +3301,20 @@ namespace StingTools.Core
             // per element. ConnectorInherit / SpatialAutoDetect already share
             // the same index from PopulationContext, so this just plugs the
             // last per-element room lookup into the same shared cache.
-            Room room = null;
+            // LIGHTGRID-4: the cached fast paths stay Room-only (that is what the index
+            // holds); the fallback widens to a Space so ASS_ROOM_NAME / _NUM are derivable
+            // on an MEP model. Rooms are still resolved first and still win.
+            SpatialElement room = null;
             if (roomIndex != null)
             {
                 if (el is FamilyInstance fiPre && fiPre.Room != null) room = fiPre.Room;
                 else if (roomIndex.TryGetValue(el.Id, out var indexed)) room = indexed;
             }
-            if (room == null) room = ParameterHelpers.GetRoomAtElement(doc, el);
+            if (room == null) room = ParameterHelpers.GetSpatialAtElement(doc, el);
             if (room != null)
             {
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, room.Number ?? "");
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, StingTools.Core.Placement.SpatialCompat.NameOf(room));
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, StingTools.Core.Placement.SpatialCompat.NumberOf(room));
 
                 // Room area in m² (Revit stores in sq ft, convert)
                 double areaSqFt = room.Area;
@@ -3283,6 +3603,48 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Read a built-in parameter from the instance, falling back to its TYPE.
+        ///
+        /// MAPTYPE-4. Several of the built-ins the Map* helpers read are declared on the
+        /// TYPE, not the instance — FAMILY_WIDTH_PARAM and FAMILY_HEIGHT_PARAM above all.
+        /// <c>el.get_Parameter(bip)</c> returns null for those, so the mapping wrote
+        /// nothing, MarkBipMissing then CACHED the miss, and the target stayed empty for
+        /// the rest of the session. A 900 mm door reported no width at all.
+        ///
+        /// The differential that proved it, on one door in Revit (2026-09-16):
+        ///   BLE_DOOR_HEAD_HEIGHT_MM = 2000   (INSTANCE_HEAD_HEIGHT_PARAM — instance)
+        ///   BLE_DOOR_WIDTH_MM       = empty  (FAMILY_WIDTH_PARAM        — type)
+        ///
+        /// Fixing it here rather than at the Doors/Windows call sites covers every helper
+        /// and every category, including ones not written yet. Only the SOURCE moves to
+        /// the type; the value is still written to the instance, because that is where a
+        /// per-element value belongs (see BINDSCOPE-1).
+        /// </summary>
+        private static Parameter ReadBipInstanceOrType(Element el, BuiltInParameter bip)
+        {
+            if (el == null) return null;
+
+            Parameter p = el.get_Parameter(bip);
+            if (p != null && p.HasValue) return p;
+
+            try
+            {
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                Parameter tp = typeEl?.get_Parameter(bip);
+                if (tp != null && tp.HasValue) return tp;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadBipInstanceOrType: type lookup failed for {bip}: {ex.Message}");
+            }
+
+            return p;   // null or valueless — caller decides
+        }
+
         private static int MapDimension(Element el, BuiltInParameter bip,
             string targetParam, double conversionFactor)
         {
@@ -3291,7 +3653,7 @@ namespace StingTools.Core
                 // Skip BIPs known to be missing for this category
                 if (IsBipKnownMissing(el, bip)) return 0;
 
-                Parameter p = el.get_Parameter(bip);
+                Parameter p = ReadBipInstanceOrType(el, bip);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double)
                 {
                     if (p == null) MarkBipMissing(el, bip);
@@ -3313,6 +3675,45 @@ namespace StingTools.Core
         }
 
         /// <summary>Map a named lookup parameter with unit conversion.</summary>
+        /// <summary>
+        /// Read a NAMED parameter from the instance, falling back to its TYPE.
+        ///
+        /// MAPTYPE-4, the named half. "Fire Rating", "Thickness" and "Clear Width" are
+        /// TYPE parameters on most families; <c>LookupParameter</c> on an instance does
+        /// not see them, and CachedLookup then caches the miss for the session.
+        ///
+        /// This is deliberately NOT folded into CachedLookup. CachedLookup also resolves
+        /// WRITE targets (WriteMapped calls it), and a type-aware write would stamp one
+        /// element's value onto every other instance of that type — the same defect as
+        /// BINDSCOPE-1, caused by the fix for MAPTYPE-4. Sources may come from the type;
+        /// targets stay on the instance.
+        /// </summary>
+        private static Parameter ReadNamedInstanceOrType(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return null;
+
+            Parameter p = ParameterHelpers.CachedLookup(el, paramName);
+            if (p != null && p.HasValue) return p;
+
+            try
+            {
+                ElementId typeId = el.GetTypeId();
+                if (typeId == null || typeId == ElementId.InvalidElementId) return p;
+
+                Element typeEl = el.Document?.GetElement(typeId);
+                if (typeEl == null) return p;
+
+                Parameter tp = ParameterHelpers.CachedLookup(typeEl, paramName);
+                if (tp != null && tp.HasValue) return tp;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ReadNamedInstanceOrType: type lookup failed for '{paramName}': {ex.Message}");
+            }
+
+            return p;
+        }
+
         private static int MapLookup(Element el, string paramName,
             string targetParam, double conversionFactor)
         {
@@ -3320,7 +3721,7 @@ namespace StingTools.Core
             {
                 // PERF: MapLookup is called dozens of times per element from NativeParamMapper.
                 // Route through the ParameterHelpers cache so repeated types hit the definition cache.
-                Parameter p = ParameterHelpers.CachedLookup(el, paramName);
+                Parameter p = ReadNamedInstanceOrType(el, paramName);
                 if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
 
                 double val = p.AsDouble() * conversionFactor;
@@ -3340,7 +3741,7 @@ namespace StingTools.Core
             {
                 // PERF: same hot path as MapLookup — definition cache short-circuits
                 // the per-element O(n) parameter scan at batch tagging scale.
-                Parameter p = ParameterHelpers.CachedLookup(el, sourceName);
+                Parameter p = ReadNamedInstanceOrType(el, sourceName);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -4074,7 +4475,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(bip);
+                Parameter p = ReadBipInstanceOrType(el, bip);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.StorageType == StorageType.String
@@ -4092,7 +4493,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.FUNCTION_PARAM);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.FUNCTION_PARAM);
                 if (p == null || !p.HasValue) return 0;
 
                 string val = p.AsValueString(); // "Interior", "Exterior", etc.
@@ -4108,7 +4509,7 @@ namespace StingTools.Core
             try
             {
                 // Try FLOOR_ATTR_THICKNESS_PARAM first
-                Parameter p = el.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
                 if (p != null && p.HasValue && p.StorageType == StorageType.Double)
                 {
                     double mm = p.AsDouble() * 304.8;
@@ -4128,7 +4529,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.ROOF_SLOPE);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.ROOF_SLOPE);
                 if (p != null && p.HasValue && p.StorageType == StorageType.Double)
                 {
                     // Revit stores slope as rise/12 ratio
@@ -4149,7 +4550,7 @@ namespace StingTools.Core
         {
             try
             {
-                Parameter p = el.get_Parameter(BuiltInParameter.STAIRS_ATTR_TREAD_WIDTH);
+                Parameter p = ReadBipInstanceOrType(el, BuiltInParameter.STAIRS_ATTR_TREAD_WIDTH);
                 if (p == null || !p.HasValue)
                     p = el.LookupParameter("Actual Run Width");
 
@@ -4788,7 +5189,8 @@ namespace StingTools.Core
             bool overwrite,
             bool skipComplete,
             TagCollisionMode collisionMode,
-            TaggingStats stats = null)
+            TaggingStats stats = null,
+            TagConfig.TagWriteReport report = null)
         {
             try
             {
@@ -4799,16 +5201,27 @@ namespace StingTools.Core
                 // on a 50K batch. PostTagCleanup still resets at batch boundary.
 
                 string catName = ParameterHelpers.GetCategoryName(el);
-                if (string.IsNullOrEmpty(catName)) return false;
+                if (string.IsNullOrEmpty(catName))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
+                    return false;
+                }
 
                 // G1.1: Category skip list
-                if (TagConfig.CategorySkipList.Contains(catName)) return false;
+                if (TagConfig.CategorySkipList.Contains(catName))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
+                    return false;
+                }
 
                 // Early SKIP check from CategoryTokenOverrides — before expensive TypeTokenInherit/PopulateAll
                 if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var earlyOverrides)
                     && earlyOverrides.TryGetValue("SKIP", out string earlySkipVal)
                     && earlySkipVal.Equals("true", StringComparison.OrdinalIgnoreCase))
+                {
+                    report?.Set(TagConfig.TagWriteOutcome.NotTaggable);
                     return false;
+                }
 
                 // Capture previous tag value for audit trail (READ only — write deferred to after BuildAndWriteTag)
                 // All audit trail writes (PREV_TXT, MODIFIED_DT, MODIFIED_BY)
@@ -4972,6 +5385,10 @@ namespace StingTools.Core
                 // the freshly-built token array back instead of doing our own
                 // ReadTokenValues below. Two reads × 8 params per element saved.
                 string[] tokenVals = new string[8];
+                // TAGLOG-1: ask for the OUTCOME, not just the bool. A deliberate skip and
+                // a real fault both return false, and logging both as "failed" produced
+                // 278 false alarms around a single genuine one.
+                var tagReport = report ?? new TagConfig.TagWriteReport();
                 bool tagWriteOk = TagConfig.BuildAndWriteTag(doc, el, seqCounters,
                     skipComplete: skipComplete,
                     existingTags: tagIndex,
@@ -4981,10 +5398,12 @@ namespace StingTools.Core
                     cachedPhases: ctx?.CachedPhases,
                     lastPhaseId: ctx?.LastPhaseId,
                     prevTagHint: _prevTag,
-                    tokenValuesOut: tokenVals);
+                    tokenValuesOut: tokenVals,
+                    report: tagReport);
                 if (!tagWriteOk)
                 {
-                    StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7");
+                    if (!tagReport.IsDeliberateSkip)
+                        StingLog.Warn($"TagPipeline: BuildAndWriteTag failed for {el.Id} — skipping containers/TAG7 (outcome={tagReport.Outcome})");
                     // Phase 79b: Balanced hook call — notify plugins that tagging failed (null tag)
                     StingPluginHooks.FireAfterTag(doc, el, null);
                     return false;

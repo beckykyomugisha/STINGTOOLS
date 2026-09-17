@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -750,11 +750,11 @@ namespace StingTools.Temp
                 switch (name)
                 {
                     case "Width":
-                        p = el.get_Parameter(BuiltInParameter.FAMILY_WIDTH_PARAM)
+                        p = StingTools.Core.ParameterHelpers.GetBip(el, BuiltInParameter.FAMILY_WIDTH_PARAM)   // MAPTYPE-7
                             ?? ParameterHelpers.CachedLookup(el, "Width");
                         break;
                     case "Height":
-                        p = el.get_Parameter(BuiltInParameter.FAMILY_HEIGHT_PARAM)
+                        p = StingTools.Core.ParameterHelpers.GetBip(el, BuiltInParameter.FAMILY_HEIGHT_PARAM)   // MAPTYPE-7
                             ?? ParameterHelpers.CachedLookup(el, "Height");
                         break;
                     case "Length":

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // StructuralAnalysisEngine.cs — Advanced Structural Analysis Algorithms
 //
 // Provides production-grade structural engineering calculations:
@@ -545,9 +545,18 @@ namespace StingTools.Model
                         double spanMm = Math.Min(xMm, yMm);   // short span governs
                         if (spanMm < 500) continue;
                         bool twoWay = (Math.Max(xMm, yMm) / spanMm) <= 2.0;
+                        // MAPTYPE-7: TYPE-scoped built-in read from the slab instance -
+                        // always null, so every slab was checked at the 200 mm default and
+                        // the deflection verdict did not depend on the actual slab.
                         double tMm = 200;
-                        var tP = slab.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
-                        if (tP != null) tMm = tP.AsDouble() * Units.FeetToMm;
+                        double tFt;
+                        if (StingTools.Core.ParameterHelpers.TryGetBipDouble(
+                                slab, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM, out tFt))
+                            tMm = tFt * Units.FeetToMm;
+                        else
+                            StingTools.Core.StingLog.Warn(
+                                $"StructuralAnalysis: no thickness on slab {slab?.Id} - "
+                                + "deflection checked at the 200mm DEFAULT, not measured.");
                         var r = CheckSlabDeflection(spanMm, tMm, liveLoadKPa + deadLoadKPa, twoWay);
                         string verdict = r.Pass
                             ? $"L/d={r.Ratio:F1} OK"
@@ -4168,7 +4177,7 @@ namespace StingTools.Model
                     try
                     {
                         double tk = 200;
-                        var tP = slab.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                        var tP = StingTools.Core.ParameterHelpers.GetBip(slab, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);   // MAPTYPE-7
                         if (tP != null) tk = tP.AsDouble() * Units.FeetToMm;
                         var r = CheckSlab(tk, defaultCoverMm, requiredRatingMinutes);
                         if (StingTools.Core.ParameterHelpers.SetString(slab, "PER_FIRE_RATING_HR",
@@ -4430,7 +4439,7 @@ namespace StingTools.Model
                         }).FirstOrDefault();
                         if (nearest != null)
                         {
-                            var tP = nearest.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
+                            var tP = StingTools.Core.ParameterHelpers.GetBip(nearest, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);   // MAPTYPE-7
                             if (tP != null) tMm = tP.AsDouble() * 304.8;
                         }
                         double widthMm = 400, depthMm = 400;

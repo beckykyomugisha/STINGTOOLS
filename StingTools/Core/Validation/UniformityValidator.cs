@@ -1,4 +1,4 @@
-// Phase 139 D4 — BS EN 12464-1 illuminance & uniformity validator.
+﻿// Phase 139 D4 — BS EN 12464-1 illuminance & uniformity validator.
 //
 // Simplified zonal-cavity / inverse-square check for placed lighting
 // fixtures.  Reads STING_LUMEN_OUTPUT (per fixture) and STING_LUX_TARGET
@@ -33,12 +33,10 @@ namespace StingTools.Core.Validation
             try
             {
                 // 1. Collect rooms.
-                var rooms = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType()
-                    .Cast<Room>()
-                    .Where(r => r != null && r.Area > 0)
-                    .ToList();
+                // LIGHTGRID-2: this validator lives in Core/Validation but is a LIGHTING
+                // check - rooms plus their fixtures - so it has the same Spaces blind spot
+                // as the seven commands in Commands/Electrical/Lighting.
+                var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc);
 
                 // 2. Collect lighting fixtures keyed by room id.
                 var fixturesByRoom = new Dictionary<long, List<FamilyInstance>>();
@@ -49,7 +47,7 @@ namespace StingTools.Core.Validation
                 {
                     var pt = (fi.Location as LocationPoint)?.Point;
                     if (pt == null) continue;
-                    Room hostRoom = FindRoomContaining(rooms, pt);
+                    SpatialElement hostRoom = FindRoomContaining(rooms, pt);
                     if (hostRoom == null) continue;
                     long key = hostRoom.Id.Value;
                     if (!fixturesByRoom.ContainsKey(key)) fixturesByRoom[key] = new List<FamilyInstance>();
@@ -93,16 +91,17 @@ namespace StingTools.Core.Validation
             return results;
         }
 
-        private static Room FindRoomContaining(List<Room> rooms, XYZ pt)
+        private static SpatialElement FindRoomContaining(List<SpatialElement> rooms, XYZ pt)
         {
             foreach (var r in rooms)
             {
-                try { if (r.IsPointInRoom(pt)) return r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                // LIGHTGRID-2: IsPointInRoom does not exist on a Space.
+                try { if (StingTools.Core.Placement.SpatialCompat.IsPointInside(r, pt)) return r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             return null;
         }
 
-        private (double em, double uo) ComputePointByPoint(Room room,
+        private (double em, double uo) ComputePointByPoint(SpatialElement room,   // LIGHTGRID-2
             List<FamilyInstance> fixtures, double mf)
         {
             try

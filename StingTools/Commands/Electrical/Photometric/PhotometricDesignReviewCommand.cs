@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -44,10 +44,8 @@ namespace StingTools.Commands.Electrical.Photometric
                 StingElectricalCommandHandler_CurrentLpdStandard());
             var luxTargets = StingTools.Photometrics.LuxTargetTable.Load();
 
-            var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
-                .Where(r => r.Area > 0).ToList();
+            // LIGHTGRID-2: Rooms AND MEP Spaces.
+            var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc);
             if (rooms.Count == 0)
             {
                 TaskDialog.Show("STING Design Review", "No placed rooms found.");
@@ -160,7 +158,7 @@ namespace StingTools.Commands.Electrical.Photometric
         /// (lux scales with installed lumens at constant geometry), suitable
         /// for "add ~3 more 4000 lm panels" style guidance.
         /// </summary>
-        private static string BuildRecommendation(string verdict, double pct, Room room, Document doc)
+        private static string BuildRecommendation(string verdict, double pct, SpatialElement room, Document doc)
         {
             if (verdict == "PASS") return "no change required";
             try
@@ -186,7 +184,7 @@ namespace StingTools.Commands.Electrical.Photometric
             return "review manually";
         }
 
-        private static int CountFixturesInRoom(Document doc, Room room)
+        private static int CountFixturesInRoom(Document doc, SpatialElement room)
         {
             int n = 0;
             try
@@ -195,9 +193,10 @@ namespace StingTools.Commands.Electrical.Photometric
                     .OfCategory(BuiltInCategory.OST_LightingFixtures)
                     .WhereElementIsNotElementType().OfType<FamilyInstance>())
                 {
-                    try { if (fi.Room?.Id == room.Id) { n++; continue; } } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    // LIGHTGRID-2: fi.Room is null for a fixture in a Space.
+                    try { if (StingTools.Core.Placement.SpatialCompat.Contains(fi, room)) { n++; continue; } } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     var pt = (fi.Location as LocationPoint)?.Point;
-                    if (pt != null && room.IsPointInRoom(pt)) n++;
+                    if (pt != null && StingTools.Core.Placement.SpatialCompat.IsPointInside(room, pt)) n++;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -280,7 +279,7 @@ namespace StingTools.Commands.Electrical.Photometric
 
         // Read ELC_PHOTO_LAST_CALC_DATE (ISO 8601 written by IfcResultsImportCommand)
         // and return the days elapsed. -1 when missing or unparseable.
-        private static int AgeInDays(Room room)
+        private static int AgeInDays(SpatialElement room)
         {
             string s = ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE);
             if (string.IsNullOrWhiteSpace(s)) return -1;

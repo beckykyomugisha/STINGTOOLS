@@ -316,7 +316,7 @@ ASS_WELD_COUNT_NR,1,asset-universal,<ALL>,Total number of welds in the assembly
 ASS_WORKSET_TXT,1,asset-universal,<ALL>,Workset name for worksharing tracking
 ASS_ZONE_SOURCE_TXT,1,universal,<ALL>,ZONE detection source (Department/Room/Manual)
 ASS_ZONE_TXT,1,universal,<ALL>,Ass Zone Txt [ISO 19650-3:2020]
-ATEX_CLASSIFICATION_OK,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Atex Classification Ok [STING]
+ATEX_CLASSIFICATION_OK,4,curated-fallback,Electrical Equipment|Electrical Fixtures,Atex Classification Ok [STING]
 BI_BOTTOM_COLOR_TXT,11,curated-fallback,Generic Models,Bottom gradient color RGB [ISO 19650-1:2018]
 BI_CREATED_DATE_TXT,11,curated-fallback,Generic Models,Date image created [ISO 19650-2:2018]
 BI_DIMENSIONS_TXT,11,curated-fallback,Generic Models,Image dimensions [ISO 19650-1:2018]
@@ -1480,20 +1480,20 @@ HVC_HEPA_REQ_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fi
 HVC_IDU_MOUNTING_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space IDU mounting override (Ducted / CeilingCassette / WallMounted / FourWay) [Phase 187h]
 HVC_INSULATION_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Insulation [ISO 19650-1:2018]
 HVC_INS_THICKNESS_MM,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC insulation thickness in mm
-HVC_LOAD_SOURCE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]
-HVC_LOAD_STALE_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
-HVC_LOAD_STALE_REASON_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
+HVC_LOAD_SOURCE_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]
+HVC_LOAD_STALE_BOOL,5,space-scoped load stamp,MEP Spaces|Rooms,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
+HVC_LOAD_STALE_REASON_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
 HVC_NC_CURVE_INT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC noise criterion NC curve target [H-24]
 HVC_NOISE_LEVEL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Noise Level Db [ISO 19650]
 HVC_NOISE_LEVEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_NOISE_LEVEL_DB display mirror [auto-generated]
-HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
-HVC_OA_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_OA_LS display mirror [auto-generated]
-HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]
-HVC_PEAK_HOUR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_HOUR display mirror [auto-generated]
-HVC_PEAK_LAT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_LAT_W display mirror [auto-generated]
-HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
-HVC_PEAK_SENS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_SENS_W display mirror [auto-generated]
-HVC_PEAK_SENS_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
+HVC_OA_LS,5,space-scoped load stamp,MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
+HVC_OA_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,HVC_OA_LS display mirror [auto-generated]
+HVC_PEAK_HOUR,5,space-scoped load stamp,MEP Spaces|Rooms,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]
+HVC_PEAK_HOUR_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,HVC_PEAK_HOUR display mirror [auto-generated]
+HVC_PEAK_LAT_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,HVC_PEAK_LAT_W display mirror [auto-generated]
+HVC_PEAK_LAT_W,5,space-scoped load stamp,MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
+HVC_PEAK_SENS_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,HVC_PEAK_SENS_W display mirror [auto-generated]
+HVC_PEAK_SENS_W,5,space-scoped load stamp,MEP Spaces|Rooms,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
 HVC_PIPE_FLOWRATE_LPS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Pipe Flowrate Lps [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_M,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Pipe Length M [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PIPE_LENGTH_M display mirror [auto-generated]
@@ -1512,8 +1512,8 @@ HVC_REFRIGERANT_KG_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Du
 HVC_REFRIGERANT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Refrigerant Txt [ISO 19650-1:2018]
 HVC_REFRIGERANT_TYPE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183]
 HVC_SEGMENT_ROLE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke)  -  cached by HvacSegmentRoleDetector [Phase 182]
-HVC_SELECTED_IDU_ID_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Catalogue id of the indoor unit picked by HvacSelectIdusCommand for this Space [Phase 187h]
-HVC_SELECTED_IDU_LABEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Human-readable label of the IDU picked by HvacSelectIdusCommand [Phase 187h]
+HVC_SELECTED_IDU_ID_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,Catalogue id of the indoor unit picked by HvacSelectIdusCommand for this Space [Phase 187h]
+HVC_SELECTED_IDU_LABEL_TXT,5,space-scoped load stamp,MEP Spaces|Rooms,Human-readable label of the IDU picked by HvacSelectIdusCommand [Phase 187h]
 HVC_SIZE_MODIFIED_DT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,ISO 8601 UTC timestamp of the most recent STING auto-sizing operation [Phase 182]
 HVC_SIZE_PREV_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,"Previous duct size before auto-sizing run, format WxH or Dia (audit trail) [Phase 182]"
 HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182]
@@ -1564,7 +1564,7 @@ ICT_TEL_PORT_TYPE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone
 IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host sync [IFC interop]
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
 INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
-IPS_BRANCH_COMPLIANT,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
+IPS_BRANCH_COMPLIANT,4,curated-fallback,Electrical Circuits,Ips Branch Compliant [STING]
 LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
 LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
@@ -1756,23 +1756,23 @@ OS_MATERIAL_TXT,11,curated-fallback,Generic Models,Default material [ISO 19650-1
 OS_PATTERN_TXT,11,curated-fallback,Generic Models,Object style pattern [ISO 19650-1:2018]
 OS_PROJECTION_WEIGHT_INT,11,curated-fallback,Generic Models,Projection line weight [ISO 19650-1:2018]
 OS_SUBCATEGORY_TXT,11,curated-fallback,Generic Models,Object style subcategory [ISO 19650-1:2018]
-PEN_BEAM_DEPTH_RATIO,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,"Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4"
-PEN_BEAM_OFFSET_PCT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,"Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)"
-PEN_CERTIFICATION_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly
-PEN_CONTROL_NUMBER_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.
-PEN_FIRE_RATING_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,"Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]"
-PEN_HOST_REF_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Host reference: FLR:<id> / WAL:<id> / BEM:<id>
-PEN_HOST_TYPE_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Host element class: FLOOR/WALL/BEAM/CEILING/ROOF
-PEN_INSPECTION_DATE,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Inspection date ISO 8601 (YYYY-MM-DD)
-PEN_INSPECTOR_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Inspector name / company
-PEN_INSTALLER_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Installer name / company
-PEN_INSTALL_DATE,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off
-PEN_INSTALL_STATUS_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK
-PEN_MEMBER_ID_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Penetrating member element id (Pipe/Duct/Conduit/CableTray)
-PEN_OD_MM,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Penetrating member outside diameter (mm)
-PEN_PFV_UUID_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,"Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence"
-PEN_SEALANT_TYPE_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]
-PEN_STRUCTURAL_FLAG_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules
+PEN_BEAM_DEPTH_RATIO,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,"Beam-host only: penetration diameter / beam depth - AISC DG2 limit 0.7, BS EN 1992 prudent limit 0.4"
+PEN_BEAM_OFFSET_PCT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,"Beam-host only: distance from nearest support as %% of span (BS EN 1992 / AISC DG2 prefer >=10%%, ideally 20-33%%)"
+PEN_CERTIFICATION_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,UL system / BS 476-20 / EN 1366-3 reference for the firestop assembly
+PEN_CONTROL_NUMBER_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Project-unique penetration control number (FRP-NNNN). Bind to Mark for tag use.
+PEN_FIRE_RATING_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,"Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]"
+PEN_HOST_REF_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Host reference: FLR:<id> / WAL:<id> / BEM:<id>
+PEN_HOST_TYPE_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Host element class: FLOOR/WALL/BEAM/CEILING/ROOF
+PEN_INSPECTION_DATE,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Inspection date ISO 8601 (YYYY-MM-DD)
+PEN_INSPECTOR_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Inspector name / company
+PEN_INSTALLER_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Installer name / company
+PEN_INSTALL_DATE,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Install date ISO 8601 (YYYY-MM-DD) - stamped by mobile commissioning sign-off
+PEN_INSTALL_STATUS_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Install status: DRAFT/INSTALLED/INSPECTED/SIGNED-OFF/REWORK
+PEN_MEMBER_ID_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Penetrating member element id (Pipe/Duct/Conduit/CableTray)
+PEN_OD_MM,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Penetrating member outside diameter (mm)
+PEN_PFV_UUID_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,"Deterministic UUIDv5(host,member) - shared with sleeve schema for cross-pipeline idempotence"
+PEN_SEALANT_TYPE_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]
+PEN_STRUCTURAL_FLAG_TXT,33,penetration,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Beam-host only: STRUCT_OK / STRUCT_REVIEW / STRUCT_FAIL based on AISC DG2 + BS EN 1992 location/size rules
 PERF_TAG_1_TXT,9,tag-container,<ALL>,Performance tag container
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,9,universal-meta,<ALL>,Per Acoustics Background Noise Db [ISO 19650-1:2018]
 PER_ACOUSTICS_IIC_RATING_TXT,9,universal-meta,<ALL>,Per Acoustics Iic Rating Txt [ISO 19650-1:2018]
@@ -2456,8 +2456,8 @@ SLV_SERVICE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Service passing th
 SLV_STATUS_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
 SLV_SZ_MM,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve size in millimetres
 SLV_SZ_TXT,19,curated-fallback,Generic Models|MEP Sleeve,SLV_SZ_MM display mirror [auto-generated]
-SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
-SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
+SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,MEP Sleeve discipline tag container [ISO 19650-3:2020]
+SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Sleeve paragraph container [ISO 19650-3:2020]
 SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models|MEP Sleeve,"Fire test standard (BS EN 1366-3, ASTM E814)"
 SLV_WALL_THICKNESS_MM,19,curated-fallback,Generic Models,Host element thickness in mm
 SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Host wall or floor type

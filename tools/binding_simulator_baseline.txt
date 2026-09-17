@@ -6,7 +6,14 @@
 # compare them.
 #
 # Regenerate: python tools/binding_simulator.py
-declared 3401
-bound    3238
-skipped  163
+declared 3604
+bound    3444
+skipped  160
 conflict 0
+
+# Re-measured 2026-09-17. The previous figures (3401/3238/163) were from
+# claude/kibale-integration and had not been refreshed since; the file has grown by
+# 203 declared parameters. A stale baseline is why nobody would have noticed the
+# skip count moving. Of the 160 skipped, 57 are parameters the CODE WRITES per
+# element and that are bound to nothing - see docs/BINDING_SCOPE_BASELINE.json and
+# ROADMAP CREATEPARM-1.

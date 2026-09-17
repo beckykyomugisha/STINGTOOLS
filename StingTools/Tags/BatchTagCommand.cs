@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -192,11 +192,12 @@ namespace StingTools.Tags
                         {
                             bool overwriteMode = (collisionMode == TagCollisionMode.Overwrite);
                             bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
+                            var _tagRpt2 = new StingTools.Core.TagConfig.TagWriteReport();
                             bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                                 tagIndex, sequenceCounters, formulas, gridLines,
                                 overwrite: overwriteMode, skipComplete: skipComplete,
-                                collisionMode: collisionMode, stats: stats);
-                            if (!pipelineOk)
+                                collisionMode: collisionMode, stats: stats, report: _tagRpt2);
+                            if (!pipelineOk && !_tagRpt2.IsDeliberateSkip)
                                 StingLog.Warn($"BatchTag: pipeline returned false for element {el?.Id}");
                         }
                         catch (Exception ex)

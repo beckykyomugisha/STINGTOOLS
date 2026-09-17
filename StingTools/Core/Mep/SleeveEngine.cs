@@ -1,4 +1,4 @@
-using StingTools.Core;
+﻿using StingTools.Core;
 // StingTools v4 MVP — Phase I sleeve engine.
 //
 // Detects MEP-vs-structure penetrations, sizes a sleeve per
@@ -427,7 +427,19 @@ namespace StingTools.Core.Mep
                 if (host is Wall w) return w.Width * FtToMm;
                 if (host is Floor f)
                 {
-                    try { return f.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM)?.AsDouble() * FtToMm ?? 0; }
+                    // MAPTYPE-7: FLOOR_ATTR_THICKNESS_PARAM is TYPE-scoped, so reading it
+                    // from the Floor instance returned null and this reported 0 mm - a
+                    // sleeve sized against a zero-thickness slab, in silence.
+                    try
+                    {
+                        double ft;
+                        if (StingTools.Core.ParameterHelpers.TryGetBipDouble(
+                                f, BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM, out ft))
+                            return ft * FtToMm;
+                        StingTools.Core.StingLog.Warn(
+                            $"SleeveEngine: no thickness on floor {f?.Id} - returning 0.");
+                        return 0;
+                    }
                     catch { return 0; }
                 }
             }

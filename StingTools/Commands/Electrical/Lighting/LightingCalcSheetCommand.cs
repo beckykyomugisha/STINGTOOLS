@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -48,10 +48,8 @@ namespace StingTools.Commands.Electrical.Lighting
             var doc = ctx.Doc;
 
             var luxTargets = LuxTargetTable.Load();
-            var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
-                .Where(r => r.Area > 0).ToList();
+            // LIGHTGRID-2: Rooms AND MEP Spaces.
+            var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc);
             if (rooms.Count == 0)
             {
                 TaskDialog.Show("STING Lighting Calc Sheet", "No placed rooms found.");
@@ -135,7 +133,7 @@ namespace StingTools.Commands.Electrical.Lighting
             return Result.Succeeded;
         }
 
-        private static RoomSheet BuildSheet(Document doc, Room room, LuxTargetTable luxTargets)
+        private static RoomSheet BuildSheet(Document doc, SpatialElement room, LuxTargetTable luxTargets)
         {
             int fixtures = 0;
             double totalLumens = 0;
@@ -148,11 +146,12 @@ namespace StingTools.Commands.Electrical.Lighting
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
                 bool inRoom = false;
-                try { if (fi.Room?.Id == room.Id) inRoom = true; } catch { }
+                // LIGHTGRID-2: fi.Room is null for a fixture in a Space.
+                try { if (StingTools.Core.Placement.SpatialCompat.Contains(fi, room)) inRoom = true; } catch { }
                 if (!inRoom)
                 {
                     var pt = (fi.Location as LocationPoint)?.Point;
-                    if (pt != null && room.IsPointInRoom(pt)) inRoom = true;
+                    if (pt != null && StingTools.Core.Placement.SpatialCompat.IsPointInside(room, pt)) inRoom = true;
                 }
                 if (!inRoom) continue;
 

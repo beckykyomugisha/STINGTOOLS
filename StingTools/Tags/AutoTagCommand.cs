@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -228,11 +228,12 @@ namespace StingTools.Tags
                             {
                                 bool skipComplete = (collisionMode != TagCollisionMode.Overwrite);
                                 bool ow = (collisionMode == TagCollisionMode.Overwrite);
+                                var _tagRpt0 = new StingTools.Core.TagConfig.TagWriteReport();
                                 bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                                     tagIndex, sequenceCounters, formulas, gridLines,
                                     overwrite: ow, skipComplete: skipComplete,
-                                    collisionMode: collisionMode, stats: stats);
-                                if (!pipelineOk)
+                                    collisionMode: collisionMode, stats: stats, report: _tagRpt0);
+                                if (!pipelineOk && !_tagRpt0.IsDeliberateSkip)
                                     StingLog.Warn($"AutoTag: pipeline returned false for element {el?.Id}");
                             }
                             catch (Exception ex)
@@ -460,11 +461,12 @@ namespace StingTools.Tags
                             Element el = sorted[i];
                             try
                             {
+                                var _tagRpt1 = new StingTools.Core.TagConfig.TagWriteReport();
                                 bool pipelineOk = TagPipelineHelper.RunFullPipeline(doc, el, popCtx,
                                     tagIndex, seqCounters, formulas, gridLines,
                                     overwrite: false, skipComplete: true,
-                                    collisionMode: TagCollisionMode.Skip, stats: stats);
-                                if (!pipelineOk)
+                                    collisionMode: TagCollisionMode.Skip, stats: stats, report: _tagRpt1);
+                                if (!pipelineOk && !_tagRpt1.IsDeliberateSkip)
                                     StingLog.Warn($"TagNewOnly: pipeline returned false for element {el?.Id}");
                             }
                             catch (Exception ex)

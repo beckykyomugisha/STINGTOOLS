@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -37,7 +37,10 @@ namespace StingTools.Core
         /// <summary>Built-in valid discipline codes per ISO 19650.</summary>
         private static readonly HashSet<string> _builtInDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "M", "E", "P", "A", "S", "FP", "LV", "G"
+            // ISO19650DISC-1: "Z" (General / multi-disciplinary) is what the twelve
+            // generic categories now use. "G" stays valid -- it is a real BS EN ISO
+            // 19650-2 code (GIS / Land Surveyor), it was simply the wrong one for them.
+            "M", "E", "P", "A", "S", "FP", "LV", "G", "Z"
         };
 
         /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001). Cached to avoid per-access allocation.</summary>
