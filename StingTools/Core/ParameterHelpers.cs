@@ -1354,7 +1354,8 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : "BLD1";
+            // TOKPOL-1: a detected project LOC still wins; only the last resort is policy-driven.
+            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : PolicyFallback(doc, "LOC", "BLD1");
         }
 
         // ScopeBoxLoc (plan-rectangle + most-specific selection) lives in the
@@ -1429,6 +1430,55 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Fallback for a token the detection layer could not derive (TOKPOL-1).
+        ///
+        /// `STING_TAG_TOKEN_POLICY.json` is the single place that decides what an
+        /// underivable token becomes — `TagConfig.BuildAndWriteTag` has resolved the TAG
+        /// STRING through it since Phase 288. The DERIVATION layer never learned: it
+        /// returned the literals `"Z01"` and `"BLD1"` straight from this file, so a project
+        /// that overrode those fallbacks in its policy still got the hardcoded pair written
+        /// onto every element, and the tag and the parameter could disagree.
+        ///
+        /// Routing it here rather than at the 22 call sites was deliberate. Those callers
+        /// (audits, wizards, legends, the auto-tagger) compare the result against literals
+        /// or write it straight to a parameter, and the failure mode of getting one wrong is
+        /// a silently blank token on every tagging path — the exact class this phase spent
+        /// itself removing. So the signature does not change and the result is never empty:
+        /// the policy decides, and `legacy` is only the floor beneath it.
+        /// </summary>
+        private static string PolicyFallback(Document doc, string token, string legacy)
+        {
+            try
+            {
+                var lib = TagTokenPolicyRegistry.Get(doc);
+                var res = TagTokenPolicy.Resolve(lib, token, null);
+                if (res != null && !res.Refused && !string.IsNullOrEmpty(res.Value))
+                {
+                    if (!string.Equals(res.Value, legacy, StringComparison.Ordinal)
+                        && _policyFallbackReported.Add(token))
+                        StingLog.Info(
+                            $"Token policy: '{token}' could not be derived; using the policy "
+                            + $"fallback '{res.Value}' instead of the legacy default "
+                            + $"'{legacy}'.");
+                    return res.Value;
+                }
+
+                // Refused, or no fallback declared. The detection layer has no way to skip an
+                // element, so it cannot honour a refusal — BuildAndWriteTag does that, and it
+                // re-resolves this token anyway. Returning the legacy value keeps the
+                // parameter non-empty; the refusal still takes effect where it can.
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PolicyFallback('{token}'): {ex.Message}");
+            }
+            return legacy;
+        }
+
+        private static readonly HashSet<string> _policyFallbackReported =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
         /// Detect ZONE code from room data. Checks room name, number, and
         /// Department parameter for zone patterns (Z01-Z04, Wing A/B/C/D, etc.).
         /// </summary>
@@ -1469,7 +1519,7 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectZone: {ex.Message}");
             }
 
-            return "Z01"; // Safe default
+            return PolicyFallback(doc, "ZONE", "Z01");   // TOKPOL-1: policy decides, Z01 is only the floor
         }
 
         /// <summary>

@@ -254,6 +254,37 @@ nothing would have said so.** An overlay now never wins the fallback; lightning 
 asserted per element by `LpsMarkElementTypesCommand`, never assumed to be the default reading
 of a wall. Ambiguous resolutions log once per category per session.
 
+**TOKPOL-1 closed — declined twice, and the reason for declining turned out to be avoidable.**
+The policy has governed the tag STRING since Phase 288, but never the **derivation**:
+`DetectZone` and `DetectLoc` returned the literals `"Z01"` and `"BLD1"` straight from
+`ParameterHelpers.cs`. A project that overrode those fallbacks in its policy still got the
+hardcoded pair written onto every element, so the tag and the parameter it came from could
+disagree about the same thing.
+
+It was declined twice because routing the derivation layer through the policy meant touching
+22 call sites across 12 files, several of which compare the result against a literal or write
+it straight to a parameter — and the failure mode of getting one wrong is a silently blank
+token on every tagging path. That framing was wrong. `PolicyFallback(doc, token, legacy)` sits
+at the two points where the literals were: the signatures do not change, no call site moves,
+and the result is never empty, so the blank-token risk does not arise at all. The legacy value
+survives only as a floor beneath the policy.
+
+**The gate for it was vacuous, and then it cried wolf.** Asserting `PolicyFallback\(` appears
+in the file passed with every CALL to it deleted — the regex matched the method *definition*.
+That is the third assertion this phase satisfied by the existence of a thing rather than its
+use. Replacing it with a negative assertion (the literal must not be returned) then failed on
+a correct tree, because `ParseZoneCode` legitimately maps "NORTH" to Z01 — a parsed result,
+not a fallback. The check is now scoped to the method body, and was proven RED and GREEN in
+both directions.
+
+**The test protocol now covers the manual build.** `UNITAG-2` was listed as out of scope;
+section **U** covers it: the 65-row shape (T5 alone is 21 rows, there is no T3), the four
+mechanics that cost a session if missed — one Edit Label sitting, Spaces=0 *before* Break,
+Type=Text throughout, a YESNO written bare or Revit answers "Inconsistent Units" — the order
+of work from the 9 removals to propagation, and what propagation cannot fix. The 65 formulas
+are **deliberately not duplicated** into the protocol: two copies drift, and the one someone
+reads is then the wrong one, so it points at `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records

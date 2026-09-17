@@ -1,6 +1,8 @@
-# Tag / Room Test Protocol — Phases 287–293
+# Tag / Room Test Protocol — Phases 287–294
 
-Five tests that can only be answered inside Revit, in the order they must be run. Every fix
+Seven tests that can only be answered inside Revit, in the order they must be run, plus
+**section U** — the manual universal-tag build, which is the critical path and the one thing
+here that no code can do. Every fix
 in Phases 287–293 is a data or source change verified against shipped data; **none has been
 seen on a tag in Revit.** That is what this protocol closes.
 
@@ -236,6 +238,23 @@ several defects in the 2026-08 audit were error handling that could never execut
    - [ ] **no tag is written with a doubled separator** (`A--Z01-`)
 4. **Delete the file.** Leaving it makes LVL mandatory for that project.
 
+### While you are here — the derivation layer (`TOKPOL-1`, closed Phase 294)
+
+Until this phase the policy governed the tag STRING but not the DERIVATION: `DetectZone` and
+`DetectLoc` returned the literals `"Z01"` and `"BLD1"` straight from the source, so a project
+that overrode those fallbacks still got the hardcoded pair written onto every element — and
+the tag and the parameter it came from could disagree.
+
+Put a LOC fallback in the same policy file and tag an element with no derivable location:
+
+```json
+{"tokens":[{"token":"LOC","level":"OPTIONAL","fallback":"SITE","why":"test"}]}
+```
+
+- [ ] `ASS_LOC_TXT` on that element reads `SITE`, **not** `BLD1`
+- [ ] the log carries one `Token policy: 'LOC' could not be derived; using the policy
+      fallback` line — once per session, not once per element
+
 ---
 
 ## T6 · SEQ reaches the tag — `BINDSCOPE-2` ⭐ the one that started Phase 294
@@ -308,19 +327,99 @@ result set is the failure mode this repo produces.
 
 ---
 
+## U · The universal tag — the manual build (`UNITAG-2`)
+
+This is the critical path, and it is the one thing in this repo that **cannot be automated**:
+the Revit API cannot author label rows (`TagFamilyCreatorCommand.cs:1496`) and cross-category
+label paste is blocked. One person builds **one** label by hand; `Propagate_UniversalTag`
+then clones it to all 206 families.
+
+### U.0 Where the authority is — do not work from this page alone
+
+| Document | What it holds |
+|---|---|
+| [`UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`](UNIVERSAL_TAG_LABEL_BUILD_SHEET.md) | **THE row list — all 65 rows, exact Calculated-Value names, formulas, prefix, suffix, break.** Work from this table, cell by cell. |
+| [`UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`](UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md) | The order to add parameters to the field list |
+| [`UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`](UNIVERSAL_TAG_DUCT_SMOKE_TEST.md) | The one-family proof to run **before** scaling to 206 |
+| [`UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md`](UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md) | Family-editor configuration around the label |
+| [`UNIVERSAL_TAG_CONFORMANCE.md`](UNIVERSAL_TAG_CONFORMANCE.md) | What "done" means for a propagated family |
+
+The row list is **not duplicated here on purpose.** Two copies of 65 formulas drift, and the
+copy someone reads is then the wrong one. This section covers only the mechanics that cost
+you the session if you get them wrong.
+
+### U.1 The shape of the label
+
+**65 rows, one label.** Tier visibility is driven by `TAG_PARA_STATE_n_BOOL`, so every
+non-T1 row is a Calculated Value wrapping its parameter in an `if()`:
+
+```
+if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, "")
+```
+
+Rows per tier — use this to check you have not lost one:
+
+| T1 | T2 | T4 | T5 | T6 | T7 | T8 | T9 | T10 | total |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 6 | 6 | **21** | 6 | 6 | 6 | 6 | 7 | **65** |
+
+T5 is the big one at 21 rows. There is no T3 — it was dropped deliberately.
+
+### U.2 Four mechanics that bite
+
+⚠️ **ONE Edit Label session.** Parameters added to the field list are **lost if the dialog
+closes** before the rows are pushed into the label. Budget the time in one sitting; do not
+"just check something" in another dialog halfway through.
+
+⚠️ **Set Spaces = 0 BEFORE ticking Break.** Spaces is only editable while the row *above*
+has no Break. Tick Break first and you cannot go back without unpicking the row above.
+
+⚠️ **Every row: Spaces = 0, Type = Text.** Type=Text for every calculated value, including
+the numeric ones — the label renders text, which is the whole reason the `_TXT` mirrors
+exist.
+
+⚠️ **A YESNO parameter is written BARE in a formula.** `and(TAG_WARN_VISIBLE_BOOL, …)`, never
+`TAG_WARN_VISIBLE_BOOL = "Yes"` — comparing a YESNO to a string fails with Revit's
+*Inconsistent Units*. (`LABEL_DEFINITIONS.json` claimed the opposite until `614aba59b`.)
+
+### U.3 Order of work
+
+1. **REMOVE the 9 rows** listed in the build sheet's Step 1 — `HVC_DCT_FLW_CFM`,
+   `HVC_VEL_MPS`, `MNT_HGT_MM` and all six T3 rows. Select the row, click the left arrow.
+2. **Build / verify all 65 rows in order** from the Step 2 table. For each non-T1 row:
+   Name → Type = Text → paste Formula → Prefix / Suffix → Spaces = 0 → Break.
+3. **Badges (optional, Step 4)** — 6 glyphs on subcategory `STING_TagStatus`, 6 family
+   Yes/No params driving their `Visible` property. The plugin already stamps
+   `STING_GATE_DATA_STATUS_INT` / `STING_GATE_QA_STATUS_INT` (**CREATE → Stamp Gates**), so
+   the badges need no per-family logic. Turning the subcategory off in a print view template
+   is how they stay screen-only.
+4. **Duct smoke test** — one family, per `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`. Confirm the
+   nested badge symbols survive SaveAs + recategorise; that is the item most likely to break.
+5. **Only then** `Propagate_UniversalTag` to the remaining families.
+
+### U.4 What propagation cannot fix
+
+The 291 duplicate rows and the misleading door `Clear:` row were removed from
+`LABEL_DEFINITIONS.json`, **not** from the shipped `.rfa` files. Families that are *replaced*
+by the universal label inherit the clean one. Any family you keep bespoke still carries the
+old rows, and no gate can see inside an `.rfa`.
+
+- [ ] 9 rows removed · [ ] 65 rows built · [ ] badges (optional) · [ ] duct smoke test ·
+  [ ] propagated
+
+---
+
 ## What this protocol does not cover
 
-Manual Family Editor work, because the Revit API cannot author label rows
-(`TagFamilyCreatorCommand.cs:1496`) and cross-category label paste is blocked:
-
-- **`UNITAG-2`** — one universal label, ~62 rows, in a single Edit Label session, then the
-  Duct smoke test before scaling to 206. The actual critical path.
+Manual Family Editor work is now covered in **section U above** — `UNITAG-2` was previously
+listed here as out of scope and is not any more. What remains outside this protocol:
 - **`ROOM-7`** — a name-first room tag, ~6 rows. Everything else about it is automatable.
 - The **291 duplicate rows** still present in the shipped `.rfa` files.
 
 ⚠️ Params added to the field list are **lost if the Edit Label dialog closes** before the
 rows are pushed. One session, rows pushed before OK.
 
-Open decisions — `UNITAG-4` (universal vs per-category), `TAGBIND-3` (where door clear
-width comes from), `UNITAG-3` (8 truncated family names), `TOKPOL-1`, `TAGDUP-2` — are
-standards questions, not test outcomes. They live in `docs/ROADMAP.md`.
+Open decisions — `UNITAG-4` (universal vs per-category), `TAGBIND-3` (where door clear width
+comes from), `UNITAG-3` (8 truncated family names), `ISO19650DISC-2` / `-4` (Uniclass cover
+and whether DISC means role or system), `TAGDUP-2` — are standards questions, not test
+outcomes. They live in `docs/ROADMAP.md`. (`TOKPOL-1` was on this list and is now closed.)
