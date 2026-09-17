@@ -367,12 +367,29 @@ That discards project-set values for **every** parameter of the family, not just
 >
 > 1. `TAG_PARA_STATE_3_BOOL` is **absent, and that is correct** — T3 was dropped entirely, no
 >    label row references it, and the kit does not declare it.
-> 2. `TAG_PARA_STATE_2_BOOL` is **absent, and that is a defect.** The kit declares 8 gates
->    (2/4/5/6/7/8/9/10) and the 65 label rows reference exactly those 8 — T2 is six rows, all
->    gated on `_2`. The family carries only 7; `_2` was never added as a family type
->    parameter. The whole T2 block therefore cannot be switched on from the tag type. Fix:
->    add `TAG_PARA_STATE_2_BOOL` to the tag family as a TYPE parameter, matching the other
->    seven, **before propagating** — otherwise all 206 families inherit the gap.
+> 2. ~~`TAG_PARA_STATE_2_BOOL` is absent~~ — **CORRECTED same day. It is present; it is
+>    INSTANCE-scoped.** The Family Types dialog shows all ten gates. Revit suffixes
+>    **instance** parameters with `(default)` there, and the split is exact:
+>
+>    | Scope | Gates |
+>    |---|---|
+>    | **Instance** (`(default)`) | `_1`, `_2`, `_3`, and `TAG_WARN_VISIBLE_BOOL` |
+>    | **Type** (no suffix) | `_4` `_5` `_6` `_7` `_8` `_9` `_10` |
+>
+>    That matches the Type Properties screenshot exactly (only `_4`–`_10` appeared) and is
+>    corroborated by the build sheet, which documents `TAG_WARN_VISIBLE_BOOL` as Instance.
+>
+>    **The consequence is unchanged and still blocking:** `SetParagraphDepth` is a TYPE
+>    sweep, so it reaches `_4`–`_10` and never `_2`. T2 is six rows — `ASS_TAG_2_TXT`,
+>    description, Status, Std, Sys, MSys — and none of them can be driven by `Set depth`.
+>
+>    **Fix: convert `TAG_PARA_STATE_2_BOOL` from Instance to Type** (Family Types → select →
+>    Modify → Type), **before propagating**, or all 206 inherit the split. `_1` and `_3` are
+>    referenced by no label row and are not among the kit's 8 gates; they can be left or
+>    deleted, but leaving them Instance is harmless because nothing reads them.
+>
+>    This also refines §C: the gates are per-type **for the seven that matter today**, not
+>    uniformly. Mixed scope inside one family is the thing to watch for on propagation.
 >
 > The original §C text is retained below.
 
