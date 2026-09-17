@@ -94,6 +94,7 @@
     <Compile Include="..\StingTools\Core\TagTokenIntegrity.cs" Link="Core\TagTokenIntegrity.cs" />
     <Compile Include="..\StingTools\Core\TaggingModels.cs" Link="Core\TaggingModels.cs" />
     <Compile Include="..\StingTools\Core\TagCollisionMode.cs" Link="Core\TagCollisionMode.cs" />
+    <Compile Include="..\StingTools\Core\TokenBindingCoverage.cs" Link="Core\TokenBindingCoverage.cs" />
     <!-- The QR payload contract. Revit-free by design so both this suite and
          the mobile parser can be held to the same corpus (tools/qr_payload_corpus.json). -->
     <Compile Include="..\StingTools\Core\StingQrPayload.cs" Link="Core\StingQrPayload.cs" />
