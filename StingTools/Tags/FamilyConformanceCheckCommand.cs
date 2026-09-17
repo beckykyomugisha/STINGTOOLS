@@ -26,7 +26,13 @@ namespace StingTools.Tags
     //      Tag visibility tiers present (when family is tag) ( 10 pts )
     //      Position types Ring 1 / Ring 2 (when family is tag) ( 10 pts )
     //      No obviously-wrong placement type vs category     ( 10 pts )
-    //      Loads cleanly into the target document            ( 10 pts )
+    //      Opened without error                              ( 10 pts )
+    //
+    //  Plus one veto, scored as no points at all: a family whose shared
+    //  parameters disagree with the open project's cannot be LOADED, however
+    //  conformant the rest of it is, so it is reported BLOCK with the
+    //  offending parameters named. Needs a project document open; without
+    //  one the check says it did not run.
     //
     //  Result is a CSV report at <outputDir>/FamilyConformanceReport_yyyyMMdd_HHmmss.csv
     //  plus a TaskDialog summary listing the lowest-scoring families.
@@ -140,7 +146,14 @@ namespace StingTools.Tags
         /// Caller wraps the application context — this method opens the file,
         /// audits, and closes without saving.
         /// </summary>
-        public static ConformanceReportRow Inspect(UIApplication uiApp, string rfaPath)
+        /// <param name="projectSide">
+        /// The shared parameters the target project already holds
+        /// (<see cref="SharedParamPreflight.CollectProject"/>). Supplied, the audit
+        /// can say whether this family would actually LOAD; omitted, that check is
+        /// reported as not run rather than passed.
+        /// </param>
+        public static ConformanceReportRow Inspect(UIApplication uiApp, string rfaPath,
+            IList<SharedParamFacts> projectSide = null)
         {
             var row = new ConformanceReportRow { Path = rfaPath };
             row.FamilyName = Path.GetFileNameWithoutExtension(rfaPath) ?? "";
@@ -158,7 +171,7 @@ namespace StingTools.Tags
                     return row;
                 }
 
-                ScoreFamily(famDoc, row);
+                ScoreFamily(famDoc, row, projectSide);
             }
             catch (Exception ex)
             {
@@ -173,7 +186,8 @@ namespace StingTools.Tags
             return row;
         }
 
-        private static void ScoreFamily(Document famDoc, ConformanceReportRow row)
+        private static void ScoreFamily(Document famDoc, ConformanceReportRow row,
+            IList<SharedParamFacts> projectSide = null)
         {
             var fm = famDoc.FamilyManager;
             int score = 0;
@@ -343,15 +357,46 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { row.Warnings.Add($"Inspect FamilyPlacementType: {ex.Message}"); }
 
-            // ── (8) Loaded-cleanly bonus (10 pts) ────────────────────
-            // We got here without an Open exception — credit the bonus.
+            // ── (8) Opened without error (10 pts) ────────────────────
+            // Named for what it proves. It was "Loads cleanly into the target
+            // document", which it never tested: reaching here only means
+            // OpenDocumentFile did not throw. A family can open perfectly and
+            // still be refused by LoadFamily — which is exactly what
+            // STING_Tag_Universal.rfa did on 2026-09-17, over twelve shared
+            // parameters. Loadability is check (9), and it needs a project.
             score += 10;
+
+            // ── (9) Would it LOAD? (no points — a veto) ──────────────
+            // Revit keys a shared parameter on its GUID and refuses a load that
+            // would redefine one. Scored as a veto rather than as points: a
+            // family that cannot be loaded is not 90% conformant, it is unusable,
+            // and the twelve names are what the operator needs.
+            bool loadBlocked = false;
+            if (projectSide != null && projectSide.Count > 0)
+            {
+                try
+                {
+                    var conflicts = SharedParamConflictDetector.Detect(
+                        SharedParamPreflight.CollectFamily(fm), projectSide);
+                    foreach (var c in conflicts)
+                        row.Missing.Add("LOAD BLOCKED: " + c.Describe());
+                    loadBlocked = conflicts.Count > 0;
+                }
+                catch (Exception ex) { row.Warnings.Add($"Shared-parameter load check: {ex.Message}"); }
+            }
+            else
+            {
+                // Said out loud. A skipped check that reads as a pass is how the
+                // old criterion (8) stayed wrong for a whole phase.
+                row.Warnings.Add("Shared-parameter load check NOT RUN — no project document open.");
+            }
 
             // Clamp + verdict.
             row.Score = Math.Max(0, Math.Min(100, score));
             row.Verdict = row.Score >= 85 ? "PASS"
                         : row.Score >= 70 ? "WARN"
                         : "BLOCK";
+            if (loadBlocked) row.Verdict = "BLOCK";
         }
     }
 
@@ -387,6 +432,15 @@ namespace StingTools.Tags
                     return Result.Cancelled;
                 }
 
+                // What the open project already holds a type for. Read ONCE: it is
+                // the same for every family, and it is what decides whether each
+                // one can be loaded at all (check 9). No project open => the check
+                // is reported as not run, never as passed.
+                var projectSide = SharedParamPreflight.CollectProject(
+                    uiApp.ActiveUIDocument?.Document);
+                StingLog.Info($"FamilyConformanceCheck: project holds {projectSide.Count} shared parameters " +
+                              (projectSide.Count == 0 ? "— load check will be reported as NOT RUN" : "to check against"));
+
                 // Inspect each (modal progress with periodic UI yield).
                 var rows = new List<ConformanceReportRow>(rfas.Count);
                 int i = 0;
@@ -395,7 +449,7 @@ namespace StingTools.Tags
                     i++;
                     try
                     {
-                        var row = FamilyConformanceInspector.Inspect(uiApp, p);
+                        var row = FamilyConformanceInspector.Inspect(uiApp, p, projectSide);
                         rows.Add(row);
                     }
                     catch (Exception ex)

@@ -62,7 +62,12 @@ namespace StingTools.Tags
         public string ActualCategory { get; set; }
         /// <summary>True when the family's current category differs from the declared one.</summary>
         public bool IsMismatch { get; set; }
-        /// <summary>Why resolution failed, when it did. Null on success.</summary>
+        /// <summary>
+        /// Why resolution failed, or — when it succeeded and
+        /// <see cref="IsMismatch"/> is true — what disagrees with what. Null only
+        /// when resolution succeeded and the family already carries the declared
+        /// category, i.e. when there is nothing to say.
+        /// </summary>
         public string Note { get; set; }
     }
 
@@ -137,6 +142,17 @@ namespace StingTools.Tags
 
             res.DeclaredTagCategory = tagCat;
             res.IsMismatch = !string.Equals(res.ActualCategory, tagCat.Name, StringComparison.OrdinalIgnoreCase);
+            if (res.IsMismatch)
+            {
+                // Note was only written on the FAILURE paths above, so a resolved
+                // mismatch — the case callers log — came back with Note null and
+                // printed as "PropagateUniversalTag: 'STING - Duct Tag' — " with
+                // nothing after the dash. Observed 2026-09-17: a warning that
+                // names the family and then says nothing about it.
+                res.Note = $"declared '{tagCat.Name}' (host '{hostCat}') but family carries " +
+                           $"'{(string.IsNullOrEmpty(res.ActualCategory) ? "(none)" : res.ActualCategory)}' " +
+                           "— will be recategorised to the declared category";
+            }
             return res;
         }
 

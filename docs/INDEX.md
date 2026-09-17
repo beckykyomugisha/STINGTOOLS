@@ -197,6 +197,7 @@ already wired. Six offline tasks, and an explicit list of what must stay manual 
 ## Tagging — current
 
 - [Universal tag conformance](UNIVERSAL_TAG_CONFORMANCE.md) ✅ — the four code contracts the universal tag does not yet meet
+- [Universal tag load-conflict sources](UNIVERSAL_TAG_LOAD_CONFLICT_SOURCES.md) ✅ — every source that can type a shared parameter wrongly, audited; why a blank project still conflicts
 - [F-9 spatial code reconciliation](F9_SPATIAL_CODE_RECONCILIATION.md) ✅ — five level + three LOC vocabularies, measured
 - [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied
 - [Tagging workflow analysis](TAGGING_WORKFLOW_ANALYSIS.md) ⛔ SUPERSEDED

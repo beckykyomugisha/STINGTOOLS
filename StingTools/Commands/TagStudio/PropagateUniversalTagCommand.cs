@@ -181,6 +181,55 @@ namespace StingTools.Commands.TagStudio
                 .Distinct()
                 .ToList();
 
+            // ── Pre-flight: will the clone even load back? ──
+            // Every target gets a clone of the same master, so a shared-parameter
+            // type conflict fails all of them identically — and LoadFamily reports
+            // a bare false, which the loop could only write down as "LoadFamily
+            // back into project failed". That is what a 17-minute run reported on
+            // 2026-09-17 while the real cause (12 parameters the family offers as
+            // Text that the project holds as Number/Currency/Length/Yes-No under
+            // the same GUIDs) was readable in seconds. Read it here, name the
+            // parameters, and stop before touching 206 families.
+            {
+                string preflightSp = app.SharedParametersFilename;
+                List<SharedParamTypeConflict> conflicts;
+                try
+                {
+                    // The same file the loop binds from, so the definitions checked
+                    // are the ones propagation would actually add.
+                    app.SharedParametersFilename = sharedParamFile;
+                    var willAdd = SharedParamPreflight.CollectDefinitions(
+                        app.OpenSharedParameterFile(), styleAndVisParams);
+                    conflicts = SharedParamPreflight.Check(doc, master, willAdd);
+                }
+                finally
+                {
+                    try { app.SharedParametersFilename = preflightSp ?? ""; }
+                    catch (Exception ex) { StingLog.Warn($"Restore SharedParametersFilename after pre-flight: {ex.Message}"); }
+                }
+
+                if (conflicts.Count > 0)
+                {
+                    string detail = SharedParamConflictDetector.Describe(conflicts);
+                    StingLog.Warn($"PropagateUniversalTag: aborted before any family — {detail?.Replace("\n", " ")}");
+
+                    var block = new TaskDialog("Propagate Universal Tag");
+                    block.MainInstruction =
+                        $"'{master.Name}' cannot load into this project — nothing was propagated.";
+                    block.MainContent =
+                        detail + "\n\n" +
+                        "Revit identifies a shared parameter by its GUID and refuses a load that " +
+                        "would redefine one, so every target would fail the same way.\n\n" +
+                        "Fix it in the FAMILY, not the project: delete the conflicting parameters " +
+                        "from the master (a numeric parameter cannot be retyped to Text for a label — " +
+                        "use its _TXT display mirror), then re-run.\n\n" +
+                        "docs/UNIVERSAL_TAG_CONFLICT_RESOLUTION_RUNBOOK.md has the ordered steps.";
+                    block.CommonButtons = TaskDialogCommonButtons.Close;
+                    block.Show();
+                    return Result.Cancelled;
+                }
+            }
+
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
             int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0;
@@ -432,12 +481,20 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     bool loadedOk = false;
+                    string loadThrew = null;
+                    // LoadFamily's false return carries no reason; Revit's own
+                    // explanation arrives as failure messages on this transaction
+                    // and, uncaptured, only ever reaches a modal dialog.
+                    var loadFailures = new CapturingFailuresPreprocessor();
                     using (var loadTx = new Transaction(doc, $"STING Reload {targetName}"))
                     {
                         loadTx.Start();
+                        var fho = loadTx.GetFailureHandlingOptions();
+                        loadTx.SetFailureHandlingOptions(fho.SetFailuresPreprocessor(loadFailures));
                         try { loadedOk = doc.LoadFamily(tempPath, new TagFamilyLoadOptions(), out _); }
                         catch (Exception loadEx)
                         {
+                            loadThrew = loadEx.Message;
                             StingLog.Warn($"{targetName}: LoadFamily: {loadEx.Message}");
                             loadedOk = false;
                         }
@@ -447,7 +504,12 @@ namespace StingTools.Commands.TagStudio
                     if (!loadedOk)
                     {
                         TryDeleteTempDir(tempDir);
-                        result.ErrorMessage = "LoadFamily back into project failed";
+                        string why = loadFailures.Summary() ?? loadThrew;
+                        result.ErrorMessage = why == null
+                            ? "LoadFamily back into project failed, and Revit reported no failure message. " +
+                              "Check the shared-parameter pre-flight log line for this run."
+                            : $"LoadFamily back into project failed: {why}";
+                        StingLog.Warn($"PropagateUniversalTag: '{targetName}' load refused — {result.ErrorMessage}");
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after load fail: {rbEx.Message}"); }
                         return result;
                     }
