@@ -210,6 +210,59 @@ def category_near_misses(rows):
     return sorted(set(near)), len(unknown)
 
 
+def unbound_write_targets(targets, rows):
+    """Parameters the code writes per element that are bound to NOTHING.
+
+    This gate's original check looked only at rows whose scope column says `Type`. A
+    parameter with **no binding row at all** was therefore invisible to it — and that is a
+    strictly worse defect than a wrong scope, because the write has nowhere to land at all.
+
+    `TAG_PARA_DEPTH_INT` is the proof. `SmartTagPlacementCommand` does
+
+        ParameterHelpers.SetInt(tag, "TAG_PARA_DEPTH_INT", depth)
+
+    and the parameter has zero rows in CATEGORY_BINDINGS.csv and zero in
+    RESOLVED_BINDINGS.csv, so `CachedLookup` returns null and the write returns false in
+    silence. The binder skips it too, which is why "Create Parameters" does not create it.
+
+    Fourth time in this phase an instrument was narrower than the defect it was built for.
+
+    Only DECLARED parameters count. The write-target derivation deliberately matches
+    ALL_CAPS string literals, which also catches VALUES like "DRAFT", "OPEN" and "ZONE"
+    passed to Set* as data rather than as a parameter name. Requiring a declaration in
+    MR_PARAMETERS.txt removes those without hand-listing them.
+    """
+    declared = set()
+    mr = os.path.join(ROOT, 'StingTools', 'Data', 'MR_PARAMETERS.txt')
+    for line in io.open(mr, encoding='utf-8-sig', errors='replace'):
+        f = line.rstrip('\n').split('\t')
+        if len(f) > 2 and f[0] == 'PARAM' and f[2]:
+            declared.add(f[2])
+    if len(declared) < 500:
+        raise SystemExit('Parsed %d declared parameters — too few to assert anything.'
+                         % len(declared))
+
+    bound = set()
+    for raw in rows:
+        if not raw.strip() or raw.startswith('#'):
+            continue
+        c = raw.split(',')
+        if len(c) >= 2 and c[0].strip() and c[0].strip().lower() != 'parameter_name':
+            if c[1].strip():
+                bound.add(c[0].strip())
+
+    universal = set()
+    res = os.path.join(ROOT, 'StingTools', 'Data', 'RESOLVED_BINDINGS.csv')
+    if os.path.exists(res):
+        for line in io.open(res, encoding='utf-8-sig'):
+            a = line.strip().split(',', 1)
+            if len(a) == 2 and a[1].strip() == '<ALL>':
+                universal.add(a[0].strip())
+
+    return sorted(t for t in targets
+                  if t in declared and t not in bound and t not in universal)
+
+
 def audit():
     targets = write_targets()
     rows = io.open(BIND, encoding='utf-8-sig').read().split('\n')
@@ -253,6 +306,7 @@ def main():
     targets, offend, total_type, rows = audit()
     bad = sum(offend.values())
     near, unknown_cats = category_near_misses(rows)
+    unbound = unbound_write_targets(targets, rows)
 
     print('Binding scope')
     print('  per-element write targets derived : %d' % len(targets))
@@ -267,6 +321,10 @@ def main():
     for a, b in near[:10]:
         print('          %-34s -> %s' % (a, b))
     print('      no near match (spec families, reported) : %d' % unknown_cats)
+    print('  write targets bound to NOTHING     : %d   <-- every write returns false'
+          % len(unbound))
+    for t in unbound[:10]:
+        print('      %s' % t)
 
     if do_fix:
         out, n = fix(rows, targets)
@@ -288,7 +346,8 @@ def main():
                                     'May shrink, never grow. See '
                                     'tools/check_binding_scope.py.',
                         'bad_rows': bad,
-                        'params_affected': len(offend)}, indent=2) + '\n')
+                        'params_affected': len(offend),
+                        'unbound_write_targets': len(unbound)}, indent=2) + '\n')
         print('\nBaseline written: %d bad rows.' % bad)
         return 0
 
@@ -296,7 +355,16 @@ def main():
         print('\nNo baseline at %s — run with --write.' % BASELINE)
         return 1 if check else 0
 
-    allowed = json.load(io.open(BASELINE, encoding='utf-8-sig')).get('bad_rows', 0)
+    base = json.load(io.open(BASELINE, encoding='utf-8-sig'))
+    allowed = base.get('bad_rows', 0)
+    allowed_unbound = base.get('unbound_write_targets')
+    if allowed_unbound is not None and len(unbound) > allowed_unbound:
+        print('\nUNBOUND WRITE TARGET GATE FAILED — %d new (baseline %d).'
+              % (len(unbound) - allowed_unbound, allowed_unbound))
+        print('A parameter the code writes per element, bound to no category, has')
+        print('nowhere to land: CachedLookup returns null and the write returns false')
+        print('in silence — and "Create Parameters" does not create it either.')
+        return 1 if check else 0
     print('\n  baseline                          : %d' % allowed)
 
     if near:

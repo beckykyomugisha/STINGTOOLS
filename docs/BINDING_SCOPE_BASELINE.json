@@ -1,5 +1,6 @@
 {
   "_comment": "Rows bound Type that the pipeline writes per element. May shrink, never grow. See tools/check_binding_scope.py.",
   "bad_rows": 0,
-  "params_affected": 0
+  "params_affected": 0,
+  "unbound_write_targets": 57
 }
