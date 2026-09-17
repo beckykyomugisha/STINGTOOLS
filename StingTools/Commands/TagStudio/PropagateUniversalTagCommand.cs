@@ -219,7 +219,7 @@ namespace StingTools.Commands.TagStudio
 
             // ── Pre-resolve shared arrowhead types ──
             var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
-            var styleAndVisParams = TagFamilyConfig.StyleParams
+            List<string> styleAndVisParams = TagFamilyConfig.StyleParams
                 .Concat(TagFamilyConfig.VisibilityParams)
                 .Distinct()
                 .ToList();
@@ -270,6 +270,39 @@ namespace StingTools.Commands.TagStudio
                     block.CommonButtons = TaskDialogCommonButtons.Close;
                     block.Show();
                     return Result.Cancelled;
+                }
+
+                // ── The master decides which TIER GATES exist ──
+                // TagFamilyConfig.VisibilityParams is the full ten-tier ladder plus
+                // the warning, and AddMissingParams used to add all eleven to every
+                // clone regardless of the master. That is how the propagated duct tag
+                // came to carry TAG_PARA_STATE_3_BOOL when the master has no _3 and
+                // the label has no T3 rows: a gate with nothing behind it, on 206
+                // families, making a _T3 type variant indistinguishable from _T2.
+                //
+                // The style matrix is NOT filtered this way. The master carries style
+                // as type variants rather than as the 128 BOOLs, so the clones have to
+                // be given the matrix for their variants to switch anything - that
+                // asymmetry is the design, and it is why "align with the master" means
+                // the gates, not the whole set.
+                if (pre.MasterRead && pre.MasterParamNames.Count > 0)
+                {
+                    var allGates = new HashSet<string>(TagFamilyConfig.VisibilityParams,
+                                                       StringComparer.OrdinalIgnoreCase);
+                    var droppedGates = styleAndVisParams
+                        .Where(n => allGates.Contains(n) && !pre.MasterParamNames.Contains(n))
+                        .ToList();
+                    if (droppedGates.Count > 0)
+                    {
+                        styleAndVisParams = styleAndVisParams
+                            .Where(n => !droppedGates.Contains(n, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
+                        StingLog.Info("PropagateUniversalTag: not adding " +
+                                      string.Join(", ", droppedGates) +
+                                      " - the master does not carry " +
+                                      (droppedGates.Count == 1 ? "it" : "them") +
+                                      ", so the clones will not either");
+                    }
                 }
 
                 // Not a blocker, but it multiplies by the number of targets: text

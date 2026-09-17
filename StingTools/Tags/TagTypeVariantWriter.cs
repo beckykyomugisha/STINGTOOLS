@@ -75,15 +75,31 @@ namespace StingTools.Tags
                 // Tag-formula BOOLs are TEXT in MR_PARAMETERS v5.3+ so Revit label
                 // Calculated Values can reference them inside if(...); the Integer
                 // branch keeps legacy YESNO families migrating cleanly.
+                int highestGate = 0;
                 for (int t = 1; t <= 10; t++)
                 {
                     string pname = $"TAG_PARA_STATE_{t}_BOOL";
                     if (paramByName.TryGetValue(pname, out var pfp))
                     {
+                        highestGate = t;
                         try { SetFamilyBool(fm, pfp, t <= spec.DepthTier); }
                         catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
                     }
                 }
+
+                // A variant can ask for a depth the family has no gate for, and then
+                // renders fewer tiers than its own name claims. Once the master stopped
+                // carrying TAG_PARA_STATE_3_BOOL, every _T3 variant became identical to
+                // _T2 on the drawing while still reporting depth 3 - two type variants
+                // that look like a choice and are not. Said out loud rather than
+                // silently clamped: which way to resolve it (add T3 label rows, or stop
+                // minting _T3 variants) is a decision about the label, not about this
+                // writer.
+                if (spec.DepthTier > highestGate)
+                    StingLog.Warn($"TagTypeVariantWriter: {typeName} asks for depth {spec.DepthTier} " +
+                                  $"but the family's highest tier gate is {highestGate} " +
+                                  $"(TAG_PARA_STATE_{spec.DepthTier}_BOOL is absent), so it renders " +
+                                  $"as depth {highestGate}");
 
                 // 2. Style BOOLs: only the matching combo = Yes
                 string activeStyle = ParamRegistry.TagStyleParamName(spec.Size, spec.Style, spec.Colour);

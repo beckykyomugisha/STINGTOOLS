@@ -46,6 +46,18 @@ namespace StingTools.Tags
         /// not in the universal?" (asked 2026-09-17, and the answer is this list).
         /// </summary>
         public List<string> CloneWillGain { get; set; } = new List<string>();
+
+        /// <summary>
+        /// True when the master was actually opened and read. Without it an empty
+        /// <see cref="MasterParamNames"/> is ambiguous - "the master carries nothing"
+        /// and "we could not look" are opposite facts, and a caller that filters on
+        /// the second would strip every parameter.
+        /// </summary>
+        public bool MasterRead { get; set; }
+
+        /// <summary>Every shared parameter name the master carries.</summary>
+        public HashSet<string> MasterParamNames { get; set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>Reads family-side and project-side shared parameter facts out of Revit.</summary>
@@ -209,6 +221,8 @@ namespace StingTools.Tags
 
                 var result = new MasterPreflight
                 {
+                    MasterRead = true,
+                    MasterParamNames = masterNames,
                     CloneWillGain = gain,
                     Conflicts = SharedParamConflictDetector.Detect(familySide, projectSide),
                     // Same open document, so this costs nothing extra. Worth having

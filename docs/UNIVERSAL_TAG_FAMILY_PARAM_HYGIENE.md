@@ -174,3 +174,58 @@ gates, which is why its own ticks are whatever was last set by hand.
    not exist in this project, so those variants carry whatever arrowhead they default to.
    They need creating once in the project template (Manage → Additional Settings →
    Arrowheads), or the catalogue needs to name arrowheads that exist.
+
+---
+
+## 6 · Aligning the propagated family with the master
+
+Asked 2026-09-17: make propagation produce what is actually wanted — the master's parameter
+set, gates Type-scoped, only `_1` and `_2` ticked, and no `TAG_PARA_STATE_3_BOOL`.
+
+All four now follow from one rule and one conversion.
+
+### The rule: the master decides which tier gates exist
+
+`AddMissingParams` added all eleven of `TagFamilyConfig.VisibilityParams` to every clone
+regardless of the master. It now adds only the gates **the master carries**, and logs the
+ones it skipped:
+
+```
+PropagateUniversalTag: not adding TAG_PARA_STATE_3_BOOL - the master does not
+carry it, so the clones will not either
+```
+
+The style matrix is deliberately **not** filtered this way. The master expresses style
+through type variants rather than the 128 `TAG_{size}{style}_{colour}_BOOL` switches, so the
+clones have to be given the matrix or their variants switch nothing. "Align with the master"
+therefore means the gates, not the whole set — which is also why a propagated family
+legitimately has ~139 parameters the master does not.
+
+### What each of the four asks resolves to
+
+| Ask | How it is met |
+|---|---|
+| Parameters align with the master | Gates filtered to the master's set (above). Style matrix still supplied, by design. |
+| Instance → Type | `MakeVisibilityParamsType` converts any Instance-scoped gate in the clone via `FamilyManager.MakeType`, logs each one and reports the count. |
+| Only `_1` and `_2` ticked | Follows automatically. `TagTypeVariantWriter` sets `PARA_STATE_1..N = Yes` for a variant of depth N, the catalogue only mints `_T2` and `_T3` variants, and with `_3` absent every variant lands on exactly `_1` + `_2`. |
+| `_3` deleted | A reload **replaces** the family definition, so the already-propagated duct tag loses `_3` on the next run. Nothing has to delete it by hand. |
+
+### Two things to know
+
+**A `_T3` variant now renders as depth 2**, because the gate it needs is gone. The writer
+says so rather than clamping silently:
+
+```
+TagTypeVariantWriter: 3.5_BOLD_BLACK_Filled30_T3 asks for depth 3 but the family's
+highest tier gate is 2 (TAG_PARA_STATE_3_BOOL is absent), so it renders as depth 2
+```
+
+Two variants that look like a choice and are not. Resolve it by adding T3 rows to the label
+or by dropping `_T3` from the catalogue — a decision about the label, not about the writer,
+which is why it is a warning and not a fix.
+
+**`Migrate Tag Families` will re-add `_3`.** It injects the full
+`StyleParams + VisibilityParams` set (`MigrateTagFamiliesCommand.cs:213`) and has no master
+to align to, so a Migrate run after a propagation puts the gate back. That is defensible for
+what Migrate is for — bringing an arbitrary family up to the standard set — but it means
+**propagation is the last step, not Migrate**.
