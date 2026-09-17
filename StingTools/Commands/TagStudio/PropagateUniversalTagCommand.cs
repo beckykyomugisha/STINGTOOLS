@@ -65,6 +65,29 @@ using StingTools.UI;
 
 namespace StingTools.Commands.TagStudio
 {
+    /// <summary>
+    /// What to do about a target whose own category disagrees with the one declared
+    /// for it in STING_TAG_CONFIG_v5_0_*.csv.
+    ///
+    /// This is not a preference - it decides whether the load can work at all.
+    /// Revit matches a reloaded family by NAME, and will not change a loaded
+    /// family's category on reload. Every propagation run recorded on this machine
+    /// (19:58, 21:02, 21:23 on 2026-09-17) recategorised the clone and then had its
+    /// load refused with no failure message, which is exactly that rule's signature.
+    /// </summary>
+    internal enum RecategoriseMode
+    {
+        /// <summary>Set the clone to the DECLARED category. Correct, and refused by
+        /// Revit when a family of that name is already loaded under another one.</summary>
+        EnforceDeclared,
+
+        /// <summary>Keep whatever category the target already carries, so the load is
+        /// a same-name-same-category overwrite - the path the conveyor was built for.
+        /// The label propagates; the category stays wrong until the family is
+        /// reloaded from disk or deleted and re-loaded.</summary>
+        KeepExisting
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PropagateUniversalTagCommand : IExternalCommand
@@ -278,6 +301,55 @@ namespace StingTools.Commands.TagStudio
                 }
             }
 
+            // ── Which targets would have their category CHANGED? ──
+            // Asked before the run because it decides whether the load can succeed,
+            // and because it is the one variable that separates "the conveyor does
+            // not work" from "the conveyor cannot change a category".
+            var mode = RecategoriseMode.EnforceDeclared;
+            {
+                var changing = new List<string>();
+                foreach (Family t in targets)
+                {
+                    var r = TagCategoryResolver.Resolve(doc, t);
+                    if (r != null && r.IsMismatch && r.DeclaredTagCategory != null)
+                        changing.Add($"{t.Name}: {r.ActualCategory} → {r.DeclaredTagCategory.Name}");
+                }
+
+                if (changing.Count > 0)
+                {
+                    var catDlg = new TaskDialog("Propagate Universal Tag — category");
+                    catDlg.MainInstruction = changing.Count == 1
+                        ? "One target family is categorised differently from its declaration."
+                        : $"{changing.Count} target families are categorised differently from their declaration.";
+                    catDlg.MainContent =
+                        "  • " + string.Join("\n  • ", changing.Take(8)) +
+                        (changing.Count > 8 ? $"\n  • … and {changing.Count - 8} more" : "") + "\n\n" +
+                        "Revit will not change a loaded family's category by reloading over it. " +
+                        "Enforcing the declaration is correct, but the load can be refused - with no " +
+                        "message - which is what every run so far has hit.";
+                    catDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "KEEP each family's current category (recommended for the smoke test)",
+                        "Same-name, same-category overwrite - the path this command was built for. " +
+                        "The label propagates and the category stays as it is.");
+                    catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "ENFORCE the declared category",
+                        "Correct, and the load may be refused. If it is, the report says so per family.");
+
+                    var catChoice = catDlg.Show();
+                    if (catChoice == TaskDialogResult.Cancel)
+                    {
+                        StingLog.Info("PropagateUniversalTag: category dialog cancelled - nothing done");
+                        return Result.Cancelled;
+                    }
+                    mode = catChoice == TaskDialogResult.CommandLink1
+                        ? RecategoriseMode.KeepExisting
+                        : RecategoriseMode.EnforceDeclared;
+                    StingLog.Info($"PropagateUniversalTag: category mode = {mode} " +
+                                  $"({changing.Count} target(s) declared differently)");
+                }
+            }
+
             // ── Pre-flight: is any target open in the Family Editor? ──
             // Revit will not load a family while a document for it is open, and it
             // refuses by returning false with NO failure message - the 21:02 run
@@ -333,7 +405,7 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads);
+                        styleAndVisParams, variants, arrowheads, mode);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     if (r.Success) succeeded++; else failed++;
@@ -422,6 +494,9 @@ namespace StingTools.Commands.TagStudio
             // correction would hide that the family was authored against the wrong
             // template, so it is carried to the results table as a FINDING.
             public bool CategoryMismatch;
+            // Whether THIS run tried to move the family to another category -
+            // the one thing Revit refuses to do on reload.
+            public bool CategoryChanged;
             public string CategoryNote;
         }
 
@@ -429,7 +504,8 @@ namespace StingTools.Commands.TagStudio
             Autodesk.Revit.ApplicationServices.Application app,
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
-            Dictionary<string, ElementId> arrowheads)
+            Dictionary<string, ElementId> arrowheads,
+            RecategoriseMode mode = RecategoriseMode.EnforceDeclared)
         {
             var result = new PropResult();
             string targetName = target.Name;
@@ -442,11 +518,24 @@ namespace StingTools.Commands.TagStudio
             // Resolve against the DECLARED category in STING_TAG_CONFIG_v5_0_*.csv
             // instead, and fall back to the family's own only when nothing is declared.
             var catRes = TagCategoryResolver.Resolve(doc, target);
-            ElementId targetCatId = catRes.DeclaredTagCategory?.Id ?? target.FamilyCategory?.Id;
+            ElementId existingCatId = target.FamilyCategory?.Id;
+            string existingCatName = target.FamilyCategory?.Name ?? "";
+
+            // KeepExisting makes the load a same-name-same-category overwrite.
+            // EnforceDeclared is the correct end state and the one Revit can
+            // refuse, so which one ran has to be visible in the result.
+            ElementId targetCatId = mode == RecategoriseMode.KeepExisting
+                ? existingCatId
+                : (catRes.DeclaredTagCategory?.Id ?? existingCatId);
             result.CategoryMismatch = catRes.IsMismatch;
             result.CategoryNote = catRes.Note;
+            result.CategoryChanged = targetCatId != null && existingCatId != null &&
+                                    targetCatId != existingCatId;
             if (catRes.IsMismatch)
-                StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}");
+                StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}" +
+                              (mode == RecategoriseMode.KeepExisting
+                                  ? " (KeepExisting: left as it is for this run)"
+                                  : ""));
             Document famDoc = null;
             string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
 
@@ -639,6 +728,24 @@ namespace StingTools.Commands.TagStudio
                             else if (!closedOk)
                                 why = "the clone document could not be closed, so it was still open under " +
                                       "this family's name when the load was attempted.";
+                            else if (result.CategoryChanged)
+                            {
+                                // The leading explanation once the open-document theory
+                                // is ruled out: Revit matches a reloaded family by name
+                                // and will not move it to another category. Count what a
+                                // delete would cost so the operator can decide, rather
+                                // than deleting on a hypothesis.
+                                int placed = CountPlacedInstances(doc, target);
+                                string newCat = Category.GetCategory(doc, targetCatId)?.Name ?? "the declared category";
+                                why = $"this run recategorised the family from '{existingCatName}' to " +
+                                      $"'{newCat}', and Revit will not change a loaded family's " +
+                                      "category by reloading over it. Re-run and choose KEEP each family's " +
+                                      "current category to propagate the label, or delete " +
+                                      $"'{targetName}' from the project first (" +
+                                      (placed < 0 ? "instance count unavailable" :
+                                          placed + " placed instance" + (placed == 1 ? "" : "s") + " would be lost") +
+                                      ") and re-load it from disk.";
+                            }
                         }
                         result.ErrorMessage = why == null
                             ? "LoadFamily back into project failed, and Revit reported no failure message. " +
@@ -716,6 +823,30 @@ namespace StingTools.Commands.TagStudio
             }
             catch (Exception ex) { StingLog.Warn($"FindOpenFamilyDocument('{familyName}'): {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// How many placed elements use this family's types. Called only on the
+        /// failure path, where a full-document pass is cheap next to the run itself,
+        /// and only to tell the operator what deleting the family would cost.
+        /// Returns -1 when it could not be counted: reporting that as 0 would
+        /// invite a delete on no evidence.
+        /// </summary>
+        private static int CountPlacedInstances(Document doc, Family family)
+        {
+            try
+            {
+                var symbolIds = new HashSet<ElementId>(family.GetFamilySymbolIds());
+                if (symbolIds.Count == 0) return 0;
+                return new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Count(e => symbolIds.Contains(e.GetTypeId()));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CountPlacedInstances: {ex.Message}");
+                return -1;
+            }
         }
 
         private static void TryDeleteTempDir(string dir)
