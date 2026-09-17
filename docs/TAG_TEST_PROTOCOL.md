@@ -36,13 +36,19 @@ the method, the ROADMAP is the state.
 > |---|---|
 > | **T11–T15** (Phase 295, below) | ✅ run these now |
 > | **T6** | ⚠️ **rewritten** — the old pass criteria now give a FALSE PASS, see T6 |
-> | **T1–T5, T7–T10, U** | ❌ need a build that contains `claude/tag-binding-scope` |
+> | **Section U** (manual family build) | ✅ run this now — `Propagate_UniversalTag` is in the live DLL, all five build docs are on main |
+> | **T1–T5, T7–T10** | ❌ need a build that contains `claude/tag-binding-scope` |
 >
 > To run everything in one pass, build a **combined** DLL locally (merge
 > `claude/tag-binding-scope` into the Phase 295 branch for the build only, without
 > committing that merge to either PR) and redeploy. Until then, treat T1–T10 as
 > **blocked, not failed** — recording a fail for a command that is not in the binary is
 > the same defect this repo keeps producing.
+>
+> **Section U is NOT blocked** — an earlier revision of this warning said it was, which
+> was wrong. U needs `Propagate_UniversalTag` (verified present in the live DLL),
+> `StampGateStatusCommand` (on main) and the five build docs (all on main). Nothing it
+> touches comes from `claude/tag-binding-scope`. U is the recommended starting point.
 
 | | |
 |---|---|
