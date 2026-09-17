@@ -745,11 +745,16 @@ namespace StingTools.Commands.TagStudio
                 "Propagate to every loaded STING tag family. Only after the smoke test passes.");
 
             var choice = td.Show();
-            if (choice == TaskDialogResult.Cancel) return null;
+            if (choice == TaskDialogResult.Cancel)
+            {
+                StingLog.Info("ChooseTargets: scope dialog closed with Cancel");
+                return null;
+            }
 
             if (choice == TaskDialogResult.CommandLink2)
             {
                 scopeLabel = "ALL";
+                StingLog.Info($"ChooseTargets: ALL selected - {candidates.Count} target(s)");
                 return candidates;
             }
 
@@ -769,8 +774,9 @@ namespace StingTools.Commands.TagStudio
             {
                 picked = StingListPicker.Show(
                     "Choose target families",
-                    "Tick the families to propagate the universal label to. " +
-                    "Duct families are pre-ticked for the smoke test.",
+                    "Duct is ALREADY highlighted for the smoke test - just press OK. " +
+                    "This list allows multiple selections, so clicking a highlighted row " +
+                    "turns it OFF; use Ctrl+click to add another without losing it.",
                     items, allowMultiSelect: true);
             }
             catch (Exception ex)
@@ -778,10 +784,42 @@ namespace StingTools.Commands.TagStudio
                 StingLog.Warn($"ChooseTargets: picker failed: {ex.Message}");
                 return null;
             }
-            if (picked == null || picked.Count == 0) return null;
+            // A cancel and an empty tick-list are NOT the same thing, and treating
+            // them the same is what made this look like the command dying. The
+            // empty case has a specific cause: the Duct rows arrive PRE-SELECTED
+            // above, the picker's list box is SelectionMode.Multiple, and in that
+            // mode a plain click TOGGLES a row. So clicking the duct family to
+            // "pick" it un-picks it, and OK then returns nothing. Observed
+            // 2026-09-17 at 20:57:58: "scope dialog cancelled - nothing done"
+            // seconds after the operator picked Duct.
+            if (picked == null)
+            {
+                StingLog.Info("ChooseTargets: target picker cancelled");
+                return null;
+            }
+            if (picked.Count == 0)
+            {
+                StingLog.Warn("ChooseTargets: OK pressed with nothing highlighted - " +
+                              "likely the pre-selected row was clicked and toggled off");
+                var empty = new TaskDialog("Propagate Universal Tag — nothing selected");
+                empty.MainInstruction = "No target families were highlighted, so nothing was propagated.";
+                empty.MainContent =
+                    "The list allows multiple selections, which means a click TOGGLES a row.\n" +
+                    "The Duct family starts out already highlighted for the smoke test, so " +
+                    "clicking it turns it OFF.\n\n" +
+                    "Re-run and either press OK straight away (Duct is already highlighted), " +
+                    "or click a DIFFERENT row to add it. Ctrl+click toggles one row without " +
+                    "disturbing the rest.";
+                empty.CommonButtons = TaskDialogCommonButtons.Close;
+                empty.Show();
+                return null;
+            }
 
             var chosen = picked.Select(p => p.Tag as Family).Where(f => f != null).ToList();
             scopeLabel = $"CHOSEN ({chosen.Count})";
+            StingLog.Info($"ChooseTargets: {chosen.Count} target(s) chosen - " +
+                          string.Join(", ", chosen.Take(5).Select(f => f.Name)) +
+                          (chosen.Count > 5 ? $", +{chosen.Count - 5} more" : ""));
             return chosen;
         }
     }
