@@ -352,7 +352,32 @@ That discards project-set values for **every** parameter of the family, not just
 
 **Do one family first and verify before committing to 206.**
 
-## §C — Depth: per-type vs per-instance — **HELD, DO NOT START**
+## §C — Depth: per-type vs per-instance — **ANSWERED 2026-09-17: PER-TYPE. Unheld.**
+
+> **Measured in Revit on `STING_Tag_Universal`, Type Properties → General.** The
+> `TAG_PARA_STATE_*` gates appear under the tag's **Edit Type**, not its instance
+> Properties. Per the decision table in §2.5, that is the first row:
+>
+> > gates are **TYPE** family parameters → `SetParagraphDepth`'s type sweep reaches them.
+> > Per-type depth works today. **Keep per-type; unhold §C as per-type.**
+>
+> No per-instance writer is needed, and no conversion. The depth mechanism works as designed.
+>
+> **Two other observations from the same screenshot:**
+>
+> 1. `TAG_PARA_STATE_3_BOOL` is **absent, and that is correct** — T3 was dropped entirely, no
+>    label row references it, and the kit does not declare it.
+> 2. `TAG_PARA_STATE_2_BOOL` is **absent, and that is a defect.** The kit declares 8 gates
+>    (2/4/5/6/7/8/9/10) and the 65 label rows reference exactly those 8 — T2 is six rows, all
+>    gated on `_2`. The family carries only 7; `_2` was never added as a family type
+>    parameter. The whole T2 block therefore cannot be switched on from the tag type. Fix:
+>    add `TAG_PARA_STATE_2_BOOL` to the tag family as a TYPE parameter, matching the other
+>    seven, **before propagating** — otherwise all 206 families inherit the gap.
+>
+> The original §C text is retained below.
+
+### (original, retained)
+
 
 > **Status 2026-08-10: held pending owner re-decision.** The standing decision was to convert the
 > eleven gates to INSTANCE. The evidence gathered since favours **leaving them per-TYPE** — see §2.5
