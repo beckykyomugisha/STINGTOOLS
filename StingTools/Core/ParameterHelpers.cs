@@ -328,6 +328,10 @@ namespace StingTools.Core
         /// <summary>Tracks cumulative read-only skip count for batch diagnostics (ERR-002).</summary>
         [ThreadStatic] private static int _readOnlySkipCount;
 
+        /// <summary>Session counter for writes skipped because the parameter is not
+        /// reachable on the instance (unbound for the category, or TYPE-bound).</summary>
+        private static int _unboundSkipCount;
+
         // counter for malformed source-token writes rejected at SetString.
         private static int _sourceTokenWriteCleanupCount;
 
@@ -426,7 +430,23 @@ namespace StingTools.Core
             }
 
             Parameter p = CachedLookup(el, paramName);
-            if (p == null) return false;
+            if (p == null)
+            {
+                // A read-only parameter warned; a MISSING one said nothing at all, and
+                // the callers discard the bool. That silence is the root enabler of a
+                // whole class of defect: the value is derived correctly, the write is a
+                // no-op, the read-back is empty, and the blank is reported downstream as
+                // a missing code. CachedLookup is el.LookupParameter, which is instance
+                // scope only — so a TYPE-bound shared parameter is invisible here and
+                // fails exactly this way (proven for ASS_SEQ_NUM_TXT, 2026-09-16).
+                _unboundSkipCount++;
+                if (_unboundSkipCount <= 5 || _unboundSkipCount % 250 == 0)
+                    StingLog.Warn($"SetString '{paramName}' on {el.Id}: parameter is not reachable on the "
+                                + $"instance — it is unbound for this element's category, or bound to the "
+                                + $"TYPE (Manage > Project Parameters: it must be an Instance parameter and "
+                                + $"include this category). Write skipped (skip #{_unboundSkipCount}).");
+                return false;
+            }
             if (p.IsReadOnly)
             {
                 // Diagnostic logging for read-only parameter skips

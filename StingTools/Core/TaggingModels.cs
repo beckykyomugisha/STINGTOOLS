@@ -274,6 +274,31 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Elements whose token PARAMETERS could not be written even though the tag
+        /// assembled correctly. The parameter is not reachable on the instance — bound
+        /// to the TYPE, or not bound to the element's category. Counted rather than
+        /// warned per element: at batch volume the per-row version is the noise that
+        /// hid the one real fault in TAGLOG-1.
+        /// </summary>
+        public int TokenWriteFailureCount { get; private set; }
+
+        /// <summary>Distinct token parameters that failed to write, with a count each.</summary>
+        public readonly Dictionary<string, int> TokenWriteFailuresByParam =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public void RecordTokenWriteFailure(long elementId, IEnumerable<string> paramNames)
+        {
+            TokenWriteFailureCount++;
+            if (paramNames == null) return;
+            foreach (string p in paramNames)
+            {
+                if (string.IsNullOrEmpty(p)) continue;
+                TokenWriteFailuresByParam.TryGetValue(p, out int n);
+                TokenWriteFailuresByParam[p] = n + 1;
+            }
+        }
+
         public void RecordWarning(string warning)
         {
             if (Warnings.Count < 100)
@@ -297,6 +322,14 @@ namespace StingTools.Core
                     sb.AppendLine($"                  {sample}");
                 if (IncompleteTagCount > IncompleteSamples.Count)
                     sb.AppendLine($"                  … +{IncompleteTagCount - IncompleteSamples.Count:N0} more");
+            }
+            if (TokenWriteFailureCount > 0)
+            {
+                sb.AppendLine($"  NOT WRITTEN:  {TokenWriteFailureCount:N0} element(s) tagged, but a token PARAMETER could not be written");
+                foreach (var kv in TokenWriteFailuresByParam.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"                  {kv.Key} × {kv.Value:N0}");
+                sb.AppendLine("                  The tag is correct; the parameter is not. Cause: bound to the");
+                sb.AppendLine("                  TYPE, or not bound to this category (Manage > Project Parameters).");
             }
             if (RefusedTagCount > 0)
             {
