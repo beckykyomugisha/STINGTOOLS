@@ -1141,6 +1141,31 @@ namespace StingTools.Core
         /// 18 files, and widening its return type would be a far larger change than the
         /// defect warrants.
         /// </summary>
+        private static int _spaceResolveCount;
+
+        /// <summary>
+        /// Records that a token was derived from a SPACE rather than a Room (LIGHTGRID-5).
+        ///
+        /// The whole of LIGHTGRID-1..4 is verified by a compiler, 1,542 tests and seven
+        /// gates, none of which can see a Revit Space. The only check that counts happens in
+        /// Revit, and without this the tester has to INFER from a filled-in token whether the
+        /// Space path ran at all — and an absent side effect never tells you why. One line,
+        /// the first time it happens, turns that inference into evidence.
+        ///
+        /// Once per session, not once per element: at batch-tag volume the per-element
+        /// version is the noise that hid the single real fault in TAGLOG-1.
+        /// </summary>
+        private static SpatialElement ViaSpace(SpatialElement sp, Element el)
+        {
+            if (sp == null) return null;
+            if (System.Threading.Interlocked.Increment(ref _spaceResolveCount) == 1)
+                StingLog.Info(
+                    $"LIGHTGRID-4 LIVE: element {el?.Id} resolved to MEP Space '{sp.Name}' "
+                    + "because no Room contained it. LOC / ZONE / room name+number are being "
+                    + "derived from Spaces on this model. (Logged once per session.)");
+            return sp;
+        }
+
         public static SpatialElement GetSpatialAtElement(Document doc, Element el)
         {
             if (doc == null || el == null) return null;
@@ -1152,22 +1177,22 @@ namespace StingTools.Core
                 if (el is FamilyInstance fi)
                 {
                     var sp = fi.Space;
-                    if (sp != null) return sp;
+                    if (sp != null) return ViaSpace(sp, el);
                 }
 
                 Phase elPhase = GetElementPhase(doc, el);
 
                 LocationPoint lp = el.Location as LocationPoint;
                 if (lp != null)
-                    return elPhase != null ? doc.GetSpaceAtPoint(lp.Point, elPhase)
-                                           : doc.GetSpaceAtPoint(lp.Point);
+                    return ViaSpace(elPhase != null ? doc.GetSpaceAtPoint(lp.Point, elPhase)
+                                                    : doc.GetSpaceAtPoint(lp.Point), el);
 
                 LocationCurve lc = el.Location as LocationCurve;
                 if (lc != null)
                 {
                     XYZ mid = lc.Curve.Evaluate(0.5, true);
-                    return elPhase != null ? doc.GetSpaceAtPoint(mid, elPhase)
-                                           : doc.GetSpaceAtPoint(mid);
+                    return ViaSpace(elPhase != null ? doc.GetSpaceAtPoint(mid, elPhase)
+                                                    : doc.GetSpaceAtPoint(mid), el);
                 }
             }
             catch (Exception ex)

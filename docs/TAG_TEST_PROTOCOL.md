@@ -1,6 +1,6 @@
 # Tag / Room Test Protocol — Phases 287–294
 
-Seven tests that can only be answered inside Revit, in the order they must be run, plus
+Ten tests that can only be answered inside Revit, in the order they must be run, plus
 **section U** — the manual universal-tag build, which is the critical path and the one thing
 here that no code can do. Every fix
 in Phases 287–293 is a data or source change verified against shipped data; **none has been
@@ -309,6 +309,93 @@ is the only signal this defect ever gave.
 
 ---
 
+## T8 · Spaces derive LOC and ZONE — `LIGHTGRID-5` ⭐ needs a Spaces-based model
+
+`GetRoomAtElement` is Room-only at every step, and both `DetectLoc` and `DetectZone` open by
+calling it. On a model that uses **MEP Spaces** rather than Rooms, neither token could ever
+be derived — both fell through to the policy fallback, looking exactly like a project that
+had not set its location codes. Phase 294 added a Space fallback.
+
+**This is the one thing nothing in CI can check.** A compiler, 1,542 tests and seven gates
+cannot see a Revit Space.
+
+### You need a model with MEP Spaces and no Rooms over the same area
+
+If you only have architectural models, run **T9** instead and treat T8 as untested — saying
+so is worth more than a green tick from the wrong model.
+
+### Steps
+
+1. Open the Spaces model. **TAGGING → Auto Tag** on a view with MEP elements.
+2. Select a tagged element and read the Properties palette.
+
+| Read | Pass | Fail |
+|---|---|---|
+| `ASS_LOC_TXT` | a derived code | the policy fallback (`BLD1` by default) |
+| `ASS_ZONE_TXT` | a derived code | the policy fallback (`Z01` by default) |
+| `ASS_ROOM_NAME_TXT` | the Space's name | blank |
+| `ASS_ROOM_NUM_TXT` | the Space's number | blank |
+
+### The evidence line — check this before interpreting anything
+
+The run writes one line the first time a Space resolves a token:
+
+```bash
+grep 'LIGHTGRID-4 LIVE' "C:/Dev/wt-sting-live/CompiledPlugin/StingTools_<yyyyMMdd>.log"
+```
+
+- **Line present** → the Space path ran. Any blank token above is then a real defect.
+- **Line absent** → the Space path never ran. The tokens tell you nothing, and the question
+  is why: no Spaces in the view, elements already carrying values (these writes are
+  SetIfEmpty), or a stale build. **Do not read absent tokens as a failed fix.**
+
+- [ ] evidence line present · [ ] LOC derived · [ ] ZONE derived · [ ] name + number filled
+
+---
+
+## T9 · Architectural models are unchanged — `LIGHTGRID-5` (the regression half)
+
+**This is the half that protects existing projects, and the one to run if you only have
+architectural models.**
+
+Rooms are resolved first and still win; a Space is only consulted where a Room produced
+nothing. So on any model with Rooms the tokens must be **identical** to before.
+
+### Steps
+
+1. On an architectural model, note `ASS_LOC_TXT` / `ASS_ZONE_TXT` / `ASS_ROOM_NAME_TXT` /
+   `ASS_ROOM_NUM_TXT` on a few tagged elements **before** deploying this build.
+2. Deploy, re-tag the same elements, compare.
+
+| Expect | Meaning |
+|---|---|
+| tokens identical | correct — room-first ordering held |
+| any token **changed** | **stop.** A Space is overriding a Room, which the ordering is meant to prevent |
+| `LIGHTGRID-4 LIVE` in the log | only expected if the model *also* has Spaces covering area no Room does |
+
+A **mixed** model — architectural Rooms plus MEP Spaces over the same floor — is the most
+valuable case here, because it is the common real one and the only one where the ordering is
+actually load-bearing.
+
+- [ ] tokens unchanged on a Rooms model · [ ] tokens unchanged on a mixed model
+
+---
+
+## T10 · Quick Lux on the Spaces model — `LIGHTGRID-2`
+
+The cheapest single proof that the lighting suite reaches Spaces at all. Eleven commands
+were converted; this one exercises the shared path.
+
+1. On the Spaces model: **STING Electrical panel → Quick Lux** (or `QuickLuxEstimate`).
+2. It should report **one row per Space**. Before Phase 294 it reported nothing at all and
+   still claimed success.
+
+If it lists spaces, `SpatialCompat.Collect` is working, and the other ten commands share it.
+
+- [ ] rows per Space · [ ] fixture counts non-zero
+
+---
+
 ## Results
 
 | Test | Id | Result | Notes |
@@ -320,6 +407,9 @@ is the only signal this defect ever gave.
 | T5 refusal | `TOKPOL-2` | | |
 | T6 SEQ reaches tag | `BINDSCOPE-2` | | |
 | T7 material suffix | `TAGPROD-1` | | |
+| T8 Spaces derive LOC/ZONE | `LIGHTGRID-5` | | |
+| T9 Rooms model unchanged | `LIGHTGRID-5` | | |
+| T10 Quick Lux on Spaces | `LIGHTGRID-2` | | |
 
 Record outcomes against the ids in `docs/ROADMAP.md`. **Report both numbers** — what was
 expected and what appeared — rather than "works". An assertion that passes against an empty
