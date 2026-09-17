@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -238,11 +238,8 @@ namespace StingTools.Commands.Electrical
             var rows = new List<RoomTargetRow>();
             try
             {
-                foreach (var r in new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType()
-                    .OfType<Room>()
-                    .Take(50))
+                // LIGHTGRID-2: Rooms AND MEP Spaces.
+                foreach (var r in StingTools.Core.Placement.SpatialCompat.Collect(doc).Take(50))
                 {
                     string name = r.Name ?? "";
                     string target = LuxTargetFor(name);

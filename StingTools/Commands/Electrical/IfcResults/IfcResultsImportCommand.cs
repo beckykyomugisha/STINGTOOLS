@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -50,11 +50,13 @@ namespace StingTools.Commands.Electrical.IfcResults
             }
 
             // Build Revit-side lookup tables.
-            var roomsByGuid = new Dictionary<string, Room>(StringComparer.OrdinalIgnoreCase);
-            var roomsByName = new Dictionary<string, Room>(StringComparer.OrdinalIgnoreCase);
+            // LIGHTGRID-2: IFC results are per SPACE; the lookup has to hold either.
+            var roomsByGuid = new Dictionary<string, SpatialElement>(StringComparer.OrdinalIgnoreCase);
+            var roomsByName = new Dictionary<string, SpatialElement>(StringComparer.OrdinalIgnoreCase);
             foreach (var r in new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
+                .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>
+                    { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces }))
+                .WhereElementIsNotElementType().OfType<SpatialElement>()
                 .Where(r => r.Area > 0))
             {
                 try { roomsByGuid[r.UniqueId] = r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -77,7 +79,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 tx.Start();
                 foreach (var space in parsed.Spaces)
                 {
-                    Room target = null;
+                    SpatialElement target = null;   // LIGHTGRID-2
                     if (roomsByGuid.TryGetValue(space.GlobalId, out var byGuid)) target = byGuid;
                     else if (!string.IsNullOrEmpty(space.Name)
                         && roomsByName.TryGetValue(space.Name, out var byName)) target = byName;

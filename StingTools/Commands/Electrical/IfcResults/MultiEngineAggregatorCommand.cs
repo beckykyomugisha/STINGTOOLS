@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -29,10 +29,8 @@ namespace StingTools.Commands.Electrical.IfcResults
             var doc = ctx.Doc;
 
             var rows = new List<AggregatorRow>();
-            foreach (var room in new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
-                .Where(r => r.Area > 0))
+            // LIGHTGRID-2: photometric results are per SPACE on an MEP model.
+            foreach (var room in StingTools.Core.Placement.SpatialCompat.Collect(doc))
             {
                 double dialux = ParseDouble(ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LUX_DIALUX));
                 double elum   = ParseDouble(ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LUX_ELUMTOOLS));
