@@ -127,3 +127,50 @@ that matters, and the answer belongs in this document rather than in anyone's me
 
 Until it is answered, keep both copies Type-scoped and consistent — which is what §1 now
 enforces.
+
+---
+
+## 5 · Why the propagated family differs from the master
+
+Measured 2026-09-17 from the first successful propagation (`22:16:38 — succeeded=1,
+failed=0, params=139, types=14`) by comparing the two Family Types lists.
+
+Every difference is the design, not a fault. Two mechanisms produce all of them:
+
+**`AddMissingParams` adds the standard set, it does not copy the master's.** Propagation
+adds every name in `TagFamilyConfig.StyleParams + VisibilityParams` that the clone does not
+already carry — 139 of them on that run — taking each definition from
+`MR_PARAMETERS.txt`. `VisibilityParams` includes `TAG_PARA_STATE_3_BOOL`, and `StyleParams`
+includes `TAG_DEPTH_TIER_INT` and `TAG_SCALE_TIER_AUTO_BOOL`. So:
+
+> **`TAG_PARA_STATE_3_BOOL` appears in the propagated family because the standard set
+> declares it, not because it was inherited.** The master not having it is the anomaly; the
+> clone is the canonical shape.
+
+That is deliberate — propagation enforces the standard rather than preserving whatever the
+master happens to hold — and it is now *stated*: the pre-flight logs how many standard
+parameters each clone will gain and names the gates among them, and the done dialog reads
+"Standard params added to each clone" rather than the ambiguous "Params added".
+
+**`TagTypeVariantWriter` sets the gates per type variant.** The ticks are not inherited
+either. For a variant whose spec has `DepthTier = N` it writes `PARA_STATE_1..N = Yes`, the
+rest `No`, and `TAG_DEPTH_TIER_INT = N`. The type on screen was
+`3.5_BOLD_BLACK_Filled30_T3`, hence gates 1-3 ticked, 4-10 clear, depth 3. Selecting a
+`_T2` variant would show a different pattern in the same family.
+
+The master has **no** types at all (empty Type name box), so it has no variant to set its
+gates, which is why its own ticks are whatever was last set by hand.
+
+### Two findings that came out of the comparison
+
+1. **A `_T3` variant shows the same rows as `_T2`.** The 65-row label has no T3 rows, so
+   `TAG_PARA_STATE_3_BOOL` gates nothing and `TAG_DEPTH_TIER_INT = 3` overstates what is
+   visible. Either add T3 rows to the master (a content decision — T3 is documented as
+   "regulatory, sustainability, QA") or stop the catalogue minting `_T3` variants. Until one
+   of those happens, depth 3 and depth 2 are the same drawing.
+2. **10 of the 14 type variants got no arrowhead.** The 22:16 run logged
+   *"arrowhead 'Arrow Filled 30' not present in project — skipped"* ten times, plus
+   `'Arrow Open 30'` and `'Dot Filled'`. The arrowhead element types the catalogue names do
+   not exist in this project, so those variants carry whatever arrowhead they default to.
+   They need creating once in the project template (Manage → Additional Settings →
+   Arrowheads), or the catalogue needs to name arrowheads that exist.

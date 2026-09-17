@@ -36,6 +36,16 @@ namespace StingTools.Tags
         /// target, so the operator is told before, not after.
         /// </summary>
         public List<string> AuthoringNotes { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Standard parameters the master does NOT carry, which propagation will add
+        /// to every clone. Not a fault: propagation enforces the standard set rather
+        /// than copying whatever the master happens to have. It is named because the
+        /// asymmetry is startling when you compare the two families side by side -
+        /// "why does TAG_PARA_STATE_3_BOOL exist in the propagated family when it is
+        /// not in the universal?" (asked 2026-09-17, and the answer is this list).
+        /// </summary>
+        public List<string> CloneWillGain { get; set; } = new List<string>();
     }
 
     /// <summary>Reads family-side and project-side shared parameter facts out of Revit.</summary>
@@ -184,8 +194,22 @@ namespace StingTools.Tags
                 StingLog.Info($"SharedParamPreflight: '{master.Name}' offers {familySide.Count} shared parameters; " +
                               $"project holds {projectSide.Count}");
 
+                // What the clone will gain. willAdd is the standard style+visibility
+                // set; anything in it the master lacks is added to the clone, which is
+                // exactly why the two families differ afterwards.
+                var masterNames = new HashSet<string>(
+                    CollectFamily(famDoc.FamilyManager)
+                        .Select(f => f.Name).Where(n => !string.IsNullOrEmpty(n)),
+                    StringComparer.OrdinalIgnoreCase);
+                var gain = (willAdd ?? new List<SharedParamFacts>())
+                    .Where(f => f != null && !string.IsNullOrEmpty(f.Name) && !masterNames.Contains(f.Name))
+                    .Select(f => f.Name)
+                    .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
                 var result = new MasterPreflight
                 {
+                    CloneWillGain = gain,
                     Conflicts = SharedParamConflictDetector.Detect(familySide, projectSide),
                     // Same open document, so this costs nothing extra. Worth having
                     // here specifically: whatever is in the master is cloned into
@@ -193,6 +217,20 @@ namespace StingTools.Tags
                     // notes that print.
                     AuthoringNotes = AuthoringNoteMatcher.Flag(CollectTextNotes(famDoc))
                 };
+                if (result.CloneWillGain.Count > 0)
+                {
+                    // The tier gates are named individually: eleven at most, and they
+                    // are the ones an operator notices. The style matrix is counted.
+                    var gates = result.CloneWillGain
+                        .Where(n => n.StartsWith("TAG_PARA_STATE_", StringComparison.OrdinalIgnoreCase) ||
+                                    n.StartsWith("TAG_WARN_", StringComparison.OrdinalIgnoreCase) ||
+                                    n.StartsWith("TAG_DEPTH_", StringComparison.OrdinalIgnoreCase) ||
+                                    n.StartsWith("TAG_SCALE_", StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    StingLog.Info($"SharedParamPreflight: each clone will GAIN {result.CloneWillGain.Count} " +
+                                  $"standard parameter(s) the master does not carry" +
+                                  (gates.Count > 0 ? ", including " + string.Join(", ", gates) : "") + ".");
+                }
                 if (result.AuthoringNotes.Count > 0)
                     StingLog.Warn($"SharedParamPreflight: '{master.Name}' carries " +
                                   $"{result.AuthoringNotes.Count} authoring note(s): " +

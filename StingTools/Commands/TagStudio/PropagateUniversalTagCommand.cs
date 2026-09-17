@@ -461,7 +461,10 @@ namespace StingTools.Commands.TagStudio
             td.MainContent =
                 $"Master: {master.Name}\n" +
                 $"Scope:  {scopeLabel}\n\n" +
-                $"Params added: {totalParams}\n" +
+                $"Standard params added to each clone: {totalParams}\n" +
+                // Named for what it is. "Params added: 139" reads as a side effect;
+                // it is the standard style+visibility set that the master does not
+                // carry, and it is why the two families differ afterwards.
                 $"Type variants (re)created: {totalTypes}\n" +
                 (totalScope > 0
                     ? $"Tier gates converted Instance -> Type: {totalScope}\n"
