@@ -303,7 +303,24 @@ namespace StingTools.Tags
                 int visPts = 0;
                 foreach (var name in TagVisibilityFingerprint)
                 {
-                    if (paramsByName.ContainsKey(name)) visPts += 4;
+                    if (paramsByName.TryGetValue(name, out var visFp))
+                    {
+                        visPts += 4;
+                        // SCOPE, not just presence. MR_PARAMETERS.csv declares every
+                        // TAG_PARA_STATE_*_BOOL and TAG_WARN_VISIBLE_BOOL as Type, and
+                        // SetParagraphDepthCommand writes to element TYPES. An
+                        // Instance-scoped copy is therefore present, scored, and
+                        // undrivable - which is how the universal master came to have
+                        // _1, _2 and WARN_VISIBLE as Instance while _4.._10 were Type,
+                        // a split that propagation then copies into every family.
+                        try
+                        {
+                            if (visFp.IsInstance)
+                                row.Warnings.Add($"{name} is INSTANCE-scoped; MR_PARAMETERS 'declares it Type '" +
+                                                 "and Set depth writes to types, so this tier cannot be driven.");
+                        }
+                        catch (Exception ex) { row.Warnings.Add($"Scope check on {name}: {ex.Message}"); }
+                    }
                     else row.Missing.Add($"Tag visibility param missing: {name}");
                 }
                 score += Math.Min(visPts, 10);

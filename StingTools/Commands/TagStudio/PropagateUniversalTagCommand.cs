@@ -383,7 +383,7 @@ namespace StingTools.Commands.TagStudio
 
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
-            int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0;
+            int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0, totalScope = 0;
             string originalSp = app.SharedParametersFilename;
 
             try
@@ -408,6 +408,7 @@ namespace StingTools.Commands.TagStudio
                         styleAndVisParams, variants, arrowheads, mode);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
+                    totalScope += r.ScopeFixed;
                     if (r.Success) succeeded++; else failed++;
 
                     rows.Add(new List<string>
@@ -462,6 +463,9 @@ namespace StingTools.Commands.TagStudio
                 $"Scope:  {scopeLabel}\n\n" +
                 $"Params added: {totalParams}\n" +
                 $"Type variants (re)created: {totalTypes}\n" +
+                (totalScope > 0
+                    ? $"Tier gates converted Instance -> Type: {totalScope}\n"
+                    : "") +
                 (junkDeleted > 0 ? $"Purged stale temp-named duplicates: {junkDeleted}\n" : "") +
                 (why.Length > 0 ? $"\nFailed:{why}\n" : "") +
                 (xlsx != null
@@ -497,6 +501,8 @@ namespace StingTools.Commands.TagStudio
             // Whether THIS run tried to move the family to another category -
             // the one thing Revit refuses to do on reload.
             public bool CategoryChanged;
+            // Visibility gates converted from Instance to Type by this run.
+            public int ScopeFixed;
             public string CategoryNote;
         }
 
@@ -612,6 +618,7 @@ namespace StingTools.Commands.TagStudio
                         // (c) Ensure style/visibility params exist, then (re)create the
                         // data-driven depth/style type variants.
                         result.ParamsAdded = AddMissingParams(fm, defFile, styleAndVisParams);
+                        result.ScopeFixed = MakeVisibilityParamsType(fm);
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
 
                         tx.Commit();
@@ -860,6 +867,44 @@ namespace StingTools.Commands.TagStudio
         /// Style/visibility params are TYPE params (mirrors MigrateTagFamilies).
         /// Must run inside an open transaction on the family document.
         /// </summary>
+        /// <summary>
+        /// Convert any Instance-scoped tier gate in the clone to Type, and report how
+        /// many had to be converted.
+        ///
+        /// MR_PARAMETERS.csv declares every TAG_PARA_STATE_*_BOOL and
+        /// TAG_WARN_VISIBLE_BOOL as Type, and SetParagraphDepthCommand writes to
+        /// element TYPES - so an Instance-scoped gate is present, looks right in
+        /// Family Types, and can never be driven. The universal master carries
+        /// _1, _2 and WARN_VISIBLE as Instance while _4.._10 are Type (seen
+        /// 2026-09-17), and AddMissingParams skips a parameter that already exists,
+        /// so without this the split is copied into all 206 families.
+        ///
+        /// Must run inside an open transaction on the family document.
+        /// </summary>
+        private static int MakeVisibilityParamsType(FamilyManager fm)
+        {
+            if (fm == null) return 0;
+            int converted = 0;
+            foreach (string name in TagFamilyConfig.VisibilityParams)
+            {
+                try
+                {
+                    FamilyParameter fp = fm.get_Parameter(name);
+                    if (fp == null || !fp.IsInstance) continue;
+                    fm.MakeType(fp);
+                    converted++;
+                    StingLog.Info($"PropagateUniversalTag: {name} converted Instance -> Type in the clone");
+                }
+                catch (Exception ex)
+                {
+                    // Reported, not swallowed: a gate left Instance is a tier that
+                    // silently cannot be switched.
+                    StingLog.Warn($"PropagateUniversalTag: could not convert {name} to Type: {ex.Message}");
+                }
+            }
+            return converted;
+        }
+
         private static int AddMissingParams(FamilyManager fm, DefinitionFile defFile, List<string> wanted)
         {
             int added = 0;
