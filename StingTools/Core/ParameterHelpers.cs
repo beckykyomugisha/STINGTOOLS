@@ -1121,6 +1121,62 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>
+        /// The Room OR MEP Space an element sits in (LIGHTGRID-4).
+        ///
+        /// `GetRoomAtElement` is Room-only at every step: `FamilyInstance.Room`, then
+        /// `Document.GetRoomAtPoint`. Both `SpatialAutoDetect.DetectLoc` and `DetectZone`
+        /// open by calling it, so on a model that uses MEP Spaces rather than Rooms neither
+        /// token could ever be derived and both fell through to the policy fallback — on
+        /// EVERY tagged element, silently, looking exactly like a project that had not set
+        /// its location codes.
+        ///
+        /// ROOMS ARE TRIED FIRST AND STILL WIN. That ordering is the whole safety argument:
+        /// an architectural model, or a mixed model carrying both architectural Rooms and
+        /// MEP Spaces over the same floor area, resolves exactly as it did before. A Space
+        /// is only consulted where a Room produced nothing, so this can add a derivation
+        /// but never change one.
+        ///
+        /// `GetRoomAtElement` itself is deliberately untouched — it has 26 call sites across
+        /// 18 files, and widening its return type would be a far larger change than the
+        /// defect warrants.
+        /// </summary>
+        public static SpatialElement GetSpatialAtElement(Document doc, Element el)
+        {
+            if (doc == null || el == null) return null;
+            try
+            {
+                Room room = GetRoomAtElement(doc, el);
+                if (room != null) return room;
+
+                if (el is FamilyInstance fi)
+                {
+                    var sp = fi.Space;
+                    if (sp != null) return sp;
+                }
+
+                Phase elPhase = GetElementPhase(doc, el);
+
+                LocationPoint lp = el.Location as LocationPoint;
+                if (lp != null)
+                    return elPhase != null ? doc.GetSpaceAtPoint(lp.Point, elPhase)
+                                           : doc.GetSpaceAtPoint(lp.Point);
+
+                LocationCurve lc = el.Location as LocationCurve;
+                if (lc != null)
+                {
+                    XYZ mid = lc.Curve.Evaluate(0.5, true);
+                    return elPhase != null ? doc.GetSpaceAtPoint(mid, elPhase)
+                                           : doc.GetSpaceAtPoint(mid);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetSpatialAtElement failed for {el?.Id}: {ex.Message}");
+            }
+            return null;
+        }
+
         private static string ExtractDigits(string s)
         {
             var sb = new System.Text.StringBuilder();
@@ -1311,16 +1367,17 @@ namespace StingTools.Core
         {
             try
             {
-                Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+                // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
+                SpatialElement room = ParameterHelpers.GetSpatialAtElement(doc, el);
                 if (room != null)
                 {
                     // Check room name for building/location patterns
-                    string roomName = room.Name ?? "";
+                    string roomName = StingTools.Core.Placement.SpatialCompat.NameOf(room);
                     string loc = ParseLocCode(roomName, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
 
                     // Check room number prefix (e.g., "B1-101" → BLD1)
-                    string roomNum = room.Number ?? "";
+                    string roomNum = StingTools.Core.Placement.SpatialCompat.NumberOf(room);
                     loc = ParseLocCode(roomNum, doc);
                     if (!string.IsNullOrEmpty(loc)) return loc;
                 }
@@ -1487,7 +1544,8 @@ namespace StingTools.Core
         {
             try
             {
-                Room room = ParameterHelpers.GetRoomAtElement(doc, el);
+                // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
+                SpatialElement room = ParameterHelpers.GetSpatialAtElement(doc, el);
                 if (room != null)
                 {
                     // Check room Department parameter (commonly used for zone assignment)
@@ -3196,17 +3254,20 @@ namespace StingTools.Core
             // per element. ConnectorInherit / SpatialAutoDetect already share
             // the same index from PopulationContext, so this just plugs the
             // last per-element room lookup into the same shared cache.
-            Room room = null;
+            // LIGHTGRID-4: the cached fast paths stay Room-only (that is what the index
+            // holds); the fallback widens to a Space so ASS_ROOM_NAME / _NUM are derivable
+            // on an MEP model. Rooms are still resolved first and still win.
+            SpatialElement room = null;
             if (roomIndex != null)
             {
                 if (el is FamilyInstance fiPre && fiPre.Room != null) room = fiPre.Room;
                 else if (roomIndex.TryGetValue(el.Id, out var indexed)) room = indexed;
             }
-            if (room == null) room = ParameterHelpers.GetRoomAtElement(doc, el);
+            if (room == null) room = ParameterHelpers.GetSpatialAtElement(doc, el);
             if (room != null)
             {
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, room.Name ?? "");
-                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, room.Number ?? "");
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NAME, StingTools.Core.Placement.SpatialCompat.NameOf(room));
+                written += SetIfEmptyInt(el, ParamRegistry.ROOM_NUM, StingTools.Core.Placement.SpatialCompat.NumberOf(room));
 
                 // Room area in m² (Revit stores in sq ft, convert)
                 double areaSqFt = room.Area;

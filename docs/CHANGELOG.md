@@ -334,6 +334,26 @@ correct to: finishes, room data sheets, architectural QA, COBie zones. Convertin
 that is genuinely room-scoped would be a regression, not a fix. Logged as LIGHTGRID-3 with the
 helper available if one turns out to need it.
 
+**LIGHTGRID-4 — the tagging pipeline, and a correction to my own description of it.** I had
+recorded that `BuildRoomIndex` drives `DetectLoc` / `DetectZone`. It does not. That index is
+keyed by **room id** and looked up by **element id**, so for any normal element it always
+misses and falls through; it is a cache and an "are there rooms at all" flag, not the
+resolver. The real resolver is `GetRoomAtElement`, Room-only at every step —
+`FamilyInstance.Room`, then `Document.GetRoomAtPoint` — and both detectors open by calling
+it. The conclusion held; the mechanism I gave for it did not.
+
+On a Spaces-based model that meant LOC and ZONE could never be derived for **any** tagged
+element, both falling through to the policy fallback and looking exactly like a project that
+had simply not set its location codes.
+
+`GetSpatialAtElement` now tries the Room path first and falls back to `FamilyInstance.Space`
+and `Document.GetSpaceAtPoint`. `DetectLoc`, `DetectZone` and `MapRoomNameNumber` use it.
+**Rooms are tried first and still win** — that ordering is the entire safety argument: an
+architectural model, or a mixed model carrying Rooms and MEP Spaces over the same floor area,
+resolves exactly as before, because a Space is only consulted where a Room produced nothing.
+This can add a derivation; it cannot change one. `GetRoomAtElement` is deliberately untouched,
+so its 26 call sites across 18 files are unaffected.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
