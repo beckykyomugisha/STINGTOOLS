@@ -783,7 +783,29 @@ namespace StingTools.Core
             if (p == null || p.IsReadOnly) return false;
             if (p.StorageType != StorageType.Double) return false;
             double existing = p.AsDouble();
-            if (!overwrite && Math.Abs(existing) > 1e-12) return false;
+            if (!overwrite && Math.Abs(existing) > 1e-12)
+            {
+                // MIRROR-1. The early return used to skip WriteTxtMirror as well, which
+                // left a permanently blank mirror on any element whose value was written by
+                // an earlier run — and the TAG LABEL READS THE MIRROR, not this parameter.
+                // Observed in Revit 2026-09-17: BLE_DOOR_WIDTH_MM = 750 with
+                // BLE_DOOR_WIDTH_TXT empty, so the door tag's "W:" row rendered blank while
+                // the data behind it was correct. Re-tagging could never heal it, because
+                // the value being already present is exactly what skipped the mirror.
+                //
+                // Writing the mirror here is idempotent and costs one parameter set; it
+                // makes the mirror converge on the stored value instead of recording only
+                // whoever happened to write it first.
+                //
+                // ONLY when the caller supplied displayText. `existing` is the RAW INTERNAL
+                // value — decimal FEET for a LENGTH — so falling back to it here would
+                // publish "2.4606" under a millimetre label. That is MAPTYPE-1 exactly, and
+                // re-introducing it while fixing a blank would trade a missing number for a
+                // wrong one, which is the worse of the two.
+                if (displayText != null)
+                    WriteTxtMirror(el, paramName, displayText);
+                return false;
+            }
             try
             {
                 p.Set(value);
