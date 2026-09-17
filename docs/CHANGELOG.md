@@ -285,6 +285,26 @@ of work from the 9 removals to propagation, and what propagation cannot fix. The
 are **deliberately not duplicated** into the protocol: two copies drift, and the one someone
 reads is then the wrong one, so it points at `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`.
 
+**LIGHTGRID-1 — a command that did nothing, successfully.** `LightingGridCommand` collected
+`OST_Rooms` only. On an MEP model, where the lighting designer works in Spaces rather than
+Rooms, it found nothing to light, placed no fixtures and reported success. The house failure
+mode, in a command nobody had reason to doubt.
+
+The fix was small because the engines were already wider than the command that called them:
+`LightingGridCalculator.Compute` and `ObstructionIndex.BuildForRoom` both take a
+`SpatialElement`. Only the collector and the plan’s field type were narrower — which is
+precisely why the limitation was invisible from either end. It now collects Rooms and MEP
+Spaces, de-duplicated, Rooms first so an architectural model behaves exactly as before. One
+Room-specific read needed care: `ROOM_NAME` is a Room built-in and is null on a Space, so the
+label falls through to `SpatialElement.Name`, which both carry.
+
+**And the sweep it prompted.** 86 files collect `OST_Rooms` and never `OST_MEPSpaces`. Most
+are legitimately about Rooms. The subset that is not is the lighting suite: **all seven
+commands are hard-locked to `OfType<Room>()` with zero `SpatialElement` usage**, so each is
+the same silent no-op on an MEP model. They are deliberately **not** bulk-fixed — each has
+its own downstream use of `Room` that must be checked for Space-safety individually, and
+seven untested edits would be worth less than one proven template. Logged as LIGHTGRID-2.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records

@@ -1,4 +1,4 @@
-// StingTools — Lighting grid placement command.
+﻿// StingTools — Lighting grid placement command.
 //
 // For every selected (or all) Room, runs LightingGridCalculator to:
 //   1. Classify the room via ROOM_TYPE_CLASSIFIER.csv.
@@ -236,22 +236,52 @@ namespace StingTools.Commands.Placement
             return Result.Succeeded;
         }
 
-        private static List<Room> ResolveRooms(UIDocument uidoc, Document doc)
+        /// <summary>
+        /// Rooms AND MEP Spaces (LIGHTGRID-1).
+        ///
+        /// This collected `OST_Rooms` only. On an MEP model - where the lighting designer
+        /// works in Spaces, not Rooms - it therefore found nothing to light, placed no
+        /// fixtures, and reported success. A silent no-op across a whole class of model.
+        ///
+        /// Nothing else in the command needed changing: `LightingGridCalculator.Compute`
+        /// and `ObstructionIndex.BuildForRoom` both already take a `SpatialElement`. Only
+        /// this collector and the plan's field type were narrower than the engine behind
+        /// them, which is why the limitation was invisible.
+        ///
+        /// A model can legitimately contain both; an element is taken once, and Spaces are
+        /// appended after Rooms so an architectural model behaves exactly as before.
+        /// </summary>
+        private static List<SpatialElement> ResolveRooms(UIDocument uidoc, Document doc)
         {
             var sel = uidoc?.Selection?.GetElementIds() ?? new List<ElementId>();
-            var selRooms = sel
+            var selSpatial = sel
                 .Select(id => doc.GetElement(id))
-                .OfType<Room>()
+                .OfType<SpatialElement>()
                 .Where(r => r.Area > 0)
                 .ToList();
-            if (selRooms.Count > 0) return selRooms;
+            if (selSpatial.Count > 0) return selSpatial;
 
-            return new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .OfType<Room>()
-                .Where(r => r.Area > 0)
-                .ToList();
+            var result = new List<SpatialElement>();
+            var seen = new HashSet<ElementId>();
+            foreach (BuiltInCategory bic in new[] { BuiltInCategory.OST_Rooms,
+                                                    BuiltInCategory.OST_MEPSpaces })
+            {
+                try
+                {
+                    foreach (var se in new FilteredElementCollector(doc)
+                                 .OfCategory(bic)
+                                 .WhereElementIsNotElementType()
+                                 .OfType<SpatialElement>())
+                    {
+                        if (se.Area > 0 && seen.Add(se.Id)) result.Add(se);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"LightingGrid: collecting {bic} failed: {ex.Message}");
+                }
+            }
+            return result;
         }
 
         private static FamilySymbol ResolveLuminaire(Document doc)
@@ -328,7 +358,9 @@ namespace StingTools.Commands.Placement
                 foreach (var p in plans.OrderByDescending(x => x.Result.FixturesPlaced).Take(30))
                 {
                     string nm = "";
-                    try { nm = p.Room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? p.Room.Name; }
+                    // LIGHTGRID-1: ROOM_NAME is a Room built-in and is null on a Space,
+                    // so fall through to SpatialElement.Name, which both carry.
+                    try { nm = p.Room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(); if (string.IsNullOrWhiteSpace(nm)) nm = p.Room.Name; }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); nm = p.Room.Id.ToString(); }
                     panel.Metric(nm,
                         p.Result.FixturesPlaced.ToString(),
@@ -372,7 +404,7 @@ namespace StingTools.Commands.Placement
 
         private class RoomPlan
         {
-            public Room Room;
+            public SpatialElement Room;   // LIGHTGRID-1: Room OR MEP Space
             public LightingGridResult Result;
         }
     }
