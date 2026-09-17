@@ -137,7 +137,29 @@ here rather than at row 70.
 
 ---
 
-## STEP 4 - Status badge system (optional visual warnings)
+## STEP 4 - Status badge system - ⛔ ABANDONED, DO NOT BUILD
+
+> **Superseded 2026-09-17. Everything below is kept as the record of what was designed; it
+> cannot work and must not be built.**
+>
+> The badges drive a glyph's **Visible** property from a family Yes/No parameter whose formula
+> reads `STING_GATE_DATA_STATUS_INT` / `STING_GATE_QA_STATUS_INT` off the tagged element. In
+> Revit a tag *label* can display a host element's parameter, but a **visibility formula cannot
+> read one** - it is evaluated in the family's own parameter context. See
+> `UNIVERSAL_TAG_CONFORMANCE.md` §2.5(a), and `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` P1, which has
+> said "do NOT build status-badge glyphs" since before this sheet was written.
+>
+> **Status is delivered by the Status Register instead** - the `Status_Register` command, a
+> colour-coded Excel export - not in the tag.
+>
+> This does **not** affect the 65 label rows. Those are label *calculated values*, which read
+> host parameters legitimately; only the badge *visibility* formulas are impossible.
+>
+> If you already built badge glyphs: delete them and the six `vis_*` family parameters before
+> propagating, or all 206 families inherit geometry that can never display.
+
+### (retained for the record - do not action)
+
 
 Two badges: LEFT = data-completeness gate, RIGHT = QA / sign-off gate. When warnings are turned on, each shows green/amber/red; hidden otherwise and optional on print.
 
