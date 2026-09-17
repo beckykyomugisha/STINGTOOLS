@@ -119,20 +119,36 @@ namespace StingTools.Commands.TagStudio
                     "Need the universal master plus at least one target family loaded.\n" +
                     "Load the universal master (built from UNIVERSAL_TAG_LABEL_BUILD_SHEET.md)\n" +
                     "and the STING tag families you want to propagate to, then re-run.");
+                StingLog.Info($"PropagateUniversalTag: only {stingFamilies.Count} STING annotation " +
+                              "family(ies) loaded, need 2 - nothing done");
                 return Result.Cancelled;
             }
 
             // ── 1. Pick the universal master from the loaded families ──
             Family master = PickMaster(stingFamilies);
-            if (master == null) return Result.Cancelled;
+            if (master == null)
+            {
+                // Every early exit says which one it was. Three of them used to
+                // return Cancelled with no dialog and no log line, so the whole
+                // run read as "RunCommand: start / RunCommand: done" seconds
+                // apart with nothing between - indistinguishable from the command
+                // dying. Observed three times on 2026-09-17 at 20:43-20:44.
+                StingLog.Info("PropagateUniversalTag: no master chosen (picker cancelled) - nothing done");
+                return Result.Cancelled;
+            }
 
             // ── 2. Targets = every other loaded STING tag family, scoped ──
             var candidates = stingFamilies.Where(f => f.Id != master.Id).ToList();
             var targets = ChooseTargets(candidates, out string scopeLabel);
-            if (targets == null) return Result.Cancelled;
+            if (targets == null)
+            {
+                StingLog.Info("PropagateUniversalTag: scope dialog cancelled - nothing done");
+                return Result.Cancelled;
+            }
             if (targets.Count == 0)
             {
                 TaskDialog.Show("Propagate Universal Tag", "No target families selected.");
+                StingLog.Info("PropagateUniversalTag: scope resolved to zero targets - nothing done");
                 return Result.Cancelled;
             }
 
@@ -153,7 +169,11 @@ namespace StingTools.Commands.TagStudio
                 "SMOKE TEST: verify one family (Duct) in Revit before scaling to all.\n" +
                 "Press Escape between families to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+            if (confirm.Show() != TaskDialogResult.Ok)
+            {
+                StingLog.Info($"PropagateUniversalTag: confirmation declined for {targets.Count} target(s) - nothing done");
+                return Result.Cancelled;
+            }
 
             // ── Purge pre-fix temp duplicates NOW the user has committed ──
             // Deferred from before the pickers so cancelling the command doesn't
@@ -287,6 +307,22 @@ namespace StingTools.Commands.TagStudio
             }
             catch (Exception ex) { StingLog.Warn($"Excel export: {ex.Message}"); }
 
+            // The failures, named in the dialog. This used to report "0
+            // propagated, 1 failed" and stop there: the reason was a cell in an
+            // .xlsx written to a %TEMP% GUID folder, which is why a 17-minute run
+            // that DID explain itself in writing still read as the command dying.
+            var failedRows = rows
+                .Where(r => r.Count > 4 && string.Equals(r[4], "FAILED", StringComparison.Ordinal))
+                .ToList();
+            var why = new StringBuilder();
+            foreach (var r in failedRows.Take(5))
+            {
+                string err = r.Count > 5 && !string.IsNullOrWhiteSpace(r[5]) ? r[5] : "(no reason recorded)";
+                why.Append($"\n  • {r[0]}: {err}");
+            }
+            if (failedRows.Count > 5)
+                why.Append($"\n  • … and {failedRows.Count - 5} more in the report");
+
             var td = new TaskDialog("Propagate Universal Tag — done");
             td.MainInstruction = $"{succeeded} propagated, {failed} failed" +
                                  (cancelled > 0 ? $", {cancelled} cancelled" : "");
@@ -296,7 +332,16 @@ namespace StingTools.Commands.TagStudio
                 $"Params added: {totalParams}\n" +
                 $"Type variants (re)created: {totalTypes}\n" +
                 (junkDeleted > 0 ? $"Purged stale temp-named duplicates: {junkDeleted}\n" : "") +
-                (xlsx != null ? $"\nReport: {xlsx}" : "");
+                (why.Length > 0 ? $"\nFailed:{why}\n" : "") +
+                (xlsx != null
+                    ? $"\nReport: {xlsx}" +
+                      // Where it went, and why it went there. An unsaved project has
+                      // no _BIM_COORD to write to, so the report lands in a
+                      // per-session %TEMP% GUID folder nobody finds by accident.
+                      (xlsx.IndexOf(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase) >= 0
+                          ? "\n(Project is unsaved, so the report went to TEMP — save the project to keep reports.)"
+                          : "")
+                    : "\nNo report was written — see the log.");
             td.Show();
 
             StingLog.Info($"PropagateUniversalTag: master={master.Name}, succeeded={succeeded}, " +
@@ -612,6 +657,15 @@ namespace StingTools.Commands.TagStudio
                 })
                 .ToList();
 
+            // Pre-select the family that LOOKS like the master, because
+            // StingListPicker.AcceptSelection falls back to the FIRST item when a
+            // single-select list is OK'd with nothing highlighted. Unseeded, that
+            // fallback silently nominates the alphabetically-first STING tag
+            // family - "STING - 5-Gauss Marker Tag" - and propagates ITS label
+            // over every target. Seeding makes the fallback land on the right one.
+            var likely = items.FirstOrDefault(i => LooksLikeUniversalMaster(i.Label));
+            if (likely != null) likely.IsSelected = true;
+
             List<StingListPicker.ListItem> picked;
             try
             {
@@ -627,7 +681,46 @@ namespace StingTools.Commands.TagStudio
                 StingLog.Warn($"PickMaster: picker failed: {ex.Message}");
                 return null;
             }
-            return picked?.FirstOrDefault()?.Tag as Family;
+
+            var chosen = picked?.FirstOrDefault()?.Tag as Family;
+            if (chosen == null) return null;
+
+            // Belt as well as braces: whatever route produced this family, a
+            // non-universal master overwrites 205 labels with the wrong one, and
+            // that is not recoverable from inside Revit. Name it and make the
+            // operator agree.
+            if (!LooksLikeUniversalMaster(chosen.Name))
+            {
+                var warn = new TaskDialog("Propagate Universal Tag");
+                warn.MainInstruction = $"'{chosen.Name}' does not look like the universal master.";
+                warn.MainContent =
+                    "Its label will be cloned over every target family, replacing theirs.\n\n" +
+                    "The master is normally named 'STING_Tag_Universal' or similar. If you clicked " +
+                    "OK without highlighting a family, this is the first one in the list, not your " +
+                    "master.\n\nPropagate this family's label anyway?";
+                warn.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                warn.DefaultButton = TaskDialogResult.No;
+                if (warn.Show() != TaskDialogResult.Yes)
+                {
+                    StingLog.Info($"PickMaster: '{chosen.Name}' declined as master - nothing done");
+                    return null;
+                }
+                StingLog.Warn($"PickMaster: proceeding with non-universal master '{chosen.Name}' (operator confirmed)");
+            }
+            return chosen;
+        }
+
+        /// <summary>
+        /// Whether a family name reads as the hand-built universal master. Used only
+        /// to seed the picker and to challenge an unlikely choice - never to pick
+        /// silently on the operator's behalf.
+        /// </summary>
+        private static bool LooksLikeUniversalMaster(string familyName)
+        {
+            if (string.IsNullOrEmpty(familyName)) return false;
+            return familyName.IndexOf("Tag_Universal", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal Tag", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
