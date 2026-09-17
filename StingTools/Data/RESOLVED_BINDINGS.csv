@@ -316,7 +316,7 @@ ASS_WELD_COUNT_NR,<ALL>
 ASS_WORKSET_TXT,<ALL>
 ASS_ZONE_SOURCE_TXT,<ALL>
 ASS_ZONE_TXT,<ALL>
-ATEX_CLASSIFICATION_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ATEX_CLASSIFICATION_OK,Electrical Equipment|Electrical Fixtures
 BI_BOTTOM_COLOR_TXT,Generic Models
 BI_CREATED_DATE_TXT,Generic Models
 BI_DIMENSIONS_TXT,Generic Models
@@ -1477,20 +1477,20 @@ HVC_HEPA_REQ_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Ac
 HVC_IDU_MOUNTING_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_INSULATION_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_INS_THICKNESS_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_LOAD_SOURCE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_LOAD_STALE_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_LOAD_STALE_REASON_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_LOAD_SOURCE_TXT,MEP Spaces|Rooms
+HVC_LOAD_STALE_BOOL,MEP Spaces|Rooms
+HVC_LOAD_STALE_REASON_TXT,MEP Spaces|Rooms
 HVC_NC_CURVE_INT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_NOISE_LEVEL_DB,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_NOISE_LEVEL_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_OA_LS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_OA_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_HOUR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_HOUR_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_LAT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_LAT_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_SENS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_SENS_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_OA_LS,MEP Spaces|Rooms
+HVC_OA_TXT,MEP Spaces|Rooms
+HVC_PEAK_HOUR,MEP Spaces|Rooms
+HVC_PEAK_HOUR_TXT,MEP Spaces|Rooms
+HVC_PEAK_LAT_TXT,MEP Spaces|Rooms
+HVC_PEAK_LAT_W,MEP Spaces|Rooms
+HVC_PEAK_SENS_TXT,MEP Spaces|Rooms
+HVC_PEAK_SENS_W,MEP Spaces|Rooms
 HVC_PIPE_FLOWRATE_LPS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_PIPE_LENGTH_M,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_PIPE_LENGTH_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1509,8 +1509,8 @@ HVC_REFRIGERANT_KG_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Du
 HVC_REFRIGERANT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_REFRIGERANT_TYPE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SEGMENT_ROLE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_SELECTED_IDU_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_SELECTED_IDU_LABEL_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_SELECTED_IDU_ID_TXT,MEP Spaces|Rooms
+HVC_SELECTED_IDU_LABEL_TXT,MEP Spaces|Rooms
 HVC_SIZE_MODIFIED_DT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_PREV_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SIZE_RULE_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -1561,7 +1561,7 @@ ICT_TEL_PORT_TYPE_TXT,Data Devices|Communication Devices|Telephone Devices|Secur
 IFC_GLOBAL_ID_TXT,<ALL>
 IFC_PSET_OVERRIDE_TXT,<ALL>
 INS_MATERIAL_TXT,<ALL>
-IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+IPS_BRANCH_COMPLIANT,Electrical Circuits
 LIG_AREA_OBS_LOS_TXT,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_FIT_TAG,<ALL>
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
@@ -1753,23 +1753,23 @@ OS_MATERIAL_TXT,Generic Models
 OS_PATTERN_TXT,Generic Models
 OS_PROJECTION_WEIGHT_INT,Generic Models
 OS_SUBCATEGORY_TXT,Generic Models
-PEN_BEAM_DEPTH_RATIO,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_BEAM_OFFSET_PCT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_CERTIFICATION_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_CONTROL_NUMBER_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_FIRE_RATING_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_HOST_REF_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_HOST_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_INSPECTION_DATE,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_INSPECTOR_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_INSTALLER_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_INSTALL_DATE,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_INSTALL_STATUS_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_MEMBER_ID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_OD_MM,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_PFV_UUID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_SEALANT_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-PEN_STRUCTURAL_FLAG_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
+PEN_BEAM_DEPTH_RATIO,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_BEAM_OFFSET_PCT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_CERTIFICATION_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_CONTROL_NUMBER_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_FIRE_RATING_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_HOST_REF_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_HOST_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_INSPECTION_DATE,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_INSPECTOR_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_INSTALLER_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_INSTALL_DATE,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_INSTALL_STATUS_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_MEMBER_ID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_OD_MM,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_PFV_UUID_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_SEALANT_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+PEN_STRUCTURAL_FLAG_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
 PERF_TAG_1_TXT,<ALL>
 PER_ACOUSTICS_BACKGROUND_NOISE_DB,<ALL>
 PER_ACOUSTICS_IIC_RATING_TXT,<ALL>
@@ -2381,8 +2381,8 @@ SLV_SERVICE_TXT,Generic Models|MEP Sleeve
 SLV_STATUS_TXT,Generic Models|MEP Sleeve
 SLV_SZ_MM,Generic Models|MEP Sleeve
 SLV_SZ_TXT,Generic Models|MEP Sleeve
-SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models
-SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
+SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
+SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment
 SLV_TESTED_TO_TXT,Generic Models|MEP Sleeve
 SLV_WALL_THICKNESS_MM,Generic Models
 SLV_WALL_TYPE_TXT,Generic Models|MEP Sleeve

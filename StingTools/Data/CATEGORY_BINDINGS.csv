@@ -1,4 +1,5 @@
-﻿# BINDSCOPE-1 | 20260916 | 1198 rows Type -> Instance, in three passes (740 + 270 + 188). Each pass followed WIDENING THE DERIVATION, not new data: pass 2 after the key resolver was taught to read C# property initialisers (it had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT, the two parameters that caused the broken tag), pass 3 after the scan was widened from 2 source files to all 1,656. A parameter the code writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
+﻿# CREATEPARM-1 | 20260917 | +74 rows binding 56 parameters that the code writes per element and that were bound to NOTHING, so every write returned false in silence. Each category comes from the WRITE RECEIVER in the source, not from the parameter name: ELC_WIRE_* goes on Conduits (the receiver is literally named `conduit`; WireElementAnnotationCommands states no ELC_WIRE_* is written to wires and defers the OST_Wire binding question), ELC_LIGHTING_* goes on Lighting Fixtures (receiver `fi`), TAG_PARA_DEPTH_INT on the TAG and TAG_SEG_MASK_TXT on the tagged HOST.
+# BINDSCOPE-1 | 20260916 | 1198 rows Type -> Instance, in three passes (740 + 270 + 188). Each pass followed WIDENING THE DERIVATION, not new data: pass 2 after the key resolver was taught to read C# property initialisers (it had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT, the two parameters that caused the broken tag), pass 3 after the scan was widened from 2 source files to all 1,656. A parameter the code writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
 # BINDSCOPE-1 | 20260916 | 1010 rows Type -> Instance (740 + 270 in two passes; the second pass followed widening the key resolver, which had missed ASS_SEQ_NUM_TXT and ASS_TAG_1_TXT because those constants are C# property initialisers rather than JSON). A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence -- which is why a newly placed door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ -- and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed. Editing this file does NOT re-bind an existing project.
 # BINDSCOPE-1 | 20260916 | 740 rows Type -> Instance. A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence (this is why a new door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ), and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed.
 # v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
@@ -19425,3 +19426,87 @@ STR_WALL_TYPE_TXT,Structural Wall,Instance,True
 STR_WELD_PROCEDURE_REF_TXT,Structural Connection,Instance,True
 STR_WELD_SIZE_MM,Weld,Instance,True
 STR_WELD_TYPE_TXT,Weld,Instance,True
+ATEX_CLASSIFICATION_OK,Electrical Equipment,Instance,True
+ATEX_CLASSIFICATION_OK,Electrical Fixtures,Instance,True
+BLE_RAIL_HEIGHT_MM,Railings,Instance,True
+ELC_CDT_SOFFIT_OFFSET_MM,Conduits,Instance,True
+ELC_JB_UPSTREAM_REF_TXT,Conduit Fittings,Instance,True
+ELC_LIGHTING_GRID_SPC_MM,Lighting Fixtures,Instance,True
+ELC_LIGHTING_ROOM_TYPE,Lighting Fixtures,Instance,True
+ELC_LIGHTING_TARGET_LUX_TXT,Lighting Fixtures,Instance,True
+ELC_PANEL_REF_TXT,Electrical Circuits,Instance,True
+ELC_PNL_NAME_TXT,Conduits,Instance,True
+ELC_TRANSFER_LOAD_OK,Electrical Equipment,Instance,True
+ELC_WIRE_AMPACITY_A,Conduits,Instance,True
+ELC_WIRE_CIRCUIT_BREAKER_A,Conduits,Instance,True
+ELC_WIRE_CIRCUIT_TYPE_TXT,Conduits,Instance,True
+ELC_WIRE_COND_MAT_TXT,Conduits,Instance,True
+ELC_WIRE_CORE_COUNT_INT,Conduits,Instance,True
+ELC_WIRE_CSA_MM2_NUM,Conduits,Instance,True
+ELC_WIRE_INSTALL_METHOD_TXT,Conduits,Instance,True
+ELC_WIRE_MAX_DEMAND_A,Conduits,Instance,True
+ELC_WIRE_PHASE_TXT,Conduits,Instance,True
+ELC_WIRE_PROFILE_ID_TXT,Conduits,Instance,True
+ELC_WIRE_VD_PCT_NUM,Conduits,Instance,True
+HVC_AIRFLOW_LPS,Ducts,Instance,True
+HVC_AIRFLOW_LPS,Air Terminals,Instance,True
+HVC_FLOW_LS,Ducts,Instance,True
+HVC_FLOW_LS,Air Terminals,Instance,True
+HVC_LOAD_SOURCE_TXT,MEP Spaces,Instance,True
+HVC_LOAD_SOURCE_TXT,Rooms,Instance,True
+HVC_LOAD_STALE_BOOL,MEP Spaces,Instance,True
+HVC_LOAD_STALE_BOOL,Rooms,Instance,True
+HVC_LOAD_STALE_REASON_TXT,MEP Spaces,Instance,True
+HVC_LOAD_STALE_REASON_TXT,Rooms,Instance,True
+HVC_OA_LS,MEP Spaces,Instance,True
+HVC_OA_LS,Rooms,Instance,True
+HVC_PEAK_HOUR,MEP Spaces,Instance,True
+HVC_PEAK_HOUR,Rooms,Instance,True
+HVC_PEAK_LAT_W,MEP Spaces,Instance,True
+HVC_PEAK_LAT_W,Rooms,Instance,True
+HVC_PEAK_SENS_W,MEP Spaces,Instance,True
+HVC_PEAK_SENS_W,Rooms,Instance,True
+HVC_PRESSURE_DROP_PA,Ducts,Instance,True
+HVC_PRESSURE_DROP_PA,Duct Fittings,Instance,True
+HVC_SELECTED_IDU_ID_TXT,MEP Spaces,Instance,True
+HVC_SELECTED_IDU_LABEL_TXT,MEP Spaces,Instance,True
+IPS_BRANCH_COMPLIANT,Electrical Circuits,Instance,True
+LTG_FIX_EFFICACY_LM_W,Lighting Fixtures,Instance,True
+LTG_FIX_LAMP_TYPE_TXT,Lighting Fixtures,Instance,True
+PEN_BEAM_DEPTH_RATIO,Specialty Equipment,Instance,True
+PEN_BEAM_OFFSET_PCT,Specialty Equipment,Instance,True
+PEN_CERTIFICATION_TXT,Specialty Equipment,Instance,True
+PEN_CONTROL_NUMBER_TXT,Specialty Equipment,Instance,True
+PEN_FIRE_RATING_TXT,Specialty Equipment,Instance,True
+PEN_HOST_REF_TXT,Specialty Equipment,Instance,True
+PEN_HOST_TYPE_TXT,Specialty Equipment,Instance,True
+PEN_INSTALL_STATUS_TXT,Specialty Equipment,Instance,True
+PEN_MEMBER_ID_TXT,Specialty Equipment,Instance,True
+PEN_OD_MM,Specialty Equipment,Instance,True
+PEN_PFV_UUID_TXT,Specialty Equipment,Instance,True
+PEN_STRUCTURAL_FLAG_TXT,Specialty Equipment,Instance,True
+PLM_FLOW_LS,Pipes,Instance,True
+PLM_FLOW_RATE_LPS,Pipes,Instance,True
+PLM_FLUID_CATEGORY_TXT,Pipes,Instance,True
+PLM_PIPE_INS_THK_MM,Pipes,Instance,True
+PLM_VLV_BACKFLOW_TYPE_TXT,Pipes,Instance,True
+STRUCT_FRM_AXIAL_LOAD_KN,Structural Columns,Instance,True
+STRUCT_FRM_AXIAL_LOAD_KN,Structural Framing,Instance,True
+TAG_PARA_DEPTH_INT,Mechanical Equipment Tags,Instance,True
+TAG_PARA_DEPTH_INT,Duct Accessory Tags,Instance,True
+TAG_PARA_DEPTH_INT,Duct Fitting Tags,Instance,True
+TAG_PARA_DEPTH_INT,Duct Terminal Tags,Instance,True
+TAG_SEG_MASK_TXT,Mechanical Equipment,Instance,True
+TAG_SEG_MASK_TXT,Duct Accessories,Instance,True
+TAG_SEG_MASK_TXT,Duct Fittings,Instance,True
+TAG_SEG_MASK_TXT,Air Terminals,Instance,True
+BLE_ROOM_NUM_TXT,Rooms,Instance,True
+BLE_ROOM_NUM_TXT,Doors,Instance,True
+BLE_ROOM_NUM_TXT,Windows,Instance,True
+BLE_ROOM_NUM_TXT,Columns,Instance,True
+BLE_ROOM_NUM_TXT,Curtain Systems,Instance,True
+BLE_ROOM_NUM_TXT,Flex Pipes,Instance,True
+BLE_ROOM_NUM_TXT,Furniture Systems,Instance,True
+BLE_ROOM_NUM_TXT,Medical Equipment,Instance,True
+BLE_ROOM_NUM_TXT,Plumbing Equipment,Instance,True
+BLE_ROOM_NUM_TXT,Railings,Instance,True
