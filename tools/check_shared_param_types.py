@@ -27,6 +27,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MR   = os.path.join(ROOT, 'StingTools', 'Data', 'MR_PARAMETERS.txt')
 KITS = [os.path.join(ROOT, 'docs', 'UNIVERSAL_TAG_MASTER_PARAMS.txt')]
 
+# FAMILY_PARAMETER_BINDINGS.csv is read by BatchAddFamilyParamsCommand, which runs
+# inside ProjectSetupCommand and MasterSetupCommand -- so a wrong DataType here
+# becomes a real family parameter, and a load conflict, on any set-up project.
+# It carries a large pre-existing disagreement with MR_PARAMETERS.txt. Fixing all
+# of it is its own job (ROADMAP PARAMTYPE-3); this gate BASELINES it so it cannot
+# grow, the same contract as docs/BINDING_SCOPE_BASELINE.json: may shrink, never grow.
+FPB      = os.path.join(ROOT, 'StingTools', 'Data', 'FAMILY_PARAMETER_BINDINGS.csv')
+FPB_BASELINE = 332
+
 
 def load(path):
     """name -> (guid, type). Revit shared-param format is tab separated:
@@ -88,7 +97,32 @@ def main():
         print('mirrors in Data/FORMULAS_WITH_DEPENDENCIES.csv.')
         return 1
 
+    # ── FAMILY_PARAMETER_BINDINGS.csv: baselined, must not grow ──
+    import csv as _csv
+    n_fpb = 0
+    if os.path.exists(FPB):
+        with io.open(FPB, encoding='utf-8', errors='replace') as fh:
+            rows = [l for l in fh if not l.startswith('#')]
+        seen = set()
+        for row in _csv.DictReader(rows):
+            name = (row.get('ParameterName') or '').strip()
+            typ  = (row.get('DataType') or '').strip()
+            if not name or not typ or name not in mr:
+                continue
+            if typ != mr[name][1]:
+                seen.add(name)
+        n_fpb = len(seen)
+        if n_fpb > FPB_BASELINE:
+            print('FAIL: FAMILY_PARAMETER_BINDINGS.csv now disagrees with '
+                  'MR_PARAMETERS.txt on %d parameters (baseline %d).' % (n_fpb, FPB_BASELINE))
+            print('Each is a same-GUID type conflict that BatchAddFamilyParams can bake into')
+            print('a family and that Revit will refuse on load. Fix the new one, or lower the')
+            print('baseline if you fixed others.')
+            return 1
+
     print('OK - %d kit parameters agree with MR_PARAMETERS.txt on GUID and type.' % checked)
+    print('OK - FAMILY_PARAMETER_BINDINGS.csv disagreements: %d (baseline %d, must not grow).'
+          % (n_fpb, FPB_BASELINE))
     return 0
 
 
