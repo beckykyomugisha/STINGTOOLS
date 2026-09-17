@@ -391,6 +391,18 @@ namespace StingTools.Tags
                 row.Warnings.Add("Shared-parameter load check NOT RUN — no project document open.");
             }
 
+            // ── (10) Authoring scaffolding left in the family ─────────
+            // Text the author wrote for themselves prints like any other note, and
+            // propagation clones it into every target. Reported, never scored: it
+            // does not stop the family working.
+            try
+            {
+                var notes = AuthoringNoteMatcher.Flag(SharedParamPreflight.CollectTextNotes(famDoc));
+                foreach (string n in notes)
+                    row.Warnings.Add($"Authoring note left in the family: “{n}”");
+            }
+            catch (Exception ex) { row.Warnings.Add($"Authoring-note check: {ex.Message}"); }
+
             // Clamp + verdict.
             row.Score = Math.Max(0, Math.Min(100, score));
             row.Verdict = row.Score >= 85 ? "PASS"

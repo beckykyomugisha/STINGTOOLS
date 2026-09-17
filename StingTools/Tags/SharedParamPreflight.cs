@@ -24,6 +24,20 @@ using StingTools.Core;
 
 namespace StingTools.Tags
 {
+    /// <summary>What a pre-flight of the propagation master found.</summary>
+    public class MasterPreflight
+    {
+        /// <summary>Shared parameters that will make the load fail. Empty is the good case.</summary>
+        public List<SharedParamTypeConflict> Conflicts { get; set; } = new List<SharedParamTypeConflict>();
+
+        /// <summary>
+        /// Text notes in the master that read as instructions to its author. Not a
+        /// blocker - the propagation still works - but they are cloned into every
+        /// target, so the operator is told before, not after.
+        /// </summary>
+        public List<string> AuthoringNotes { get; set; } = new List<string>();
+    }
+
     /// <summary>Reads family-side and project-side shared parameter facts out of Revit.</summary>
     public static class SharedParamPreflight
     {
@@ -141,10 +155,10 @@ namespace StingTools.Tags
         /// visibility parameters). They are checked too: a parameter that does not
         /// conflict today conflicts the moment propagation adds it.
         /// </param>
-        public static List<SharedParamTypeConflict> Check(
+        public static MasterPreflight CheckMaster(
             Document doc, Family master, IList<SharedParamFacts> willAdd = null)
         {
-            var none = new List<SharedParamTypeConflict>();
+            var none = new MasterPreflight();
             if (doc == null || master == null) return none;
 
             Document famDoc = null;
@@ -170,7 +184,20 @@ namespace StingTools.Tags
                 StingLog.Info($"SharedParamPreflight: '{master.Name}' offers {familySide.Count} shared parameters; " +
                               $"project holds {projectSide.Count}");
 
-                return SharedParamConflictDetector.Detect(familySide, projectSide);
+                var result = new MasterPreflight
+                {
+                    Conflicts = SharedParamConflictDetector.Detect(familySide, projectSide),
+                    // Same open document, so this costs nothing extra. Worth having
+                    // here specifically: whatever is in the master is cloned into
+                    // every target, so a note the author meant to delete becomes 206
+                    // notes that print.
+                    AuthoringNotes = AuthoringNoteMatcher.Flag(CollectTextNotes(famDoc))
+                };
+                if (result.AuthoringNotes.Count > 0)
+                    StingLog.Warn($"SharedParamPreflight: '{master.Name}' carries " +
+                                  $"{result.AuthoringNotes.Count} authoring note(s): " +
+                                  string.Join(" | ", result.AuthoringNotes));
+                return result;
             }
             catch (Exception ex)
             {
@@ -182,6 +209,29 @@ namespace StingTools.Tags
                 try { famDoc?.Close(false); }
                 catch (Exception ex) { StingLog.Warn($"SharedParamPreflight: close famDoc: {ex.Message}"); }
             }
+        }
+
+        /// <summary>
+        /// The text of every text note in a family document. Used to catch
+        /// authoring scaffolding before propagation clones it into 206 families -
+        /// see <see cref="AuthoringNoteMatcher"/> for what counts.
+        /// </summary>
+        public static List<string> CollectTextNotes(Document famDoc)
+        {
+            var notes = new List<string>();
+            if (famDoc == null) return notes;
+            try
+            {
+                foreach (var tn in new FilteredElementCollector(famDoc)
+                            .OfClass(typeof(TextNote))
+                            .Cast<TextNote>())
+                {
+                    try { if (!string.IsNullOrWhiteSpace(tn.Text)) notes.Add(tn.Text); }
+                    catch (Exception ex) { StingLog.Warn($"SharedParamPreflight: text note unreadable: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SharedParamPreflight: collecting text notes: {ex.Message}"); }
+            return notes;
         }
 
         private static string DataTypeOf(Definition def)

@@ -212,7 +212,7 @@ namespace StingTools.Commands.TagStudio
             // parameters, and stop before touching 206 families.
             {
                 string preflightSp = app.SharedParametersFilename;
-                List<SharedParamTypeConflict> conflicts;
+                MasterPreflight pre;
                 try
                 {
                     // The same file the loop binds from, so the definitions checked
@@ -220,7 +220,7 @@ namespace StingTools.Commands.TagStudio
                     app.SharedParametersFilename = sharedParamFile;
                     var willAdd = SharedParamPreflight.CollectDefinitions(
                         app.OpenSharedParameterFile(), styleAndVisParams);
-                    conflicts = SharedParamPreflight.Check(doc, master, willAdd);
+                    pre = SharedParamPreflight.CheckMaster(doc, master, willAdd);
                 }
                 finally
                 {
@@ -228,9 +228,9 @@ namespace StingTools.Commands.TagStudio
                     catch (Exception ex) { StingLog.Warn($"Restore SharedParametersFilename after pre-flight: {ex.Message}"); }
                 }
 
-                if (conflicts.Count > 0)
+                if (pre.Conflicts.Count > 0)
                 {
-                    string detail = SharedParamConflictDetector.Describe(conflicts);
+                    string detail = SharedParamConflictDetector.Describe(pre.Conflicts);
                     StingLog.Warn($"PropagateUniversalTag: aborted before any family — {detail?.Replace("\n", " ")}");
 
                     var block = new TaskDialog("Propagate Universal Tag");
@@ -247,6 +247,34 @@ namespace StingTools.Commands.TagStudio
                     block.CommonButtons = TaskDialogCommonButtons.Close;
                     block.Show();
                     return Result.Cancelled;
+                }
+
+                // Not a blocker, but it multiplies by the number of targets: text
+                // the author left for themselves is cloned into every family and
+                // then prints. Spotted on 2026-09-17 as a red note in a tag family.
+                if (pre.AuthoringNotes.Count > 0)
+                {
+                    var noteDlg = new TaskDialog("Propagate Universal Tag");
+                    noteDlg.MainInstruction = pre.AuthoringNotes.Count == 1
+                        ? $"'{master.Name}' carries a note that looks like an instruction to its author."
+                        : $"'{master.Name}' carries {pre.AuthoringNotes.Count} notes that look like " +
+                          "instructions to its author.";
+                    noteDlg.MainContent =
+                        "  • " + string.Join("\n  • ", pre.AuthoringNotes) + "\n\n" +
+                        $"Everything in the master is cloned into each of the {targets.Count} target " +
+                        "famil" + (targets.Count == 1 ? "y" : "ies") + ", so this text goes with it and " +
+                        "will print on drawings." + "\n\n" +
+                        "Delete it in the master and re-run, or propagate anyway.";
+                    noteDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    noteDlg.DefaultButton = TaskDialogResult.No;
+                    if (noteDlg.Show() != TaskDialogResult.Yes)
+                    {
+                        StingLog.Info($"PropagateUniversalTag: declined over {pre.AuthoringNotes.Count} " +
+                                      "authoring note(s) in the master - nothing done");
+                        return Result.Cancelled;
+                    }
+                    StingLog.Warn("PropagateUniversalTag: proceeding with authoring note(s) in the master " +
+                                  "(operator confirmed)");
                 }
             }
 
