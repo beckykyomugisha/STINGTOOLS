@@ -251,6 +251,14 @@ namespace StingTools.Commands.Placement
         /// A model can legitimately contain both; an element is taken once, and Spaces are
         /// appended after Rooms so an architectural model behaves exactly as before.
         /// </summary>
+        /// <summary>
+        /// Rooms and MEP Spaces (LIGHTGRID-1 / -2).
+        ///
+        /// This command was the first of eight collecting OST_Rooms only, and so finding
+        /// nothing to do on an MEP model while reporting success. The collection now lives
+        /// in SpatialCompat so all eight share one implementation rather than eight copies
+        /// of the same four Room-vs-Space traps.
+        /// </summary>
         private static List<SpatialElement> ResolveRooms(UIDocument uidoc, Document doc)
         {
             var sel = uidoc?.Selection?.GetElementIds() ?? new List<ElementId>();
@@ -261,27 +269,7 @@ namespace StingTools.Commands.Placement
                 .ToList();
             if (selSpatial.Count > 0) return selSpatial;
 
-            var result = new List<SpatialElement>();
-            var seen = new HashSet<ElementId>();
-            foreach (BuiltInCategory bic in new[] { BuiltInCategory.OST_Rooms,
-                                                    BuiltInCategory.OST_MEPSpaces })
-            {
-                try
-                {
-                    foreach (var se in new FilteredElementCollector(doc)
-                                 .OfCategory(bic)
-                                 .WhereElementIsNotElementType()
-                                 .OfType<SpatialElement>())
-                    {
-                        if (se.Area > 0 && seen.Add(se.Id)) result.Add(se);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"LightingGrid: collecting {bic} failed: {ex.Message}");
-                }
-            }
-            return result;
+            return StingTools.Core.Placement.SpatialCompat.Collect(doc);
         }
 
         private static FamilySymbol ResolveLuminaire(Document doc)
@@ -360,7 +348,7 @@ namespace StingTools.Commands.Placement
                     string nm = "";
                     // LIGHTGRID-1: ROOM_NAME is a Room built-in and is null on a Space,
                     // so fall through to SpatialElement.Name, which both carry.
-                    try { nm = p.Room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString(); if (string.IsNullOrWhiteSpace(nm)) nm = p.Room.Name; }
+                    try { nm = StingTools.Core.Placement.SpatialCompat.NameOf(p.Room); }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); nm = p.Room.Id.ToString(); }
                     panel.Metric(nm,
                         p.Result.FixturesPlaced.ToString(),

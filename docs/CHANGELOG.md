@@ -305,6 +305,35 @@ the same silent no-op on an MEP model. They are deliberately **not** bulk-fixed 
 its own downstream use of `Room` that must be checked for Space-safety individually, and
 seven untested edits would be worth less than one proven template. Logged as LIGHTGRID-2.
 
+**LIGHTGRID-2 — the whole lighting suite now sees Spaces.** All seven remaining commands
+converted, one at a time with a build between each: `ComCheckExport`,
+`EmergencyLightingAudit`, `LightingCalcSheet`, `LightingControlZone`, `LightingPowerDensity`,
+`QuickLuxEstimate`, `PhotometricDesignReview`. Every one of them previously found nothing on
+an MEP model and reported success.
+
+The work is in `Core/Placement/SpatialCompat.cs`, because Room and Space differ in **five**
+places and every one of them fails silently and plausibly:
+
+| | Why it bites |
+|---|---|
+| `Number` | Declared on Room and on Space separately; there is no `SpatialElement.Number` |
+| Name | `BuiltInParameter.ROOM_NAME` returns null on a Space — labels become element ids |
+| `FamilyInstance.Room` vs `.Space` | Checking one finds no fixture in any Space |
+| `IsPointInRoom` vs `IsPointInSpace` | Separate methods, no shared base |
+| `GetRoomAtElement` | Returns a Room and nothing else, so a caller cannot see a Space |
+
+Writing those inline eight times is how a fix of this shape goes wrong; `LightingGridCommand`
+was folded onto the same helper so there is one implementation rather than two.
+
+**Not verified in Revit.** This needs a Spaces-based model. The compiler and the gates confirm
+only that nothing regressed — which is exactly the claim this repo has learned not to
+overstate.
+
+**What was deliberately left.** 79 further files collect `OST_Rooms` only and are mostly
+correct to: finishes, room data sheets, architectural QA, COBie zones. Converting a command
+that is genuinely room-scoped would be a regression, not a fix. Logged as LIGHTGRID-3 with the
+helper available if one turns out to need it.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records

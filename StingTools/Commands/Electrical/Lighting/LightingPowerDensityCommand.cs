@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -56,12 +56,9 @@ namespace StingTools.Commands.Electrical.Lighting
                 .WhereElementIsNotElementType()
                 .OfType<FamilyInstance>()
                 .ToList();
-            var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .OfType<Room>()
-                .Where(r => r.Area > 0)
-                .ToList();
+            // LIGHTGRID-2: Rooms AND MEP Spaces. LPD is an MEP calculation; collecting
+            // Rooms only meant it computed nothing at all on a Space-based model.
+            var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc);
 
             View view = doc.ActiveView;
             var ogsGreen = MakeOverride(76, 175, 80);
@@ -130,13 +127,13 @@ namespace StingTools.Commands.Electrical.Lighting
             return Result.Succeeded;
         }
 
-        private static bool InRoom(FamilyInstance fi, Room r)
+        private static bool InRoom(FamilyInstance fi, SpatialElement r)
         {
             try
             {
-                if (fi.Room is Room rr && rr.Id == r.Id) return true;
+                if (StingTools.Core.Placement.SpatialCompat.Contains(fi, r)) return true;   // LIGHTGRID-2
                 var pt = (fi.Location as LocationPoint)?.Point;
-                return pt != null && r.IsPointInRoom(pt);
+                return pt != null && StingTools.Core.Placement.SpatialCompat.IsPointInside(r, pt);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
@@ -211,9 +208,12 @@ namespace StingTools.Commands.Electrical.Lighting
             using (var tx = new Transaction(doc, "STING LPD Re-color"))
             {
                 tx.Start();
+                // LIGHTGRID-2: the recolour pass has to see whatever the calc stamped.
                 foreach (var r in new FilteredElementCollector(doc, view.Id)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .OfType<Room>())
+                    .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>
+                        { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces }))
+                    .WhereElementIsNotElementType()
+                    .OfType<SpatialElement>())
                 {
                     string status = ParameterHelpers.GetString(r, ParamRegistry.ELC_LPD_STATUS);
                     if (string.IsNullOrEmpty(status)) continue;
