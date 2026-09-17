@@ -284,10 +284,20 @@ namespace StingTools.Tags
             {
                 int pctFunc = stats.EmptyFuncCount * 100 / taggable;
                 int pctProd = stats.EmptyProdCount * 100 / taggable;
+                // The advice used to be "run FamilyStagePopulate". That command calls the
+                // very same TokenAutoPopulator.PopulateAll this pipeline already ran, so
+                // when the cause is an unwritable parameter it fails identically and
+                // silently — sending the operator to repeat a step that cannot help.
+                // FUNC and PROD cannot be derived empty (both fall back through
+                // FuncMap/ProdMap to the token policy), so an empty one is a WRITE that
+                // failed, and TokenWriteFailureCount names the parameter.
+                string funcProdHint = stats.TokenWriteFailureCount > 0
+                    ? "see NOT WRITTEN below — the parameter could not be written, so the code is not missing, it is unstored"
+                    : "check that ASS_FUNC_TXT / ASS_PRODCT_COD_TXT are Instance parameters bound to this category";
                 if (pctFunc > 10)
-                    report.AppendLine($"  WARNING: {stats.EmptyFuncCount} elements ({pctFunc}%) missing FUNC codes — run FamilyStagePopulate");
+                    report.AppendLine($"  WARNING: {stats.EmptyFuncCount} elements ({pctFunc}%) have no FUNC value — {funcProdHint}");
                 if (pctProd > 10)
-                    report.AppendLine($"  WARNING: {stats.EmptyProdCount} elements ({pctProd}%) missing PROD codes — run FamilyStagePopulate");
+                    report.AppendLine($"  WARNING: {stats.EmptyProdCount} elements ({pctProd}%) have no PROD value — {funcProdHint}");
             }
 
             report.Append(stats.BuildReport());

@@ -16,15 +16,8 @@ namespace StingTools.Core
     /// <summary>
     /// Controls how tag collisions (duplicate tags) are handled during tagging operations.
     /// </summary>
-    public enum TagCollisionMode
-    {
-        /// <summary>Auto-increment SEQ until a unique tag is found (default).</summary>
-        AutoIncrement,
-        /// <summary>Skip elements that already have a complete tag — do not modify.</summary>
-        Skip,
-        /// <summary>Overwrite existing tags with newly generated values.</summary>
-        Overwrite,
-    }
+    // TagCollisionMode enum relocated to Core/TagCollisionMode.cs (same namespace) so
+    // it can be used without dragging in this Revit-bound file. Same move as SeqScheme.
 
     // SeqScheme enum relocated to Core/SeqAssigner.cs (same namespace) alongside
     // the pure sequence-assignment logic it parameterises.
@@ -2204,8 +2197,9 @@ namespace StingTools.Core
                         return false;
                 }
             }
-            // Reject tags containing placeholder tokens
-            if (TagHasPlaceholders(tagValue))
+            // Reject tags whose segments say "not known" (XX / ZZ / 0000). A "GEN"
+            // segment is NOT rejected here — see TagHasStructuralPlaceholder.
+            if (TagHasStructuralPlaceholder(tagValue))
                 return false;
 
             return true;
@@ -2215,24 +2209,23 @@ namespace StingTools.Core
         /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-GEN-", "-0000")
         /// that indicate incomplete or unresolved segments.
         /// </summary>
-        public static bool TagHasPlaceholders(string tag)
-        {
-            if (string.IsNullOrEmpty(tag))
-                return false;
-            string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            foreach (string ph in _placeholders)
-            {
-                // Check for placeholder as a delimited segment (not substring of a real token)
-                if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
-                    tag.EndsWith(sep + ph, StringComparison.Ordinal) ||
-                    tag.Contains(sep + ph + sep, StringComparison.Ordinal) ||
-                    tag == ph)
-                    return true;
-            }
-            return false;
-        }
+        /// <summary>Session counter for silent token-write failures (see the reconcile
+        /// block in BuildAndWriteTag). Throttles the log without hiding the total.</summary>
+        private static int _tokenWriteFailureCount;
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
+        public static bool TagHasPlaceholders(string tag)
+            => TagTokenIntegrity.HasPlaceholderOrAssumed(tag, Separator);
+
+        /// <summary>
+        /// The STRUCTURAL subset: segments that mean "not known" (XX / ZZ / 0000).
+        /// "GEN" is excluded — it is a real answer supplied by the token policy, and
+        /// treating it as unknown made every architectural element permanently
+        /// incomplete. Compliance surfaces that want GEN counted as unresolved call
+        /// <see cref="TagHasPlaceholders"/>, which still does.
+        /// </summary>
+        public static bool TagHasStructuralPlaceholder(string tag)
+            => TagTokenIntegrity.HasStructuralPlaceholder(tag, Separator);
+
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -2245,11 +2238,11 @@ namespace StingTools.Core
                 return false;
             string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
             string[] parts = tagValue.Split(new[] { sepStr }, StringSplitOptions.None);
-            // Reject placeholder segments
-            var placeholders = _placeholders;
+            // Strict: reject both the unknowns and the policy-assumed values.
             for (int i = 0; i < parts.Length; i++)
             {
-                if (placeholders.Contains(parts[i]))
+                if (Array.IndexOf(TagTokenIntegrity.StructuralPlaceholders, parts[i]) >= 0 ||
+                    Array.IndexOf(TagTokenIntegrity.AssumedValues, parts[i]) >= 0)
                     return false;
             }
             return true;
@@ -2604,14 +2597,48 @@ namespace StingTools.Core
                 ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
 
                 // Re-read actual stored token values to ensure TAG1 reflects
-                // what's on the element. Do NOT fill empty slots with derived defaults —
-                // that would overwrite manually-set values that SetIfEmpty preserved.
-                // The malformed-tag guard below blocks incomplete tags correctly.
-                // F-03: Cache result so container write at line ~2808 can reuse without second read
-                string[] actualTokens = ParamRegistry.ReadTokenValues(el);
-                _cachedReadTokens = actualTokens;
-                if (actualTokens.Length < 8)
+                // what's on the element, then RECONCILE against what we just derived.
+                //
+                // The read-back alone used to win outright, on the reasoning that
+                // filling empty slots would clobber a manual edit SetIfEmpty had
+                // preserved. That reasoning only holds for NON-empty slots: SetString
+                // declines a write solely when the stored value is already non-empty,
+                // so a slot that reads back EMPTY after a non-empty derive was never a
+                // user's blank — it is a write that failed, silently, because the
+                // parameter is not reachable on the instance (type-bound, or not bound
+                // to this category at all). Letting that empty win is what produced
+                // "A-BLD1-Z01-L01-ARC---", the blank SEQ segment on every tag, and the
+                // "27 elements missing FUNC/PROD" report: the code derived a correct
+                // value, threw it away, and reported the absence as a missing code.
+                //
+                // F-03: Cache result so the container write below can reuse without a second read
+                string[] readBack = ParamRegistry.ReadTokenValues(el);
+                if (readBack.Length < 8)
                     return false;
+                string[] derivedTokens = { disc, loc, zone, lvl, sys, func, prod, seq };
+                string[] actualTokens = TagTokenIntegrity.Reconcile(
+                    derivedTokens, readBack, out int tokenWriteFailures);
+                _cachedReadTokens = actualTokens;
+                if (tokenWriteFailures > 0)
+                {
+                    // Name the parameters, not just the count — "3 tokens failed" does
+                    // not tell an operator which project parameter to go and re-bind.
+                    var failedParams = new List<string>(tokenWriteFailures);
+                    var tokenParams = ParamRegistry.AllTokenParams;
+                    for (int i = 0; i < derivedTokens.Length && i < readBack.Length; i++)
+                    {
+                        if (string.IsNullOrEmpty(readBack[i]) && !string.IsNullOrEmpty(derivedTokens[i]))
+                            failedParams.Add(i < tokenParams.Length ? tokenParams[i] : $"token[{i}]");
+                    }
+                    stats?.RecordTokenWriteFailure(el.Id.Value, catName, failedParams);
+                    int n = System.Threading.Interlocked.Increment(ref _tokenWriteFailureCount);
+                    if (n <= 5 || n % 250 == 0)
+                        StingLog.Warn(
+                            $"Token write failure on element {el.Id}: {string.Join(", ", failedParams)} "
+                            + $"read back empty after a non-empty derive (occurrence {n}). Tag assembled "
+                            + "from the derived values; the parameters remain unwritten. Cause is almost "
+                            + "always a TYPE binding or a category the parameter is not bound to.");
+                }
                 // Remove the derived-value tag from collision index (it may differ from actual)
                 string removedTag = null;
                 if (existingTags != null && !string.IsNullOrEmpty(tag))
@@ -2647,20 +2674,17 @@ namespace StingTools.Core
             // dead work. Skip it.
             if (!overwriteTokens)
             {
-                // Validate segment count by counting separators instead of allocating split array.
-                // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
-                int sepCount = 0;
-                string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-                int sIdx = 0;
-                while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+                // Counting separators cannot see a BLANK segment, and a blank segment
+                // is the failure this guard exists to catch: "A-BLD1-Z01-L01-ARC---"
+                // carries exactly seven separators, so it passed as a valid
+                // eight-segment tag and was written to the model. Check the segments.
+                int expectedSegments = 8
+                    + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
+                    + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
+                if (!TagTokenIntegrity.AllSegmentsPresent(tag, Separator, expectedSegments))
                 {
-                    sepCount++;
-                    sIdx += sepStr.Length;
-                }
-                if (sepCount < 7) // 8 segments = 7 separators
-                {
-                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
-                    stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' is not {expectedSegments} non-empty segments");
+                    stats?.RecordWarning($"Element {el.Id}: malformed tag '{tag}' — a segment is missing or blank, skipped");
                     return false;
                 }
             }
@@ -2784,8 +2808,13 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
-                stats?.RecordWarning($"Element {el.Id}: container write failed — {ex.Message}");
+                // CONTAINER-1: this logged a bare message, swallowed the exception and
+                // reported nothing to the user, so 175 of these sat in a log unread and
+                // undiagnosable — no stack trace, no category, no count in the report.
+                // The failure is still non-fatal (the tag itself is already written), but
+                // it is now visible and traceable.
+                StingLog.Error($"Container write failed for {el.Id} (category '{catName}')", ex);
+                stats?.RecordContainerWriteFailure(catName, ex.Message);
             }
 
             // ── Auto-initialize display BOOLs (v5.6) ─────────────────────────

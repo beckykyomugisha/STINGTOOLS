@@ -352,7 +352,49 @@ That discards project-set values for **every** parameter of the family, not just
 
 **Do one family first and verify before committing to 206.**
 
-## §C — Depth: per-type vs per-instance — **HELD, DO NOT START**
+## §C — Depth: per-type vs per-instance — **ANSWERED 2026-09-17: PER-TYPE. Unheld.**
+
+> **Measured in Revit on `STING_Tag_Universal`, Type Properties → General.** The
+> `TAG_PARA_STATE_*` gates appear under the tag's **Edit Type**, not its instance
+> Properties. Per the decision table in §2.5, that is the first row:
+>
+> > gates are **TYPE** family parameters → `SetParagraphDepth`'s type sweep reaches them.
+> > Per-type depth works today. **Keep per-type; unhold §C as per-type.**
+>
+> No per-instance writer is needed, and no conversion. The depth mechanism works as designed.
+>
+> **Two other observations from the same screenshot:**
+>
+> 1. `TAG_PARA_STATE_3_BOOL` is **absent, and that is correct** — T3 was dropped entirely, no
+>    label row references it, and the kit does not declare it.
+> 2. ~~`TAG_PARA_STATE_2_BOOL` is absent~~ — **CORRECTED same day. It is present; it is
+>    INSTANCE-scoped.** The Family Types dialog shows all ten gates. Revit suffixes
+>    **instance** parameters with `(default)` there, and the split is exact:
+>
+>    | Scope | Gates |
+>    |---|---|
+>    | **Instance** (`(default)`) | `_1`, `_2`, `_3`, and `TAG_WARN_VISIBLE_BOOL` |
+>    | **Type** (no suffix) | `_4` `_5` `_6` `_7` `_8` `_9` `_10` |
+>
+>    That matches the Type Properties screenshot exactly (only `_4`–`_10` appeared) and is
+>    corroborated by the build sheet, which documents `TAG_WARN_VISIBLE_BOOL` as Instance.
+>
+>    **The consequence is unchanged and still blocking:** `SetParagraphDepth` is a TYPE
+>    sweep, so it reaches `_4`–`_10` and never `_2`. T2 is six rows — `ASS_TAG_2_TXT`,
+>    description, Status, Std, Sys, MSys — and none of them can be driven by `Set depth`.
+>
+>    **Fix: convert `TAG_PARA_STATE_2_BOOL` from Instance to Type** (Family Types → select →
+>    Modify → Type), **before propagating**, or all 206 inherit the split. `_1` and `_3` are
+>    referenced by no label row and are not among the kit's 8 gates; they can be left or
+>    deleted, but leaving them Instance is harmless because nothing reads them.
+>
+>    This also refines §C: the gates are per-type **for the seven that matter today**, not
+>    uniformly. Mixed scope inside one family is the thing to watch for on propagation.
+>
+> The original §C text is retained below.
+
+### (original, retained)
+
 
 > **Status 2026-08-10: held pending owner re-decision.** The standing decision was to convert the
 > eleven gates to INSTANCE. The evidence gathered since favours **leaving them per-TYPE** — see §2.5

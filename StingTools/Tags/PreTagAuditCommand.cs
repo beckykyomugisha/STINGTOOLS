@@ -47,6 +47,42 @@ namespace StingTools.Tags
     [Regeneration(RegenerationOption.Manual)]
     public class PreTagAuditCommand : IExternalCommand
     {
+        /// <summary>
+        /// Read this document's parameter bindings as (parameter, category, scope) facts.
+        /// Only the eight tag tokens are of interest; everything else is skipped so the
+        /// pass stays cheap on a model with thousands of bound parameters.
+        /// </summary>
+        private static List<TokenBindingFact> CollectBindingFacts(Document doc)
+        {
+            var facts = new List<TokenBindingFact>();
+            if (doc == null) return facts;
+
+            var wanted = new HashSet<string>(ParamRegistry.AllTokenParams, StringComparer.Ordinal);
+            DefinitionBindingMapIterator it = doc.ParameterBindings.ForwardIterator();
+            it.Reset();
+            while (it.MoveNext())
+            {
+                Definition def = null;
+                try { def = it.Key; }
+                catch (Exception ex) { StingLog.Warn($"CollectBindingFacts key: {ex.Message}"); }
+                if (def == null || !wanted.Contains(def.Name)) continue;
+
+                CategorySet cats = null;
+                TokenBindingScope scope;
+                if (it.Current is InstanceBinding ib) { cats = ib.Categories; scope = TokenBindingScope.Instance; }
+                else if (it.Current is TypeBinding tb) { cats = tb.Categories; scope = TokenBindingScope.Type; }
+                else continue;
+
+                if (cats == null) continue;
+                foreach (Category c in cats)
+                {
+                    if (c == null || string.IsNullOrEmpty(c.Name)) continue;
+                    facts.Add(new TokenBindingFact { Param = def.Name, Category = c.Name, Scope = scope });
+                }
+            }
+            return facts;
+        }
+
         /// <summary>Most recent audit issues from the last run.</summary>
         private static List<AuditIssue> _lastAuditIssues;
         private static DateTime _lastAuditTime = DateTime.MinValue;
@@ -152,6 +188,10 @@ namespace StingTools.Tags
             var auditIssues = new List<AuditIssue>();
 
             // Simulate tagging
+            // BINDSCOPE: the categories actually in scope, for the token-binding
+            // pre-flight below. Collected here rather than assumed, so the check
+            // reports on what is about to be tagged.
+            var categoriesInScope = new HashSet<string>(StringComparer.Ordinal);
             var simTags = new HashSet<string>(existingTags, StringComparer.Ordinal);
             var simCounters = new Dictionary<string, int>(seqCounters);
 
@@ -169,6 +209,7 @@ namespace StingTools.Tags
 
                 totalTaggable++;
 
+                categoriesInScope.Add(catName);
                 string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
                 if (!discStats.TryGetValue(disc, out _))
                     discStats[disc] = (0, 0, 0, 0);
@@ -502,6 +543,49 @@ namespace StingTools.Tags
                 .Select(kvp => new[] { kvp.Key, kvp.Value.total.ToString(),
                     kvp.Value.tagged.ToString(), kvp.Value.untagged.ToString(),
                     kvp.Value.violations.ToString() }).ToList();
+            // BINDSCOPE — the pre-flight half. Every token the pipeline will write,
+            // crossed with every category in scope, against what this document is
+            // actually bound to. A token bound to the TYPE, or not bound to the
+            // category, cannot be written per element: ParameterHelpers.SetString
+            // resolves through Element.LookupParameter, which is instance scope only,
+            // so the write returns false and the derived value is lost. That is the
+            // whole mechanism behind "27 elements missing FUNC codes" and the blank
+            // SEQ segment — neither was a missing code.
+            try
+            {
+                var bindingFacts = CollectBindingFacts(doc);
+                var gaps = TokenBindingCoverage.Analyse(
+                    bindingFacts, ParamRegistry.AllTokenParams, categoriesInScope);
+
+                if (gaps.Count == 0)
+                {
+                    panel.AddSection("TOKEN BINDINGS")
+                        .Metric("Writable", $"all {ParamRegistry.AllTokenParams.Length} tokens × {categoriesInScope.Count} categories");
+                }
+                else
+                {
+                    var sect = panel.AddSection("TOKEN BINDINGS", new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28)));
+                    sect.MetricWarn("Not writable", gaps.Count.ToString(),
+                        "parameter × category pairs — these tokens cannot be stored");
+                    foreach (var kv in TokenBindingCoverage.ByParam(gaps))
+                    {
+                        var cats = kv.Value.Select(g => g.Category).OrderBy(c => c, StringComparer.Ordinal).ToList();
+                        string shown = string.Join(", ", cats.Take(6));
+                        if (cats.Count > 6) shown += $", +{cats.Count - 6} more";
+                        bool anyType = kv.Value.Any(g => g.Scope == TokenBindingScope.Type);
+                        sect.MetricWarn(kv.Key, $"{cats.Count} categor{(cats.Count == 1 ? "y" : "ies")}",
+                            (anyType ? "TYPE-bound — " : "not bound — ") + shown);
+                    }
+                    StingLog.Warn($"PreTagAudit: {gaps.Count} token parameter × category pairs are not "
+                                + "instance-writable; tags built from them would lose those segments.");
+                }
+            }
+            catch (Exception bindEx)
+            {
+                StingLog.Warn($"PreTagAudit token-binding pre-flight: {bindEx.Message}");
+            }
+
             if (discRows.Count > 0)
                 panel.AddSection("BY DISCIPLINE").Table(discHeaders, discRows);
 

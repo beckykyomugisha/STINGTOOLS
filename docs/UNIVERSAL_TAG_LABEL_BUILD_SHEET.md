@@ -18,20 +18,56 @@ Every non-T1 row is a Calculated Value (fx): Name, Type=Text, paste Formula. The
 
 ---
 
-## STEP 1 - REMOVE from current master (9 rows)
+## STEP 1 - REMOVE from current master (14 rows)
+
+> **Corrected 2026-09-17: this said 9 and listed only the first two groups.** The 65-row
+> table in Step 2 contains no `WARN_*` rows, so the 5 warning-text rows must come out as
+> well or you finish on 70. The `Delete first` sheet of `UNIVERSAL_TAG_MASTER_BUILD.xlsx`
+> and Part 1 of `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` both already said 14; this file was
+> the odd one out.
 
 Select row, click left-arrow (remove-from-label):
 
+**T2 discipline rows (3)** - data moves to per-category schedules
 - HVC_DCT_FLW_CFM (T2)
 - HVC_VEL_MPS (T2)
 - MNT_HGT_MM (T2)
-- all 6 T3 rows (Show Tier 3 - 8 ... 3 - 13)
+
+**T3 - all 6 rows** (Show Tier 3 - 8 ... 3 - 13) - T3 was the per-family engineering block
+- HVC_TAG_7_PARA_AT_TXT
+- HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT
+- HVC_DCT_TERMINAL_SZ_TXT
+- HVC_TERMINAL_MAT_TXT
+- HVC_TERMINAL_FINISH_TXT
+- ASS_CST_TOTAL_UGX_NR
+
+**Warning text rows (5)** - replaced by the Step 4 badges
+- WARN_HVC_NOISE_NC_AIR_TERMINALS
+- WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS
+- WARN_HVC_THROW_DISTANCE_AIR_TERMINALS
+- WARN_HVC_PRESSURE_DROP_AIR_TERMINALS
+- WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS
+
+⚠️ If you are **not** building the badges yet, removing the 5 warning rows leaves you with
+no warnings at all until you do. That is a deliberate choice, not an oversight - decide it
+here rather than at row 70.
 
 ## STEP 2 - Full universal row list (build/verify all in order)
 
 | # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break |
 |---|---|---|---|---|---|---|
-| 1 | T1 | --- | - |  |  | YES |
+| 1 | T1 | **`ASS_DISPLAY_TXT`** (add directly, not a calc value) | - |  |  | YES |
+
+> **Row 1 corrected 2026-09-17: it is `ASS_DISPLAY_TXT`, not `ASS_TAG_1_TXT`.**
+> `ASS_DISPLAY_TXT` is the ON-DRAWING tag — the display-mode + segment-mask resolved
+> rendering of the canonical `ASS_TAG_1_TXT` (`TagConfig.cs:2727`, written by
+> `BuildDisplayTag`). Putting `ASS_TAG_1_TXT` on the label bypasses
+> `STING_DISPLAY_MODE` and every segment mask (`TAG_SEG_MASK_TXT` /
+> `STING_VIEW_TOKEN_MASK_TXT` / the UI "TokenMask"), so the tag would print all eight
+> segments in every view regardless of the mask. It never goes blank either:
+> `BuildAndWriteTag` falls back to writing the full canonical tag into
+> `ASS_DISPLAY_TXT` when `BuildDisplayTag` yields nothing.
+
 | 2 | T2 | Show Tier 2 - 2 | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` |  |  | YES |
 | 3 | T2 | Show Tier 2 - 3 | `if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, "")` |  |  | YES |
 | 4 | T2 | Show T2 - Status | `if(TAG_PARA_STATE_2_BOOL, ASS_STATUS_TXT, "")` | Status: |  | YES |
@@ -52,7 +88,7 @@ Select row, click left-arrow (remove-from-label):
 | 19 | T5 | Show T5 - Cost - FX to Base | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")` | FX: |  | no |
 | 20 | T5 | Show T5 - Cost - FX Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, "")` | FX date: |  | no |
 | 21 | T5 | Show T5 - Cost - As-of Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, "")` | As of: |  | YES |
-| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, "")` | Stale: |  | no |
+| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_TXT, "")` | Stale: |  | no |
 | 23 | T5 | Show T5 - Cost - Stale Reason | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, "")` | - |  | YES |
 | 24 | T5 | Show T5 - Payment - % Complete | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")` | Cmpl: | % | no |
 | 25 | T5 | Show T5 - Payment - Cert No | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, "")` | Cert#: |  | no |
@@ -80,7 +116,7 @@ Select row, click left-arrow (remove-from-label):
 | 47 | T8 | Show T8 - Clash - Triage Severity | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")` | Sev: | /5 | no |
 | 48 | T8 | Show T8 - Clash - Triage Category | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, "")` |  |  | no |
 | 49 | T8 | Show T8 - Clash - Resolution Status | `if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, "")` | Res: |  | YES |
-| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, "")` | Crit: | /5 | no |
+| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_TXT, "")` | Crit: | /5 | no |
 | 51 | T8 | Show T8 - Coordination - ASS_ZONE_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, "")` | Zone: |  | no |
 | 52 | T8 | Show T8 - Coordination - ASS_LVL_COD_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, "")` | Lvl: |  | YES |
 | 53 | T9 | Show T9 - As-built - Deviation | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, "")` | Δ: | mm | no |
@@ -101,7 +137,29 @@ Select row, click left-arrow (remove-from-label):
 
 ---
 
-## STEP 4 - Status badge system (optional visual warnings)
+## STEP 4 - Status badge system - ⛔ ABANDONED, DO NOT BUILD
+
+> **Superseded 2026-09-17. Everything below is kept as the record of what was designed; it
+> cannot work and must not be built.**
+>
+> The badges drive a glyph's **Visible** property from a family Yes/No parameter whose formula
+> reads `STING_GATE_DATA_STATUS_INT` / `STING_GATE_QA_STATUS_INT` off the tagged element. In
+> Revit a tag *label* can display a host element's parameter, but a **visibility formula cannot
+> read one** - it is evaluated in the family's own parameter context. See
+> `UNIVERSAL_TAG_CONFORMANCE.md` §2.5(a), and `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` P1, which has
+> said "do NOT build status-badge glyphs" since before this sheet was written.
+>
+> **Status is delivered by the Status Register instead** - the `Status_Register` command, a
+> colour-coded Excel export - not in the tag.
+>
+> This does **not** affect the 65 label rows. Those are label *calculated values*, which read
+> host parameters legitimately; only the badge *visibility* formulas are impossible.
+>
+> If you already built badge glyphs: delete them and the six `vis_*` family parameters before
+> propagating, or all 206 families inherit geometry that can never display.
+
+### (retained for the record - do not action)
+
 
 Two badges: LEFT = data-completeness gate, RIGHT = QA / sign-off gate. When warnings are turned on, each shows green/amber/red; hidden otherwise and optional on print.
 
