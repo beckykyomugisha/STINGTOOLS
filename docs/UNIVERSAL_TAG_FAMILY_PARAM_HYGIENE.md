@@ -229,3 +229,55 @@ which is why it is a warning and not a fix.
 to align to, so a Migrate run after a propagation puts the gate back. That is defensible for
 what Migrate is for — bringing an arbitrary family up to the standard set — but it means
 **propagation is the last step, not Migrate**.
+
+---
+
+## 7 · Depth tier 3 dropped from the variant catalogue
+
+Decided 2026-09-17, resolving the choice left open in §6: **drop `_T3`** rather than add T3
+rows to the label.
+
+`tag_style_catalogue.json` offered 14 standard variants, 8 of them at depth 3. With no T3
+rows in the 65-row label and no `TAG_PARA_STATE_3_BOOL` in the master, each `_T3` variant
+drew exactly what its `_T2` sibling drew while reporting `TAG_DEPTH_TIER_INT = 3`.
+
+Every depth-3 variant was **retargeted to depth 2, keeping its size, style, colour and
+arrowhead** — so nothing was removed from the offering, including the disciplinary colours.
+Two rows became duplicates of an existing depth-2 row and were dropped: 14 variants → **12**,
+across the same 11 distinct style combinations.
+
+```
+2_NOM_BLACK_None_T1              2.5_BOLD_GREEN_ArrowFilled30_T2
+2_NOM_BLACK_None_T2              2.5_BOLD_RED_ArrowFilled30_T2
+2.5_NOM_BLACK_ArrowFilled30_T2   2.5_NOM_BLACK_ArrowOpen30_T2
+2.5_BOLD_BLUE_ArrowFilled30_T2   2_ITALIC_PURPLE_DotFilled_T2
+2.5_BOLD_ORANGE_ArrowFilled30_T2 3_NOM_BLACK_None_T1
+3_BOLD_BLACK_ArrowFilled30_T2    3.5_BOLD_BLACK_ArrowFilled30_T2
+```
+
+Also moved off depth 3: the five `defaults_per_discipline` entries that used it (M, E, P, S,
+FP), the `DepthTier` default on both `DisciplineDefault` and `TypeVariantSpec`, and the
+`?? 3` fallback used when a catalogue row omits `depth_tier`. A code default of 3 would have
+quietly re-created the problem for any caller that did not name a tier.
+
+**`depth_tiers` in the catalogue still lists 1-10, deliberately.** That is the vocabulary
+`Set depth` accepts, not the variant set; depth 3 remains a legal depth that simply renders
+like 2 until the label has T3 rows.
+
+### The residue
+
+`TagTypeVariantWriter` only ever adds types, so families already propagated keep their
+`_T3` types alongside the new `_T2` ones — which is the very "two types that look like a
+choice" this change removes. It now names them rather than deleting them:
+
+```
+TagTypeVariantWriter: 3 existing type(s) are not in the catalogue and were left
+alone: 2_NOM_BLACK_None_T3, 2.5_NOM_BLACK_ArrowFilled30_T3, … Purge Unused
+removes any with no tags placed on them.
+```
+
+Deleting a type takes any tag placed on it with it, so that stays the operator's call.
+
+**To re-add T3 later**, add the T3 rows to the master's label first, then
+`TAG_PARA_STATE_3_BOOL` to the master, then restore the depth-3 rows here — in that order.
+The gate before the rows produces exactly the state this section removed.

@@ -103,7 +103,7 @@ namespace StingTools.Tags
         // every size/style/colour combination as label rows and one BOOL selects
         // the visible one. The universal tag instead expresses style through TYPE
         // VARIANTS (TagStyleCatalogue.TypeVariantSpec.CanonicalTypeName, e.g.
-        // "2.5_BOLD_RED_Filled30_T3"), so the matrix is CORRECTLY absent and
+        // "2.5_BOLD_RED_Filled30_T2"), so the matrix is CORRECTLY absent and
         // scoring it as missing penalised the family for being right.
         // K-11f: the second entry read "TAG_3_BOLD_BLUE_BOOL" — an underscore after
         // the 3 that the declaration does not have. MR_PARAMETERS.txt declares

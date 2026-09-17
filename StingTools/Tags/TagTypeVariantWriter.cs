@@ -50,6 +50,25 @@ namespace StingTools.Tags
             foreach (FamilyType ft in fm.Types)
                 if (ft != null && !string.IsNullOrEmpty(ft.Name)) existingTypes.Add(ft.Name);
 
+            // Types the family has that the catalogue no longer asks for. This writer
+            // only ever ADDS, so a catalogue change leaves the old names behind: when
+            // depth tier 3 was dropped on 2026-09-17, every family already propagated
+            // kept its _T3 types alongside the new _T2 ones - two types that look like
+            // a choice, which is the problem the drop was meant to remove.
+            //
+            // Named, not deleted. A type may have tags placed on it, and deleting it
+            // would take them with it; that is the operator's call via Purge Unused.
+            var wanted = new HashSet<string>(
+                variants.Select(v => v.CanonicalTypeName), StringComparer.OrdinalIgnoreCase);
+            var stale = existingTypes.Where(n => !wanted.Contains(n))
+                                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                                     .ToList();
+            if (stale.Count > 0)
+                StingLog.Info($"TagTypeVariantWriter: {stale.Count} existing type(s) are not in the " +
+                              "catalogue and were left alone: " + string.Join(", ", stale.Take(12)) +
+                              (stale.Count > 12 ? $", +{stale.Count - 12} more" : "") +
+                              ". Purge Unused removes any with no tags placed on them.");
+
             foreach (var spec in variants)
             {
                 string typeName = spec.CanonicalTypeName;
