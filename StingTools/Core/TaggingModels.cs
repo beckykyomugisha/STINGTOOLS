@@ -319,6 +319,31 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Elements whose CONTAINER write threw. Distinct from a token write failing:
+        /// the tag and its tokens are fine, but the 53 discipline containers assembled
+        /// from them are not. Counted so it reaches the report instead of living only
+        /// in the log, where 175 of them were sitting uninvestigated.
+        /// </summary>
+        public int ContainerWriteFailureCount { get; private set; }
+
+        public readonly Dictionary<string, int> ContainerWriteFailuresByCategory =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>First distinct exception messages seen, for the report.</summary>
+        public readonly List<string> ContainerWriteFailureSamples = new List<string>();
+
+        public void RecordContainerWriteFailure(string categoryName, string message)
+        {
+            ContainerWriteFailureCount++;
+            Increment(ContainerWriteFailuresByCategory,
+                string.IsNullOrWhiteSpace(categoryName) ? "(unknown category)" : categoryName);
+            if (string.IsNullOrEmpty(message)) return;
+            if (ContainerWriteFailureSamples.Count < 3
+                && !ContainerWriteFailureSamples.Contains(message))
+                ContainerWriteFailureSamples.Add(message);
+        }
+
         public void RecordWarning(string warning)
         {
             if (Warnings.Count < 100)
@@ -342,6 +367,16 @@ namespace StingTools.Core
                     sb.AppendLine($"                  {sample}");
                 if (IncompleteTagCount > IncompleteSamples.Count)
                     sb.AppendLine($"                  … +{IncompleteTagCount - IncompleteSamples.Count:N0} more");
+            }
+            if (ContainerWriteFailureCount > 0)
+            {
+                sb.AppendLine($"  CONTAINERS:   {ContainerWriteFailureCount:N0} element(s) threw while writing the discipline containers");
+                foreach (var kv in ContainerWriteFailuresByCategory.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"                  {kv.Key} x {kv.Value:N0}");
+                foreach (var m in ContainerWriteFailureSamples)
+                    sb.AppendLine($"                  \"{m}\"");
+                sb.AppendLine("                  The tag is written; the containers are not. Full stack trace");
+                sb.AppendLine("                  is in the StingTools log.");
             }
             if (TokenWriteFailureCount > 0)
             {

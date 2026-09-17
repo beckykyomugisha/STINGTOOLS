@@ -2808,8 +2808,13 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
-                stats?.RecordWarning($"Element {el.Id}: container write failed — {ex.Message}");
+                // CONTAINER-1: this logged a bare message, swallowed the exception and
+                // reported nothing to the user, so 175 of these sat in a log unread and
+                // undiagnosable — no stack trace, no category, no count in the report.
+                // The failure is still non-fatal (the tag itself is already written), but
+                // it is now visible and traceable.
+                StingLog.Error($"Container write failed for {el.Id} (category '{catName}')", ex);
+                stats?.RecordContainerWriteFailure(catName, ex.Message);
             }
 
             // ── Auto-initialize display BOOLs (v5.6) ─────────────────────────
