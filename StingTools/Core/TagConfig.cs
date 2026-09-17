@@ -1685,10 +1685,59 @@ namespace StingTools.Core
         /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
         /// For categories with multiple valid systems (e.g., Pipes), returns the first match.
         /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
+        /// <summary>
+        /// SYS code for a category when nothing element-specific is known (SYSAMB-1).
+        ///
+        /// 25 categories are legitimately listed under more than one system code, and for
+        /// most of them that is correct: `Pipes` really can be DCW, DHW, FP, GAS, HVAC, HWS,
+        /// RWD or SAN, and `GetMepSystemAwareSysCode` resolves it per element from the MEP
+        /// system. This is the FALLBACK for when that fails.
+        ///
+        /// It used to return `list[0]` — the first key encountered iterating a Dictionary,
+        /// which C# does not contract. Every remaining ambiguity is an OVERLAY system sitting
+        /// on top of a primary discipline: LPS (lightning protection) is listed against
+        /// Walls, Roofs, Gutters, Structural Rebar, Conduits and Electrical Equipment,
+        /// because any of those CAN carry lightning protection. If LPS had happened to be
+        /// enumerated first, every wall in the model would have tagged as lightning
+        /// protection — and nothing would have said so.
+        ///
+        /// So an overlay never wins the fallback. Lightning protection is asserted per
+        /// element (that is what `LpsMarkElementTypesCommand` is for); it is never the
+        /// default reading of a wall.
+        /// </summary>
+        private static readonly HashSet<string> _overlaySysCodes =
+            new HashSet<string>(StringComparer.Ordinal) { "LPS" };
+
+        private static readonly HashSet<string> _ambiguityReported =
+            new HashSet<string>(StringComparer.Ordinal);
+
         public static string GetSysCode(string categoryName)
         {
             var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out var list) && list.Count > 0 ? list[0] : string.Empty;
+            if (!reverse.TryGetValue(categoryName, out var list) || list.Count == 0)
+                return string.Empty;
+
+            if (list.Count == 1) return list[0];
+
+            string chosen = null;
+            foreach (string code in list)
+            {
+                if (!_overlaySysCodes.Contains(code)) { chosen = code; break; }
+            }
+            if (chosen == null) chosen = list[0];   // all overlays — honour the declaration
+
+            // Once per category per session, not once per element. At batch-tag volume the
+            // per-element version would be the noise that hid the one real fault in TAGLOG-1.
+            lock (_ambiguityReported)
+            {
+                if (_ambiguityReported.Add(categoryName))
+                    StingLog.Info(
+                        $"SysMap: '{categoryName}' is listed under {list.Count} system codes "
+                        + $"({string.Join("/", list)}); no element context was available, so "
+                        + $"'{chosen}' was used. Element-specific codes come from "
+                        + "GetMepSystemAwareSysCode or an explicit ASS_SYSTEM_TYPE_TXT.");
+            }
+            return chosen;
         }
 
         /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>

@@ -453,7 +453,8 @@ namespace StingTools.Core
                 { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment" } },
                 { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
-                { "FP", new List<string> { "Sprinklers", "Fire Protection", "Fire Alarm Devices", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                // SYSAMB-1: "Fire Alarm Devices" removed - detection is FLS, not suppression.
+                { "FP", new List<string> { "Sprinklers", "Fire Protection", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Electrical Connectors", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings", "MEP Fabrication Containment" } },
                 // Lightning Protection — BS EN 62305. LPS-bearing elements may be modelled as
                 // Electrical Equipment (SPDs, test clamps), Generic Models (rods, mesh, ring earth),
@@ -476,7 +477,10 @@ namespace StingTools.Core
                         // Architectural reuse — natural air termination (BS EN 62305-3 §5.2.5)
                         "Roofs", "Walls", "Curtain Wall Mullions", "Wall Sweeps", "Fascia", "Gutter", "Roof Soffits"
                     } },
-                { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
+                // SYSAMB-1: "Fire Protection" removed - that Revit category is suppression
+                // equipment and belongs to FP. FLS was otherwise a strict SUBSET of
+                // FP, so which code an element got depended on Dictionary order.
+                { "FLS", new List<string> { "Fire Alarm Devices" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
                 { "NCL", new List<string> { "Nurse Call Devices" } },

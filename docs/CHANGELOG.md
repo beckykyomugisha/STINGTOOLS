@@ -226,6 +226,34 @@ dedups. And `GetSysCode` resolves an ambiguous category by returning `list[0]` �
 key encountered iterating a `Dictionary`, an order C# does not contract; 27 categories are
 ambiguous, `Pipes` under all eight water/air codes.
 
+**Closing the three that had been reported rather than fixed.** Each needed a different
+answer, and only one of the three was really about the rows.
+
+*CATBIND-2 — the defect was the silence.* 85 category names resolve to no Revit category and
+their 242 binding rows are discarded on every load. Mapping them would mean guessing, and
+binding a parameter to the wrong category is worse than leaving it unbound — so the rows
+stay. What changed is that the loader now says so: **one summary line** naming the count,
+the distinct names and a sample. One line, not 242, because per-row warnings at that volume
+are precisely the noise that hid the single real fault in TAGLOG-1. This silence is why an
+ordinary singular/plural typo survived long enough to cost 29 bindings.
+
+*CATBIND-3 — checked before deleting.* 207 duplicate rows removed, 19,616 → 19,409. **0 of
+the duplicate pairs disagreed with each other**, which is what made the deletion safe; a pair
+with different scopes would have been a conflict to resolve, not noise to tidy.
+
+*SYSAMB-1 — two problems under one symptom.* `FLS` was a strict **subset** of `FP` — both
+`Fire Alarm Devices` and `Fire Protection` sat in each — so which code an element received
+depended on `Dictionary` enumeration order. Split on the domain line: detection is FLS,
+suppression is FP, 27 ambiguous categories → 25.
+
+The remaining 25 are genuine, and every one is an **overlay**: `LPS` is listed against Walls,
+Roofs, Gutters, Structural Rebar, Conduits and Electrical Equipment because any of those
+*can* carry lightning protection. `GetSysCode` returned `list[0]`. **Had LPS happened to
+enumerate first, every wall in the model would have tagged as lightning protection — and
+nothing would have said so.** An overlay now never wins the fallback; lightning protection is
+asserted per element by `LpsMarkElementTypesCommand`, never assumed to be the default reading
+of a wall. Ambiguous resolutions log once per category per session.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
