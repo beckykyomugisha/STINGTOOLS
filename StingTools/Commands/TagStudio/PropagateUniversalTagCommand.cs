@@ -250,6 +250,37 @@ namespace StingTools.Commands.TagStudio
                 }
             }
 
+            // ── Pre-flight: is any target open in the Family Editor? ──
+            // Revit will not load a family while a document for it is open, and it
+            // refuses by returning false with NO failure message - the 21:02 run
+            // spent 90 seconds cloning, adding 138 parameters and minting 14 type
+            // variants before hitting that wall. Cheap to ask first.
+            {
+                var openTargets = targets
+                    .Select(t => new { Name = t.Name, Doc = FindOpenFamilyDocument(app, t.Name, null) })
+                    .Where(x => x.Doc != null)
+                    .ToList();
+                if (openTargets.Count > 0)
+                {
+                    string names = string.Join("\n  • ", openTargets.Select(x => x.Name));
+                    StingLog.Warn($"PropagateUniversalTag: aborted - {openTargets.Count} target(s) open in the " +
+                                  $"Family Editor: {string.Join(", ", openTargets.Select(x => x.Name))}");
+
+                    var openDlg = new TaskDialog("Propagate Universal Tag");
+                    openDlg.MainInstruction = openTargets.Count == 1
+                        ? "A target family is open in the Family Editor - nothing was propagated."
+                        : $"{openTargets.Count} target families are open in the Family Editor - nothing was propagated.";
+                    openDlg.MainContent =
+                        "  • " + names + "\n\n" +
+                        "Revit will not load a family while a document for it is open, and it says nothing " +
+                        "when it refuses - the load just fails.\n\n" +
+                        "Close those family tabs (Load into Project and Close, or close without saving) and re-run.";
+                    openDlg.CommonButtons = TaskDialogCommonButtons.Close;
+                    openDlg.Show();
+                    return Result.Cancelled;
+                }
+            }
+
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
             int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0;
@@ -515,8 +546,23 @@ namespace StingTools.Commands.TagStudio
                         result.ErrorMessage = $"SaveAs failed: {saveEx.Message}";
                         StingLog.Warn($"{targetName}: SaveAs failed: {saveEx.Message}");
                     }
-                    famDoc.Close(false);
+                    // Document.Close returns FALSE when Revit will not close the
+                    // document, and that return was discarded. A clone that stays
+                    // open is a family document named after the TARGET, and Revit
+                    // refuses to load a family while a document for it is open -
+                    // returning a bare false with no failure message, which is
+                    // precisely what the 21:02 run reported.
+                    bool closedOk;
+                    try { closedOk = famDoc.Close(false); }
+                    catch (Exception closeEx)
+                    {
+                        closedOk = false;
+                        StingLog.Warn($"{targetName}: closing the clone threw: {closeEx.Message}");
+                    }
                     famDoc = null;
+                    if (!closedOk)
+                        StingLog.Warn($"{targetName}: the clone document did not close - " +
+                                      "it is still open under the target's name and will block the load");
 
                     if (!savedOk)
                     {
@@ -550,9 +596,25 @@ namespace StingTools.Commands.TagStudio
                     {
                         TryDeleteTempDir(tempDir);
                         string why = loadFailures.Summary() ?? loadThrew;
+                        if (why == null)
+                        {
+                            // A refused load with no failure message has one common
+                            // cause: a document for this family is open in the
+                            // session. Revit will not overwrite a family it is
+                            // editing, and says nothing. Look, rather than guess.
+                            Document openDoc = FindOpenFamilyDocument(app, targetName, null);
+                            if (openDoc != null)
+                                why = $"'{targetName}' is open in the Family Editor " +
+                                      $"({openDoc.PathName ?? openDoc.Title}). Revit will not load a family " +
+                                      "while a document for it is open. Close that tab (or Load into Project " +
+                                      "and Close) and re-run.";
+                            else if (!closedOk)
+                                why = "the clone document could not be closed, so it was still open under " +
+                                      "this family's name when the load was attempted.";
+                        }
                         result.ErrorMessage = why == null
                             ? "LoadFamily back into project failed, and Revit reported no failure message. " +
-                              "Check the shared-parameter pre-flight log line for this run."
+                              "No document for this family is open either - see the log for the pre-flight line."
                             : $"LoadFamily back into project failed: {why}";
                         StingLog.Warn($"PropagateUniversalTag: '{targetName}' load refused — {result.ErrorMessage}");
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after load fail: {rbEx.Message}"); }
@@ -600,6 +662,32 @@ namespace StingTools.Commands.TagStudio
             if (string.IsNullOrEmpty(familyName)) return false;
             return familyName.IndexOf(".rfa.sting-propagate-", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    familyName.IndexOf(".rfa.sting-migrate-", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// An open family document whose file name matches <paramref name="familyName"/>,
+        /// or null. Revit refuses to load a family while a document for it is open, and
+        /// reports nothing when it does, so this is the difference between a named cause
+        /// and a shrug.
+        /// </summary>
+        internal static Document FindOpenFamilyDocument(
+            Autodesk.Revit.ApplicationServices.Application app, string familyName, Document exclude)
+        {
+            if (app == null || string.IsNullOrEmpty(familyName)) return null;
+            try
+            {
+                foreach (Document d in app.Documents)
+                {
+                    if (d == null || !d.IsFamilyDocument) continue;
+                    if (exclude != null && ReferenceEquals(d, exclude)) continue;
+                    // Title carries the file name (with or without .rfa depending on
+                    // version); PathName is empty for a document opened by EditFamily.
+                    string bare = Path.GetFileNameWithoutExtension(d.Title ?? "");
+                    if (string.Equals(bare, familyName, StringComparison.OrdinalIgnoreCase)) return d;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FindOpenFamilyDocument('{familyName}'): {ex.Message}"); }
+            return null;
         }
 
         private static void TryDeleteTempDir(string dir)
