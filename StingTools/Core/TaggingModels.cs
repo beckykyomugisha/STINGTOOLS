@@ -287,15 +287,35 @@ namespace StingTools.Core
         public readonly Dictionary<string, int> TokenWriteFailuresByParam =
             new Dictionary<string, int>(StringComparer.Ordinal);
 
-        public void RecordTokenWriteFailure(long elementId, IEnumerable<string> paramNames)
+        /// <summary>Categories the failures fell in, with an element count each.</summary>
+        public readonly Dictionary<string, int> TokenWriteFailuresByCategory =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// category -> (parameter -> element count). The pair is what an operator acts
+        /// on: a binding is repaired for one parameter ON one category, so a report that
+        /// names only the parameter still leaves them hunting for where.
+        /// </summary>
+        public readonly Dictionary<string, Dictionary<string, int>> TokenWriteFailureDetail =
+            new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        public void RecordTokenWriteFailure(long elementId, string categoryName, IEnumerable<string> paramNames)
         {
             TokenWriteFailureCount++;
+            string cat = string.IsNullOrWhiteSpace(categoryName) ? "(unknown category)" : categoryName;
+            Increment(TokenWriteFailuresByCategory, cat);
             if (paramNames == null) return;
+
+            if (!TokenWriteFailureDetail.TryGetValue(cat, out var byParam))
+            {
+                byParam = new Dictionary<string, int>(StringComparer.Ordinal);
+                TokenWriteFailureDetail[cat] = byParam;
+            }
             foreach (string p in paramNames)
             {
                 if (string.IsNullOrEmpty(p)) continue;
-                TokenWriteFailuresByParam.TryGetValue(p, out int n);
-                TokenWriteFailuresByParam[p] = n + 1;
+                Increment(TokenWriteFailuresByParam, p);
+                Increment(byParam, p);
             }
         }
 
@@ -326,10 +346,20 @@ namespace StingTools.Core
             if (TokenWriteFailureCount > 0)
             {
                 sb.AppendLine($"  NOT WRITTEN:  {TokenWriteFailureCount:N0} element(s) tagged, but a token PARAMETER could not be written");
-                foreach (var kv in TokenWriteFailuresByParam.OrderByDescending(k => k.Value))
-                    sb.AppendLine($"                  {kv.Key} × {kv.Value:N0}");
-                sb.AppendLine("                  The tag is correct; the parameter is not. Cause: bound to the");
-                sb.AppendLine("                  TYPE, or not bound to this category (Manage > Project Parameters).");
+                // Grouped by CATEGORY, because that is the unit of repair: a binding is
+                // fixed for one parameter ON one category. Naming only the parameter
+                // leaves the operator hunting for where, which is the same half-answer
+                // the old "run FamilyStagePopulate" line gave.
+                foreach (var cat in TokenWriteFailuresByCategory.OrderByDescending(c => c.Value))
+                {
+                    sb.AppendLine($"                  {cat.Key} — {cat.Value:N0} element(s)");
+                    if (!TokenWriteFailureDetail.TryGetValue(cat.Key, out var byParam)) continue;
+                    foreach (var kv in byParam.OrderByDescending(k => k.Value))
+                        sb.AppendLine($"                    {kv.Key} × {kv.Value:N0}");
+                }
+                sb.AppendLine("                  The tag is correct; the parameter is not. Fix per category in");
+                sb.AppendLine("                  Manage > Project Parameters: each must be an INSTANCE parameter");
+                sb.AppendLine("                  and must include that category.");
             }
             if (RefusedTagCount > 0)
             {

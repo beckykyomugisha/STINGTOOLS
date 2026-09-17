@@ -16,15 +16,8 @@ namespace StingTools.Core
     /// <summary>
     /// Controls how tag collisions (duplicate tags) are handled during tagging operations.
     /// </summary>
-    public enum TagCollisionMode
-    {
-        /// <summary>Auto-increment SEQ until a unique tag is found (default).</summary>
-        AutoIncrement,
-        /// <summary>Skip elements that already have a complete tag — do not modify.</summary>
-        Skip,
-        /// <summary>Overwrite existing tags with newly generated values.</summary>
-        Overwrite,
-    }
+    // TagCollisionMode enum relocated to Core/TagCollisionMode.cs (same namespace) so
+    // it can be used without dragging in this Revit-bound file. Same move as SeqScheme.
 
     // SeqScheme enum relocated to Core/SeqAssigner.cs (same namespace) alongside
     // the pure sequence-assignment logic it parameterises.
@@ -2637,7 +2630,7 @@ namespace StingTools.Core
                         if (string.IsNullOrEmpty(readBack[i]) && !string.IsNullOrEmpty(derivedTokens[i]))
                             failedParams.Add(i < tokenParams.Length ? tokenParams[i] : $"token[{i}]");
                     }
-                    stats?.RecordTokenWriteFailure(el.Id.Value, failedParams);
+                    stats?.RecordTokenWriteFailure(el.Id.Value, catName, failedParams);
                     int n = System.Threading.Interlocked.Increment(ref _tokenWriteFailureCount);
                     if (n <= 5 || n % 250 == 0)
                         StingLog.Warn(
