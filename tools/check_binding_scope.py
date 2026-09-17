@@ -153,6 +153,63 @@ def write_targets():
     return targets
 
 
+def category_near_misses(rows):
+    """Binding categories that ALMOST resolve to a Revit category.
+
+    `SharedParamGuids.LoadPerParamCategoryBindings` does this:
+
+        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out enumStr)) continue;
+
+    A category name the map does not know is skipped — no log line, no error, the binding
+    simply never happens. 89 of the 194 category names in the CSV were in that state.
+
+    Most are spec-family names ("Clinical Room", "LPS Air Terminal", "MEP Sheet") that were
+    never Revit categories, and guessing a category for those would be worse than leaving
+    them. But FOUR were singular where Revit is plural, and those are unambiguous typos that
+    silently dropped 29 binding rows:
+
+        Structural Connection  -> Structural Connections   (10)
+        Curtain Wall Mullion   -> Curtain Wall Mullions     (7)
+        Curtain Panel          -> Curtain Panels            (6)
+        Railing                -> Railings                  (6)
+
+    They are the same four categories the label-spec audit flagged as tagged-but-unspecified,
+    which is what a category that half-exists looks like from two directions.
+
+    This flags only case-only and singular/plural near-misses, where the intent is not in
+    doubt. A name with no near match is left alone and reported as a count.
+    """
+    reg = json.load(io.open(REG, encoding='utf-8-sig'))
+    cem = reg.get('category_enum_map') or {}
+    if len(cem) < 50:
+        raise SystemExit('Parsed %d CategoryEnumMap entries — too few to compare against.'
+                         % len(cem))
+    lower = dict((k.lower(), k) for k in cem)
+
+    near, unknown = [], set()
+    for raw in rows:
+        if not raw.strip() or raw.startswith('#'):
+            continue
+        c = raw.split(',')
+        if len(c) < 2:
+            continue
+        param, cat = c[0].strip(), c[1].strip()
+        if not cat or not param or param.lower() == 'parameter_name':
+            continue
+        if cat in cem or cat == 'Materials':
+            continue
+        lc = cat.lower()
+        if lc in lower:
+            near.append((cat, lower[lc]))
+        elif lc + 's' in lower:
+            near.append((cat, lower[lc + 's']))
+        elif lc.endswith('s') and lc[:-1] in lower:
+            near.append((cat, lower[lc[:-1]]))
+        else:
+            unknown.add(cat)
+    return sorted(set(near)), len(unknown)
+
+
 def audit():
     targets = write_targets()
     rows = io.open(BIND, encoding='utf-8-sig').read().split('\n')
@@ -195,6 +252,7 @@ def main():
 
     targets, offend, total_type, rows = audit()
     bad = sum(offend.values())
+    near, unknown_cats = category_near_misses(rows)
 
     print('Binding scope')
     print('  per-element write targets derived : %d' % len(targets))
@@ -203,6 +261,12 @@ def main():
           % (bad, len(offend)))
     for p, n in offend.most_common(12):
         print('    %-46s %d' % (p, n))
+
+    print('  category names that resolve to no BuiltInCategory:')
+    print('      near-miss (case / plural) : %d   <-- silently dropped bindings' % len(near))
+    for a, b in near[:10]:
+        print('          %-34s -> %s' % (a, b))
+    print('      no near match (spec families, reported) : %d' % unknown_cats)
 
     if do_fix:
         out, n = fix(rows, targets)
@@ -234,6 +298,13 @@ def main():
 
     allowed = json.load(io.open(BASELINE, encoding='utf-8-sig')).get('bad_rows', 0)
     print('\n  baseline                          : %d' % allowed)
+
+    if near:
+        print('\nBINDING CATEGORY GATE FAILED — %d near-miss category name(s).' % len(near))
+        print('A category name CategoryEnumMap does not know is skipped by the binder with')
+        print('no log line: the binding simply never happens. These are unambiguous — fix')
+        print('the name in CATEGORY_BINDINGS.csv to the Revit spelling on the right.')
+        return 1 if check else 0
 
     if bad > allowed:
         print('\nBINDING SCOPE GATE FAILED — %d new row(s).' % (bad - allowed))

@@ -197,6 +197,35 @@ multi-letter, so unlike `G` and `H` they cannot collide with the single-letter r
 already compliant; changing the internal codes would lose the system distinction STING routes
 on and gain nothing. What is left is a sentence in the BEP, not a migration.
 
+**A third sweep, and the gate stopped me making it worse.** `LoadPerParamCategoryBindings`
+skips any category name `CategoryEnumMap` does not know — no log line, the binding simply
+never happens — and **89 of the 194 names in `CATEGORY_BINDINGS.csv` were in that state**.
+Four were singular where Revit is plural, silently dropping 29 binding rows: `Structural
+Connection`, `Curtain Wall Mullion`, `Curtain Panel`, `Railing`. The same four the label-spec
+audit had flagged as tagged-but-unspecified, which is what a half-existing category looks
+like from two directions.
+
+Renaming them in the CSV was the obvious fix, and it was wrong: `check_tag_row_bindings`
+went red immediately, because `LABEL_DEFINITIONS.json` and the schedule spec key off the
+**singular** names. The rename would have killed 29 tag rows and 25 schedule columns to save
+29 bindings. Fixed instead as four aliases in `category_enum_map`, so both spellings resolve
+to the same `BuiltInCategory` and neither consumer moves. **This is the first time this phase
+that an existing gate caught a regression before it shipped** rather than after.
+
+**Checked clean, and recorded so it is not re-audited.** Across 3,604 declared shared
+parameters: **0** GUIDs reused by more than one name, **0** names carrying more than one
+GUID, and **0** disagreements between `PARAMETER_REGISTRY.json` and `MR_PARAMETERS.txt`
+across the 384 registry entries that carry one. The identity layer is sound — worth knowing,
+because a duplicate GUID would make Revit treat two parameters as one.
+
+**Reported rather than changed.** 85 further category names are spec families, not Revit
+categories (`Clinical Room`, `LPS Air Terminal`, `MEP Sleeve`), leaving **242 inert binding
+rows** — some look like they should map, but binding to the wrong category is worse than not
+binding. 206 duplicate (parameter, category) pairs exist and are harmless because the loader
+dedups. And `GetSysCode` resolves an ambiguous category by returning `list[0]` — the first
+key encountered iterating a `Dictionary`, an order C# does not contract; 27 categories are
+ambiguous, `Pipes` under all eight water/air codes.
+
 **Verification.** Build 0 errors / 0 warnings. `StingTools.Tags.Tests` 1,542 passed, 0
 failed. Seven gates green (one of which needed fixing after it passed a defect this phase introduced), `check_binding_scope` and `check_token_separator_safety` each
 proven RED before GREEN. `RESOLVED_BINDINGS.csv` regenerates to a no-op (it records
