@@ -195,3 +195,64 @@ The 19:41 run, in full:
 **Nothing in the smoke test has been invalidated.** V2 — whether recategorising preserves
 the 65 label rows — is still unproven, because the run never reached a loaded family.
 Re-run it once the master loads cleanly.
+
+---
+
+## 7 · MEASURED: the twelve are in ~188 of the families, not in the master
+
+Run 2026-09-18 11:26, Family Conformance Check over the deployed tag library with check (10)
+(each family against `MR_PARAMETERS.txt`) live for the first time. 343 families audited,
+**248 rows carrying a type disagreement**, **152 distinct parameters** wrong-typed across
+**180 families**. The head of the list is the twelve:
+
+| families | parameter | family has | `MR_PARAMETERS.txt` declares |
+|---|---|---|---|
+| **189** | `ASS_CST_UNIT_PRICE_UGX_NR` | string | currency |
+| **188** | `ASS_ELEVATION_M` | string | length |
+| **188** | `PER_EMBODIED_ENERGY_MJ` | string | number |
+| **188** | `PER_EXPECTED_LIFE_YEARS` | string | number |
+| **188** | `PER_RECYCLABILITY_PCT` | string | number |
+| **188** | `PER_REPLACEMENT_COST_UGX` | string | currency |
+| **141** | `ASS_CRITICALITY_RATING_NR` | string | number |
+| **140** | `ASS_CST_STALE_BOOL` | string | bool |
+| 24 | `MNT_HGT_MM` | string | length |
+| 9 | `HVC_DCT_FLW_CFM` | string | number |
+| 5 | `HVC_VEL_MPS` | string | number |
+
+Worst single families: `STING - Electrical Equipment Tag` (38 wrong-typed parameters),
+`STING - Electrical Connectors Tag` (26), `STING - Structural Framing Tag` (20).
+
+### What this overturns
+
+§2 of this document concluded that the remaining source was "the `.rfa` itself" and that no
+static gate could say which files were affected. The first half was right. The second was
+only true of a *static* gate: a check that opens each family **inside Revit** and compares it
+against the declaration answers it exactly, and the answer is that the Text-typed versions
+are in almost the whole library.
+
+So the reading in §1 — that a blank project conflicts because the families race each other —
+is confirmed and can be stated more plainly: **any two families loaded together are likely to
+disagree, because ~188 of them carry these parameters as Text and the declaration says
+numeric.** The master was cleaned by hand on 2026-09-17; that fixed 1 file of 189.
+
+### What it means for the twelve
+
+They cannot be fixed in the master, and they were never a property of the master. Options, in
+increasing cost:
+
+1. **Accept Text everywhere.** Change `MR_PARAMETERS.txt` to declare these as TEXT. One file,
+   and it makes 188 families correct at a stroke — but it retypes parameters that carry real
+   numbers elsewhere (`BOQCostManager` reads `ASS_CST_UNIT_PRICE_UGX_NR` as currency,
+   `ASS_CST_STALE_BOOL` is written as a Yes/No by the cost engine), so it trades a load
+   conflict for a data-model lie. **Not recommended.**
+2. **The `_TXT` display-mirror migration.** What the master already does for rows 22 and 50:
+   each wrong-typed parameter is replaced in the family by a real TEXT mirror carrying the
+   formatted value, and the numeric original stays numeric. Correct, and it is 152 parameters
+   × 180 families of family-editor work unless it is automated — and automating it means
+   removing a shared parameter that label rows reference, which strips those rows.
+3. **Propagate the (clean) master over all 206.** The clone carries the master's parameter
+   set, so a propagated family inherits clean types by construction. This is the cheapest
+   correct route and it is already built — but it is gated on V2, whether recategorising
+   preserves the 65 label rows.
+
+Option 3 is the one to aim at, which makes V2 the next thing to answer, not a formality.

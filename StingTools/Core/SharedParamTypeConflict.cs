@@ -87,14 +87,20 @@ namespace StingTools.Core
         public string ProjectDataType { get; set; }
 
         /// <summary>One line naming the parameter and both sides of the disagreement.</summary>
-        public string Describe()
+        /// <param name="otherSide">
+        /// What the second side IS, for the message. "project holds" by default, because
+        /// the usual comparison is against a project - but the same record is used to
+        /// compare a family against MR_PARAMETERS.txt, and calling the declaration "the
+        /// project" made the headline diagnostic read as if a project were involved.
+        /// </param>
+        public string Describe(string otherSide = "project holds")
         {
             if (Kind == SharedParamConflictKind.NameCollision)
                 return $"{FamilyName} — same name, different GUID " +
-                       $"(family {Short(FamilyGuid)}, project {Short(ProjectGuid)})";
+                       $"(family {Short(FamilyGuid)}, other {Short(ProjectGuid)})";
 
             return $"{FamilyName} — family offers " +
-                   $"{SharedParamConflictDetector.TypeLabel(FamilyDataType)}, project holds " +
+                   $"{SharedParamConflictDetector.TypeLabel(FamilyDataType)}, {otherSide} " +
                    $"{SharedParamConflictDetector.TypeLabel(ProjectDataType)} " +
                    $"(GUID {Short(FamilyGuid)})";
         }

@@ -260,7 +260,19 @@ namespace StingTools.Tags
             // For each of the 4 STING placement params, check that the
             // parameter exists AND is bound by GUID rather than just a name
             // collision. Counts 6 pts per parameter (max 24, rounded to 25).
+            // A TAG has no placement: it is annotation, and the four STING placement
+            // parameters (anchor, offset, side, mounting height) are for the 3D families
+            // the placement engine positions. Scoring them against a tag cost every tag
+            // family 25 points and put all 343 in BLOCK on the 2026-09-18 run - 0 passes,
+            // which told the operator nothing and buried the findings that mattered.
             int placePts = 0;
+            if (is2D || catName.IndexOf("Tags", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                placePts = 25;   // not applicable, not a failure
+                row.Warnings.Add("Placement params N/A — an annotation family is not positioned by " +
+                                 "the placement engine, so anchor/offset/side/mounting-height are not expected.");
+            }
+            else
             foreach (var name in PlacementParams)
             {
                 if (!paramsByName.TryGetValue(name, out var fp))
@@ -437,7 +449,7 @@ namespace StingTools.Tags
                     var wrongTyped = SharedParamConflictDetector.Detect(
                         SharedParamPreflight.CollectFamily(fm), declaredSide);
                     foreach (var c in wrongTyped)
-                        row.Missing.Add("DISAGREES WITH MR_PARAMETERS: " + c.Describe());
+                        row.Missing.Add("DISAGREES WITH MR_PARAMETERS: " + c.Describe("MR_PARAMETERS declares"));
                     if (wrongTyped.Count > 0) loadBlocked = true;
                 }
                 catch (Exception ex) { row.Warnings.Add($"Declaration type check: {ex.Message}"); }
@@ -495,7 +507,14 @@ namespace StingTools.Tags
                 string folder = PickFolder(uiApp);
                 if (string.IsNullOrEmpty(folder)) return Result.Cancelled;
 
+                // Seeds\ holds 137 obsolete families the repo deleted and the code no
+                // longer probes (TagFamilyCreatorCommand: "A 'Seeds/' sub-folder is
+                // deliberately NOT probed"). Auditing them inflated the 2026-09-18 run
+                // from 206 families to 343 and every finding in it was about a family
+                // nothing loads. _precategory_ folders are this tool-chain's own backups.
                 var rfas = Directory.EnumerateFiles(folder, "*.rfa", SearchOption.AllDirectories)
+                                    .Where(p => p.IndexOf(@"\Seeds\", StringComparison.OrdinalIgnoreCase) < 0 &&
+                                                p.IndexOf("_precategory", StringComparison.OrdinalIgnoreCase) < 0)
                                     .ToList();
                 if (rfas.Count == 0)
                 {
@@ -565,7 +584,7 @@ namespace StingTools.Tags
                 }
 
                 // Write CSV.
-                string outDir = ResolveOutputDir(commandData);
+                string outDir = ResolveOutputDirViaHelper(commandData);
                 string outPath = Path.Combine(outDir,
                     $"FamilyConformanceReport_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 WriteCsv(outPath, rows);
@@ -602,6 +621,22 @@ namespace StingTools.Tags
             {
                 StingLog.Warn($"FamilyConformanceCheck PickFolder: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Where the report goes. Routed through OutputLocationHelper like every other
+        /// STING export: this had its own fallback straight to Path.GetTempPath(), which
+        /// under Revit is a PER-SESSION GUID folder, so the 2026-09-18 report landed in
+        /// …\Temp\fceeb91e-…\ and stops resolving when Revit closes.
+        /// </summary>
+        private static string ResolveOutputDirViaHelper(ExternalCommandData cd)
+        {
+            try { return OutputLocationHelper.GetOutputDirectory(ParameterHelpers.GetDoc(cd)); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FamilyConformanceCheck: output dir: {ex.Message}");
+                return ResolveOutputDir(cd);
             }
         }
 
