@@ -95,7 +95,9 @@ faster to close the tab.
 
 ## 2 · Run
 
-1. **TAG STUDIO → Propagate Universal.**
+1. **CREATE TAGS tab → “Advanced setup, schema & migration” expander → Propagate Universal.**
+   (Not TAG STUDIO — this doc said so until 2026-09-18 and it was wrong. Full button
+   map: [UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md §0](UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md).)
 2. **Master picker.** The universal master is pre-highlighted. **Press OK without clicking
    any row.** Clicking a highlighted row in a multi-select list *un*-highlights it.
    - Pick anything that does not look like a universal master and you get a challenge naming
@@ -214,7 +216,7 @@ Place the tag on a duct. It reads `ASS_TAG_1_TXT` and renders. No "could not loa
 broken-tag glyph.
 
 ### V7 · Status register
-Stamp Gates → **Status Register**. The duct appears colour-coded on the Data and QA gate
+**CREATE TAGS → “Advanced setup, schema & migration” → Stamp Gates**, then **Status Register** (same expander). The duct appears colour-coded on the Data and QA gate
 columns. **There is nothing to check inside the tag** — in-tag status badges are abandoned
 (a visibility formula cannot read the tagged element's parameters).
 
@@ -269,7 +271,7 @@ In this order:
 | 10-of-14 (now fewer) arrowhead warnings | `Arrow Filled 30`, `Arrow Open 30`, `Dot Filled` do not exist as arrowhead types in this project. Those variants keep their default arrowhead. Create them once in the template, or change the catalogue to name arrowheads that exist |
 | `…_T3` types in already-propagated families | Residue from the catalogue change. Named in the log, left alone on purpose: deleting a type takes any tag placed on it with it |
 | Depth 3 renders like depth 2 | The label has no T3 rows. `depth_tiers` still accepts 1-10 because that is `Set depth`'s vocabulary. To re-add T3: label rows first, then the gate, then the variants |
-| `Migrate Tag Families` re-adds `TAG_PARA_STATE_3_BOOL` | It injects the full standard set and has no master to align to. **Propagation is the last step, not Migrate** |
+| `Migrate Tag Families` (CREATE TAGS → *Advanced setup*) re-adds `TAG_PARA_STATE_3_BOOL` | It injects the full standard set and has no master to align to. **Propagation is the last step, not Migrate** |
 | The master carries ~72 element-data parameters | Hygiene, not a blocker — see `…_FAMILY_PARAM_HYGIENE.md` §2. They are why the family offers 210 shared parameters against a ~138 design |
 
 ---

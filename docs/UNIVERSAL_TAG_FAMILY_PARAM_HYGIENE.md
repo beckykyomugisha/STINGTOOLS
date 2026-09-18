@@ -302,7 +302,7 @@ halves need different answers because they fail for different reasons.
 
 ### The route that works: fix the `.rfa` on disk
 
-`Fix Categories` (`TagFamilyFixCategories` →
+`Fix Categories` (**MODEL** tab → *Advanced family ops* expander; `TagFamilyFixCategories` →
 [`FixTagFamilyCategoriesCommand`](../StingTools/Commands/TagStudio/FixTagFamilyCategoriesCommand.cs))
 opens each family **standalone** with `app.OpenDocumentFile` — no project, no `LoadFamily`,
 so there is nothing to refuse — sets the category declared for it in

@@ -13,6 +13,37 @@ Measured 2026-09-18 against the build deployed 08:26. Companion docs:
 
 ---
 
+## 0 · Where the buttons are
+
+Verified against `StingTools/UI/StingDockPanel.xaml` on 2026-09-18 (line numbers in
+brackets). **The two halves of this job are on different tabs** — the label work is on
+CREATE TAGS, the family work is on MODEL.
+
+| Button | Tab → expander | Tag | Line |
+|---|---|---|---|
+| **Propagate Universal** | **CREATE TAGS** → *Advanced setup, schema & migration* | `Propagate_UniversalTag` | 2409 |
+| Migrate Fams | CREATE TAGS → *Advanced setup, schema & migration* | `MigrateTagFamilies` | 2407 |
+| Stamp Gates | CREATE TAGS → *Advanced setup, schema & migration* | `Gate_StampStatus` | 2410 |
+| Status Register | CREATE TAGS → *Advanced setup, schema & migration* | `Status_Register` | 2411 |
+| Purge (shared params) | CREATE TAGS → *Advanced setup, schema & migration* | `PurgeSharedParams` | 2391 |
+| **Fix Categories** | **MODEL** → *Advanced family ops* | `TagFamilyFixCategories` | 2958 |
+| Conformance | MODEL → *Advanced family ops* | `FamilyConformanceCheck` | 2956 |
+| Swap Category (model families only — refuses tags) | MODEL → *Advanced family ops* | `FamilySwapCategory` | 2952 |
+| Set depth (1-10) | TAGGING → *Advanced tag style engine* | `SetParagraphDepthExt` | 1344 |
+| Depth | CREATE TAGS → *Manual token overrides* | `SetParagraphDepth` | 2497 |
+| Set depth | TAG STUDIO → *Tokens & Depth* sub-tab | `SetParagraphDepth` | 4502 |
+| Set depth | TAG STUDIO → *Tools* sub-tab → *More style ops* | `SetParagraphDepth` | 4806 |
+
+Three buttons dispatch `SetParagraphDepth` and a fourth dispatches the 1-10 variant; any of
+them does the job. **Purge Unused** is Revit's own (Manage → Purge Unused), not a STING
+button — the `Purge` buttons above are a shared-parameter purge and a model compactor, which
+are different things.
+
+Tags are exact and case-sensitive, and they are what `StingCommandHandler` and
+`WorkflowEngine.ResolveCommand` dispatch on, so a preset step uses the Tag column.
+
+---
+
 ## 1 · What each operation actually touches
 
 | | Propagate Universal | Fix Categories |
