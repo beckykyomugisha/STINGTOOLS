@@ -703,14 +703,22 @@ namespace StingTools.Tags
             int warn  = rows.Count(r => r.Verdict == "WARN");
             int block = rows.Count(r => r.Verdict == "BLOCK");
 
-            var bottom = rows.OrderBy(r => r.Score).Take(10).ToList();
+            // BY SEVERITY, then score. Sorting on score alone buried the vetoes: a
+            // vetoed family still carries most of its points, so on the 2026-09-18 12:02
+            // run the BLOCK families scored 89 and the WARN families 79 - and the list
+            // headed "lowest-scoring" showed eight WARNs and two BLOCKs while 141
+            // families that CANNOT BE LOADED sat below the fold. A veto that the summary
+            // ranks underneath a warning is not a veto.
+            int Severity(ConformanceReportRow r) =>
+                r.Verdict == "BLOCK" ? 0 : r.Verdict == "WARN" ? 1 : 2;
+            var bottom = rows.OrderBy(Severity).ThenBy(r => r.Score).Take(10).ToList();
             var sb = new StringBuilder();
             sb.AppendLine($"Audited {total} families:");
             sb.AppendLine($"   PASS  ≥85 :   {pass}");
             sb.AppendLine($"   WARN  70–84:  {warn}");
             sb.AppendLine($"   BLOCK  <70 :  {block}");
             sb.AppendLine();
-            sb.AppendLine("Lowest-scoring (first 10):");
+            sb.AppendLine("Most severe (first 10) — blockers first, then by score:");
             foreach (var r in bottom)
             {
                 sb.AppendLine($"   [{r.Score,3}] {r.Verdict,-5} {r.FamilyName}");
@@ -722,7 +730,9 @@ namespace StingTools.Tags
 
             var td = new TaskDialog("STING Family Conformance")
             {
-                MainInstruction = $"{pass}/{total} families pass; {block} block.",
+                MainInstruction = warn > 0
+                    ? $"{pass}/{total} pass, {warn} warn, {block} block."
+                    : $"{pass}/{total} families pass; {block} block.",
                 MainContent = sb.ToString(),
                 CommonButtons = TaskDialogCommonButtons.Close,
             };
