@@ -62,7 +62,12 @@ namespace StingTools.Tags
         public string ActualCategory { get; set; }
         /// <summary>True when the family's current category differs from the declared one.</summary>
         public bool IsMismatch { get; set; }
-        /// <summary>Why resolution failed, when it did. Null on success.</summary>
+        /// <summary>
+        /// Why resolution failed, or — when it succeeded and
+        /// <see cref="IsMismatch"/> is true — what disagrees with what. Null only
+        /// when resolution succeeded and the family already carries the declared
+        /// category, i.e. when there is nothing to say.
+        /// </summary>
         public string Note { get; set; }
     }
 
@@ -104,16 +109,33 @@ namespace StingTools.Tags
         /// explaining why, so the caller can fall back and report rather than guess.
         /// </summary>
         public static TagCategoryResolution Resolve(Document doc, Family family)
+            => Resolve(doc, family?.Name, family?.FamilyCategory, family == null ? "null family" : null);
+
+        /// <summary>
+        /// Resolve by NAME. Needed because a family document opened standalone does not
+        /// reliably report the file's name through <c>OwnerFamily.Name</c>, and the
+        /// declarations in STING_TAG_CONFIG_v5_0_*.csv are keyed on the name the family
+        /// has as a FILE — which is the same thing Revit uses for a loaded family
+        /// ("a loaded family's project name IS its .rfa FILE name").
+        ///
+        /// <para>Measured 2026-09-18: FixTagFamilyCategories called the Family overload
+        /// for each of 212 standalone-opened .rfa files and got "no Category declared"
+        /// for every one, while 137 of those file names match a declaration exactly. The
+        /// audit therefore reported "0 families would change category" — a clean bill of
+        /// health for a library where most families are mis-categorised.</para>
+        /// </summary>
+        public static TagCategoryResolution Resolve(
+            Document doc, string familyName, Category actualCategory, string nullNote = null)
         {
             var res = new TagCategoryResolution
             {
-                FamilyName = family?.Name ?? "",
-                ActualCategory = family?.FamilyCategory?.Name ?? ""
+                FamilyName = familyName ?? "",
+                ActualCategory = actualCategory?.Name ?? ""
             };
 
-            if (doc == null || family == null)
+            if (doc == null || string.IsNullOrWhiteSpace(familyName))
             {
-                res.Note = "null document or family";
+                res.Note = nullNote ?? (doc == null ? "null document" : "no family name");
                 return res;
             }
 
@@ -137,6 +159,17 @@ namespace StingTools.Tags
 
             res.DeclaredTagCategory = tagCat;
             res.IsMismatch = !string.Equals(res.ActualCategory, tagCat.Name, StringComparison.OrdinalIgnoreCase);
+            if (res.IsMismatch)
+            {
+                // Note was only written on the FAILURE paths above, so a resolved
+                // mismatch — the case callers log — came back with Note null and
+                // printed as "PropagateUniversalTag: 'STING - Duct Tag' — " with
+                // nothing after the dash. Observed 2026-09-17: a warning that
+                // names the family and then says nothing about it.
+                res.Note = $"declared '{tagCat.Name}' (host '{hostCat}') but family carries " +
+                           $"'{(string.IsNullOrEmpty(res.ActualCategory) ? "(none)" : res.ActualCategory)}' " +
+                           "— will be recategorised to the declared category";
+            }
             return res;
         }
 

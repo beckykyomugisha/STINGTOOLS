@@ -2711,7 +2711,7 @@ namespace StingTools.BIMManager
                     // StingCommandHandler.RunCommand<T> passes null for
                     // ExternalCommandData BY DESIGN and says so - commands are
                     // expected to fall back to CurrentApp. This block did not, and
-                    // `commandData.Application` threw an NRE on EVERY login, caught
+                    // `ParameterHelpers.GetApp(commandData)` threw an NRE on EVERY login, caught
                     // below and logged as "non-fatal". It had therefore never run
                     // once (issue #571). The `?.` guarded ActiveUIDocument, which was
                     // never the null one.
@@ -2887,7 +2887,7 @@ namespace StingTools.BIMManager
                 // already drops) so all three "Open Web Dashboard" call sites
                 // agree on the base URL and deep-link the active project's models.
                 string cfgPath = null;   // file isn't in a #nullable context; null is fine here
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc != null)
                     cfgPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc), "planscape_connection.json");
                 string dashboardUrl = PlanscapeServerClient.BuildAppUrlForActiveProject(cfgPath);

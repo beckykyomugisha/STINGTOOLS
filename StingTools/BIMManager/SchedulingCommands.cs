@@ -2532,7 +2532,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc   = uidoc?.Document;
                 if (doc == null)
                 {
@@ -2643,7 +2643,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING — P6 Config", "No active document."); return Result.Cancelled; }
 
                 if (!PlanscapeServerClient.Instance.IsConnected)
@@ -2752,7 +2752,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING — P6 Writeback", "No active document."); return Result.Cancelled; }
 
                 if (!PlanscapeServerClient.Instance.IsConnected)
@@ -2849,7 +2849,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING — P6 Sync", "No active document."); return Result.Cancelled; }
 
                 if (!PlanscapeServerClient.Instance.IsConnected)

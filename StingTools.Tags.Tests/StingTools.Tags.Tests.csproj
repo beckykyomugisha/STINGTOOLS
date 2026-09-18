@@ -63,6 +63,16 @@
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <!-- Why a family refuses to load into a project. Revit-free half only: the
+         collectors that read a FamilyManager and a Document live in
+         Tags/SharedParamPreflight.cs. The comparison is here because every
+         defect in this area is a wrong comparison — above all equating two
+         vocabularies for one spec without equating number and integer. -->
+    <Compile Include="..\StingTools\Core\SharedParamTypeConflict.cs" Link="Core\SharedParamTypeConflict.cs" />
+    <!-- Text an author left for themselves, which propagation would clone into 206
+         families. Revit-free because the risk is the FALSE positive: a real "Note:"
+         annotation flagged forever is how a gate stops meaning anything. -->
+    <Compile Include="..\StingTools\Core\AuthoringNoteMatcher.cs" Link="Core\AuthoringNoteMatcher.cs" />
     <!-- IM Phase 3 warning-snapshot codec: pure JSON + payload shaping, no Revit,
          so the server DTO contract can be asserted without a Revit host. -->
     <Compile Include="..\StingTools\Core\WarningSnapshotFormat.cs" Link="Core\WarningSnapshotFormat.cs" />

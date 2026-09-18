@@ -27,7 +27,14 @@ namespace StingTools.Commands.Electrical
             {
                 outDir = StingPaths.Meta(doc, "_BIM_COORD", "electrical");
             }
-            catch { outDir = Path.Combine(Path.GetTempPath(), "STING", "electrical"); }
+            catch (Exception ex)
+            {
+                // Was Path.Combine(Path.GetTempPath(), "STING", "electrical") - a
+                // per-session folder under Revit, so the exported circuits vanished with
+                // the session and the path in the dialog stopped resolving.
+                StingLog.Warn($"ExportCircuits: project path unavailable, using the shared output location: {ex.Message}");
+                outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            }
 
             CircuitExportResult res;
             try { res = CircuitScheduleExporter.Export(doc, outDir); }

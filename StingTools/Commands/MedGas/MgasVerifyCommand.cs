@@ -21,7 +21,7 @@ namespace StingTools.Commands.MedGas
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
                 // Phase D — honour HcOptions.MgasStep. 0 ⇒ run all 12 steps (legacy
                 // behaviour); 1..12 ⇒ run only that single NFPA 99 §5.1.12 step.

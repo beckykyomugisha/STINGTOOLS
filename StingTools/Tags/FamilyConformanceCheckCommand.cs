@@ -26,7 +26,20 @@ namespace StingTools.Tags
     //      Tag visibility tiers present (when family is tag) ( 10 pts )
     //      Position types Ring 1 / Ring 2 (when family is tag) ( 10 pts )
     //      No obviously-wrong placement type vs category     ( 10 pts )
-    //      Loads cleanly into the target document            ( 10 pts )
+    //      Opened without error                              ( 10 pts )
+    //
+    //  Plus TWO vetoes, scored as no points at all, because a family that cannot
+    //  be loaded is not 90% conformant - it is unusable:
+    //
+    //   (9)  its shared parameters disagree with the OPEN PROJECT's -> it cannot
+    //        load HERE. Needs a project open; without one, reported NOT RUN.
+    //   (10) its shared parameters disagree with MR_PARAMETERS.txt -> it will
+    //        conflict in ANY project that holds the declared types, whichever
+    //        family happens to load first. This is the check that answers why
+    //        the same twelve conflicts reappear in a brand-new project.
+    //
+    //  Both name the parameter and both types. Neither costs points; both force
+    //  BLOCK.
     //
     //  Result is a CSV report at <outputDir>/FamilyConformanceReport_yyyyMMdd_HHmmss.csv
     //  plus a TaskDialog summary listing the lowest-scoring families.
@@ -97,7 +110,7 @@ namespace StingTools.Tags
         // every size/style/colour combination as label rows and one BOOL selects
         // the visible one. The universal tag instead expresses style through TYPE
         // VARIANTS (TagStyleCatalogue.TypeVariantSpec.CanonicalTypeName, e.g.
-        // "2.5_BOLD_RED_Filled30_T3"), so the matrix is CORRECTLY absent and
+        // "2.5_BOLD_RED_Filled30_T2"), so the matrix is CORRECTLY absent and
         // scoring it as missing penalised the family for being right.
         // K-11f: the second entry read "TAG_3_BOLD_BLUE_BOOL" — an underscore after
         // the 3 that the declaration does not have. MR_PARAMETERS.txt declares
@@ -140,7 +153,21 @@ namespace StingTools.Tags
         /// Caller wraps the application context — this method opens the file,
         /// audits, and closes without saving.
         /// </summary>
-        public static ConformanceReportRow Inspect(UIApplication uiApp, string rfaPath)
+        /// <param name="projectSide">
+        /// The shared parameters the target project already holds
+        /// (<see cref="SharedParamPreflight.CollectProject"/>). Supplied, the audit
+        /// can say whether this family would actually LOAD; omitted, that check is
+        /// reported as not run rather than passed.
+        /// </param>
+        /// <param name="declaredSide">
+        /// Every definition in MR_PARAMETERS.txt
+        /// (<see cref="SharedParamPreflight.CollectAllDefinitions"/>). Supplied, the audit
+        /// names any parameter this family types differently from the declaration — which
+        /// is the load conflict it will cause in EVERY project, not just the open one.
+        /// </param>
+        public static ConformanceReportRow Inspect(UIApplication uiApp, string rfaPath,
+            IList<SharedParamFacts> projectSide = null,
+            IList<SharedParamFacts> declaredSide = null)
         {
             var row = new ConformanceReportRow { Path = rfaPath };
             row.FamilyName = Path.GetFileNameWithoutExtension(rfaPath) ?? "";
@@ -158,7 +185,7 @@ namespace StingTools.Tags
                     return row;
                 }
 
-                ScoreFamily(famDoc, row);
+                ScoreFamily(famDoc, row, projectSide, declaredSide);
             }
             catch (Exception ex)
             {
@@ -173,7 +200,9 @@ namespace StingTools.Tags
             return row;
         }
 
-        private static void ScoreFamily(Document famDoc, ConformanceReportRow row)
+        private static void ScoreFamily(Document famDoc, ConformanceReportRow row,
+            IList<SharedParamFacts> projectSide = null,
+            IList<SharedParamFacts> declaredSide = null)
         {
             var fm = famDoc.FamilyManager;
             int score = 0;
@@ -194,7 +223,15 @@ namespace StingTools.Tags
             // an audit should silently rewrite.
             try
             {
-                var catRes = TagCategoryResolver.Resolve(famDoc, famDoc.OwnerFamily);
+                // By FILE name, not OwnerFamily.Name. Same bug as
+                // FixTagFamilyCategoriesCommand had: a standalone-opened family document
+                // does not reliably report the file's name that way, and the declarations
+                // are keyed on the file name. Proven by the 2026-09-18 11:26 run - 0
+                // CATEGORY MISMATCH findings across 343 families, 203 of them Generic
+                // Model Tags, while the category audit says 103 should change. This check
+                // has been reporting nothing since it was written.
+                var catRes = TagCategoryResolver.Resolve(
+                    famDoc, row.FamilyName, famDoc.OwnerFamily?.FamilyCategory);
                 if (catRes != null && catRes.IsMismatch)
                 {
                     row.Missing.Add($"CATEGORY MISMATCH: {catRes.Note}");
@@ -231,7 +268,19 @@ namespace StingTools.Tags
             // For each of the 4 STING placement params, check that the
             // parameter exists AND is bound by GUID rather than just a name
             // collision. Counts 6 pts per parameter (max 24, rounded to 25).
+            // A TAG has no placement: it is annotation, and the four STING placement
+            // parameters (anchor, offset, side, mounting height) are for the 3D families
+            // the placement engine positions. Scoring them against a tag cost every tag
+            // family 25 points and put all 343 in BLOCK on the 2026-09-18 run - 0 passes,
+            // which told the operator nothing and buried the findings that mattered.
             int placePts = 0;
+            if (is2D || catName.IndexOf("Tags", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                placePts = 25;   // not applicable, not a failure
+                row.Warnings.Add("Placement params N/A — an annotation family is not positioned by " +
+                                 "the placement engine, so anchor/offset/side/mounting-height are not expected.");
+            }
+            else
             foreach (var name in PlacementParams)
             {
                 if (!paramsByName.TryGetValue(name, out var fp))
@@ -289,7 +338,24 @@ namespace StingTools.Tags
                 int visPts = 0;
                 foreach (var name in TagVisibilityFingerprint)
                 {
-                    if (paramsByName.ContainsKey(name)) visPts += 4;
+                    if (paramsByName.TryGetValue(name, out var visFp))
+                    {
+                        visPts += 4;
+                        // SCOPE, not just presence. MR_PARAMETERS.csv declares every
+                        // TAG_PARA_STATE_*_BOOL and TAG_WARN_VISIBLE_BOOL as Type, and
+                        // SetParagraphDepthCommand writes to element TYPES. An
+                        // Instance-scoped copy is therefore present, scored, and
+                        // undrivable - which is how the universal master came to have
+                        // _1, _2 and WARN_VISIBLE as Instance while _4.._10 were Type,
+                        // a split that propagation then copies into every family.
+                        try
+                        {
+                            if (visFp.IsInstance)
+                                row.Warnings.Add($"{name} is INSTANCE-scoped; MR_PARAMETERS 'declares it Type '" +
+                                                 "and Set depth writes to types, so this tier cannot be driven.");
+                        }
+                        catch (Exception ex) { row.Warnings.Add($"Scope check on {name}: {ex.Message}"); }
+                    }
                     else row.Missing.Add($"Tag visibility param missing: {name}");
                 }
                 score += Math.Min(visPts, 10);
@@ -343,15 +409,82 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { row.Warnings.Add($"Inspect FamilyPlacementType: {ex.Message}"); }
 
-            // ── (8) Loaded-cleanly bonus (10 pts) ────────────────────
-            // We got here without an Open exception — credit the bonus.
+            // ── (8) Opened without error (10 pts) ────────────────────
+            // Named for what it proves. It was "Loads cleanly into the target
+            // document", which it never tested: reaching here only means
+            // OpenDocumentFile did not throw. A family can open perfectly and
+            // still be refused by LoadFamily — which is exactly what
+            // STING_Tag_Universal.rfa did on 2026-09-17, over twelve shared
+            // parameters. Loadability is check (9), and it needs a project.
             score += 10;
+
+            // ── (9) Would it LOAD? (no points — a veto) ──────────────
+            // Revit keys a shared parameter on its GUID and refuses a load that
+            // would redefine one. Scored as a veto rather than as points: a
+            // family that cannot be loaded is not 90% conformant, it is unusable,
+            // and the twelve names are what the operator needs.
+            bool loadBlocked = false;
+            if (projectSide != null && projectSide.Count > 0)
+            {
+                try
+                {
+                    var conflicts = SharedParamConflictDetector.Detect(
+                        SharedParamPreflight.CollectFamily(fm), projectSide);
+                    foreach (var c in conflicts)
+                        row.Missing.Add("LOAD BLOCKED: " + c.Describe());
+                    loadBlocked = conflicts.Count > 0;
+                }
+                catch (Exception ex) { row.Warnings.Add($"Shared-parameter load check: {ex.Message}"); }
+            }
+            else
+            {
+                // Said out loud. A skipped check that reads as a pass is how the
+                // old criterion (8) stayed wrong for a whole phase.
+                row.Warnings.Add("Shared-parameter load check NOT RUN — no project document open.");
+            }
+
+            // ── (10) Does this family AGREE WITH THE DECLARATION? (a veto) ───
+            // Check (9) compares against the open project, which answers "can this load
+            // HERE". This compares against MR_PARAMETERS.txt, which answers "will this
+            // conflict ANYWHERE" - and that is the question behind the twelve conflicts
+            // that keep coming back in a brand-new project. A family carrying
+            // ASS_CRITICALITY_RATING_NR as Text conflicts with every project that holds
+            // the declared Number, whichever family happens to load first.
+            if (declaredSide != null && declaredSide.Count > 0)
+            {
+                try
+                {
+                    var wrongTyped = SharedParamConflictDetector.Detect(
+                        SharedParamPreflight.CollectFamily(fm), declaredSide);
+                    foreach (var c in wrongTyped)
+                        row.Missing.Add("DISAGREES WITH MR_PARAMETERS: " + c.Describe("MR_PARAMETERS declares"));
+                    if (wrongTyped.Count > 0) loadBlocked = true;
+                }
+                catch (Exception ex) { row.Warnings.Add($"Declaration type check: {ex.Message}"); }
+            }
+            else
+            {
+                row.Warnings.Add("Declaration type check NOT RUN — MR_PARAMETERS.txt was not read.");
+            }
+
+            // ── (11) Authoring scaffolding left in the family ─────────
+            // Text the author wrote for themselves prints like any other note, and
+            // propagation clones it into every target. Reported, never scored: it
+            // does not stop the family working.
+            try
+            {
+                var notes = AuthoringNoteMatcher.Flag(SharedParamPreflight.CollectTextNotes(famDoc));
+                foreach (string n in notes)
+                    row.Warnings.Add($"Authoring note left in the family: “{n}”");
+            }
+            catch (Exception ex) { row.Warnings.Add($"Authoring-note check: {ex.Message}"); }
 
             // Clamp + verdict.
             row.Score = Math.Max(0, Math.Min(100, score));
             row.Verdict = row.Score >= 85 ? "PASS"
                         : row.Score >= 70 ? "WARN"
                         : "BLOCK";
+            if (loadBlocked) row.Verdict = "BLOCK";
         }
     }
 
@@ -372,13 +505,24 @@ namespace StingTools.Tags
         {
             try
             {
-                var uiApp = commandData.Application;
+                // Same fix as FixTagFamilyCategoriesCommand: a dock-panel button arrives
+                // with commandData == null, so this threw a NullReferenceException for
+                // every press of the "Conformance" button. RunCommand caught it and said
+                // so in the log, and nobody read the log.
+                var uiApp = ParameterHelpers.GetApp(commandData);
 
                 // Pick the folder to scan.
                 string folder = PickFolder(uiApp);
                 if (string.IsNullOrEmpty(folder)) return Result.Cancelled;
 
+                // Seeds\ holds 137 obsolete families the repo deleted and the code no
+                // longer probes (TagFamilyCreatorCommand: "A 'Seeds/' sub-folder is
+                // deliberately NOT probed"). Auditing them inflated the 2026-09-18 run
+                // from 206 families to 343 and every finding in it was about a family
+                // nothing loads. _precategory_ folders are this tool-chain's own backups.
                 var rfas = Directory.EnumerateFiles(folder, "*.rfa", SearchOption.AllDirectories)
+                                    .Where(p => p.IndexOf(@"\Seeds\", StringComparison.OrdinalIgnoreCase) < 0 &&
+                                                p.IndexOf("_precategory", StringComparison.OrdinalIgnoreCase) < 0)
                                     .ToList();
                 if (rfas.Count == 0)
                 {
@@ -386,6 +530,45 @@ namespace StingTools.Tags
                         $"No .rfa files found under:\n{folder}");
                     return Result.Cancelled;
                 }
+
+                // What the open project already holds a type for. Read ONCE: it is
+                // the same for every family, and it is what decides whether each
+                // one can be loaded at all (check 9). No project open => the check
+                // is reported as not run, never as passed.
+                var projectSide = SharedParamPreflight.CollectProject(
+                    uiApp.ActiveUIDocument?.Document);
+
+                // The declaration, read once. This is the fixed point: a family whose
+                // parameter types disagree with MR_PARAMETERS.txt will conflict in any
+                // project that holds the declared types, which is why the same twelve
+                // errors reappear in a brand-new project.
+                var declaredSide = new List<SharedParamFacts>();
+                string mrPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                string originalSp = null;
+                try
+                {
+                    if (!string.IsNullOrEmpty(mrPath) && File.Exists(mrPath))
+                    {
+                        originalSp = uiApp.Application.SharedParametersFilename;
+                        uiApp.Application.SharedParametersFilename = mrPath;
+                        declaredSide = SharedParamPreflight.CollectAllDefinitions(
+                            uiApp.Application.OpenSharedParameterFile());
+                    }
+                    else
+                    {
+                        StingLog.Warn("FamilyConformanceCheck: MR_PARAMETERS.txt not found - " +
+                                      "the declaration check will report NOT RUN");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"FamilyConformanceCheck: reading MR_PARAMETERS.txt: {ex.Message}"); }
+                finally
+                {
+                    try { if (originalSp != null) uiApp.Application.SharedParametersFilename = originalSp; }
+                    catch (Exception ex) { StingLog.Warn($"FamilyConformanceCheck: restore SharedParametersFilename: {ex.Message}"); }
+                }
+                StingLog.Info($"FamilyConformanceCheck: MR_PARAMETERS.txt declares {declaredSide.Count} parameter(s)");
+                StingLog.Info($"FamilyConformanceCheck: project holds {projectSide.Count} shared parameters " +
+                              (projectSide.Count == 0 ? "— load check will be reported as NOT RUN" : "to check against"));
 
                 // Inspect each (modal progress with periodic UI yield).
                 var rows = new List<ConformanceReportRow>(rfas.Count);
@@ -395,7 +578,7 @@ namespace StingTools.Tags
                     i++;
                     try
                     {
-                        var row = FamilyConformanceInspector.Inspect(uiApp, p);
+                        var row = FamilyConformanceInspector.Inspect(uiApp, p, projectSide, declaredSide);
                         rows.Add(row);
                     }
                     catch (Exception ex)
@@ -409,7 +592,7 @@ namespace StingTools.Tags
                 }
 
                 // Write CSV.
-                string outDir = ResolveOutputDir(commandData);
+                string outDir = ResolveOutputDirViaHelper(commandData);
                 string outPath = Path.Combine(outDir,
                     $"FamilyConformanceReport_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 WriteCsv(outPath, rows);
@@ -446,6 +629,22 @@ namespace StingTools.Tags
             {
                 StingLog.Warn($"FamilyConformanceCheck PickFolder: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Where the report goes. Routed through OutputLocationHelper like every other
+        /// STING export: this had its own fallback straight to Path.GetTempPath(), which
+        /// under Revit is a PER-SESSION GUID folder, so the 2026-09-18 report landed in
+        /// …\Temp\fceeb91e-…\ and stops resolving when Revit closes.
+        /// </summary>
+        private static string ResolveOutputDirViaHelper(ExternalCommandData cd)
+        {
+            try { return OutputLocationHelper.GetOutputDirectory(ParameterHelpers.GetDoc(cd)); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FamilyConformanceCheck: output dir: {ex.Message}");
+                return ResolveOutputDir(cd);
             }
         }
 
@@ -504,14 +703,22 @@ namespace StingTools.Tags
             int warn  = rows.Count(r => r.Verdict == "WARN");
             int block = rows.Count(r => r.Verdict == "BLOCK");
 
-            var bottom = rows.OrderBy(r => r.Score).Take(10).ToList();
+            // BY SEVERITY, then score. Sorting on score alone buried the vetoes: a
+            // vetoed family still carries most of its points, so on the 2026-09-18 12:02
+            // run the BLOCK families scored 89 and the WARN families 79 - and the list
+            // headed "lowest-scoring" showed eight WARNs and two BLOCKs while 141
+            // families that CANNOT BE LOADED sat below the fold. A veto that the summary
+            // ranks underneath a warning is not a veto.
+            int Severity(ConformanceReportRow r) =>
+                r.Verdict == "BLOCK" ? 0 : r.Verdict == "WARN" ? 1 : 2;
+            var bottom = rows.OrderBy(Severity).ThenBy(r => r.Score).Take(10).ToList();
             var sb = new StringBuilder();
             sb.AppendLine($"Audited {total} families:");
             sb.AppendLine($"   PASS  ≥85 :   {pass}");
             sb.AppendLine($"   WARN  70–84:  {warn}");
             sb.AppendLine($"   BLOCK  <70 :  {block}");
             sb.AppendLine();
-            sb.AppendLine("Lowest-scoring (first 10):");
+            sb.AppendLine("Most severe (first 10) — blockers first, then by score:");
             foreach (var r in bottom)
             {
                 sb.AppendLine($"   [{r.Score,3}] {r.Verdict,-5} {r.FamilyName}");
@@ -523,7 +730,9 @@ namespace StingTools.Tags
 
             var td = new TaskDialog("STING Family Conformance")
             {
-                MainInstruction = $"{pass}/{total} families pass; {block} block.",
+                MainInstruction = warn > 0
+                    ? $"{pass}/{total} pass, {warn} warn, {block} block."
+                    : $"{pass}/{total} families pass; {block} block.",
                 MainContent = sb.ToString(),
                 CommonButtons = TaskDialogCommonButtons.Close,
             };

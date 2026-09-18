@@ -65,6 +65,29 @@ using StingTools.UI;
 
 namespace StingTools.Commands.TagStudio
 {
+    /// <summary>
+    /// What to do about a target whose own category disagrees with the one declared
+    /// for it in STING_TAG_CONFIG_v5_0_*.csv.
+    ///
+    /// This is not a preference - it decides whether the load can work at all.
+    /// Revit matches a reloaded family by NAME, and will not change a loaded
+    /// family's category on reload. Every propagation run recorded on this machine
+    /// (19:58, 21:02, 21:23 on 2026-09-17) recategorised the clone and then had its
+    /// load refused with no failure message, which is exactly that rule's signature.
+    /// </summary>
+    internal enum RecategoriseMode
+    {
+        /// <summary>Set the clone to the DECLARED category. Correct, and refused by
+        /// Revit when a family of that name is already loaded under another one.</summary>
+        EnforceDeclared,
+
+        /// <summary>Keep whatever category the target already carries, so the load is
+        /// a same-name-same-category overwrite - the path the conveyor was built for.
+        /// The label propagates; the category stays wrong until the family is
+        /// reloaded from disk or deleted and re-loaded.</summary>
+        KeepExisting
+    }
+
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PropagateUniversalTagCommand : IExternalCommand
@@ -119,20 +142,36 @@ namespace StingTools.Commands.TagStudio
                     "Need the universal master plus at least one target family loaded.\n" +
                     "Load the universal master (built from UNIVERSAL_TAG_LABEL_BUILD_SHEET.md)\n" +
                     "and the STING tag families you want to propagate to, then re-run.");
+                StingLog.Info($"PropagateUniversalTag: only {stingFamilies.Count} STING annotation " +
+                              "family(ies) loaded, need 2 - nothing done");
                 return Result.Cancelled;
             }
 
             // ── 1. Pick the universal master from the loaded families ──
             Family master = PickMaster(stingFamilies);
-            if (master == null) return Result.Cancelled;
+            if (master == null)
+            {
+                // Every early exit says which one it was. Three of them used to
+                // return Cancelled with no dialog and no log line, so the whole
+                // run read as "RunCommand: start / RunCommand: done" seconds
+                // apart with nothing between - indistinguishable from the command
+                // dying. Observed three times on 2026-09-17 at 20:43-20:44.
+                StingLog.Info("PropagateUniversalTag: no master chosen (picker cancelled) - nothing done");
+                return Result.Cancelled;
+            }
 
             // ── 2. Targets = every other loaded STING tag family, scoped ──
             var candidates = stingFamilies.Where(f => f.Id != master.Id).ToList();
             var targets = ChooseTargets(candidates, out string scopeLabel);
-            if (targets == null) return Result.Cancelled;
+            if (targets == null)
+            {
+                StingLog.Info("PropagateUniversalTag: scope dialog cancelled - nothing done");
+                return Result.Cancelled;
+            }
             if (targets.Count == 0)
             {
                 TaskDialog.Show("Propagate Universal Tag", "No target families selected.");
+                StingLog.Info("PropagateUniversalTag: scope resolved to zero targets - nothing done");
                 return Result.Cancelled;
             }
 
@@ -153,7 +192,11 @@ namespace StingTools.Commands.TagStudio
                 "SMOKE TEST: verify one family (Duct) in Revit before scaling to all.\n" +
                 "Press Escape between families to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+            if (confirm.Show() != TaskDialogResult.Ok)
+            {
+                StingLog.Info($"PropagateUniversalTag: confirmation declined for {targets.Count} target(s) - nothing done");
+                return Result.Cancelled;
+            }
 
             // ── Purge pre-fix temp duplicates NOW the user has committed ──
             // Deferred from before the pickers so cancelling the command doesn't
@@ -176,14 +219,204 @@ namespace StingTools.Commands.TagStudio
 
             // ── Pre-resolve shared arrowhead types ──
             var arrowheads = TagTypeVariantWriter.BuildArrowheadLookup(doc);
-            var styleAndVisParams = TagFamilyConfig.StyleParams
+            List<string> styleAndVisParams = TagFamilyConfig.StyleParams
                 .Concat(TagFamilyConfig.VisibilityParams)
                 .Distinct()
                 .ToList();
 
+            // ── Pre-flight: will the clone even load back? ──
+            // Every target gets a clone of the same master, so a shared-parameter
+            // type conflict fails all of them identically — and LoadFamily reports
+            // a bare false, which the loop could only write down as "LoadFamily
+            // back into project failed". That is what a 17-minute run reported on
+            // 2026-09-17 while the real cause (12 parameters the family offers as
+            // Text that the project holds as Number/Currency/Length/Yes-No under
+            // the same GUIDs) was readable in seconds. Read it here, name the
+            // parameters, and stop before touching 206 families.
+            {
+                string preflightSp = app.SharedParametersFilename;
+                MasterPreflight pre;
+                try
+                {
+                    // The same file the loop binds from, so the definitions checked
+                    // are the ones propagation would actually add.
+                    app.SharedParametersFilename = sharedParamFile;
+                    var willAdd = SharedParamPreflight.CollectDefinitions(
+                        app.OpenSharedParameterFile(), styleAndVisParams);
+                    pre = SharedParamPreflight.CheckMaster(doc, master, willAdd);
+                }
+                finally
+                {
+                    try { app.SharedParametersFilename = preflightSp ?? ""; }
+                    catch (Exception ex) { StingLog.Warn($"Restore SharedParametersFilename after pre-flight: {ex.Message}"); }
+                }
+
+                if (pre.Conflicts.Count > 0)
+                {
+                    string detail = SharedParamConflictDetector.Describe(pre.Conflicts);
+                    StingLog.Warn($"PropagateUniversalTag: aborted before any family — {detail?.Replace("\n", " ")}");
+
+                    var block = new TaskDialog("Propagate Universal Tag");
+                    block.MainInstruction =
+                        $"'{master.Name}' cannot load into this project — nothing was propagated.";
+                    block.MainContent =
+                        detail + "\n\n" +
+                        "Revit identifies a shared parameter by its GUID and refuses a load that " +
+                        "would redefine one, so every target would fail the same way.\n\n" +
+                        "Fix it in the FAMILY, not the project: delete the conflicting parameters " +
+                        "from the master (a numeric parameter cannot be retyped to Text for a label — " +
+                        "use its _TXT display mirror), then re-run.\n\n" +
+                        "docs/UNIVERSAL_TAG_CONFLICT_RESOLUTION_RUNBOOK.md has the ordered steps.";
+                    block.CommonButtons = TaskDialogCommonButtons.Close;
+                    block.Show();
+                    return Result.Cancelled;
+                }
+
+                // ── The master decides which TIER GATES exist ──
+                // TagFamilyConfig.VisibilityParams is the full ten-tier ladder plus
+                // the warning, and AddMissingParams used to add all eleven to every
+                // clone regardless of the master. That is how the propagated duct tag
+                // came to carry TAG_PARA_STATE_3_BOOL when the master has no _3 and
+                // the label has no T3 rows: a gate with nothing behind it, on 206
+                // families, making a _T3 type variant indistinguishable from _T2.
+                //
+                // The style matrix is NOT filtered this way. The master carries style
+                // as type variants rather than as the 128 BOOLs, so the clones have to
+                // be given the matrix for their variants to switch anything - that
+                // asymmetry is the design, and it is why "align with the master" means
+                // the gates, not the whole set.
+                if (pre.MasterRead && pre.MasterParamNames.Count > 0)
+                {
+                    var allGates = new HashSet<string>(TagFamilyConfig.VisibilityParams,
+                                                       StringComparer.OrdinalIgnoreCase);
+                    var droppedGates = styleAndVisParams
+                        .Where(n => allGates.Contains(n) && !pre.MasterParamNames.Contains(n))
+                        .ToList();
+                    if (droppedGates.Count > 0)
+                    {
+                        styleAndVisParams = styleAndVisParams
+                            .Where(n => !droppedGates.Contains(n, StringComparer.OrdinalIgnoreCase))
+                            .ToList();
+                        StingLog.Info("PropagateUniversalTag: not adding " +
+                                      string.Join(", ", droppedGates) +
+                                      " - the master does not carry " +
+                                      (droppedGates.Count == 1 ? "it" : "them") +
+                                      ", so the clones will not either");
+                    }
+                }
+
+                // Not a blocker, but it multiplies by the number of targets: text
+                // the author left for themselves is cloned into every family and
+                // then prints. Spotted on 2026-09-17 as a red note in a tag family.
+                if (pre.AuthoringNotes.Count > 0)
+                {
+                    var noteDlg = new TaskDialog("Propagate Universal Tag");
+                    noteDlg.MainInstruction = pre.AuthoringNotes.Count == 1
+                        ? $"'{master.Name}' carries a note that looks like an instruction to its author."
+                        : $"'{master.Name}' carries {pre.AuthoringNotes.Count} notes that look like " +
+                          "instructions to its author.";
+                    noteDlg.MainContent =
+                        "  • " + string.Join("\n  • ", pre.AuthoringNotes) + "\n\n" +
+                        $"Everything in the master is cloned into each of the {targets.Count} target " +
+                        "famil" + (targets.Count == 1 ? "y" : "ies") + ", so this text goes with it and " +
+                        "will print on drawings." + "\n\n" +
+                        "Delete it in the master and re-run, or propagate anyway.";
+                    noteDlg.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    noteDlg.DefaultButton = TaskDialogResult.No;
+                    if (noteDlg.Show() != TaskDialogResult.Yes)
+                    {
+                        StingLog.Info($"PropagateUniversalTag: declined over {pre.AuthoringNotes.Count} " +
+                                      "authoring note(s) in the master - nothing done");
+                        return Result.Cancelled;
+                    }
+                    StingLog.Warn("PropagateUniversalTag: proceeding with authoring note(s) in the master " +
+                                  "(operator confirmed)");
+                }
+            }
+
+            // ── Which targets would have their category CHANGED? ──
+            // Asked before the run because it decides whether the load can succeed,
+            // and because it is the one variable that separates "the conveyor does
+            // not work" from "the conveyor cannot change a category".
+            var mode = RecategoriseMode.EnforceDeclared;
+            {
+                var changing = new List<string>();
+                foreach (Family t in targets)
+                {
+                    var r = TagCategoryResolver.Resolve(doc, t);
+                    if (r != null && r.IsMismatch && r.DeclaredTagCategory != null)
+                        changing.Add($"{t.Name}: {r.ActualCategory} → {r.DeclaredTagCategory.Name}");
+                }
+
+                if (changing.Count > 0)
+                {
+                    var catDlg = new TaskDialog("Propagate Universal Tag — category");
+                    catDlg.MainInstruction = changing.Count == 1
+                        ? "One target family is categorised differently from its declaration."
+                        : $"{changing.Count} target families are categorised differently from their declaration.";
+                    catDlg.MainContent =
+                        "  • " + string.Join("\n  • ", changing.Take(8)) +
+                        (changing.Count > 8 ? $"\n  • … and {changing.Count - 8} more" : "") + "\n\n" +
+                        "Revit will not change a loaded family's category by reloading over it. " +
+                        "Enforcing the declaration is correct, but the load can be refused - with no " +
+                        "message - which is what every run so far has hit.";
+                    catDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+                    catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "KEEP each family's current category (recommended for the smoke test)",
+                        "Same-name, same-category overwrite - the path this command was built for. " +
+                        "The label propagates and the category stays as it is.");
+                    catDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "ENFORCE the declared category",
+                        "Correct, and the load may be refused. If it is, the report says so per family.");
+
+                    var catChoice = catDlg.Show();
+                    if (catChoice == TaskDialogResult.Cancel)
+                    {
+                        StingLog.Info("PropagateUniversalTag: category dialog cancelled - nothing done");
+                        return Result.Cancelled;
+                    }
+                    mode = catChoice == TaskDialogResult.CommandLink1
+                        ? RecategoriseMode.KeepExisting
+                        : RecategoriseMode.EnforceDeclared;
+                    StingLog.Info($"PropagateUniversalTag: category mode = {mode} " +
+                                  $"({changing.Count} target(s) declared differently)");
+                }
+            }
+
+            // ── Pre-flight: is any target open in the Family Editor? ──
+            // Revit will not load a family while a document for it is open, and it
+            // refuses by returning false with NO failure message - the 21:02 run
+            // spent 90 seconds cloning, adding 138 parameters and minting 14 type
+            // variants before hitting that wall. Cheap to ask first.
+            {
+                var openTargets = targets
+                    .Select(t => new { Name = t.Name, Doc = FindOpenFamilyDocument(app, t.Name, null) })
+                    .Where(x => x.Doc != null)
+                    .ToList();
+                if (openTargets.Count > 0)
+                {
+                    string names = string.Join("\n  • ", openTargets.Select(x => x.Name));
+                    StingLog.Warn($"PropagateUniversalTag: aborted - {openTargets.Count} target(s) open in the " +
+                                  $"Family Editor: {string.Join(", ", openTargets.Select(x => x.Name))}");
+
+                    var openDlg = new TaskDialog("Propagate Universal Tag");
+                    openDlg.MainInstruction = openTargets.Count == 1
+                        ? "A target family is open in the Family Editor - nothing was propagated."
+                        : $"{openTargets.Count} target families are open in the Family Editor - nothing was propagated.";
+                    openDlg.MainContent =
+                        "  • " + names + "\n\n" +
+                        "Revit will not load a family while a document for it is open, and it says nothing " +
+                        "when it refuses - the load just fails.\n\n" +
+                        "Close those family tabs (Load into Project and Close, or close without saving) and re-run.";
+                    openDlg.CommonButtons = TaskDialogCommonButtons.Close;
+                    openDlg.Show();
+                    return Result.Cancelled;
+                }
+            }
+
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
-            int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0;
+            int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0, totalScope = 0;
             string originalSp = app.SharedParametersFilename;
 
             try
@@ -205,9 +438,10 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads);
+                        styleAndVisParams, variants, arrowheads, mode);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
+                    totalScope += r.ScopeFixed;
                     if (r.Success) succeeded++; else failed++;
 
                     rows.Add(new List<string>
@@ -238,16 +472,47 @@ namespace StingTools.Commands.TagStudio
             }
             catch (Exception ex) { StingLog.Warn($"Excel export: {ex.Message}"); }
 
+            // The failures, named in the dialog. This used to report "0
+            // propagated, 1 failed" and stop there: the reason was a cell in an
+            // .xlsx written to a %TEMP% GUID folder, which is why a 17-minute run
+            // that DID explain itself in writing still read as the command dying.
+            var failedRows = rows
+                .Where(r => r.Count > 4 && string.Equals(r[4], "FAILED", StringComparison.Ordinal))
+                .ToList();
+            var why = new StringBuilder();
+            foreach (var r in failedRows.Take(5))
+            {
+                string err = r.Count > 5 && !string.IsNullOrWhiteSpace(r[5]) ? r[5] : "(no reason recorded)";
+                why.Append($"\n  • {r[0]}: {err}");
+            }
+            if (failedRows.Count > 5)
+                why.Append($"\n  • … and {failedRows.Count - 5} more in the report");
+
             var td = new TaskDialog("Propagate Universal Tag — done");
             td.MainInstruction = $"{succeeded} propagated, {failed} failed" +
                                  (cancelled > 0 ? $", {cancelled} cancelled" : "");
             td.MainContent =
                 $"Master: {master.Name}\n" +
                 $"Scope:  {scopeLabel}\n\n" +
-                $"Params added: {totalParams}\n" +
+                $"Standard params added to each clone: {totalParams}\n" +
+                // Named for what it is. "Params added: 139" reads as a side effect;
+                // it is the standard style+visibility set that the master does not
+                // carry, and it is why the two families differ afterwards.
                 $"Type variants (re)created: {totalTypes}\n" +
+                (totalScope > 0
+                    ? $"Tier gates converted Instance -> Type: {totalScope}\n"
+                    : "") +
                 (junkDeleted > 0 ? $"Purged stale temp-named duplicates: {junkDeleted}\n" : "") +
-                (xlsx != null ? $"\nReport: {xlsx}" : "");
+                (why.Length > 0 ? $"\nFailed:{why}\n" : "") +
+                (xlsx != null
+                    ? $"\nReport: {xlsx}" +
+                      // Where it went, and why it went there. An unsaved project has
+                      // no _BIM_COORD to write to, so the report lands in a
+                      // per-session %TEMP% GUID folder nobody finds by accident.
+                      (xlsx.IndexOf(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase) >= 0
+                          ? "\n(Project is unsaved, so the report went to TEMP — save the project to keep reports.)"
+                          : "")
+                    : "\nNo report was written — see the log.");
             td.Show();
 
             StingLog.Info($"PropagateUniversalTag: master={master.Name}, succeeded={succeeded}, " +
@@ -269,6 +534,11 @@ namespace StingTools.Commands.TagStudio
             // correction would hide that the family was authored against the wrong
             // template, so it is carried to the results table as a FINDING.
             public bool CategoryMismatch;
+            // Whether THIS run tried to move the family to another category -
+            // the one thing Revit refuses to do on reload.
+            public bool CategoryChanged;
+            // Visibility gates converted from Instance to Type by this run.
+            public int ScopeFixed;
             public string CategoryNote;
         }
 
@@ -276,7 +546,8 @@ namespace StingTools.Commands.TagStudio
             Autodesk.Revit.ApplicationServices.Application app,
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
-            Dictionary<string, ElementId> arrowheads)
+            Dictionary<string, ElementId> arrowheads,
+            RecategoriseMode mode = RecategoriseMode.EnforceDeclared)
         {
             var result = new PropResult();
             string targetName = target.Name;
@@ -289,11 +560,24 @@ namespace StingTools.Commands.TagStudio
             // Resolve against the DECLARED category in STING_TAG_CONFIG_v5_0_*.csv
             // instead, and fall back to the family's own only when nothing is declared.
             var catRes = TagCategoryResolver.Resolve(doc, target);
-            ElementId targetCatId = catRes.DeclaredTagCategory?.Id ?? target.FamilyCategory?.Id;
+            ElementId existingCatId = target.FamilyCategory?.Id;
+            string existingCatName = target.FamilyCategory?.Name ?? "";
+
+            // KeepExisting makes the load a same-name-same-category overwrite.
+            // EnforceDeclared is the correct end state and the one Revit can
+            // refuse, so which one ran has to be visible in the result.
+            ElementId targetCatId = mode == RecategoriseMode.KeepExisting
+                ? existingCatId
+                : (catRes.DeclaredTagCategory?.Id ?? existingCatId);
             result.CategoryMismatch = catRes.IsMismatch;
             result.CategoryNote = catRes.Note;
+            result.CategoryChanged = targetCatId != null && existingCatId != null &&
+                                    targetCatId != existingCatId;
             if (catRes.IsMismatch)
-                StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}");
+                StingLog.Warn($"PropagateUniversalTag: '{targetName}' — {catRes.Note}" +
+                              (mode == RecategoriseMode.KeepExisting
+                                  ? " (KeepExisting: left as it is for this run)"
+                                  : ""));
             Document famDoc = null;
             string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
 
@@ -370,6 +654,7 @@ namespace StingTools.Commands.TagStudio
                         // (c) Ensure style/visibility params exist, then (re)create the
                         // data-driven depth/style type variants.
                         result.ParamsAdded = AddMissingParams(fm, defFile, styleAndVisParams);
+                        result.ScopeFixed = MakeVisibilityParamsType(fm);
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
 
                         tx.Commit();
@@ -421,8 +706,23 @@ namespace StingTools.Commands.TagStudio
                         result.ErrorMessage = $"SaveAs failed: {saveEx.Message}";
                         StingLog.Warn($"{targetName}: SaveAs failed: {saveEx.Message}");
                     }
-                    famDoc.Close(false);
+                    // Document.Close returns FALSE when Revit will not close the
+                    // document, and that return was discarded. A clone that stays
+                    // open is a family document named after the TARGET, and Revit
+                    // refuses to load a family while a document for it is open -
+                    // returning a bare false with no failure message, which is
+                    // precisely what the 21:02 run reported.
+                    bool closedOk;
+                    try { closedOk = famDoc.Close(false); }
+                    catch (Exception closeEx)
+                    {
+                        closedOk = false;
+                        StingLog.Warn($"{targetName}: closing the clone threw: {closeEx.Message}");
+                    }
                     famDoc = null;
+                    if (!closedOk)
+                        StingLog.Warn($"{targetName}: the clone document did not close - " +
+                                      "it is still open under the target's name and will block the load");
 
                     if (!savedOk)
                     {
@@ -432,12 +732,20 @@ namespace StingTools.Commands.TagStudio
                     }
 
                     bool loadedOk = false;
+                    string loadThrew = null;
+                    // LoadFamily's false return carries no reason; Revit's own
+                    // explanation arrives as failure messages on this transaction
+                    // and, uncaptured, only ever reaches a modal dialog.
+                    var loadFailures = new CapturingFailuresPreprocessor();
                     using (var loadTx = new Transaction(doc, $"STING Reload {targetName}"))
                     {
                         loadTx.Start();
+                        var fho = loadTx.GetFailureHandlingOptions();
+                        loadTx.SetFailureHandlingOptions(fho.SetFailuresPreprocessor(loadFailures));
                         try { loadedOk = doc.LoadFamily(tempPath, new TagFamilyLoadOptions(), out _); }
                         catch (Exception loadEx)
                         {
+                            loadThrew = loadEx.Message;
                             StingLog.Warn($"{targetName}: LoadFamily: {loadEx.Message}");
                             loadedOk = false;
                         }
@@ -447,7 +755,46 @@ namespace StingTools.Commands.TagStudio
                     if (!loadedOk)
                     {
                         TryDeleteTempDir(tempDir);
-                        result.ErrorMessage = "LoadFamily back into project failed";
+                        string why = loadFailures.Summary() ?? loadThrew;
+                        if (why == null)
+                        {
+                            // A refused load with no failure message has one common
+                            // cause: a document for this family is open in the
+                            // session. Revit will not overwrite a family it is
+                            // editing, and says nothing. Look, rather than guess.
+                            Document openDoc = FindOpenFamilyDocument(app, targetName, null);
+                            if (openDoc != null)
+                                why = $"'{targetName}' is open in the Family Editor " +
+                                      $"({openDoc.PathName ?? openDoc.Title}). Revit will not load a family " +
+                                      "while a document for it is open. Close that tab (or Load into Project " +
+                                      "and Close) and re-run.";
+                            else if (!closedOk)
+                                why = "the clone document could not be closed, so it was still open under " +
+                                      "this family's name when the load was attempted.";
+                            else if (result.CategoryChanged)
+                            {
+                                // The leading explanation once the open-document theory
+                                // is ruled out: Revit matches a reloaded family by name
+                                // and will not move it to another category. Count what a
+                                // delete would cost so the operator can decide, rather
+                                // than deleting on a hypothesis.
+                                int placed = CountPlacedInstances(doc, target);
+                                string newCat = Category.GetCategory(doc, targetCatId)?.Name ?? "the declared category";
+                                why = $"this run recategorised the family from '{existingCatName}' to " +
+                                      $"'{newCat}', and Revit will not change a loaded family's " +
+                                      "category by reloading over it. Re-run and choose KEEP each family's " +
+                                      "current category to propagate the label, or delete " +
+                                      $"'{targetName}' from the project first (" +
+                                      (placed < 0 ? "instance count unavailable" :
+                                          placed + " placed instance" + (placed == 1 ? "" : "s") + " would be lost") +
+                                      ") and re-load it from disk.";
+                            }
+                        }
+                        result.ErrorMessage = why == null
+                            ? "LoadFamily back into project failed, and Revit reported no failure message. " +
+                              "No document for this family is open either - see the log for the pre-flight line."
+                            : $"LoadFamily back into project failed: {why}";
+                        StingLog.Warn($"PropagateUniversalTag: '{targetName}' load refused — {result.ErrorMessage}");
                         try { tg.RollBack(); } catch (Exception rbEx) { StingLog.Warn($"{targetName}: tg.RollBack after load fail: {rbEx.Message}"); }
                         return result;
                     }
@@ -495,6 +842,56 @@ namespace StingTools.Commands.TagStudio
                    familyName.IndexOf(".rfa.sting-migrate-", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        /// <summary>
+        /// An open family document whose file name matches <paramref name="familyName"/>,
+        /// or null. Revit refuses to load a family while a document for it is open, and
+        /// reports nothing when it does, so this is the difference between a named cause
+        /// and a shrug.
+        /// </summary>
+        internal static Document FindOpenFamilyDocument(
+            Autodesk.Revit.ApplicationServices.Application app, string familyName, Document exclude)
+        {
+            if (app == null || string.IsNullOrEmpty(familyName)) return null;
+            try
+            {
+                foreach (Document d in app.Documents)
+                {
+                    if (d == null || !d.IsFamilyDocument) continue;
+                    if (exclude != null && ReferenceEquals(d, exclude)) continue;
+                    // Title carries the file name (with or without .rfa depending on
+                    // version); PathName is empty for a document opened by EditFamily.
+                    string bare = Path.GetFileNameWithoutExtension(d.Title ?? "");
+                    if (string.Equals(bare, familyName, StringComparison.OrdinalIgnoreCase)) return d;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"FindOpenFamilyDocument('{familyName}'): {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// How many placed elements use this family's types. Called only on the
+        /// failure path, where a full-document pass is cheap next to the run itself,
+        /// and only to tell the operator what deleting the family would cost.
+        /// Returns -1 when it could not be counted: reporting that as 0 would
+        /// invite a delete on no evidence.
+        /// </summary>
+        private static int CountPlacedInstances(Document doc, Family family)
+        {
+            try
+            {
+                var symbolIds = new HashSet<ElementId>(family.GetFamilySymbolIds());
+                if (symbolIds.Count == 0) return 0;
+                return new FilteredElementCollector(doc)
+                    .WhereElementIsNotElementType()
+                    .Count(e => symbolIds.Contains(e.GetTypeId()));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"CountPlacedInstances: {ex.Message}");
+                return -1;
+            }
+        }
+
         private static void TryDeleteTempDir(string dir)
         {
             try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
@@ -506,6 +903,44 @@ namespace StingTools.Commands.TagStudio
         /// Style/visibility params are TYPE params (mirrors MigrateTagFamilies).
         /// Must run inside an open transaction on the family document.
         /// </summary>
+        /// <summary>
+        /// Convert any Instance-scoped tier gate in the clone to Type, and report how
+        /// many had to be converted.
+        ///
+        /// MR_PARAMETERS.csv declares every TAG_PARA_STATE_*_BOOL and
+        /// TAG_WARN_VISIBLE_BOOL as Type, and SetParagraphDepthCommand writes to
+        /// element TYPES - so an Instance-scoped gate is present, looks right in
+        /// Family Types, and can never be driven. The universal master carries
+        /// _1, _2 and WARN_VISIBLE as Instance while _4.._10 are Type (seen
+        /// 2026-09-17), and AddMissingParams skips a parameter that already exists,
+        /// so without this the split is copied into all 206 families.
+        ///
+        /// Must run inside an open transaction on the family document.
+        /// </summary>
+        private static int MakeVisibilityParamsType(FamilyManager fm)
+        {
+            if (fm == null) return 0;
+            int converted = 0;
+            foreach (string name in TagFamilyConfig.VisibilityParams)
+            {
+                try
+                {
+                    FamilyParameter fp = fm.get_Parameter(name);
+                    if (fp == null || !fp.IsInstance) continue;
+                    fm.MakeType(fp);
+                    converted++;
+                    StingLog.Info($"PropagateUniversalTag: {name} converted Instance -> Type in the clone");
+                }
+                catch (Exception ex)
+                {
+                    // Reported, not swallowed: a gate left Instance is a tier that
+                    // silently cannot be switched.
+                    StingLog.Warn($"PropagateUniversalTag: could not convert {name} to Type: {ex.Message}");
+                }
+            }
+            return converted;
+        }
+
         private static int AddMissingParams(FamilyManager fm, DefinitionFile defFile, List<string> wanted)
         {
             int added = 0;
@@ -550,6 +985,15 @@ namespace StingTools.Commands.TagStudio
                 })
                 .ToList();
 
+            // Pre-select the family that LOOKS like the master, because
+            // StingListPicker.AcceptSelection falls back to the FIRST item when a
+            // single-select list is OK'd with nothing highlighted. Unseeded, that
+            // fallback silently nominates the alphabetically-first STING tag
+            // family - "STING - 5-Gauss Marker Tag" - and propagates ITS label
+            // over every target. Seeding makes the fallback land on the right one.
+            var likely = items.FirstOrDefault(i => LooksLikeUniversalMaster(i.Label));
+            if (likely != null) likely.IsSelected = true;
+
             List<StingListPicker.ListItem> picked;
             try
             {
@@ -565,7 +1009,46 @@ namespace StingTools.Commands.TagStudio
                 StingLog.Warn($"PickMaster: picker failed: {ex.Message}");
                 return null;
             }
-            return picked?.FirstOrDefault()?.Tag as Family;
+
+            var chosen = picked?.FirstOrDefault()?.Tag as Family;
+            if (chosen == null) return null;
+
+            // Belt as well as braces: whatever route produced this family, a
+            // non-universal master overwrites 205 labels with the wrong one, and
+            // that is not recoverable from inside Revit. Name it and make the
+            // operator agree.
+            if (!LooksLikeUniversalMaster(chosen.Name))
+            {
+                var warn = new TaskDialog("Propagate Universal Tag");
+                warn.MainInstruction = $"'{chosen.Name}' does not look like the universal master.";
+                warn.MainContent =
+                    "Its label will be cloned over every target family, replacing theirs.\n\n" +
+                    "The master is normally named 'STING_Tag_Universal' or similar. If you clicked " +
+                    "OK without highlighting a family, this is the first one in the list, not your " +
+                    "master.\n\nPropagate this family's label anyway?";
+                warn.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                warn.DefaultButton = TaskDialogResult.No;
+                if (warn.Show() != TaskDialogResult.Yes)
+                {
+                    StingLog.Info($"PickMaster: '{chosen.Name}' declined as master - nothing done");
+                    return null;
+                }
+                StingLog.Warn($"PickMaster: proceeding with non-universal master '{chosen.Name}' (operator confirmed)");
+            }
+            return chosen;
+        }
+
+        /// <summary>
+        /// Whether a family name reads as the hand-built universal master. Used only
+        /// to seed the picker and to challenge an unlikely choice - never to pick
+        /// silently on the operator's behalf.
+        /// </summary>
+        private static bool LooksLikeUniversalMaster(string familyName)
+        {
+            if (string.IsNullOrEmpty(familyName)) return false;
+            return familyName.IndexOf("Tag_Universal", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal Tag", StringComparison.OrdinalIgnoreCase) >= 0
+                || familyName.IndexOf("Universal", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -590,11 +1073,16 @@ namespace StingTools.Commands.TagStudio
                 "Propagate to every loaded STING tag family. Only after the smoke test passes.");
 
             var choice = td.Show();
-            if (choice == TaskDialogResult.Cancel) return null;
+            if (choice == TaskDialogResult.Cancel)
+            {
+                StingLog.Info("ChooseTargets: scope dialog closed with Cancel");
+                return null;
+            }
 
             if (choice == TaskDialogResult.CommandLink2)
             {
                 scopeLabel = "ALL";
+                StingLog.Info($"ChooseTargets: ALL selected - {candidates.Count} target(s)");
                 return candidates;
             }
 
@@ -614,8 +1102,9 @@ namespace StingTools.Commands.TagStudio
             {
                 picked = StingListPicker.Show(
                     "Choose target families",
-                    "Tick the families to propagate the universal label to. " +
-                    "Duct families are pre-ticked for the smoke test.",
+                    "Duct is ALREADY highlighted for the smoke test - just press OK. " +
+                    "This list allows multiple selections, so clicking a highlighted row " +
+                    "turns it OFF; use Ctrl+click to add another without losing it.",
                     items, allowMultiSelect: true);
             }
             catch (Exception ex)
@@ -623,10 +1112,42 @@ namespace StingTools.Commands.TagStudio
                 StingLog.Warn($"ChooseTargets: picker failed: {ex.Message}");
                 return null;
             }
-            if (picked == null || picked.Count == 0) return null;
+            // A cancel and an empty tick-list are NOT the same thing, and treating
+            // them the same is what made this look like the command dying. The
+            // empty case has a specific cause: the Duct rows arrive PRE-SELECTED
+            // above, the picker's list box is SelectionMode.Multiple, and in that
+            // mode a plain click TOGGLES a row. So clicking the duct family to
+            // "pick" it un-picks it, and OK then returns nothing. Observed
+            // 2026-09-17 at 20:57:58: "scope dialog cancelled - nothing done"
+            // seconds after the operator picked Duct.
+            if (picked == null)
+            {
+                StingLog.Info("ChooseTargets: target picker cancelled");
+                return null;
+            }
+            if (picked.Count == 0)
+            {
+                StingLog.Warn("ChooseTargets: OK pressed with nothing highlighted - " +
+                              "likely the pre-selected row was clicked and toggled off");
+                var empty = new TaskDialog("Propagate Universal Tag — nothing selected");
+                empty.MainInstruction = "No target families were highlighted, so nothing was propagated.";
+                empty.MainContent =
+                    "The list allows multiple selections, which means a click TOGGLES a row.\n" +
+                    "The Duct family starts out already highlighted for the smoke test, so " +
+                    "clicking it turns it OFF.\n\n" +
+                    "Re-run and either press OK straight away (Duct is already highlighted), " +
+                    "or click a DIFFERENT row to add it. Ctrl+click toggles one row without " +
+                    "disturbing the rest.";
+                empty.CommonButtons = TaskDialogCommonButtons.Close;
+                empty.Show();
+                return null;
+            }
 
             var chosen = picked.Select(p => p.Tag as Family).Where(f => f != null).ToList();
             scopeLabel = $"CHOSEN ({chosen.Count})";
+            StingLog.Info($"ChooseTargets: {chosen.Count} target(s) chosen - " +
+                          string.Join(", ", chosen.Take(5).Select(f => f.Name)) +
+                          (chosen.Count > 5 ? $", +{chosen.Count - 5} more" : ""));
             return chosen;
         }
     }

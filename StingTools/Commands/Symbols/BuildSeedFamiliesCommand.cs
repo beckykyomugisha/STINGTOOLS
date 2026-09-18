@@ -378,15 +378,11 @@ namespace StingTools.Commands.Symbols
 
         private static string ResolveSeedOutputFolder(Document doc)
         {
-            string baseDir = null;
-            try
-            {
-                if (!string.IsNullOrEmpty(doc.PathName))
-                    baseDir = Path.GetDirectoryName(doc.PathName);
-            }
-            catch (Exception ex) { StingLog.Warn($"ResolveSeedOutputFolder: {ex.Message}"); }
-            if (string.IsNullOrEmpty(baseDir))
-                baseDir = Path.Combine(Path.GetTempPath(), "STING_Seeds");
+            // This used to read the project directory into a baseDir, fall back to
+            // Path.Combine(Path.GetTempPath(), "STING_Seeds"), and then DISCARD both: the
+            // return never used either value. Eight lines that read as a resolver with a
+            // safety net, and neither half ran. Removed rather than wired - StingPaths IS
+            // the resolver, and a dead fallback is worse than none because it reads as cover.
             return StingPaths.MetaFile(doc, "_BIM_COORD", "Families", "Seeds");
         }
 

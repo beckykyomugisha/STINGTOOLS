@@ -23,7 +23,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
                 // Hc.Specialist.Mat.* overrides:
                 //   Maternity / Nicu → toggle the two scope halves independently.

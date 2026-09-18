@@ -1600,6 +1600,12 @@ namespace StingTools.Core
                 case "TagScheme_Inspect": return new Tags.TagSchemeInspectCommand();
                 case "TagScheme_Audit": return new Tags.TagSchemeAuditCommand();
                 case "LOD_Verify": return new Commands.Validation.LodVerifyCommand();
+                // Corrects tag families' categories on disk. Chainable on purpose: its
+                // default is AUDIT, which is a report, and a QA preset wants to know how
+                // many of the 206 are still Generic Model Tags. The APPLY path asks for
+                // files and confirmation, so a chain cannot rewrite the library by
+                // accident.
+                case "TagFamilyFixCategories": return new Commands.TagStudio.FixTagFamilyCategoriesCommand();
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
                 case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();

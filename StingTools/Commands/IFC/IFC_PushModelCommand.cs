@@ -29,7 +29,7 @@ namespace StingTools.Commands.IFC
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiApp = commandData.Application;
+            var uiApp = ParameterHelpers.GetApp(commandData);
             var doc   = uiApp?.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("Push to Planscape", "No document open."); return Result.Cancelled; }
 
