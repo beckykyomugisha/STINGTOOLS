@@ -200,6 +200,7 @@ already wired. Six offline tasks, and an explicit list of what must stay manual 
 - [Universal tag load-conflict sources](UNIVERSAL_TAG_LOAD_CONFLICT_SOURCES.md) ✅ — every source that can type a shared parameter wrongly, audited; why a blank project still conflicts
 - [Universal tag family-parameter hygiene](UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md) ✅ — which parameters belong in a tag family, and why three tier gates could never be driven
 - [Universal tag propagation test](UNIVERSAL_TAG_PROPAGATION_TEST.md) ✅ — the current executable test: what is already proven, the run, the log lines, V1-V8, triage
+- [Propagate + recategorise, in order](UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md) ✅ — the two library-wide jobs, the three collisions between them, and the sequence that survives a deploy
 - [Universal tag Duct smoke test](UNIVERSAL_TAG_DUCT_SMOKE_TEST.md) ⛔ SUPERSEDED
 - [F-9 spatial code reconciliation](F9_SPATIAL_CODE_RECONCILIATION.md) ✅ — five level + three LOC vocabularies, measured
 - [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied

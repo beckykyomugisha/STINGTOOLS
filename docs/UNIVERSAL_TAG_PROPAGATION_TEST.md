@@ -5,6 +5,8 @@ NEVER RUN, retired deploy paths) and the `…_DUCT_SMOKE_TEST_RUN.md` drafted on
 `claude/func-prod-binding-strategy-8ac840`. Written against the build deployed **2026-09-17
 22:37**, after the first successful propagation on this machine.
 
+**Doing the whole library, not just this test?** Read [UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md](UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md) first: propagation and the category fix write the same files, and a deploy overwrites both.
+
 Read §0 before running anything: four of the things the old runner asks you to check by hand
 are now either proven or checked by the plugin, and one step it never mentioned is the whole
 remaining point.
