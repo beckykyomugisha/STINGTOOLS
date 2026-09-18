@@ -1849,7 +1849,7 @@ render();
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
                 CoordinationCenterDialog.Show(doc);
                 return Result.Succeeded;
@@ -1872,7 +1872,7 @@ render();
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
                 string path = DashboardGenerator.Generate(doc);
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true })?.Dispose();
@@ -1896,7 +1896,7 @@ render();
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 if (FileMonitorEngine.IsRunning)
@@ -1932,7 +1932,7 @@ render();
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 NotificationDeliveryEngine.LoadConfig(doc);
@@ -1966,7 +1966,7 @@ render();
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { message = "No document open."; return Result.Failed; }
                 CoordinationCenterDialog.Show(doc);
                 return Result.Succeeded;

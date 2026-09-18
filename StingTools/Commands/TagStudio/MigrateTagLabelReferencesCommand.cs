@@ -62,7 +62,7 @@ namespace StingTools.Commands.TagStudio
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIDocument uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
             if (uidoc == null) { message = "No active document."; return Result.Failed; }
             Document doc = uidoc.Document;
             Autodesk.Revit.ApplicationServices.Application app = doc.Application;

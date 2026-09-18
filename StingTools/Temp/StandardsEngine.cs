@@ -741,7 +741,7 @@ namespace StingTools.Temp
         {
             try
             {
-                // GetDoc, not commandData.Application: null from the dock panel, which
+                // GetDoc, not ParameterHelpers.GetApp(commandData): null from the dock panel, which
                 // made this command load the Uniclass map for no document and report a
                 // clean empty result.
                 var doc = ParameterHelpers.GetDoc(commandData);

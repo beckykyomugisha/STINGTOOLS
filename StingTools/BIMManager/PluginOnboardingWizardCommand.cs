@@ -30,7 +30,7 @@ namespace StingTools.BIMManager
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument?.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var step = 1;
