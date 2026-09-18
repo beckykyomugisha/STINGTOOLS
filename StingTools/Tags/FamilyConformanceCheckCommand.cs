@@ -223,7 +223,15 @@ namespace StingTools.Tags
             // an audit should silently rewrite.
             try
             {
-                var catRes = TagCategoryResolver.Resolve(famDoc, famDoc.OwnerFamily);
+                // By FILE name, not OwnerFamily.Name. Same bug as
+                // FixTagFamilyCategoriesCommand had: a standalone-opened family document
+                // does not reliably report the file's name that way, and the declarations
+                // are keyed on the file name. Proven by the 2026-09-18 11:26 run - 0
+                // CATEGORY MISMATCH findings across 343 families, 203 of them Generic
+                // Model Tags, while the category audit says 103 should change. This check
+                // has been reporting nothing since it was written.
+                var catRes = TagCategoryResolver.Resolve(
+                    famDoc, row.FamilyName, famDoc.OwnerFamily?.FamilyCategory);
                 if (catRes != null && catRes.IsMismatch)
                 {
                     row.Missing.Add($"CATEGORY MISMATCH: {catRes.Note}");

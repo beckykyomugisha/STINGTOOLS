@@ -439,7 +439,9 @@ namespace StingTools.Commands.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"ResolveLpsFolder proj: {ex.Message}"); }
 
-            return Path.Combine(Path.GetTempPath(), "STING_LPS_Families");
+            // Family shells are deliverables; the per-session temp folder is not a home
+            // for them. OutputLocationHelper has a stable step and says when it uses it.
+            return Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "Families", "LPS");
         }
 
         private static string ResolveTemplateFolder(Application app)

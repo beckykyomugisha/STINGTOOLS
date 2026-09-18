@@ -183,9 +183,11 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
+                // OutputLocationHelper, not Path.GetTempPath(): under Revit that is a
+                // per-session GUID folder, so the audit trail disappeared with the session.
                 string outDir = !string.IsNullOrEmpty(doc?.PathName)
                     ? StingPaths.Meta(doc, "_BIM_COORD")
-                    : Path.Combine(Path.GetTempPath(), "STING");
+                    : OutputLocationHelper.GetOutputDirectory(doc);
                 Directory.CreateDirectory(outDir);
                 var path = Path.Combine(outDir, "titleblock_heal_audit.jsonl");
                 using (var sw = File.AppendText(path))

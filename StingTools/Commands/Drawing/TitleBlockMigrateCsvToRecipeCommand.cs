@@ -147,7 +147,9 @@ namespace StingTools.Commands.Drawing
                     return StingPaths.Meta(doc, "_BIM_COORD");
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return Path.Combine(Path.GetTempPath(), "STING");
+            // Not Path.GetTempPath(): per-session under Revit. OutputLocationHelper has a
+            // stable step before temp and warns once when it uses it.
+            return OutputLocationHelper.GetOutputDirectory(doc);
         }
 
         private static List<List<string>> ReadCsv(string path)
