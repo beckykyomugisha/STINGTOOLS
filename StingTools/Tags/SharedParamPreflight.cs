@@ -264,6 +264,42 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// Every definition in an open shared-parameter file, as the facts it declares.
+        /// Used to check a family against MR_PARAMETERS.txt itself rather than against one
+        /// project: a family carrying a wrong-typed parameter conflicts with whichever
+        /// project holds the declared type, so the declaration is the fixed point and a
+        /// project is not.
+        /// </summary>
+        public static List<SharedParamFacts> CollectAllDefinitions(DefinitionFile defFile)
+        {
+            var facts = new List<SharedParamFacts>();
+            if (defFile == null) return facts;
+
+            foreach (DefinitionGroup group in defFile.Groups)
+            {
+                foreach (Definition d in group.Definitions)
+                {
+                    var ext = d as ExternalDefinition;
+                    if (ext == null) continue;
+                    try
+                    {
+                        facts.Add(new SharedParamFacts
+                        {
+                            Name = ext.Name,
+                            Guid = ext.GUID,
+                            DataType = DataTypeOf(ext)
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SharedParamPreflight: definition '{ext.Name}' unreadable: {ex.Message}");
+                    }
+                }
+            }
+            return facts;
+        }
+
+        /// <summary>
         /// The text of every text note in a family document. Used to catch
         /// authoring scaffolding before propagation clones it into 206 families -
         /// see <see cref="AuthoringNoteMatcher"/> for what counts.

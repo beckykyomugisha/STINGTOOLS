@@ -118,6 +118,9 @@ namespace StingTools.Commands.TagStudio
                 return Result.Cancelled;
             }
 
+            StingLog.Info($"FixTagFamilyCategories: {rfas.Count} .rfa file(s) under {folder}; " +
+                          $"{TagCategoryResolver.DeclaredCount} family/families have a declared category");
+
             // ── 2. Audit or apply? ──
             var mode = ChooseMode(rfas.Count);
             if (mode == RunMode.Cancel)
@@ -284,16 +287,34 @@ namespace StingTools.Commands.TagStudio
                 Family owner = famDoc.OwnerFamily;
                 row.Actual = owner?.FamilyCategory?.Name ?? "(none)";
 
-                // The declaration, resolved against the family document itself — built-in
-                // category ids are document-independent, so a tag category resolved here is
-                // the same category a project would resolve.
-                var res = TagCategoryResolver.Resolve(famDoc, owner);
+                // Resolve by the FILE name, not owner.Name. The declarations are keyed on
+                // the name a family has as a file, and a standalone-opened family document
+                // does not reliably report that through OwnerFamily.Name: doing it the other
+                // way round returned "no Category declared" for all 212 files on 2026-09-18
+                // while 137 of them match a declaration exactly, and the audit reported
+                // "0 families would change category" as a result.
+                //
+                // Built-in category ids are document-independent, so a tag category resolved
+                // against the family document is the same one a project would resolve.
+                var res = TagCategoryResolver.Resolve(famDoc, row.FamilyName, owner?.FamilyCategory);
+
+                // If the two names disagree, say so. It is the fact that hid the bug above,
+                // and it is the only place it can be seen.
+                string ownerName = null;
+                try { ownerName = owner?.Name; } catch { }
+                if (!string.IsNullOrEmpty(ownerName) &&
+                    !string.Equals(ownerName, row.FamilyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    row.Detail = $"file name '{row.FamilyName}' vs OwnerFamily.Name '{ownerName}'";
+                    StingLog.Info($"FixTagFamilyCategories: '{row.FamilyName}' reports OwnerFamily.Name '{ownerName}'");
+                }
                 row.Declared = res?.DeclaredTagCategory?.Name ?? res?.DeclaredHostCategory ?? "";
 
                 if (res == null || string.IsNullOrEmpty(res.DeclaredHostCategory))
                 {
                     row.Verdict = "NO-DECLARATION";
-                    row.Detail = res?.Note ?? "no Category declared in STING_TAG_CONFIG_v5_0_*.csv";
+                    row.Detail = Join(row.Detail,
+                        res?.Note ?? "no Category declared in STING_TAG_CONFIG_v5_0_*.csv");
                     return row;   // never guess a category
                 }
                 if (res.DeclaredTagCategory == null)
@@ -315,7 +336,8 @@ namespace StingTools.Commands.TagStudio
                 if (!apply)
                 {
                     row.Verdict = "FIX";
-                    row.Detail = "audit only — not written";
+                    row.Detail = Join(row.Detail,
+                        $"{row.Actual} → {res.DeclaredTagCategory.Name} (audit only — not written)");
                     return row;
                 }
 
@@ -353,7 +375,7 @@ namespace StingTools.Commands.TagStudio
                 }
 
                 row.Verdict = "FIX";
-                row.Detail = $"{row.Actual} → {target.Name}, saved";
+                row.Detail = Join(row.Detail, $"{row.Actual} → {target.Name}, saved");
                 StingLog.Info($"FixTagFamilyCategories: '{row.FamilyName}' {row.Actual} → {target.Name}");
                 return row;
             }
@@ -369,6 +391,14 @@ namespace StingTools.Commands.TagStudio
                 try { famDoc?.Close(false); }
                 catch (Exception ex) { StingLog.Warn($"FixTagFamilyCategories: close '{row.FamilyName}': {ex.Message}"); }
             }
+        }
+
+        /// <summary>Two details in one cell, without losing either.</summary>
+        private static string Join(string a, string b)
+        {
+            if (string.IsNullOrWhiteSpace(a)) return b;
+            if (string.IsNullOrWhiteSpace(b)) return a;
+            return a + "; " + b;
         }
 
         /// <summary>

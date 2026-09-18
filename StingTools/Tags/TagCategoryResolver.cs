@@ -109,16 +109,33 @@ namespace StingTools.Tags
         /// explaining why, so the caller can fall back and report rather than guess.
         /// </summary>
         public static TagCategoryResolution Resolve(Document doc, Family family)
+            => Resolve(doc, family?.Name, family?.FamilyCategory, family == null ? "null family" : null);
+
+        /// <summary>
+        /// Resolve by NAME. Needed because a family document opened standalone does not
+        /// reliably report the file's name through <c>OwnerFamily.Name</c>, and the
+        /// declarations in STING_TAG_CONFIG_v5_0_*.csv are keyed on the name the family
+        /// has as a FILE — which is the same thing Revit uses for a loaded family
+        /// ("a loaded family's project name IS its .rfa FILE name").
+        ///
+        /// <para>Measured 2026-09-18: FixTagFamilyCategories called the Family overload
+        /// for each of 212 standalone-opened .rfa files and got "no Category declared"
+        /// for every one, while 137 of those file names match a declaration exactly. The
+        /// audit therefore reported "0 families would change category" — a clean bill of
+        /// health for a library where most families are mis-categorised.</para>
+        /// </summary>
+        public static TagCategoryResolution Resolve(
+            Document doc, string familyName, Category actualCategory, string nullNote = null)
         {
             var res = new TagCategoryResolution
             {
-                FamilyName = family?.Name ?? "",
-                ActualCategory = family?.FamilyCategory?.Name ?? ""
+                FamilyName = familyName ?? "",
+                ActualCategory = actualCategory?.Name ?? ""
             };
 
-            if (doc == null || family == null)
+            if (doc == null || string.IsNullOrWhiteSpace(familyName))
             {
-                res.Note = "null document or family";
+                res.Note = nullNote ?? (doc == null ? "null document" : "no family name");
                 return res;
             }
 

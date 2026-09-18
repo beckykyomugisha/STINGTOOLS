@@ -28,11 +28,18 @@ namespace StingTools.Tags
     //      No obviously-wrong placement type vs category     ( 10 pts )
     //      Opened without error                              ( 10 pts )
     //
-    //  Plus one veto, scored as no points at all: a family whose shared
-    //  parameters disagree with the open project's cannot be LOADED, however
-    //  conformant the rest of it is, so it is reported BLOCK with the
-    //  offending parameters named. Needs a project document open; without
-    //  one the check says it did not run.
+    //  Plus TWO vetoes, scored as no points at all, because a family that cannot
+    //  be loaded is not 90% conformant - it is unusable:
+    //
+    //   (9)  its shared parameters disagree with the OPEN PROJECT's -> it cannot
+    //        load HERE. Needs a project open; without one, reported NOT RUN.
+    //   (10) its shared parameters disagree with MR_PARAMETERS.txt -> it will
+    //        conflict in ANY project that holds the declared types, whichever
+    //        family happens to load first. This is the check that answers why
+    //        the same twelve conflicts reappear in a brand-new project.
+    //
+    //  Both name the parameter and both types. Neither costs points; both force
+    //  BLOCK.
     //
     //  Result is a CSV report at <outputDir>/FamilyConformanceReport_yyyyMMdd_HHmmss.csv
     //  plus a TaskDialog summary listing the lowest-scoring families.
@@ -152,8 +159,15 @@ namespace StingTools.Tags
         /// can say whether this family would actually LOAD; omitted, that check is
         /// reported as not run rather than passed.
         /// </param>
+        /// <param name="declaredSide">
+        /// Every definition in MR_PARAMETERS.txt
+        /// (<see cref="SharedParamPreflight.CollectAllDefinitions"/>). Supplied, the audit
+        /// names any parameter this family types differently from the declaration — which
+        /// is the load conflict it will cause in EVERY project, not just the open one.
+        /// </param>
         public static ConformanceReportRow Inspect(UIApplication uiApp, string rfaPath,
-            IList<SharedParamFacts> projectSide = null)
+            IList<SharedParamFacts> projectSide = null,
+            IList<SharedParamFacts> declaredSide = null)
         {
             var row = new ConformanceReportRow { Path = rfaPath };
             row.FamilyName = Path.GetFileNameWithoutExtension(rfaPath) ?? "";
@@ -171,7 +185,7 @@ namespace StingTools.Tags
                     return row;
                 }
 
-                ScoreFamily(famDoc, row, projectSide);
+                ScoreFamily(famDoc, row, projectSide, declaredSide);
             }
             catch (Exception ex)
             {
@@ -187,7 +201,8 @@ namespace StingTools.Tags
         }
 
         private static void ScoreFamily(Document famDoc, ConformanceReportRow row,
-            IList<SharedParamFacts> projectSide = null)
+            IList<SharedParamFacts> projectSide = null,
+            IList<SharedParamFacts> declaredSide = null)
         {
             var fm = famDoc.FamilyManager;
             int score = 0;
@@ -408,7 +423,31 @@ namespace StingTools.Tags
                 row.Warnings.Add("Shared-parameter load check NOT RUN — no project document open.");
             }
 
-            // ── (10) Authoring scaffolding left in the family ─────────
+            // ── (10) Does this family AGREE WITH THE DECLARATION? (a veto) ───
+            // Check (9) compares against the open project, which answers "can this load
+            // HERE". This compares against MR_PARAMETERS.txt, which answers "will this
+            // conflict ANYWHERE" - and that is the question behind the twelve conflicts
+            // that keep coming back in a brand-new project. A family carrying
+            // ASS_CRITICALITY_RATING_NR as Text conflicts with every project that holds
+            // the declared Number, whichever family happens to load first.
+            if (declaredSide != null && declaredSide.Count > 0)
+            {
+                try
+                {
+                    var wrongTyped = SharedParamConflictDetector.Detect(
+                        SharedParamPreflight.CollectFamily(fm), declaredSide);
+                    foreach (var c in wrongTyped)
+                        row.Missing.Add("DISAGREES WITH MR_PARAMETERS: " + c.Describe());
+                    if (wrongTyped.Count > 0) loadBlocked = true;
+                }
+                catch (Exception ex) { row.Warnings.Add($"Declaration type check: {ex.Message}"); }
+            }
+            else
+            {
+                row.Warnings.Add("Declaration type check NOT RUN — MR_PARAMETERS.txt was not read.");
+            }
+
+            // ── (11) Authoring scaffolding left in the family ─────────
             // Text the author wrote for themselves prints like any other note, and
             // propagation clones it into every target. Reported, never scored: it
             // does not stop the family working.
@@ -471,6 +510,36 @@ namespace StingTools.Tags
                 // is reported as not run, never as passed.
                 var projectSide = SharedParamPreflight.CollectProject(
                     uiApp.ActiveUIDocument?.Document);
+
+                // The declaration, read once. This is the fixed point: a family whose
+                // parameter types disagree with MR_PARAMETERS.txt will conflict in any
+                // project that holds the declared types, which is why the same twelve
+                // errors reappear in a brand-new project.
+                var declaredSide = new List<SharedParamFacts>();
+                string mrPath = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+                string originalSp = null;
+                try
+                {
+                    if (!string.IsNullOrEmpty(mrPath) && File.Exists(mrPath))
+                    {
+                        originalSp = uiApp.Application.SharedParametersFilename;
+                        uiApp.Application.SharedParametersFilename = mrPath;
+                        declaredSide = SharedParamPreflight.CollectAllDefinitions(
+                            uiApp.Application.OpenSharedParameterFile());
+                    }
+                    else
+                    {
+                        StingLog.Warn("FamilyConformanceCheck: MR_PARAMETERS.txt not found - " +
+                                      "the declaration check will report NOT RUN");
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"FamilyConformanceCheck: reading MR_PARAMETERS.txt: {ex.Message}"); }
+                finally
+                {
+                    try { if (originalSp != null) uiApp.Application.SharedParametersFilename = originalSp; }
+                    catch (Exception ex) { StingLog.Warn($"FamilyConformanceCheck: restore SharedParametersFilename: {ex.Message}"); }
+                }
+                StingLog.Info($"FamilyConformanceCheck: MR_PARAMETERS.txt declares {declaredSide.Count} parameter(s)");
                 StingLog.Info($"FamilyConformanceCheck: project holds {projectSide.Count} shared parameters " +
                               (projectSide.Count == 0 ? "— load check will be reported as NOT RUN" : "to check against"));
 
@@ -482,7 +551,7 @@ namespace StingTools.Tags
                     i++;
                     try
                     {
-                        var row = FamilyConformanceInspector.Inspect(uiApp, p, projectSide);
+                        var row = FamilyConformanceInspector.Inspect(uiApp, p, projectSide, declaredSide);
                         rows.Add(row);
                     }
                     catch (Exception ex)
