@@ -80,8 +80,21 @@ namespace StingTools.Commands.TagStudio
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var uiApp = commandData?.Application;
-            if (uiApp == null) { TaskDialog.Show("STING", "No Revit application."); return Result.Failed; }
+            // NOT commandData.Application. A dock-panel button reaches a command through
+            // StingCommandHandler.RunCommand<T>, which calls Execute(null, ...) by design -
+            // "commands use StingCommandHandler.CurrentApp as fallback". Reading
+            // commandData directly is why this reported "No Revit application." on the
+            // first press (2026-09-18). ParameterHelpers.GetApp is the accessor that
+            // knows about both callers.
+            UIApplication uiApp;
+            try { uiApp = ParameterHelpers.GetApp(commandData); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FixTagFamilyCategories: no UIApplication: {ex.Message}");
+                TaskDialog.Show("Fix Tag Family Categories",
+                    "Could not reach Revit. Run this from the STING dock panel or the ribbon.");
+                return Result.Failed;
+            }
             var app = uiApp.Application;
             Document projectDoc = null;
             try { projectDoc = uiApp.ActiveUIDocument?.Document; } catch { }

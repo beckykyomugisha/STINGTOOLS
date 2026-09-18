@@ -446,7 +446,11 @@ namespace StingTools.Tags
         {
             try
             {
-                var uiApp = commandData.Application;
+                // Same fix as FixTagFamilyCategoriesCommand: a dock-panel button arrives
+                // with commandData == null, so this threw a NullReferenceException for
+                // every press of the "Conformance" button. RunCommand caught it and said
+                // so in the log, and nobody read the log.
+                var uiApp = ParameterHelpers.GetApp(commandData);
 
                 // Pick the folder to scan.
                 string folder = PickFolder(uiApp);
