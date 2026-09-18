@@ -1,20 +1,20 @@
-# workflow_reachability_baseline.txt — Tier 6.
+﻿# workflow_reachability_baseline.txt â€” Tier 6.
 #
 # Dock-panel button tags that have NO case in WorkflowEngine.ResolveCommand, and are
 # therefore NOT reachable from a workflow preset. Every one of these dispatches fine
-# when a human clicks it — Tier 4 already proves that — so this is not a list of
+# when a human clicks it â€” Tier 4 already proves that â€” so this is not a list of
 # broken buttons. It is a list of commands a chain cannot call.
 #
 # WHY THE FILE EXISTS. Seven commands built during 2026-09 sat outside ResolveCommand
 # and outside all 48 presets for a month, and nothing said so: Tier 2 gates PRESET
 # STEPS against ResolveCommand, so a command in neither is invisible to it. This tier
 # asks the other half of the question, and the baseline is what makes the answer
-# actionable — a NEW button now forces a decision instead of a silence.
+# actionable â€” a NEW button now forces a decision instead of a silence.
 #
 # THIS FILE MAY SHRINK, NEVER GROW. Adding a line to make the gate pass defeats the
 # only thing it does. If a new command should be chainable, add a ResolveCommand case;
-# if it is genuinely interactive-only — it opens a modeless window, it needs a picked
-# element, it is a dialog with no headless meaning — say so in review and add the tag.
+# if it is genuinely interactive-only â€” it opens a modeless window, it needs a picked
+# element, it is a dialog with no headless meaning â€” say so in review and add the tag.
 #
 # A STALE ENTRY IS REPORTED, NOT FAILED, and that is deliberate. A tag leaving this
 # list means somebody made it chainable, which is the outcome the tier wants; failing
@@ -24,7 +24,7 @@
 #
 # NOT A RESTATEMENT OF docs/UNREACHABLE_COMMANDS_TRIAGE.md. That file asks whether a
 # command class is reachable AT ALL, across six dispatch layers, and derives its own
-# counts. This asks the narrower question — reachable from a WORKFLOW — and the two
+# counts. This asks the narrower question â€” reachable from a WORKFLOW â€” and the two
 # numbers are not comparable. Do not copy either into the other.
 #
 # Generated 2026-09-10 from origin/main @ 4b4ca588b: 1236 of 1,681 Cmd_Click button tags.
@@ -475,7 +475,6 @@ Hvac_EqualFriction
 Hvac_EquipmentAudit
 Hvac_ExportGbxml
 Hvac_ExportWeldMap
-Hvac_FanStaticReport
 Hvac_FullDesignPass
 Hvac_GenerateCxChecklist
 Hvac_GenerateLayout

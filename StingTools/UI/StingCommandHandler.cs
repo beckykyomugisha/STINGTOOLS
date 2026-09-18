@@ -3111,6 +3111,12 @@ namespace StingTools.UI
                     // read-only audit of a folder of .rfa families against the STING contract.
                     // Use BEFORE bulk-stamping a manufacturer library.
                     case "FamilyConformanceCheck": RunCommand<Tags.FamilyConformanceCheckCommand>(app); break;
+                    // Tag family categories (FixTagFamilyCategoriesCommand.cs) - corrects the
+                    // .rfa files ON DISK, standalone, because Revit refuses to move a LOADED
+                    // family to another category on reload (proven 2026-09-17). Note that
+                    // FamilySwapCategory below cannot do tags at all: SwapCategoryCommand
+                    // refuses annotation families by design.
+                    case "TagFamilyFixCategories": RunCommand<Commands.TagStudio.FixTagFamilyCategoriesCommand>(app); break;
 
                     // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
                     // rehost, swap category, inject automation pack, quick-edit dialog

@@ -281,3 +281,60 @@ Deleting a type takes any tag placed on it with it, so that stays the operator's
 **To re-add T3 later**, add the T3 rows to the master's label first, then
 `TAG_PARA_STATE_3_BOOL` to the master, then restore the depth-3 rows here — in that order.
 The gate before the rows produces exactly the state this section removed.
+
+---
+
+## 8 · Fixing the families' categories in code — what is possible
+
+Asked 2026-09-18: most of the 206 are `Generic Model Tags` rather than the category they
+were written for. Can that be corrected by code?
+
+**Yes for the library, no for a project that already holds the stale family.** The two
+halves need different answers because they fail for different reasons.
+
+### What already worked, and what never did
+
+| Step | State |
+|---|---|
+| Set a family's category **inside a family document** — `famDoc.OwnerFamily.FamilyCategory = cat` | **Works.** Three places in the tree already do it (`PropagateUniversalTagCommand`, `FamilyHostConverter`, `SymbolLibraryCreator`), and the Revit UI does it too — you did it to the duct tag by hand |
+| Get that family **back into a project that has it loaded** | **Refused.** Revit matches a reloaded family by NAME and will not move a loaded family to another category. `LoadFamily` returns a bare `false` (proven three times, 2026-09-17) |
+| `FamilySwapCategory`, the existing command for this | **Never covered tags.** `SwapCategoryCommand` refuses annotation families by design — "System families, hosted (doors / windows) and annotation families are refused" |
+
+### The route that works: fix the `.rfa` on disk
+
+`Fix Categories` (`TagFamilyFixCategories` →
+[`FixTagFamilyCategoriesCommand`](../StingTools/Commands/TagStudio/FixTagFamilyCategoriesCommand.cs))
+opens each family **standalone** with `app.OpenDocumentFile` — no project, no `LoadFamily`,
+so there is nothing to refuse — sets the category declared for it in
+`STING_TAG_CONFIG_v5_0_*.csv`, reads the value back, and saves the file. A project that
+loads the corrected file afterwards gets the right category from the start.
+
+It never guesses. A family with no declared category is reported `NO-DECLARATION` and
+skipped; a declaration that resolves to no category in the document is `UNRESOLVED`. Both
+are in the report rather than corrected on a hunch.
+
+**Audit is the default and writes nothing.** Apply asks which files, copies every one into a
+timestamped `_precategory_…` folder first, refuses to run at all if that copy fails, and
+pre-selects Duct — because **whether a category change preserves a family's label rows is
+still unproven** (§V2 of the test doc) and this command is otherwise a way to find that out
+206 times at once.
+
+### The part that cannot be automated, and why the report names it
+
+An existing model keeps its `Generic Model Tags` version until the family is deleted from it
+and re-loaded, which takes every placed tag with it. So the report carries a
+**`PlacedInProject`** column: how many elements in the open project use that family's types.
+0 means adoption is free; a number means it costs that many tags. That decision is not one a
+command should make silently, so it is priced, not paid.
+
+### Untried, and worth one experiment
+
+`SwapCategoryCommand` uses a **different** load overload from propagation:
+`famDoc.LoadFamily(doc, options)` — the in-memory family document — where propagation uses
+`doc.LoadFamily(path, options, out family)`. Whether the in-memory overload also refuses a
+category change is unknown; nobody has tried it on a tag. If it permits one, propagation
+could enforce the declared category in-project after all, and §6's KEEP/ENFORCE choice
+becomes unnecessary.
+
+That is a ten-minute test in Revit and it would be worth doing before building anything else
+on the disk-side route.
