@@ -23,6 +23,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Drawing;
 
@@ -52,6 +53,13 @@ namespace StingTools.UI
         // ── state ──
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
+        /// <summary>
+        /// Document-level keys of the style-pack file this editor loaded
+        /// (schemaVersion / name / description / namespace / lastUpdated /
+        /// routing), captured on load and re-emitted on save so persisting
+        /// packs never truncates the file header.
+        /// </summary>
+        private IDictionary<string, JToken> _packDocExtra;
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
@@ -965,7 +973,7 @@ namespace StingTools.UI
             var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
                                     CommonStingFilters).ToArray();
             var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
-            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
+            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);   // tri-state
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
             // Phase 137 — Proj-Col / Cut-Col are now colour swatch buttons
             // that open VgColorPicker. Tooltip shows hex + R G B + decimal
@@ -1093,6 +1101,31 @@ namespace StingTools.UI
             }
             body.Children.Add(wrap);
             return Card("Managed fields", body);
+        }
+
+        /// <summary>
+        /// Tri-state checkbox for a nullable flag: ticked = true,
+        /// unticked = false, indeterminate = "the pack does not say", which
+        /// lets the value fall through to the AEC filter registry's own
+        /// default. Needed because StyleFilterRule.Visible / .Halftone are
+        /// deliberately bool? — the editor's two-state box could only ever
+        /// write a hard true/false, so opening a pack and saving it turned
+        /// every "unstated" into an override.
+        /// </summary>
+        private CheckBox MakeChk(bool? value, Action<bool?> setter)
+        {
+            var cb = new CheckBox
+            {
+                IsThreeState        = true,
+                IsChecked           = value,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip             = "Ticked = on · unticked = off · shaded = not stated (use the filter's own default)",
+            };
+            cb.Checked        += (s, e) => setter?.Invoke(true);
+            cb.Unchecked      += (s, e) => setter?.Invoke(false);
+            cb.Indeterminate  += (s, e) => setter?.Invoke(null);
+            return cb;
         }
 
         private CheckBox MakeChk(bool value, Action<bool> setter)
@@ -1285,6 +1318,10 @@ namespace StingTools.UI
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
                 if (!File.Exists(path)) return list;
                 var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
+                // Keep the document header (schemaVersion / name / description /
+                // namespace / lastUpdated / routing) so a save re-emits it
+                // rather than truncating the file to a bare pack array.
+                _packDocExtra = doc?.Extra;
                 return doc?.StylePacks ?? list;
             }
             catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
@@ -1294,6 +1331,24 @@ namespace StingTools.UI
         private class ViewStylePackDoc
         {
             [JsonProperty("stylePacks")] public List<ViewStylePack> StylePacks { get; set; }
+
+            // The corporate file keys the array under "stylePacks"; the
+            // runtime POCO's canonical name is "viewStylePacks" and it accepts
+            // both. Accept both here too so the editor can open either shape.
+            [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+            public List<ViewStylePack> ViewStylePacksAlias
+            {
+                get { return null; }
+                set { if (value != null && value.Count > 0) StylePacks = value; }
+            }
+
+            /// <summary>
+            /// Every document-level key this class does not model — schema
+            /// version, description, namespace, lastUpdated, the routing
+            /// table — captured on load and re-emitted on save. Without it a
+            /// save through the editor silently truncated the file header.
+            /// </summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         private class ViewStylePack
@@ -1309,6 +1364,21 @@ namespace StingTools.UI
             [JsonProperty("colorScheme")] public string ColorScheme { get; set; }
             [JsonProperty("appearance")]  public PackAppearance Appearance { get; set; }
             [JsonProperty("filterRules")] public List<PackFilterRule> FilterRules { get; set; }
+
+            // Two packs in the corporate baseline (corp-coordination, 15 rules;
+            // coord-qa, 4) key their rules under the runtime POCO's canonical
+            // name "filters" rather than "filterRules". This mirror bound only
+            // "filterRules", so opening either pack in the editor and saving
+            // DELETED all 19 rules — a silent data loss of exactly the shape
+            // this codebase keeps producing. Accept both; canonical output
+            // stays "filterRules", which the runtime also reads.
+            [JsonProperty("filters", NullValueHandling = NullValueHandling.Ignore)]
+            public List<PackFilterRule> FiltersAlias
+            {
+                get { return null; }
+                set { if (value != null && value.Count > 0) FilterRules = value; }
+            }
+
             [JsonProperty("vgOverrides")] public Dictionary<string, PackCategoryOverride> VgOverrides { get; set; }
 
             // Phase 135 — Tag Appearance pack-level defaults
@@ -1349,6 +1419,24 @@ namespace StingTools.UI
                 var managed = IsManaged ? "● " : "";
                 return $"{managed}{Id}{ext}";
             }
+            /// <summary>
+            /// Every pack key this mirror does not model — tagFamilies,
+            /// categoryDepths, categoryTag7Sections, checksum, byMaterialClass,
+            /// viewRange, underlay, background, worksetVisibility,
+            /// linkOverrides, colorFillSchemes, filterEnabled and anything the
+            /// runtime POCO gains later — captured on load and re-emitted
+            /// verbatim on save.
+            ///
+            /// This is the structural fix for the mirror itself. The editor's
+            /// nested ViewStylePack had drifted from
+            /// StingTools.Core.Drawing.ViewStylePack, and every field the
+            /// runtime understood but the mirror did not was dropped on save.
+            /// Enumerating the missing fields would only have closed today's
+            /// gap; extension data closes the whole class of it, so the
+            /// mirror can fall behind the runtime without losing user data.
+            /// </summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
+
         }
 
         private class PackViewRangeUi
@@ -1379,39 +1467,84 @@ namespace StingTools.UI
         // surface fg/bg pattern (name + color + visibility) for both
         // projection and cut. Legacy projColor/projWeight/cutColor/cutWeight
         // kept for backward compat with existing JSON files.
+        // KEY CONTRACT. Every JsonProperty name below is the name
+        // StingTools.Core.Drawing.StyleFilterRule reads. The pattern fields
+        // used to be written as surfaceFgPatternName / surfaceFgPatternColor /
+        // surfaceFgPatternVisible (and the bg / cut equivalents), which the
+        // runtime binds NOWHERE — so every pattern override authored in this
+        // editor was unreadable by ViewStylePackApplier. The old spellings are
+        // retained as write-only aliases so a project file already saved with
+        // them still loads; output is always the runtime's contract.
         private class PackFilterRule
         {
             [JsonProperty("name")]         public string Name { get; set; }
-            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
-            [JsonProperty("halftone")]     public bool Halftone { get; set; }
 
-            // ── legacy short field names (kept for back-compat) ──
+            // Tri-state, matching StyleFilterRule.Visible / .Halftone. As
+            // non-nullable bools the editor could not express "the pack does
+            // not say" — it wrote an explicit true/false for every rule,
+            // turning "defer to the AEC filter registry default" into a hard
+            // override on save. See the V-9 note on StyleFilterRule.
+            [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool? Visible { get; set; } = true;
+            [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool? Halftone { get; set; }
+
+            // Weights and transparency: DefaultValueHandling.Ignore, not
+            // NullValueHandling. NullValueHandling never suppresses 0 on a
+            // non-nullable int, so the editor emitted projWeight: 0 for every
+            // rule that did not state one — and Revit's valid weight range is
+            // 1..16, so the applier threw and abandoned the whole override.
+            // The editor's own code already treats 0 as "unset" everywhere
+            // (see BuildVgBridge and the transparency textbox), so suppressing
+            // the default is what the rest of the class already assumes.
             [JsonProperty("projColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
-            [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)] public int    ProjWeight { get; set; }
+            [JsonProperty("projWeight", DefaultValueHandling = DefaultValueHandling.Ignore)] public int    ProjWeight { get; set; }
             [JsonProperty("cutColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
-            [JsonProperty("cutWeight",  NullValueHandling = NullValueHandling.Ignore)] public int    CutWeight { get; set; }
-            [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int  Transparency { get; set; }
+            [JsonProperty("cutWeight",  DefaultValueHandling = DefaultValueHandling.Ignore)] public int    CutWeight { get; set; }
+            [JsonProperty("transparency", DefaultValueHandling = DefaultValueHandling.Ignore)] public int  Transparency { get; set; }
 
-            // ── new full Revit-style fields ──
             [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjLinePattern { get; set; }
 
-            [JsonProperty("surfaceFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
-            [JsonProperty("surfaceFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
-            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceFgPatternVisible { get; set; }
+            // ── Surface foreground ──
+            [JsonProperty("surfaceFgPattern", NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
+            [JsonProperty("surfaceFgColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
+            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? SurfaceFgPatternVisible { get; set; }
+            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternName = value; } }
+            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+            [JsonProperty("surfFgColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgColorShort { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
 
-            [JsonProperty("surfaceBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
-            [JsonProperty("surfaceBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
-            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceBgPatternVisible { get; set; }
+            // ── Surface background ──
+            [JsonProperty("surfaceBgPattern", NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
+            [JsonProperty("surfaceBgColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
+            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? SurfaceBgPatternVisible { get; set; }
+            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternName = value; } }
+            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternColor = value; } }
 
             [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
 
-            [JsonProperty("cutFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
-            [JsonProperty("cutFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
-            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutFgPatternVisible { get; set; }
+            // ── Cut foreground ──
+            [JsonProperty("cutFgPattern", NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
+            [JsonProperty("cutFgColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
+            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? CutFgPatternVisible { get; set; }
+            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternName = value; } }
+            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternColor = value; } }
 
-            [JsonProperty("cutBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
-            [JsonProperty("cutBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
-            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutBgPatternVisible { get; set; }
+            // ── Cut background ──
+            [JsonProperty("cutBgPattern", NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
+            [JsonProperty("cutBgColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
+            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? CutBgPatternVisible { get; set; }
+            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternName = value; } }
+            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternColor = value; } }
+
+            /// <summary>Any rule key this mirror does not model, preserved verbatim through a round trip.</summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         // Phase 136 — PackCategoryOverride mirrors StyleVgOverride's full
@@ -1420,13 +1553,25 @@ namespace StingTools.UI
         // cutWeight kept for backward compat with existing JSON files.
         private class PackCategoryOverride
         {
-            [JsonProperty("visible")]      public bool? Visible { get; set; }
-            [JsonProperty("halftone")]     public bool? Halftone { get; set; }
-            [JsonProperty("projColor")]    public string ProjColor { get; set; }
-            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
-            [JsonProperty("cutColor")]     public string CutColor { get; set; }
-            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
-            [JsonProperty("transparency")] public int Transparency { get; set; }
+            [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool? Visible { get; set; }
+            [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool? Halftone { get; set; }
+            [JsonProperty("projColor", NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
+
+            // DefaultValueHandling.Ignore, not NullValueHandling: on a
+            // non-nullable int, NullValueHandling suppresses nothing, so every
+            // override this editor saved carried projWeight: 0 / cutWeight: 0 /
+            // transparency: 0 even when the user set none. Revit's line-weight
+            // range is 1..16 and SetProjectionLineWeight throws outside it, so
+            // ViewStylePackApplier abandoned the ENTIRE category override —
+            // colour, halftone and transparency with it — on the first zero.
+            // The class already treats 0 as "unset" (see IsEmpty below and
+            // BuildVgBridge), so suppressing the default matches its own
+            // semantics. ViewStylePackApplier.ApplyWeight now also treats a
+            // stray 0 as unset, so the two halves fail safe independently.
+            [JsonProperty("projWeight",   DefaultValueHandling = DefaultValueHandling.Ignore)] public int ProjWeight { get; set; }
+            [JsonProperty("cutColor",  NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
+            [JsonProperty("cutWeight",    DefaultValueHandling = DefaultValueHandling.Ignore)] public int CutWeight { get; set; }
+            [JsonProperty("transparency", DefaultValueHandling = DefaultValueHandling.Ignore)] public int Transparency { get; set; }
             [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)]
             public string DetailLevel { get; set; }
 
@@ -1456,35 +1601,69 @@ namespace StingTools.UI
                     && string.IsNullOrEmpty(CutBgPatternColor)
                     && CutBgPatternVisible == null;
             }
-            // Phase 138 — extended Revit VG parity
+            // Phase 138 — extended Revit VG parity.
+            //
+            // KEY CONTRACT: these are the names StyleVgOverride /
+            // StyleFilterRule read. They used to be written as
+            // surfaceFgPatternName / surfaceFgPatternColor (and the bg / cut
+            // equivalents), which bind nowhere in the runtime — so every
+            // pattern override this editor authored was invisible to
+            // ViewStylePackApplier. Legacy spellings are kept as write-only
+            // aliases so an already-saved project file still loads.
             [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)]
             public string ProjLinePattern { get; set; }
-            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+
+            [JsonProperty("surfaceFgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceFgPatternName { get; set; }
-            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceFgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceFgPatternColor { get; set; }
             [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? SurfaceFgPatternVisible { get; set; }
-            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternName = value; } }
+            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+            [JsonProperty("surfFgColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgColorShort { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+
+            [JsonProperty("surfaceBgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceBgPatternName { get; set; }
-            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceBgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceBgPatternColor { get; set; }
             [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? SurfaceBgPatternVisible { get; set; }
+            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternName = value; } }
+            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternColor = value; } }
+
             [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutLinePattern { get; set; }
-            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+
+            [JsonProperty("cutFgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutFgPatternName { get; set; }
-            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutFgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string CutFgPatternColor { get; set; }
             [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? CutFgPatternVisible { get; set; }
-            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternName = value; } }
+            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternColor = value; } }
+
+            [JsonProperty("cutBgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutBgPatternName { get; set; }
-            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutBgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string CutBgPatternColor { get; set; }
             [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? CutBgPatternVisible { get; set; }
+            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternName = value; } }
+            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternColor = value; } }
+
+            /// <summary>Any override key this mirror does not model, preserved verbatim through a round trip.</summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         private UIElement BuildViewportToolsTab()
@@ -3088,6 +3267,26 @@ namespace StingTools.UI
             if (_current != null) SelectType(_current); else RenderForm();
         }
 
+        /// <summary>
+        /// Persist both edited catalogues to the project override.
+        ///
+        /// Two fixes live here.
+        ///
+        /// (1) Style packs are now written. The footer hint has always said
+        /// "Save writes the active tab to … drawing_types.json or
+        /// view_style_packs.json", the pack tab offers New / Clone / Delete
+        /// and a full VG editor, and one of its actions even tells the user to
+        /// "Save to persist to &lt;project&gt;/_BIM_COORD/view_style_packs.json"
+        /// — but nothing in this dialog ever wrote that file. Every pack edit
+        /// was discarded on close, silently, which is the most likely reason a
+        /// pack can look edited in the UI and unchanged on the drawing.
+        ///
+        /// (2) Routing persists only PROJECT rules. It used to write
+        /// DrawingTypeRegistry.ListRouting(doc) — the fully merged table — so
+        /// all 113 corporate rules were frozen into the project file, where
+        /// they are prepended and win for ever. DrawingRoutingRule.Origin now
+        /// makes "mine" answerable.
+        /// </summary>
         private bool SaveToProjectOverride()
         {
             if (_doc == null || string.IsNullOrEmpty(_doc.PathName))
@@ -3101,23 +3300,39 @@ namespace StingTools.UI
             {
                 var dir = StingPaths.Meta(_doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
-                var path = Path.Combine(dir, "drawing_types.json");
 
-                // Write ONLY project-origin types + the routing table so
-                // the corporate baseline on disk stays pristine; if the
-                // user edited a corporate entry, ComputeChecksums already
-                // flipped its origin to "project" during load.
+                // ── Drawing types ──────────────────────────────────────────
+                var typesPath = Path.Combine(dir, "drawing_types.json");
+                var projectTypes = _types
+                    .Where(t => string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var projectRouting = DrawingTypeRegistry.ListRouting(_doc)
+                    .Where(r => r != null && r.IsProjectRule)
+                    .ToList();
+
                 var lib = new DrawingTypeLibrary
                 {
                     Version = 1,
-                    DrawingTypes = _types.Where(t => string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)).ToList(),
-                    Routing = new List<DrawingRoutingRule>(DrawingTypeRegistry.ListRouting(_doc)),
+                    DrawingTypes = projectTypes,
+                    Routing = projectRouting,
                 };
-                File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                File.WriteAllText(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
+
+                // ── Style packs ────────────────────────────────────────────
+                int packCount = SaveStylePacksToProjectOverride(dir, out string packsPath, out string packError);
+
                 DrawingTypeRegistry.Reload(_doc);
-                System.Windows.MessageBox.Show(
-                    $"Saved {lib.DrawingTypes.Count} project-scoped type(s) to\n{path}",
-                    "STING — Drawing Types", MessageBoxButton.OK);
+                ViewStylePackRegistry.Reload(_doc);
+
+                var msg = $"Saved {projectTypes.Count} project-scoped drawing type(s)"
+                        + (projectRouting.Count > 0 ? $" and {projectRouting.Count} routing rule(s)" : "")
+                        + $" to\n{typesPath}";
+                if (packCount >= 0)
+                    msg += $"\n\nSaved {packCount} project-scoped style pack(s) to\n{packsPath}";
+                if (!string.IsNullOrEmpty(packError))
+                    msg += $"\n\nStyle packs were NOT saved: {packError}";
+
+                System.Windows.MessageBox.Show(msg, "STING — Drawing Types", MessageBoxButton.OK);
                 return true;
             }
             catch (Exception ex)
@@ -3126,6 +3341,42 @@ namespace StingTools.UI
                 System.Windows.MessageBox.Show("Save failed: " + ex.Message,
                     "STING", MessageBoxButton.OK);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Write the project-origin style packs to
+        /// &lt;project&gt;/_BIM_COORD/view_style_packs.json. Returns the count
+        /// written, or -1 with <paramref name="error"/> set.
+        ///
+        /// The array is keyed "stylePacks" — the name both the corporate file
+        /// and ViewStylePackLibrary.StylePacksAlias use — and the document
+        /// header captured in ViewStylePackDoc.Extra is re-emitted, so a save
+        /// never truncates schemaVersion / description / namespace / the
+        /// routing table. Corporate packs are excluded so the shipped baseline
+        /// is never mutated, matching the drawing-type half.
+        /// </summary>
+        private int SaveStylePacksToProjectOverride(string dir, out string path, out string error)
+        {
+            path = Path.Combine(dir ?? "", "view_style_packs.json");
+            error = null;
+            try
+            {
+                if (_packs == null) { error = "no packs were loaded."; return -1; }
+
+                var projectPacks = _packs
+                    .Where(p => p != null && string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var doc = new ViewStylePackDoc { StylePacks = projectPacks, Extra = _packDocExtra };
+                File.WriteAllText(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
+                return projectPacks.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DrawingTypeEditorDialog.SaveStylePacks", ex);
+                error = ex.Message;
+                return -1;
             }
         }
 

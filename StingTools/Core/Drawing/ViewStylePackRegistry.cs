@@ -56,6 +56,59 @@ namespace StingTools.Core.Drawing
         public static IReadOnlyList<ViewStylePack> ListAll(Document doc)
             => GetLibrary(doc).Packs;
 
+        /// <summary>The merged (purpose, discipline, phase) → pack routing table.</summary>
+        public static IReadOnlyList<ViewStylePackRoutingRule> ListRouting(Document doc)
+            => GetLibrary(doc).Routing ?? new List<ViewStylePackRoutingRule>();
+
+        /// <summary>
+        /// The pack a DrawingType should use: its own <c>viewStylePackId</c>
+        /// when it names one, else the first routing rule that matches its
+        /// (purpose, discipline, phase). Returns null when neither resolves.
+        ///
+        /// <paramref name="source"/> reports which route was taken
+        /// ("profile" / "routing:&lt;rule&gt;" / "none") so callers can log it
+        /// — a pack arriving from routing rather than from the profile is
+        /// worth saying out loud, not inferring.
+        /// </summary>
+        public static ViewStylePack ResolveForDrawingType(Document doc, DrawingType dt, out string source)
+        {
+            source = "none";
+            if (dt == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            {
+                var direct = Get(doc, dt.ViewStylePackId);
+                if (direct != null) { source = "profile"; return direct; }
+                StingTools.Core.StingLog.Warn(
+                    $"DrawingType '{dt.Id}' names style pack '{dt.ViewStylePackId}', which does not exist. " +
+                    "Falling back to the style-pack routing table.");
+            }
+
+            foreach (var rule in ListRouting(doc))
+            {
+                if (rule == null || string.IsNullOrWhiteSpace(rule.StylePackId)) continue;
+                if (!rule.Matches(dt.Purpose, dt.Discipline, dt.Phase)) continue;
+                var pack = Get(doc, rule.StylePackId);
+                if (pack == null)
+                {
+                    // Keep walking rather than returning null, so one stale
+                    // rule cannot disable routing for the whole key. Same
+                    // reasoning as DrawingDispatcher's E-12 fix.
+                    StingTools.Core.StingLog.Warn(
+                        $"Style-pack routing rule (purpose='{rule.Purpose}' discipline='{rule.Discipline}' " +
+                        $"phase='{rule.Phase}') names pack '{rule.StylePackId}', which does not exist; continuing.");
+                    continue;
+                }
+                source = $"routing:{rule.Purpose}/{rule.Discipline}/{rule.Phase ?? "*"}";
+                return pack;
+            }
+            return null;
+        }
+
+        /// <summary>Overload for callers that do not need the provenance string.</summary>
+        public static ViewStylePack ResolveForDrawingType(Document doc, DrawingType dt)
+            => ResolveForDrawingType(doc, dt, out _);
+
         public static void Reload(Document doc)
         {
             lock (_lock)
@@ -158,7 +211,14 @@ namespace StingTools.Core.Drawing
             {
                 Version = Math.Max(baseLib?.Version ?? 1, over.Version),
                 Packs = new List<ViewStylePack>(baseLib?.Packs ?? new List<ViewStylePack>()),
+                // Project routing rules are PREPENDED, matching
+                // DrawingTypeRegistry.Merge, so a project can redirect a
+                // (purpose, discipline, phase) key without editing the
+                // corporate baseline.
+                Routing = new List<ViewStylePackRoutingRule>(baseLib?.Routing ?? new List<ViewStylePackRoutingRule>()),
             };
+            if (over.Routing != null && over.Routing.Count > 0)
+                merged.Routing.InsertRange(0, over.Routing);
             // First-wins build (NOT ToDictionary, which throws on a duplicate
             // key) so a duplicate corporate pack id can never crash pack
             // resolution on projects carrying an override. Mirrors
@@ -224,7 +284,21 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(p.TextStyle))      merged.TextStyle      = p.TextStyle;
                 if (!string.IsNullOrEmpty(p.DimensionStyle)) merged.DimensionStyle = p.DimensionStyle;
                 if (!string.IsNullOrEmpty(p.HatchPalette))   merged.HatchPalette   = p.HatchPalette;
-                if (p.Filters != null) foreach (var f in p.Filters) merged.Filters.Add(f);
+                // Filters merge BY FILTER NAME, child wins — the same
+                // precedence VgOverrides uses one line below. This was
+                // `merged.Filters.Add(f)`, which ACCUMULATED the whole
+                // extends chain: a child that re-declared a parent rule
+                // produced two entries for one filter, and because
+                // ApplyFilterRules reads back the live overrides per rule and
+                // overlays only the fields each states, the two partially
+                // merged into a combination nobody authored (corp-healthcare
+                // -water inherited corp-coordination's light-blue DCW surface
+                // fill under its own darker line colour). Whole-rule replace
+                // means what you read on the child IS the rule; fields the
+                // child leaves silent fall through to the AEC filter
+                // registry's own recipe via inheritDefaults, not to the
+                // parent pack's unrelated styling.
+                if (p.Filters != null) MergeFilterRules(merged, p.Filters, p.Id);
                 if (p.VgOverrides != null)
                     foreach (var kv in p.VgOverrides) merged.VgOverrides[kv.Key] = kv.Value;
                 if (p.TagFamilies != null)
@@ -257,6 +331,47 @@ namespace StingTools.Core.Drawing
                 }
             }
             return merged;
+        }
+
+        /// <summary>
+        /// Overlay <paramref name="incoming"/> onto <paramref name="merged"/>
+        /// keyed on filter name, preserving first-seen order so the applied
+        /// sequence stays stable. A name already present is REPLACED, not
+        /// appended.
+        ///
+        /// A duplicate inside one pack's own list is a data error — two rows
+        /// disagreeing about the same filter, where the last silently won —
+        /// so it is reported here, at load, once per pack, rather than
+        /// showing up as an unexplained colour on a sheet.
+        /// </summary>
+        private static void MergeFilterRules(ViewStylePack merged, List<StyleFilterRule> incoming, string packId)
+        {
+            if (merged == null || incoming == null) return;
+            if (merged.Filters == null) merged.Filters = new List<StyleFilterRule>();
+
+            var index = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < merged.Filters.Count; i++)
+            {
+                var n = merged.Filters[i]?.FilterName;
+                if (!string.IsNullOrWhiteSpace(n) && !index.ContainsKey(n)) index[n] = i;
+            }
+
+            var seenThisPack = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in incoming)
+            {
+                var name = f?.FilterName;
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                if (!seenThisPack.Add(name))
+                {
+                    StingTools.Core.StingLog.Warn(
+                        $"ViewStylePack '{packId}' declares filter rule '{name}' more than once. " +
+                        "The later row wins; delete the earlier one so the pack says what it means.");
+                }
+
+                if (index.TryGetValue(name, out int at)) merged.Filters[at] = f;
+                else { index[name] = merged.Filters.Count; merged.Filters.Add(f); }
+            }
         }
 
         // Fields the fold above merges by hand — collections with

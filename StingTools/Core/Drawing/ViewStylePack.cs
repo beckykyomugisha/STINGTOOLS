@@ -51,9 +51,47 @@ namespace StingTools.Core.Drawing
         [JsonProperty("extends", NullValueHandling = NullValueHandling.Ignore)]
         public string Extends { get; set; }
 
+        /// <summary>
+        /// Multiplies every line weight this pack states, clamped to Revit's
+        /// 1..16. APPLIED by ViewStylePackApplier.ApplyLineWeightScale, folded
+        /// together with DrawingType.Print.LineWeightScale so the two cannot
+        /// compound in an order-dependent way.
+        ///
+        /// It was declared, promoted from the nested "appearance" block, and
+        /// carried through the extends fold — and read by nothing, so the
+        /// presentation packs' 0.6–0.8 rendered identically to production.
+        /// </summary>
         [JsonProperty("lineWeightScale")] public double LineWeightScale { get; set; } = 1.0;
+
+        /// <summary>
+        /// DECLARATIVE — the text style a drawing produced with this pack
+        /// should use. Revit has no view-level "text style" setting (text
+        /// height is a property of each text/tag TYPE), so there is nothing to
+        /// apply to a view and this field deliberately does not try. It is a
+        /// pre-flight target: the value names a text type the project is
+        /// expected to hold, and TemplateManager's style creators author it.
+        ///
+        /// Documented rather than removed because removing it would lose a
+        /// stated intent; documented rather than left bare because an
+        /// undocumented unread field reads as a bug.
+        /// </summary>
         [JsonProperty("textStyle")]       public string TextStyle { get; set; }
+
+        /// <summary>
+        /// APPLIED — resolved by AnnotationRunner via
+        /// DimensionStrategy.ResolveType, which prefers this named
+        /// DimensionType over the strategy-derived fallback.
+        /// </summary>
         [JsonProperty("dimensionStyle")]  public string DimensionStyle { get; set; }
+
+        /// <summary>
+        /// DECLARATIVE — the hatch vocabulary a pack's drawings follow
+        /// ("ISO 13567 monochrome", "Rich"). Revit fill patterns are assigned
+        /// per material and per filter override, not per view, so there is no
+        /// single setting to write. Consumed as a selector by the fill-pattern
+        /// creators in TemplateManager and by the pack's own filter rules.
+        /// See <see cref="TextStyle"/> for why it stays.
+        /// </summary>
         [JsonProperty("hatchPalette")]    public string HatchPalette { get; set; }
 
         // ── Phase 137 managed-template fields ───────────────────────
@@ -343,9 +381,59 @@ namespace StingTools.Core.Drawing
         [JsonProperty("visible",               NullValueHandling = NullValueHandling.Ignore)] public bool?   Visible { get; set; }
     }
 
+    /// <summary>
+    /// One routing rule from the style-pack library's <c>routing</c> array:
+    /// (purpose, discipline, phase) → style pack id. First match wins, "*"
+    /// is a wildcard, and a null field behaves as "*".
+    ///
+    /// This table has shipped in STING_VIEW_STYLE_PACKS.json since the pack
+    /// layer was introduced and bound to NOTHING —
+    /// <see cref="ViewStylePackLibrary"/> declared only Version and Packs, so
+    /// all 13 rules were inert, and no code read a <c>stylePackId</c>. It is
+    /// now the documented fallback for a DrawingType that names no pack of its
+    /// own: before this, such a profile got no VG overrides and no filters at
+    /// all, silently — which is what the four structural profiles, three
+    /// schedule profiles and pres-narrative-A1 were doing.
+    /// </summary>
+    public sealed class ViewStylePackRoutingRule
+    {
+        /// <summary>DrawingPurpose value ("Plan", "Section", "Coordination", …) or "*".</summary>
+        [JsonProperty("purpose")]      public string Purpose { get; set; } = "*";
+        /// <summary>ISO discipline code ("A", "S", "M", "E", "P", "H", …) or "*".</summary>
+        [JsonProperty("discipline")]   public string Discipline { get; set; } = "*";
+        /// <summary>Optional phase narrowing ("PRESENTATION", "FABRICATION", …) or "*".</summary>
+        [JsonProperty("phase", NullValueHandling = NullValueHandling.Ignore)]
+        public string Phase { get; set; }
+        [JsonProperty("stylePackId")]  public string StylePackId { get; set; }
+
+        /// <summary>Wildcard-aware, case-insensitive field match. Null / empty / "*" matches anything.</summary>
+        internal static bool Matches(string ruleValue, string actual)
+        {
+            if (string.IsNullOrWhiteSpace(ruleValue) || ruleValue == "*") return true;
+            if (string.IsNullOrWhiteSpace(actual)) return false;
+            return string.Equals(ruleValue, actual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Revit-free predicate, so routing precedence is unit-testable
+        /// without a document.
+        /// </summary>
+        public bool Matches(string purpose, string discipline, string phase)
+            => Matches(Purpose, purpose)
+            && Matches(Discipline, discipline)
+            && Matches(Phase, phase);
+    }
+
     public sealed class ViewStylePackLibrary
     {
         [JsonProperty("version")] public int Version { get; set; } = 1;
+
+        /// <summary>
+        /// (purpose, discipline, phase) → pack id, first match wins. See
+        /// <see cref="ViewStylePackRoutingRule"/> for why this was dead.
+        /// </summary>
+        [JsonProperty("routing")] public List<ViewStylePackRoutingRule> Routing { get; set; }
+            = new List<ViewStylePackRoutingRule>();
 
         // Primary list — newer JSON files use "viewStylePacks".
         [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]

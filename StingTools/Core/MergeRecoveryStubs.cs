@@ -250,9 +250,24 @@ namespace StingTools.Core.Drawing
         // FarClipMm / AnnotationCrop / ViewRange are already declared on the
         // runtime class — those are bool?/double?/PackViewRange. Only the
         // missing surface is declared here.
+        /// <summary>APPLIED — used as the view-template name when the DrawingType names none.</summary>
         public string ViewTemplate     { get; set; }
+        /// <summary>APPLIED — detail level when the DrawingType leaves it blank.</summary>
         public string DetailLevel      { get; set; }
+        /// <summary>APPLIED — parsed scale used when the DrawingType's scale is not applicable.</summary>
         public string ScaleHint        { get; set; }
+        /// <summary>
+        /// DECLARATIVE — the pack's intended colour treatment ("Monochrome",
+        /// "Discipline", "PresentationRich"). 24 shipped packs declare it and
+        /// NOTHING reads it; the per-view colour work is done by the pack's
+        /// vgOverrides and filter rules, which is where a colour belongs.
+        ///
+        /// Kept as the stated intent behind those overrides, and as the hook an
+        /// export preset would key on. Do not treat its presence as evidence
+        /// that a colour scheme is being applied — see
+        /// <see cref="ViewStylePack.TextStyle"/> for the same reasoning.
+        /// The per-TAG analogue, TagColorScheme, IS applied (TokenProfileApplier).
+        /// </summary>
         public string ColorScheme      { get; set; }
         public PackAppearanceDto Appearance { get; set; }
         public string PhaseName        { get; set; }
