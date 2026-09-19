@@ -414,7 +414,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "1183cd80351dea31af9a15a71d9fbf07d477e6e628f59bf20630bfa71a790495",
+      "checksum": "c2937c5b7c37542535f6eab4314bee8974265b4bceb9753a095704218957c3ea",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -483,11 +483,6 @@
             "enabled": true
           },
           {
-            "category": "Rooms",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
             "category": "Doors",
             "ruleType": "AutoTag",
             "enabled": true
@@ -504,11 +499,6 @@
           },
           {
             "category": "Railings",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Furniture",
             "ruleType": "AutoTag",
             "enabled": true
           },
@@ -535,16 +525,6 @@
           {
             "category": "Windows",
             "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomName",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomNumber",
             "enabled": true
           }
         ]
@@ -966,7 +946,7 @@
       "id": "struct-plan-A1-1to100",
       "name": "Structural Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "185b986837de624d5b8dca7f7472f805cfd110ec4933ecc3b68f1237fc67245b",
+      "checksum": "d57aba53754def96516ba4df8bf401672c0606f264a319255202069fcc72928e",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -1079,13 +1059,14 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
-      }
+      },
+      "viewStylePackId": "corp-standard-struct"
     },
     {
       "id": "struct-section-A1-1to50",
       "name": "Structural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "c8be03cd6330e086544457c2e4a9a99d0915d5cf60287a973461d81903b7519d",
+      "checksum": "ce992f5950c29db32607dea5d36cbfa53e875db8b0db2797d30b5c1126e1d761",
       "purpose": "Section",
       "discipline": "S",
       "paperSize": "A1",
@@ -1206,7 +1187,8 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": true
-      }
+      },
+      "viewStylePackId": "corp-standard-struct"
     },
     {
       "id": "mep-plan-A1-1to100",
@@ -1894,7 +1876,7 @@
       "id": "elec-riser-A3-1to200",
       "name": "Electrical Riser — A3 @ 1:200",
       "origin": "corporate",
-      "checksum": "d0171368aa214d231976e63a8b1adaee09dc520e6f1bdf04c6e4647939138f54",
+      "checksum": "0c026af0723a69c81c460499c0cbac952580c9232a41ae672a93f392ebcc5298",
       "purpose": "Section",
       "discipline": "E",
       "paperSize": "A3",
@@ -1902,7 +1884,7 @@
       "scale": 200,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Electrical Riser",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-elec",
       "sheetNumberPattern": "E-RIS-{seq:D3}",
       "sheetNamePattern": "ELECTRICAL RISER {mark}",
       "crop": {
@@ -2035,12 +2017,12 @@
       "id": "door-schedule-A3",
       "name": "Door Schedule — A3",
       "origin": "corporate",
-      "checksum": "503baf8397a1da6509614af90da89ab798732b42a915d8521cc0181a468bac59",
+      "checksum": "d3998086aefb3dca6e251c9865a264f1293ce8f12e491578b6019005a6761a62",
       "purpose": "Schedule",
       "discipline": "A",
       "paperSize": "A3",
       "titleBlockFamily": "STING_TB_SHEET_A3",
-      "scale": 100,
+      "scale": "NA",
       "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "A-SCH-DR-{seq:D2}",
       "sheetNamePattern": "DOOR SCHEDULE",
@@ -2110,7 +2092,7 @@
         "Revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       }
@@ -2227,7 +2209,7 @@
       "id": "legend-A3",
       "name": "Legend Sheet — A3",
       "origin": "corporate",
-      "checksum": "9cbf09fae4d35eb6163a1d41c0caadddc2542663dc4d1631d45b74e351c7ce9c",
+      "checksum": "c3bd4c2b6f031c43b88f723dabdee061c3025c37b3f5bb2a90b25b2b20a6af25",
       "purpose": "Legend",
       "discipline": "*",
       "paperSize": "A3",
@@ -2302,7 +2284,7 @@
         "Revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       }
@@ -3092,12 +3074,12 @@
       "id": "arch-window-schedule-A3",
       "name": "Window Schedule — A3",
       "origin": "corporate",
-      "checksum": "3b3f5dede9b19c900a14d2f54b39df722492a815f5078f1dfa39d533f95a9d13",
+      "checksum": "6a1fd4e377fd6b5ffd2c0558d313171804eddb50c8c5b4f34f56b0137bf89422",
       "purpose": "Schedule",
       "discipline": "A",
       "paperSize": "A3",
       "titleBlockFamily": "STING_TB_SHEET_A3",
-      "scale": 100,
+      "scale": "NA",
       "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "A-SCH-WN-{seq:D2}",
       "sheetNamePattern": "WINDOW SCHEDULE",
@@ -3167,7 +3149,7 @@
         "Revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       }
@@ -3176,7 +3158,7 @@
       "id": "struct-foundation-A1-1to100",
       "name": "Foundation Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "33197b3e0267b0399f7d58eaae0c9a63c7e6a8f2318de36fba3db423927738f5",
+      "checksum": "8605688c86a533d36e0beabcb6e75a44e69cf7e421b191d27f9dd2ccb11a0e9c",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -3295,13 +3277,14 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
-      }
+      },
+      "viewStylePackId": "corp-standard-struct"
     },
     {
       "id": "struct-rebar-detail-A3-1to20",
       "name": "Rebar Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "b8e1b0cec4d9778e8e4d8f7a4c780c937a33342b559a1d5965907ba8147b7dfa",
+      "checksum": "27593a655f674963c5a95681679c7038d7c010ba05972fadb516c7883e50e6c7",
       "purpose": "Detail",
       "discipline": "S",
       "paperSize": "A3",
@@ -3401,7 +3384,8 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": true
-      }
+      },
+      "viewStylePackId": "corp-standard-struct"
     },
     {
       "id": "mep-hvac-duct-A1-1to100",
@@ -4565,13 +4549,13 @@
       "id": "pres-3d-axon-A1",
       "name": "Presentation 3D Axonometric — A1",
       "origin": "corporate",
-      "checksum": "41165f55dbd1d02128d23afbe4deae814b3c3049f752572a90138f3a2255af16",
+      "checksum": "baf07a70bc950b0ab31de8900777361521b3cfe76c1efc9fb29d4f439291516e",
       "purpose": "3D",
       "discipline": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
       "viewStylePackId": "corp-presentation-rich",
@@ -4650,51 +4634,8 @@
         "rules": [
           {
             "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true
+            "category": "*",
+            "enabled": true
           }
         ],
         "autoTag": false,
@@ -4732,12 +4673,12 @@
       "id": "pres-perspective-A1",
       "name": "Presentation Perspective — A1",
       "origin": "corporate",
-      "checksum": "f51c544c2b006dfd2121bb0d209c57f8c706e683073ded0df6a83c09bf15e317",
+      "checksum": "528c5aa907b07d2a266101b7a062c5f2aca17cb6e713e355dad9d13979b45c93",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation Perspective",
       "viewStylePackId": "corp-presentation-rich",
@@ -4791,51 +4732,8 @@
         "rules": [
           {
             "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true
+            "category": "*",
+            "enabled": true
           }
         ],
         "autoTag": false,
@@ -4978,12 +4876,12 @@
       "id": "pres-render-board-A1",
       "name": "Presentation Render Board — A1 (4-up)",
       "origin": "corporate",
-      "checksum": "e937f5b0c4c120e857be752416a6b2ce541bd0b23d37aa7ebec63f83723c416b",
+      "checksum": "7d77e5ead392e05cd723107ea649661cab00ca5842966d774b6c9d673b62f7ca",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1_PRESENTATION",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Fine",
       "viewTemplateName": "STING - Presentation 3D",
       "viewStylePackId": "corp-presentation-rich",
@@ -5197,7 +5095,7 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "cdf46417d122195c19765c63e30c097a96c7ba54374a8409ab00a40768464878",
+      "checksum": "05ba4e5fff05c588632448b453ea750ab9932953b37240efd4a422297966996a",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
@@ -5265,13 +5163,7 @@
         "tagFamilies": {
           "Rooms": "STING_TAG_ROOM"
         },
-        "rules": [
-          {
-            "category": "Generic Annotations",
-            "ruleType": "AutoTag",
-            "enabled": true
-          }
-        ]
+        "rules": []
       },
       "print": {
         "colourScheme": "ClarificationRed",
@@ -5307,7 +5199,7 @@
       "id": "clar-rfi-A3",
       "name": "RFI Sketch — A3",
       "origin": "corporate",
-      "checksum": "7e084263b9d431d2e16d495a40a8e39ae640b523bfdf67a323a2e016fc086140",
+      "checksum": "ba76d4189e6c169ed30ef96822af7e96aae5878caf4f44649727d9a316e5571c",
       "purpose": "Clarification",
       "discipline": "*",
       "paperSize": "A3",
@@ -5380,13 +5272,7 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "denseUntilScale": 100,
-        "rules": [
-          {
-            "category": "Generic Annotations",
-            "ruleType": "AutoTag",
-            "enabled": true
-          }
-        ]
+        "rules": []
       },
       "print": {
         "colourScheme": "ClarificationRed",
@@ -5422,7 +5308,7 @@
       "id": "clar-design-intent-A1",
       "name": "Design Intent Presentation — A1",
       "origin": "corporate",
-      "checksum": "d7c8e8ccccd5fc6ef6e200462cd1d2c4662799a3b5f90eef4bc8bdec3e323e0a",
+      "checksum": "595d2297b2404c4f933398fa16c5ddde11211a3b8dde014d1ccc32dc145ae36d",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -5502,13 +5388,7 @@
         }
       ],
       "annotation": {
-        "rules": [
-          {
-            "category": "Generic Annotations",
-            "ruleType": "AutoTag",
-            "enabled": true
-          }
-        ]
+        "rules": []
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -6285,7 +6165,7 @@
       "id": "pres-narrative-A1",
       "name": "Client Narrative — A1 (TAG7 prose)",
       "origin": "corporate",
-      "checksum": "488ae91decfa6a1bc9420d2896bd8dd4623b0a7c562f5bb6b20562b9b3f43e64",
+      "checksum": "acf1735b105baa373c236f294448cd81850f1c234a47e4f4ebb16640f786d0ea",
       "purpose": "Plan",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6403,7 +6283,8 @@
         "role": "Z",
         "suitability": "S2",
         "revision": "P01"
-      }
+      },
+      "viewStylePackId": "corp-presentation-rich"
     },
     {
       "id": "mep-plan-presentation",
@@ -6758,7 +6639,7 @@
       "id": "pres-3d-exterior-A1",
       "name": "Presentation 3D Exterior",
       "origin": "corporate",
-      "checksum": "24646631c3190b830e093be7da87f9d4fe287072408618695cbb8a339548c750",
+      "checksum": "7f9e225f73b3f4cb6c38b7ae65ac7947266d476cecb4ec17cf96a4627940837f",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6813,51 +6694,8 @@
         "rules": [
           {
             "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true
+            "category": "*",
+            "enabled": true
           }
         ],
         "autoTag": false,
@@ -6896,7 +6734,7 @@
       "name": "Presentation 3D Interior Cut-Away",
       "description": "Apply a Section Box manually before generating with this profile. The section box should cut at ceiling height to expose the interior. Pairs naturally with pres-interior-terracotta or pres-interior-sage.",
       "origin": "corporate",
-      "checksum": "5bde1e12cf510fec9613b4c7ca8c5ed973dda89499d17025637d0cd4d7d0a00c",
+      "checksum": "41b5d238ae40f9c5e8b7cb6c132c74408bb98883e0d9fabb526959f796739782",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6951,51 +6789,8 @@
         "rules": [
           {
             "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true
+            "category": "*",
+            "enabled": true
           }
         ],
         "autoTag": false,
@@ -7033,7 +6828,7 @@
       "name": "Presentation Composite Sheet",
       "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
-      "checksum": "e07bb725b702e079b15d6394e9f198bd4ab06ad1b58f169e54fef564ecedcdae",
+      "checksum": "93e5101fb2eed75b2881ebafca1957a5b07f65f99f8bd6c21cc59a78e57dbd90",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7116,51 +6911,8 @@
         "rules": [
           {
             "ruleType": "Auto3DTag",
-            "category": "OST_MechanicalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_ElectricalEquipment",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_PlumbingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_LightingFixtures",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Furniture",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Doors",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Windows",
-            "enabled": true,
-            "skipIfTagged": true
-          },
-          {
-            "ruleType": "Auto3DTag",
-            "category": "OST_Rooms",
-            "enabled": true,
-            "skipIfTagged": true
+            "category": "*",
+            "enabled": true
           }
         ],
         "autoTag": false,
@@ -7500,7 +7252,7 @@
       "id": "health-rds-A3",
       "name": "Healthcare — Room Data Sheet (A3)",
       "origin": "corporate",
-      "checksum": "484d9630cef5833fe7a5f22c0935a6b275fe454089a68781bfdce81dcb575e35",
+      "checksum": "65da73a1f84fa007d43ccd8d1865e7b9bc7a0b95d225ec6e9cd596d5b1d19f4c",
       "purpose": "Schedule",
       "discipline": "H",
       "phase": "*",
@@ -7558,7 +7310,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7569,7 +7321,7 @@
       "id": "health-eqp-pln-A1-1to50",
       "name": "Healthcare — Clinical Equipment Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "f55df4913823622b8c27599aa343bde5cf80aad0bb9870e56f00233fdc28a1ef",
+      "checksum": "cd90e72bc43235b804b52487a929edc400f1703a2804965a251f2d53a2c8854a",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7627,7 +7379,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7638,7 +7390,7 @@
       "id": "health-mep-coord-A1-1to50",
       "name": "Healthcare — MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
-      "checksum": "fac6a1a33f2d4e665c7665316a142f4b679ea6c0328c7b6e4a320162f9d37ddc",
+      "checksum": "4e3da6eb67b273dbcc48482339fc767fc1ddf03e63c2a474c2b7d485f166a855",
       "purpose": "Coordination",
       "discipline": "M",
       "phase": "*",
@@ -7649,7 +7401,7 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Mechanical Coordination",
       "viewportTypeName": "STING - Standard Viewport",
-      "viewStylePackId": "corp-healthcare-shielding",
+      "viewStylePackId": "corp-coordination",
       "sheetNumberPattern": "{disc}-COO-{lvl}-{seq:D3}",
       "sheetNamePattern": "MEP Coordination + Shielding — {lvl}",
       "crop": {
@@ -7696,7 +7448,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": true
       },
@@ -7708,7 +7460,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "05884eb36625018fd858db81a715ec05c8fb627f99504dda0911c927b2a68047",
+      "checksum": "96d561613dea19c4e2b4a78809ba60db71af83c79444d9e0fecb7a4fd2da6ff4",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7767,7 +7519,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7778,7 +7530,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "9e86f5df1eb0692ed7f8145392f47dd71bee3be3b452bf2f4a5e584c6214ba7a",
+      "checksum": "d3e04ecafee860da91d21530c529f09318cb38f792299848a018afb7376b099b",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -7836,7 +7588,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7847,7 +7599,7 @@
       "id": "health-pressure-pln-A1-1to100",
       "name": "Healthcare — Pressure Regime Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "45b6841a915796f572506d899f7c290ec40b6f749caea715f881543bb0d35503",
+      "checksum": "87f11c7e97280af3aeaca89fc93985ab6757a6a3b65ba151e7d798c02e2ddffb",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7905,7 +7657,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7916,7 +7668,7 @@
       "id": "health-ess-power-riser-A1",
       "name": "Healthcare — Essential Power Single-Line (A1)",
       "origin": "corporate",
-      "checksum": "399834ca9d0fdea00180ca6054c8f9784e6a6d3037a43e06c0dc3d27e455f37c",
+      "checksum": "bd3af88775cc58c9efe52c8380eed5f86c105516118d888f0d608281c80b40c5",
       "purpose": "Schematic",
       "discipline": "E",
       "phase": "*",
@@ -7974,7 +7726,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -7985,7 +7737,7 @@
       "id": "health-ips-pln-A1-1to50",
       "name": "Healthcare — Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "9ba2e2304635ccb652c6f1b183b8242f6890bedfe801361d4d86290284faf038",
+      "checksum": "04e097d6b489f9d053bc7804537cdf1e148a93ea4b4ff1c3b00fda748c8d4f6e",
       "purpose": "Plan",
       "discipline": "E",
       "phase": "*",
@@ -8043,7 +7795,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8054,7 +7806,7 @@
       "id": "health-decon-flow-A1-1to50",
       "name": "Healthcare — Decontamination Flow Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "805396ef1decc23579088f8b30b58aa1d1465725afb22dac3cffe5459d7855d8",
+      "checksum": "485d029a2725e7f57b24b46fafa549672db79b49ff3d322841d1dbae3adc57b9",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8112,7 +7864,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8123,7 +7875,7 @@
       "id": "health-mortuary-pln-A3-1to100",
       "name": "Healthcare — Mortuary Plan (A3 1:100)",
       "origin": "corporate",
-      "checksum": "8fd86dd5db8c977d95904bca0a73140b5cc1cdfe041eb386142e3e8f17596657",
+      "checksum": "2453dc829415852173251585f6c5d0e748cea6bc8078637aa9966b08dba89979",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8181,7 +7933,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8192,7 +7944,7 @@
       "id": "health-fire-comp-A1-1to100",
       "name": "Healthcare — Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "e9f18d10e2882be7098d233c9837b8f19675382618f5996546f667fcf697d767",
+      "checksum": "8ebb759545c651c4174937449f0736855a2d5a63604439ed1eccc0500b1a1ac9",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8250,7 +8002,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8261,7 +8013,7 @@
       "id": "health-rad-shield-A1-1to50",
       "name": "Healthcare — Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "c09464b34e5aaa03459f5ce141a823e00af58c10eb8c6b82dde4e076b09696fe",
+      "checksum": "d0adb0122f36662f6fec163b50b72dd1d156fe24d3825827a0fe1c6badae30a6",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8319,7 +8071,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8330,7 +8082,7 @@
       "id": "health-mri-zoning-A1-1to50",
       "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
-      "checksum": "94aaeaf53133e52ec7e7c72f2da5bac0bac5f4c87ea2893726e0ab42468d10ea",
+      "checksum": "718505377ad6da3d74a349d1a9aa85e98f3aad4ca8c223e0a2d5cddd893a0dd8",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8388,7 +8140,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8399,7 +8151,7 @@
       "id": "health-ligature-pln-A1-1to50",
       "name": "Healthcare — Anti-Ligature Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "511375ac860e7a0c4f6dd0bd1aa5008d93e5d9ef71c0debc8a6e5c09da630a1c",
+      "checksum": "2b5e03b691e85fc49e696615585c7b7c5197358439facc9ba09a7f635f6f9d24",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8457,7 +8209,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8468,7 +8220,7 @@
       "id": "health-bedhead-elev-A3-1to50",
       "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
-      "checksum": "cdbb50e7172c0803d1e5533cc5e6714377d3d694b652bb9b76b868101f46cd38",
+      "checksum": "75ff3eceae312f9f509dc8fcb7e8fdbdc454aff2dc85b586180bf42a92c1a4e4",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
@@ -8526,7 +8278,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8543,7 +8295,7 @@
       "id": "health-or-ceiling-A3-1to50",
       "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
-      "checksum": "de14df145f1762e8df68d80ab528cfbc31284600b08ab25e020e225486831b6e",
+      "checksum": "781ff271d4c89c65f7f8c40e88a1e06e07fcab83946594b7a018c4d836793d0f",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
@@ -8601,7 +8353,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8612,7 +8364,7 @@
       "id": "health-water-safety-A1-1to100",
       "name": "Healthcare — Water Safety Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "b1b7b41248770cca6aac3512f86a422ee3bd8e622db57938cf64a0aca7f9a567",
+      "checksum": "3b50be976c79922cc6c0ce17534de7245202f5eb4418b3cf4356f9b0246daa8f",
       "purpose": "Plan",
       "discipline": "P",
       "phase": "*",
@@ -8670,7 +8422,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8681,7 +8433,7 @@
       "id": "health-acoustic-A1-1to100",
       "name": "Healthcare — Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "797093b293b998b88aadff94a004f02a425deab1710790d5da3c8cd36782a355",
+      "checksum": "3d59686b92a06decb868117efc64986ec52e01bb2f55e1cca6eb42d7b7234ed2",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8739,7 +8491,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8750,7 +8502,7 @@
       "id": "health-struct-loads-A1-1to100",
       "name": "Healthcare — Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
-      "checksum": "bb78b558eb5f5f49af6543abcc62f531c508782fa102af4842cd4081dc0a87e9",
+      "checksum": "c324a44f00fe7abbecf95b9af64c73f3f42c2a660a58d6f7ac199b30158139b5",
       "purpose": "Plan",
       "discipline": "S",
       "phase": "*",
@@ -8808,7 +8560,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8819,7 +8571,7 @@
       "id": "health-rtls-coverage-A1-1to100",
       "name": "Healthcare — RTLS Coverage Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "3b09333edb804d61d26d3c8927056229b3c459c7faf0bfd2a03defe85e3e0eb5",
+      "checksum": "71f8d7c678603645976da783d93badc49c1e8d56dafd3710d424aedf1ab1509e",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8877,7 +8629,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8888,7 +8640,7 @@
       "id": "health-waste-flow-A1-1to100",
       "name": "Healthcare — Clinical Waste Flow (A1 1:100)",
       "origin": "corporate",
-      "checksum": "0ac36340a7a665c5c00c78182dc3409e7882b4245c9dedc6686c829572a8cdea",
+      "checksum": "c4a8174030373516fb3fc4baa0253614f60a056394f14efc2388f74fa4a73a6c",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8946,7 +8698,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -8957,7 +8709,7 @@
       "id": "health-nuclear-medicine-A1",
       "name": "Healthcare — Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
-      "checksum": "b71dfcc9b7099484cf788d23def533cf90610a1b90bcfd078439b0319a603936",
+      "checksum": "0ea42eccc188cb4931e045882c456a02516c8ea5126971b4d82053c621cc135a",
       "purpose": "Schematic",
       "discipline": "RP",
       "phase": "*",
@@ -9015,7 +8767,7 @@
         "revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -9027,16 +8779,16 @@
       "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
-      "checksum": "83eb0b5d1eaad71623d5924fd0c17f81bcbbf219dec5d08fb5af6f59d9a4be65",
+      "checksum": "c4c39d07e76403fd14f3bcab61d889bb2307c3aaf173126a1732a985b51f5806",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schematic",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-DCW-{seq:D3}",
       "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
@@ -9091,16 +8843,16 @@
       "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
-      "checksum": "0e5c0f955be452a03c1694b10ad5ba60e7603244ab763ba76e12ec9062f703b5",
+      "checksum": "2e83d49c0dcbd5f939b8df0ee37ffcfbb344fbb5361076f673912d5fb86d525e",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schematic",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-DHW-{seq:D3}",
       "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
@@ -9155,16 +8907,16 @@
       "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "da46a80bf85e620f2b432850b09cfb91bdbed36048848c3edf12e2975e65e26f",
+      "checksum": "4a1e2b0d3b276c8547a1b24361852b869d56483de7853f48c48d83918d076dc3",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schematic",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-LTHW-{seq:D3}",
       "sheetNamePattern": "{sys} SCHEMATIC",
       "crop": {
@@ -9344,7 +9096,7 @@
       "id": "plumb-suds-A1-1to500",
       "name": "SuDS / Surface Water Management Plan — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "cd75a8f0fe0d062a038602b0d4f32ce9a7306d7ba76cd1006f2818f07ce76c21",
+      "checksum": "b2f8810b8dffde68611ca426677599b5672d071a8be3f5d86e6b35094ad499d8",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -9353,7 +9105,7 @@
       "scale": 500,
       "detailLevel": "Medium",
       "viewTemplateName": "STING - SuDS",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-SUDS-{seq:D3}",
       "sheetNamePattern": "SUDS / SURFACE WATER",
       "crop": {
@@ -9407,16 +9159,16 @@
       "id": "plumb-vent-riser-A3-NTS",
       "name": "Drainage Vent Riser — A3 NTS",
       "origin": "corporate",
-      "checksum": "d188f360ee48cb9de0a66deaa9f0f867bab0b8aaf7a928dc6a6f56bab1366cd3",
+      "checksum": "57df7c3114b1e2e1e5842cb9afecee8b2e238fab6c83a0118382051decfbfdd7",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A3",
       "orientation": "Portrait",
       "titleBlockFamily": "STING_TB_SHEET_A3",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schematic",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-VENT-{seq:D3}",
       "sheetNamePattern": "DRAINAGE VENT RISER",
       "crop": {
@@ -9469,16 +9221,16 @@
       "id": "plumb-pressure-schedule-A3",
       "name": "Pressure Zone / PRV Schedule — A3",
       "origin": "corporate",
-      "checksum": "0130e551eeaa3eeb00edbf4a1ffdc8211ea85f72e73c7ba1da3b34c02d7c9024",
+      "checksum": "08d9c8ce2fda5bd4b66ce80f237cbfcaed69835accfc26ac31b4ec3f81d15c98",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
       "orientation": "Portrait",
       "titleBlockFamily": "STING_TB_SHEET_A3",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schedule",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-plumb",
       "sheetNumberPattern": "P-PRV-{seq:D3}",
       "sheetNamePattern": "PRESSURE ZONE / PRV SCHEDULE",
       "crop": {
@@ -9499,7 +9251,7 @@
         "rules": []
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -9610,7 +9362,7 @@
         "kind": "None"
       },
       "origin": "corporate",
-      "checksum": "e6671b33def0c06c15e30d12fb21987acc9ad08c1f2e2635712bfcf45bfd57d8",
+      "checksum": "6f36047a7ef0880b74eadbb56f43c41083dc988f878a32f0a2852951da5cb7e2",
       "slots": [
         {
           "label": "Schematic",
@@ -9650,7 +9402,7 @@
         "Revision": "P01"
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       }
@@ -9659,17 +9411,17 @@
       "id": "penetration-register-A1",
       "name": "Penetration Register — A1",
       "origin": "corporate",
-      "checksum": "466024d95517c29c81ea7b215cc0674fe43514320927311dcfcc002194299d80",
+      "checksum": "7657c2536af793a428715ff9788cbe3813b18594ff3f7cced3c666a107c067c2",
       "purpose": "Schedule",
       "discipline": "*",
       "phase": "*",
       "paperSize": "A1",
       "orientation": "Landscape",
       "titleBlockFamily": "STING_TB_SHEET_A1",
-      "scale": 1,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Penetration Register",
-      "viewStylePackId": "corp-standard-plan",
+      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "FP-PEN-{seq:D3}",
       "sheetNamePattern": "PENETRATION REGISTER",
       "crop": {
@@ -9690,7 +9442,7 @@
         "rules": []
       },
       "print": {
-        "colourScheme": "BlackAndWhite",
+        "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
       },
@@ -9721,14 +9473,14 @@
       "id": "mech-equip-schedule-A3",
       "name": "Mechanical Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "20d4e8f1f77446b24f0b272d17980eb66456614c946947d2e7e1c71b14ee7964",
+      "checksum": "adbdcf0ccfbe3750e86b81434804011adf09d5456d7190166cb3e358dac768eb",
       "purpose": "Schedule",
       "discipline": "M",
       "system": "HVAC",
       "paperSize": "A3",
       "titleBlockFamily": "STING_TB_SHEET_A3",
       "orientation": "Landscape",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewportTypeName": "STING - Standard Viewport",
       "titleBlockParams": {
@@ -9774,20 +9526,21 @@
           ]
         }
       ],
-      "description": "MEP mechanical-equipment schedule (AHU / FCU / VAV / chiller / boiler / pump). The producer emits a ViewSchedule of category Mechanical Equipment with the listed fields; unknown fields are skipped."
+      "description": "MEP mechanical-equipment schedule (AHU / FCU / VAV / chiller / boiler / pump). The producer emits a ViewSchedule of category Mechanical Equipment with the listed fields; unknown fields are skipped.",
+      "viewStylePackId": "corp-standard-detail"
     },
     {
       "id": "elec-panel-schedule-A3",
       "name": "Electrical Panel / Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "93fa6bf1a708a81e205c2b52506945033995fa2a69f571da24e61283a2d16f1f",
+      "checksum": "c987755f048a6884465a1ae0e86626ec6f901755d5564d1daf27997579c2eb6e",
       "purpose": "Schedule",
       "discipline": "E",
       "system": "LV",
       "paperSize": "A3",
       "titleBlockFamily": "STING_TB_SHEET_A3",
       "orientation": "Landscape",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewportTypeName": "STING - Standard Viewport",
       "titleBlockParams": {
@@ -9833,19 +9586,20 @@
           ]
         }
       ],
-      "description": "MEP electrical panel / equipment schedule (distribution boards, panels, MCCBs). The producer emits a ViewSchedule of category Electrical Equipment; unknown fields are skipped."
+      "description": "MEP electrical panel / equipment schedule (distribution boards, panels, MCCBs). The producer emits a ViewSchedule of category Electrical Equipment; unknown fields are skipped.",
+      "viewStylePackId": "corp-standard-detail"
     },
     {
       "id": "valve-schedule-A3",
       "name": "Valve Schedule - A3",
       "origin": "corporate",
-      "checksum": "8b767f06da5618e14d6551e4e6e062b8b5f070ab8bd4a31d0e5c7ef60c203d4c",
+      "checksum": "3734ab369fb060c3847ecfc50b967d19d744e451b03ae96976473b78a63a80b0",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
       "titleBlockFamily": "STING_TB_SHEET_A3",
       "orientation": "Landscape",
-      "scale": 100,
+      "scale": "NA",
       "detailLevel": "Medium",
       "viewportTypeName": "STING - Standard Viewport",
       "titleBlockParams": {
@@ -9891,7 +9645,8 @@
           ]
         }
       ],
-      "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped."
+      "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped.",
+      "viewStylePackId": "corp-standard-detail"
     }
   ],
   "routing": [

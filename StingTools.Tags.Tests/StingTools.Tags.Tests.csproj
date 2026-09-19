@@ -108,6 +108,26 @@
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
+    <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
+         style-pack routing predicate. All three are Revit-free on purpose, so
+         the gates that keep the shipped JSON and the runner in agreement can
+         run on a plain test host. See DrawingAnnotationVocabularyTests and
+         SheetNumberPolicyTests for what each one prevents. -->
+    <!-- DrawingType / ViewStylePack / AnnotationRulePack are Revit-free POCOs
+         (verified: zero Autodesk references), so the catalogue gates can bind the
+         SHIPPED models rather than a test-local copy that could disagree. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingType.cs" Link="Core\Drawing\DrawingType.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
+    <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_VIEW_STYLE_PACKS.json" Link="Data\STING_VIEW_STYLE_PACKS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value
          entered as CFM, stored as l/s and redisplayed - is provable without a host. -->
     <Compile Include="..\StingTools\Core\Units\FlowDisplayUnits.cs" Link="Core\Units\FlowDisplayUnits.cs" />
