@@ -902,6 +902,28 @@ namespace StingTools.Core
                 identityMarked.Append($" \u00ABL\u00BBsized at\u00AB/L\u00BB \u00ABV\u00BB{size}\u00AB/V\u00BB");
             }
 
+            // Reinforcement annotation (BS 8666 / BS 1192). Self-gating: a
+            // non-reinforcement element does not carry STR_BAR_MARK_TXT, so
+            // Compose returns nothing and this appends nothing. No category list
+            // to keep in step with the tag config, and no way to misfire.
+            try
+            {
+                var rebar = Bs8666Label.Compose(
+                    ParameterHelpers.GetString(el, "STR_BAR_MARK_TXT"),
+                    ParameterHelpers.GetString(el, "STR_REBAR_TOTAL_NO_NR"),
+                    Bs8666Label.TypeAndSize(
+                        ParameterHelpers.GetString(el, "CST_S_REI_TYPE_TXT"),
+                        ParameterHelpers.GetString(el, "STR_REBAR_SIZE_MM")),
+                    ParameterHelpers.GetString(el, "CST_S_REI_SPACING_MM"));
+
+                if (rebar.HasContent)
+                {
+                    identityPlain.Append(rebar.Plain);
+                    identityMarked.Append(rebar.Marked);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag7 reinforcement annotation: {ex.Message}"); }
+
             // Policy-driven classification stamp. classification_policy.json
             // "tagClassifications" lists which classification axes (parameter names) to
             // annotate on the tag, e.g. ["CSI_SECTION_TXT"] for MasterFormat. Empty list

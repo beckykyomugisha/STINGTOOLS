@@ -140,3 +140,63 @@ Add the two INT params to MR_PARAMETERS.txt (shared params, group STINGTags_ISO1
 
 ### Conveyor note
 - Badges are family elements + params, so they ride the universal master and propagate to all 206 via SaveAs + recategorise. Nested-symbol survival is one item to confirm in the one-family sample test (see `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`).
+
+---
+
+## STEP 5 - TAG7 narrative rows (add 6, appended as 66-71)
+
+Added 2026-09-21. **These are the only supported way to get DISCIPLINE content
+onto the universal label.**
+
+### Why not just add a discipline row
+
+The master propagates to all 206 families, so a row referencing a parameter
+bound to a few categories renders BLANK on every other family. `STR_BAR_MARK_TXT`
+binds to the 5 reinforcement categories: putting it on the master would give 201
+tags a permanently empty `Mark:` line.
+
+`WriteTag7All` already solves this. It composes discipline-aware narrative per
+element and writes it to seven parameters that are bound `<ALL>`:
+
+    ASS_TAG_7_TXT        the full narrative
+    ASS_TAG_7A..7F_TXT   sections A-F
+
+`TagConfig.Tag7.cs` says it plainly - *"TAG7A-TAG7F get plain section text for
+tag family labels"*. Until this step the master carried **no row for any of
+them**, so every element was given a narrative that nothing displayed.
+
+### The rows
+
+Same build as every other: Calculated Value, Type = **Text**, paste Formula,
+Prefix/Suffix, **Spaces = 0**, then Break.
+
+| # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break |
+|---|---|---|---|---|---|---|
+| 66 | T2 | Show T2 - TAG7A Identity | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7A_TXT, "")` |  |  | YES |
+| 67 | T2 | Show T2 - TAG7B System | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7B_TXT, "")` |  |  | YES |
+| 68 | T2 | Show T2 - TAG7C Spatial | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7C_TXT, "")` |  |  | YES |
+| 69 | T4 | Show T4 - TAG7D Commissioning | `if(TAG_PARA_STATE_4_BOOL, ASS_TAG_7D_TXT, "")` |  |  | YES |
+| 70 | T5 | Show T5 - TAG7E Cost | `if(TAG_PARA_STATE_5_BOOL, ASS_TAG_7E_TXT, "")` |  |  | YES |
+| 71 | T6 | Show T6 - TAG7F Carbon | `if(TAG_PARA_STATE_6_BOOL, ASS_TAG_7F_TXT, "")` |  |  | YES |
+
+**Where:** bottom of the label, below row 65 (`Show T10-Ph179 - Trace Seq`).
+Narrative follows identity, and appending disturbs none of the existing 65.
+
+**Why A-C are all T2:** the default mode is `Handover`
+(`HandoverModeHelper.DefaultMode`), and in that mode `WriteTag7All` writes only
+A-C and blanks D-F. T2 is the depth that renders by default. D-F sit ready for
+DC mode and stay empty until then, exactly as every other gated row does.
+
+### What section A now carries for reinforcement
+
+`Bs8666Label.Compose` appends the BS 8666 / BS 1192 annotation to section A:
+
+    ... reinforced as bar mark 03, 21 no. H16 at 150 mm centres
+
+It is **self-gating** - a non-reinforcement element does not carry
+`STR_BAR_MARK_TXT`, so nothing is appended and no category list has to be kept
+in step. Every part is optional, so a model part-way through detailing reads as
+a partial answer rather than an invented one.
+
+The terse code form (`21H16-03-150`) belongs in the bending schedule, which
+carries all sixteen BS 8666 columns. Section A is prose.

@@ -73,6 +73,7 @@
     <Compile Include="..\StingTools\Tags\TagConfigDeclarations.cs" Link="Tags\TagConfigDeclarations.cs" />
     <Compile Include="..\StingTools\Tags\TagParamBindingAudit.cs" Link="Tags\TagParamBindingAudit.cs" />
     <Compile Include="..\StingTools\Core\BindingProfiles.cs" Link="Core\BindingProfiles.cs" />
+    <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />
     <Compile Include="..\StingTools\Commands\TagStudio\RevitBackupSweeper.cs" Link="Commands\TagStudio\RevitBackupSweeper.cs" />
     <!-- Text an author left for themselves, which propagation would clone into 206
          families. Revit-free because the risk is the FALSE positive: a real "Note:"
