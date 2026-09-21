@@ -125,9 +125,12 @@ theoretical risk; it is the state right now.
    - `FIX` — the work list.
 2. **Fix Categories → APPLY → one family (Duct).** It copies the files into
    `_precategory_<timestamp>\` first and refuses to run if that copy fails.
-3. **Open the corrected `.rfa` and count the label rows.** This is the step that matters:
-   **a category change preserving 65 label rows is still unproven.** If the rows survive,
-   continue; if they do not, stop and restore from `_precategory_…`.
+3. ~~**Open the corrected `.rfa` and count the label rows.**~~ **Struck out 2026-09-21.**
+   The tag families have no label rows of their own — they are empty shells until they are
+   propagated to, so a corrected family shows an empty label and that proves nothing. The
+   recategorise that could lose rows is the one INSIDE propagation, on a clone of the
+   master, and it is tested at Stage D. Restoring from `_precategory_…` remains the way back
+   if a category change goes wrong for any other reason.
 4. **APPLY to the rest** once one family has proven the change is safe.
 
 ### Stage B — commit the corrected families immediately
@@ -160,7 +163,9 @@ Verify: the family's category in the project is the declared one, not `Generic M
 4. Expect `succeeded=N, failed=0`, `Standard params added to each clone: ~138`,
    `Type variants (re)created: 12`.
 
-Full verification list: [the test doc](UNIVERSAL_TAG_PROPAGATION_TEST.md) §4.
+Full verification list: [the test doc](UNIVERSAL_TAG_PROPAGATION_TEST.md) §4. **V2 belongs
+here**, not at Stage A: this is the first moment a target family has any label rows at all,
+so it is the first moment "did they survive the recategorise" is a question with an answer.
 
 ### Stage E — commit again, before redeploying
 

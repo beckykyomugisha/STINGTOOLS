@@ -21,6 +21,7 @@ remaining point.
 | Revit refuses a reload that changes a loaded family's category | **PROVEN** | Three runs recategorising → refused with no message (19:58, 21:02, 21:23). Category corrected by hand → `22:16:38 succeeded=1` |
 | `Propagate_UniversalTag` can complete at all | **PROVEN, once** | `22:16:38 master=STING_Tag_Universal, succeeded=1, failed=0, params=139, types=14` |
 | **Recategorising preserves the 65 label rows** | **UNPROVEN** | The premise the whole conveyor rests on. No run has yet been followed by a row count. **This is V2, and it is why you are running this test.** |
+| The 206 tag families have no label rows of their own | **CONFIRMED in Revit, 2026-09-21** | They are empty shells. Every row comes from the master, through propagation — so V2 can only be answered on a family that has been PROPAGATED to, never on one that has only had its category corrected |
 | Flipping a tier gate changes what the tag draws | **UNPROVEN** | Both the tag type and the tagged element carry the gates. §4 V3 decides which one wins |
 | The result survives to disk and to git | **UNPROVEN** | §6 |
 
@@ -165,6 +166,12 @@ Open the propagated `STING - Duct Tag` via **Edit Family**.
 Family category is **Duct Tags**. Proves the recategorise step ran and stuck.
 
 ### V2 · ⭐ The label rows survived — THE ONE THAT MATTERS
+
+**Only meaningful on a family that has been propagated to.** The tag families carry no
+label rows of their own (confirmed in Revit, 2026-09-21): they are empty shells, and every
+row arrives from the master through this command. Opening one that has only had its
+category corrected shows an empty label and proves nothing either way.
+
 **Edit Label. Count the rows.**
 
 - **65 rows**, formulas, prefixes, suffixes and breaks intact.

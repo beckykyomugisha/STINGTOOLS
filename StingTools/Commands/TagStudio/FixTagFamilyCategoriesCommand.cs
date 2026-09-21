@@ -38,9 +38,14 @@
 //
 // Audit is the default and writes nothing. Apply copies every file it is about
 // to touch into a timestamped _precategory\ folder first, and it is deliberately
-// easy to run on one family: whether a category change preserves a family's
-// label rows is still UNPROVEN (docs/UNIVERSAL_TAG_PROPAGATION_TEST.md V2), and
-// this command would otherwise be a way to find that out 206 times at once.
+// easy to run on one family.
+//
+// The label-row risk is real but does NOT apply here the way the earlier wording
+// implied: the 206 tag families carry no label rows at all until they are
+// propagated to (confirmed in Revit, 2026-09-21), so a category change on one of
+// them has no rows to lose. The recategorise that could lose rows is the one
+// INSIDE propagation, which recategorises a clone of the MASTER - and that is
+// what docs/UNIVERSAL_TAG_PROPAGATION_TEST.md V2 tests.
 // ============================================================================
 
 using System;
@@ -148,8 +153,11 @@ namespace StingTools.Commands.TagStudio
                     "STING_TAG_CONFIG_v5_0_*.csv, and saved in place.\n\n" +
                     "A copy of every file is taken first, into a _precategory folder beside them.\n\n" +
                     "⚠ Whether a category change preserves a family's LABEL ROWS is still " +
-                    "unproven (see UNIVERSAL_TAG_PROPAGATION_TEST.md V2). Do one family, open it, " +
-                    "count the rows, and only then do the rest.\n\n" +
+                    "unproven (see UNIVERSAL_TAG_PROPAGATION_TEST.md V2) - but only for a family " +
+                    "that HAS label rows. The STING tag families are empty shells until they are " +
+                    "propagated to, so opening one after this runs proves nothing either way. The " +
+                    "rows arrive from the universal master, and the recategorise that could lose " +
+                    "them is the one INSIDE propagation.\n\n" +
                     "This does NOT change any project. A project that already has one of these " +
                     "families loaded keeps its old category until the family is deleted from it " +
                     "and re-loaded.";
@@ -516,7 +524,8 @@ namespace StingTools.Commands.TagStudio
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "APPLY — rewrite the .rfa files",
                 "Choose which files. Copies them first. Label rows after a category change are " +
-                "still unproven — do one and check it.");
+                "still unproven — but a tag family has no rows until it is propagated to, " +
+                "so that risk lands on propagation, not here.");
 
             var choice = td.Show();
             if (choice == TaskDialogResult.CommandLink1) return RunMode.Audit;
