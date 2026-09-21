@@ -637,24 +637,25 @@ TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing
 Tag Family #7: STING - Structural Rebar Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
-4,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
-5,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
-6,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
-7,T2,CST_S_REI_SPACING_MM,Spc:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
-8,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
-9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
-10,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
-11,T3,STR_REBAR_SHAPE_TXT,Shape:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_SHAPE_TXT, """")",NOM,BLACK,2.0,None,None
-12,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
-13,T3,STR_REBAR_HOOK_TYPE_TXT,Hook:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_HOOK_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
-14,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
-15,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
-16,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
-17,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
-18,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T1,STR_REBAR_TOTAL_NO_NR,,,0,,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+2,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,CST_S_REI_SPACING_MM,Spc:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+9,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,STR_REBAR_SHAPE_TXT,Shape:,,0,,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_SHAPE_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
+14,T3,STR_REBAR_HOOK_TYPE_TXT,Hook:,,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, STR_REBAR_HOOK_TYPE_TXT, """")",NOM,BLACK,2.0,None,None
+15,T3,CST_S_REI_WEIGHT_KG,,kg,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+16,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+17,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+18,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+19,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 17,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
 1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
 2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
@@ -689,7 +690,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
-19,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+20,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_RBR_COVER_MM,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_RBR_COVER_MM, """")"
@@ -986,16 +987,17 @@ TAG7: STR_TAG_7_PARA_BEAM_TXT  •  Category: Structural Beam Systems
 Tag Family #13: STING - Structural Rebar Couplers Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
-4,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
-5,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
-6,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
-7,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
-8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
-9,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
-10,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T1,STR_REBAR_TOTAL_NO_NR,,,0,,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+2,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_REBAR_SIZE_MM,Size:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+8,T2,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, ASS_MANUFACTURER_TXT, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
 2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
@@ -1030,7 +1032,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
-11,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+12,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_GRADE_COUPLERS,Coupler grade incompatible with rebar grade,BS 8539 / BS EN 1992-1-1,Common,Text,⚠ Warning: Coupler Grade,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_GRADE_COUPLERS, """")"
@@ -1038,17 +1040,18 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Rebar Couplers
 Tag Family #14: STING - Structural Fabric Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
-4,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
-5,T2,STR_REBAR_SIZE_MM,Wire:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
-6,T2,CST_S_REI_SPACING_MM,| Spc:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
-7,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
-8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
-9,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
-10,T3,CST_S_REI_WEIGHT_KG,,kg/m²,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
-11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T1,STR_REBAR_TOTAL_NO_NR,,,0,,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+2,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_REBAR_SIZE_MM,Wire:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_SPACING_MM,| Spc:,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,CST_S_REI_WEIGHT_KG,,kg/m²,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_WEIGHT_KG, """")",NOM,BLACK,2.0,None,None
+12,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
 2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
@@ -1083,7 +1086,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
-12,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+13,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_FABRIC,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Fabric Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_FABRIC, """")"
@@ -1091,17 +1094,18 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Fabric Reinforcement
 Tag Family #15: STING - Structural Area Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
-4,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
-5,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
-6,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
-7,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
-8,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
-9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
-10,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
-11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+1,T1,STR_REBAR_TOTAL_NO_NR,,,0,,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+2,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,CST_S_REI_GRADE_TXT,Gr:,,0,,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_GRADE_TXT, """")",NOM,BLACK,2.0,None,None
+9,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+10,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+12,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
 1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
 2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
@@ -1136,7 +1140,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
-12,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+13,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_AREA,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Area Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_AREA, """")"
@@ -1145,20 +1149,21 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Area Reinforcement
 Tag Family #16: STING - Structural Path Reinforcement Tag
 TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
-1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
-2,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
-3,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
-4,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
-5,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
-6,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
-7,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
-8,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
-9,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
-10,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
-11,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
-12,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
-13,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
-14,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
+1,T1,STR_REBAR_TOTAL_NO_NR,,,0,,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+2,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T1,STR_BAR_MARK_TXT,Mark:,,0,✓,---,---,---,Add directly,BOLD,BLACK,2.5,None,None
+4,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
+5,T2,ASS_DESCRIPTION_TXT,,,0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, """")",NOM,BLACK,2.0,None,None
+6,T2,STR_REBAR_SIZE_MM,Bar:,mm,0,✓,Common,Text,Show Tier 2 - 4,"if(TAG_PARA_STATE_2_BOOL, STR_REBAR_SIZE_MM, """")",NOM,BLACK,2.0,None,None
+7,T2,CST_S_REI_SPACING_MM,| @,mm,0,✓,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_SPACING_MM, """")",NOM,BLACK,2.0,None,None
+8,T2,CST_S_REI_COVER_MM,Cover:,mm,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, CST_S_REI_COVER_MM, """")",NOM,BLACK,2.0,None,None
+9,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,STR_TAG_7_PARA_REBAR_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, STR_TAG_7_PARA_REBAR_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,CST_S_REI_OVERLAP_LENGTH_MM,| Lap:,mm,0,✓,Common,Text,Show Tier 3 - 9,"if(TAG_PARA_STATE_3_BOOL, CST_S_REI_OVERLAP_LENGTH_MM, """")",NOM,BLACK,2.0,None,None
+12,T3,ASS_STATUS_TXT,,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+14,T3,CST_DELIVERY_LEAD_TIME_DAYS,Lead:,days,0,,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, CST_DELIVERY_LEAD_TIME_DAYS, """")",NOM,BLACK,2.0,None,None
+15,T3,CST_LOCAL_MAT_BOOL,| Local:,,0,✓,Common,Text,Show Tier 3 - 13,"if(TAG_PARA_STATE_3_BOOL, CST_LOCAL_MAT_BOOL, """")",NOM,BLACK,2.0,None,None
 1,T4,COMM_STATE_TXT,Comm:,,0,,Common,Text,Show T4 - Commissioning - State,"if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, """")",BOLD,BLUE,2.0,None,None
 2,T4,COMM_DATE_TXT,on,,0,,Common,Text,Show T4 - Commissioning - Date,"if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, """")",BOLD,BLUE,2.0,None,None
 3,T4,COMM_OPERATIVE_TXT,by,,0,✓,Common,Text,Show T4 - Commissioning - Operative,"if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, """")",BOLD,BLUE,2.0,None,None
@@ -1193,7 +1198,7 @@ TAG7: STR_TAG_7_PARA_REBAR_TXT  •  Category: Structural Path Reinforcement
 33,T10,IFC_PSET_OVERRIDE_TXT,IFC:,,0,,Common,Text,Show T10 - Compliance - IFC PSet Override,"if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, """")",NOM,GREY,2.0,None,None
 34,T10,ACC_ISSUE_ID_TXT,ACC:,,0,,Common,Text,Show T10 - Compliance - ACC Issue,"if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, """")",NOM,GREY,2.0,None,None
 35,T10,ACC_SYNC_STATUS_TXT,Sync:,,0,✓,Common,Text,Show T10 - Compliance - ACC Sync Status,"if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, """")",NOM,GREY,2.0,None,None
-15,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+16,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_STR_REBAR_COVER_MM_PATH,Cover < minimum for exposure class,BS EN 1992-1-1 Table 4.4N,Common,Text,⚠ Warning: Path Rebar Cover,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_REBAR_COVER_MM_PATH, """")"

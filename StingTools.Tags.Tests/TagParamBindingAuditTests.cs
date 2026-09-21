@@ -250,5 +250,62 @@ namespace StingTools.Tags.Tests
                 Assert.Contains("STR_BAR_MARK_TXT", families[key].Params);
             }
         }
+
+        [Fact]
+        public void TheBs8666BendingScheduleFieldsExistAndAreBound()
+        {
+            // BS 8666:2020 bar bending schedule columns. Before 2026-09-21 the
+            // bar counts, the cutting length, the A-E bending dimensions and the
+            // scheduling radius did not exist as parameters at all, so no
+            // schedule could carry them and the "Reinforcement Schedule" was
+            // built over Structural Framing with no rebar fields in it.
+            //
+            // A parameter declared in MR_PARAMETERS.txt but bound to nothing is
+            // the same defect one layer down - it exists, and no element carries
+            // it - so this asserts BOTH.
+            var bs8666 = new[]
+            {
+                "STR_REBAR_MEMBER_REF_TXT", "STR_BAR_MARK_TXT", "CST_S_REI_TYPE_TXT",
+                "STR_REBAR_SIZE_MM", "STR_REBAR_NO_OF_MBRS_NR", "STR_REBAR_BARS_IN_EACH_NR",
+                "STR_REBAR_TOTAL_NO_NR", "STR_REBAR_CUT_LENGTH_MM", "STR_REBAR_SHAPE_TXT",
+                "STR_REBAR_DIM_A_MM", "STR_REBAR_DIM_B_MM", "STR_REBAR_DIM_C_MM",
+                "STR_REBAR_DIM_D_MM", "STR_REBAR_DIM_E_MM", "STR_REBAR_BEND_RADIUS_MM",
+                "CST_S_REI_WEIGHT_KG",
+            };
+
+            string data = DataDir();
+            Assert.True(data != null, "StingTools/Data not found");
+
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var line in File.ReadLines(Path.Combine(data, "MR_PARAMETERS.txt")))
+            {
+                if (!line.StartsWith("PARAM" + "	", StringComparison.Ordinal)) continue;
+                var f = line.Split('	');
+                if (f.Length > 2 && f[2].Length > 0) declared.Add(f[2]);
+            }
+
+            var undeclared = bs8666.Where(p => !declared.Contains(p)).ToList();
+            Assert.True(undeclared.Count == 0,
+                        "BS 8666 fields absent from MR_PARAMETERS.txt:\n  " +
+                        string.Join(", ", undeclared));
+
+            HashSet<string> universal;
+            var spec = TagParamBindingAudit.ParseSpec(
+                File.ReadLines(Path.Combine(data, "RESOLVED_BINDINGS.csv")), out universal);
+
+            var unbound = bs8666
+                .Where(p => !universal.Contains(p))
+                .Where(p => !spec.ContainsKey(p) || !spec[p].Contains("Structural Rebar"))
+                .ToList();
+            Assert.True(unbound.Count == 0,
+                        "BS 8666 fields not bound to Structural Rebar:\n  " +
+                        string.Join(", ", unbound));
+
+            // And the schedule actually asks for them.
+            var sched = File.ReadAllText(Path.Combine(data, "MR_SCHEDULES.csv"));
+            Assert.Contains("Reinforcement Schedule,Structural Rebar", sched);
+            foreach (var p in bs8666)
+                Assert.True(sched.Contains(p), "the Reinforcement Schedule omits " + p);
+        }
     }
 }

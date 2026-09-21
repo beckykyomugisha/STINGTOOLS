@@ -3699,3 +3699,14 @@ PARAM	a1b2c3d4-5062-4a01-b001-000000000198	BLE_ROOM_FINISH_FLOOR_COD_TXT	TEXT		2
 PARAM	a1b2c3d4-5063-4a01-b001-000000000199	BLE_ROOM_FINISH_WALL_COD_TXT	TEXT		2	1	Room wall finish code (e.g. WL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
 PARAM	5e4ca8e4-f098-57f8-8829-7fb8353f9536	STING_FINISH_SRC_ROOM_ID_TXT	TEXT		38	1	Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]	1	0
 PARAM	c914565f-e02b-5c67-b9b6-c086cc17d2cf	STING_FINISH_CODE_TXT	TEXT		38	1	Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]	1	0
+PARAM	643d5eef-c151-56f9-8e45-5a951d1b186d	STR_REBAR_MEMBER_REF_TXT	TEXT		16	1	Member the bars belong to [BS 8666 col. 1]	1
+PARAM	9cdc79da-1e9a-58cd-9988-3e7356f4e277	STR_REBAR_NO_OF_MBRS_NR	INTEGER		16	1	Number of members [BS 8666 col. 4]	1
+PARAM	2e94bbc1-9779-53e8-9297-2ec4bcd5cc74	STR_REBAR_BARS_IN_EACH_NR	INTEGER		16	1	Number of bars in each member [BS 8666 col. 5]	1
+PARAM	b277dba4-d73d-5dad-a9d6-e2390af6c594	STR_REBAR_TOTAL_NO_NR	INTEGER		16	1	Total number of bars [BS 8666 col. 6]	1
+PARAM	f5cb5464-7e2b-59c3-b4cb-edb46eeb8e1c	STR_REBAR_CUT_LENGTH_MM	TEXT		16	1	Cutting length of each bar, mm [BS 8666 col. 7]	1
+PARAM	e8ecbf30-6044-56bd-bede-b893a4bd4ee0	STR_REBAR_DIM_A_MM	TEXT		16	1	Bending dimension A, mm [BS 8666 shape code]	1
+PARAM	f060428e-308e-5d1a-909b-5b8267408ef5	STR_REBAR_DIM_B_MM	TEXT		16	1	Bending dimension B, mm [BS 8666 shape code]	1
+PARAM	9de7bc78-31d1-5520-8391-693ca5c3f71d	STR_REBAR_DIM_C_MM	TEXT		16	1	Bending dimension C, mm [BS 8666 shape code]	1
+PARAM	7a4a0e1e-e909-5577-b137-28f04683feaa	STR_REBAR_DIM_D_MM	TEXT		16	1	Bending dimension D, mm [BS 8666 shape code]	1
+PARAM	324969fd-cdf8-544b-b834-3aee08721cfa	STR_REBAR_DIM_E_MM	TEXT		16	1	Bending dimension E, mm [BS 8666 shape code]	1
+PARAM	faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6	STR_REBAR_BEND_RADIUS_MM	TEXT		16	1	Scheduling radius R, mm [BS 8666 Table 2]	1

@@ -3245,3 +3245,14 @@ ZON_GROSS_AREA_M2,<ALL>
 ZON_NET_AREA_M2,<ALL>
 ZON_OCCUPANTS_NR,<ALL>
 ZON_VOLUME_M3,<ALL>
+STR_REBAR_MEMBER_REF_TXT,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_NO_OF_MBRS_NR,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_BARS_IN_EACH_NR,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_TOTAL_NO_NR,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_CUT_LENGTH_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_DIM_A_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_DIM_B_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_DIM_C_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_DIM_D_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_DIM_E_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
+STR_REBAR_BEND_RADIUS_MM,Structural Rebar|Structural Area Reinforcement|Structural Path Reinforcement|Structural Fabric Reinforcement|Structural Rebar Couplers
