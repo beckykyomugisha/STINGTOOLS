@@ -119,7 +119,8 @@ namespace StingTools.Commands.TagStudio
             }
 
             StingLog.Info($"FixTagFamilyCategories: {rfas.Count} .rfa file(s) under {folder}; " +
-                          $"{TagCategoryResolver.DeclaredCount} family/families have a declared category");
+                          $"{TagCategoryResolver.DeclaredCount} family/families have a declared category; " +
+                          $"categories resolved against {(projectDoc != null ? "the open project" : "each family document (no project open - expect more UNRESOLVED)")}");
 
             // ── 2. Audit or apply? ──
             var mode = ChooseMode(rfas.Count);
@@ -296,7 +297,17 @@ namespace StingTools.Commands.TagStudio
                 //
                 // Built-in category ids are document-independent, so a tag category resolved
                 // against the family document is the same one a project would resolve.
-                var res = TagCategoryResolver.Resolve(famDoc, row.FamilyName, owner?.FamilyCategory);
+                // Resolve the DECLARED category against the project when one is open.
+                // A family document carries a reduced category set, so
+                // FindTagCategory could not see categories that plainly exist: 20 of the
+                // 206 families came back UNRESOLVED on 2026-09-21 naming host categories
+                // like "Duct Accessories", "Pipe Accessories", "Structural Trusses" and
+                // "Spaces (MEP)", every one of which has a real tag category in a
+                // project. Built-in category ids are document-independent, so the
+                // category found in the project is mapped back into the family document
+                // by id before anything is written (see the APPLY path below).
+                var res = TagCategoryResolver.Resolve(
+                    projectDoc ?? famDoc, row.FamilyName, owner?.FamilyCategory);
 
                 // If the two names disagree, say so. It is the fact that hid the bug above,
                 // and it is the only place it can be seen.
@@ -341,7 +352,30 @@ namespace StingTools.Commands.TagStudio
                     return row;
                 }
 
-                var target = res.DeclaredTagCategory;
+                // The resolved Category may belong to the PROJECT document. Map it into
+                // the family document by id - built-in ids are document-independent -
+                // because assigning a foreign Category object is not something to find
+                // out about from a half-written .rfa.
+                Category target = res.DeclaredTagCategory;
+                try
+                {
+                    Category inFam = Category.GetCategory(famDoc, target.Id);
+                    if (inFam == null)
+                    {
+                        row.Verdict = "UNRESOLVED";
+                        row.Detail = Join(row.Detail,
+                            $"'{target.Name}' is not available in this family document - not written");
+                        return row;
+                    }
+                    target = inFam;
+                }
+                catch (Exception mapEx)
+                {
+                    row.Verdict = "ERROR";
+                    row.Detail = Join(row.Detail, $"mapping '{target.Name}' into the family failed: {mapEx.Message}");
+                    return row;
+                }
+
                 using (var tx = new Transaction(famDoc, $"STING Set category → {target.Name}"))
                 {
                     tx.Start();

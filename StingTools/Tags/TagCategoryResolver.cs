@@ -122,7 +122,18 @@ namespace StingTools.Tags
         /// for each of 212 standalone-opened .rfa files and got "no Category declared"
         /// for every one, while 137 of those file names match a declaration exactly. The
         /// audit therefore reported "0 families would change category" — a clean bill of
-        /// health for a library where most families are mis-categorised.</para>
+        /// health for a library where most families are mis-categorised. Resolving by
+        /// file name fixed it: the same library now reports 103 to change, 14 correct,
+        /// 69 undeclared and 20 unresolvable.</para>
+        ///
+        /// <para>What is NOT established is WHY the Family overload failed. The obvious
+        /// explanation — that <c>OwnerFamily.Name</c> returns something other than the
+        /// file name — is contradicted by the evidence: the command records both names
+        /// whenever they differ, and across 206 families on 2026-09-21 it recorded
+        /// ZERO differences. So the file-name route is correct and proven, and the
+        /// reason the other one was not is still open. It is written here rather than
+        /// left as a confident-sounding comment, because a wrong mechanism in a comment
+        /// is how the next person debugs the wrong thing.</para>
         /// </summary>
         public static TagCategoryResolution Resolve(
             Document doc, string familyName, Category actualCategory, string nullNote = null)
