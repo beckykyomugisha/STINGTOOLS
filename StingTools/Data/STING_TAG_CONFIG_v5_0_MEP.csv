@@ -3244,6 +3244,8 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
 
+Tag Family #63: STING - Tie-In Gas Pipe Tag
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
 TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3337,6 +3339,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
 
 Tag Family #53: STING - MEP Sleeve Tag
+TAG7: ASS_TAG_7_PARA_PENETRATION_TXT  •  Category: Generic Models
 # Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
 # Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
 

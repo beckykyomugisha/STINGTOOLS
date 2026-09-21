@@ -1,0 +1,297 @@
+// Tests for TagConfigDeclarations - the two dialects of the tag-config CSVs.
+//
+// The bug these exist for: the parser understood only the prose dialect, so all
+// 58 healthcare families were reported "no Category declared" while their
+// declarations sat in the file. The audit called them undeclared. They were not.
+//
+// The shipped-file tests at the bottom matter more than the synthetic ones. A
+// synthetic fixture proves the parser handles a format I invented; the shipped
+// files prove it handles the format this repo actually ships, which is where
+// the defect lived.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using StingTools.Tags;
+using Xunit;
+
+namespace StingTools.Tags.Tests
+{
+    public class TagConfigDeclarationsTests
+    {
+        // ── prose dialect ────────────────────────────────────────────────────
+
+        [Fact]
+        public void ProseDialectAttributesTheCategoryToTheFamilyAbove()
+        {
+            var d = TagConfigDeclarations.Parse(new[]
+            {
+                "Tag Family #7: STING - Air Terminal Tag",
+                "TAG7: HVC_TAG_7_PARA_AT_TXT  •  Category: Air Terminals",
+            });
+
+            var one = Assert.Single(d);
+            Assert.Equal("STING - Air Terminal Tag", one.FamilyName);
+            Assert.Equal("Air Terminals", one.HostCategory);
+            Assert.Equal("prose", one.Dialect);
+        }
+
+        [Fact]
+        public void ProseCategoryWithNoFamilyAboveItIsIgnored()
+        {
+            // Not attributed to whatever came before in another file.
+            Assert.Empty(TagConfigDeclarations.Parse(new[] { "Category: Air Terminals" }));
+        }
+
+        [Fact]
+        public void CommentsAreSkippedInTheProseDialect()
+        {
+            Assert.Empty(TagConfigDeclarations.Parse(new[]
+            {
+                "Tag Family #1: STING - Thing Tag",
+                "# Category: Generic Models",
+            }));
+        }
+
+        // ── row dialect ──────────────────────────────────────────────────────
+
+        [Fact]
+        public void RowDialectTakesTheNameFromFieldOneAndCategoryFromFieldThree()
+        {
+            var d = TagConfigDeclarations.Parse(new[]
+            {
+                "TAG_FAMILY,STING - Clinical Room Tag,H,Rooms,1,CLN_ROOM_CLASS_TXT,Clinical room class label",
+            });
+
+            var one = Assert.Single(d);
+            Assert.Equal("STING - Clinical Room Tag", one.FamilyName);
+            Assert.Equal("Rooms", one.HostCategory);
+            Assert.Equal("row", one.Dialect);
+        }
+
+        [Fact]
+        public void ARowDoesNotInheritAProseFamilyHeader()
+        {
+            // A self-contained row must never be attributed to a header above it,
+            // or one stray header would rewrite every row that follows.
+            var d = TagConfigDeclarations.Parse(new[]
+            {
+                "Tag Family #1: STING - Something Else Tag",
+                "TAG_FAMILY,STING - Autoclave Tag,H,Medical Equipment,1,CEQ_X,desc",
+            });
+
+            var one = Assert.Single(d);
+            Assert.Equal("STING - Autoclave Tag", one.FamilyName);
+        }
+
+        [Fact]
+        public void ARowDoesNotBecomeTheCurrentFamilyForLaterProseLines()
+        {
+            var d = TagConfigDeclarations.Parse(new[]
+            {
+                "TAG_FAMILY,STING - Autoclave Tag,H,Medical Equipment,1,CEQ_X,desc",
+                "Category: Doors",
+            });
+
+            var one = Assert.Single(d);
+            Assert.Equal("Medical Equipment", one.HostCategory);
+        }
+
+        [Fact]
+        public void ShortRowsAreIgnoredRatherThanThrowing()
+        {
+            Assert.Empty(TagConfigDeclarations.Parse(new[] { "TAG_FAMILY,STING - Thing Tag,H" }));
+        }
+
+        [Fact]
+        public void BlankNameOrCategoryIsNotADeclaration()
+        {
+            Assert.Empty(TagConfigDeclarations.Parse(new[]
+            {
+                "TAG_FAMILY,,H,Rooms,1,X,d",
+                "TAG_FAMILY,STING - Thing Tag,H,,1,X,d",
+            }));
+        }
+
+        // ── quoting ──────────────────────────────────────────────────────────
+
+        [Fact]
+        public void AQuotedCommaDoesNotShiftTheFieldPositions()
+        {
+            var d = TagConfigDeclarations.Parse(new[]
+            {
+                "TAG_FAMILY,\"STING - Thing, Large Tag\",H,Rooms,1,X,d",
+            });
+
+            var one = Assert.Single(d);
+            Assert.Equal("STING - Thing, Large Tag", one.FamilyName);
+            Assert.Equal("Rooms", one.HostCategory);
+        }
+
+        [Theory]
+        [InlineData("a,b,c", new[] { "a", "b", "c" })]
+        [InlineData("a,\"b,c\",d", new[] { "a", "b,c", "d" })]
+        [InlineData("a,\"b\"\"c\",d", new[] { "a", "b\"c", "d" })]
+        [InlineData("a,,c", new[] { "a", "", "c" })]
+        [InlineData("", new[] { "" })]
+        public void SplitCsvHonoursQuotes(string line, string[] expected)
+        {
+            Assert.Equal(expected, TagConfigDeclarations.SplitCsv(line).ToArray());
+        }
+
+        [Fact]
+        public void NullLinesAreNotAnError()
+        {
+            Assert.Empty(TagConfigDeclarations.Parse(null));
+            Assert.Empty(TagConfigDeclarations.Parse(new string[] { null, "", "   " }));
+        }
+
+        // ── the shipped files ────────────────────────────────────────────────
+
+        private static string DataDir()
+        {
+            // Walk up to the repo root, then into StingTools/Data.
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "StingTools", "Data")))
+                dir = dir.Parent;
+            return dir == null ? null : Path.Combine(dir.FullName, "StingTools", "Data");
+        }
+
+        private static List<TagDeclaration> AllShipped()
+        {
+            string data = DataDir();
+            Assert.True(data != null && Directory.Exists(data),
+                        "StingTools/Data not found - the shipped-file tests cannot run blind");
+
+            var all = new List<TagDeclaration>();
+            var files = Directory.GetFiles(data, "STING_TAG_CONFIG_v5_0_*.csv");
+            Assert.True(files.Length >= 8, $"expected the config set, found {files.Length} file(s)");
+
+            foreach (var f in files)
+                all.AddRange(TagConfigDeclarations.Parse(File.ReadLines(f)));
+            return all;
+        }
+
+        [Fact]
+        public void TheShippedConfigDeclaresBothDialects()
+        {
+            var all = AllShipped();
+
+            // The regression: before the fix this was 0.
+            Assert.True(all.Count(d => d.Dialect == "row") >= 100,
+                        $"row-dialect declarations found: {all.Count(d => d.Dialect == "row")}");
+            Assert.True(all.Count(d => d.Dialect == "prose") >= 300,
+                        $"prose-dialect declarations found: {all.Count(d => d.Dialect == "prose")}");
+        }
+
+        [Fact]
+        public void HealthcareFamiliesAreDeclaredAndWereNeverMissing()
+        {
+            var byName = AllShipped()
+                .GroupBy(d => TagCategoryNameForms.NormaliseKey(d.FamilyName))
+                .ToDictionary(g => g.Key, g => g.First().HostCategory, StringComparer.Ordinal);
+
+            // Four that were about to be hand-declared into the WRONG category.
+            // MgasNetwork.ClassifyRole recognises terminal units and alarm panels
+            // only as Plumbing Fixtures, and zone valve boxes only as Pipe
+            // Accessories, so these three are load-bearing for the MGPS solver.
+            Assert.Equal("Plumbing Fixtures", byName[TagCategoryNameForms.NormaliseKey("STING - Medical Gas Terminal Unit Tag")]);
+            Assert.Equal("Plumbing Fixtures", byName[TagCategoryNameForms.NormaliseKey("STING - Area Alarm Panel Tag")]);
+            Assert.Equal("Pipe Accessories", byName[TagCategoryNameForms.NormaliseKey("STING - Zone Valve Box Tag")]);
+            Assert.Equal("Rooms", byName[TagCategoryNameForms.NormaliseKey("STING - Clinical Room Tag")]);
+        }
+
+        [Fact]
+        public void NoFamilyIsDeclaredTwiceWithDifferentCategories()
+        {
+            // The resolver keeps the first and warns. A clash here means the
+            // config disagrees with itself and someone must pick.
+            var clashes = AllShipped()
+                .GroupBy(d => TagCategoryNameForms.NormaliseKey(d.FamilyName))
+                .Where(g => g.Select(d => d.HostCategory)
+                             .Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+                .Select(g => g.Key + " -> " + string.Join(" / ", g.Select(d => d.HostCategory).Distinct()))
+                .ToList();
+
+            Assert.True(clashes.Count == 0, "conflicting declarations:\n  " + string.Join("\n  ", clashes));
+        }
+
+        [Fact]
+        public void EveryDeclaredCategoryIsAPlainName()
+        {
+            // Prose like "Columns - Architectural discipline" or "Sheets (ViewSheet)"
+            // can never resolve to a tag category. Catching it here means a bad
+            // edit fails a test instead of surfacing as a silent UNRESOLVED row.
+            // Three declarations name SEVERAL categories at once. A family can
+            // only be one, so these are open authoring decisions, not typos -
+            // recorded here by name so they stay visible and so a NEW prose
+            // declaration still fails this test. Shrink this list; never grow it
+            // without a reason written down.
+            var knownOpen = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Generic Models / Specialty Equipment",   // STING - LPS Generic Component Tag
+                "Roofs / Walls / Curtain Wall",           // STING - LPS Natural Air Termination Tag
+                "Structural Foundations / Rebar",         // STING - LPS Foundation Earth Tag
+            };
+
+            var prose = AllShipped()
+                .Select(d => d.HostCategory)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(c => !knownOpen.Contains(c))
+                .Where(c => c.Contains("(") || c.Contains("/") || c.Contains("—") ||
+                            c.IndexOf("discipline", StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderBy(c => c)
+                .ToList();
+
+            Assert.True(prose.Count == 0,
+                        "declarations that are prose rather than a category name:\n  " +
+                        string.Join("\n  ", prose));
+        }
+
+        [Fact]
+        public void EveryShippedTagFamilyHasADeclaration()
+        {
+            // The headline gate. On 2026-09-21 this would have failed with 69
+            // families - 58 hidden behind the unread row dialect, 9 behind a
+            // name/file-name mismatch, 2 genuinely missing. All three causes are
+            // fixed, so the number is zero and must stay zero: a new .rfa
+            // dropped into the library without a declaration fails here rather
+            // than surfacing months later as a silent NO-DECLARATION row.
+            string data = DataDir();
+            Assert.True(data != null && Directory.Exists(data), "StingTools/Data not found");
+
+            string famDir = Path.Combine(data, "TagFamilies");
+            Assert.True(Directory.Exists(famDir), "StingTools/Data/TagFamilies not found");
+
+            var declared = new HashSet<string>(
+                AllShipped().Select(d => TagCategoryNameForms.NormaliseKey(d.FamilyName)),
+                StringComparer.Ordinal);
+
+            var families = Directory.GetFiles(famDir, "*.rfa", SearchOption.TopDirectoryOnly)
+                .Select(Path.GetFileNameWithoutExtension)
+                .Where(n => !IsRevitBackupName(n))
+                .ToList();
+
+            Assert.True(families.Count >= 200, $"expected the tag library, found {families.Count} family file(s)");
+
+            var missing = families
+                .Where(n => !declared.Contains(TagCategoryNameForms.NormaliseKey(n)))
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToList();
+
+            Assert.True(missing.Count == 0,
+                        $"{missing.Count} tag families have no declared category:\n  " +
+                        string.Join("\n  ", missing));
+        }
+
+        /// <summary>"Family.0001" - Revit's own backup, not a family.</summary>
+        private static bool IsRevitBackupName(string stem)
+        {
+            int dot = (stem ?? "").LastIndexOf('.');
+            if (dot < 0 || dot == stem.Length - 1) return false;
+            string tail = stem.Substring(dot + 1);
+            return tail.Length == 4 && tail.All(char.IsDigit);
+        }
+    }
+}

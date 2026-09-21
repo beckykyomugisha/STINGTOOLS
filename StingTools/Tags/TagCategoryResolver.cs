@@ -223,62 +223,33 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// The config is a human-readable sheet, not a strict CSV: a family header
-        /// line followed by attribute lines, one of which carries "Category: X".
-        /// The category is attributed to the most recent family header.
+        /// Reads one config file through <see cref="TagConfigDeclarations"/>,
+        /// which understands BOTH dialects the config grew - the prose
+        /// "Tag Family #N:" form and the healthcare "TAG_FAMILY," row form.
+        /// Declarations are keyed by <see cref="TagCategoryNameForms.NormaliseKey"/>
+        /// so a name written with a slash matches the file that cannot contain one.
         /// </summary>
         private static void ParseOne(string path)
         {
-            string current = null;
-
-            foreach (string raw in File.ReadLines(path))
+            foreach (var d in TagConfigDeclarations.Parse(File.ReadLines(path)))
             {
-                string line = raw?.Trim();
-                if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
+                string key = TagCategoryNameForms.NormaliseKey(d.FamilyName);
+                if (key.Length == 0) continue;
 
-                var fm = FamilyLine.Match(line);
-                if (fm.Success)
+                if (_declared.TryGetValue(key, out string existing))
                 {
-                    current = fm.Groups["name"].Value.Trim().Trim('"', ',');
+                    if (!string.Equals(existing, d.HostCategory, StringComparison.OrdinalIgnoreCase))
+                        StingLog.Warn($"TagCategoryResolver: '{d.FamilyName}' declared twice with different " +
+                                      $"categories ('{existing}' and '{d.HostCategory}') — keeping the first. " +
+                                      $"Both normalise to the key '{key}'; if the two names differ only by a " +
+                                      "slash, a dash or a trailing \"Tag\", rename one so the clash is visible " +
+                                      "in the config.");
                     continue;
                 }
 
-                if (current == null) continue;
-
-                var cm = CategoryLine.Match(line);
-                if (!cm.Success) continue;
-
-                string cat = cm.Groups["cat"].Value.Trim().Trim('"', ',');
-                if (cat.Length == 0) continue;
-
-                string key = TagCategoryNameForms.NormaliseKey(current);
-                if (_declared.TryGetValue(key, out string existing))
-                {
-                    if (!string.Equals(existing, cat, StringComparison.OrdinalIgnoreCase))
-                        StingLog.Warn($"TagCategoryResolver: '{current}' declared twice with different categories " +
-                                      $"('{existing}' and '{cat}') — keeping the first. If the two names differ only " +
-                                      "by a slash, a dash or a trailing \"Tag\", they now normalise to one key: " +
-                                      $"'{key}'. Rename one so the collision is visible in the config.");
-                }
-                else
-                {
-                    _declared[key] = cat;
-                }
-
-                current = null;   // one category per family header
+                _declared[key] = d.HostCategory;
             }
         }
-
-        // ── host category name → tag category in this document ──────────────
-
-        /// <summary>
-        /// Revit names tag categories "&lt;singular host&gt; Tags" — "Air Terminals"
-        /// becomes "Air Terminal Tags" — but the singularisation is not uniform
-        /// ("Furniture Tags", "Casework Tags", "Mechanical Equipment Tags"). Rather
-        /// than encode a switch that will drift from Revit, match by name against
-        /// the annotation categories the document actually has, trying the plural
-        /// and singular forms. Returns null rather than guessing.
-        /// </summary>
 
         private static Category FindTagCategory(Document doc, string hostCategoryName)
         {
