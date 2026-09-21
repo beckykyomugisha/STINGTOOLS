@@ -195,9 +195,23 @@ namespace StingTools.Commands.TagStudio
             // time, after committing to the run, is the wrong order to learn it in.
             bool masterIsMulti = master.FamilyCategory != null &&
                 master.FamilyCategory.Id.Value == (long)BuiltInCategory.OST_MultiCategoryTags;
+
+            // Declared out - the library's own decision, and the same source the
+            // per-family skip consults, so the dialog cannot promise one thing
+            // and the run do another.
+            var declaredOut = targets
+                .Where(t => !TagCategoryResolver.Resolve(doc, t).Universal)
+                .ToList();
+
+            // Blocked by Revit rather than by choice. Listed separately because
+            // they are different problems: one is intended, the other is a limit
+            // that a Multi-Category master would lift.
+            var declaredOutNames = new HashSet<string>(
+                declaredOut.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
             var unreachable = masterIsMulti
                 ? new List<Family>()
-                : targets.Where(t => t.FamilyCategory != null &&
+                : targets.Where(t => !declaredOutNames.Contains(t.Name) &&
+                        t.FamilyCategory != null &&
                         t.FamilyCategory.Id.Value == (long)BuiltInCategory.OST_MultiCategoryTags)
                     .ToList();
 
@@ -213,6 +227,12 @@ namespace StingTools.Commands.TagStudio
                 "  • Overwrite the target family (atomic SaveAs → LoadFamily → move)\n\n" +
                 "The universal label rows carry over unchanged (recategorise preserves\n" +
                 "label rows). Re-running is a safe RE-SYNC — master edits re-propagate.\n\n" +
+                (declaredOut.Count > 0
+                    ? $"{declaredOut.Count} of these declare \"Universal: No\" and will be SKIPPED:\n  " +
+                      string.Join("\n  ", declaredOut.Take(5).Select(f => f.Name)) +
+                      (declaredOut.Count > 5 ? "\n  ..." : "") +
+                      "\nThey keep their own bespoke label, which this master does not carry.\n\n"
+                    : "") +
                 (unreachable.Count > 0
                     ? $"{unreachable.Count} of these are Multi-Category Tags and will be SKIPPED:\n  " +
                       string.Join("\n  ", unreachable.Take(5).Select(f => f.Name)) +
@@ -447,7 +467,7 @@ namespace StingTools.Commands.TagStudio
 
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
-            int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0, totalScope = 0;
+            int succeeded = 0, failed = 0, cancelled = 0, skipped = 0, totalTypes = 0, totalParams = 0, totalScope = 0;
             // Families whose project update landed but whose library .rfa did not.
             var diskWriteFailures = new List<string>();
             long totalMs = 0;
@@ -476,7 +496,9 @@ namespace StingTools.Commands.TagStudio
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     totalScope += r.ScopeFixed;
-                    if (r.Success) succeeded++; else failed++;
+                    if (r.Skipped) skipped++;
+                    else if (r.Success) succeeded++;
+                    else failed++;
                     if (r.DiskWriteFailed) diskWriteFailures.Add(targetName + ": " + r.DiskWriteDetail);
 
                     // One line per family, so a long run can be read afterwards
@@ -497,7 +519,8 @@ namespace StingTools.Commands.TagStudio
                         // The library, not the project, is what every later lookup
                         // reads - so a family that updated in the project but not
                         // on disk is reported as its own outcome, never as OK.
-                        r.DiskWriteFailed ? "PROJECT ONLY" : r.Success ? "OK" : "FAILED",
+                        r.Skipped ? "SKIPPED (declared)"
+                            : r.DiskWriteFailed ? "PROJECT ONLY" : r.Success ? "OK" : "FAILED",
                         r.DiskWriteFailed ? r.DiskWriteDetail : r.ErrorMessage ?? ""
                     });
                 }
@@ -581,7 +604,7 @@ namespace StingTools.Commands.TagStudio
             td.Show();
 
             StingLog.Info($"PropagateUniversalTag: master={master.Name}, succeeded={succeeded}, " +
-                $"failed={failed}, cancelled={cancelled}, params={totalParams}, types={totalTypes}, " +
+                $"failed={failed}, skipped={skipped}, cancelled={cancelled}, params={totalParams}, types={totalTypes}, " +
                 $"elapsed={totalMs / 1000}s" +
                 (succeeded > 0 ? $" ({totalMs / succeeded / 1000}s per family)" : ""));
             return Result.Succeeded;
@@ -602,6 +625,10 @@ namespace StingTools.Commands.TagStudio
             // failure even though nothing in the project went wrong.
             public bool DiskWriteFailed;
             public string DiskWriteDetail;
+            // Declared out of scope, not attempted, not a failure. Counting a
+            // deliberate exclusion as a failure would put a permanent red number
+            // on every run and train everyone to ignore it.
+            public bool Skipped;
             // Per-phase milliseconds. At ~82s per family a full library run is
             // about five hours, and nothing in the log said which phase owned
             // that time. Three numbers answer it: opening the master, minting
@@ -655,6 +682,27 @@ namespace StingTools.Commands.TagStudio
                               (mode == RecategoriseMode.KeepExisting
                                   ? " (KeepExisting: left as it is for this run)"
                                   : ""));
+            // A family that declares "Universal: No" keeps its own label.
+            //
+            // This is checked FIRST and on the DECLARATION, not on the category
+            // below, because the two protect against different things. The
+            // category check describes what Revit currently refuses; the
+            // declaration describes what the library intends. Until now only the
+            // first existed, which meant the nine LPS tags were protected purely
+            // by a Revit error - and the universal master carries 71 generic
+            // ASS_* rows and ZERO ELC_LPS_* rows, so had that error ever stopped
+            // firing, propagation would have deleted every LPS row without a
+            // word. Build a Multi-Category master and it stops firing.
+            if (!catRes.Universal)
+            {
+                result.Skipped = true;
+                result.ErrorMessage =
+                    "declared \"Universal: No\" in STING_TAG_CONFIG_v5_0_*.csv - it keeps its own " +
+                    "bespoke label, which the universal master does not carry.";
+                StingLog.Info($"PropagateUniversalTag: '{targetName}' skipped — {result.ErrorMessage}");
+                return result;
+            }
+
             // A Multi-Category target cannot receive the universal label, and no
             // amount of retrying changes that.
             //

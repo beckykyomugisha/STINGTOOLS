@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // TagCategoryResolver.cs — the declared tag category for a STING tag family.
 //
 // WHY THIS EXISTS
@@ -63,6 +63,14 @@ namespace StingTools.Tags
         /// <summary>True when the family's current category differs from the declared one.</summary>
         public bool IsMismatch { get; set; }
         /// <summary>
+        /// False when the config declares "Universal: No" - the family keeps its
+        /// own bespoke label and must never receive the universal one. Defaults
+        /// TRUE, including for an undeclared family, because opting a family IN
+        /// by mistake is recoverable from git and opting one OUT by mistake is
+        /// silent forever.
+        /// </summary>
+        public bool Universal { get; set; } = true;
+        /// <summary>
         /// Why resolution failed, or — when it succeeded and
         /// <see cref="IsMismatch"/> is true — what disagrees with what. Null only
         /// when resolution succeeded and the family already carries the declared
@@ -79,6 +87,9 @@ namespace StingTools.Tags
     {
         // family name (upper, trimmed) → declared host category name
         private static Dictionary<string, string> _declared;
+        // Families that declared "Universal: No". A set, not a flag on
+        // _declared, so an UNDECLARED family cannot land in it by accident.
+        private static HashSet<string> _nonUniversal;
         private static readonly object _lock = new object();
 
         // Anchored at both ends: unanchored, "Tag Family" could match mid-line in a
@@ -94,7 +105,7 @@ namespace StingTools.Tags
         /// <summary>Drops the cache so an edited tag-config CSV is picked up without restarting Revit.</summary>
         public static void Reload()
         {
-            lock (_lock) { _declared = null; }
+            lock (_lock) { _declared = null; _nonUniversal = null; }
         }
 
         /// <summary>Number of families with a declared category. Zero means the config was not found.</summary>
@@ -155,6 +166,7 @@ namespace StingTools.Tags
             // Normalised on BOTH sides: a declaration is a human name, the family
             // is a FILE, and Windows forbids characters a human name may contain.
             string key = TagCategoryNameForms.NormaliseKey(res.FamilyName);
+            res.Universal = !_nonUniversal.Contains(key);
             if (!_declared.TryGetValue(key, out string hostCat) || string.IsNullOrWhiteSpace(hostCat))
             {
                 res.Note = "no Category declared in STING_TAG_CONFIG_v5_0_*.csv";
@@ -194,6 +206,7 @@ namespace StingTools.Tags
             {
                 if (_declared != null) return;
                 _declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                _nonUniversal = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 string dataDir = StingToolsApp.DataPath;
                 if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
@@ -218,7 +231,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                StingLog.Info($"TagCategoryResolver: {_declared.Count} families with a declared category, from {files.Length} config file(s)");
+                StingLog.Info($"TagCategoryResolver: {_declared.Count} families with a declared category, from {files.Length} config file(s); {_nonUniversal.Count} declared \"Universal: No\"");
             }
         }
 
@@ -235,6 +248,29 @@ namespace StingTools.Tags
             {
                 string key = TagCategoryNameForms.NormaliseKey(d.FamilyName);
                 if (key.Length == 0) continue;
+
+                // Recorded BEFORE the duplicate-category short-circuit below. A
+                // family declared in several files (every one also has a
+                // _DesignConstruction twin) would otherwise have only its first
+                // file consulted, so a "Universal: No" in the second would be
+                // dropped without a word.
+                //
+                // Any single NO wins, because a family that keeps a bespoke label
+                // in one config and takes the universal one in another is not a
+                // preference to average - it is a mistake, and it is warned about
+                // rather than silently resolved.
+                if (!d.Universal)
+                {
+                    if (_nonUniversal.Add(key))
+                        StingLog.Info($"TagCategoryResolver: '{d.FamilyName}' declares Universal: No - " +
+                                      "it keeps its own label and is skipped by universal propagation");
+                }
+                else if (_nonUniversal.Contains(key))
+                {
+                    StingLog.Warn($"TagCategoryResolver: '{d.FamilyName}' declares Universal: No in one " +
+                                  "config file and not in another. Treating it as NO - fix the config so " +
+                                  "every declaration of this family agrees.");
+                }
 
                 if (_declared.TryGetValue(key, out string existing))
                 {

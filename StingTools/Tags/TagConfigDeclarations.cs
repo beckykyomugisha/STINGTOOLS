@@ -52,6 +52,27 @@ namespace StingTools.Tags
         public string HostCategory { get; set; }
         /// <summary>"prose" or "row" - which dialect declared it.</summary>
         public string Dialect { get; set; }
+
+        /// <summary>
+        /// False when the family declares "Universal: No" - it keeps its own
+        /// bespoke label and must never receive the universal one.
+        ///
+        /// <para>This exists because the protection was previously an ACCIDENT.
+        /// The nine LPS tags are Multi-Category, Revit refuses to move a clone
+        /// into Multi-Category, and that error was the only thing stopping
+        /// propagation overwriting them. Measured 2026-09-21: the universal
+        /// master carries 71 generic ASS_* rows and ZERO ELC_LPS_* rows, so a
+        /// successful propagation would have deleted the LPS class, zone,
+        /// conductor material, cross-section, bond type, risk-assessment ref and
+        /// both HIGH warnings - everything that makes them LPS tags.</para>
+        ///
+        /// <para>Build a Multi-Category master one day and that error stops
+        /// firing, with nothing to replace it. Declaring the intent means the
+        /// skip survives the circumstance that currently enforces it, and a
+        /// tenth specialist tag - single-category or not - opts out the same
+        /// way instead of rediscovering this.</para>
+        /// </summary>
+        public bool Universal { get; set; } = true;
     }
 
     /// <summary>Parses the tag-config CSVs into family -> declared category.</summary>
@@ -66,6 +87,30 @@ namespace StingTools.Tags
         private static readonly Regex CategoryLine =
             new Regex(@"Category\s*:\s*(?<cat>[^,•|]+)",
                       RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        // "Universal: No" opts a family out of universal-label propagation.
+        //
+        // Only an explicit NO counts. Anything else - absent, blank, misspelled,
+        // "N0" - leaves the family opted IN, because the failure modes are not
+        // symmetric: a family wrongly INCLUDED gets the universal label and is
+        // recoverable from git, while a family wrongly EXCLUDED is silently
+        // skipped forever and nobody notices. The gate in
+        // TagConfigDeclarationsTests catches the typo that this leniency would
+        // otherwise hide.
+        private static readonly Regex UniversalLine =
+            new Regex(@"Universal\s*:\s*(?<val>[A-Za-z]+)",
+                      RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>True when the text declares an explicit "Universal: No".</summary>
+        internal static bool DeclaresNonUniversal(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+            var m = UniversalLine.Match(line);
+            if (!m.Success) return false;
+            string v = m.Groups["val"].Value;
+            return string.Equals(v, "No", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(v, "False", StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>
         /// Parses one file's lines. Returns every declaration found, in file
@@ -102,7 +147,13 @@ namespace StingTools.Tags
                             {
                                 FamilyName = name,
                                 HostCategory = cat,
-                                Dialect = "row"
+                                Dialect = "row",
+                                // A row has no free-text line to carry it, so scan
+                                // the whole row. Both dialects must be able to say
+                                // this: a family declared in only one of them would
+                                // otherwise opt out in prose and back in by row,
+                                // and the merge would pick whichever came first.
+                                Universal = !DeclaresNonUniversal(line)
                             });
                     }
                     // A row never becomes the "current" family for prose lines.
@@ -131,7 +182,10 @@ namespace StingTools.Tags
                 {
                     FamilyName = current,
                     HostCategory = pcat,
-                    Dialect = "prose"
+                    Dialect = "prose",
+                    // Read off the SAME line as the category, which is where the
+                    // TAG7 line already carries the family's own declarations.
+                    Universal = !DeclaresNonUniversal(line)
                 });
             }
 

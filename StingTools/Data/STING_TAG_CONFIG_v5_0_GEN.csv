@@ -1808,7 +1808,7 @@ Tag Family #34: STING - LPS Generic Component Tag
 #   #59 STING - LPS Test Clamp Tag          (PROD=TCL)          BS EN 62305-3 §7.2
 # CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
 # Family-name detection in TagConfig.GetSysFromFamilyName auto-routes generic-model LPS elements to SYS=LPS.
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow

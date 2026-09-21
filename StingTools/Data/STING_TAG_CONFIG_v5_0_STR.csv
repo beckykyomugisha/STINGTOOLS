@@ -1428,7 +1428,7 @@ Tag Family #22: STING - LPS Foundation Earth (Structural Reuse) Tag
 # Category: Structural Foundations, Structural Rebar, Structural Area Reinforcement, Structural Path Reinforcement, Structural Fabric Reinforcement | PROD: EFE (Foundation Earth) | SYS: LPS | FUNC: EE | DISC: S
 # Cross-discipline integration: structural foundation rebar / area reinforcement reused as a BS EN 62305-3 Type B foundation earth electrode (Annex E.5.3).
 # The structural team owns the rebar layout but the electrical team needs the same elements tagged for LPS continuity tests + Bill of Quantities reconciliation.
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
