@@ -477,6 +477,14 @@ namespace StingTools.Commands.TagStudio
             {
                 app.SharedParametersFilename = sharedParamFile;
 
+                // Clear any Escape left latched by an earlier dialog. The check
+                // below runs at i == 0, before any work, so a stale latch
+                // cancels the entire run before it starts - which is exactly
+                // what happened at 00:06 on 2026-09-22: "cancelled BY THE USER
+                // (Escape) after 0 of 206", nothing touched, seconds after the
+                // previous run's report was dismissed.
+                EscapeChecker.DrainPendingEscape();
+
                 for (int i = 0; i < targets.Count; i++)
                 {
                     if ((i % 5) == 0 && EscapeChecker.IsEscapePressed())
