@@ -428,6 +428,8 @@ namespace StingTools.Commands.TagStudio
                     return row;
                 }
 
+                RevitBackupSweeper.Sweep(rfaPath, "FixTagFamilyParamTypes");
+
                 row.Verdict = refused.Count == 0 ? "FIX" : "PARTIAL";
                 row.Detail = $"re-pointed {row.Replaced} of {conflicts.Count}" +
                              (refused.Count > 0 ? "; refused: " + string.Join("; ", refused.Take(3)) : "");
@@ -534,5 +536,6 @@ namespace StingTools.Commands.TagStudio
             }
             return picked.Select(p => p.Tag as string).Where(s => !string.IsNullOrEmpty(s)).ToList();
         }
+
     }
 }

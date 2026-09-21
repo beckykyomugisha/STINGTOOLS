@@ -411,12 +411,12 @@ namespace StingTools.Commands.TagStudio
 
                 try
                 {
-                    // MaximumBackups = 1, or Revit leaves "<name>.0001.rfa" beside every
-                    // family it saves - and both this command and the conformance audit
-                    // then enumerate *.rfa and treat the backup as a family. That is why
-                    // a 206-family library reported 207 after one APPLY, and 212 on
-                    // 2026-09-18 after several. We take our own pre-change copies, so
-                    // Revit's are duplicate litter inside the library being audited.
+                    // MaximumBackups = 1 is the MINIMUM Revit accepts, not "none" - it
+                    // still writes "<name>.0001.rfa" beside every family saved. An
+                    // earlier comment here claimed this option prevented them; the
+                    // 206-family parameter run on 2026-09-21 produced 141 backups and
+                    // settled it. The sweep below is what actually removes them, and it
+                    // matters because anything enumerating *.rfa counts them as families.
                     famDoc.SaveAs(rfaPath, new SaveAsOptions
                     {
                         OverwriteExistingFile = true,
@@ -429,6 +429,8 @@ namespace StingTools.Commands.TagStudio
                     row.Detail = $"save failed: {saveEx.Message}";
                     return row;
                 }
+
+                RevitBackupSweeper.Sweep(rfaPath, "FixTagFamilyCategories");
 
                 row.Verdict = "FIX";
                 row.Detail = Join(row.Detail, $"{row.Actual} → {target.Name}, saved");
