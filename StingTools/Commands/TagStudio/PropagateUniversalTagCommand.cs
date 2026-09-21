@@ -485,6 +485,22 @@ namespace StingTools.Commands.TagStudio
                 // previous run's report was dismissed.
                 EscapeChecker.DrainPendingEscape();
 
+                // Give the master the parameters and type variants every clone
+                // would otherwise add for itself. Measured 2026-09-22: a clone
+                // spent 56.6s adding 138 parameters and 7.3s minting 12 type
+                // variants, out of 65.3s total. The master carried none of them,
+                // so all 206 clones paid for the same work.
+                //
+                // Fail-soft on purpose. If this cannot run, every clone still
+                // adds its own parameters exactly as before - slower, correct.
+                // It must never be the reason a propagation run does not start.
+                // Reassigned, because reloading the master can replace the
+                // Family element and the loop below calls EditFamily(master)
+                // 206 times. A stale reference throws InvalidObjectException
+                // on the first one - the whole run lost to a speed fix.
+                master = PrimeMaster(doc, app, master, sharedParamFile,
+                                     styleAndVisParams, variants, arrowheads) ?? master;
+
                 for (int i = 0; i < targets.Count; i++)
                 {
                     if ((i % 5) == 0 && EscapeChecker.IsEscapePressed())
@@ -1138,6 +1154,123 @@ namespace StingTools.Commands.TagStudio
                 }
             }
             return converted;
+        }
+
+        /// <summary>
+        /// Adds the standard parameters and type variants to the MASTER, once,
+        /// so every clone inherits them instead of re-creating them.
+        ///
+        /// <para>A backup is written first and is not optional. The master lives
+        /// only as a loaded family in the project - there is no .rfa for it in
+        /// the library - so until this runs, the single copy of an
+        /// evening's hand-authored label work is inside one .rvt. The backup is
+        /// the first time it exists on disk, and it is taken BEFORE anything is
+        /// changed; if the backup cannot be written, nothing is changed.</para>
+        ///
+        /// <para>Idempotent: a second run finds every parameter present and adds
+        /// nothing. Fail-soft: any failure leaves the master as it was and the
+        /// clones add their own parameters as before.</para>
+        /// </summary>
+        private static Family PrimeMaster(Document doc,
+            Autodesk.Revit.ApplicationServices.Application app,
+            Family master, string sharedParamFile,
+            List<string> styleAndVisParams, List<TypeVariantSpec> variants,
+            Dictionary<string, ElementId> arrowheads)
+        {
+            Document mfd = null;
+            try
+            {
+                mfd = doc.EditFamily(master);
+                if (mfd == null) { StingLog.Warn("PrimeMaster: EditFamily(master) returned null"); return master; }
+
+                var defFile = app.OpenSharedParameterFile();
+                if (defFile == null) { StingLog.Warn("PrimeMaster: OpenSharedParameterFile returned null"); return master; }
+
+                // Nothing to do is the common case on every run after the first.
+                var have = new HashSet<string>(
+                    mfd.FamilyManager.GetParameters().Select(x => x.Definition.Name),
+                    StringComparer.OrdinalIgnoreCase);
+                int missing = styleAndVisParams.Count(x => !string.IsNullOrEmpty(x) && !have.Contains(x));
+                if (missing == 0)
+                {
+                    StingLog.Info("PrimeMaster: master already carries every standard parameter - nothing to do");
+                    return master;
+                }
+
+                // ── Backup FIRST, and abandon if it fails ──
+                string outDir = TagFamilyConfig.GetOutputDirectory();
+                string backupDir = Path.Combine(outDir, "_master_backups");
+                Directory.CreateDirectory(backupDir);
+                string backupPath = Path.Combine(backupDir,
+                    master.Name.Replace('/', '-') + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".rfa");
+                try
+                {
+                    mfd.SaveAs(backupPath, new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 });
+                    StingLog.Info($"PrimeMaster: backed up master to {backupPath}");
+                }
+                catch (Exception bex)
+                {
+                    StingLog.Warn($"PrimeMaster: backup FAILED ({bex.Message}) - master left untouched");
+                    return master;
+                }
+
+                int added = 0, types = 0;
+                using (var tx = new Transaction(mfd, "STING Prime universal master"))
+                {
+                    tx.Start();
+                    added = AddMissingParams(mfd.FamilyManager, defFile, styleAndVisParams);
+                    try { types = TagTypeVariantWriter.CreateStandardVariants(mfd.FamilyManager, variants, arrowheads); }
+                    catch (Exception vex) { StingLog.Warn($"PrimeMaster: type variants: {vex.Message}"); }
+                    tx.Commit();
+                }
+
+                // Back into the project, because EditFamily clones the IN-PROJECT
+                // master - a saved file the project does not know about would
+                // change nothing.
+                // Deliberately NOT in outDir. That is the tag library: a file
+                // there becomes a 207th "tag family" with no declaration, which
+                // fails EveryShippedTagFamilyHasADeclaration, drifts the content
+                // manifest, and would be published by Promote Tag Library. The
+                // master is not a tag family - it is what tag families are made
+                // from - so it lives beside its backups.
+                string masterDir = Path.Combine(outDir, "_master");
+                Directory.CreateDirectory(masterDir);
+                string masterPath = Path.Combine(masterDir, master.Name.Replace('/', '-') + ".rfa");
+                mfd.SaveAs(masterPath, new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 });
+                mfd.Close(false); mfd = null;
+
+                using (var lt = new Transaction(doc, "STING Reload primed master"))
+                {
+                    lt.Start();
+                    bool ok = doc.LoadFamily(masterPath, new TagFamilyLoadOptions(), out _);
+                    if (ok) lt.Commit(); else lt.RollBack();
+                    StingLog.Info($"PrimeMaster: added {added} parameter(s), {types} type variant(s); " +
+                                  $"reload into project {(ok ? "OK" : "REFUSED - clones will add their own")}");
+                }
+
+                // By NAME, not by the old reference. Revit usually updates the
+                // Family in place on an overwriting load, but "usually" is not a
+                // contract, and the cost of being wrong is every remaining
+                // family.
+                string wanted = master.Name;
+                var refreshed = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family))
+                    .Cast<Family>()
+                    .FirstOrDefault(f => string.Equals(f.Name, wanted, StringComparison.Ordinal));
+                if (refreshed == null)
+                    StingLog.Warn($"PrimeMaster: could not re-find master '{wanted}' after reload - " +
+                                  "keeping the original reference");
+                return refreshed ?? master;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PrimeMaster: {ex.Message} - master left as it was; clones add their own parameters");
+                return null;   // caller keeps its own reference
+            }
+            finally
+            {
+                try { mfd?.Close(false); } catch (Exception cex) { StingLog.Warn($"PrimeMaster close: {cex.Message}"); }
+            }
         }
 
         private static int AddMissingParams(FamilyManager fm, DefinitionFile defFile, List<string> wanted)
