@@ -70,6 +70,7 @@
          vocabularies for one spec without equating number and integer. -->
     <Compile Include="..\StingTools\Core\SharedParamTypeConflict.cs" Link="Core\SharedParamTypeConflict.cs" />
     <Compile Include="..\StingTools\Tags\TagCategoryNameForms.cs" Link="Tags\TagCategoryNameForms.cs" />
+    <Compile Include="..\StingTools\Commands\TagStudio\RevitBackupSweeper.cs" Link="Commands\TagStudio\RevitBackupSweeper.cs" />
     <!-- Text an author left for themselves, which propagation would clone into 206
          families. Revit-free because the risk is the FALSE positive: a real "Note:"
          annotation flagged forever is how a gate stops meaning anything. -->

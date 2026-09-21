@@ -268,6 +268,10 @@ namespace StingTools.Commands.TagStudio
                 (xlsx != null ? $"\nReport: {xlsx}" : "\nNo report was written — see the log.");
             td.Show();
 
+            // Every family document is closed by now, so anything Revit wrote
+            // on close is present and deletable.
+            RevitBackupSweeper.SweepFolder(folder, "FixTagFamilyCategories");
+
             StingLog.Info($"FixTagFamilyCategories: mode={mode}, scanned={rows.Count}, " +
                           $"fixed={fixedCount}, alreadyOk={alreadyOk}, undeclared={undeclared}, " +
                           $"unresolved={unresolved}, failed={failedCount}");
