@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // PropagateUniversalTagCommand.cs — Universal-tag propagation conveyor.
 //
 //   *** Phase 195 — Universal Tag pivot ***
@@ -21,7 +21,7 @@
 //                                                                   data-driven
 //                                                                   depth/style
 //                                                                   type variants)
-//     SaveAs(<tempdir>\<target>.rfa) → LoadFamily(overwrite) → File.Move(→ canonical)
+//     SaveAs(<tempdir>\<target>.rfa) → LoadFamily(overwrite) → File.Replace(→ canonical)
 //
 // NAMING (hard Revit rule): a loaded family's project name IS its .rfa FILE
 // name — renaming famDoc.OwnerFamily does NOT survive SaveAs. The clone must
@@ -46,7 +46,7 @@
 //
 // Atomic save-then-publish is reused verbatim from
 // MigrateTagLabelReferencesCommand: SaveAs to a temp .rfa, LoadFamily the temp,
-// only then File.Move it over the canonical .rfa. Any failure leaves the target's
+// only then File.Replace it over the canonical .rfa. Any failure leaves the target's
 // existing family untouched.
 // ============================================================================
 
@@ -417,6 +417,9 @@ namespace StingTools.Commands.TagStudio
             var progress = StingProgressDialog.Show("Propagate Universal Tag", targets.Count);
             var rows = new List<List<string>>();
             int succeeded = 0, failed = 0, cancelled = 0, totalTypes = 0, totalParams = 0, totalScope = 0;
+            // Families whose project update landed but whose library .rfa did not.
+            var diskWriteFailures = new List<string>();
+            long totalMs = 0;
             string originalSp = app.SharedParametersFilename;
 
             try
@@ -443,12 +446,28 @@ namespace StingTools.Commands.TagStudio
                     totalParams += r.ParamsAdded;
                     totalScope += r.ScopeFixed;
                     if (r.Success) succeeded++; else failed++;
+                    if (r.DiskWriteFailed) diskWriteFailures.Add(targetName + ": " + r.DiskWriteDetail);
+
+                    // One line per family, so a long run can be read afterwards
+                    // instead of guessed at. "other" is whatever the three named
+                    // phases did not account for - if it dominates, the phases
+                    // are drawn in the wrong places and this line says so rather
+                    // than quietly summing to the total.
+                    totalMs += r.MsTotal;
+                    StingLog.Info($"PropagateUniversalTag timing: '{targetName}' " +
+                        $"total={r.MsTotal}ms (edit={r.MsEdit} variants={r.MsVariants} " +
+                        $"saveload={r.MsSaveLoad} other={Math.Max(0, r.MsTotal - r.MsEdit - r.MsVariants - r.MsSaveLoad)}) " +
+                        $"types={r.TypesCreated} params={r.ParamsAdded}");
 
                     rows.Add(new List<string>
                     {
                         targetName, catName,
                         r.ParamsAdded.ToString(), r.TypesCreated.ToString(),
-                        r.Success ? "OK" : "FAILED", r.ErrorMessage ?? ""
+                        // The library, not the project, is what every later lookup
+                        // reads - so a family that updated in the project but not
+                        // on disk is reported as its own outcome, never as OK.
+                        r.DiskWriteFailed ? "PROJECT ONLY" : r.Success ? "OK" : "FAILED",
+                        r.DiskWriteFailed ? r.DiskWriteDetail : r.ErrorMessage ?? ""
                     });
                 }
             }
@@ -510,6 +529,14 @@ namespace StingTools.Commands.TagStudio
                     ? $"Tier gates converted Instance -> Type: {totalScope}\n"
                     : "") +
                 (junkDeleted > 0 ? $"Purged stale temp-named duplicates: {junkDeleted}\n" : "") +
+                (diskWriteFailures.Count > 0
+                    ? $"\nWARNING - {diskWriteFailures.Count} family/families updated in the PROJECT " +
+                      "but NOT in the library on disk:\n  " +
+                      string.Join("\n  ", diskWriteFailures.Take(5)) +
+                      (diskWriteFailures.Count > 5 ? "\n  ..." : "") +
+                      "\nThe library is what every later lookup and every deploy reads, so these " +
+                      "are NOT done. Re-run for them once whatever held the file is gone.\n"
+                    : "") +
                 (why.Length > 0 ? $"\nFailed:{why}\n" : "") +
                 (xlsx != null
                     ? $"\nReport: {xlsx}" +
@@ -523,7 +550,9 @@ namespace StingTools.Commands.TagStudio
             td.Show();
 
             StingLog.Info($"PropagateUniversalTag: master={master.Name}, succeeded={succeeded}, " +
-                $"failed={failed}, cancelled={cancelled}, params={totalParams}, types={totalTypes}");
+                $"failed={failed}, cancelled={cancelled}, params={totalParams}, types={totalTypes}, " +
+                $"elapsed={totalMs / 1000}s" +
+                (succeeded > 0 ? $" ({totalMs / succeeded / 1000}s per family)" : ""));
             return Result.Succeeded;
         }
 
@@ -537,6 +566,16 @@ namespace StingTools.Commands.TagStudio
             public int TypesCreated;
             public bool Success;
             public string ErrorMessage;
+            // The project was updated but the library .rfa on disk was not. Every
+            // later lookup and every deploy reads the library, so this is a real
+            // failure even though nothing in the project went wrong.
+            public bool DiskWriteFailed;
+            public string DiskWriteDetail;
+            // Per-phase milliseconds. At ~82s per family a full library run is
+            // about five hours, and nothing in the log said which phase owned
+            // that time. Three numbers answer it: opening the master, minting
+            // the type variants, and the save+load round trip.
+            public long MsEdit, MsVariants, MsSaveLoad, MsTotal;
             // The family's own category disagreed with the declared one. A silent
             // correction would hide that the family was authored against the wrong
             // template, so it is carried to the results table as a FINDING.
@@ -596,7 +635,10 @@ namespace StingTools.Commands.TagStudio
 
                     // Fresh clone of the master each iteration — recategorise mutates
                     // the family document, so we must not reuse it across targets.
+                    var swTotal = System.Diagnostics.Stopwatch.StartNew();
+                    var swPhase = System.Diagnostics.Stopwatch.StartNew();
                     famDoc = doc.EditFamily(master);
+                    result.MsEdit = swPhase.ElapsedMilliseconds;
                     if (famDoc == null)
                     {
                         result.ErrorMessage = "EditFamily(master) returned null";
@@ -662,7 +704,9 @@ namespace StingTools.Commands.TagStudio
                         // data-driven depth/style type variants.
                         result.ParamsAdded = AddMissingParams(fm, defFile, styleAndVisParams);
                         result.ScopeFixed = MakeVisibilityParamsType(fm);
+                        swPhase.Restart();
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
+                        result.MsVariants = swPhase.ElapsedMilliseconds;
 
                         tx.Commit();
                     }
@@ -705,6 +749,7 @@ namespace StingTools.Commands.TagStudio
                     try
                     {
                         var saveOpts = new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 };
+                        swPhase.Restart();
                         famDoc.SaveAs(tempPath, saveOpts);
                         savedOk = true;
                     }
@@ -759,6 +804,11 @@ namespace StingTools.Commands.TagStudio
                         if (loadedOk) loadTx.Commit(); else loadTx.RollBack();
                     }
 
+                    // Recorded whether the load succeeded or was refused - a refused
+                    // load is the slow case worth knowing the cost of.
+                    result.MsSaveLoad = swPhase.ElapsedMilliseconds;
+                    result.MsTotal = swTotal.ElapsedMilliseconds;
+
                     if (!loadedOk)
                     {
                         TryDeleteTempDir(tempDir);
@@ -806,17 +856,35 @@ namespace StingTools.Commands.TagStudio
                         return result;
                     }
 
-                    // Everything succeeded — atomically replace the canonical .rfa.
-                    // On move failure the temp dir is kept so the artefact survives.
+                    // Everything succeeded — replace the canonical .rfa.
+                    //
+                    // NEVER delete-then-move. That opens a window in which the
+                    // family exists nowhere: if the move then fails - a lock, a
+                    // scanner, a full disk - the canonical family is destroyed,
+                    // and the old code carried straight on to Success = true. A
+                    // destroyed family reported as a success is the worst
+                    // outcome this command can produce, and across 200 families
+                    // it only has to happen once.
+                    //
+                    // File.Replace is atomic on NTFS and leaves the original in
+                    // place on failure. It needs the destination to exist, so a
+                    // first-time write is a plain Move.
                     try
                     {
-                        if (File.Exists(finalPath)) File.Delete(finalPath);
-                        File.Move(tempPath, finalPath);
+                        if (File.Exists(finalPath)) File.Replace(tempPath, finalPath, null);
+                        else File.Move(tempPath, finalPath);
                         TryDeleteTempDir(tempDir);
                     }
                     catch (Exception mvEx)
                     {
-                        StingLog.Warn($"{targetName}: move temp → final: {mvEx.Message} (project state OK; artefact at {tempPath})");
+                        // The project is correct and the artefact survives in temp,
+                        // but the library on disk was NOT updated - and the next
+                        // deploy or lookup reads the library, not the project. Say
+                        // so rather than counting it as a clean success.
+                        result.DiskWriteFailed = true;
+                        result.DiskWriteDetail = $"{mvEx.Message} — updated family kept at {tempPath}";
+                        StingLog.Warn($"{targetName}: replace temp → final: {mvEx.Message} " +
+                                      $"(project state OK; the library .rfa is UNCHANGED; artefact at {tempPath})");
                     }
 
                     tg.Assimilate();
