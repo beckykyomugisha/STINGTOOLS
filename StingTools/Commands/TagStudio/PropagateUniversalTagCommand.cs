@@ -508,8 +508,8 @@ namespace StingTools.Commands.TagStudio
                     // than quietly summing to the total.
                     totalMs += r.MsTotal;
                     StingLog.Info($"PropagateUniversalTag timing: '{targetName}' " +
-                        $"total={r.MsTotal}ms (edit={r.MsEdit} variants={r.MsVariants} " +
-                        $"saveload={r.MsSaveLoad} other={Math.Max(0, r.MsTotal - r.MsEdit - r.MsVariants - r.MsSaveLoad)}) " +
+                        $"total={r.MsTotal}ms (edit={r.MsEdit} params={r.MsParams} variants={r.MsVariants} " +
+                        $"saveload={r.MsSaveLoad} other={Math.Max(0, r.MsTotal - r.MsEdit - r.MsParams - r.MsVariants - r.MsSaveLoad)}) " +
                         $"types={r.TypesCreated} params={r.ParamsAdded}");
 
                     rows.Add(new List<string>
@@ -633,7 +633,10 @@ namespace StingTools.Commands.TagStudio
             // about five hours, and nothing in the log said which phase owned
             // that time. Three numbers answer it: opening the master, minting
             // the type variants, and the save+load round trip.
-            public long MsEdit, MsVariants, MsSaveLoad, MsTotal;
+            // MsParams was folded into "other" until 2026-09-21, when other
+            // turned out to be 85% of the run. Naming it is the point: an
+            // unnamed remainder that dominates is the signal to go looking.
+            public long MsEdit, MsParams, MsVariants, MsSaveLoad, MsTotal;
             // The family's own category disagreed with the declared one. A silent
             // correction would hide that the family was authored against the wrong
             // template, so it is carried to the results table as a FINDING.
@@ -813,7 +816,9 @@ namespace StingTools.Commands.TagStudio
 
                         // (c) Ensure style/visibility params exist, then (re)create the
                         // data-driven depth/style type variants.
+                        swPhase.Restart();
                         result.ParamsAdded = AddMissingParams(fm, defFile, styleAndVisParams);
+                        result.MsParams = swPhase.ElapsedMilliseconds;
                         result.ScopeFixed = MakeVisibilityParamsType(fm);
                         swPhase.Restart();
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(fm, variants, arrowheads);
@@ -1134,18 +1139,37 @@ namespace StingTools.Commands.TagStudio
                 fm.GetParameters().Select(p => p.Definition.Name),
                 StringComparer.OrdinalIgnoreCase);
 
+            // Index the shared-parameter file ONCE.
+            //
+            // This used to be a linear scan per wanted parameter: 138 params x 38
+            // groups x 3,617 definitions, with every Definition.Name crossing the
+            // Revit API boundary. Measured 2026-09-21 on 'STING - Duct Tag': the
+            // whole family took 115s, of which 97s - 85% - was this loop. Type
+            // variants were 14% and the save/load round trip 1.3%.
+            //
+            // First occurrence wins, exactly as the nested scan did: it broke out
+            // of both loops on the first match, so a name defined in two groups
+            // resolved to the earlier group. Preserved deliberately - changing
+            // which definition wins would silently change which GUID a parameter
+            // binds to.
+            // ORDINAL, not OrdinalIgnoreCase. The scan compared with `==`, so a
+            // name differing only in case did NOT match and the parameter was
+            // quietly not added. Case-insensitive lookup would start matching
+            // those - probably an improvement, but it changes which definition,
+            // and therefore which GUID, a parameter binds to. That is not a
+            // change to make as a side effect of a speed fix.
+            var index = new Dictionary<string, ExternalDefinition>(StringComparer.Ordinal);
+            foreach (DefinitionGroup grp in defFile.Groups)
+                foreach (Definition def in grp.Definitions)
+                    if (def is ExternalDefinition ed && !index.ContainsKey(def.Name))
+                        index[def.Name] = ed;
+
             foreach (string paramName in wanted)
             {
                 if (string.IsNullOrEmpty(paramName) || existing.Contains(paramName)) continue;
 
-                ExternalDefinition extDef = null;
-                foreach (DefinitionGroup grp in defFile.Groups)
-                {
-                    foreach (Definition def in grp.Definitions)
-                        if (def.Name == paramName && def is ExternalDefinition ed) { extDef = ed; break; }
-                    if (extDef != null) break;
-                }
-                if (extDef == null) continue;
+                ExternalDefinition extDef;
+                if (!index.TryGetValue(paramName, out extDef) || extDef == null) continue;
 
                 try
                 {
