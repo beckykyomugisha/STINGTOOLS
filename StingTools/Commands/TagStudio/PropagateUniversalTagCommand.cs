@@ -501,6 +501,24 @@ namespace StingTools.Commands.TagStudio
                 master = PrimeMaster(doc, app, master, sharedParamFile,
                                      styleAndVisParams, variants, arrowheads) ?? master;
 
+                // Prove the master is still usable before spending the run on
+                // it. A dead reference fails EVERY family identically, and the
+                // first run of PrimeMaster did exactly that: one stale property
+                // read, and the command died on 'STING - Birth Pool Tag' with a
+                // Revit message that named neither the master nor the cause.
+                // One cheap probe turns that into a sentence.
+                try { var _probe = master.Name; }
+                catch (Exception mex)
+                {
+                    StingLog.Error("PropagateUniversalTag: master reference invalid after priming", mex);
+                    TaskDialog.Show("Propagate Universal Tag",
+                        "The master family reference went stale while preparing it, so nothing was " +
+                        "propagated.\n\nNothing is damaged — the master was backed up before any change, " +
+                        "and priming is idempotent. Re-run the command: the master is found fresh each " +
+                        "time, and the second run has nothing left to prime.");
+                    return Result.Cancelled;
+                }
+
                 for (int i = 0; i < targets.Count; i++)
                 {
                     if ((i % 5) == 0 && EscapeChecker.IsEscapePressed())
@@ -1178,6 +1196,20 @@ namespace StingTools.Commands.TagStudio
             Dictionary<string, ElementId> arrowheads)
         {
             Document mfd = null;
+
+            // Captured BEFORE anything is touched. Reading it after the reload -
+            // which is where it was, and what broke the run at 00:24 on
+            // 2026-09-22 - reads a property off the reference the reload has just
+            // invalidated. The guard against stale references used a stale
+            // reference to do its work.
+            string masterName;
+            try { masterName = master.Name; }
+            catch (Exception nex)
+            {
+                StingLog.Warn($"PrimeMaster: cannot read master name ({nex.Message}) - skipping");
+                return master;
+            }
+
             try
             {
                 mfd = doc.EditFamily(master);
@@ -1252,25 +1284,55 @@ namespace StingTools.Commands.TagStudio
                 // Family in place on an overwriting load, but "usually" is not a
                 // contract, and the cost of being wrong is every remaining
                 // family.
-                string wanted = master.Name;
-                var refreshed = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Family))
-                    .Cast<Family>()
-                    .FirstOrDefault(f => string.Equals(f.Name, wanted, StringComparison.Ordinal));
-                if (refreshed == null)
-                    StingLog.Warn($"PrimeMaster: could not re-find master '{wanted}' after reload - " +
-                                  "keeping the original reference");
-                return refreshed ?? master;
+                return ReFindMaster(doc, masterName, master);
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"PrimeMaster: {ex.Message} - master left as it was; clones add their own parameters");
-                return null;   // caller keeps its own reference
+                StingLog.Warn($"PrimeMaster: {ex.Message} - clones will add their own parameters");
+                // Re-find here too. The throw may have happened AFTER the reload,
+                // in which case the caller's reference is already dead and
+                // handing it back guarantees the failure this method was meant
+                // to prevent. That is exactly what happened on the first run.
+                return ReFindMaster(doc, masterName, master);
             }
             finally
             {
                 try { mfd?.Close(false); } catch (Exception cex) { StingLog.Warn($"PrimeMaster close: {cex.Message}"); }
             }
+        }
+
+        /// <summary>
+        /// Looks the master up again BY NAME after it has been reloaded.
+        ///
+        /// <para>An overwriting LoadFamily can replace the Family element, and
+        /// the propagation loop calls EditFamily(master) once per target. A dead
+        /// reference throws InvalidObjectException on the first of them and
+        /// takes the whole run down - which is how this was found.</para>
+        ///
+        /// <para><paramref name="name"/> must have been captured BEFORE the
+        /// reload. Reading it from the reference afterwards is the bug this
+        /// exists to fix.</para>
+        /// </summary>
+        private static Family ReFindMaster(Document doc, string name, Family fallback)
+        {
+            try
+            {
+                var found = new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family))
+                    .Cast<Family>()
+                    .FirstOrDefault(f => string.Equals(f.Name, name, StringComparison.Ordinal));
+
+                if (found != null) return found;
+
+                // Nothing to do about it here, but say so loudly: if the
+                // fallback is also dead the run is about to fail, and this line
+                // is the difference between a diagnosable failure and a mystery.
+                StingLog.Warn($"PrimeMaster: could not re-find master '{name}' after reload. " +
+                              "Falling back to the original reference, which may no longer be valid - " +
+                              "if the run fails immediately, re-run it and the master will be found fresh.");
+            }
+            catch (Exception ex) { StingLog.Warn($"PrimeMaster.ReFindMaster('{name}'): {ex.Message}"); }
+            return fallback;
         }
 
         private static int AddMissingParams(FamilyManager fm, DefinitionFile defFile, List<string> wanted)
