@@ -709,18 +709,49 @@ namespace StingTools.BIMManager
                 case "transmittals.json":       return CoordStores.Transmittals(doc) ?? LegacyBimManagerPath(doc, fileName);
                 case "revisions.json":          return CoordStores.Revisions(doc) ?? LegacyBimManagerPath(doc, fileName);
             }
-            return Path.Combine(GetBIMManagerDir(doc), fileName);
+            string dir = GetBIMManagerDir(doc);
+            return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, fileName);
         }
 
         internal static string GetBIMManagerDir(Document doc)
         {
+            // A FAMILY document has no coordination store, and must never be given one.
+            // ProjectFolderEngine.GetDataPath already refuses family documents at "the
+            // single choke point every metadata bucket goes through" - and this fallback
+            // walked straight around it, because GetProjectDataDir returns the directory
+            // the .rfa lives in.
+            //
+            // Measured 2026-09-18 11:24: a Family Conformance run opens each of 206 tag
+            // families with OpenDocumentFile, every open fires DocumentOpened, and one of
+            // those handlers asked for this directory. The guarded resolver correctly
+            // returned null, this fallback combined the family's own folder with the
+            // legacy bucket name, and an empty STING_BIM_MANAGER folder appeared inside
+            // the tag library. Nothing was written to it and nothing said it had been
+            // made.
+            if (doc == null || doc.IsFamilyDocument)
+            {
+                StingLog.Warn("GetBIMManagerDir: refused for a family document - " +
+                              "a coordination store belongs to a project, not to an .rfa");
+                return null;
+            }
+
             string bimDir = null;
             try { bimDir = ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"); }
             catch (Exception ex) { StingLog.Warn($"GetBIMManagerDir: {ex.Message}"); }
 
             if (string.IsNullOrEmpty(bimDir))
             {
-                bimDir = Path.Combine(GetProjectDataDir(doc), "STING_BIM_MANAGER");
+                string baseDir = GetProjectDataDir(doc);
+                if (string.IsNullOrEmpty(baseDir) || !Path.IsPathRooted(baseDir))
+                {
+                    // An unrooted base makes Directory.CreateDirectory write relative to
+                    // the process working directory - which a folder picker has usually
+                    // just changed to whatever the operator browsed to.
+                    StingLog.Warn($"GetBIMManagerDir: no rooted base directory ('{baseDir}') - " +
+                                  "not creating a coordination store");
+                    return null;
+                }
+                bimDir = Path.Combine(baseDir, "STING_BIM_MANAGER"); // path-discipline: legacy-fallback -- last resort, only after GetMetaPath returned nothing, and only for a rooted PROJECT directory
                 if (!Directory.Exists(bimDir))
                     Directory.CreateDirectory(bimDir);
             }
@@ -729,7 +760,10 @@ namespace StingTools.BIMManager
 
         /// <summary>Legacy sibling path, used only when no project root can be resolved.</summary>
         private static string LegacyBimManagerPath(Document doc, string fileName)
-            => Path.Combine(GetBIMManagerDir(doc), fileName);
+        {
+            string dir = GetBIMManagerDir(doc);
+            return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, fileName);
+        }
 
         internal static JObject LoadJsonFile(string path)
         {
