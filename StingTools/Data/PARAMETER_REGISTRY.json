@@ -9488,6 +9488,30 @@
       "curated": true
     },
     {
+      "param_name": "BI_ACCENT_COLOR_TXT",
+      "guid": "43f56f0f-61bd-58d0-83ef-9b782ab05a95",
+      "description": "Accent colour RGB [ISO 19650-1:2018]",
+      "datatype": "TEXT",
+      "group_id": 11,
+      "group_name": "TPL_TRACKING",
+      "binding": "scoped",
+      "required": false,
+      "discipline": "Common",
+      "curated": true
+    },
+    {
+      "param_name": "BI_THEME_NAME_TXT",
+      "guid": "a07310e6-24ec-5507-a7c2-4b8e9b85b74c",
+      "description": "Brand theme name [ISO 19650-1:2018]",
+      "datatype": "TEXT",
+      "group_id": 11,
+      "group_name": "TPL_TRACKING",
+      "binding": "scoped",
+      "required": false,
+      "discipline": "Common",
+      "curated": true
+    },
+    {
       "param_name": "ELC_CBL_INS_TYPE_TXT",
       "guid": "2b14dbc5-f6ff-5bcb-b7a1-896a8ae2ec53",
       "description": "Elc Cbl Ins Type Txt [ISO 19650-1:2018]",

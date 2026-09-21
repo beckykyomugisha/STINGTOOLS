@@ -19684,3 +19684,5 @@ STR_REBAR_BEND_RADIUS_MM,Structural Area Reinforcement,Instance,Yes
 STR_REBAR_BEND_RADIUS_MM,Structural Path Reinforcement,Instance,Yes
 STR_REBAR_BEND_RADIUS_MM,Structural Fabric Reinforcement,Instance,Yes
 STR_REBAR_BEND_RADIUS_MM,Structural Rebar Couplers,Instance,Yes
+BI_ACCENT_COLOR_TXT,Generic Models,Instance,Yes
+BI_THEME_NAME_TXT,Generic Models,Instance,Yes

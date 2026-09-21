@@ -3624,3 +3624,5 @@ Generic Models,STR_REBAR_DIM_C_MM,9de7bc78-31d1-5520-8391-693ca5c3f71d,TEXT,BLE_
 Generic Models,STR_REBAR_DIM_D_MM,7a4a0e1e-e909-5577-b137-28f04683feaa,TEXT,BLE_STRUCTURE,Instance,Bending dimension D, mm [BS 8666 shape code],False,,,MULTI,16,0
 Generic Models,STR_REBAR_DIM_E_MM,324969fd-cdf8-544b-b834-3aee08721cfa,TEXT,BLE_STRUCTURE,Instance,Bending dimension E, mm [BS 8666 shape code],False,,,MULTI,16,0
 Generic Models,STR_REBAR_BEND_RADIUS_MM,faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6,TEXT,BLE_STRUCTURE,Instance,Scheduling radius R, mm [BS 8666 Table 2],False,,,MULTI,16,0
+Generic Models,BI_ACCENT_COLOR_TXT,43f56f0f-61bd-58d0-83ef-9b782ab05a95,TEXT,TPL_TRACKING,Instance,Accent colour RGB [ISO 19650-1:2018],False,,,MULTI,11,0
+Generic Models,BI_THEME_NAME_TXT,a07310e6-24ec-5507-a7c2-4b8e9b85b74c,TEXT,TPL_TRACKING,Instance,Brand theme name [ISO 19650-1:2018],False,,,MULTI,11,0

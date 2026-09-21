@@ -307,5 +307,85 @@ namespace StingTools.Tags.Tests
             foreach (var p in bs8666)
                 Assert.True(sched.Contains(p), "the Reinforcement Schedule omits " + p);
         }
+
+        [Fact]
+        public void EveryScheduleFieldReachesItsScheduleCategory()
+        {
+            // The same defect as the tag gate, one layer over. A schedule field
+            // bound to a parameter the schedule's category does not carry renders
+            // an EMPTY COLUMN - no error, no warning, a blank column on an issued
+            // schedule.
+            //
+            // Measured 2026-09-21: 143 field references across 210 schedule rows
+            // could not render, worst on Generic Models (66), Walls (32) and
+            // Electrical Equipment (17). The shipped "View Template Schedule" and
+            // "Spare Parameters Schedule" were entirely blank.
+            //
+            // The 16 names exempted below are Revit BUILT-INS on a sheet schedule
+            // (Sheet_Number, Drawn_By, Scale and friends). They are not shared
+            // parameters and never will be; a schedule addresses them by their
+            // native name.
+            var revitBuiltIns = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "Sheet_Number", "Sheet_Name", "Discipline", "Scale", "Paper_Size",
+                "Revision", "Rev_Date", "Status", "Drawn_By", "Checked_By",
+                "Approved_By", "Location", "Remarks",
+            };
+
+            string data = DataDir();
+            Assert.True(data != null, "StingTools/Data not found");
+
+            HashSet<string> universal;
+            var spec = TagParamBindingAudit.ParseSpec(
+                File.ReadLines(Path.Combine(data, "RESOLVED_BINDINGS.csv")), out universal);
+
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var line in File.ReadLines(Path.Combine(data, "MR_PARAMETERS.txt")))
+            {
+                if (!line.StartsWith("PARAM" + "	", StringComparison.Ordinal)) continue;
+                var f = line.Split('	');
+                if (f.Length > 2 && f[2].Length > 0) declared.Add(f[2]);
+            }
+
+            var registry = Newtonsoft.Json.Linq.JObject.Parse(
+                File.ReadAllText(Path.Combine(data, "PARAMETER_REGISTRY.json")));
+            var knownCats = new HashSet<string>(
+                ((Newtonsoft.Json.Linq.JObject)registry["category_enum_map"]).Properties().Select(x => x.Name),
+                StringComparer.Ordinal);
+
+            var bad = new List<string>();
+            int rows = 0;
+            foreach (var line in File.ReadLines(Path.Combine(data, "MR_SCHEDULES.csv")))
+            {
+                if (!line.StartsWith("SCHEDULE,", StringComparison.Ordinal)) continue;
+                var f = TagConfigDeclarations.SplitCsv(line);
+                if (f.Count < 8) continue;
+                rows++;
+
+                string cat = f[4].Trim();
+                // A schedule over something Revit has no category for cannot be
+                // judged here - reported by its own check, not silently passed.
+                if (!knownCats.Contains(cat)) continue;
+
+                foreach (var raw in f[7].Split(','))
+                {
+                    string p = raw.Trim();
+                    if (p.Length == 0 || revitBuiltIns.Contains(p)) continue;
+                    if (universal.Contains(p)) continue;
+
+                    if (!declared.Contains(p))
+                    { bad.Add($"{f[3].Trim()} [{cat}]: {p} is not a declared parameter"); continue; }
+
+                    HashSet<string> cats;
+                    if (!spec.TryGetValue(p, out cats) || !cats.Contains(cat))
+                        bad.Add($"{f[3].Trim()} [{cat}]: {p} is not bound there");
+                }
+            }
+
+            Assert.True(rows > 150, $"expected the schedule set, parsed {rows} rows");
+            Assert.True(bad.Count == 0,
+                        $"{bad.Count} schedule field(s) would render an empty column:\n  " +
+                        string.Join("\n  ", bad.Take(20)));
+        }
     }
 }
