@@ -1,0 +1,188 @@
+{
+  "$comment": [
+    "Named, opt-in binding profiles. A profile adds parameter->category bindings",
+    "ON TOP OF the corporate baseline in CATEGORY_BINDINGS.csv, for projects that",
+    "switch it on. A project that does not enable a profile is unaffected.",
+    "",
+    "Enable per project by listing ids in <project>/_BIM_COORD/binding_profiles.json:",
+    "    { \"enabled\": [\"lps-natural-components\"] }",
+    "",
+    "WHY THIS EXISTS. LoadSharedParamsCommand binds each parameter to ITS OWN",
+    "category set precisely so discipline data does not leak across categories.",
+    "Some parameters legitimately need a WIDE category set, but only in the",
+    "minority of projects that use the feature - binding them corporately would",
+    "put them on every element of those categories in every project."
+  ],
+  "profiles": [
+    {
+      "id": "lps-natural-components",
+      "name": "LPS natural components (BS EN 62305-3 reuse)",
+      "description": "Binds the lightning-protection parameters to the structural and architectural categories that a BS EN 62305-3 system may REUSE as natural components - foundation rebar as a Type B earth electrode, a metal roof or metallic facade as a natural air termination. Required by the three Multi-Category LPS reuse tag families; without it those tags place and render blank.",
+      "requiredBy": [
+        "STING - LPS Foundation Earth (Structural Reuse) Tag",
+        "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
+        "STING - LPS Generic Component Tag"
+      ],
+      "bindings": [
+        {
+          "param": "ELC_LPS_EARTH_TAG_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement"
+          ]
+        },
+        {
+          "param": "ELC_LPS_EARTH_TYPE_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement"
+          ]
+        },
+        {
+          "param": "ELC_LPS_CLASS_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement",
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits",
+            "Generic Models",
+            "Specialty Equipment",
+            "Detail Items"
+          ]
+        },
+        {
+          "param": "ELC_LPS_EARTH_RESISTANCE_OHM",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement"
+          ]
+        },
+        {
+          "param": "ELC_LPS_TEST_DATE_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement"
+          ]
+        },
+        {
+          "param": "ELC_LPS_BOND_TYPE_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement",
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits"
+          ]
+        },
+        {
+          "param": "ELC_LPS_CERT_REF_TXT",
+          "categories": [
+            "Structural Foundations",
+            "Structural Rebar",
+            "Structural Area Reinforcement",
+            "Structural Path Reinforcement",
+            "Structural Fabric Reinforcement"
+          ]
+        },
+        {
+          "param": "ELC_LPS_AIRTERM_TAG_TXT",
+          "categories": [
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits"
+          ]
+        },
+        {
+          "param": "ELC_LPS_ZONE_TXT",
+          "categories": [
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits",
+            "Generic Models",
+            "Specialty Equipment",
+            "Detail Items"
+          ]
+        },
+        {
+          "param": "ELC_LPS_CONDUCTOR_MATERIAL_TXT",
+          "categories": [
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits"
+          ]
+        },
+        {
+          "param": "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2",
+          "categories": [
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits"
+          ]
+        },
+        {
+          "param": "ELC_LPS_RISK_ASSESSMENT_TXT",
+          "categories": [
+            "Roofs",
+            "Walls",
+            "Wall Sweeps",
+            "Curtain Wall Mullions",
+            "Fascia",
+            "Gutter",
+            "Roof Soffits"
+          ]
+        },
+        {
+          "param": "ELC_LPS_COMPLIANCE_STATUS_TXT",
+          "categories": [
+            "Generic Models",
+            "Specialty Equipment",
+            "Detail Items"
+          ]
+        }
+      ]
+    }
+  ]
+}

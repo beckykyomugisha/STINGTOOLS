@@ -223,6 +223,103 @@ namespace StingTools.Core
             return result;
         }
 
+        /// <summary>
+        /// Layers the project's enabled binding profiles over a baseline map.
+        ///
+        /// <para>Purely additive - a profile can widen a parameter's category set
+        /// and never narrow one, so switching one on cannot hide anything that was
+        /// visible before. A project with no enabled list gets the baseline back
+        /// unchanged, which is what every project got before profiles existed.</para>
+        ///
+        /// <para>Reads the corporate library from Data/STING_BINDING_PROFILES.json
+        /// and the project's choices from
+        /// &lt;project&gt;/_BIM_COORD/binding_profiles.json. Every failure is LOGGED,
+        /// never swallowed: a profile that silently fails to apply would leave the
+        /// tags it exists for rendering blank, which is indistinguishable from the
+        /// bug it was written to fix.</para>
+        /// </summary>
+        public static Dictionary<string, BuiltInCategory[]> WithProfiles(
+            Document doc, Dictionary<string, BuiltInCategory[]> baseline)
+        {
+            if (baseline == null) return null;
+
+            try
+            {
+                string projectFile = StingPaths.MetaFile(doc, "_BIM_COORD", "binding_profiles.json");
+                if (projectFile == null || !File.Exists(projectFile)) return baseline;
+
+                var enabled = BindingProfiles.ParseEnabled(File.ReadAllText(projectFile), out string enErr);
+                if (enErr != null)
+                    StingLog.Warn($"SharedParamGuids.WithProfiles: could not read {projectFile}: {enErr} — no profiles applied");
+                if (enabled.Count == 0) return baseline;
+
+                string libPath = StingToolsApp.FindDataFile("STING_BINDING_PROFILES.json");
+                if (libPath == null)
+                {
+                    StingLog.Warn("SharedParamGuids.WithProfiles: STING_BINDING_PROFILES.json not found, " +
+                                  $"but the project enables [{string.Join(", ", enabled)}] — nothing applied");
+                    return baseline;
+                }
+
+                var library = BindingProfiles.ParseLibrary(File.ReadAllText(libPath), out string libErr);
+                if (libErr != null)
+                    StingLog.Warn($"SharedParamGuids.WithProfiles: STING_BINDING_PROFILES.json unreadable: {libErr}");
+
+                // Names in, names out - the profile file speaks category NAMES, the
+                // baseline speaks BuiltInCategory. Round-trip through names so one
+                // merge serves both, then resolve once at the end.
+                var asNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                foreach (var kv in baseline)
+                    asNames[kv.Key] = (kv.Value ?? new BuiltInCategory[0]).Select(b => b.ToString()).ToList();
+
+                var merged = BindingProfiles.Merge(asNames, library, enabled,
+                                                   out var unknown, out int added);
+
+                foreach (string id in unknown)
+                    StingLog.Warn($"SharedParamGuids.WithProfiles: project enables binding profile '{id}', " +
+                                  "which STING_BINDING_PROFILES.json does not define — check the spelling");
+
+                if (added == 0)
+                {
+                    StingLog.Info($"SharedParamGuids.WithProfiles: [{string.Join(", ", enabled)}] added no new bindings");
+                    return baseline;
+                }
+
+                var result = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+                int unresolved = 0;
+                foreach (var kv in merged)
+                {
+                    var cats = new List<BuiltInCategory>();
+                    foreach (string name in kv.Value)
+                    {
+                        // A baseline entry round-trips as an enum name; a profile
+                        // entry arrives as a display name ("Structural Rebar").
+                        if (Enum.TryParse(name, out BuiltInCategory direct)) { if (!cats.Contains(direct)) cats.Add(direct); continue; }
+                        if (ParamRegistry.CategoryEnumMap.TryGetValue(name, out string enumStr) &&
+                            Enum.TryParse(enumStr, out BuiltInCategory mapped))
+                        {
+                            if (!cats.Contains(mapped)) cats.Add(mapped);
+                            continue;
+                        }
+                        unresolved++;
+                        StingLog.Warn($"SharedParamGuids.WithProfiles: '{kv.Key}' names category '{name}', " +
+                                      "which resolves to no BuiltInCategory — that binding is dropped");
+                    }
+                    if (cats.Count > 0) result[kv.Key] = cats.ToArray();
+                }
+
+                StingLog.Info($"SharedParamGuids.WithProfiles: [{string.Join(", ", enabled)}] added {added} binding(s) " +
+                              $"across {result.Count} parameter(s)" +
+                              (unresolved > 0 ? $"; {unresolved} category name(s) unresolved" : ""));
+                return result;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("SharedParamGuids.WithProfiles: failed, using the corporate baseline unchanged", ex);
+                return baseline;
+            }
+        }
+
         // Resolved binding spec (Data/RESOLVED_BINDINGS.csv) - domain-derived single source of
         // truth (triangulated vs descriptions + code usage). Rows: param,categories(pipe) or
         // "<ALL>" universal. A param ABSENT from the spec is intentionally UNBOUND (documented
