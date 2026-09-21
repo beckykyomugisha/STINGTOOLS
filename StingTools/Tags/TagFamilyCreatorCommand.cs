@@ -1527,6 +1527,12 @@ namespace StingTools.Tags
                 return Result.Cancelled;
 
             bool skipExistingOnDisk = onDisk == 0 || !confirm.WasVerificationChecked();
+
+            // Counted, because it was not. Six branches printed "[SKIP] ... skipped
+            // (incremental run)" and incremented nothing, so a run that left 85
+            // families out of the project reported "Skipped: 0 (already loaded)"
+            // with dozens of [SKIP] lines in the body of the same report.
+            int skippedOnDisk = 0;
             if (!skipExistingOnDisk)
                 StingLog.Warn($"CreateTagFamilies: user opted IN to re-creating {onDisk} existing "
                             + "tag family/families — hand-authored label rows in those files are lost.");
@@ -1601,7 +1607,18 @@ namespace StingTools.Tags
                     {
                         if (skipExistingOnDisk)
                         {
-                            report.AppendLine($"  [SKIP] {catDisplay} — .rfa exists on disk, skipped (incremental run)");
+                            // The family exists and the user asked for it in THIS project.
+                            // Incremental means do not REBUILD it - never leave it out.
+                            if (LoadFamilyIntoProject(doc, outputPath, famName))
+                            {
+                                report.AppendLine($"  [LOAD] {catDisplay} — existing .rfa loaded, not rebuilt");
+                                loaded++;
+                            }
+                            else
+                            {
+                                report.AppendLine($"  [SKIP] {catDisplay} — .rfa on disk could not be loaded");
+                                skippedOnDisk++;
+                            }
                             continue;
                         }
                         bool hasParams = VerifyFamilyHasParams(app, outputPath);
@@ -1711,7 +1728,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {tiein.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {tiein.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {tiein.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -1825,7 +1853,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {ds.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {ds.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {ds.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -1937,7 +1976,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {sv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {sv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {sv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2049,7 +2099,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {mv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {mv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {mv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2161,7 +2222,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {hv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {hv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {hv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2259,6 +2331,7 @@ namespace StingTools.Tags
             report.AppendLine($"Created:  {created}");
             report.AppendLine($"Loaded:   {loaded}");
             report.AppendLine($"Skipped:  {alreadyLoaded} (already loaded)");
+            report.AppendLine($"Not loaded: {skippedOnDisk} (.rfa on disk, load failed)");
             report.AppendLine($"Missing:  {templateMissing} (no template)");
             report.AppendLine($"Failed:   {failed}");
 
