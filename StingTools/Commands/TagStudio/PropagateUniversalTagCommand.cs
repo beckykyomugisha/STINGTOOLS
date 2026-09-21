@@ -106,6 +106,14 @@ namespace StingTools.Commands.TagStudio
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            // Logged FIRST, before any work. On 2026-09-22 this command froze
+            // Revit and wrote NOTHING - no entry, no phase, no error - so there
+            // was no way to tell a hang from a button that never fired, and the
+            // only honest answer was "I cannot tell from the log". Every phase
+            // below is announced for the same reason: the next freeze names
+            // itself instead of needing a guess.
+            StingLog.Info("PropagateUniversalTag: ENTER");
+
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
@@ -118,6 +126,8 @@ namespace StingTools.Commands.TagStudio
                     "MR_PARAMETERS.txt not found in data directory. Run 'Check Data' first.");
                 return Result.Failed;
             }
+
+            StingLog.Info("PropagateUniversalTag: collecting STING annotation families…");
 
             // ── Collect loaded STING-prefixed annotation (tag) families ──
             var stingFamilies = new FilteredElementCollector(doc)
@@ -160,6 +170,8 @@ namespace StingTools.Commands.TagStudio
             }
 
             // ── 1. Pick the universal master from the loaded families ──
+            StingLog.Info($"PropagateUniversalTag: {stingFamilies.Count} candidate family(ies); " +
+                          $"{junk.Count} temp-named leftover(s); showing master picker…");
             Family master = PickMaster(stingFamilies);
             if (master == null)
             {
@@ -188,6 +200,9 @@ namespace StingTools.Commands.TagStudio
             }
 
             // ── 3. Confirmation ──
+            StingLog.Info($"PropagateUniversalTag: master='{master.Name}', {targets.Count} target(s) " +
+                          $"({scopeLabel}); building confirmation…");
+
             var variants = TagStyleCatalogue.EnumerateStandardVariants().ToList();
             // Say up front how many targets this cannot serve. A Multi-Category
             // family cannot receive the label (Revit will not move a family INTO
@@ -199,8 +214,15 @@ namespace StingTools.Commands.TagStudio
             // Declared out - the library's own decision, and the same source the
             // per-family skip consults, so the dialog cannot promise one thing
             // and the run do another.
+            // IsNonUniversal, NOT Resolve. Resolve does a full category
+            // resolution, and FindTagCategory inside it enumerates every
+            // category in the document - once per call. Asking it 206 times to
+            // fill in this dialog froze Revit on the UI thread before the dialog
+            // could appear, and the command never logged a line because it never
+            // got that far (2026-09-22). The flag is a hash lookup; the
+            // resolution is not needed to read it.
             var declaredOut = targets
-                .Where(t => !TagCategoryResolver.Resolve(doc, t).Universal)
+                .Where(t => TagCategoryResolver.IsNonUniversal(t.Name))
                 .ToList();
 
             // Blocked by Revit rather than by choice. Listed separately because

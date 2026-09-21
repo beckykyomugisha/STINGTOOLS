@@ -287,6 +287,25 @@ namespace StingTools.Tags
             }
         }
 
+        /// <summary>
+        /// Whether a family declares "Universal: No", without resolving its
+        /// category. EnsureLoaded plus one hash lookup.
+        ///
+        /// <para>Exists because asking <see cref="Resolve(Document, Family)"/>
+        /// for this costs a full category resolution, and
+        /// <c>FindTagCategory</c> enumerates every category in the document on
+        /// every call. Asking it 206 times to populate a confirmation dialog
+        /// froze Revit before the dialog could appear - measured 2026-09-22,
+        /// and the command never logged a line because it never got that far.
+        /// Callers that only need the flag must use this.</para>
+        /// </summary>
+        public static bool IsNonUniversal(string familyName)
+        {
+            if (string.IsNullOrWhiteSpace(familyName)) return false;
+            EnsureLoaded();
+            return _nonUniversal.Contains(TagCategoryNameForms.NormaliseKey(familyName));
+        }
+
         private static Category FindTagCategory(Document doc, string hostCategoryName)
         {
             string host = hostCategoryName.Trim();
