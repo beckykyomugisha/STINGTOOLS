@@ -1606,6 +1606,7 @@ namespace StingTools.Core
                 // files and confirmation, so a chain cannot rewrite the library by
                 // accident.
                 case "TagFamilyFixCategories": return new Commands.TagStudio.FixTagFamilyCategoriesCommand();
+                case "TagLibraryPromote": return new Commands.TagStudio.PromoteTagLibraryCommand();
                 case "TagFamilyFixParamTypes": return new Commands.TagStudio.FixTagFamilyParamTypesCommand();
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
                 case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
