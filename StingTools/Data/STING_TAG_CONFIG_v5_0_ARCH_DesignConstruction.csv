@@ -1223,7 +1223,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 2,MEDIUM,WARN_BLE_FASCIA_FIRE_FASCIA,Fascia material not fire-rated (external fire spread),Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Fascia Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FASCIA_FIRE_FASCIA, """")"
 
 Tag Family #22: STING - Gutter Tag
-TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
+TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutter
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
