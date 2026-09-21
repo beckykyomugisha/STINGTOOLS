@@ -236,6 +236,37 @@ namespace StingTools.Tags.Tests
                         string.Join("\n  ", prose));
         }
 
+        /// <summary>
+        /// Declared, deliberately absent from the library, and due back when
+        /// Create Tag Families next runs.
+        ///
+        /// <para>These nine were deleted on 2026-09-21 so they could be re-BORN
+        /// as Multi-Category tags. Revit refuses to reassign an existing
+        /// family's category - "the input category id cannot be assigned as the
+        /// new category for this family", measured three times - so conversion
+        /// is not available and deletion is the only route. The declarations
+        /// stay: they are what the creator reads to rebuild them.</para>
+        ///
+        /// <para>They are NAMED here rather than absorbed into a lower count
+        /// floor, so that a tenth family going missing still fails. A floor of
+        /// "at least 190" would have excused it. And because each name is
+        /// asserted to be genuinely absent, this list cannot rot - once the
+        /// nine are rebuilt and committed, this test fails until they are
+        /// removed from it.</para>
+        /// </summary>
+        private static readonly string[] AwaitingMultiCategoryRebuild =
+        {
+            "STING - LPS Air Terminal Tag",
+            "STING - LPS Bond Tag",
+            "STING - LPS Down Conductor Tag",
+            "STING - LPS Earth Electrode Tag",
+            "STING - LPS Foundation Earth (Structural Reuse) Tag",
+            "STING - LPS Generic Component Tag",
+            "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
+            "STING - LPS SPD Tag",
+            "STING - LPS Test Clamp Tag",
+        };
+
         [Fact]
         public void EveryShippedTagFamilyHasADeclaration()
         {
@@ -260,7 +291,22 @@ namespace StingTools.Tags.Tests
                 .Where(n => !IsRevitBackupName(n))
                 .ToList();
 
-            Assert.True(families.Count >= 200, $"expected the tag library, found {families.Count} family file(s)");
+            // The floor counts what the library HOLDS plus what it is knowingly
+            // waiting on, so a deliberate absence does not lower the bar for an
+            // accidental one.
+            var present = new HashSet<string>(families, StringComparer.OrdinalIgnoreCase);
+
+            var backAlready = AwaitingMultiCategoryRebuild.Where(present.Contains).ToList();
+            Assert.True(backAlready.Count == 0,
+                        $"{backAlready.Count} family/families are listed as awaiting a Multi-Category " +
+                        "rebuild but are back in the library. Remove them from " +
+                        "AwaitingMultiCategoryRebuild - a stale exception list hides the next real " +
+                        "loss:\n  " + string.Join("\n  ", backAlready));
+
+            int accountedFor = families.Count + AwaitingMultiCategoryRebuild.Length;
+            Assert.True(accountedFor >= 200,
+                        $"expected the tag library, found {families.Count} family file(s) plus " +
+                        $"{AwaitingMultiCategoryRebuild.Length} awaiting rebuild = {accountedFor}");
 
             var missing = families
                 .Where(n => !declared.Contains(TagCategoryNameForms.NormaliseKey(n)))
