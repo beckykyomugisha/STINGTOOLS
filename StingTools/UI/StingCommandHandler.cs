@@ -3117,6 +3117,11 @@ namespace StingTools.UI
                     // FamilySwapCategory below cannot do tags at all: SwapCategoryCommand
                     // refuses annotation families by design.
                     case "TagFamilyFixCategories": RunCommand<Commands.TagStudio.FixTagFamilyCategoriesCommand>(app); break;
+                    // The other half of the same job: a family that types a shared parameter
+                    // differently from MR_PARAMETERS.txt cannot be LOADED at all - 17 errors
+                    // on one duct tag, 180 of 206 families affected. Re-points them at the
+                    // declared definitions in the .rfa.
+                    case "TagFamilyFixParamTypes": RunCommand<Commands.TagStudio.FixTagFamilyParamTypesCommand>(app); break;
 
                     // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
                     // rehost, swap category, inject automation pack, quick-edit dialog
