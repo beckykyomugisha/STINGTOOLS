@@ -96,7 +96,24 @@ namespace StingTools.Tags.Tests
 
                 string cfg;
                 if (!declared.TryGetValue(key, out cfg)) continue;          // no declaration to compare
-                if (cfg.StartsWith("Multi", StringComparison.OrdinalIgnoreCase)) continue;  // serves many hosts
+                // Multi-Category is NOT skipped. The binding audit skips it because
+                // "its own category" has no single answer there - but here the
+                // question is exact: if the config says Multi-Category the creator
+                // must build it from Multi-Category Tag.rft, or the family is born
+                // in one host category and can never be corrected into the other
+                // (Revit refuses that reassignment - measured 2026-09-21).
+                //
+                // Skipping it left a real hole: three creator entries were switched
+                // to Multi-Category in the morning and six more were declared so in
+                // the evening, and this gate excused all six.
+                if (cfg.StartsWith("Multi", StringComparison.OrdinalIgnoreCase))
+                {
+                    compared++;
+                    if (!string.Equals(ost, "OST_MultiCategoryTags", StringComparison.Ordinal))
+                        clashes.Add($"{suffix}: config declares Multi-Category but the creator " +
+                                    $"builds it as {ost} - Revit cannot convert it afterwards");
+                    continue;
+                }
 
                 string cfgOst;
                 if (!nameToOst.TryGetValue(cfg, out cfgOst)) continue;      // not a model category in the map

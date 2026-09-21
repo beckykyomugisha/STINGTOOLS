@@ -403,12 +403,16 @@ namespace StingTools.Tags
         {
             (BuiltInCategory.OST_GenericModel,        "Generic Model Tag.rft",         "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
             // ── Lightning Protection System (BS EN 62305) — MEP CSV families #54..#59
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
+            // All six are MULTI-CATEGORY: each declares 2-5 host categories, and
+            // LpsElementIndex walks ElectricalEquipment AND GenericModel while the
+            // stale marker adds Conduit and CableTray. Pinned to Electrical
+            // Equipment they are found by the engine and cannot be tagged.
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
             // ── LPS reuse variants (cross-discipline) — GEN CSV #34, STR CSV #22, ARCH CSV #36
             //
             // MULTI-CATEGORY, and it has to be built that way - not converted.
