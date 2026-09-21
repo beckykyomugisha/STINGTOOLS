@@ -3490,6 +3490,22 @@ namespace StingTools.Core
         private const int _tokenSanitiseLogCap = 3;
 
         /// <summary>
+        /// How many stored token values have been sanitised on READ this session,
+        /// and how many of those went unlogged because the cap was spent. Same
+        /// reasoning as ParameterHelpers.SourceTokenWriteCleanups: a suppressed
+        /// count that is never reported hides exactly the evidence you need.
+        /// </summary>
+        public static int TokenSanitiseCount => _tokenSanitiseLogCount + _tokenSanitiseSuppressed;
+        public static int TokenSanitiseSuppressed => _tokenSanitiseSuppressed;
+
+        /// <summary>Zero the read-side sanitise counters so a run reports its OWN totals.</summary>
+        public static void ResetTokenSanitiseCounters()
+        {
+            _tokenSanitiseLogCount = 0;
+            _tokenSanitiseSuppressed = 0;
+        }
+
+        /// <summary>
         /// PROD-CONCAT-FIX: Defensive token sanitiser. Returns a clean token value
         /// (possibly empty) whenever the stored parameter looks like a concatenation
         /// or a carry-over of an earlier full tag. Callers treat an empty string

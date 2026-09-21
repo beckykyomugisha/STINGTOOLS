@@ -401,6 +401,29 @@ namespace StingTools.Core
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
         public static int ReadOnlySkipCount => _readOnlySkipCount;
 
+        /// <summary>
+        /// How many source-token writes have been SANITISED away this session.
+        ///
+        /// <para>SanitiseSourceTokenWrite empties any token value containing the
+        /// separator - writing "-" into ASS_SEQ_NUM_TXT stores "". That is the
+        /// right call, but the warning is capped at three occurrences, so after
+        /// the third every further token is emptied in SILENCE. On 2026-09-21 a
+        /// tag rendered "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ blank and
+        /// the log had nothing to say about either, because the cap had already
+        /// been spent on three ASS_PRODCT_COD_TXT writes.</para>
+        ///
+        /// <para>A count that is kept and never reported is the same defect as no
+        /// count at all. Callers surface this in their result line.</para>
+        /// </summary>
+        public static int SourceTokenWriteCleanups => _sourceTokenWriteCleanupCount;
+
+        /// <summary>Zero the token-hygiene counters so a run reports its OWN totals.</summary>
+        public static void ResetTokenHygieneCounters()
+        {
+            System.Threading.Interlocked.Exchange(ref _sourceTokenWriteCleanupCount, 0);
+            _readOnlySkipCount = 0;
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
