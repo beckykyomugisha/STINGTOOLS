@@ -4499,19 +4499,47 @@ namespace StingTools.Organise
                 return Result.Succeeded;
             }
 
-            // Choose alignment
-            TaskDialog dlg = new TaskDialog("Align Tag Text");
-            dlg.MainInstruction = $"Align text for {total} annotations";
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Left Align", "Align all text to the left edge");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Center Align", "Center-align all text");
-            dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Right Align", "Align all text to the right edge");
-            dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
+            // The TAGGING tab already asked. Its Left / Centre / Right radio
+            // dispatches AlignTextLeft / -Center / -Right, and before 2026-09-21
+            // all three arrived here identically and this dialog asked again -
+            // the panel collected a choice and threw it away. Honour it when it
+            // is passed, and only ask when the command is run without one.
+            TaskDialogResult result;
+            string preset = StingCommandHandler.GetExtraParam("TextAlign");
+            if (!string.IsNullOrEmpty(preset))
+            {
+                result = preset.Equals("Right", StringComparison.OrdinalIgnoreCase)
+                            ? TaskDialogResult.CommandLink3
+                       : preset.Equals("Center", StringComparison.OrdinalIgnoreCase)
+                            ? TaskDialogResult.CommandLink2
+                            : TaskDialogResult.CommandLink1;
+            }
+            else
+            {
+                TaskDialog dlg = new TaskDialog("Align Tag Text");
+                dlg.MainInstruction = $"Align text for {total} annotations";
+                // Say what this actually does to a TAG. Tag text alignment lives
+                // in the tag FAMILY's label, not on the instance, so for tags
+                // this moves the tag HEADS - it cannot left-align the label.
+                dlg.MainContent =
+                    (tags.Count > 0 && textNotes.Count == 0)
+                        ? "Only tags are selected. A tag's TEXT alignment is a property of the tag " +
+                          "family's label, not of the placed tag, so this aligns the tag HEAD " +
+                          "positions instead. To left-align the label itself, change it in the " +
+                          "universal master and re-propagate."
+                        : "Text notes have their text aligned. Tags have their HEAD positions " +
+                          "aligned - a tag's text alignment lives in the tag family's label.";
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Left Align", "Align all text to the left edge");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Center Align", "Center-align all text");
+                dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                    "Right Align", "Align all text to the right edge");
+                dlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var result = dlg.Show();
-            if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+                result = dlg.Show();
+                if (result == TaskDialogResult.Cancel) return Result.Cancelled;
+            }
 
             int aligned = 0;
             using (Transaction tx = new Transaction(doc, "STING Align Tag Text"))

@@ -966,9 +966,24 @@ namespace StingTools.UI
                     case "FlipTags":
                     case "FlipTagsH": SetExtraParam("FlipDirection", "H"); RunCommand<Organise.FlipTagsCommand>(app); break;
                     case "FlipTagsV": SetExtraParam("FlipDirection", "V"); RunCommand<Organise.FlipTagsCommand>(app); break;
+                    // Pass the panel's radio choice through, the same way
+                    // FlipTagsH/V does. Without it all three tags arrived
+                    // identically and the command asked again.
                     case "AlignTextLeft":
+                        SetExtraParam("TextAlign", "Left");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
                     case "AlignTextCenter":
-                    case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
+                        SetExtraParam("TextAlign", "Center");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
+                    case "AlignTextRight":
+                        SetExtraParam("TextAlign", "Right");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
                     case "AutoAlignLeaderText": RunCommand<Organise.AutoAlignLeaderTextCommand>(app); break;
 
                     // ── Align & distribute ──
