@@ -3664,7 +3664,8 @@ namespace StingTools.Core
                     if (ParameterHelpers.SetString(el, c.ParamName, assembled, overwrite))
                         written++;
                     else
-                        StingLog.Warn($"WriteContainers: failed to write {c.ParamName} on element {el.Id.Value}");
+                        StingLog.Warn($"WriteContainers: did not write {c.ParamName} on element " +
+                                      $"{el.Id.Value}: {ParameterHelpers.ExplainWriteFailure(el, c.ParamName, overwrite)}");
                 }
             }
 

@@ -462,6 +462,51 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Why a <see cref="SetString"/> call returned false, in words.
+        ///
+        /// <para>SetString returns false for FOUR unrelated reasons - the parameter
+        /// is not on the element, it is read-only, it is not a string, or it
+        /// already holds a value and overwrite was not asked for. Callers logged
+        /// all four as "failed to write", which is true of one of them and
+        /// misleading about the rest: the fourth is a deliberate skip, not a
+        /// failure. Measured 2026-09-21, chasing a tag that rendered
+        /// "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ missing - the log said
+        /// four containers "failed" and could not say which cause, so the log
+        /// could not settle it.</para>
+        ///
+        /// <para>Only called on the failure path, so it costs nothing in the
+        /// normal case.</para>
+        /// </summary>
+        public static string ExplainWriteFailure(Element el, string paramName, bool overwrite)
+        {
+            try
+            {
+                if (el == null) return "no element";
+                if (string.IsNullOrEmpty(paramName)) return "no parameter name";
+
+                Parameter p = CachedLookup(el, paramName);
+                if (p == null)
+                    return "not present on this element - the shared parameter is not bound to " +
+                           "its category in THIS project (run Load Shared Params)";
+                if (p.IsReadOnly)
+                    return "read-only on this element";
+                if (p.StorageType != StorageType.String)
+                    return $"storage type is {p.StorageType}, not String";
+
+                string existing = p.AsString() ?? string.Empty;
+                if (existing.Length > 0 && !overwrite)
+                    return $"already holds '{Trunc(existing)}' and overwrite was not requested - " +
+                           "this is a deliberate SKIP, not a failure";
+
+                return "Parameter.Set threw - see the preceding SetString warning";
+            }
+            catch (Exception ex) { return "could not be determined: " + ex.Message; }
+        }
+
+        private static string Trunc(string s)
+            => s != null && s.Length > 40 ? s.Substring(0, 40) + "..." : s;
+
         /// <summary>Set only when the parameter is currently empty.</summary>
         public static bool SetIfEmpty(Element el, string paramName, string value)
         {
