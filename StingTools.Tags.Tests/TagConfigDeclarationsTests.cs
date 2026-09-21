@@ -1,4 +1,4 @@
-// Tests for TagConfigDeclarations - the two dialects of the tag-config CSVs.
+﻿// Tests for TagConfigDeclarations - the two dialects of the tag-config CSVs.
 //
 // The bug these exist for: the parser understood only the prose dialect, so all
 // 58 healthcare families were reported "no Category declared" while their
@@ -238,34 +238,23 @@ namespace StingTools.Tags.Tests
 
         /// <summary>
         /// Declared, deliberately absent from the library, and due back when
-        /// Create Tag Families next runs.
+        /// Create Tag Families next runs. EMPTY, and that is the normal state.
         ///
-        /// <para>These nine were deleted on 2026-09-21 so they could be re-BORN
-        /// as Multi-Category tags. Revit refuses to reassign an existing
-        /// family's category - "the input category id cannot be assigned as the
-        /// new category for this family", measured three times - so conversion
-        /// is not available and deletion is the only route. The declarations
-        /// stay: they are what the creator reads to rebuild them.</para>
+        /// <para>Nine LPS families sat here on 2026-09-21. Revit refuses to
+        /// reassign an existing family's category - "the input category id
+        /// cannot be assigned as the new category for this family", measured
+        /// three times - so a Multi-Category tag has to be re-BORN, not
+        /// converted. They were deleted, rebuilt by the creator the same
+        /// evening, and removed from here because the guard below refused to
+        /// let them stay.</para>
         ///
-        /// <para>They are NAMED here rather than absorbed into a lower count
-        /// floor, so that a tenth family going missing still fails. A floor of
-        /// "at least 190" would have excused it. And because each name is
-        /// asserted to be genuinely absent, this list cannot rot - once the
-        /// nine are rebuilt and committed, this test fails until they are
-        /// removed from it.</para>
+        /// <para>Names go here rather than into a lowered count floor, so a
+        /// family going missing by ACCIDENT still fails. And because each
+        /// name is asserted to be genuinely absent, the list cannot rot: it
+        /// empties itself the moment the families come back.</para>
         /// </summary>
         private static readonly string[] AwaitingMultiCategoryRebuild =
-        {
-            "STING - LPS Air Terminal Tag",
-            "STING - LPS Bond Tag",
-            "STING - LPS Down Conductor Tag",
-            "STING - LPS Earth Electrode Tag",
-            "STING - LPS Foundation Earth (Structural Reuse) Tag",
-            "STING - LPS Generic Component Tag",
-            "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
-            "STING - LPS SPD Tag",
-            "STING - LPS Test Clamp Tag",
-        };
+            new string[0];
 
         [Fact]
         public void EveryShippedTagFamilyHasADeclaration()
