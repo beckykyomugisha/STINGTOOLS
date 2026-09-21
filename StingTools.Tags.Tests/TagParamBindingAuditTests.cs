@@ -211,8 +211,25 @@ namespace StingTools.Tags.Tests
         public void TheReinforcementTagsShowABarMark()
         {
             // BS 8666 / BS 1192 detailing: the bar mark is the identifier a steel
-            // fixer reads. It shipped at Tier 7, gated behind TAG_PARA_STATE_7_BOOL,
-            // on a catalogue that only carries tiers 1-2 - so it could never render.
+            // fixer reads. It shipped at Tier 7, gated behind TAG_PARA_STATE_7_BOOL.
+            //
+            // An earlier version of this comment said the catalogue "only carries
+            // tiers 1-2, so it could never render". That was wrong, and the
+            // correction matters because it changes what else you would go looking
+            // for: tag_style_catalogue.json declares depth_tiers 1-10 and all ten
+            // TAG_PARA_STATE_n_BOOL gates are declared in MR_PARAMETERS.txt. What is
+            // true is narrower - every per-discipline default is depth_tier 2, the
+            // pre-created type variants cover depth 1 and 2 only (tier 3 was dropped
+            // 2026-09-17, commit 94704aa6d), and the master carries two ticked gates.
+            // So a Tier 7 row renders only if someone deliberately adds and ticks
+            // TAG_PARA_STATE_7_BOOL. It is invisible on every default path, which is
+            // the wrong place for the primary identifier on a rebar drawing.
+            //
+            // Deep tiers are progressive disclosure BY DESIGN and most parameters
+            // belong there - a cost quote reference at T5 is correct. This is a
+            // classification error about one parameter, not a fault in the tier
+            // system. A sweep for other identifiers buried at T3+ returned only
+            // supplementary data, so the rebar case stands alone.
             string data = DataDir();
             var families = new Dictionary<string, TagFamilyLabels>(StringComparer.Ordinal);
             foreach (var f in Directory.GetFiles(data, "STING_TAG_CONFIG_v5_0_*.csv"))
