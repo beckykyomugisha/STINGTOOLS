@@ -152,7 +152,9 @@ namespace StingTools.Tags
 
             EnsureLoaded();
 
-            string key = res.FamilyName.Trim().ToUpperInvariant();
+            // Normalised on BOTH sides: a declaration is a human name, the family
+            // is a FILE, and Windows forbids characters a human name may contain.
+            string key = TagCategoryNameForms.NormaliseKey(res.FamilyName);
             if (!_declared.TryGetValue(key, out string hostCat) || string.IsNullOrWhiteSpace(hostCat))
             {
                 res.Note = "no Category declared in STING_TAG_CONFIG_v5_0_*.csv";
@@ -249,12 +251,14 @@ namespace StingTools.Tags
                 string cat = cm.Groups["cat"].Value.Trim().Trim('"', ',');
                 if (cat.Length == 0) continue;
 
-                string key = current.ToUpperInvariant();
+                string key = TagCategoryNameForms.NormaliseKey(current);
                 if (_declared.TryGetValue(key, out string existing))
                 {
                     if (!string.Equals(existing, cat, StringComparison.OrdinalIgnoreCase))
                         StingLog.Warn($"TagCategoryResolver: '{current}' declared twice with different categories " +
-                                      $"('{existing}' and '{cat}') — keeping the first");
+                                      $"('{existing}' and '{cat}') — keeping the first. If the two names differ only " +
+                                      "by a slash, a dash or a trailing \"Tag\", they now normalise to one key: " +
+                                      $"'{key}'. Rename one so the collision is visible in the config.");
                 }
                 else
                 {

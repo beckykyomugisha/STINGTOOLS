@@ -576,7 +576,7 @@ TAG7: STR_TAG_7_PARA_WALL_TXT  •  Category: Walls
 2,HIGH,WARN_STR_WALL_SLENDERNESS,Slenderness ratio exceeds limit,BS EN 1996-1-1 / EC6,Common,Text,⚠ Warning: Wall Slenderness,"if(TAG_WARN_VISIBLE_BOOL, WARN_STR_WALL_SLENDERNESS, """")"
 
 Tag Family #6: STING - Brace / Truss Tag
-TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing (Bracing)
+TAG7: STR_TAG_7_PARA_BRACE_TXT  •  Category: Structural Framing
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None

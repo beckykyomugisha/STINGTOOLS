@@ -74,4 +74,70 @@ namespace StingTools.Tags.Tests
             Assert.Contains("Door Tags", TagCategoryNameForms.Candidates("  Doors  "));
         }
     }
+
+    /// <summary>
+    /// Tests for NormaliseKey - the reason nine families were reported "no
+    /// Category declared" while their declarations sat unused in the config.
+    /// The pairs below are the real file/declaration spellings from the shipped
+    /// data, measured 2026-09-21.
+    /// </summary>
+    public class TagCategoryKeyNormalisationTests
+    {
+        [Theory]
+        // A slash cannot go in a file name, so the file has a dash.
+        [InlineData("STING - Brace - Truss Tag", "STING - Brace / Truss Tag")]
+        [InlineData("STING - Tie-In Point Tag (Conduit - Electrical LV-ELV)",
+                    "STING - Tie-In Point Tag (Conduit - Electrical LV/ELV)")]
+        [InlineData("STING - Tie-In Point Tag (Gas - Medical - Industrial - Natural Gas)",
+                    "STING - Tie-In Point Tag (Gas - Medical / Industrial / Natural Gas)")]
+        // The file carries a second " Tag" the declaration does not.
+        [InlineData("STING - Specialty Equipment Tag Asset Tag",
+                    "STING - Specialty Equipment Tag Asset")]
+        [InlineData("STING - Specialty Equipment Tag General Tag",
+                    "STING - Specialty Equipment Tag General")]
+        [InlineData("STING - Tie-In Point Tag (Duct - HVAC) Tag",
+                    "STING - Tie-In Point Tag (Duct - HVAC)")]
+        // Case and stray spacing must not matter either.
+        [InlineData("STING - Duct Tag", "sting  -  DUCT   tag")]
+        public void FileNameAndDeclarationAgreeOnOneKey(string fileName, string declared)
+        {
+            Assert.Equal(TagCategoryNameForms.NormaliseKey(declared),
+                         TagCategoryNameForms.NormaliseKey(fileName));
+        }
+
+        [Fact]
+        public void DifferentFamiliesKeepDifferentKeys()
+        {
+            // The whole risk of normalising: two families folding onto one key
+            // would silently hand one of them the other's category.
+            var names = new[]
+            {
+                "STING - Duct Tag", "STING - Duct Accessory Tag", "STING - Flex Duct Tag",
+                "STING - Pipe Tag", "STING - Pipe Accessory Tag",
+                "STING - Specialty Equipment Tag Asset Tag",
+                "STING - Specialty Equipment Tag General Tag",
+                "STING - Medical Equipment Tag", "STING - Mechanical Equipment Tag",
+            };
+            var keys = names.Select(TagCategoryNameForms.NormaliseKey).ToList();
+            Assert.Equal(keys.Count, keys.Distinct(StringComparer.Ordinal).Count());
+        }
+
+        [Fact]
+        public void OnlyOneTrailingTagIsDropped()
+        {
+            // "... Asset Tag" -> "... ASSET", not "... " - the second Tag is part
+            // of the family's actual name.
+            Assert.Equal("STING - SPECIALTY EQUIPMENT TAG ASSET",
+                         TagCategoryNameForms.NormaliseKey("STING - Specialty Equipment Tag Asset Tag"));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void EmptyNamesGiveAnEmptyKeyRatherThanThrowing(string name)
+        {
+            Assert.Equal("", TagCategoryNameForms.NormaliseKey(name));
+        }
+    }
 }

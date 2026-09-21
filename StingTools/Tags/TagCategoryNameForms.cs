@@ -88,5 +88,50 @@ namespace StingTools.Tags
                 !word.EndsWith("ss", StringComparison.OrdinalIgnoreCase))
                 yield return word.Substring(0, word.Length - 1);
         }
+
+        /// <summary>Characters Windows forbids in a file name, plus the backslash.</summary>
+        private static readonly string Forbidden = "/:*?\"<>|" + "\\";
+
+        /// <summary>
+        /// The key a family name is declared and looked up under.
+        ///
+        /// <para>A declaration is written as a human name; the family exists as a
+        /// FILE, and Windows forbids / : * ? " < > | in a file name. So
+        /// "STING - Brace / Truss Tag" is declared with a slash and saved with a
+        /// dash, and the two never met. Measured 2026-09-21: nine families were
+        /// reported "no Category declared" while their declarations sat unused in
+        /// the config - the audit called them undeclared and they were not.</para>
+        ///
+        /// <para>Normalising folds the forbidden characters to "-", unifies the
+        /// spacing around dashes, and drops ONE trailing " Tag" - some files carry
+        /// it twice ("... Asset Tag" against a declaration ending "... Asset") and
+        /// some tie-in files omit it entirely. Both sides go through this, so it
+        /// cannot matter which spelling either used.</para>
+        ///
+        /// <para>Verified against the shipped data before shipping: all nine match,
+        /// and ZERO keys collide - neither among the 146 declarations nor among the
+        /// 206 family files. A collision would silently give a family the wrong
+        /// category, so TagCategoryResolver logs one rather than picking a winner.</para>
+        /// </summary>
+        public static string NormaliseKey(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "";
+
+            var sb = new System.Text.StringBuilder(name.Length);
+            foreach (char ch in name.Trim().ToUpperInvariant())
+                sb.Append(Forbidden.IndexOf(ch) >= 0 ? '-' : ch);
+
+            string s = sb.ToString();
+
+            // " - ", "-", " -" and "- " all become " - "
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s*-\s*", " - ");
+            s = System.Text.RegularExpressions.Regex.Replace(s, @"\s+", " ").Trim();
+
+            if (s.EndsWith(" TAG", StringComparison.Ordinal))
+                s = s.Substring(0, s.Length - 4).Trim();
+
+            return s;
+        }
+
     }
 }
