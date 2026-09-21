@@ -31,6 +31,18 @@
 // "<target>.rfa.sting-propagate-<guid>" and left the real target untouched.
 // Execute() purges any such leftovers from earlier runs before propagating.
 //
+// MULTI-CATEGORY IS OUT OF REACH (measured 2026-09-21, 'STING - LPS SPD Tag').
+// Setting a clone of the single-category master to OST_MultiCategoryTags throws
+// "the input category id cannot be assigned as the new category for this
+// family". Revit can CREATE a family in Multi-Category but will not MOVE one
+// into it. So a Multi-Category tag can never receive the universal label from
+// this master, and the nine LPS families — deliberately re-born Multi-Category
+// so they could tag several categories at once — are precisely the ones this
+// conveyor cannot serve. Those two decisions are incompatible; reconciling them
+// needs a SECOND, hand-built Multi-Category master, or the families back in a
+// single tag category. Targets in that category are now named in the
+// confirmation dialog and skipped without the 80-second round trip.
+//
 // Recategorising a family PRESERVES its label rows (proven live: Air Terminal →
 // Duct Tags, every row survived). The label is IDENTICAL for all families, so no
 // per-family row swapping is needed. Discipline-specific engineering data lives in
@@ -177,6 +189,18 @@ namespace StingTools.Commands.TagStudio
 
             // ── 3. Confirmation ──
             var variants = TagStyleCatalogue.EnumerateStandardVariants().ToList();
+            // Say up front how many targets this cannot serve. A Multi-Category
+            // family cannot receive the label (Revit will not move a family INTO
+            // Multi-Category), and finding that out one 80-second failure at a
+            // time, after committing to the run, is the wrong order to learn it in.
+            bool masterIsMulti = master.FamilyCategory != null &&
+                master.FamilyCategory.Id.Value == (long)BuiltInCategory.OST_MultiCategoryTags;
+            var unreachable = masterIsMulti
+                ? new List<Family>()
+                : targets.Where(t => t.FamilyCategory != null &&
+                        t.FamilyCategory.Id.Value == (long)BuiltInCategory.OST_MultiCategoryTags)
+                    .ToList();
+
             var confirm = new TaskDialog("Propagate Universal Tag");
             confirm.MainInstruction =
                 $"Propagate '{master.Name}' to {targets.Count} target families ({scopeLabel})?";
@@ -189,6 +213,13 @@ namespace StingTools.Commands.TagStudio
                 "  • Overwrite the target family (atomic SaveAs → LoadFamily → move)\n\n" +
                 "The universal label rows carry over unchanged (recategorise preserves\n" +
                 "label rows). Re-running is a safe RE-SYNC — master edits re-propagate.\n\n" +
+                (unreachable.Count > 0
+                    ? $"{unreachable.Count} of these are Multi-Category Tags and will be SKIPPED:\n  " +
+                      string.Join("\n  ", unreachable.Take(5).Select(f => f.Name)) +
+                      (unreachable.Count > 5 ? "\n  ..." : "") +
+                      "\nRevit can create a family in Multi-Category but will not move one into it, " +
+                      "so the universal label cannot reach them.\n\n"
+                    : "") +
                 "SMOKE TEST: verify one family (Duct) in Revit before scaling to all.\n" +
                 "Press Escape between families to cancel.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
@@ -624,6 +655,38 @@ namespace StingTools.Commands.TagStudio
                               (mode == RecategoriseMode.KeepExisting
                                   ? " (KeepExisting: left as it is for this run)"
                                   : ""));
+            // A Multi-Category target cannot receive the universal label, and no
+            // amount of retrying changes that.
+            //
+            // Measured 2026-09-21 on 'STING - LPS SPD Tag': setting a clone of the
+            // single-category master to OST_MultiCategoryTags throws "the input
+            // category id cannot be assigned as the new category for this family".
+            // That is the SAME refusal already documented for reload, in a second
+            // place: Revit will not move a family INTO Multi-Category, only create
+            // it there. So the nine LPS families, which were deliberately re-born
+            // as Multi-Category so they could tag several categories at once, are
+            // exactly the families this conveyor cannot serve. The two decisions
+            // are incompatible, and a Multi-Category master would be needed to
+            // reconcile them.
+            //
+            // Caught HERE rather than at the API call, because the call costs a
+            // full EditFamily + document open first - 80-odd seconds each, nine
+            // times - to arrive at an error that was knowable for free. And it
+            // reads as a known limit rather than a raw API message.
+            if (targetCatId != null &&
+                targetCatId.Value == (long)BuiltInCategory.OST_MultiCategoryTags &&
+                master.FamilyCategory != null &&
+                master.FamilyCategory.Id.Value != (long)BuiltInCategory.OST_MultiCategoryTags)
+            {
+                result.ErrorMessage =
+                    "target is a Multi-Category Tag; Revit will not move the master's clone into " +
+                    "Multi-Category (it can only be created there), so the universal label cannot " +
+                    "be propagated to it. Either build a Multi-Category master, or re-create this " +
+                    "family in a single tag category.";
+                StingLog.Warn($"PropagateUniversalTag: '{targetName}' skipped — {result.ErrorMessage}");
+                return result;
+            }
+
             Document famDoc = null;
             string tempDir = null; // hoisted so the catch below can clean a half-made temp dir
 
