@@ -109,6 +109,7 @@ namespace StingTools.Commands.TagStudio
 
             var rfas = Directory.EnumerateFiles(folder, "*.rfa", SearchOption.TopDirectoryOnly)
                                 .Where(p => !Path.GetFileName(p).StartsWith(".", StringComparison.Ordinal))
+                                .Where(p => !IsRevitBackup(p))
                                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                                 .ToList();
             if (rfas.Count == 0)
@@ -400,7 +401,20 @@ namespace StingTools.Commands.TagStudio
                     return row;
                 }
 
-                try { famDoc.Save(); }
+                try
+                {
+                    // MaximumBackups = 1, or Revit leaves "<name>.0001.rfa" beside every
+                    // family it saves - and both this command and the conformance audit
+                    // then enumerate *.rfa and treat the backup as a family. That is why
+                    // a 206-family library reported 207 after one APPLY, and 212 on
+                    // 2026-09-18 after several. We take our own pre-change copies, so
+                    // Revit's are duplicate litter inside the library being audited.
+                    famDoc.SaveAs(rfaPath, new SaveAsOptions
+                    {
+                        OverwriteExistingFile = true,
+                        MaximumBackups = 1
+                    });
+                }
                 catch (Exception saveEx)
                 {
                     row.Verdict = "ERROR";
@@ -425,6 +439,22 @@ namespace StingTools.Commands.TagStudio
                 try { famDoc?.Close(false); }
                 catch (Exception ex) { StingLog.Warn($"FixTagFamilyCategories: close '{row.FamilyName}': {ex.Message}"); }
             }
+        }
+
+        /// <summary>
+        /// A Revit backup - "Family.0001.rfa" - rather than a family. Revit writes one
+        /// beside any family it saves, so an audit that enumerates *.rfa counts each
+        /// correction it made as a new family to correct. Matched on the four-digit
+        /// suffix Revit uses, so a family legitimately named "... 0001" is unaffected
+        /// unless it also ends in .0001.rfa, which Revit would itself collide with.
+        /// </summary>
+        internal static bool IsRevitBackup(string path)
+        {
+            string name = Path.GetFileNameWithoutExtension(path) ?? "";
+            int dot = name.LastIndexOf('.');
+            if (dot < 0 || dot == name.Length - 1) return false;
+            string tail = name.Substring(dot + 1);
+            return tail.Length == 4 && tail.All(char.IsDigit);
         }
 
         /// <summary>Two details in one cell, without losing either.</summary>

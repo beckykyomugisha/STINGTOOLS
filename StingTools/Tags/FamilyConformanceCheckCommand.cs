@@ -522,7 +522,11 @@ namespace StingTools.Tags
                 // nothing loads. _precategory_ folders are this tool-chain's own backups.
                 var rfas = Directory.EnumerateFiles(folder, "*.rfa", SearchOption.AllDirectories)
                                     .Where(p => p.IndexOf(@"\Seeds\", StringComparison.OrdinalIgnoreCase) < 0 &&
-                                                p.IndexOf("_precategory", StringComparison.OrdinalIgnoreCase) < 0)
+                                                p.IndexOf("_precategory", StringComparison.OrdinalIgnoreCase) < 0 &&
+                                                p.IndexOf("_predeploy", StringComparison.OrdinalIgnoreCase) < 0 &&
+                                                // Revit's own "<name>.0001.rfa" backups: auditing them
+                                                // reports the same family twice and inflates every count.
+                                                !Commands.TagStudio.FixTagFamilyCategoriesCommand.IsRevitBackup(p))
                                     .ToList();
                 if (rfas.Count == 0)
                 {
