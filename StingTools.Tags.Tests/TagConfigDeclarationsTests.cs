@@ -223,22 +223,9 @@ namespace StingTools.Tags.Tests
             // Prose like "Columns - Architectural discipline" or "Sheets (ViewSheet)"
             // can never resolve to a tag category. Catching it here means a bad
             // edit fails a test instead of surfacing as a silent UNRESOLVED row.
-            // Three declarations name SEVERAL categories at once. A family can
-            // only be one, so these are open authoring decisions, not typos -
-            // recorded here by name so they stay visible and so a NEW prose
-            // declaration still fails this test. Shrink this list; never grow it
-            // without a reason written down.
-            var knownOpen = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "Generic Models / Specialty Equipment",   // STING - LPS Generic Component Tag
-                "Roofs / Walls / Curtain Wall",           // STING - LPS Natural Air Termination Tag
-                "Structural Foundations / Rebar",         // STING - LPS Foundation Earth Tag
-            };
-
             var prose = AllShipped()
                 .Select(d => d.HostCategory)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Where(c => !knownOpen.Contains(c))
                 .Where(c => c.Contains("(") || c.Contains("/") || c.Contains("—") ||
                             c.IndexOf("discipline", StringComparison.OrdinalIgnoreCase) >= 0)
                 .OrderBy(c => c)
@@ -283,6 +270,54 @@ namespace StingTools.Tags.Tests
             Assert.True(missing.Count == 0,
                         $"{missing.Count} tag families have no declared category:\n  " +
                         string.Join("\n  ", missing));
+        }
+
+
+        [Fact]
+        public void TheThreeLpsReuseFamiliesAreMultiCategory()
+        {
+            // These three are the only families that legitimately serve SEVERAL
+            // host categories - 15 between them, recorded in the "# Category:"
+            // comment above each declaration:
+            //
+            //   Foundation Earth   5  Structural Foundations / Rebar / Area /
+            //                         Path / Fabric Reinforcement
+            //   Natural Air Term.  7  Roofs / Walls / Wall Sweeps / Curtain Wall
+            //                         Mullions / Fascia / Gutter / Roof Soffits
+            //   Generic Component  3  Generic Models / Specialty Equipment /
+            //                         Detail Items
+            //
+            // BS EN 62305-3 lets an LPS REUSE existing structure - rebar as a
+            // Type B foundation earth, a metal roof as a natural air
+            // termination - so a single host category cannot express it. Revit's
+            // answer is the Multi-Category tag, and this asserts we use it
+            // rather than quietly picking one host and losing the rest.
+            var byName = AllShipped()
+                .GroupBy(d => TagCategoryNameForms.NormaliseKey(d.FamilyName))
+                .ToDictionary(g => g.Key, g => g.First().HostCategory, StringComparer.Ordinal);
+
+            foreach (var fam in new[]
+            {
+                "STING - LPS Foundation Earth (Structural Reuse) Tag",
+                "STING - LPS Natural Air Termination (Architectural Reuse) Tag",
+                "STING - LPS Generic Component Tag",
+            })
+            {
+                string key = TagCategoryNameForms.NormaliseKey(fam);
+                Assert.True(byName.ContainsKey(key), fam + " has no declaration");
+                Assert.Equal("Multi-Category", byName[key]);
+            }
+        }
+
+        [Fact]
+        public void MultiCategoryResolvesToARealTagCategoryName()
+        {
+            // "Multi-Category" only works because FindTagCategory looks for
+            // "<host> Tags" - and "Multi-Category Tags" is a real Revit
+            // annotation category. If the candidate list ever stopped offering
+            // it, the three LPS families would go UNRESOLVED and nothing else
+            // would say why.
+            Assert.Contains("Multi-Category Tags", TagCategoryNameForms.Candidates("Multi-Category"));
         }
 
         /// <summary>"Family.0001" - Revit's own backup, not a family.</summary>
