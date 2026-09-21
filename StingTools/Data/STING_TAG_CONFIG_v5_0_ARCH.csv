@@ -2114,7 +2114,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 3,HIGH,WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC,Lift car dimensions < 1100mm x 1400mm (wheelchair),Building Regs Part M / BS EN 81-70,Common,Text,⚠ Warning: Lift Accessibility,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC, """")"
 
 Tag Family #34: STING - Architectural Sheet Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2146,7 +2146,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 1,MEDIUM,WARN_SHT_NAMING_ARCH,Sheet name does not match ISO 19650 naming convention for architectural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_ARCH, """")"
 
 Tag Family #35: STING - Architectural Column Tag
-TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural discipline
+TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None

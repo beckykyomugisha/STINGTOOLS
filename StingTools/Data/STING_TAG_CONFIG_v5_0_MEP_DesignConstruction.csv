@@ -2237,7 +2237,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 
 6G — HVAC Spaces/Zones
 Tag Family #44: STING - Spaces Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2281,7 +2281,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 3,MEDIUM,WARN_BLE_ROOM_OCCUPANCY_SPACES,Occupancy density exceeds maximum for space type,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Space Occupancy Density,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_OCCUPANCY_SPACES, """")"
 
 Tag Family #45: STING - Zones Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: HVAC Zones
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2673,7 +2673,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_GAS,Gas tie-in DEFERRED — gas authority notification required,BS 6891 / Gas Safety Regulations,Common,Text,⚠ Warning: Deferred Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_GAS, """")"
 
 Tag Family #52: STING - MEP Sheet Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None

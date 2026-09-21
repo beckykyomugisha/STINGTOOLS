@@ -275,17 +275,13 @@ namespace StingTools.Tags
         /// the annotation categories the document actually has, trying the plural
         /// and singular forms. Returns null rather than guessing.
         /// </summary>
+
         private static Category FindTagCategory(Document doc, string hostCategoryName)
         {
             string host = hostCategoryName.Trim();
             if (host.Length == 0) return null;
 
-            var candidates = new List<string>();
-            if (host.EndsWith("Tags", StringComparison.OrdinalIgnoreCase))
-                candidates.Add(host);                                   // already a tag category
-            candidates.Add(host + " Tags");                             // Furniture → Furniture Tags
-            if (host.EndsWith("s", StringComparison.OrdinalIgnoreCase))
-                candidates.Add(host.Substring(0, host.Length - 1) + " Tags");   // Doors → Door Tags
+            var candidates = TagCategoryNameForms.Candidates(host);
 
             var annotation = new List<Category>();
             foreach (Category c in doc.Settings.Categories)
