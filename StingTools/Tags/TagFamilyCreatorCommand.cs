@@ -410,9 +410,21 @@ namespace StingTools.Tags
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
             (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
             // ── LPS reuse variants (cross-discipline) — GEN CSV #34, STR CSV #22, ARCH CSV #36
-            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",         "LPS Generic Component (cross-disc reuse)",          "LPS Generic Component"),
-            (BuiltInCategory.OST_StructuralFoundation, "Structural Foundation Tag.rft", "LPS Foundation Earth (Structural Reuse)",           "LPS Foundation Earth (Structural Reuse)"),
-            (BuiltInCategory.OST_Roofs,                "Roof Tag.rft",                  "LPS Natural Air Termination (Architectural Reuse)", "LPS Natural Air Termination (Architectural Reuse)"),
+            //
+            // MULTI-CATEGORY, and it has to be built that way - not converted.
+            // BS EN 62305-3 lets an LPS REUSE existing structure, so between them
+            // these three serve 15 host categories (the "# Category:" comment above
+            // each declaration lists them). One host cannot express that.
+            //
+            // Measured 2026-09-21: FixTagFamilyCategories tried to reassign all
+            // three to Multi-Category Tags and Revit refused all three with "The
+            // input category id cannot be assigned as the new category for this
+            // family." A multi-category tag can only be BORN from
+            // Multi-Category Tag.rft; an existing tag family cannot become one.
+            // Hence the template change here rather than a category fix there.
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Generic Component (cross-disc reuse)",          "LPS Generic Component"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Foundation Earth (Structural Reuse)",           "LPS Foundation Earth (Structural Reuse)"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Natural Air Termination (Architectural Reuse)", "LPS Natural Air Termination (Architectural Reuse)"),
         };
 
         /// <summary>

@@ -397,7 +397,11 @@ namespace StingTools.Commands.TagStudio
                     {
                         tx.RollBack();
                         row.Verdict = "ERROR";
-                        row.Detail = $"set FamilyCategory failed: {setEx.Message}";
+                        row.Detail = ExplainCategoryRefusal(target, setEx);
+                        // The summary line only counts failures. Without this, a
+                        // run reports "3 failed" and the reason lives solely in an
+                        // .xlsx nobody opens - measured 2026-09-21.
+                        StingLog.Warn($"FixTagFamilyCategories: '{row.FamilyName}' → {target.Name} REFUSED: {row.Detail}");
                         return row;
                     }
                     tx.Commit();
@@ -609,5 +613,30 @@ namespace StingTools.Commands.TagStudio
             }
             return picked.Select(p => p.Tag as string).Where(s => !string.IsNullOrEmpty(s)).ToList();
         }
+
+        /// <summary>
+        /// Turns Revit's refusal into something that says what to do about it.
+        ///
+        /// <para>Revit answers every impossible reassignment with the same
+        /// sentence - "The input category id cannot be assigned as the new
+        /// category for this family" - which is true and useless. The case that
+        /// matters here is Multi-Category: measured 2026-09-21, all three LPS
+        /// reuse families were refused, because a multi-category tag can only be
+        /// BORN from Multi-Category Tag.rft. No amount of retrying converts one.</para>
+        /// </summary>
+        private static string ExplainCategoryRefusal(Category target, Exception ex)
+        {
+            bool multi = target != null &&
+                         target.Id.Value == (long)BuiltInCategory.OST_MultiCategoryTags;
+
+            if (multi)
+                return "Revit refuses to reassign an existing family to Multi-Category Tags — " +
+                       "a multi-category tag can only be created from Multi-Category Tag.rft. " +
+                       "Rebuild this family with Create Tag Families instead of recategorising it. " +
+                       "(" + ex.Message.Split('\n')[0].Trim() + ")";
+
+            return $"set FamilyCategory failed: {ex.Message}";
+        }
+
     }
 }
