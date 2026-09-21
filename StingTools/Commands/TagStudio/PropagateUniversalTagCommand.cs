@@ -428,7 +428,7 @@ namespace StingTools.Commands.TagStudio
                     if ((i % 5) == 0 && EscapeChecker.IsEscapePressed())
                     {
                         cancelled = targets.Count - i;
-                        StingLog.Info($"PropagateUniversalTag: cancelled after {i} of {targets.Count}");
+                        StingLog.Info($"PropagateUniversalTag: cancelled BY THE USER (Escape) after {i} of {targets.Count}");
                         break;
                     }
 
@@ -494,11 +494,18 @@ namespace StingTools.Commands.TagStudio
             td.MainContent =
                 $"Master: {master.Name}\n" +
                 $"Scope:  {scopeLabel}\n\n" +
-                $"Standard params added to each clone: {totalParams}\n" +
+                // totalParams and totalTypes are RUNNING TOTALS across every clone
+                // (see the += at the per-family site), so "added to each clone" was
+                // wrong by however many clones ran: 3450 read as 3450 per family
+                // when it was 138 each across 25. State the total and derive the
+                // per-clone figure instead of implying it.
+                $"Standard params added: {totalParams} total\n" +
+                (succeeded > 0 ? $"  ({totalParams / succeeded} per clone)\n" : "") +
                 // Named for what it is. "Params added: 139" reads as a side effect;
                 // it is the standard style+visibility set that the master does not
                 // carry, and it is why the two families differ afterwards.
-                $"Type variants (re)created: {totalTypes}\n" +
+                $"Type variants (re)created: {totalTypes} total\n" +
+                (succeeded > 0 ? $"  ({totalTypes / succeeded} per clone)\n" : "") +
                 (totalScope > 0
                     ? $"Tier gates converted Instance -> Type: {totalScope}\n"
                     : "") +
