@@ -25,14 +25,20 @@
 // WHAT THIS DOES
 //
 // Opens each .rfa standalone and, for every shared parameter whose type
-// disagrees with MR_PARAMETERS.txt, calls
+// disagrees with MR_PARAMETERS.txt, REMOVES it and ADDS the declared definition
+// in its place, inside one transaction per family.
 //
-//     FamilyManager.ReplaceParameter(old, mrDefinition, group, isInstance)
+// NOT ReplaceParameter. The first version of this command used it, and Revit
+// hung or crashed on APPLY (2026-09-21). MigrateTagLabelReferencesCommand
+// documents the constraint this tree had already learned: ReplaceParameter is
+// for "each OLD -> NEW mapping where the family carries the OLD shared parameter
+// AND THE STORAGE TYPES MATCH". It swaps a binding between parameters of one
+// type; it is not a way to CHANGE a type, which is the whole job here.
 //
-// which re-points the parameter at the declared definition and carries label
-// cells, formulas and type values across with it. Revit refuses the call when
-// the parameter is used somewhere the new type cannot go — that refusal is the
-// safety net, and it is reported per family rather than worked around.
+// Remove-then-add loses any label cell or formula that referenced the parameter,
+// which is why RemoveParameter refusing is the safety net. The 206 tag families
+// carry no label rows until they are propagated to (confirmed in Revit,
+// 2026-09-21), so the usual case is mechanical. The master is the exception.
 //
 // WHY IT IS SAFE TO RUN ON THE TAG LIBRARY
 //
@@ -141,12 +147,14 @@ namespace StingTools.Commands.TagStudio
                 var confirm = new TaskDialog("Fix Tag Family Parameter Types");
                 confirm.MainInstruction = $"Re-point wrong-typed parameters in {rfas.Count} .rfa file(s)?";
                 confirm.MainContent =
-                    "Each parameter whose type disagrees with MR_PARAMETERS.txt is replaced by the " +
-                    "declared definition, which carries label cells, formulas and type values with " +
-                    "it.\n\n" +
-                    "A copy of every file is taken first, into a _preparamtypes folder beside them.\n\n" +
-                    "Revit refuses the replacement where a parameter is used somewhere the declared " +
-                    "type cannot go. Those are reported per family, not worked around.\n\n" +
+                    "Each parameter whose type disagrees with MR_PARAMETERS.txt is REMOVED and the " +
+                    "declared definition added in its place. A type cannot be changed any other way.\n\n" +
+                    "That means any label cell or formula referencing it would be lost - so Revit " +
+                    "refuses the removal when one exists, and that family is reported rather than " +
+                    "changed. The tag families have no label rows until they are propagated to, so " +
+                    "the usual case is mechanical.\n\n" +
+                    "A copy of every file is taken first, into a _preparamtypes folder beside them, " +
+                    "and a family whose parameter could not be re-added is rolled back untouched.\n\n" +
                     "This does NOT change any project.";
                 confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
                 confirm.DefaultButton = TaskDialogResult.Cancel;
@@ -207,7 +215,8 @@ namespace StingTools.Commands.TagStudio
 
             var rows = new List<ParamTypeFixRow>(rfas.Count);
             var progress = rfas.Count > 5 ? StingProgressDialog.Show("Fix Parameter Types", rfas.Count) : null;
-            int fixedFiles = 0, cleanFiles = 0, partialFiles = 0, errorFiles = 0, totalReplaced = 0, totalRefused = 0;
+            int fixedFiles = 0, cleanFiles = 0, partialFiles = 0, errorFiles = 0,
+                totalReplaced = 0, totalRefused = 0, totalDisagreeing = 0;
 
             try
             {
@@ -224,10 +233,17 @@ namespace StingTools.Commands.TagStudio
                         }
                     }
 
+                    // Logged BEFORE the open. The previous version logged only after a
+                    // family succeeded, so a run that hung left no record of which file it
+                    // was on - the one fact needed to reproduce it.
+                    StingLog.Info($"FixTagFamilyParamTypes: [{i + 1}/{rfas.Count}] opening {Path.GetFileName(path)}");
                     var row = InspectOne(app, path, declared, defByName, mode == RunMode.Apply);
+                    StingLog.Info($"FixTagFamilyParamTypes: [{i + 1}/{rfas.Count}] {Path.GetFileName(path)} " +
+                                  $"-> {row.Verdict} (disagreeing={row.Disagreeing}, replaced={row.Replaced}, refused={row.Refused})");
                     rows.Add(row);
                     totalReplaced += row.Replaced;
                     totalRefused += row.Refused;
+                    totalDisagreeing += row.Disagreeing;
                     switch (row.Verdict)
                     {
                         case "OK": cleanFiles++; break;
@@ -261,11 +277,19 @@ namespace StingTools.Commands.TagStudio
             }
             catch (Exception ex) { StingLog.Warn($"FixTagFamilyParamTypes: Excel export: {ex.Message}"); }
 
-            string verb = mode == RunMode.Apply ? "re-pointed" : "would be re-pointed";
+            // An AUDIT never replaces anything, so reporting the replaced count in audit
+            // mode read "0 parameter(s) would be re-pointed across 141 families" - a
+            // headline that contradicts itself and hides the finding. The audit reports
+            // what DISAGREES; the apply reports what it actually did.
+            int headlineCount = mode == RunMode.Apply ? totalReplaced : totalDisagreeing;
+            int headlineFiles = mode == RunMode.Apply
+                ? fixedFiles + partialFiles
+                : rows.Count(r => r.Disagreeing > 0);
+            string verb = mode == RunMode.Apply ? "re-pointed" : "disagree with MR_PARAMETERS.txt";
             var td = new TaskDialog("Fix Tag Family Parameter Types — " +
                                     (mode == RunMode.Apply ? "done" : "audit"));
-            td.MainInstruction = $"{totalReplaced} parameter(s) {verb} across {fixedFiles + partialFiles} famil" +
-                                 (fixedFiles + partialFiles == 1 ? "y" : "ies");
+            td.MainInstruction = $"{headlineCount} parameter(s) {verb} across {headlineFiles} famil" +
+                                 (headlineFiles == 1 ? "y" : "ies");
             td.MainContent =
                 $"Scanned: {rows.Count}\n" +
                 $"Already agree with MR_PARAMETERS.txt: {cleanFiles}\n" +
@@ -319,9 +343,18 @@ namespace StingTools.Commands.TagStudio
                 }
 
                 var refused = new List<string>();
+                var failures = new CapturingFailuresPreprocessor();
                 using (var tx = new Transaction(famDoc, "STING Re-point parameter types"))
                 {
+                    // Without a preprocessor, a failure raised inside this transaction opens a
+                    // MODAL Revit dialog. Mid-batch, behind a modeless progress window,
+                    // that is indistinguishable from a hang - and it waits for a click
+                    // nobody can see to give it.
+                    var fho = tx.GetFailureHandlingOptions();
+                    tx.SetFailureHandlingOptions(
+                        fho.SetFailuresPreprocessor(failures).SetClearAfterRollback(true));
                     tx.Start();
+                    bool lostOne = false;
                     foreach (var c in conflicts)
                     {
                         if (!defByName.TryGetValue(c.FamilyName ?? "", out var ext))
@@ -329,29 +362,53 @@ namespace StingTools.Commands.TagStudio
                             refused.Add($"{c.FamilyName}: not in MR_PARAMETERS.txt by name");
                             continue;
                         }
+
+                        // Re-snapshot each time: removing a parameter invalidates the
+                        // FamilyParameter objects held from an earlier pass.
+                        FamilyParameter fp = fm.GetParameters()
+                            .FirstOrDefault(p => string.Equals(p?.Definition?.Name, c.FamilyName, StringComparison.Ordinal));
+                        if (fp == null) { refused.Add($"{c.FamilyName}: gone from the family"); continue; }
+
+                        bool isInstance = fp.IsInstance;
+                        ForgeTypeId group;
+                        try { group = fp.Definition?.GetGroupTypeId() ?? GroupTypeId.General; }
+                        catch { group = GroupTypeId.General; }
+
+                        // REMOVE first. Revit refuses when a label cell or formula still
+                        // references it, and that refusal is the safety net: it means this
+                        // is a family where a blind removal would have cost something.
+                        try { fm.RemoveParameter(fp); }
+                        catch (Exception ex)
+                        {
+                            refused.Add($"{c.FamilyName}: in use, cannot remove ({ex.Message})");
+                            continue;   // nothing lost - the family still has it
+                        }
+
+                        // ADD the declared definition in its place. A failure HERE has
+                        // already cost the parameter, so the whole family is rolled back
+                        // rather than saved half-converted.
                         try
                         {
-                            // Re-snapshot each time: ReplaceParameter can invalidate the
-                            // FamilyParameter objects held from an earlier pass.
-                            FamilyParameter fp = fm.GetParameters()
-                                .FirstOrDefault(p => string.Equals(p?.Definition?.Name, c.FamilyName, StringComparison.Ordinal));
-                            if (fp == null) { refused.Add($"{c.FamilyName}: gone from the family"); continue; }
-
-                            bool isInstance = fp.IsInstance;
-                            var group = fp.Definition?.GetGroupTypeId() ?? GroupTypeId.General;
-                            fm.ReplaceParameter(fp, ext, group, isInstance);
+                            fm.AddParameter(ext, group, isInstance);
                             row.Replaced++;
                         }
                         catch (Exception ex)
                         {
-                            // Revit refuses where the declared type cannot go - a label cell
-                            // or formula that needs Text, most often. Reported, never forced.
-                            refused.Add($"{c.FamilyName}: {ex.Message}");
+                            refused.Add($"{c.FamilyName}: removed but could not re-add ({ex.Message}) " +
+                                        "- this family was rolled back untouched");
+                            lostOne = true;
+                            break;
                         }
                     }
-                    if (row.Replaced > 0) tx.Commit(); else tx.RollBack();
+
+                    if (lostOne) { tx.RollBack(); row.Replaced = 0; }
+                    else if (row.Replaced > 0) tx.Commit();
+                    else tx.RollBack();
                 }
 
+                string failureText = failures.Summary();
+                if (!string.IsNullOrEmpty(failureText))
+                    StingLog.Warn($"FixTagFamilyParamTypes: '{row.FamilyName}' Revit reported: {failureText}");
                 row.Refused = refused.Count;
                 if (row.Replaced == 0)
                 {
