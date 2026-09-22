@@ -89,6 +89,24 @@ def text_source(param):
     return None, _dt.get(param)
 
 
+def pad(v):
+    """Render a cell so leading/trailing spaces survive the markdown.
+
+    A markdown cell pads with a space either side, so `| - |` is the same
+    whether the prefix is "-" or " - ". Eighty prefixes across the tag config
+    carry padding that separates two values sharing a line, and typing them
+    without it runs the values together.
+    """
+    if not v:
+        return ""
+    lead = len(v) - len(v.lstrip(" "))
+    trail = len(v) - len(v.rstrip(" "))
+    core = v.strip(" ")
+    if not core:
+        return "\u2423" * len(v)
+    return "\u2423" * lead + core + "\u2423" * trail
+
+
 def nice(param, tier):
     """Calc Value Name, following the universal sheet's convention."""
     core = param.replace("ELC_LPS_", "")
@@ -147,6 +165,14 @@ w("`used` is how many of the nine declare the row. A row used by one family stil
 w("belongs in the master: it renders blank on the other eight, exactly as every")
 w("tier already does.")
 w("")
+w("**Spaces is 0 on every row**, and the column is printed rather than stated")
+w("once: Revit defaults it to 1, and an extra gap before every value is subtle")
+w("enough to survive review.")
+w("")
+w("**\u2423 marks a space that matters.** A markdown cell pads with a space either")
+w("side, so `| - |` reads the same whether the prefix is `-` or ` - `. Type a real")
+w("space wherever you see \u2423.")
+w("")
 w("**Numeric parameters read their TEXT twin.** Revit has no number-to-string")
 w("conversion in family formulas, so `if(BOOL, <NUMBER>, \"\")` is rejected as")
 w("\"Inconsistent Units\" - the branches are different types. Twelve rows here are")
@@ -161,8 +187,8 @@ w("**Break is a suggestion here** - one per tier boundary. The declarations do n
 w("record line breaks, so unlike the T4-T10 block below these are not verified.")
 w("Adjust as the label reads.")
 w("")
-w("| # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break | used |")
-w("|---|---|---|---|---|---|---|---|")
+w("| # | Tier | Calc Value Name | Formula | Spaces | Prefix | Suffix | Break | used |")
+w("|---|---|---|---|---|---|---|---|---|")
 
 n = 0
 order = [k for k in rows if rows[k][0] == "T1"] + \
@@ -192,8 +218,8 @@ for idx, k in enumerate(order):
                        % (tier[1:], src, k, was))
         else:
             formula = '`if(TAG_PARA_STATE_%s_BOOL, %s, "")`' % (tier[1:], src)
-    w("| %d | %s | %s | %s | %s | %s | %s | %d/9 |"
-      % (n, tier, name, formula, pre or "", suf or "", brk, len(owners[k])))
+    w("| %d | %s | %s | %s | 0 | %s | %s | %s | %d/9 |"
+      % (n, tier, name, formula, pad(pre), pad(suf), brk, len(owners[k])))
 
 w("")
 w("## STEP 2 - Shared rows (T4-T10, %d rows)" % len(shared))
@@ -202,8 +228,8 @@ w("Copied verbatim from `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`. Revit blocks")
 w("cross-category label paste, so they must be re-typed - but nothing here needs")
 w("a decision, and the Break values are known-good.")
 w("")
-w("| # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break |")
-w("|---|---|---|---|---|---|---|")
+w("| # | Tier | Calc Value Name | Formula | Spaces | Prefix | Suffix | Break |")
+w("|---|---|---|---|---|---|---|---|")
 for i, (tier, rest) in enumerate(shared, start=n + 1):
     w("| %d | %s %s" % (i, tier, rest))
 
