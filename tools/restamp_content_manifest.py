@@ -103,10 +103,38 @@ def main():
         return 0
 
     shutil.copy2(MANIFEST, MANIFEST + ".bak")
-    with io.open(MANIFEST, "w", encoding="utf-8", newline="\n") as fh:
-        json.dump(doc, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    print(f"\nRe-stamped {differ} checksum(s). Backup: {os.path.basename(MANIFEST)}.bak")
+
+    # Rewrite the checksum VALUES in place, as text. Re-serialising with
+    # json.dump is semantically identical and practically much worse: this file
+    # is written by tools/content/gen_content_manifest.ps1, whose ConvertTo-Json
+    # uses a different style ("key":  "value", array indentation), so a dump
+    # here reformats all 39k lines. Measured 2026-09-22: a 206-checksum change
+    # produced a 5,350-line diff, and the two tools would then reformat it back
+    # and forth on every run - churn that makes a real edit unreviewable and
+    # hides it among thousands of cosmetic ones.
+    #
+    # The substitution is anchored per old value and applied once each, so a
+    # checksum appearing twice cannot be over-written, and anything that fails
+    # to match is reported rather than silently skipped.
+    text = io.open(MANIFEST, encoding="utf-8").read()
+    written, unmatched = 0, []
+    for fn, old, new in changed:
+        if not old:
+            unmatched.append(f"{fn} (no previous checksum to replace)")
+            continue
+        if text.count(old) != 1:
+            unmatched.append(f"{fn} (old checksum appears {text.count(old)} times)")
+            continue
+        text = text.replace(old, new, 1)
+        written += 1
+
+    io.open(MANIFEST, "w", encoding="utf-8", newline="").write(text)
+    print(f"\nRe-stamped {written} checksum(s) in place. Backup: {os.path.basename(MANIFEST)}.bak")
+    if unmatched:
+        print(f"WARNING: {len(unmatched)} checksum(s) could NOT be replaced as text and are "
+              "UNCHANGED - re-run --check, and fix these by hand:")
+        for u in unmatched[:10]:
+            print("    " + u)
     if missing:
         print(f"WARNING: {missing} entry/entries have no file in this library and were "
               "left untouched — their checksums still describe the previous baseline.")
