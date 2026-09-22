@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -144,24 +144,12 @@ namespace StingTools.Commands.Electrical.LoadDemand
         // ProjectName for sector hints (hospital→Healthcare, school→Education,
         // etc.); fall back to "Commercial". Engineer can override at panel
         // level once a formal sector parameter is added to MR_PARAMETERS.
+        // Delegates. This used to be a second, private copy of the sector
+        // rules - and it did NOT read PRJ_BUILDING_USE_TXT, so a project
+        // that had declared its use was still guessed at from its name.
+        // Two copies of a judgement are two answers waiting to differ.
         private static string ResolveSector(Document doc)
-        {
-            try
-            {
-                var pi = doc?.ProjectInformation;
-                if (pi == null) return "Commercial";
-                string blob = ((pi.OrganizationDescription ?? "") + " " +
-                               (pi.BuildingName ?? "") + " " +
-                               (pi.Name ?? "")).ToLowerInvariant();
-                if (blob.Contains("hospital") || blob.Contains("healthcare") || blob.Contains("clinic")) return "Healthcare";
-                if (blob.Contains("school") || blob.Contains("university") || blob.Contains("college")) return "Education";
-                if (blob.Contains("warehouse") || blob.Contains("factory") || blob.Contains("industrial")) return "Industrial";
-                if (blob.Contains("residential") || blob.Contains("dwelling") || blob.Contains("housing")) return "Residential";
-                if (blob.Contains("retail") || blob.Contains("shop") || blob.Contains("store")) return "Retail";
-            }
-            catch { }
-            return "Commercial";
-        }
+            => Core.Electrical.ProjectSector.Resolve(doc);
 
         private static FamilyInstance FindPanelByName(Document doc, string name)
         {

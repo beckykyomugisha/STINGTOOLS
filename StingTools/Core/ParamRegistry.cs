@@ -1179,6 +1179,22 @@ namespace StingTools.Core
             public string Threshold { get; set; }
             public string Unit { get; set; }
             public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+
+            /// <summary>
+            /// Names a per-sector table to look the threshold up in, instead of
+            /// using <see cref="Threshold"/>. Currently "spareTargetsPct".
+            ///
+            /// <para>A fixed number cannot be right for every building. Panel
+            /// spare capacity is the case that forced this: the flat 20 here
+            /// matched only Residential, while the design targets run to 35 for
+            /// Healthcare - so the warning stayed quiet at 22% spare on a
+            /// hospital, silent exactly where the requirement is strictest.</para>
+            ///
+            /// <para><see cref="Threshold"/> stays populated and is the fallback,
+            /// so a table that cannot be read degrades to the old behaviour
+            /// rather than to no check at all.</para>
+            /// </summary>
+            public string ThresholdTable { get; set; }
         }
 
         /// <summary>All warning threshold definitions keyed by param name.</summary>
@@ -1211,9 +1227,40 @@ namespace StingTools.Core
         /// Returns a warning message if threshold is exceeded, or null if compliant.
         /// </summary>
         public static string EvaluateWarning(WarningThresholdDef def, string currentValue)
+            => EvaluateWarning(def, currentValue, null);
+
+        /// <summary>
+        /// Evaluate a warning threshold, resolving a per-sector threshold when
+        /// the definition names a table.
+        ///
+        /// <para><paramref name="sector"/> may be null - the definition's own
+        /// fixed threshold is then used, which is what every caller did before
+        /// sectors existed.</para>
+        /// </summary>
+        public static string EvaluateWarning(WarningThresholdDef def, string currentValue, string sector)
         {
             if (def == null || string.IsNullOrEmpty(currentValue) || string.IsNullOrEmpty(def.Threshold))
                 return null;
+
+            // A per-sector threshold REPLACES the fixed one. Resolved into a
+            // copy, never written back onto the shared definition - these defs
+            // are static and cached, and mutating one would leak the first
+            // document's sector into every document opened afterwards.
+            if (!string.IsNullOrEmpty(def.ThresholdTable) && !string.IsNullOrWhiteSpace(sector))
+            {
+                double bySector = ResolveTableThreshold(def.ThresholdTable, sector);
+                if (bySector > 0)
+                    def = new WarningThresholdDef
+                    {
+                        ParamName = def.ParamName,
+                        Guid = def.Guid,
+                        Description = def.Description + $" ({sector})",
+                        Threshold = bySector.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        Unit = def.Unit,
+                        Severity = def.Severity,
+                        ThresholdTable = def.ThresholdTable
+                    };
+            }
             // Try numeric comparison
             if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
             {
@@ -1230,6 +1277,25 @@ namespace StingTools.Core
                     return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
             }
             return null;
+        }
+
+        /// <summary>
+        /// The threshold for a named table and sector, or 0 when the table is
+        /// not one this knows - in which case the caller keeps the definition's
+        /// fixed threshold rather than losing the check.
+        /// </summary>
+        private static double ResolveTableThreshold(string table, string sector)
+        {
+            try
+            {
+                if (string.Equals(table, "spareTargetsPct", StringComparison.OrdinalIgnoreCase))
+                    return Core.Electrical.SpareCapacityTable.TargetPct(sector);
+
+                StingLog.Warn($"EvaluateWarning: threshold_table '{table}' is not recognised — " +
+                              "using the definition's fixed threshold");
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveTableThreshold('{table}','{sector}'): {ex.Message}"); }
+            return 0;
         }
 
         // ── Paragraph container mapping (v5.5) ──────────────────────────
@@ -2584,6 +2650,9 @@ namespace StingTools.Core
                     Threshold   = w["threshold"]?.ToString() ?? "",
                     Unit        = w["unit"]?.ToString() ?? "",
                     Severity    = w["severity"]?.ToString() ?? "MEDIUM",
+                    // Optional. When present the threshold is looked up per
+                    // sector and "threshold" becomes the fallback.
+                    ThresholdTable = w["threshold_table"]?.ToString(),
                 };
                 if (!string.IsNullOrEmpty(def.ParamName))
                     WarningThresholds[def.ParamName] = def;

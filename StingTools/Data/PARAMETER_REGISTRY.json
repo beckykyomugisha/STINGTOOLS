@@ -33222,6 +33222,7 @@
       "guid": "813ba18b-4be2-534e-a61e-064685b5898d",
       "description": "Panel spare ways minimum",
       "threshold": "20",
+      "threshold_table": "spareTargetsPct",
       "unit": "%",
       "severity": "MEDIUM",
       "param_type": "TEXT",

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -2078,7 +2078,11 @@ namespace StingTools.Core
                 string dataValue = GetWarningDataValue(el, warnParam, categoryName);
                 if (string.IsNullOrEmpty(dataValue)) continue;
 
-                string warning = ParamRegistry.EvaluateWarning(def, dataValue);
+                // Sector-aware: a per-sector threshold (panel spare capacity)
+                // resolves against THIS project, not a flat number that suits
+                // one building type.
+                string warning = ParamRegistry.EvaluateWarning(
+                    def, dataValue, Core.Electrical.ProjectSector.Resolve(doc));
                 if (!string.IsNullOrEmpty(warning))
                     warnings.Add(warning);
             }
@@ -2119,7 +2123,8 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    string evalResult = ParamRegistry.EvaluateWarning(def, dataValue);
+                    string evalResult = ParamRegistry.EvaluateWarning(
+                        def, dataValue, Core.Electrical.ProjectSector.Resolve(doc));
                     if (!string.IsNullOrEmpty(evalResult))
                     {
                         // Threshold violated — write the warning text
