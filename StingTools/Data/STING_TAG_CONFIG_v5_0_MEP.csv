@@ -1399,6 +1399,7 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 8,HIGH,WARN_ELC_PNL_SCHEDULE_MISSING,Electrical panel exists but no PanelScheduleView has been created,BS 7671 Regulation 514 / IEC 60364-5-51,Common,Text,⚠ Warning: Panel Schedule Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SCHEDULE_MISSING, """")"
 9,HIGH,WARN_ELC_PNL_LOAD_BALANCE,3-phase panel phase imbalance > 10% of connected load,BS 7671 / CIBSE Guide K,Common,Text,⚠ Warning: Phase Load Imbalance >10%,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_LOAD_BALANCE, """")"
 10,HIGH,WARN_ELC_PNL_FEEDER_UNDERSIZED,Feeder cable cross-section insufficient for connected load and diversity,BS 7671 Appendix 4 / IEC 60364-5-52,Common,Text,⚠ Warning: Feeder Cable Undersized,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_FEEDER_UNDERSIZED, """")"
+11,HIGH,WARN_ELC_PNL_NO_TVSS,Critical panel without surge protection,BS 7671 §443,E,Text,⚠ Warning: Panel No TVSS,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_NO_TVSS, """""""")"
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2795,7 +2796,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 
 6G — HVAC Spaces/Zones
 Tag Family #44: STING - Spaces Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2845,7 +2846,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 3,MEDIUM,WARN_BLE_ROOM_OCCUPANCY_SPACES,Occupancy density exceeds maximum for space type,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Space Occupancy Density,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_OCCUPANCY_SPACES, """")"
 
 Tag Family #45: STING - Zones Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: HVAC Zones
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3186,7 +3187,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 1,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,Tie-in status = OPEN (tray dead-end unresolved),IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Open Cable Tray Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CABLETRAY, """")"
 
 Tag Family #50: STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)
-TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -3244,8 +3245,10 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
 
+Tag Family #63: STING - Tie-In Gas Pipe Tag
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
-TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -3305,7 +3308,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_GAS,Gas tie-in DEFERRED — gas authority notification required,BS 6891 / Gas Safety Regulations,Common,Text,⚠ Warning: Deferred Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_GAS, """")"
 
 Tag Family #52: STING - MEP Sheet Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -3337,6 +3340,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
 
 Tag Family #53: STING - MEP Sleeve Tag
+TAG7: ASS_TAG_7_PARA_PENETRATION_TXT  •  Category: Generic Models
 # Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
 # Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
 
@@ -3414,7 +3418,7 @@ Tag Family #53: STING - MEP Sleeve Tag
 Tag Family #54: STING - LPS Air Terminal Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ATR (Air Terminal Rod) / AMS (Air Mesh Section) / ACT (Air Catenary) | SYS: LPS | FUNC: AT | DISC: E
 # Lightning protection air-termination per BS EN 62305-3 §5.2 — rolling sphere / mesh / protection angle method
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3479,7 +3483,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #55: STING - LPS Down Conductor Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Conduit Fittings, Specialty Equipment | PROD: DCN (Down Conductor) / DCS (Steel reinforcement reused) | SYS: LPS | FUNC: DC | DISC: E
 # Lightning protection down conductor per BS EN 62305-3 §5.3 — minimum count + cross-section by class
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3541,7 +3545,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
 Tag Family #56: STING - LPS Earth Electrode Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ERD (Earth Rod) / ERG (Earth Ring) / EFE (Foundation Earth) / EME (Mesh Earth) | SYS: LPS | FUNC: EE | DISC: E
 # Lightning protection earth electrode per BS EN 62305-3 §5.4 — Type A (rod/plate) or Type B (ring/foundation)
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3602,7 +3606,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #57: STING - LPS Bond Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Specialty Equipment | PROD: BCN (Bond Conductor) / BBR (Bonding Bar) / BSG (Spark Gap) | SYS: LPS | FUNC: BOND | DISC: E
 # Lightning protection equipotential bonding per BS EN 62305-3 §6.2 — DIRECT / SPD / ISOLATING_SPARK_GAP
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3656,7 +3660,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #58: STING - LPS SPD Tag
 # Category: Electrical Equipment, Specialty Equipment | PROD: SPD1 (Type 1) / SPD2 (Type 2) / SPD3 (Type 3) | SYS: LPS | FUNC: SPD | DISC: E
 # Surge protective device per BS EN 62305-4 + BS EN 61643 — coordinated SPD strategy across LPZ boundaries
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3671,7 +3675,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #59: STING - LPS Test Clamp Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: TCL (Test Clamp) / TIP (Inspection Point) | SYS: LPS | FUNC: TC | DISC: E
 # Test clamp / inspection point per BS EN 62305-3 §7.2 — required for periodic earth resistance testing
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3724,10 +3728,6 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 1,MEDIUM,WARN_ELC_LPS_INSPECTION_OVERDUE,Inspection overdue per BS EN 62305-3 §E.7 (12mo Class I/II / 24mo Class III/IV),BS EN 62305-3:2011 §E.7,Common,Text,⚠ Warning: Inspection Overdue,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_INSPECTION_OVERDUE, """")"
 
 # ─── Phase 184l: electrical panel additional warnings ──────────────────────
-1,HIGH,WARN_ELC_PNL_SPARES_LOW,ELC_PNL_SPARE_WAYS_NR < 10% of NUM_OF_WAYS,HTM 06-01,E,Text,⚠ Warning: Panel Spares <10%,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SPARES_LOW, """""""")"
-2,HIGH,WARN_ELC_PNL_SCCR_LOW,ELC_PNL_SHORT_CIRCUIT_RATING_KA < fault,BS 7671 / NFPA 70,E,Text,⚠ Warning: Panel SCCR Below Fault Level,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_SCCR_LOW, """""""")"
-3,HIGH,WARN_ELC_PNL_AIC_INADEQUATE,ELC_PNL_AIC_RATING_KA < available fault,BS 7671 §434,E,Text,⚠ Warning: Panel AIC Inadequate,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_AIC_INADEQUATE, """""""")"
-4,HIGH,WARN_ELC_PNL_NO_TVSS,Critical panel without surge protection,BS 7671 §443,E,Text,⚠ Warning: Panel No TVSS,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_NO_TVSS, """""""")"
 
 Tag Family #60: STING - Specialty Equipment Tag Asset
 TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
@@ -3841,7 +3841,7 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 2,MEDIUM,WARN_GEN_SPEC_EQUIP_NO_COMMISSION,Commissioning requirements not specified,BSRIA BG 8/2009 / CIBSE Commissioning Code,Common,Text,⚠ Warning: No Commissioning Req,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, """")"
 
 Tag Family #62: STING - Tie-In FP Pipe Tag
-TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Tie-In FP Pipe (Fire Protection Pipe)
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -3898,3 +3898,4 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Tie-In FP Pipe (Fire Protection P
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
+TAG_FAMILY,STING_LPS_Tag_Universal,E,Multi-Category,LabelMaster: LPS,the hand-built Multi-Category master the nine LPS tags take their label from (see docs/LPS_TAG_MASTER_BUILD_SHEET.md). Declared so propagation can tell WHICH master is running; it is not itself a shipped tag family.

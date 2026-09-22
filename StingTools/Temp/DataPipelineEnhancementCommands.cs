@@ -1,6 +1,6 @@
 // ===================================================================================
 // Data Pipeline Enhancement Commands — Covers TEMP, validation, and data integrity gaps
-// Cross-validation between CSV files, PARAMETER__CATEGORIES activation,
+// Cross-validation between CSV files, PARAMETER_CATEGORIES activation,
 // FAMILY_PARAMETER_BINDINGS integration, configurable tag format, sunset dates.
 // ===================================================================================
 
@@ -213,7 +213,7 @@ namespace StingTools.Temp
     }
 
     /// <summary>
-    /// TEMP-07: Load and display PARAMETER__CATEGORIES.csv metadata.
+    /// TEMP-07: Load and display PARAMETER_CATEGORIES.csv metadata.
     /// Activates the previously unused file for parameter documentation.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
@@ -224,10 +224,10 @@ namespace StingTools.Temp
         {
             try
             {
-                var path = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
+                var path = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
                 if (string.IsNullOrEmpty(path))
                 {
-                    TaskDialog.Show("STING Parameter Metadata", "PARAMETER__CATEGORIES.csv not found.");
+                    TaskDialog.Show("STING Parameter Metadata", "PARAMETER_CATEGORIES.csv not found.");
                     return Result.Failed;
                 }
 
@@ -235,20 +235,35 @@ namespace StingTools.Temp
                 try { lines = File.ReadAllLines(path); }
                 catch (Exception ioEx)
                 {
-                    TaskDialog.Show("STING", $"Failed to read PARAMETER__CATEGORIES.csv: {ioEx.Message}");
+                    TaskDialog.Show("STING", $"Failed to read PARAMETER_CATEGORIES.csv: {ioEx.Message}");
                     return Result.Failed;
                 }
                 if (lines.Length == 0)
                 {
-                    TaskDialog.Show("STING", "PARAMETER__CATEGORIES.csv is empty.");
+                    TaskDialog.Show("STING", "PARAMETER_CATEGORIES.csv is empty.");
                     return Result.Failed;
                 }
-                var header = StingToolsApp.ParseCsvLine(lines[0]);
+                // The file opens with "#" version-history comments - seven of them
+                // today - so line 0 is not the header. Taking it as one made
+                // dataTypeCol and groupCol both -1, and every count below silently
+                // reported zero. Find the first non-comment line instead, and count
+                // data rows from there rather than from lines.Length.
+                int headerIdx = Array.FindIndex(lines, l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#"));
+                if (headerIdx < 0)
+                {
+                    TaskDialog.Show("STING", "PARAMETER_CATEGORIES.csv has no header row - only comments.");
+                    return Result.Failed;
+                }
+                var header = StingToolsApp.ParseCsvLine(lines[headerIdx]);
+                int firstData = headerIdx + 1;
+                int dataRows = 0;
+                for (int i = firstData; i < lines.Length; i++)
+                    if (!string.IsNullOrWhiteSpace(lines[i]) && !lines[i].TrimStart().StartsWith("#")) dataRows++;
 
                 var sb = new StringBuilder();
-                sb.AppendLine("═══ Parameter Metadata (PARAMETER__CATEGORIES.csv) ═══\n");
+                sb.AppendLine("═══ Parameter Metadata (PARAMETER_CATEGORIES.csv) ═══\n");
                 sb.AppendLine($"Columns: {string.Join(", ", header)}");
-                sb.AppendLine($"Parameters: {lines.Length - 1}");
+                sb.AppendLine($"Parameters: {dataRows}");
                 sb.AppendLine();
 
                 // Parse and show summary
@@ -258,7 +273,7 @@ namespace StingTools.Temp
                 int dataTypeCol = Array.FindIndex(header, h => h.Trim().Equals("Data Type", StringComparison.OrdinalIgnoreCase));
                 int groupCol = Array.FindIndex(header, h => h.Trim().Equals("Group", StringComparison.OrdinalIgnoreCase));
 
-                for (int i = 1; i < lines.Length; i++)
+                for (int i = firstData; i < lines.Length; i++)
                 {
                     var parts = StingToolsApp.ParseCsvLine(lines[i]);
                     if (dataTypeCol >= 0 && dataTypeCol < parts.Length)
@@ -285,7 +300,7 @@ namespace StingTools.Temp
 
                 // Show first 10 parameters
                 sb.AppendLine("\nFirst 10 parameters:");
-                for (int i = 1; i <= Math.Min(10, lines.Length - 1); i++)
+                for (int i = firstData; i < Math.Min(firstData + 10, lines.Length); i++)
                 {
                     var parts = StingToolsApp.ParseCsvLine(lines[i]);
                     if (parts.Length > 0)
@@ -559,12 +574,12 @@ namespace StingTools.Temp
                     sb.AppendLine($"  Used by: BatchAddFamilyParamsCommand");
                 }
 
-                // PARAMETER__CATEGORIES.csv
-                var pcPath = StingToolsApp.FindDataFile("PARAMETER__CATEGORIES.csv");
+                // PARAMETER_CATEGORIES.csv
+                var pcPath = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
                 if (!string.IsNullOrEmpty(pcPath))
                 {
                     int rows = CountCsvRows(pcPath);
-                    sb.AppendLine($"\n[REFERENCE] PARAMETER__CATEGORIES.csv — {rows} parameters");
+                    sb.AppendLine($"\n[REFERENCE] PARAMETER_CATEGORIES.csv — {rows} parameters");
                     sb.AppendLine($"  Used by: ViewParameterMetadataCommand (human-readable reference)");
                 }
 

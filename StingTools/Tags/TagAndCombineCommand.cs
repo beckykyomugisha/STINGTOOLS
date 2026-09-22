@@ -37,6 +37,10 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // Totals below must describe THIS run, not the whole session.
+            ParameterHelpers.ResetTokenHygieneCounters();
+            ParamRegistry.ResetTokenSanitiseCounters();
+
             try { return ExecuteCore(commandData, ref message, elements); }
             catch (OperationCanceledException) { return Result.Cancelled; }
             catch (Exception ex)
@@ -245,6 +249,19 @@ namespace StingTools.Tags
                 $"collisions={stats.TotalCollisions}, errors={errors}, " +
                 $"compliance={postScan?.StatusBarText ?? "N/A"}, " +
                 $"elapsed={sw.Elapsed.TotalSeconds:F1}s");
+
+            // Token hygiene. Both sanitisers cap their per-occurrence warnings, so
+            // without these totals a run that quietly emptied forty tokens looks
+            // identical to one that emptied none - which is how a tag rendered
+            // "M-BLD1-Z01-L01-HVAC--EAT-" with nothing in the log to explain it.
+            int writeCleanups = ParameterHelpers.SourceTokenWriteCleanups;
+            int readSanitised = ParamRegistry.TokenSanitiseCount;
+            if (writeCleanups > 0 || readSanitised > 0)
+                StingLog.Warn($"TagAndCombine: token hygiene — {writeCleanups} write(s) sanitised " +
+                              $"(a value containing '{ParamRegistry.Separator}' stores EMPTY), " +
+                              $"{readSanitised} stored value(s) cleaned on read " +
+                              $"({ParamRegistry.TokenSanitiseSuppressed} of them unlogged). " +
+                              "An emptied token is why a tag segment renders blank.");
 
             // Phase 165 follow-up — explicit batch teardown.
             TokenAutoPopulator.PopulationContext.EndSession();

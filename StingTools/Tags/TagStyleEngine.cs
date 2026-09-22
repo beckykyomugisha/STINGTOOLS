@@ -1408,7 +1408,7 @@ namespace StingTools.Tags
         /// <summary>
         /// Find the FamilySymbol inside <paramref name="baseFamilyId"/> whose name matches the
         /// canonical name for <c>(size, style, colour, arrowhead, depthTier)</c> (see
-        /// <see cref="TypeVariantSpec.CanonicalTypeName"/>, e.g. "2.5_BOLD_RED_Filled30_T3").
+        /// <see cref="TypeVariantSpec.CanonicalTypeName"/>, e.g. "2.5_BOLD_RED_Filled30_T2").
         ///
         /// Returns <see cref="ElementId.InvalidElementId"/> when no matching type exists —
         /// caller should fall back to the current type and log a warning that

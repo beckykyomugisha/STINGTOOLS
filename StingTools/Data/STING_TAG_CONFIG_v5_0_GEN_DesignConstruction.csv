@@ -1482,7 +1482,7 @@ TAG7: ELC_TAG_7_PARA_CIRC_TXT  •  Category: Wire
 1,CRITICAL,WARN_ELC_WIRE_AMPACITY_MISSING,ELC_WIRE_SIZE_TXT empty — wire ampacity not specified,BS 7671 / IEE Wiring Regs 18th Ed,Common,Text,⚠ Warning: Wire Ampacity Missing,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_WIRE_AMPACITY_MISSING, """")"
 
 Tag Family #33: STING - Sheet Document Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets (ViewSheet)
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1532,7 +1532,7 @@ Tag Family #34: STING - LPS Generic Component Tag
 # DC variant — same content as Handover/FM (tier 1-2 + warnings only; no T4-T10 expansion).
 # CROSS-REFERENCE: 6 specialised LPS tag families live in STING_TAG_CONFIG_v5_0_MEP_DesignConstruction.csv (#54-#59).
 # CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Generic Models / Specialty Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow

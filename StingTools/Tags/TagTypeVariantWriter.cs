@@ -50,6 +50,25 @@ namespace StingTools.Tags
             foreach (FamilyType ft in fm.Types)
                 if (ft != null && !string.IsNullOrEmpty(ft.Name)) existingTypes.Add(ft.Name);
 
+            // Types the family has that the catalogue no longer asks for. This writer
+            // only ever ADDS, so a catalogue change leaves the old names behind: when
+            // depth tier 3 was dropped on 2026-09-17, every family already propagated
+            // kept its _T3 types alongside the new _T2 ones - two types that look like
+            // a choice, which is the problem the drop was meant to remove.
+            //
+            // Named, not deleted. A type may have tags placed on it, and deleting it
+            // would take them with it; that is the operator's call via Purge Unused.
+            var wanted = new HashSet<string>(
+                variants.Select(v => v.CanonicalTypeName), StringComparer.OrdinalIgnoreCase);
+            var stale = existingTypes.Where(n => !wanted.Contains(n))
+                                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                                     .ToList();
+            if (stale.Count > 0)
+                StingLog.Info($"TagTypeVariantWriter: {stale.Count} existing type(s) are not in the " +
+                              "catalogue and were left alone: " + string.Join(", ", stale.Take(12)) +
+                              (stale.Count > 12 ? $", +{stale.Count - 12} more" : "") +
+                              ". Purge Unused removes any with no tags placed on them.");
+
             foreach (var spec in variants)
             {
                 string typeName = spec.CanonicalTypeName;
@@ -75,15 +94,31 @@ namespace StingTools.Tags
                 // Tag-formula BOOLs are TEXT in MR_PARAMETERS v5.3+ so Revit label
                 // Calculated Values can reference them inside if(...); the Integer
                 // branch keeps legacy YESNO families migrating cleanly.
+                int highestGate = 0;
                 for (int t = 1; t <= 10; t++)
                 {
                     string pname = $"TAG_PARA_STATE_{t}_BOOL";
                     if (paramByName.TryGetValue(pname, out var pfp))
                     {
+                        highestGate = t;
                         try { SetFamilyBool(fm, pfp, t <= spec.DepthTier); }
                         catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
                     }
                 }
+
+                // A variant can ask for a depth the family has no gate for, and then
+                // renders fewer tiers than its own name claims. Once the master stopped
+                // carrying TAG_PARA_STATE_3_BOOL, every _T3 variant became identical to
+                // _T2 on the drawing while still reporting depth 3 - two type variants
+                // that look like a choice and are not. Said out loud rather than
+                // silently clamped: which way to resolve it (add T3 label rows, or stop
+                // minting _T3 variants) is a decision about the label, not about this
+                // writer.
+                if (spec.DepthTier > highestGate)
+                    StingLog.Warn($"TagTypeVariantWriter: {typeName} asks for depth {spec.DepthTier} " +
+                                  $"but the family's highest tier gate is {highestGate} " +
+                                  $"(TAG_PARA_STATE_{spec.DepthTier}_BOOL is absent), so it renders " +
+                                  $"as depth {highestGate}");
 
                 // 2. Style BOOLs: only the matching combo = Yes
                 string activeStyle = ParamRegistry.TagStyleParamName(spec.Size, spec.Style, spec.Colour);

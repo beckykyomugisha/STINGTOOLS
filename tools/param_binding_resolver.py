@@ -242,6 +242,57 @@ print("resolution source:")
 for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
+
+# ── never narrow what a gate has widened ────────────────────────────────────
+#
+# This script DERIVES bindings. It does not know the two rules that other gates
+# enforce, and both of them WIDEN a parameter's category list:
+#
+#   * every parameter a tag label displays must be bound to the category that
+#     family tags, or the label renders blank (095c9c8eb: 128 of 206 families
+#     had at least one such row);
+#   * every schedule field must be bound to its schedule's category, or the
+#     column renders empty (304a132f2).
+#
+# Regenerating from scratch therefore DROPS those widenings. Measured
+# 2026-09-22: it removed 251 rows' worth of categories, and the Revit-free
+# gates immediately reported 340 label parameters across 120 families unable to
+# reach their own category and 197 empty schedule columns. A green
+# regenerate-is-a-noop bought by deleting those is worse than a red one.
+#
+# So a category present in the committed file is KEPT. The derivation may add,
+# never remove. The drift gate still catches a resolver that invents a binding,
+# which is the direction that needs catching - a wrongly ADDED binding is a
+# parameter on a category that should not carry it, and nothing else would see
+# it.
+_prev = {}
+try:
+    with open("StingTools/Data/RESOLVED_BINDINGS.csv", newline="", encoding="utf-8") as _f:
+        for _row in csv.reader(_f):
+            if len(_row) >= 2 and not _row[0].startswith("#"):
+                _prev[_row[0]] = _row[1]
+except FileNotFoundError:
+    pass
+
+_widened = 0
+for _i, _o in enumerate(out):
+    _n, _g, _srcx, _cats, _d = _o
+    _was = _prev.get(_n)
+    if not _was or _was == _cats:
+        continue
+    if _was == "<ALL>" or _cats == "<ALL>":
+        # <ALL> is the widest there is; never trade it for a list.
+        if _was == "<ALL>" and _cats != "<ALL>":
+            out[_i] = (_n, _g, _srcx, "<ALL>", _d)
+            _widened += 1
+        continue
+    _union = sorted(set(_was.split("|")) | set(_cats.split("|")))
+    if len(_union) > len(_cats.split("|")):
+        out[_i] = (_n, _g, _srcx, "|".join(_union), _d)
+        _widened += 1
+
+print("kept wider committed bindings on %d parameter(s)" % _widened)
+
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:

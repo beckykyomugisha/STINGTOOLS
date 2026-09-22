@@ -19629,3 +19629,60 @@ STR_WALL_TYPE_TXT,Structural Wall,Instance,True
 STR_WELD_PROCEDURE_REF_TXT,Structural Connection,Instance,True
 STR_WELD_SIZE_MM,Weld,Instance,True
 STR_WELD_TYPE_TXT,Weld,Instance,True
+STR_REBAR_MEMBER_REF_TXT,Structural Rebar,Instance,Yes
+STR_REBAR_MEMBER_REF_TXT,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_MEMBER_REF_TXT,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_MEMBER_REF_TXT,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_MEMBER_REF_TXT,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_NO_OF_MBRS_NR,Structural Rebar,Instance,Yes
+STR_REBAR_NO_OF_MBRS_NR,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_NO_OF_MBRS_NR,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_NO_OF_MBRS_NR,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_NO_OF_MBRS_NR,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_BARS_IN_EACH_NR,Structural Rebar,Instance,Yes
+STR_REBAR_BARS_IN_EACH_NR,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_BARS_IN_EACH_NR,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_BARS_IN_EACH_NR,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_BARS_IN_EACH_NR,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_TOTAL_NO_NR,Structural Rebar,Instance,Yes
+STR_REBAR_TOTAL_NO_NR,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_TOTAL_NO_NR,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_TOTAL_NO_NR,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_TOTAL_NO_NR,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_CUT_LENGTH_MM,Structural Rebar,Instance,Yes
+STR_REBAR_CUT_LENGTH_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_CUT_LENGTH_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_CUT_LENGTH_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_CUT_LENGTH_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_DIM_A_MM,Structural Rebar,Instance,Yes
+STR_REBAR_DIM_A_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_DIM_A_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_DIM_A_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_DIM_A_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_DIM_B_MM,Structural Rebar,Instance,Yes
+STR_REBAR_DIM_B_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_DIM_B_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_DIM_B_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_DIM_B_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_DIM_C_MM,Structural Rebar,Instance,Yes
+STR_REBAR_DIM_C_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_DIM_C_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_DIM_C_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_DIM_C_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_DIM_D_MM,Structural Rebar,Instance,Yes
+STR_REBAR_DIM_D_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_DIM_D_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_DIM_D_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_DIM_D_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_DIM_E_MM,Structural Rebar,Instance,Yes
+STR_REBAR_DIM_E_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_DIM_E_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_DIM_E_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_DIM_E_MM,Structural Rebar Couplers,Instance,Yes
+STR_REBAR_BEND_RADIUS_MM,Structural Rebar,Instance,Yes
+STR_REBAR_BEND_RADIUS_MM,Structural Area Reinforcement,Instance,Yes
+STR_REBAR_BEND_RADIUS_MM,Structural Path Reinforcement,Instance,Yes
+STR_REBAR_BEND_RADIUS_MM,Structural Fabric Reinforcement,Instance,Yes
+STR_REBAR_BEND_RADIUS_MM,Structural Rebar Couplers,Instance,Yes
+BI_ACCENT_COLOR_TXT,Generic Models,Instance,Yes
+BI_THEME_NAME_TXT,Generic Models,Instance,Yes

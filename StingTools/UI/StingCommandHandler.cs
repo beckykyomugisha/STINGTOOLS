@@ -966,9 +966,24 @@ namespace StingTools.UI
                     case "FlipTags":
                     case "FlipTagsH": SetExtraParam("FlipDirection", "H"); RunCommand<Organise.FlipTagsCommand>(app); break;
                     case "FlipTagsV": SetExtraParam("FlipDirection", "V"); RunCommand<Organise.FlipTagsCommand>(app); break;
+                    // Pass the panel's radio choice through, the same way
+                    // FlipTagsH/V does. Without it all three tags arrived
+                    // identically and the command asked again.
                     case "AlignTextLeft":
+                        SetExtraParam("TextAlign", "Left");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
                     case "AlignTextCenter":
-                    case "AlignTextRight": RunCommand<Organise.AlignTagTextCommand>(app); break;
+                        SetExtraParam("TextAlign", "Center");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
+                    case "AlignTextRight":
+                        SetExtraParam("TextAlign", "Right");
+                        RunCommand<Organise.AlignTagTextCommand>(app);
+                        ClearExtraParam("TextAlign");
+                        break;
                     case "AutoAlignLeaderText": RunCommand<Organise.AutoAlignLeaderTextCommand>(app); break;
 
                     // ── Align & distribute ──
@@ -3111,6 +3126,18 @@ namespace StingTools.UI
                     // read-only audit of a folder of .rfa families against the STING contract.
                     // Use BEFORE bulk-stamping a manufacturer library.
                     case "FamilyConformanceCheck": RunCommand<Tags.FamilyConformanceCheckCommand>(app); break;
+                    // Tag family categories (FixTagFamilyCategoriesCommand.cs) - corrects the
+                    // .rfa files ON DISK, standalone, because Revit refuses to move a LOADED
+                    // family to another category on reload (proven 2026-09-17). Note that
+                    // FamilySwapCategory below cannot do tags at all: SwapCategoryCommand
+                    // refuses annotation families by design.
+                    case "TagFamilyFixCategories": RunCommand<Commands.TagStudio.FixTagFamilyCategoriesCommand>(app); break;
+                    case "TagLibraryPromote": RunCommand<Commands.TagStudio.PromoteTagLibraryCommand>(app); break;
+                    // The other half of the same job: a family that types a shared parameter
+                    // differently from MR_PARAMETERS.txt cannot be LOADED at all - 17 errors
+                    // on one duct tag, 180 of 206 families affected. Re-points them at the
+                    // declared definitions in the .rfa.
+                    case "TagFamilyFixParamTypes": RunCommand<Commands.TagStudio.FixTagFamilyParamTypesCommand>(app); break;
 
                     // Family quick-edit (FamilyQuickEditCommands.cs, StingTools.Tags) —
                     // rehost, swap category, inject automation pack, quick-edit dialog

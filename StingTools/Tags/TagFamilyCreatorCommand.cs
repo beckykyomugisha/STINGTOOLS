@@ -403,16 +403,32 @@ namespace StingTools.Tags
         {
             (BuiltInCategory.OST_GenericModel,        "Generic Model Tag.rft",         "MEP Sleeve (Fire-rated penetration)", "MEP Sleeve"),
             // ── Lightning Protection System (BS EN 62305) — MEP CSV families #54..#59
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
-            (BuiltInCategory.OST_ElectricalEquipment, "Electrical Equipment Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
+            // All six are MULTI-CATEGORY: each declares 2-5 host categories, and
+            // LpsElementIndex walks ElectricalEquipment AND GenericModel while the
+            // stale marker adds Conduit and CableTray. Pinned to Electrical
+            // Equipment they are found by the engine and cannot be tagged.
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Air Terminal (BS EN 62305-3 §5.2)",   "LPS Air Terminal"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Down Conductor (BS EN 62305-3 §5.3)", "LPS Down Conductor"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Earth Electrode (BS EN 62305-3 §5.4)","LPS Earth Electrode"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Bond / Spark Gap (BS EN 62305-3)",    "LPS Bond"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS SPD (BS EN 62305-4)",                 "LPS SPD"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft",  "LPS Test Clamp / Inspection Point",       "LPS Test Clamp"),
             // ── LPS reuse variants (cross-discipline) — GEN CSV #34, STR CSV #22, ARCH CSV #36
-            (BuiltInCategory.OST_GenericModel,         "Generic Model Tag.rft",         "LPS Generic Component (cross-disc reuse)",          "LPS Generic Component"),
-            (BuiltInCategory.OST_StructuralFoundation, "Structural Foundation Tag.rft", "LPS Foundation Earth (Structural Reuse)",           "LPS Foundation Earth (Structural Reuse)"),
-            (BuiltInCategory.OST_Roofs,                "Roof Tag.rft",                  "LPS Natural Air Termination (Architectural Reuse)", "LPS Natural Air Termination (Architectural Reuse)"),
+            //
+            // MULTI-CATEGORY, and it has to be built that way - not converted.
+            // BS EN 62305-3 lets an LPS REUSE existing structure, so between them
+            // these three serve 15 host categories (the "# Category:" comment above
+            // each declaration lists them). One host cannot express that.
+            //
+            // Measured 2026-09-21: FixTagFamilyCategories tried to reassign all
+            // three to Multi-Category Tags and Revit refused all three with "The
+            // input category id cannot be assigned as the new category for this
+            // family." A multi-category tag can only be BORN from
+            // Multi-Category Tag.rft; an existing tag family cannot become one.
+            // Hence the template change here rather than a category fix there.
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Generic Component (cross-disc reuse)",          "LPS Generic Component"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Foundation Earth (Structural Reuse)",           "LPS Foundation Earth (Structural Reuse)"),
+            (BuiltInCategory.OST_MultiCategoryTags, "Multi-Category Tag.rft", "LPS Natural Air Termination (Architectural Reuse)", "LPS Natural Air Termination (Architectural Reuse)"),
         };
 
         /// <summary>
@@ -1515,6 +1531,12 @@ namespace StingTools.Tags
                 return Result.Cancelled;
 
             bool skipExistingOnDisk = onDisk == 0 || !confirm.WasVerificationChecked();
+
+            // Counted, because it was not. Six branches printed "[SKIP] ... skipped
+            // (incremental run)" and incremented nothing, so a run that left 85
+            // families out of the project reported "Skipped: 0 (already loaded)"
+            // with dozens of [SKIP] lines in the body of the same report.
+            int skippedOnDisk = 0;
             if (!skipExistingOnDisk)
                 StingLog.Warn($"CreateTagFamilies: user opted IN to re-creating {onDisk} existing "
                             + "tag family/families — hand-authored label rows in those files are lost.");
@@ -1589,7 +1611,18 @@ namespace StingTools.Tags
                     {
                         if (skipExistingOnDisk)
                         {
-                            report.AppendLine($"  [SKIP] {catDisplay} — .rfa exists on disk, skipped (incremental run)");
+                            // The family exists and the user asked for it in THIS project.
+                            // Incremental means do not REBUILD it - never leave it out.
+                            if (LoadFamilyIntoProject(doc, outputPath, famName))
+                            {
+                                report.AppendLine($"  [LOAD] {catDisplay} — existing .rfa loaded, not rebuilt");
+                                loaded++;
+                            }
+                            else
+                            {
+                                report.AppendLine($"  [SKIP] {catDisplay} — .rfa on disk could not be loaded");
+                                skippedOnDisk++;
+                            }
                             continue;
                         }
                         bool hasParams = VerifyFamilyHasParams(app, outputPath);
@@ -1699,7 +1732,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {tiein.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {tiein.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {tiein.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -1813,7 +1857,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {ds.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {ds.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {ds.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -1925,7 +1980,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {sv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {sv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {sv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2037,7 +2103,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {mv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {mv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {mv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2149,7 +2226,18 @@ namespace StingTools.Tags
                 {
                     if (skipExistingOnDisk)
                     {
-                        report.AppendLine($"  [SKIP] {hv.display} — .rfa exists on disk, skipped (incremental run)");
+                        // The family exists and the user asked for it in THIS project.
+                        // Incremental means do not REBUILD it - never leave it out.
+                        if (LoadFamilyIntoProject(doc, existingRfa, Path.GetFileNameWithoutExtension(fileName)))
+                        {
+                            report.AppendLine($"  [LOAD] {hv.display} — existing .rfa loaded, not rebuilt");
+                            loaded++;
+                        }
+                        else
+                        {
+                            report.AppendLine($"  [SKIP] {hv.display} — .rfa on disk could not be loaded");
+                            skippedOnDisk++;
+                        }
                         continue;
                     }
                     try
@@ -2247,6 +2335,7 @@ namespace StingTools.Tags
             report.AppendLine($"Created:  {created}");
             report.AppendLine($"Loaded:   {loaded}");
             report.AppendLine($"Skipped:  {alreadyLoaded} (already loaded)");
+            report.AppendLine($"Not loaded: {skippedOnDisk} (.rfa on disk, load failed)");
             report.AppendLine($"Missing:  {templateMissing} (no template)");
             report.AppendLine($"Failed:   {failed}");
 

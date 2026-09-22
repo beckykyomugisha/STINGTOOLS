@@ -18,7 +18,7 @@
 // "standard variants" (EnumerateStandardVariants) that covers:
 //
 //   1. The eight disciplinary defaults (defaults_per_discipline)
-//   2. A compact black baseline for every size (depth tiers 1, 2, 3)
+//   2. A compact black baseline for every size (depth tiers 1, 2)
 //   3. A small hand-picked set of common combos (see tag_style_catalogue.json)
 //
 // MigrateTagFamiliesCommand pre-creates these variants.  Any other combination
@@ -41,7 +41,7 @@ using StingTools.Core;
 
 namespace StingTools.Core
 {
-    /// <summary>Disciplinary default style preset (e.g. M = 2.5/BOLD/BLUE/Filled30/T3).</summary>
+    /// <summary>Disciplinary default style preset (e.g. M = 2.5/BOLD/BLUE/Filled30/T2).</summary>
     public class DisciplineDefault
     {
         public string Disc { get; set; } = "";
@@ -49,7 +49,11 @@ namespace StingTools.Core
         public string Style { get; set; } = "NOM";
         public string Colour { get; set; } = "BLACK";
         public string Arrowhead { get; set; } = "None";
-        public int DepthTier { get; set; } = 3;
+        // Depth 2, not 3: the universal label has no T3 rows and the master
+        // carries no TAG_PARA_STATE_3_BOOL, so a T3 default minted a type that
+        // reported depth 3 and drew depth 2. See standard_variants_notes in
+        // tag_style_catalogue.json.
+        public int DepthTier { get; set; } = 2;
 
         public TypeVariantSpec ToVariantSpec() => new TypeVariantSpec
         {
@@ -68,10 +72,14 @@ namespace StingTools.Core
         public string Style { get; set; } = "NOM";
         public string Colour { get; set; } = "BLACK";
         public string Arrowhead { get; set; } = "None";
-        public int DepthTier { get; set; } = 3;
+        // Depth 2, not 3: the universal label has no T3 rows and the master
+        // carries no TAG_PARA_STATE_3_BOOL, so a T3 default minted a type that
+        // reported depth 3 and drew depth 2. See standard_variants_notes in
+        // tag_style_catalogue.json.
+        public int DepthTier { get; set; } = 2;
 
         /// <summary>
-        /// Canonical type name used in Revit. Example: "2.5_BOLD_RED_Filled30_T3".
+        /// Canonical type name used in Revit. Example: "2.5_BOLD_RED_Filled30_T2".
         /// Arrowhead name is sanitised: spaces removed, "Arrow " prefix stripped.
         /// </summary>
         public string CanonicalTypeName
@@ -233,7 +241,7 @@ namespace StingTools.Core
                         Style = d["style"]?.ToString() ?? "NOM",
                         Colour = d["colour"]?.ToString() ?? "BLACK",
                         Arrowhead = d["arrowhead"]?.ToString() ?? "None",
-                        DepthTier = d["depth_tier"]?.Value<int>() ?? 3,
+                        DepthTier = d["depth_tier"]?.Value<int>() ?? 2,
                     };
                 }
             }

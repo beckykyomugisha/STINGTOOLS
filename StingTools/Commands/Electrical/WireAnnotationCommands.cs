@@ -215,7 +215,7 @@ namespace StingTools.Commands.Electrical
             catch { }
 
             string coordDir = string.IsNullOrEmpty(projDir)
-                ? Path.Combine(Path.GetTempPath(), "STING")
+                ? OutputLocationHelper.GetOutputDirectory(doc)   // not the per-session temp folder
                 : StingPaths.Meta(doc, "_BIM_COORD");
 
             return Path.Combine(coordDir, FileName);

@@ -23,7 +23,7 @@ namespace StingTools.Commands.MedGas
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var net = MgasNetwork.Build(doc);
                 var sb = new StringBuilder();
                 sb.AppendLine("STING MGPS Network Audit").AppendLine();

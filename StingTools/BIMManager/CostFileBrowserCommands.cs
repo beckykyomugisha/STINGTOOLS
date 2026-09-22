@@ -27,7 +27,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc   = uidoc?.Document;
                 if (doc == null)
                 {

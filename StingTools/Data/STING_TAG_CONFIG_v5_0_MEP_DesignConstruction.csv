@@ -1154,6 +1154,7 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 5,HIGH,WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI,Protective device discrimination not verified with upstream,BS 7671 Regulation 536 / BS EN 60947,Common,Text,⚠ Warning: Circuit Discrimination,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI, """")"
 6,MEDIUM,WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI,Earth fault loop impedance exceeds maximum for device type,BS 7671 Table 41.3 / IEC 60364,Common,Text,⚠ Warning: Earth Fault Loop Impedance,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI, """")"
 7,LOW,WARN_ELC_LABELLING_ELECTRICAL_EQUI,Panel schedule / circuit labelling incomplete,BS 7671 Regulation 514 / IEC 60364,Common,Text,⚠ Warning: Panel Labelling Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LABELLING_ELECTRICAL_EQUI, """")"
+8,HIGH,WARN_ELC_PNL_NO_TVSS,Critical panel without surge protection,BS 7671 §443,E,Text,⚠ Warning: Panel No TVSS,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_NO_TVSS, """""""")"
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2237,7 +2238,7 @@ TAG7: ELC_TAG_7_PARA_COMM_TXT  •  Category: Audio Visual Devices
 
 6G — HVAC Spaces/Zones
 Tag Family #44: STING - Spaces Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2281,7 +2282,7 @@ TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Spaces (MEP)
 3,MEDIUM,WARN_BLE_ROOM_OCCUPANCY_SPACES,Occupancy density exceeds maximum for space type,Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Space Occupancy Density,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_ROOM_OCCUPANCY_SPACES, """")"
 
 Tag Family #45: STING - Zones Tag
-TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: Zones (HVAC)
+TAG7: HVC_TAG_7_PARA_SPEC_TXT  •  Category: HVAC Zones
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2422,6 +2423,55 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
 24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
 25,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
+26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
+27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
+⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
+#,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
+1,HIGH,WARN_ASS_TIEIN_OPEN_PIPE,Tie-in point status = OPEN (unresolved live termination),ISO 10628-2 / PAS 1192 Interface Mgmt,Common,Text,⚠ Warning: Open Pipe Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_PIPE, """")"
+2,MEDIUM,WARN_ASS_TIEIN_DEFERRED_PIPE,Tie-in status = DEFERRED (risk: phase milestone impact),ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Deferred Pipe Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_PIPE, """")"
+
+Tag Family #64: STING - Tie-In FP Pipe Tag
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
+#,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
+1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
+3,T2,ASS_TIEIN_STATUS_TXT,[,],0,✓,Common,Text,Show Tier 2 - 3,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_STATUS_TXT, """")",NOM,BLACK,2.0,None,None
+4,T2,PLM_PPE_FLW_LPS,Flow:,L/s,0,,Common,Text,Show Tier 2 - 5,"if(TAG_PARA_STATE_2_BOOL, PLM_PPE_FLW_LPS, """")",NOM,BLACK,2.0,None,None
+5,T2,PLM_PSR_KPA,|,kPa,0,✓,Common,Text,Show Tier 2 - 6,"if(TAG_PARA_STATE_2_BOOL, PLM_PSR_KPA, """")",NOM,BLACK,2.0,None,None
+6,T2,ASS_TIEIN_ELEV_TXT,Elev:,,0,✓,Common,Text,Show Tier 2 - 7,"if(TAG_PARA_STATE_2_BOOL, ASS_TIEIN_ELEV_TXT, """")",NOM,BLACK,2.0,None,None
+7,T2,RGL_STD_TXT,Std:,,0,✓,Common,Text,Show Tier 2 - 8,"if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, """")",NOM,BLACK,2.0,None,None
+8,T3,ASS_TIEIN_PHASE_TXT,Phase:,,0,✓,Common,Text,Show Tier 3 - 10,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_PHASE_TXT, """")",NOM,BLACK,2.0,None,None
+9,T3,ASS_TIEIN_BY_TXT,By:,,0,,Common,Text,Show Tier 3 - 11,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_BY_TXT, """")",NOM,BLACK,2.0,None,None
+10,T3,ASS_TIEIN_IFC_REF_TXT,IFC:,,0,✓,Common,Text,Show Tier 3 - 12,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_IFC_REF_TXT, """")",NOM,BLACK,2.0,None,None
+11,T3,PLM_PPE_PSR_RATING_BAR,,bar,1,✓,Common,Text,Show Tier 3 - 14,"if(TAG_PARA_STATE_3_BOOL, PLM_PPE_PSR_RATING_BAR, """")",NOM,BLACK,2.0,None,None
+12,T3,ASS_TIEIN_CONNECTED_BOOL,Resolved:,,0,✓,Common,Text,Show Tier 3 - 15,"if(TAG_PARA_STATE_3_BOOL, ASS_TIEIN_CONNECTED_BOOL, """")",NOM,BLACK,2.0,None,None
+13,T3,ASS_CST_TOTAL_UGX_NR,,UGX,1,✓,Common,Text,Show Tier 3 - 16,"if(TAG_PARA_STATE_3_BOOL, ASS_CST_TOTAL_UGX_NR, """")",NOM,BLACK,2.0,None,None
+14,T3,FLS_TAG_7_PARA_TIEIN_TXT,,,0,✓,Common,Text,Show Tier 3 - 8,"if(TAG_PARA_STATE_3_BOOL, FLS_TAG_7_PARA_TIEIN_TXT, """")",NOM,BLACK,2.0,None,None
+1,T4,ASS_DESIGN_OPTION_TXT,Option:,,0,,Common,Text,Show T4 - Design intent - ASS_DESIGN_OPTION_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, """")",BOLD,BLUE,2.0,None,None
+2,T4,ASS_MODEL_REF_TXT,Ref:,,0,,Common,Text,Show T4 - Design intent - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, """")",BOLD,BLUE,2.0,None,None
+3,T4,ASS_KEYNOTE_TXT,Key:,,0,✓,Common,Text,Show T4 - Design intent - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, """")",BOLD,BLUE,2.0,None,None
+4,T5,ASS_CAPACITY_TXT,Cap:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_CAPACITY_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, """")",NOM,PURPLE,2.0,None,None
+5,T5,ASS_POWER_RATING_TXT,Power:,,0,,Common,Text,Show T5 - Performance & capacity - ASS_POWER_RATING_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, """")",NOM,PURPLE,2.0,None,None
+6,T5,ASS_FLOW_RATE_TXT,Flow:,,0,✓,Common,Text,Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT,"if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, """")",NOM,PURPLE,2.0,None,None
+7,T6,ASS_MANUFACTURER_TXT,Mfr:,,0,,Common,Text,Show T6 - Material & finish - ASS_MANUFACTURER_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, """")",ITALIC,GREEN,2.0,None,None
+8,T6,ASS_MODEL_NR_TXT,Model:,,0,,Common,Text,Show T6 - Material & finish - ASS_MODEL_NR_TXT,"if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, """")",ITALIC,GREEN,2.0,None,None
+9,T6,ASS_EXPECTED_LIFE_YEARS_YRS,Life:,yr,0,✓,Common,Text,Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS,"if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, """")",ITALIC,GREEN,2.0,None,None
+10,T7,ASS_INSTALL_DATE_TXT,Installed:,,0,,Common,Text,Show T7 - Installation - ASS_INSTALL_DATE_TXT,"if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, """")",BOLD,ORANGE,2.0,None,None
+11,T7,CST_INSTALL_HRS_DISP_TXT,Hrs:,h,0,,Common,Text,Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT,"if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, """")",BOLD,ORANGE,2.0,None,None
+12,T7,ASS_CST_INSTALL_UGX_NR,@,UGX,0,✓,Common,Text,Show T7 - Installation - ASS_CST_INSTALL_UGX_NR,"if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, """")",BOLD,ORANGE,2.0,None,None
+13,T8,ASS_CRITICALITY_RATING_NR,Crit:,/5,0,,Common,Text,Show T8 - Coordination - ASS_CRITICALITY_RATING_NR,"if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, """")",BOLD,RED,2.0,None,None
+14,T8,ASS_ZONE_TXT,Zone:,,0,,Common,Text,Show T8 - Coordination - ASS_ZONE_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, """")",BOLD,RED,2.0,None,None
+15,T8,ASS_LVL_COD_TXT,Lvl:,,0,✓,Common,Text,Show T8 - Coordination - ASS_LVL_COD_TXT,"if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, """")",BOLD,RED,2.0,None,None
+16,T9,ASS_WARRANTY_PARTS_TXT,Parts:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, """")",ITALIC,GREY,2.0,None,None
+17,T9,ASS_WARRANTY_LABOR_TXT,Labor:,,0,,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, """")",ITALIC,GREY,2.0,None,None
+18,T9,ASS_WARRANTY_TXT,Terms:,,0,✓,Common,Text,Show T9 - Warranty & quality - ASS_WARRANTY_TXT,"if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, """")",ITALIC,GREY,2.0,None,None
+19,T10,ASS_UNICLASS_2015_TXT,Uniclass:,,0,,Common,Text,Show T10 - Classification - ASS_UNICLASS_2015_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, """")",NOM,GREY,2.0,None,None
+20,T10,ASS_KEYNOTE_TXT,Key:,,0,,Common,Text,Show T10 - Classification - ASS_KEYNOTE_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, """")",NOM,GREY,2.0,None,None
+21,T10,ASS_MODEL_REF_TXT,Ref:,,0,✓,Common,Text,Show T10 - Classification - ASS_MODEL_REF_TXT,"if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, """")",NOM,GREY,2.0,None,None
+15,T2,ASS_SYSTEMS_TXT,Sys:,,0,,Common,Text,"Show T2-Ph179 - Asset Systems","if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, """")",NOM,BLACK,2.0,None,None
+23,T5,ASS_ITEM_CODE_TXT,Item:,,0,✓,Common,Text,"Show T5-Ph179 - Item Code","if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, """")",NOM,PURPLE,2.0,None,None
+24,T10,ASS_TRACE_SEQ_NR_DISP_TXT,Trc:,,0,✓,Common,Text,"Show T10-Ph179 - Trace Seq","if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, """")",NOM,GREY,2.0,None,None
+16,T2,PLM_SYS_TXT,PSys:,,0,✓,Common,Text,"Show T2-Ph179 - Plm System","if(TAG_PARA_STATE_2_BOOL, PLM_SYS_TXT, """")",NOM,BLACK,2.0,None,None
 26,T9,ASS_TERM_CAPPED_BOOL,Cap:,,0,,Common,Text,"Show T9-Ph179 - Term Capped","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_CAPPED_BOOL, """")",ITALIC,GREY,2.0,None,None
 27,T9,ASS_TERM_REASON_TXT,Rsn:,,0,✓,Common,Text,"Show T9-Ph179 - Term Reason","if(TAG_PARA_STATE_9_BOOL, ASS_TERM_REASON_TXT, """")",ITALIC,GREY,2.0,None,None
 ⚠ WARNING PARAMETERS — add after all Tier rows (Break = ✓ Calculated Value gates visibility)
@@ -2574,7 +2624,7 @@ TAG7: ELC_TAG_7_PARA_TIEIN_TXT  •  Category: Cable Trays
 1,HIGH,WARN_ASS_TIEIN_OPEN_CABLETRAY,Tie-in status = OPEN (tray dead-end unresolved),IEC 61537 / BS EN 61537,Common,Text,⚠ Warning: Open Cable Tray Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_CABLETRAY, """")"
 
 Tag Family #50: STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)
-TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
+TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -2622,8 +2672,10 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Fire Protection System)
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
 
+Tag Family #63: STING - Tie-In Gas Pipe Tag
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 Tag Family #51: STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)
-TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
+TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TIEIN_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T1,PLM_PPE_SZ_MM,DN,mm,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
@@ -2673,7 +2725,7 @@ TAG7: PLM_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes (Gas System)
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_GAS,Gas tie-in DEFERRED — gas authority notification required,BS 6891 / Gas Safety Regulations,Common,Text,⚠ Warning: Deferred Gas Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_GAS, """")"
 
 Tag Family #52: STING - MEP Sheet Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -2711,6 +2763,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — MEP disciplines (M/E/P/FP/LV)
 1,HIGH,WARN_SHT_MULTI_DISC_MEP,Multiple MEP disciplines on same sheet — coordination risk,ISO 19650-2 / PAS 1192-2,Common,Text,⚠ Warning: Multi-Discipline Sheet,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_MULTI_DISC_MEP, """")"
 
 Tag Family #53: STING - MEP Sleeve Tag
+TAG7: ASS_TAG_7_PARA_PENETRATION_TXT  •  Category: Generic Models
 # Category: Generic Models | PROD: SLV | FUNC: PEN | Disciplines: M, E, P, FP
 # Fire-rated construction penetration sleeves per BS EN 1366-3 / BS 9999
 
@@ -2768,7 +2821,7 @@ Tag Family #53: STING - MEP Sleeve Tag
 Tag Family #54: STING - LPS Air Terminal Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ATR (Air Terminal Rod) / AMS (Air Mesh Section) / ACT (Air Catenary) | SYS: LPS | FUNC: AT | DISC: E
 # Lightning protection air-termination per BS EN 62305-3 §5.2 — rolling sphere / mesh / protection angle method
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2822,7 +2875,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #55: STING - LPS Down Conductor Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Conduit Fittings, Specialty Equipment | PROD: DCN | SYS: LPS | FUNC: DC | DISC: E
 # Lightning protection down conductor per BS EN 62305-3 §5.3 — minimum count + cross-section by class
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2873,7 +2926,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment, Conduits
 Tag Family #56: STING - LPS Earth Electrode Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ERD / ERG / EFE / EME | SYS: LPS | FUNC: EE | DISC: E
 # Lightning protection earth electrode per BS EN 62305-3 §5.4 — Type A (rod/plate) or Type B (ring/foundation)
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2923,7 +2976,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #57: STING - LPS Bond Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Specialty Equipment | PROD: BCN / BBR / BSG | SYS: LPS | FUNC: BOND | DISC: E
 # Lightning protection equipotential bonding per BS EN 62305-3 §6.2 — DIRECT / SPD / ISOLATING_SPARK_GAP
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -2966,7 +3019,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #58: STING - LPS SPD Tag
 # Category: Electrical Equipment, Specialty Equipment | PROD: SPD1 / SPD2 / SPD3 | SYS: LPS | FUNC: SPD | DISC: E
 # Surge protective device per BS EN 62305-4 + BS EN 61643 — coordinated SPD strategy across LPZ boundaries
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3005,7 +3058,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
 Tag Family #59: STING - LPS Test Clamp Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: TCL | SYS: LPS | FUNC: TC | DISC: E
 # Test clamp / inspection point per BS EN 62305-3 §7.2 — required for periodic earth resistance testing
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Electrical Equipment
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3134,3 +3187,4 @@ TAG7: ASS_TAG_7_PARA_EQUIPMENT_TXT  •  Category: Specialty Equipment
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,HIGH,WARN_GEN_SPEC_EQUIP_NO_SYS,ASS_SYSTEM_TYPE_TXT empty — system not assigned,ISO 19650-2 / CIBSE,Common,Text,⚠ Warning: No System Assigned,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_SYS, """")"
 2,MEDIUM,WARN_GEN_SPEC_EQUIP_NO_COMMISSION,Commissioning requirements not specified,BSRIA BG 8/2009 / CIBSE Commissioning Code,Common,Text,⚠ Warning: No Commissioning Req,"if(TAG_WARN_VISIBLE_BOOL, WARN_GEN_SPEC_EQUIP_NO_COMMISSION, """")"
+TAG_FAMILY,STING_LPS_Tag_Universal,E,Multi-Category,LabelMaster: LPS,the hand-built Multi-Category master the nine LPS tags take their label from (see docs/LPS_TAG_MASTER_BUILD_SHEET.md). Declared so propagation can tell WHICH master is running; it is not itself a shipped tag family.

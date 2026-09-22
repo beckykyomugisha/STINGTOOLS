@@ -1,4 +1,4 @@
-# v6.8 | 3604 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3617 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3058,7 +3058,7 @@ Generic Models,HVC_SIZE_STALE_BOOL,ecbc8e8a-3466-53dd-92c9-a28d15ebf43d,YESNO,HV
 Generic Models,HVC_REFRIGERANT_KG_NR,b99d07d1-6eca-50cf-b983-b6fe2442bc8c,NUMBER,HVC_SYSTEMS,Type,Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand × GWP) [Phase 183],False,,,MULTI,1,0
 Generic Models,HVC_REFRIGERANT_TYPE_TXT,10d87a6e-b7d8-5058-81a9-bc62394d9bad,TEXT,HVC_SYSTEMS,Type,Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183],False,,,MULTI,1,0
 Generic Models,HVC_CAPACITY_KW,397ee526-7af0-5516-a2a1-48db5a42f249,NUMBER,HVC_SYSTEMS,Type,"Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183]",False,,,MULTI,1,0
-Generic Models,HVC_PROD_REF_TXT,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b60,TEXT,HVC_SYSTEMS,Instance,"Manufacturer product reference 'brand:productCode' (e.g. 'lindab:BFU-90-CIRC') — resolved against STING_MEP_SIZING_RULES.json manufacturerFittings/valveCv [Phase 187]",False,,,MULTI,1,0
+Generic Models,HVC_PROD_REF_TXT,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b60,TEXT,HVC_SYSTEMS,Instance,Manufacturer product reference 'brand:productCode' (e.g. 'lindab:BFU-90-CIRC') — resolved against STING_MEP_SIZING_RULES.json manufacturerFittings/valveCv [Phase 187],False,,,MULTI,1,0
 Generic Models,HVC_PEAK_SENS_W,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b61,NUMBER,HVC_SYSTEMS,Instance,Per-space peak sensible load in W from BlockLoadEngine [Phase 187],False,,,MULTI,1,0
 Generic Models,HVC_PEAK_LAT_W,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62,NUMBER,HVC_SYSTEMS,Instance,Per-space peak latent load in W from BlockLoadEngine [Phase 187],False,,,MULTI,1,0
 Generic Models,HVC_PEAK_HOUR,4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63,NUMBER,HVC_SYSTEMS,Instance,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187],False,,,MULTI,1,0
@@ -3613,3 +3613,16 @@ Generic Models,ASSET_RFI_URL_TXT,8c96dd6c-13ec-5f34-9caa-a0d9de7abd19,TEXT,ASS_M
 Generic Models,TB_QR_ANCHOR_JSON_TXT,4d22d338-3235-55b2-8a16-8496736f346a,TEXT,TBL_TITLEBLOCK,Instance,"Per-family QR cell in mm from the sheet origin: {x,y,size} [STING TB v1]",False,,,MULTI,1,0
 Generic Models,TB_QR_SIZE_MM_TXT,1e12f424-d0bb-599c-a284-7362405fa621,TEXT,TBL_TITLEBLOCK,Instance,Override for the printed QR size in mm on this title block [STING TB v1],False,,,MULTI,1,0
 Generic Models,TB_QR_PAYLOAD_TEMPLATE_TXT,54dea7ad-c65a-5d41-891c-beb8c6d71ed9,TEXT,TBL_TITLEBLOCK,Instance,Token template for what this sheet's QR encodes; blank = the STING deep link [STING TB v1],False,,,MULTI,1,0
+Generic Models,STR_REBAR_MEMBER_REF_TXT,643d5eef-c151-56f9-8e45-5a951d1b186d,TEXT,BLE_STRUCTURE,Instance,Member the bars belong to [BS 8666 col. 1],False,,,MULTI,1,0
+Generic Models,STR_REBAR_NO_OF_MBRS_NR,9cdc79da-1e9a-58cd-9988-3e7356f4e277,INTEGER,BLE_STRUCTURE,Instance,Number of members [BS 8666 col. 4],False,,,MULTI,1,0
+Generic Models,STR_REBAR_BARS_IN_EACH_NR,2e94bbc1-9779-53e8-9297-2ec4bcd5cc74,INTEGER,BLE_STRUCTURE,Instance,Number of bars in each member [BS 8666 col. 5],False,,,MULTI,1,0
+Generic Models,STR_REBAR_TOTAL_NO_NR,b277dba4-d73d-5dad-a9d6-e2390af6c594,INTEGER,BLE_STRUCTURE,Instance,Total number of bars [BS 8666 col. 6],False,,,MULTI,1,0
+Generic Models,STR_REBAR_CUT_LENGTH_MM,f5cb5464-7e2b-59c3-b4cb-edb46eeb8e1c,TEXT,BLE_STRUCTURE,Instance,"Cutting length of each bar, mm [BS 8666 col. 7]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_DIM_A_MM,e8ecbf30-6044-56bd-bede-b893a4bd4ee0,TEXT,BLE_STRUCTURE,Instance,"Bending dimension A, mm [BS 8666 shape code]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_DIM_B_MM,f060428e-308e-5d1a-909b-5b8267408ef5,TEXT,BLE_STRUCTURE,Instance,"Bending dimension B, mm [BS 8666 shape code]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_DIM_C_MM,9de7bc78-31d1-5520-8391-693ca5c3f71d,TEXT,BLE_STRUCTURE,Instance,"Bending dimension C, mm [BS 8666 shape code]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_DIM_D_MM,7a4a0e1e-e909-5577-b137-28f04683feaa,TEXT,BLE_STRUCTURE,Instance,"Bending dimension D, mm [BS 8666 shape code]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_DIM_E_MM,324969fd-cdf8-544b-b834-3aee08721cfa,TEXT,BLE_STRUCTURE,Instance,"Bending dimension E, mm [BS 8666 shape code]",False,,,MULTI,1,0
+Generic Models,STR_REBAR_BEND_RADIUS_MM,faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6,TEXT,BLE_STRUCTURE,Instance,"Scheduling radius R, mm [BS 8666 Table 2]",False,,,MULTI,1,0
+Generic Models,BI_ACCENT_COLOR_TXT,43f56f0f-61bd-58d0-83ef-9b782ab05a95,TEXT,TPL_TRACKING,Instance,Accent colour RGB [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,BI_THEME_NAME_TXT,a07310e6-24ec-5507-a7c2-4b8e9b85b74c,TEXT,TPL_TRACKING,Instance,Brand theme name [ISO 19650-1:2018],False,,,MULTI,1,0

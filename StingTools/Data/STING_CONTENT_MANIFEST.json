@@ -603,7 +603,7 @@
                             "category":  "Casework",
                             "discipline":  "*",
                             "familyFile":  "STING - Casework Tag.rfa",
-                            "checksum":  "5f272497a24f50d07758a40201955686c6af66cabfb55b9855cb88f925b5ed06",
+                            "checksum":  "77f97ab4e03e0a878bc9e8d50b626feb34ed85e74e1a96dbe88bb949fde3c4b2",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -613,7 +613,7 @@
                             "category":  "Ceilings",
                             "discipline":  "*",
                             "familyFile":  "STING - Ceiling Tag.rfa",
-                            "checksum":  "4549c20a79c78e1670fc10a0df735c957b5af267ecfbc0d621b0e7bc9f602ce6",
+                            "checksum":  "0961770581cb2509cd449aa00e4c383f472dd26f8ae187ee8c9ada2e19ddc139",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -623,7 +623,7 @@
                             "category":  "Doors",
                             "discipline":  "*",
                             "familyFile":  "STING - Door Tag.rfa",
-                            "checksum":  "09399bafec78e9974afa2b7e5335e669bba4e5e198fd04ec7cd83a25156f1f4b",
+                            "checksum":  "fdf61775fb9e0c579fc6f2db2a5353e9d2b335e20197ca574ffc882471780885",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -633,7 +633,7 @@
                             "category":  "Floors",
                             "discipline":  "*",
                             "familyFile":  "STING - Floor Tag.rfa",
-                            "checksum":  "445ad080400034613632bed6979830e65941a436a426d53ff9959d24878c59fd",
+                            "checksum":  "73be61e84d8f26ffd1a446113f46f1c218f94d95f9b2cb91327626a054f0057d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -643,7 +643,7 @@
                             "category":  "Furniture",
                             "discipline":  "*",
                             "familyFile":  "STING - Furniture Tag.rfa",
-                            "checksum":  "dab955add10199100d3888ce1b526d4850c8b561f29f184d4aaec84b1c3fd2af",
+                            "checksum":  "58e019163b16499c56e4dd45ac09b0f5d3617d4314d5144184ca33c94d1b1c17",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -653,7 +653,7 @@
                             "category":  "Furniture Systems",
                             "discipline":  "*",
                             "familyFile":  "STING - Furniture Systems Tag.rfa",
-                            "checksum":  "d762a35844ce07435b66cfeaf4e67ebaaf030ee189b87b132722742411d05cd5",
+                            "checksum":  "52f3a4d63ea6c4a71c60ce9db507d4bdb740f973a5e5c2a80c0ec0f0d2bec168",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -663,7 +663,7 @@
                             "category":  "Parking",
                             "discipline":  "*",
                             "familyFile":  "STING - Parking Tag.rfa",
-                            "checksum":  "efde5a8f999469ff21a81e3d7dac71782589c46182cdf09ebffc37b3cde5b42d",
+                            "checksum":  "1ec809a39dd82013003f1584b04be8df93b024f554bf9f8ef7b15b412393014f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -673,7 +673,7 @@
                             "category":  "Ramps",
                             "discipline":  "*",
                             "familyFile":  "STING - Ramp Tag.rfa",
-                            "checksum":  "6c82d90694fdeb7ff8437beee2736ac6dd5470bf2d2169a6172ade8b3d75d93d",
+                            "checksum":  "007d8f77c88575f0c54b5ef69c372f37702cf430d73ed5eeb4b35652b265a670",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -683,7 +683,7 @@
                             "category":  "Roofs",
                             "discipline":  "*",
                             "familyFile":  "STING - Roof Tag.rfa",
-                            "checksum":  "5fae9c185e116a351435b8ad0a29f8aa25806d252ff39eed1f5a743f8e9262f3",
+                            "checksum":  "ca2de3c5face3065b223a8f788dd4b76d35058fd50ac28cb23512f419361c44c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -693,7 +693,7 @@
                             "category":  "Rooms",
                             "discipline":  "*",
                             "familyFile":  "STING - Room Tag.rfa",
-                            "checksum":  "b82e8b246d99146b84db66cd9b33eb4268ef4ee0ad0f494b4cba7f6886ae5d09",
+                            "checksum":  "388c409cdcd6498c49326657e2e5bcef4a140302bb2e1132153ab78798a564be",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -703,7 +703,7 @@
                             "category":  "Site",
                             "discipline":  "*",
                             "familyFile":  "STING - Site Tag.rfa",
-                            "checksum":  "c381be7150e10672b40c2edea278d0f60ff0c3d9c19670f245434cbf9bb0ff06",
+                            "checksum":  "31203a73aa7fefa190fffa966bc7d5a56e06095729ec0745507a2725751d890e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -713,7 +713,7 @@
                             "category":  "Stairs",
                             "discipline":  "*",
                             "familyFile":  "STING - Stair Tag.rfa",
-                            "checksum":  "2d996f9dc6d380d5e36276f983269bc295704aff6e4d8fb78ae9f6a58d808dc5",
+                            "checksum":  "f61ef9e854908acf032e277b783bde38c57913f39d7e85cbe772cac18edb5a77",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -723,7 +723,7 @@
                             "category":  "Walls",
                             "discipline":  "*",
                             "familyFile":  "STING - Wall Tag.rfa",
-                            "checksum":  "582e217ef2b803e57c7e15b24222c0a48fb66ac47ba78b2f2b13f759cea580ad",
+                            "checksum":  "44735f860390c1dc61436b0eac874b26ba95e9e8660d8c969c504c0bae61268e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -733,7 +733,7 @@
                             "category":  "Windows",
                             "discipline":  "*",
                             "familyFile":  "STING - Window Tag.rfa",
-                            "checksum":  "bdd37884f68b514bc578ba3be9c5d06f7e08d062276c5b4d69776b8a328511bc",
+                            "checksum":  "22f6855fed170afab972c6dc87f2940669caf0a8261a355301806ebb7919251e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -743,7 +743,7 @@
                             "category":  "Structural Rebar",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Rebar Tag.rfa",
-                            "checksum":  "6bdabcad298d0ee09d75c9bb4ed4f248f8523894748de6003d7a695c17b26c5c",
+                            "checksum":  "c53945a00bb9ba68ef3c5184dbe44b468245ca84ad509dafbbaff7ead2058b2b",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -753,7 +753,7 @@
                             "category":  "Areas",
                             "discipline":  "*",
                             "familyFile":  "STING - Areas Tag.rfa",
-                            "checksum":  "be71fab0ffa04bfa3d0a6145d720a647b9c0dd1664ccefa579418ae1fd993c64",
+                            "checksum":  "ce585d9280d1266c68e0d0501ac11fc18305001efb50baab8a49d63e11f4f7b3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -763,7 +763,7 @@
                             "category":  "Spaces",
                             "discipline":  "*",
                             "familyFile":  "STING - Spaces Tag.rfa",
-                            "checksum":  "70b2b3f3634bc3a0821b5b2a7158a06239a8c9a7abe81724470b59f9284a87a8",
+                            "checksum":  "137468c72c6a4bbb970b0cac014628f92d0ca93b26045a2be00bd52b6511520a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -773,7 +773,7 @@
                             "category":  "Columns",
                             "discipline":  "S",
                             "familyFile":  "STING - Columns Tag.rfa",
-                            "checksum":  "1e8f82d5ecd0b0f50f5a22e1aed018ef98bf7bd971183a47b0b07e67eb8b4771",
+                            "checksum":  "3703ad348cb509eb3d975ae64fb4b1cb3837c3d29068aa1b263d3f84a3d4e97f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -783,7 +783,7 @@
                             "category":  "Assemblies",
                             "discipline":  "*",
                             "familyFile":  "STING - Assemblies Tag.rfa",
-                            "checksum":  "cc8c82af154347aaf4c7c5d955b1a7cc9bde278b174debf3b3477f7c05c61b2b",
+                            "checksum":  "e873eb50ce2800569adafbf72f578f75142a1bba06eed59e728371d8997045fc",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -793,7 +793,7 @@
                             "category":  "Detail Items",
                             "discipline":  "*",
                             "familyFile":  "STING - Detail Items Tag.rfa",
-                            "checksum":  "35135dc3b8410b898fcf3f8790786911c6804b778bec5547178f7f21b16b88de",
+                            "checksum":  "4636dc91bf26f6710251bee922610c8e5444ed958428adfeae0efd09907e9df0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -803,7 +803,7 @@
                             "category":  "Entourage",
                             "discipline":  "*",
                             "familyFile":  "STING - Entourage Tag.rfa",
-                            "checksum":  "4e0a352e66f288e8702533552597f1eda71f3e00df4c4942b1fdf239aa64505b",
+                            "checksum":  "7cd117920e643736f740142c86dacd76a446a6712dbb4d865ff79c4cb3e70228",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -813,7 +813,7 @@
                             "category":  "Food Service Equipment",
                             "discipline":  "*",
                             "familyFile":  "STING - Food Service Equipment Tag.rfa",
-                            "checksum":  "5cc5bb67b03bfca6b6764bd81059a096564f5741fb6e8990a6fd277e95fe4abd",
+                            "checksum":  "f67544bdcb5c760cb385d51a9e9bdb9aa312ddf2f31b9a4722ed4e2b2b9e783e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -823,7 +823,7 @@
                             "category":  "Hardscape",
                             "discipline":  "*",
                             "familyFile":  "STING - Hardscape Tag.rfa",
-                            "checksum":  "9e98eb5c4fe57bf32acc90f34828142d5f23aa4598fe4d8e583c1769f8e9ccc2",
+                            "checksum":  "8dfd25d15262bf3fac8a1b5da906efaf6bf0cb2898b469fe09cafe98f5be0a12",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -833,7 +833,7 @@
                             "category":  "Mass",
                             "discipline":  "*",
                             "familyFile":  "STING - Mass Tag.rfa",
-                            "checksum":  "412d49f07b1a2c7c81b685f2f23365e6890236de1d2f6bb6cf763b7388a5793b",
+                            "checksum":  "f1b4ef099577f2e3e44a2da50dd4f1697ef8dbb151c96b8e4d45b9a681f108e4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -843,7 +843,7 @@
                             "category":  "Model Groups",
                             "discipline":  "*",
                             "familyFile":  "STING - Model Groups Tag.rfa",
-                            "checksum":  "0b8356032114bc0c2348fa6982753de01c9b764ec55f66d409afd9c5a1d35662",
+                            "checksum":  "b65748bc58cae53be851a1c0e419e072c31ef28a62a6bbb58e2a8a43e2120f89",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -853,7 +853,7 @@
                             "category":  "Pads",
                             "discipline":  "*",
                             "familyFile":  "STING - Pads Tag.rfa",
-                            "checksum":  "6690a26cec715cb58b2497fc1913ab54025bf4f4ef30d54122b0c1ae7870f879",
+                            "checksum":  "7cc77ee687e504403745d5d8b74280e2e2177a5116ae130401b57861ea3d02ac",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -863,7 +863,7 @@
                             "category":  "Parts",
                             "discipline":  "*",
                             "familyFile":  "STING - Parts Tag.rfa",
-                            "checksum":  "b812ef02e19e06685ef42606ce9c0c9a3f4e27f53c3f1caf0269214900c794d4",
+                            "checksum":  "32e821f1e18eb9419355b99acc0c608ac3060df9e4521081f820c6b6238616ef",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -873,7 +873,7 @@
                             "category":  "Planting",
                             "discipline":  "*",
                             "familyFile":  "STING - Planting Tag.rfa",
-                            "checksum":  "da6fe2ba3c769aa0bbe4fb20330c95ac24033c57a319671db84b2c77b85cf22e",
+                            "checksum":  "fe7a001331a7d2b8f1aaecf6de4d81929811caf70ce9744a9ff3de0cd7ad215c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -883,7 +883,7 @@
                             "category":  "Profiles",
                             "discipline":  "*",
                             "familyFile":  "STING - Profiles Tag.rfa",
-                            "checksum":  "7bb642f952918f8de7e43c3acdd268b4bfe818b8fb0c4914f731b8a89741b51e",
+                            "checksum":  "b7da15f6fa5fb1159af49c07ddfbad90b614ad14bc0d9288279ab325be0e7667",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -893,7 +893,7 @@
                             "category":  "Property Lines",
                             "discipline":  "*",
                             "familyFile":  "STING - Property Lines Tag.rfa",
-                            "checksum":  "de30e0612332a73a79166d0254e09354e4af7f153dce89ff8e8b03b40e88cdbb",
+                            "checksum":  "b632fdaf408793c1038ad0456a1bfef39cc16b5b41fd32ea71d87c3bb3a0a98f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -903,7 +903,7 @@
                             "category":  "Roads",
                             "discipline":  "*",
                             "familyFile":  "STING - Roads Tag.rfa",
-                            "checksum":  "1f8e4b32a6d770f2f3ff0b0eaf09d8f850647183f39a95c6fe8a8ab09d1657b3",
+                            "checksum":  "43edae7902362f71e21192c58f448116096130b682ef5164926948f29fda174c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -913,7 +913,7 @@
                             "category":  "Signage",
                             "discipline":  "*",
                             "familyFile":  "STING - Signage Tag.rfa",
-                            "checksum":  "03ab4d4fc27b77428298ebb9d6e00f8d9bb2ca26ef2caaa96c9812d7ed98a2ae",
+                            "checksum":  "d395420ee4042e9a87e786db4f8a7aa3c1120edf4e4b2a54f851892b04b6ca04",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -923,7 +923,7 @@
                             "category":  "Toposolid",
                             "discipline":  "*",
                             "familyFile":  "STING - Toposolid Tag.rfa",
-                            "checksum":  "d08d6549e7338db699e2c15d3f5999ac02e5dfa95078a8dd3f5457e608bbd5f6",
+                            "checksum":  "eae195edb9cc5d960dd7f2cb8c70be3c4a46b203a845e0849a10001a79e7f116",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -933,7 +933,7 @@
                             "category":  "Vertical Circulation",
                             "discipline":  "*",
                             "familyFile":  "STING - Vertical Circulation Tag.rfa",
-                            "checksum":  "00d82beb7b88c68c980f83b7f334e5ba3cfdb8237050826144330bd835e21e07",
+                            "checksum":  "17b4ff235f4a459c69f4df71329421d924a72477f0aa5d4dbd667627f874704d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -943,7 +943,7 @@
                             "category":  "Zones",
                             "discipline":  "*",
                             "familyFile":  "STING - Zones Tag.rfa",
-                            "checksum":  "d7d63f4739c315d538e06d9e0ee386640b47e1736f7c97be13fa3fea2497927a",
+                            "checksum":  "773a66eaf2fe679491504878164211d300e2453d632fd4152ee5a994ff30682d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -953,7 +953,7 @@
                             "category":  "RVT Links",
                             "discipline":  "*",
                             "familyFile":  "STING - RVT Links Tag.rfa",
-                            "checksum":  "b864e0a4c1d227e6f14a5b7cdc28e5d6ad6b2ea44be5eacde9238e383d918a18",
+                            "checksum":  "c1b87d44366d2ceea0ef151c450c99399d4bf4f1238abf28c6c2c81dfeb8b8cf",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -963,7 +963,7 @@
                             "category":  "Fascia",
                             "discipline":  "*",
                             "familyFile":  "STING - Fascia Tag.rfa",
-                            "checksum":  "de16566939ff7fdc4126ed7eab2279f588610f0f11a3832ef642230715ae5f94",
+                            "checksum":  "cc5266c0bd997654bb32549aabfd4431696d45a025a87b70dafcf77b61dfa055",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -973,7 +973,7 @@
                             "category":  "Gutter",
                             "discipline":  "*",
                             "familyFile":  "STING - Gutter Tag.rfa",
-                            "checksum":  "dac6d1a500e41a6f9c3736be0a6367b175bc7639d2efce78da552b84a628741f",
+                            "checksum":  "9c672972d80a22428d980a22bb02c7a06e6acafbc45dacca3b7eae7a3e2022d9",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -983,7 +983,7 @@
                             "category":  "Handrails",
                             "discipline":  "*",
                             "familyFile":  "STING - Handrails Tag.rfa",
-                            "checksum":  "8da34f0b920bc35f83e58866a301160140d446f26226fb0ff5a0b14b4c2fa205",
+                            "checksum":  "c7c0a9592cf197b94c9ba343660534749569a9f3b76881f067016e1a08da8189",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -993,7 +993,7 @@
                             "category":  "Roof Soffits",
                             "discipline":  "*",
                             "familyFile":  "STING - Roof Soffits Tag.rfa",
-                            "checksum":  "eb3bda66bae819aa70b029cac793bb26627a45d062d9d69065825636c5b21638",
+                            "checksum":  "566c5b125414fce1ffbf129093b442147d00f6dfdd2bc3a263cc28f94ca4b4fd",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1003,7 +1003,7 @@
                             "category":  "Slab Edges",
                             "discipline":  "S",
                             "familyFile":  "STING - Slab Edges Tag.rfa",
-                            "checksum":  "d0a8548f58f8c2e09aa4cbb2845cfd1f14e7b2e3c79166e1cace6927c0d3462a",
+                            "checksum":  "c6036ea842792ff9784ef45d016950adf37841b03ebee5ebe62ab0ff758e6337",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1013,7 +1013,7 @@
                             "category":  "Stair Landings",
                             "discipline":  "*",
                             "familyFile":  "STING - Stair Landings Tag.rfa",
-                            "checksum":  "ea1551dbb59ba0988aae7b276a172e3119658cf561bd38e9a6538106b07b3b84",
+                            "checksum":  "1f772a75b58a9e0a8bb2e8c06464c39948310d489a780fe5eac501c26a4c2283",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1023,7 +1023,7 @@
                             "category":  "Stair Runs",
                             "discipline":  "*",
                             "familyFile":  "STING - Stair Runs Tag.rfa",
-                            "checksum":  "857812fd24c05e180987bccbd5c28c7c6709f06152a29a51483d309b9d666589",
+                            "checksum":  "37ec25b4acba9bbe4a8ee29adbad42b851e22d234c7d0429feb09ec2daebd07e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1033,7 +1033,7 @@
                             "category":  "Stair Supports",
                             "discipline":  "*",
                             "familyFile":  "STING - Stair Supports Tag.rfa",
-                            "checksum":  "053d40a1aae57017bf2e4f95dc3342e16743dea85bf77c63496df0fd13f22bbe",
+                            "checksum":  "e62bf9e23f29f526b8ac6be846c9b5b555f85c02ccc431f248249984fc49974f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1043,7 +1043,7 @@
                             "category":  "Top Rails",
                             "discipline":  "*",
                             "familyFile":  "STING - Top Rails Tag.rfa",
-                            "checksum":  "07818a8be17ac4ef5d38669f9fee0de733da6fcf1edbf6b94c1d3c6c27631bb2",
+                            "checksum":  "11726a6ec6f18981b87a1a657160dde5c925f3987f3660c14941064cb1829f80",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1053,7 +1053,7 @@
                             "category":  "Wall Sweeps",
                             "discipline":  "*",
                             "familyFile":  "STING - Wall Sweeps Tag.rfa",
-                            "checksum":  "48cf6c4ee0e983552f64c159273928ce3fac72c622f5e6b301fd54d882d68afd",
+                            "checksum":  "a472c15b232ce135186cd7cc63b6cced00d7b7a1ba6372783b17750c390a06a6",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1063,7 +1063,7 @@
                             "category":  "Structural Columns",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Column Tag.rfa",
-                            "checksum":  "cb92167e35b2cba1538dbe55b48fa77dc9d280b0a1ffe16b86d6621baad3009e",
+                            "checksum":  "16c513903272d6a7e7972047653d41676aa37801ede03ffa12465da0c6b0eafe",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1073,7 +1073,7 @@
                             "category":  "Structural Foundations",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Foundation Tag.rfa",
-                            "checksum":  "257ff954518b69c28bb9b43473e2fd9ab915ae0d9826cd5dcaae640564568b82",
+                            "checksum":  "da6e213aa2f0d9dcd8a9c6271f816ba5c24bd3dfb8f68642cca35f7cf55fd2b5",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1083,7 +1083,7 @@
                             "category":  "Structural Framing",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Framing Tag.rfa",
-                            "checksum":  "f529d5d5993b520e8ac62f9ca5216a8435e26b87566c75950f2e30e87aa0f350",
+                            "checksum":  "30e2fbda6a7ef721440f5a420bc926b627109b1af99dc0af5b6d9c2548cebae6",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1093,7 +1093,7 @@
                             "category":  "Structural Fabric Reinforcement",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Fabric Reinforcement Tag.rfa",
-                            "checksum":  "148f623f6abc647f830395ddc5798ad9347cfbd22767612d5a739e77edbc9d0e",
+                            "checksum":  "f2de99618486125861b603b1fc6cfe2ae92412294e00c4b26cc66c359716b415",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1103,7 +1103,7 @@
                             "category":  "Analytical Links",
                             "discipline":  "S",
                             "familyFile":  "STING - Analytical Links Tag.rfa",
-                            "checksum":  "e25d5849f57ec28ec864f19ee169ace60d6f551c9d1c1aef5e8a37b552767f45",
+                            "checksum":  "ef3236e8eb33c214c33248c60efd82b5a941a28fde9bc78c6626fbe21535e0ef",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1113,7 +1113,7 @@
                             "category":  "Analytical Members",
                             "discipline":  "S",
                             "familyFile":  "STING - Analytical Members Tag.rfa",
-                            "checksum":  "d258b5b38dd4e2810221c50525ba7eaab63e2c599be4bc6c34c39678dc8da6e7",
+                            "checksum":  "9d00cd59561b601bc18636ed6a641e0da04865d91b1047d96b7374be7e154c4f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1123,7 +1123,7 @@
                             "category":  "Analytical Nodes",
                             "discipline":  "S",
                             "familyFile":  "STING - Analytical Nodes Tag.rfa",
-                            "checksum":  "292be833b7f42bb15682cd70694b87a61bd45be0430a5425012103765847f514",
+                            "checksum":  "bc371158995e5c43e052a237e16d2e9620d88eb3d12f7f26b2dc912ae1afc4eb",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1133,7 +1133,7 @@
                             "category":  "Analytical Openings",
                             "discipline":  "S",
                             "familyFile":  "STING - Analytical Openings Tag.rfa",
-                            "checksum":  "ee42d889e43b56b2e74da72974d36593056a2c62e3ea04836a46bc6678f79fb9",
+                            "checksum":  "5f494783cb8daf8ecd9f9cb6dc459d878ca05f5c85f0c9ad3b48a3c1e1ba3390",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1143,7 +1143,7 @@
                             "category":  "Analytical Panels",
                             "discipline":  "S",
                             "familyFile":  "STING - Analytical Panels Tag.rfa",
-                            "checksum":  "ad0824a96e945c938ffa8cdd100d0932cbdb01c2325e6d6577d5020b47bdeaac",
+                            "checksum":  "4f4701c486c10a702c74cdd8c0d14e250ce426fc7191b3d5802f70d1d99cf02a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1153,7 +1153,7 @@
                             "category":  "Area Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Area Loads Tag.rfa",
-                            "checksum":  "2850d0a356ff2e3173dba48c5df3fb2fcce3e5aedd02a9fdf3978c679177305f",
+                            "checksum":  "d66b90d3e19ae2d66fe81420f4283c10e0067b7d5640043ea0735719c209ebf1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1163,7 +1163,7 @@
                             "category":  "Line Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Line Loads Tag.rfa",
-                            "checksum":  "2f30c168e704dbd88c1d81336025e379c1a43eea1058b38666cb400ea56fc093",
+                            "checksum":  "18b48ff29dc1faa34cd5c871608fc4cd3ea3d7b73e4d14c6c5961a5206132411",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1173,7 +1173,7 @@
                             "category":  "Point Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Point Loads Tag.rfa",
-                            "checksum":  "ffd4ad0bad58b8b036edafbbba2db73b7502600acb2a3b87d811fb87f242ab2a",
+                            "checksum":  "52abd99a0c8660a65322610cf8e7525a73edf82a0de5bbb6cdde0955c74b1130",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1183,7 +1183,7 @@
                             "category":  "Internal Area Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Internal Area Loads Tag.rfa",
-                            "checksum":  "987ad5b746e0fa6a5223adeecd4428a8f941ec3320444a7835a12036118c9017",
+                            "checksum":  "460cf17b85300bcef7304e0d1eaee1fe4b6817c583934f396f352c45208d5e50",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1193,7 +1193,7 @@
                             "category":  "Internal Line Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Internal Line Loads Tag.rfa",
-                            "checksum":  "1e585955c08a8a0d0a0c06699a1ef0744faeceeacdf73cc0d24d69e2ed0f39d6",
+                            "checksum":  "bb53218e8282a63f4e3e6e4d05abd6164d7d2ba54b1a332c01b6a4ce56731fb0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1203,7 +1203,7 @@
                             "category":  "Internal Point Loads",
                             "discipline":  "*",
                             "familyFile":  "STING - Internal Point Loads Tag.rfa",
-                            "checksum":  "fa9d09930687c876411c4454b1854a08db6c68a643c3d4b59a4256fee5016586",
+                            "checksum":  "33836a48ab89442d4e343a85e5154b0f1addd4aeab7274694eff6354256cfbac",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1213,7 +1213,7 @@
                             "category":  "Bolt",
                             "discipline":  "S",
                             "familyFile":  "STING - Bolt Tag.rfa",
-                            "checksum":  "35b0546cd7a665d8ae0e3296c06edc89e3c34c71930527443add0965392dd289",
+                            "checksum":  "6619c610a2a9e65e12d69d10d97b414ed40354f42a165283570e4fd0ea6cd65e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1223,7 +1223,7 @@
                             "category":  "Weld",
                             "discipline":  "S",
                             "familyFile":  "STING - Weld Tag.rfa",
-                            "checksum":  "80e124d1bde3e2a717020de34c47421adcca3c4595e0785a49e15c55fbd77891",
+                            "checksum":  "26a941553b9a411b660a3c592e291cbfffd164a77779de7a6ce33e65699d4193",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1233,7 +1233,7 @@
                             "category":  "Wire",
                             "discipline":  "*",
                             "familyFile":  "STING - Wire Tag.rfa",
-                            "checksum":  "f7ba77f6e39618f6a70a7dfe449ff61ad4d74c5587a7424c3b345a38fa263941",
+                            "checksum":  "fae020c672bb29439a85c1c2dfb9650cf6c57d8c7f9ac275c6afa701078cd8e1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1243,7 +1243,7 @@
                             "category":  "Structural Area Reinforcement",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Area Reinforcement Tag.rfa",
-                            "checksum":  "1b992c2065495660a5cd365a42d36e982ae59c7cbd2a2518493ea945eca8861d",
+                            "checksum":  "f9fd3e1eeebe0c6e12602958ab7f61de0bcc988fdf1b647c1e200f6b3d598770",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1253,7 +1253,7 @@
                             "category":  "Structural Path Reinforcement",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Path Reinforcement Tag.rfa",
-                            "checksum":  "c9046b6a6176b477f02da4e76b38604de85a58a7414dfbf7d4c20045eb7da8aa",
+                            "checksum":  "4170502b86476e5e2090139621fc4955e8c30df0d72dae8ff944dd95d5af8cc3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1263,7 +1263,7 @@
                             "category":  "Structural Rebar Couplers",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Rebar Couplers Tag.rfa",
-                            "checksum":  "dd74e768c5ded96aa8f1c756a5b252b7b06b7e146519e0edcb2aded28c9c5c43",
+                            "checksum":  "7eeb1ed614253a89a4996c0a53efbaa140de8b29b2cb2f0a1d575a0bf5aad281",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1273,7 +1273,7 @@
                             "category":  "Structural Beam Systems",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Beam Systems Tag.rfa",
-                            "checksum":  "e12194b1d0c11c0062a832b0a7f55945b4d2b827da04ef7c5dd7283312043ce5",
+                            "checksum":  "f7c3c642eccb4dad7ff73e19719344beb640cc562ee08199ec96217f618d4111",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1283,7 +1283,7 @@
                             "category":  "Structural Stiffeners",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Stiffeners Tag.rfa",
-                            "checksum":  "a9735abcd40f04e07450f88a22fcaf54d6a19ee8258662e4ceffb5ab54be189c",
+                            "checksum":  "92c972328759fad235fa4be77f1501473a4fa2dcf5044d66e4c96c51dd923644",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1293,7 +1293,7 @@
                             "category":  "Structural Trusses",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Trusses Tag.rfa",
-                            "checksum":  "6a1c87780ea1c872d6264cda40ed8c8be17e0b802cbc73a6b353700059f88f81",
+                            "checksum":  "d06511187b3339d755418ed988d0b1d6bfb314162c503ec7fe4e2e986f76d81c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1303,7 +1303,7 @@
                             "category":  "Air Terminals",
                             "discipline":  "M",
                             "familyFile":  "STING - Air Terminal Tag.rfa",
-                            "checksum":  "21bb8b7bf6c3b2386c34334d9320c15e3f949a0b78f46a7ba8056e79f539762e",
+                            "checksum":  "5ea55b1eb3b24088e92224495abda2f3df6a685f9f8bba562417dfdba90ec7ac",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1313,7 +1313,7 @@
                             "category":  "Duct Accessories",
                             "discipline":  "M",
                             "familyFile":  "STING - Duct Accessory Tag.rfa",
-                            "checksum":  "ad6a5afa4aed51b40a1209254446a6318526cf4fdb97037fd2b305a09ccd83de",
+                            "checksum":  "2516e227b2865bbdfe80997303429168ef02c98af44c1c1ef8efe47c3009f256",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1323,7 +1323,7 @@
                             "category":  "Duct Fittings",
                             "discipline":  "M",
                             "familyFile":  "STING - Duct Fitting Tag.rfa",
-                            "checksum":  "62acfbf15bb73d6e5cabbb828dedeaade0db2a91980e2d470a7f39d15874ddc9",
+                            "checksum":  "107d74454a18d4eea6ed52104d47c6c1d7ba563f9d9bfbe2470682a6ea61ee65",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1333,7 +1333,7 @@
                             "category":  "Ducts",
                             "discipline":  "M",
                             "familyFile":  "STING - Duct Tag.rfa",
-                            "checksum":  "ee26fecdff3690708ef409eca97ccbb8bfe490ed681fedf8214d412ee40304a2",
+                            "checksum":  "8211d7abd2d04b661725de368da6f245d8611c4cbadd3529e387c17691c16d42",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1343,7 +1343,7 @@
                             "category":  "Flex Ducts",
                             "discipline":  "M",
                             "familyFile":  "STING - Flex Duct Tag.rfa",
-                            "checksum":  "df6386d41dc39fd99041933346d64769119369584046a73a7a69a07e00c72c03",
+                            "checksum":  "ab374725681a7a2bd211d7ea89f8aee63df39444ff7ebfc34b86edfc6b780460",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1353,7 +1353,7 @@
                             "category":  "Mechanical Equipment",
                             "discipline":  "M",
                             "familyFile":  "STING - Mechanical Equipment Tag.rfa",
-                            "checksum":  "0cdba6b39d14b192fc3ddd62d99af8a8c7f6366792013cfdc76198928ff031ca",
+                            "checksum":  "ccc15076d93e88a3be6591a82708dddf586c5e4293e1cea78cf2600473a99a5a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1363,7 +1363,7 @@
                             "category":  "Flex Pipes",
                             "discipline":  "P",
                             "familyFile":  "STING - Flex Pipe Tag.rfa",
-                            "checksum":  "a2f10f9a54d9dadf3f0d16547d2253da40cfe13fda3bec88a5c4fb1ecce324e2",
+                            "checksum":  "7867bd6c5264aa4ad6726b382659a373342c78692bcf1febf52978500fc9bcc5",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1373,7 +1373,7 @@
                             "category":  "Pipe Accessories",
                             "discipline":  "P",
                             "familyFile":  "STING - Pipe Accessory Tag.rfa",
-                            "checksum":  "bf219e0548698ab52ee9aa5b9fc50017dd036d418e1f0ca7c2605aad4eb9e009",
+                            "checksum":  "a5410cb1a8e94904c0fc44429c01b32e29ce6e415efc5fd0e6366419d7922284",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1383,7 +1383,7 @@
                             "category":  "Pipe Fittings",
                             "discipline":  "P",
                             "familyFile":  "STING - Pipe Fitting Tag.rfa",
-                            "checksum":  "ea963467fe03fa579627b0cd7593296aebdef8a34a367700ea54600d6064d025",
+                            "checksum":  "a5813a453f4258e88d0beab9ebcade7aa078b530b291a5f6515e0592ad61ec9d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1393,7 +1393,7 @@
                             "category":  "Pipes",
                             "discipline":  "P",
                             "familyFile":  "STING - Pipe Tag.rfa",
-                            "checksum":  "a997ab5b3c417ec4ff8dd89c827813a084099a24aafd912dd5cdcf31018fc233",
+                            "checksum":  "0ff0129ab42fe6370401495584e4fcdcf36f6573a59a614c1990a8f2bdd82177",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1403,7 +1403,7 @@
                             "category":  "Plumbing Fixtures",
                             "discipline":  "P",
                             "familyFile":  "STING - Plumbing Fixture Tag.rfa",
-                            "checksum":  "f87e58c8e58def323cea879f5b0cb5673c3d1f6d28a8673c80f515af3084770e",
+                            "checksum":  "85cde497b625d8282489d912715e668b2fa10878d1ca5390c7f23b61608de54e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1413,7 +1413,7 @@
                             "category":  "Fire Alarm Devices",
                             "discipline":  "FP",
                             "familyFile":  "STING - Fire Alarm Device Tag.rfa",
-                            "checksum":  "8af728810c9cdccb7fc3b6ccd132522b33a7462bddaad06a6b1f9b6285da09f1",
+                            "checksum":  "2b4d4fc5f956624066cf014afb5a16f60987bd22f8cec00123421d9dec8bc17f",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1423,7 +1423,7 @@
                             "category":  "Sprinklers",
                             "discipline":  "FP",
                             "familyFile":  "STING - Sprinkler Tag.rfa",
-                            "checksum":  "7a465679656db133d612c2dc042fa70d261cec76f7e4da1d38e89c2eece96d6f",
+                            "checksum":  "eff896c46f7fc993c1319c339f71d18c1277b27dd78d0096359387e9f29aac57",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1433,7 +1433,7 @@
                             "category":  "Cable Tray Fittings",
                             "discipline":  "E",
                             "familyFile":  "STING - Cable Tray Fitting Tag.rfa",
-                            "checksum":  "611e2b705bd9c4f76a1234013f5982ca01dfbc485e02bf9a4cdf27a796d35fd0",
+                            "checksum":  "7a984a57ad92e42ca63478594ba22be87d5cb8efa9261c091d6e6b44365ff6a0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1443,7 +1443,7 @@
                             "category":  "Cable Trays",
                             "discipline":  "E",
                             "familyFile":  "STING - Cable Tray Tag.rfa",
-                            "checksum":  "3892e5d26117f2e224d7f800c9a4dc096de6a99f0ff09b98d719e116c32da6f2",
+                            "checksum":  "dade01a2da3988bd494b9106018122cdf03b28501fb8e05cb1b8cadd88cbf7f7",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1453,7 +1453,7 @@
                             "category":  "Conduit Fittings",
                             "discipline":  "E",
                             "familyFile":  "STING - Conduit Fitting Tag.rfa",
-                            "checksum":  "d43d1bead19698ad2c9c889a5bdcc19a3a91a39419a542c8142bb83a45084fa6",
+                            "checksum":  "c32f0662e3d79ac569db9c3c92c2484d0dfc5828905189561e95adf9cf542885",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1463,7 +1463,7 @@
                             "category":  "Conduits",
                             "discipline":  "E",
                             "familyFile":  "STING - Conduit Tag.rfa",
-                            "checksum":  "1752007d50afe9820ccf035c5dd6fc52b1978f402254a89f9ac249a0388404c1",
+                            "checksum":  "d794b00f152d6bbb30818799c58f5f91c5f3730236722cfcda323b54f9f64071",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1473,7 +1473,7 @@
                             "category":  "Electrical Equipment",
                             "discipline":  "E",
                             "familyFile":  "STING - Electrical Equipment Tag.rfa",
-                            "checksum":  "38dfae45565f921a33f2147563ea839ca695da14d2ed682c62444138d0a3c855",
+                            "checksum":  "640bea9711cba23bf174ec74745f12b5036a53a502755bdd4ae9af92d5585d6c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1483,7 +1483,7 @@
                             "category":  "Electrical Fixtures",
                             "discipline":  "E",
                             "familyFile":  "STING - Electrical Fixture Tag.rfa",
-                            "checksum":  "9a62f260adc7f92c4eebd20655b919d6ed4e3760946c1a23d696a249b10df61d",
+                            "checksum":  "b1868524f77f1f292820e018c8b6d61dee386845084c0f0c4c8c4dca5fd57c1d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1493,7 +1493,7 @@
                             "category":  "Lighting Devices",
                             "discipline":  "E",
                             "familyFile":  "STING - Lighting Device Tag.rfa",
-                            "checksum":  "1d362ebedd6d28b77478e58d770e0eca4add3bb4436845e575ae106c2265471f",
+                            "checksum":  "2e58251644d407732518be3a60377a376c18464148cadd2ce3f5b909ee7a756e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1503,7 +1503,7 @@
                             "category":  "Lighting Fixtures",
                             "discipline":  "E",
                             "familyFile":  "STING - Lighting Fixture Tag.rfa",
-                            "checksum":  "94c05c3f4ef3c103f1dece6ac575ec250ba643c6e7c0b3d1fcfcfb85536f64ab",
+                            "checksum":  "664c519917ce54a6a889e7f781114caca8aad2f0c932d9baa81b5708c571b891",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1513,7 +1513,7 @@
                             "category":  "Communication Devices",
                             "discipline":  "LV",
                             "familyFile":  "STING - Communication Device Tag.rfa",
-                            "checksum":  "8b2465cdf5efd181bd98531f63ae40646fcfc180dab22fc9501a6ba1a44537a0",
+                            "checksum":  "96589ebd2c581102fc0c6dda93c20e3f405ad4680a7db99a4dbffef704c619d3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1523,7 +1523,7 @@
                             "category":  "Data Devices",
                             "discipline":  "LV",
                             "familyFile":  "STING - Data Device Tag.rfa",
-                            "checksum":  "4fdc1883644de8d40f6e2776245561bc565ab13cfb2a71747162d1d558a50f5b",
+                            "checksum":  "1b0d42ee3fea73505b54a48428cc42174d87da397d0c731be776a72b66b7f581",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1533,7 +1533,7 @@
                             "category":  "Nurse Call Devices",
                             "discipline":  "H",
                             "familyFile":  "STING - Nurse Call Device Tag.rfa",
-                            "checksum":  "92e279b77b0a67dd0097d0ffcfd8a9d3ea1974bb912cdd85a271608cfa8c7778",
+                            "checksum":  "ad38153d430d2f04102cfb8f5f0e026fb8357e6c860587680c560c1f52cf234a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1543,7 +1543,7 @@
                             "category":  "Security Devices",
                             "discipline":  "LV",
                             "familyFile":  "STING - Security Device Tag.rfa",
-                            "checksum":  "624d5e50cbf1d7c4713576c2bfd04c1c93ca15baaa5718f4951b7c116e9b2f71",
+                            "checksum":  "b42068c79c49470c34b0983856d371ffd43a84b49675515f23a52730e63a7cdf",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1553,7 +1553,7 @@
                             "category":  "Telephone Devices",
                             "discipline":  "LV",
                             "familyFile":  "STING - Telephone Devices Tag.rfa",
-                            "checksum":  "47880301ba21c5901a72aa6520ce78682e363f2a1b982bcdfa259f13f8c35665",
+                            "checksum":  "9ce5f7b171da73063c6141c02d7dac272d7d012cdd5b080d5a46ad5cca16a982",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1563,7 +1563,7 @@
                             "category":  "Generic Models",
                             "discipline":  "*",
                             "familyFile":  "STING - Generic Model Tag.rfa",
-                            "checksum":  "0495f139d83d381d2a77906e83c8072ec22f161d11144c1470e66e2f25894a08",
+                            "checksum":  "497747d451351cc859888d50256f38956ddb294429cc8a43290fea508e9aa6ae",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1573,7 +1573,7 @@
                             "category":  "Specialty Equipment",
                             "discipline":  "*",
                             "familyFile":  "STING - Specialty Equipment Tag.rfa",
-                            "checksum":  "22249e751486096006d3611c06b0dcee7b9d2281cc6d7286d9cc40ab2bb4cbd6",
+                            "checksum":  "605f4e96df19f1c997b9a77cd3375927e1e39570b82d9c3dfefd2ab17d5668f0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1583,7 +1583,7 @@
                             "category":  "Specialty Equipment Asset",
                             "discipline":  "*",
                             "familyFile":  "STING - Specialty Equipment Tag Asset Tag.rfa",
-                            "checksum":  "fba9955556abf05e7178e75673fd5f6552e5fb407397f80584abd967ab1649e5",
+                            "checksum":  "27b2dd920035f4b574648d184f6e594acb0c92f38378fe0242d0e05c7273b1b8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1593,7 +1593,7 @@
                             "category":  "Specialty Equipment General",
                             "discipline":  "*",
                             "familyFile":  "STING - Specialty Equipment Tag General Tag.rfa",
-                            "checksum":  "4140833af88efee97c7100753424acae9608a34d4fcf5f360690c0c723fa8141",
+                            "checksum":  "aa752531884e5e245e9aab6e5ea97620d33858f105eeccae499e015f83f85d1a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1603,7 +1603,7 @@
                             "category":  "Duct Insulation",
                             "discipline":  "M",
                             "familyFile":  "STING - Duct Insulation Tag.rfa",
-                            "checksum":  "85112836d1054702915c4e2297a90f81a772a659a4489ec1decafea8fdd04137",
+                            "checksum":  "ed3b84398a9df236e61cfa0eadb3defce87e63800e440d33b7adb3ac08e9fc2e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1613,7 +1613,7 @@
                             "category":  "Duct Lining",
                             "discipline":  "M",
                             "familyFile":  "STING - Duct Lining Tag.rfa",
-                            "checksum":  "736efb37a99f89b8576bd51ae62c96d17f76b4e99e9635bb7d8ffcc5cb0d6afa",
+                            "checksum":  "d343a778906b816ef4da89bfda87d41399a4972eff9bae97d69209933f6eb40a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1623,7 +1623,7 @@
                             "category":  "Pipe Insulation",
                             "discipline":  "P",
                             "familyFile":  "STING - Pipe Insulation Tag.rfa",
-                            "checksum":  "d814a8671642cb341064b10aaff37a7f61328d06f6e5ee349bec09ce1ebed5fb",
+                            "checksum":  "95f0d3d38275ba69c4fbc6e9bc59f36b961ea8e59013c728ba0f852ff1a40e06",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1633,7 +1633,7 @@
                             "category":  "Plumbing Equipment",
                             "discipline":  "P",
                             "familyFile":  "STING - Plumbing Equipment Tag.rfa",
-                            "checksum":  "9ba66bcf74e78674b15d5d6f407cc50b342cd0e7f6932ec5215b7b3bb52cf4d4",
+                            "checksum":  "8adfcfc2b2c4aa46c3216f1794719c4fd2361d94c5a1078b5b01dee2f47d470c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1643,7 +1643,7 @@
                             "category":  "Mechanical Control Devices",
                             "discipline":  "M",
                             "familyFile":  "STING - Mechanical Control Devices Tag.rfa",
-                            "checksum":  "25f25d14f6962735fccb8a00b376a9daf61d8f48c6f34b3ed33111e4b062f973",
+                            "checksum":  "f5ff6cea140342962bbdeb4850d7c8779351dc7d7db3b6b54c9894ac19456aad",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1653,7 +1653,7 @@
                             "category":  "Mechanical Equipment Sets",
                             "discipline":  "M",
                             "familyFile":  "STING - Mechanical Equipment Sets Tag.rfa",
-                            "checksum":  "dd7da9f8936d5f201130e6e15466605da29dd266bcc2e8223a1cd662c7c50588",
+                            "checksum":  "f901eb39d3963e6af1c5d4e0789e03275b6328cec5c55ac7fd26679515fd4765",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1663,7 +1663,7 @@
                             "category":  "Electrical Connectors",
                             "discipline":  "E",
                             "familyFile":  "STING - Electrical Connectors Tag.rfa",
-                            "checksum":  "02135f10d695971e9732b9d95ccd8fd72f2d79eeca5fb684128aa902be978eda",
+                            "checksum":  "0802c0202f11b2e56be9378f91af7d2052bea16ec18909498ce03b42bdbcc91d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1673,7 +1673,7 @@
                             "category":  "Fire Protection",
                             "discipline":  "FP",
                             "familyFile":  "STING - Fire Protection Tag.rfa",
-                            "checksum":  "6d0f81ffdf1c701304548262655c60fde8d4c629d6e94f6a16718ab016ae7759",
+                            "checksum":  "800d21f3144a800769f952ba62473e60972ce9727743dca9f46ce6c95176a103",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1683,7 +1683,7 @@
                             "category":  "MEP Fabrication Containment",
                             "discipline":  "*",
                             "familyFile":  "STING - MEP Fabrication Containment Tag.rfa",
-                            "checksum":  "730bd97bbff5614f780405dd24358eab795ebf409e610dc6c56331444c8bf67d",
+                            "checksum":  "f56199262df20657c8ab144d9a81627272818fa12643c111b554dd1ed07e6b4a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1693,7 +1693,7 @@
                             "category":  "MEP Fabrication Ductwork",
                             "discipline":  "M",
                             "familyFile":  "STING - MEP Fabrication Ductwork Tag.rfa",
-                            "checksum":  "6e9198d3a2f60184f6be9b0e30ccd41a24296981c6ea0e40504b34d493c11abe",
+                            "checksum":  "6467c3506b51bc5c9e62e07aa8912fe70d046a7b6104f42c2588ab2f0b0cb874",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1703,7 +1703,7 @@
                             "category":  "MEP Fabrication Ductwork Stiffeners",
                             "discipline":  "M",
                             "familyFile":  "STING - MEP Fabrication Ductwork Stiffeners Tag.rfa",
-                            "checksum":  "9613aea829d9e004a523d82f98439c9c96c9576b7f6d547bddfc628420adbe32",
+                            "checksum":  "9edfbc9d9662e6b94e0892d40acd8b9c8e906c3c27eb73ad2b676f8bb7608419",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1713,7 +1713,7 @@
                             "category":  "MEP Fabrication Hangers",
                             "discipline":  "*",
                             "familyFile":  "STING - MEP Fabrication Hangers Tag.rfa",
-                            "checksum":  "52080cb783fc9aacf9d3d8431bb74fc8faf49c1fd78d3380193a5f3b650ac027",
+                            "checksum":  "22f6886f61e571d0b3416402027b81013cc6df05ac07dab2711cf4a78bd3f095",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1723,7 +1723,7 @@
                             "category":  "MEP Fabrication Pipework",
                             "discipline":  "P",
                             "familyFile":  "STING - MEP Fabrication Pipework Tag.rfa",
-                            "checksum":  "cf12244ea7b7b4ea664ab57c26efedd2158c12d8b91d20f6effe8626b57f93c8",
+                            "checksum":  "3e45a6cb7380893e48cda15b280c2524331da7e1494613968ac34712cdc34d0b",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1733,7 +1733,7 @@
                             "category":  "Materials",
                             "discipline":  "*",
                             "familyFile":  "STING - Materials Tag.rfa",
-                            "checksum":  "b95d1f409197844e9f00c2cf98a55c131cb74670235ccaa7c09835c0272ced62",
+                            "checksum":  "20492f6325b3c5470002844de29ff83521d7358a73f6b7ec43b9ed9eb5ef9c17",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1743,7 +1743,7 @@
                             "category":  "Audio Visual Devices",
                             "discipline":  "LV",
                             "familyFile":  "STING - Audio Visual Devices Tag.rfa",
-                            "checksum":  "e914ddac1242c1c1b4c14ead25726e66726f001a887e9bfa48599c3bf45ce910",
+                            "checksum":  "0cb68c0f250ee704b9baa3fb14706bf7ff459656f290765e39ab4a37aa2487cd",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1753,7 +1753,7 @@
                             "category":  "Medical Equipment",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Equipment Tag.rfa",
-                            "checksum":  "6ec0fb0138fe096c23e53a4bbb33b177c82a727a6d1202c4382c5549d0ef5c6e",
+                            "checksum":  "8d6ddaa994fe0f95c5739c24c438e18e2876cb7d1b46f8b466fbd92026d0292d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1763,7 +1763,7 @@
                             "category":  "Property Line Segments",
                             "discipline":  "*",
                             "familyFile":  "STING - Property Line Segments Tag.rfa",
-                            "checksum":  "14ffc4e8e43186a7887dc9620dfd12f4cc2a8bbdf90f76981379feca3b8db4f6",
+                            "checksum":  "be1e1edc03e4593c93efcbf1f5129420417647ee4978a44294bb88b343647c83",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1773,7 +1773,7 @@
                             "category":  "Toposolid Links",
                             "discipline":  "*",
                             "familyFile":  "STING - Toposolid Links Tag.rfa",
-                            "checksum":  "42fd807dd3e7e4bda861ef04576dadd4f473ed71700ddea7fc200446fdaead89",
+                            "checksum":  "68d0e48cd556fbf2d3a393ad440d87e405aa943d136b83da226633a4e95fc38d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1783,7 +1783,7 @@
                             "category":  "Architectural Sheet",
                             "discipline":  "*",
                             "familyFile":  "STING - Architectural Sheet Tag.rfa",
-                            "checksum":  "e5d6a2f10721028a649add453a2f4e17e5f1b8243188f4753368928dfdc87f02",
+                            "checksum":  "2044c5488fe28ce0ddab1bf763fe219525ceb0ff286311984bfbf7abfca2d05b",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1793,7 +1793,7 @@
                             "category":  "Tie-In Point Tag (Pipe - Plumbing \u0026 Hydraulic)",
                             "discipline":  "P",
                             "familyFile":  "STING - Tie-In Point Tag (Pipe — Plumbing \u0026 Hydraulic) Tag.rfa",
-                            "checksum":  "45ce0b02e56b1fd8f912d709b0a19fa4e6f2d790b171af803dd2ae8c9b7a6ec1",
+                            "checksum":  "590fc167f6ecb6a537e6ec4d55120cf7ce633b3bb7f43e82d93bb928dd58175a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1803,7 +1803,7 @@
                             "category":  "Tie-In Point Tag (Duct - HVAC)",
                             "discipline":  "M",
                             "familyFile":  "STING - Tie-In Point Tag (Duct — HVAC) Tag.rfa",
-                            "checksum":  "70b5b3fef3d04f0300006595792f51f6a1a3c2ababf130f19e95edbc550a8bb3",
+                            "checksum":  "b3d6b8c63c6d3348acb7e7968ab33f6b27a721b813be5123d88593efbc4321e1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1813,7 +1813,7 @@
                             "category":  "Tie-In Point Tag (Conduit - Electrical LV/ELV)",
                             "discipline":  "E",
                             "familyFile":  "STING - Tie-In Point Tag (Conduit — Electrical LV-ELV).rfa",
-                            "checksum":  "a52ed5a761b9ace77798959ba6f5194c0305c1ef49cf083de7fdf87de917b927",
+                            "checksum":  "e9a4af7a02951a1249b14c1a4d00189438c0d64890c8b10044307a2be2e80d7e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1823,7 +1823,7 @@
                             "category":  "Tie-In Point Tag (Cable Tray - Electrical)",
                             "discipline":  "E",
                             "familyFile":  "STING - Tie-In Point Tag (Cable Tray — Electrical) Tag.rfa",
-                            "checksum":  "3ed2f114eeec38afad65df75b0f239f54d51e58f1d6aad92eeefa1fa8c18d5a3",
+                            "checksum":  "3bc21bf7ea9c6eed9ad29c009978ed57accaae073bfbc6764f6de48bd3bea519",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1833,7 +1833,7 @@
                             "category":  "Tie-In Point Tag (Fire Protection - Sprinkler / Suppression)",
                             "discipline":  "FP",
                             "familyFile":  "STING - Tie-In Point Tag (Fire Protection — Sprinkler - Suppression).rfa",
-                            "checksum":  "29b5fac33c0fa2dc34f4b41cc16ef28a9e22a0eddac2a1726685da3923ad8f8c",
+                            "checksum":  "aeb571d8841db7925b8bfbfd1b8f4120dd89e0c970522bcfc6cb62c9733024ba",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1843,7 +1843,7 @@
                             "category":  "Tie-In Point Tag (Gas - Medical / Industrial / Natural Gas)",
                             "discipline":  "H",
                             "familyFile":  "STING - Tie-In Point Tag (Gas — Medical - Industrial - Natural Gas).rfa",
-                            "checksum":  "cf3e2d954704aeb1124c4d2a3b6927f8a36ed32b9f151d0d2b376e3bb5be511b",
+                            "checksum":  "52ba340a37ca987a3f332b401948932bf8fccc919e9d10a8e01f52a1d13c706c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1853,7 +1853,7 @@
                             "category":  "MEP Sheet",
                             "discipline":  "*",
                             "familyFile":  "STING - MEP Sheet Tag.rfa",
-                            "checksum":  "431dcacd4d7643be6f02ac0f3ff89d28dfa94cf8ab820884c31394d9738a81ce",
+                            "checksum":  "91286348b1d29da8c04f6272c388d6b90323e0c5d467ad491b4f6577a4ccbbb9",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1863,7 +1863,7 @@
                             "category":  "MEP Sleeve",
                             "discipline":  "*",
                             "familyFile":  "STING - MEP Sleeve Tag.rfa",
-                            "checksum":  "561733d5a0a5c1eec7e8613752f99632d877af74ecfe1e65c16b98d05cff22ed",
+                            "checksum":  "a1ebaf1155810903a66eb698a50bf6d5391b97de1e9daf2aa1c19321ee4cfee6",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1873,7 +1873,7 @@
                             "category":  "LPS Air Terminal",
                             "discipline":  "M",
                             "familyFile":  "STING - LPS Air Terminal Tag.rfa",
-                            "checksum":  "1b391969ba49501400f6c028149a7deb9a8e752ab0f44586494a61c4e83e76e8",
+                            "checksum":  "f6c30a276fa5ef6ecea3a6d1d03ced252ad87e4197f54b8e3f557dd1cb884c93",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1883,7 +1883,7 @@
                             "category":  "LPS Down Conductor",
                             "discipline":  "M",
                             "familyFile":  "STING - LPS Down Conductor Tag.rfa",
-                            "checksum":  "d4c2a37b3e177da0120d2a10dc8b5846532e6b392a9bf87d8f279d4d8a3027a1",
+                            "checksum":  "e35657d399e5c7062d1ef232cd80dffd2ded68ca443b6e8fe65b343ba2b5d26a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1893,7 +1893,7 @@
                             "category":  "LPS Earth Electrode",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Earth Electrode Tag.rfa",
-                            "checksum":  "2f415992468819d68a7d6e07741389c068a475ff08eb16e7f19214851f3f24ae",
+                            "checksum":  "99f7edb22717e3a1f81f3e8bce89bb0d02cd1c0f81e6fe31db1d74e8a6b171c3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1903,7 +1903,7 @@
                             "category":  "LPS Bond",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Bond Tag.rfa",
-                            "checksum":  "3512c0302f370e8064a1321851041df14066d1a55614f0029e3d90707744dde9",
+                            "checksum":  "02f394bcdf64770057e60e1e2839b04b2785f468db90d2936f0f7d204782c151",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1913,7 +1913,7 @@
                             "category":  "LPS SPD",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS SPD Tag.rfa",
-                            "checksum":  "fe1c198a32299a19ede811e70c0c6d035e813907b718e5cd5633008723bf162f",
+                            "checksum":  "0a4259517d4e5be585b9f341091453a2ec535bca0ef508790ba84a8aaf6349e8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1923,7 +1923,7 @@
                             "category":  "LPS Test Clamp",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Test Clamp Tag.rfa",
-                            "checksum":  "156084f1eb27f8757734ea6c8a75d8a3a00cf18c9a41587ab0eda146f4e2933b",
+                            "checksum":  "7df5f4b9032f635dc5b6286671557568ed0f54a603d55ef0171016bc86702f04",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1933,7 +1933,7 @@
                             "category":  "LPS Foundation Earth (Structural Reuse)",
                             "discipline":  "S",
                             "familyFile":  "STING - LPS Foundation Earth (Structural Reuse) Tag.rfa",
-                            "checksum":  "50f71e3edac072e7f8f90c75cb53f225c2926693101135bbbcb99110e6976496",
+                            "checksum":  "b8bceb8796e3c1a1329c8650d6a676e6445237d297d6e500f61d1ee77eaf4d5c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1943,7 +1943,7 @@
                             "category":  "LPS Natural Air Termination (Architectural Reuse)",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Natural Air Termination (Architectural Reuse) Tag.rfa",
-                            "checksum":  "9b9968f7a408c417b7f4830e80c61b3c028c19135e54d4a919be41e57a282ffd",
+                            "checksum":  "6036e329112348c915a79c9e04df4a89a17c6a8746f06cfd2f09bd9a6f57ffa3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1953,7 +1953,7 @@
                             "category":  "LPS Generic Component",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Generic Component Tag.rfa",
-                            "checksum":  "dc89f01989e0d1c607931a89767965c8b77f005f883d3f06f49d79f47b71a996",
+                            "checksum":  "e07bd65878767152eb92ec07ce47f43d0cab175f75b4cdfaf747aa6f28e320e4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1963,7 +1963,7 @@
                             "category":  "Brace / Truss",
                             "discipline":  "S",
                             "familyFile":  "STING - Brace - Truss Tag.rfa",
-                            "checksum":  "522da4fa9deac4131ff4a9bd6c6287da4679bdcffdbff91290377cfcc0b56a06",
+                            "checksum":  "edf2c7506a163ec212ba439135d706a9d245e33e72f0f569c451d264d8bc4054",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1973,7 +1973,7 @@
                             "category":  "Structural Sheet",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Sheet Tag.rfa",
-                            "checksum":  "7c2d42a7b1e05b0a32d2658970e0092c891acd6cba7e1a7250f87f267de722f8",
+                            "checksum":  "db5c17f54da4073b1d08b5f4d07bccc2f4c2e5b3d2a6a09293f3388cc2c647b1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1983,7 +1983,7 @@
                             "category":  "Sheet Document",
                             "discipline":  "*",
                             "familyFile":  "STING - Sheet Document Tag.rfa",
-                            "checksum":  "c8a9fe1bdd80dd3a1b3885df1a0bf1464a19197809815e4bf1c561981499dd63",
+                            "checksum":  "24e0e413ac5ff86a242e2f36c7f8233cc59ae4afd14e73088eb4b85cec37ba9b",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1993,7 +1993,7 @@
                             "category":  "Clinical Room",
                             "discipline":  "*",
                             "familyFile":  "STING - Clinical Room Tag.rfa",
-                            "checksum":  "3867e0f05b8be3698d7f9be4a31bf2d8661e655c6f75634ec26c57bac82d0e6a",
+                            "checksum":  "dbcda47a84533c1521a7947d10c47c2e236b66d3dc12491ee05ae0a1ea945f98",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2003,7 +2003,7 @@
                             "category":  "Pressure Regime",
                             "discipline":  "*",
                             "familyFile":  "STING - Pressure Regime Tag.rfa",
-                            "checksum":  "ec145ab4c6bf4b3b146d961ad0549d6040370469737fb9fdf0722105c310e6ec",
+                            "checksum":  "58bf481884abab830b782adc31e90d08f2c4c0f95eaaac81c26703c827219362",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2013,7 +2013,7 @@
                             "category":  "Infection Class",
                             "discipline":  "*",
                             "familyFile":  "STING - Infection Class Tag.rfa",
-                            "checksum":  "9354133338584c8a7cd2c9311305967104c2ca8c850c0de231b3635f7c91cda3",
+                            "checksum":  "786450e137b3c8407df045584d74e87f1edad9c51163e012ba3f46f168e94608",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2023,7 +2023,7 @@
                             "category":  "Bariatric",
                             "discipline":  "*",
                             "familyFile":  "STING - Bariatric Tag.rfa",
-                            "checksum":  "452b4bc19e7d254410037fed755002325b7f32bc8d205ec0c2b8609944d3bf8a",
+                            "checksum":  "b6851f8e95dde9ba0fe1887392b1527babf6d10ddbb1b64094e06d4b9485ac59",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2033,7 +2033,7 @@
                             "category":  "MRI Zone",
                             "discipline":  "*",
                             "familyFile":  "STING - MRI Zone Tag.rfa",
-                            "checksum":  "917c28a491deb632a40bb0a83319a03d8725bfad170e2810e4afa289fac2d8a2",
+                            "checksum":  "52b00d0663babc1f5d7e4a18458fcf50734dccd743dc9b5fc9bf07dc4bb8abf4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2043,7 +2043,7 @@
                             "category":  "5-Gauss Marker",
                             "discipline":  "*",
                             "familyFile":  "STING - 5-Gauss Marker Tag.rfa",
-                            "checksum":  "7aeb3c22d58e4efb55f2b455eb6b4bd91d6dd1aa926ebbd89b57725ff54e12e7",
+                            "checksum":  "082d14a40cb8db0096550166c8910592e0cd568eb05cacfda33ed6304a72498a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2053,7 +2053,7 @@
                             "category":  "Hoist Track",
                             "discipline":  "*",
                             "familyFile":  "STING - Hoist Track Tag.rfa",
-                            "checksum":  "44b9f0d0d1486e10e927eb06c86949c71e38e709df5c9a1e88d6cda9c0046ab9",
+                            "checksum":  "7c790145af8883e12f6bbb4a2b2899503202394cf2cb835fee9dc596eab32b3c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2063,7 +2063,7 @@
                             "category":  "AGV Dock",
                             "discipline":  "*",
                             "familyFile":  "STING - AGV Dock Tag.rfa",
-                            "checksum":  "46189baf815a71c500d2d2d25e124f0ee4f978598fbd2246b3efa4477fd01e2d",
+                            "checksum":  "4e3b61b375707583ad41fba9ced55b7a87309f1255b1935cdbfa1597974bfcf8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2073,7 +2073,7 @@
                             "category":  "Controlled Area Sign",
                             "discipline":  "*",
                             "familyFile":  "STING - Controlled Area Sign Tag.rfa",
-                            "checksum":  "d7b2242fa6cb38fed97c9711642292d09b07e24f9d7593e2200b1077eb1e1404",
+                            "checksum":  "f69ed020ccfd7cf75b066171e6f0b5fe66d06dd7b9b2b131422852a8f8b17f2d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2083,7 +2083,7 @@
                             "category":  "Dosimetry Post",
                             "discipline":  "*",
                             "familyFile":  "STING - Dosimetry Post Tag.rfa",
-                            "checksum":  "e62d0129e96f233b9764840b16f700dd4e51570c9bab3653631a5289158073cc",
+                            "checksum":  "5f2c563337a9317440b06938d664b64a75dcea4e19cf5e005ac7624be4cdbec8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2093,7 +2093,7 @@
                             "category":  "Anti-Ligature (Door)",
                             "discipline":  "*",
                             "familyFile":  "STING - Anti-Ligature (Door) Tag.rfa",
-                            "checksum":  "29bdb141c1981f992f277eefcfbfffdd5ebf51575d8630b999a7c6889ff0bf6c",
+                            "checksum":  "4951f09bb26404a2263191ff8cbaaa702b4f8adbc559cb8e47bc24ef89c7d95c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2103,7 +2103,7 @@
                             "category":  "X-ray Door",
                             "discipline":  "*",
                             "familyFile":  "STING - X-ray Door Tag.rfa",
-                            "checksum":  "16e511c59636376683bdfe949471bfa026991ccee8dcbbdb5ed920ebb9c6599e",
+                            "checksum":  "230038017c03760f5ece5defd076cdf5a08094335f0e157f7e70e3e12c949d45",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2113,7 +2113,7 @@
                             "category":  "X-ray Window",
                             "discipline":  "*",
                             "familyFile":  "STING - X-ray Window Tag.rfa",
-                            "checksum":  "8079840d3a09a951c9ba28649a5d193f93e86bcbd52916e093ae0fc51b93fef6",
+                            "checksum":  "6588b7d409a7bb732f42d9896412894564f83ec4cf62e0c3bce8ac85787aa0d5",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2123,7 +2123,7 @@
                             "category":  "X-ray Barrier",
                             "discipline":  "*",
                             "familyFile":  "STING - X-ray Barrier Tag.rfa",
-                            "checksum":  "62d6afbd71675038a1f8d94672c74195253a678d509da751d0c6b84bd18e8106",
+                            "checksum":  "8626ea44801b820215ab372688c806f76aa5031f5cb2b05a782b0bc98d19ae34",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2133,7 +2133,7 @@
                             "category":  "MRI Faraday Cage",
                             "discipline":  "*",
                             "familyFile":  "STING - MRI Faraday Cage Tag.rfa",
-                            "checksum":  "62414c1fccb2f460e487d36ac75ea7507190af157b45caffe4e266fdd20cd15e",
+                            "checksum":  "37cdf28c1a4f1cb1b02b9aef5f41a69c7d61f494f9e23e1839bff9c1792622a9",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2143,7 +2143,7 @@
                             "category":  "Linac Maze",
                             "discipline":  "*",
                             "familyFile":  "STING - Linac Maze Tag.rfa",
-                            "checksum":  "69b127685c9b5d47d79b8776cfbc4e3bb1f16bd38897bba0798dd903d418d1a3",
+                            "checksum":  "ae7450c12ca7a0ff2b2c9dd04a7d04065bcb04f42afdc2dc40d6db09ae647110",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2153,7 +2153,7 @@
                             "category":  "Anti-Ligature (Lighting Fixture)",
                             "discipline":  "E",
                             "familyFile":  "STING - Anti-Ligature (Lighting Fixture) Tag.rfa",
-                            "checksum":  "36202744fe699cb17cf895f36ef8ed8551190d41e329b924b4e285c2c2348c27",
+                            "checksum":  "b0f6dee921a94532468944adc39d3e74324b3db2c911e45551a9c6af487cd9fb",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2163,7 +2163,7 @@
                             "category":  "Examination Light",
                             "discipline":  "*",
                             "familyFile":  "STING - Examination Light Tag.rfa",
-                            "checksum":  "7d0507302ed7e3ef10f153b2cd2afc4b9a0a3021f7a29a6d9a0de47ec99f9dd1",
+                            "checksum":  "eec8ae3d35586a2c315bc383aecb0a00d86a0439dc0201ecd9cdb8b167d607b7",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2173,7 +2173,7 @@
                             "category":  "Operating Light",
                             "discipline":  "*",
                             "familyFile":  "STING - Operating Light Tag.rfa",
-                            "checksum":  "08f10f35a136eb18a6742ac6c3dfe5c8ed25167adf446cfc169785d7f1348dd7",
+                            "checksum":  "532d06b9657bf008ae1cf4b3048d9c8aade49d389d4a4e468107d178cc2ddd45",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2183,7 +2183,7 @@
                             "category":  "VIE",
                             "discipline":  "*",
                             "familyFile":  "STING - VIE Tag.rfa",
-                            "checksum":  "5910768a095046880246c17d6385a7311927bef1f6d09b3982067a79b0ed29c9",
+                            "checksum":  "9b44bcfe4500ec7eaef276efc8619826fc9e2000b57d4639637b38eaa90b69d0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2193,7 +2193,7 @@
                             "category":  "Manifold",
                             "discipline":  "*",
                             "familyFile":  "STING - Manifold Tag.rfa",
-                            "checksum":  "6866b7ae4d350ae3dae9e89fa23daa74624bb00eed0127c44f1f0402f2bad02c",
+                            "checksum":  "6b042e35ee76030adfbd1c4525887a9d126952646b70bc135475e6bf9f4166f1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2203,7 +2203,7 @@
                             "category":  "Medical Air Plant",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Air Plant Tag.rfa",
-                            "checksum":  "b413a4904b5508669b3433656e8a50206e4a20f2ff8be0e798d058e05e57d609",
+                            "checksum":  "712b73cbedc353de42d3af51ab8b39557ca83641766d7c05b0012f0ef2a2158c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2213,7 +2213,7 @@
                             "category":  "Medical Vacuum Plant",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Vacuum Plant Tag.rfa",
-                            "checksum":  "cf5041afbdb2019ff0934b0d64bd80b3663f88499f27bed0798cdc095a642a98",
+                            "checksum":  "b5a4ec6beb48a946d3e7175604181c8df2573b9300d08b2a96f00af752e9780b",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2223,7 +2223,7 @@
                             "category":  "AGS Plant",
                             "discipline":  "*",
                             "familyFile":  "STING - AGS Plant Tag.rfa",
-                            "checksum":  "098b1d80095aeed59f47af84645fb873c1107fe2a913e8057cbbc7340daecaa9",
+                            "checksum":  "dffa6bbd6f1d1d9d44cf6069427474b017f7e323a59595032ad4708cf45a33b8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2233,7 +2233,7 @@
                             "category":  "Medical Gas Pipeline",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Gas Pipeline Tag.rfa",
-                            "checksum":  "7cfd01dc814f7823d313afa3bb421eac8c88a10d59e93644a5acc02499dbbd9a",
+                            "checksum":  "0ead02407580843d1cdd7b565821cc85c0c8722cd107063c714e925252e7c370",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2243,7 +2243,7 @@
                             "category":  "Zone Valve Box",
                             "discipline":  "*",
                             "familyFile":  "STING - Zone Valve Box Tag.rfa",
-                            "checksum":  "6815a1a4bdc0e4df229c767b1d0e9ee115c189b820b7d71130c4d1003d9169dc",
+                            "checksum":  "6ae9d0a5ac9104435eee3b2a32f76819f7662e19c1cb6082b4712bc34209ed52",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2253,7 +2253,7 @@
                             "category":  "Anti-Ligature (Plumbing Fixture)",
                             "discipline":  "P",
                             "familyFile":  "STING - Anti-Ligature (Plumbing Fixture) Tag.rfa",
-                            "checksum":  "018257078312b7d4decb16a53755b4b1c0dc08bd0d6874faf11ebe39bba3f178",
+                            "checksum":  "510faa9b978582cdd7edd7af0d26312a748378b7e8da1f05f948da417817baff",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2263,7 +2263,7 @@
                             "category":  "Medical Gas Terminal Unit",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Gas Terminal Unit Tag.rfa",
-                            "checksum":  "8338572b81c570e2bfcc2f70e7e36120720f0cf4eabf037df8c4034708b35570",
+                            "checksum":  "f69b442b1c4a98bcc07478f259604df6da2d30bad074592a0af77580301eb4da",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2273,7 +2273,7 @@
                             "category":  "Area Alarm Panel",
                             "discipline":  "*",
                             "familyFile":  "STING - Area Alarm Panel Tag.rfa",
-                            "checksum":  "3effe2bd50558b57b924987d833a46acd5e48aeba7de42e2ed08dbdbad444d37",
+                            "checksum":  "fcfa0dee811742e98212d0684229240911830dd2190877d727b09df5a952dbe1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2283,7 +2283,7 @@
                             "category":  "Master Alarm Panel",
                             "discipline":  "*",
                             "familyFile":  "STING - Master Alarm Panel Tag.rfa",
-                            "checksum":  "94aebf1fac9ef0c3abfdf421daeb49db7987eab202d2eab8b29e8140eec90f69",
+                            "checksum":  "9e94168ab4ee6391bb86fac5d5a6871d7dfb744a504ecfdf17ada157eb6eff39",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2293,7 +2293,7 @@
                             "category":  "Scrub Trough",
                             "discipline":  "*",
                             "familyFile":  "STING - Scrub Trough Tag.rfa",
-                            "checksum":  "52985d314e6fe3efd21a0702734ce12ac768f17267a11fb089a1e81f2f97921d",
+                            "checksum":  "685d8a2961c0ed494e39ef7fabc42ca403041118d9bd330a3e2f505245ef1a8d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2303,7 +2303,7 @@
                             "category":  "Bedpan Washer",
                             "discipline":  "*",
                             "familyFile":  "STING - Bedpan Washer Tag.rfa",
-                            "checksum":  "8b05c2e3d964c89ff15de2013034c5903dfd8933e3a869e390b3a0a778ac450f",
+                            "checksum":  "7655463e88a11ad90eb7a9ad2af8688da6b72798d6fb90b8573e9c77db905200",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2313,7 +2313,7 @@
                             "category":  "Birth Pool",
                             "discipline":  "*",
                             "familyFile":  "STING - Birth Pool Tag.rfa",
-                            "checksum":  "150005519e848337e8583d2f1018779bd2060d1ecaf5f1fab86dad5e4fb51a20",
+                            "checksum":  "71c8d4588be61c19f89fce58356cf0e9aa4d7d31b6068bd5c8d45f772bb518ed",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2323,7 +2323,7 @@
                             "category":  "Bedhead Trunking",
                             "discipline":  "*",
                             "familyFile":  "STING - Bedhead Trunking Tag.rfa",
-                            "checksum":  "be746b76109fb4830e79b1fa2753d91fc16505dafc30666e1aaa8c08bbe2c6f4",
+                            "checksum":  "e3275f74d4db4a0bde21d5520416ccbe967df9b303257aa2d73aa45d9799e64a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2333,7 +2333,7 @@
                             "category":  "Pendant",
                             "discipline":  "*",
                             "familyFile":  "STING - Pendant Tag.rfa",
-                            "checksum":  "cff02865f0a4ed182c0b775c55684822687c72b729a3b2383e4c51d93901b29d",
+                            "checksum":  "8fac1c08cbfcd918ba8232198e06fc7e0a3a9ea07e8ab156d7614d3635ad81af",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2343,7 +2343,7 @@
                             "category":  "Crash Cart",
                             "discipline":  "*",
                             "familyFile":  "STING - Crash Cart Tag.rfa",
-                            "checksum":  "5829d94861e452f4428ab545d484c110f242df3da94cbc65d7c956cfdf9bec94",
+                            "checksum":  "9b66fd689f11b7449ac4aa17abd0854a95427fd4178c17ba17de474fbff2a54d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2353,7 +2353,7 @@
                             "category":  "AED Cabinet",
                             "discipline":  "*",
                             "familyFile":  "STING - AED Cabinet Tag.rfa",
-                            "checksum":  "1883c4710bcd30d824989d23cba41c24010fd2037b4c499752f407f23a4bcd95",
+                            "checksum":  "c9866deffbcbd1a99c955c2d99e3635e830353e39161acb4f3b4792cdceeef31",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2363,7 +2363,7 @@
                             "category":  "Hand-Rub Dispenser",
                             "discipline":  "*",
                             "familyFile":  "STING - Hand-Rub Dispenser Tag.rfa",
-                            "checksum":  "2c5b2e8cb4f442c0ad557320982bd37069cf28de029efde3d85cb0e4487dd0d8",
+                            "checksum":  "6f9a5c2ee11cb5ebd75be8771b7e4d2433e47b6516152dcad090243e9112c769",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2373,7 +2373,7 @@
                             "category":  "PTS Station",
                             "discipline":  "*",
                             "familyFile":  "STING - PTS Station Tag.rfa",
-                            "checksum":  "12aac726573f910e6b949bc0e22a4611f599007509d6c193ff4a066c62d86280",
+                            "checksum":  "1d795355158dcce7103b38094548a3757b5d80d109ef3d75f9fd21a6da4d2617",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2383,7 +2383,7 @@
                             "category":  "RTLS Reader",
                             "discipline":  "*",
                             "familyFile":  "STING - RTLS Reader Tag.rfa",
-                            "checksum":  "657ae34dd11a6cb93266ef90b69772cc08533bfcfb686a5ec896bc5da9de7ddc",
+                            "checksum":  "b4da462c442396fdb930fbe550deb89167dc1a5549e54c3d373b4c1ed31530b0",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2393,7 +2393,7 @@
                             "category":  "Surgical Robot Bay",
                             "discipline":  "*",
                             "familyFile":  "STING - Surgical Robot Bay Tag.rfa",
-                            "checksum":  "85f3e6b8a5d896bf3af2d52f1adeb5152402a01944f244b89fcab329de9ee4c6",
+                            "checksum":  "525bb0ed55c92132865c28144b57346dfac18b39390fb621d0c7996ae3f2fa75",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2403,7 +2403,7 @@
                             "category":  "Imaging Modality",
                             "discipline":  "*",
                             "familyFile":  "STING - Imaging Modality Tag.rfa",
-                            "checksum":  "bce0579fc49a4def06389dbcb66e3eecbd2a882626d2491540195a631b61bea0",
+                            "checksum":  "b4f76da58c7e8f57998054b8df1a3144a9aba051a5f1d7af3b4a3faee9f5aba8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2413,7 +2413,7 @@
                             "category":  "Dialysis Station",
                             "discipline":  "*",
                             "familyFile":  "STING - Dialysis Station Tag.rfa",
-                            "checksum":  "076a5784c7febfdf11f87e8245beed16fe858a74a2f9ebdcb8f6095d65234648",
+                            "checksum":  "de936c6fb737d16e589a3bd1f9a9fd3b9535db5c6b7ec71e0a439be3c24d31f5",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2423,7 +2423,7 @@
                             "category":  "Incubator",
                             "discipline":  "*",
                             "familyFile":  "STING - Incubator Tag.rfa",
-                            "checksum":  "32c4f2bbb89726054cb9db7eb1f89b3a622baa1d48bb98320a3e03fb1c2e7c55",
+                            "checksum":  "27f7556d10a77d03b08297c85285caede8ebaeb7e01579165011dbde3bc0bff1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2433,7 +2433,7 @@
                             "category":  "Mortuary Fridge",
                             "discipline":  "*",
                             "familyFile":  "STING - Mortuary Fridge Tag.rfa",
-                            "checksum":  "b0a3687e4b70cb36fa8a86806ccafe1b48b3a6612f84615a221b3f6a5c92274b",
+                            "checksum":  "f9d7dfeb0fb057f8ea5a5d372c362afdcc7ca809202c5fcd46f468e32264f812",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2443,7 +2443,7 @@
                             "category":  "Autoclave",
                             "discipline":  "*",
                             "familyFile":  "STING - Autoclave Tag.rfa",
-                            "checksum":  "56de79f202f3b10910b3c7ab68b675dcf299148e30e5ecb7c247dbab50c96e7f",
+                            "checksum":  "28cd06feacf4b06d4fb3fa0b210fa3718bad9e7e039f647e70a1f39e9856fcff",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2453,7 +2453,7 @@
                             "category":  "Washer Disinfector",
                             "discipline":  "*",
                             "familyFile":  "STING - Washer Disinfector Tag.rfa",
-                            "checksum":  "9c827b0cb955c1587a94af9123b84195bea26479f01002615adc5c599558bc45",
+                            "checksum":  "53b3ed6f56cd40fda2e5aa43caaad8e47464ffb0d6671648360f6195f993e589",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2463,7 +2463,7 @@
                             "category":  "Endoscope Reprocessor",
                             "discipline":  "*",
                             "familyFile":  "STING - Endoscope Reprocessor Tag.rfa",
-                            "checksum":  "f18b210910ef8f8fab1c8c6f8518ab20106a4751458362e715207be8937eaa81",
+                            "checksum":  "17c2fcbff7a536fd39ee617b0fa6078c58271e4e79a7ab3b99d0688650cb4039",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2473,7 +2473,7 @@
                             "category":  "Cytotoxic Hood",
                             "discipline":  "*",
                             "familyFile":  "STING - Cytotoxic Hood Tag.rfa",
-                            "checksum":  "ba8a8909e53a503b57facc3138338998546741fc457273c09cbeee7184d42732",
+                            "checksum":  "4cf225b697dcdc38c1c3ea06a0de66f8009afb60cea4aa7cf94b0061bc178775",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2483,7 +2483,7 @@
                             "category":  "Pharmacy Isolator",
                             "discipline":  "*",
                             "familyFile":  "STING - Pharmacy Isolator Tag.rfa",
-                            "checksum":  "1a200f8c1781bb522308a32c6477686c1736404633969fa6a9f25cb409bb9885",
+                            "checksum":  "8f04e1193814d8f0e3e4d2dc1775b3a43eeb94e9697e4c7e80f05f2691762fec",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2493,7 +2493,7 @@
                             "category":  "Biosafety Cabinet",
                             "discipline":  "*",
                             "familyFile":  "STING - Biosafety Cabinet Tag.rfa",
-                            "checksum":  "02befd525b454999ded537c35b543c8deb5a55ea21ca5b9fece75022d0b3b1db",
+                            "checksum":  "a3e2f0718fb62ee82cd6f6f8201ce33fdfa12a765c79c67c8d205ec578899922",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2503,7 +2503,7 @@
                             "category":  "Lab Fume Hood",
                             "discipline":  "*",
                             "familyFile":  "STING - Lab Fume Hood Tag.rfa",
-                            "checksum":  "f820dc04521b3b4b60ae1aa8f768bff515a7a37e2b1ed19427beb2d646498b60",
+                            "checksum":  "cf027bb7718016aa212c5c0e6d35745e46aaa2c7bfe7ec831e3b99ffcdaefdf8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2513,7 +2513,7 @@
                             "category":  "HBO Chamber",
                             "discipline":  "*",
                             "familyFile":  "STING - HBO Chamber Tag.rfa",
-                            "checksum":  "6bdeb903944fa64f6a7bcd70657a75aabb212897b417cbe2f0e8eba20b022ba9",
+                            "checksum":  "37a8f8e713f65ff36ff90bdc5a7d75d95f6c8b4fd1d99e93219b9b04e8c446c1",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2523,7 +2523,7 @@
                             "category":  "IVF Workstation",
                             "discipline":  "*",
                             "familyFile":  "STING - IVF Workstation Tag.rfa",
-                            "checksum":  "ab9927afd62f7c6d1d8b1aa09e43f22888f737692bc7ff6066b3f86945c4a149",
+                            "checksum":  "68c70b7f9b69dabfc31cbba3c5d7e11b9e9eb3302e1841949b021f6856c5e239",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2533,7 +2533,7 @@
                             "category":  "Patient Monitor",
                             "discipline":  "*",
                             "familyFile":  "STING - Patient Monitor Tag.rfa",
-                            "checksum":  "c5355081fab0cbb5c37324ea5be1675d8eae085e60069334a4785de7df0b0423",
+                            "checksum":  "9683f97a18cc0046c2e550b6141417a5c5534875a2c6cf8987934fdb37a17a47",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2543,7 +2543,7 @@
                             "category":  "Warming Cot",
                             "discipline":  "*",
                             "familyFile":  "STING - Warming Cot Tag.rfa",
-                            "checksum":  "47c87c82019e70c204e0e40f479d8ca75523e9c3a8edcceca41654f49b297c92",
+                            "checksum":  "3a36c19dc5f0ade84ab244e1153127eacac7c50237ab193f9fc16a9d099b7820",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2553,7 +2553,7 @@
                             "category":  "Medical Refrigerator",
                             "discipline":  "H",
                             "familyFile":  "STING - Medical Refrigerator Tag.rfa",
-                            "checksum":  "09524948a6663002a96c77c9717ad00e36cf6d3b354c0ec744f51e78185824e1",
+                            "checksum":  "30705c63f1d63c6b1e1015b9aa168e3af0b391938eab39f8d511563cb49d451e",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2563,7 +2563,7 @@
                             "category":  "Nurse Call",
                             "discipline":  "H",
                             "familyFile":  "STING - Nurse Call Tag.rfa",
-                            "checksum":  "4a1cc4c5ad336e19ad3eadcccadf2909723bb9f71ae185c80286c658bd575a51",
+                            "checksum":  "45162f66ddcfd8f3a6202ff288f98296c8a6ba73113ba9efa68023489b3200d9",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2573,7 +2573,7 @@
                             "category":  "Curtain Panel",
                             "discipline":  "*",
                             "familyFile":  "STING - Curtain Panel Tag.rfa",
-                            "checksum":  "2cac2b877c20363af7d02bb1440ce5c30802e2c82afc07364f57ff7d268de4d2",
+                            "checksum":  "ef7fe74623089c75c6a6764f87cb3db819afd8217d4e7d75133fb611a3ffa8a4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2583,7 +2583,7 @@
                             "category":  "Curtain Wall Mullion",
                             "discipline":  "*",
                             "familyFile":  "STING - Curtain Wall Mullion Tag.rfa",
-                            "checksum":  "2920e3585b77054a45194a5a2c3fc1f7f004e2ca4f7128ad7a866d8816d17c31",
+                            "checksum":  "6554e554dd81cb907e666e6aeaf86ff883d97ab015314488d50bcba652b2243a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2593,7 +2593,7 @@
                             "category":  "Railing",
                             "discipline":  "*",
                             "familyFile":  "STING - Railing Tag.rfa",
-                            "checksum":  "4c4f017764377180a934ebf52def1b5fd1cdb8356681e541b941c60573afedb7",
+                            "checksum":  "44ee4c3d861f60057adb44daac0d66f587d7ac346bbcf58d0480450a666a826d",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2603,7 +2603,7 @@
                             "category":  "Architectural Column",
                             "discipline":  "S",
                             "familyFile":  "STING - Architectural Column Tag.rfa",
-                            "checksum":  "407970721d8f0cb843317642db702c0d888fb0f6e0c5e5f541d3c1d86b95f550",
+                            "checksum":  "04e83492a02120121cad0d6f03cdac3a8342bae281e90876917761644fce5da2",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2613,7 +2613,7 @@
                             "category":  "Structural Connection",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Connection Tag.rfa",
-                            "checksum":  "5d4bb8ebbe1f7d04c0f51cf66543300ca2aa51a78525ede93b6a4309ad8b5d6d",
+                            "checksum":  "28042ec607601f1ef5126d548f3884ed52de1e5e1a0549fa3a1ffbad6a508014",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2623,7 +2623,7 @@
                             "category":  "Structural Slab",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Slab Tag.rfa",
-                            "checksum":  "4d958ff1a89467a1ef625f0b85ca60364c48dd13686c335bf99b518b07b4db1a",
+                            "checksum":  "e679e8ef0427af6222fcfdc8142d1f9eb2860d4aca6af24cf65bd2f374c5b50c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2633,7 +2633,7 @@
                             "category":  "Structural Wall",
                             "discipline":  "S",
                             "familyFile":  "STING - Structural Wall Tag.rfa",
-                            "checksum":  "0c21b01f5c10cd9ccd6b8da130e1b24efb1d9b6d2fbf9f86421b6d3fd1ef9d8d",
+                            "checksum":  "62a019f74d61d368a1e7bce5d96594a82b5c1e2a6978245ed8fae58c7c092776",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2643,7 +2643,7 @@
                             "category":  "Tie-In FP Pipe",
                             "discipline":  "P",
                             "familyFile":  "STING - Tie-In FP Pipe Tag.rfa",
-                            "checksum":  "5fe2a2cb9f66d191440b663526eeb6798cda27e127a6685cb0f51c2825cd17fe",
+                            "checksum":  "eb8b951803f0a0ba2d19c4bf478c9efff7d1880145a9740eed6b5bc83f430d6c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -2653,7 +2653,7 @@
                             "category":  "Tie-In Gas Pipe",
                             "discipline":  "P",
                             "familyFile":  "STING - Tie-In Gas Pipe Tag.rfa",
-                            "checksum":  "1da8f7a385e691c76dee2111ec8135275c7c3a64322b3ae2b77283f82b2ea045",
+                            "checksum":  "816b56d88d9480e27b27b308e1148ba366ed9717f6bd2d5a3822f7551e2a294f",
                             "status":  "built",
                             "origin":  "corporate"
                         }

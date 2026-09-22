@@ -401,6 +401,29 @@ namespace StingTools.Core
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
         public static int ReadOnlySkipCount => _readOnlySkipCount;
 
+        /// <summary>
+        /// How many source-token writes have been SANITISED away this session.
+        ///
+        /// <para>SanitiseSourceTokenWrite empties any token value containing the
+        /// separator - writing "-" into ASS_SEQ_NUM_TXT stores "". That is the
+        /// right call, but the warning is capped at three occurrences, so after
+        /// the third every further token is emptied in SILENCE. On 2026-09-21 a
+        /// tag rendered "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ blank and
+        /// the log had nothing to say about either, because the cap had already
+        /// been spent on three ASS_PRODCT_COD_TXT writes.</para>
+        ///
+        /// <para>A count that is kept and never reported is the same defect as no
+        /// count at all. Callers surface this in their result line.</para>
+        /// </summary>
+        public static int SourceTokenWriteCleanups => _sourceTokenWriteCleanupCount;
+
+        /// <summary>Zero the token-hygiene counters so a run reports its OWN totals.</summary>
+        public static void ResetTokenHygieneCounters()
+        {
+            System.Threading.Interlocked.Exchange(ref _sourceTokenWriteCleanupCount, 0);
+            _readOnlySkipCount = 0;
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
@@ -461,6 +484,51 @@ namespace StingTools.Core
                 return false;
             }
         }
+
+        /// <summary>
+        /// Why a <see cref="SetString"/> call returned false, in words.
+        ///
+        /// <para>SetString returns false for FOUR unrelated reasons - the parameter
+        /// is not on the element, it is read-only, it is not a string, or it
+        /// already holds a value and overwrite was not asked for. Callers logged
+        /// all four as "failed to write", which is true of one of them and
+        /// misleading about the rest: the fourth is a deliberate skip, not a
+        /// failure. Measured 2026-09-21, chasing a tag that rendered
+        /// "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ missing - the log said
+        /// four containers "failed" and could not say which cause, so the log
+        /// could not settle it.</para>
+        ///
+        /// <para>Only called on the failure path, so it costs nothing in the
+        /// normal case.</para>
+        /// </summary>
+        public static string ExplainWriteFailure(Element el, string paramName, bool overwrite)
+        {
+            try
+            {
+                if (el == null) return "no element";
+                if (string.IsNullOrEmpty(paramName)) return "no parameter name";
+
+                Parameter p = CachedLookup(el, paramName);
+                if (p == null)
+                    return "not present on this element - the shared parameter is not bound to " +
+                           "its category in THIS project (run Load Shared Params)";
+                if (p.IsReadOnly)
+                    return "read-only on this element";
+                if (p.StorageType != StorageType.String)
+                    return $"storage type is {p.StorageType}, not String";
+
+                string existing = p.AsString() ?? string.Empty;
+                if (existing.Length > 0 && !overwrite)
+                    return $"already holds '{Trunc(existing)}' and overwrite was not requested - " +
+                           "this is a deliberate SKIP, not a failure";
+
+                return "Parameter.Set threw - see the preceding SetString warning";
+            }
+            catch (Exception ex) { return "could not be determined: " + ex.Message; }
+        }
+
+        private static string Trunc(string s)
+            => s != null && s.Length > 40 ? s.Substring(0, 40) + "..." : s;
 
         /// <summary>Set only when the parameter is currently empty.</summary>
         public static bool SetIfEmpty(Element el, string paramName, string value)
@@ -4965,6 +5033,18 @@ namespace StingTools.Core
                         }
                     }
                 }
+
+                // Mirror numerics into their TEXT twins, AFTER the formula engine
+                // (so computed values are included) and BEFORE the tag is built
+                // (so containers and TAG7 read the filled twins).
+                //
+                // A Text label formula cannot reference a NUMBER, LENGTH or
+                // YESNO — Revit rejects it as "Inconsistent Units" — so twelve
+                // rows across the two build sheets read a _TXT twin instead.
+                // Those twins were defined but nothing filled them, which would
+                // have rendered every one of those rows blank forever.
+                try { NumericTextMirror.MirrorAll(el, overwrite: overwrite); }
+                catch (Exception mex) { StingLog.Warn($"TagPipeline: numeric mirror on {el.Id}: {mex.Message}"); }
 
                 // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
                 // pass _prevTag in so BuildAndWriteTag

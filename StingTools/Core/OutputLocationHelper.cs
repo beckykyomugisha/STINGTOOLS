@@ -10,11 +10,16 @@ namespace StingTools.Core
 {
     /// <summary>
     /// Centralized output location management for all STING export/save operations.
-    /// Provides a user-preferred save directory with fallback chain:
-    ///   1. User-configured preferred directory (set via SetPreferredDirectory)
-    ///   2. Project directory (alongside .rvt file)
-    ///   3. STING_Exports subdirectory in user's Documents
-    ///   4. System temp directory
+    /// Fallback chain (GetOutputDirectory below is the authoritative version):
+    ///   1. The unified project container (needs a SAVED project)
+    ///   2. User-configured PreferredDirectory, if explicitly set
+    ///   3. %LOCALAPPDATA%\\STING\\exports - stable, survives the Revit session
+    ///   4. System temp, which under Revit is a per-session GUID folder
+    ///
+    /// There is deliberately NO Documents fallback - it was removed so exports stop
+    /// sprawling into sibling folders. This list said otherwise for long enough that
+    /// the user-facing dialog below was written from it, and told people their
+    /// Documents folder had been tried when it never was.
     ///
     /// All export commands should use GetOutputPath() instead of hardcoding paths.
     /// Users can set their preferred directory once and all exports will use it.
@@ -49,7 +54,8 @@ namespace StingTools.Core
         /// Resolution order:
         ///   1. Phase 167 unified project root (auto-bootstrapped if missing) → 20_MISC_<code>
         ///   2. User-configured PreferredDirectory (overrides only if explicitly set)
-        ///   3. System temp (with one-shot warning so the user notices)
+        ///   3. %LOCALAPPDATA%\\STING\\exports (stable across sessions)
+        ///   4. System temp (with one-shot warning so the user notices)
         ///
         /// The legacy {projectDir}/STING_Exports/ and {Documents}/STING_Exports/
         /// fallbacks have been removed: every export now lands inside the single
@@ -79,9 +85,47 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir))
                 return dir;
 
-            // 3. Temp directory (last resort — warn so user knows exports are not in a project folder)
+            // 3. A stable per-user folder. Reached whenever the project is unsaved,
+            //    which is normal on a scratch model - and where this chain used to go
+            //    straight to Path.GetTempPath(). Under Revit that is a PER-SESSION
+            //    GUID folder (Temp\\b1f76786-...\\), so a report written there is
+            //    orphaned the moment Revit closes: the path printed in the "done"
+            //    dialog stops resolving, which reads as the export never happening.
+            string stableDir = null;
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!string.IsNullOrEmpty(localAppData))
+                    stableDir = Path.Combine(localAppData, "STING", "exports");
+            }
+            catch (Exception ex) { StingLog.Warn($"OutputLocationHelper: LocalApplicationData lookup: {ex.Message}"); }
+
+            if (!string.IsNullOrEmpty(stableDir) && TryEnsureDirectory(stableDir))
+            {
+                if (!_tempFallbackWarned)
+                {
+                    _tempFallbackWarned = true;
+                    StingLog.Warn("OutputLocationHelper: no project container and no preferred directory - " +
+                                  $"exports go to {stableDir}");
+                    try
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
+                            "This project has no STING output folder yet - usually because it has not " +
+                            "been saved." + "\n\n" +
+                            "Exports will be saved to:" + "\n" + stableDir + "\n\n" +
+                            "Save the project to keep exports beside it, or use 'Set Output Directory' " +
+                            "(BIM tab) to choose a permanent location.");
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex2.Message}"); }
+                }
+                return stableDir;
+            }
+
+            // 4. Temp directory (true last resort)
             string tempDir = Path.GetTempPath();
-            StingLog.Warn($"OutputLocationHelper: All preferred directories failed. Falling back to system temp: {tempDir}");
+            StingLog.Warn("OutputLocationHelper: project container, preferred directory and the " +
+                          "STING exports folder all failed. " +
+                          $"Falling back to system temp: {tempDir}");
 
             // Check project_config.json for failOnOutputPathMissing flag
             try
@@ -106,9 +150,13 @@ namespace StingTools.Core
                 _tempFallbackWarned = true;
                 try
                 {
+                    // Names what was actually tried. The old text named the
+                    // Documents folder, which this chain has never attempted.
                     Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
-                        "Could not write to the project directory or Documents folder.\n\n" +
-                        $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
+                        "Could not write to the project folder, the configured output directory, " +
+                        "or " + (stableDir ?? "the STING exports folder") + "." + "\n\n" +
+                        "Exports will be saved to the system temp folder:" + "\n" + tempDir + "\n" +
+                        "Under Revit that folder is per-session, so move anything you want to keep." + "\n\n" +
                         "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
                 }
                 catch (Exception ex2) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex2.Message}"); }

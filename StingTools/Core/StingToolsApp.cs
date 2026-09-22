@@ -1043,6 +1043,19 @@ namespace StingTools.Core
                 Temp.FormulaEngine.InvalidateFormulaCache();
                 StingLog.Info("DocumentOpened: cleared formula, param, auto-tagger, compliance caches; reloaded TagConfig");
 
+                // Name the content libraries in search order, and shout if a
+                // higher-priority one shadows the deployed baseline. Nothing said
+                // either of these before 2026-09-21, and a stale shared library
+                // silently won every family lookup for six weeks.
+                try
+                {
+                    var roots = StingTools.Core.Content.ContentRoots.Resolve(e.Document);
+                    var info = StingTools.Core.Content.ContentRootReport.Describe(
+                        roots, StingTools.Tags.TagFamilyConfig.LegacyTagDirectory());
+                    StingTools.Core.Content.ContentRootReport.LogRoots(info);
+                }
+                catch (Exception crEx) { StingLog.Warn($"Content root report: {crEx.Message}"); }
+
                 // FUT-19: Pre-warm ONLY non-Revit-API caches (file I/O) on background thread.
                 // PERF-CRIT: Revit API is NOT thread-safe — ComplianceScan.Scan() and
                 // LoadGridLines() use FilteredElementCollector which MUST run on the UI thread.

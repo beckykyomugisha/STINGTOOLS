@@ -405,7 +405,10 @@ namespace StingTools.Tags
             bool specDriven = SharedParamGuids.HasResolvedSpec;
             try
             {
-                var perParamCats = specDriven ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings;
+                // Project-enabled binding profiles layer on top of whichever
+                // baseline is in force. Additive only - see BindingProfiles.
+                var perParamCats = SharedParamGuids.WithProfiles(doc,
+                    specDriven ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings);
                 var sigToBinding = new Dictionary<string, InstanceBinding>(StringComparer.Ordinal);
                 foreach (var kvp in perParamCats)
                 {
@@ -1583,7 +1586,10 @@ namespace StingTools.Tags
                 Document doc = ctx.Doc;
                 var app = doc.Application;
 
-                var spec = SharedParamGuids.HasResolvedSpec ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings;
+                // Profiles included, or reconcile would see a profile-added
+                // binding as a stray and undo the thing the project asked for.
+                var spec = SharedParamGuids.WithProfiles(doc,
+                    SharedParamGuids.HasResolvedSpec ? SharedParamGuids.ResolvedScopedBindings : SharedParamGuids.PerParamCategoryBindings);
                 if (spec.Count == 0)
                 {
                     TaskDialog.Show("STING — Reconcile Bindings",

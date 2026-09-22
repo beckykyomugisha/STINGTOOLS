@@ -453,7 +453,7 @@ namespace StingTools.Tags
             deprNotice.MainInstruction = "This command writes PARA_STATE_* directly on element types.";
             deprNotice.MainContent =
                 "Depth is now type-based: every tag family variant carries its depth tier " +
-                "in its name (e.g. '2.5_BOLD_RED_Filled30_T3') and in TAG_DEPTH_TIER_INT.\n\n" +
+                "in its name (e.g. '2.5_BOLD_RED_Filled30_T2') and in TAG_DEPTH_TIER_INT.\n\n" +
                 "The Tag Studio ParaDepth slider picks the correct variant at placement time. " +
                 "Prefer the Tag Studio 'Apply style' / 'Apply scheme' path, or use the ParaDepth " +
                 "slider before SmartPlace / BatchPlace / Tag & Combine.\n\n" +

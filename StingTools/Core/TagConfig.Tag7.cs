@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -901,6 +901,28 @@ namespace StingTools.Core
                 identityPlain.Append($" sized at {size}");
                 identityMarked.Append($" \u00ABL\u00BBsized at\u00AB/L\u00BB \u00ABV\u00BB{size}\u00AB/V\u00BB");
             }
+
+            // Reinforcement annotation (BS 8666 / BS 1192). Self-gating: a
+            // non-reinforcement element does not carry STR_BAR_MARK_TXT, so
+            // Compose returns nothing and this appends nothing. No category list
+            // to keep in step with the tag config, and no way to misfire.
+            try
+            {
+                var rebar = Bs8666Label.Compose(
+                    ParameterHelpers.GetString(el, "STR_BAR_MARK_TXT"),
+                    ParameterHelpers.GetString(el, "STR_REBAR_TOTAL_NO_NR"),
+                    Bs8666Label.TypeAndSize(
+                        ParameterHelpers.GetString(el, "CST_S_REI_TYPE_TXT"),
+                        ParameterHelpers.GetString(el, "STR_REBAR_SIZE_MM")),
+                    ParameterHelpers.GetString(el, "CST_S_REI_SPACING_MM"));
+
+                if (rebar.HasContent)
+                {
+                    identityPlain.Append(rebar.Plain);
+                    identityMarked.Append(rebar.Marked);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Tag7 reinforcement annotation: {ex.Message}"); }
 
             // Policy-driven classification stamp. classification_policy.json
             // "tagClassifications" lists which classification axes (parameter names) to
@@ -2056,7 +2078,11 @@ namespace StingTools.Core
                 string dataValue = GetWarningDataValue(el, warnParam, categoryName);
                 if (string.IsNullOrEmpty(dataValue)) continue;
 
-                string warning = ParamRegistry.EvaluateWarning(def, dataValue);
+                // Sector-aware: a per-sector threshold (panel spare capacity)
+                // resolves against THIS project, not a flat number that suits
+                // one building type.
+                string warning = ParamRegistry.EvaluateWarning(
+                    def, dataValue, Core.Electrical.ProjectSector.Resolve(doc));
                 if (!string.IsNullOrEmpty(warning))
                     warnings.Add(warning);
             }
@@ -2097,7 +2123,8 @@ namespace StingTools.Core
                 }
                 else
                 {
-                    string evalResult = ParamRegistry.EvaluateWarning(def, dataValue);
+                    string evalResult = ParamRegistry.EvaluateWarning(
+                        def, dataValue, Core.Electrical.ProjectSector.Resolve(doc));
                     if (!string.IsNullOrEmpty(evalResult))
                     {
                         // Threshold violated — write the warning text
