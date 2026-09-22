@@ -1,8 +1,8 @@
 # STING LPS Tag master — hand-authoring sheet
 
 Copy-paste companion to `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`, generated from
-`STING_TAG_CONFIG_v5_0_*.csv` and that sheet on 2026-09-22. Regenerate rather
-than hand-edit.
+`STING_TAG_CONFIG_v5_0_*.csv` and that sheet on 2026-09-22. Regenerate with `python tools/gen_lps_authoring_sheet.py` rather than hand-editing;
+`LpsMasterSheetTests` fails if STEP 2 drifts from the universal sheet.
 
 **Build from `Multi-Category Tag.rft`, as a TENTH family named
 `STING_LPS_Tag_Universal`.** Not by editing one of the nine: a master that is
@@ -23,6 +23,13 @@ and that is what the other 197 families now actually hold. The LPS
 declarations predate the universal pivot, so they are 26 rows short - missing
 cost, carbon, fabrication and clash rows that every other tag in the library
 has.
+
+Three of those 26 are arguably irrelevant here - ASS_CAPACITY_TXT,
+ASS_POWER_RATING_TXT and ASS_FLOW_RATE_TXT. An air terminal has no flow
+rate. They are kept anyway, because that is what the universal design
+already does everywhere else: a Door Tag carries the flow-rate row too and
+renders it blank. Dropping them would buy nothing at render time and cost a
+second label shape to reason about forever.
 
 So T4-T10 below are the UNIVERSAL master's rows, verbatim, Break values and
 all. They are already verified by the 197-family run. Using the LPS
