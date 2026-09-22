@@ -56,6 +56,39 @@ for line in io.open("docs/UNIVERSAL_TAG_LABEL_BUILD_SHEET.md", encoding="utf-8")
         shared.append((m.group(1), "|" + m.group(2)))
 
 
+# ── numeric parameters cannot appear in a Text label formula ────────────────
+# Revit has no number-to-string conversion in family formulas, so
+# `if(BOOL, <NUMBER>, "")` raises "Inconsistent Units" - the two branches are
+# different types. Measured 2026-09-22 while hand-building the master: it
+# blocked ELC_LPS_AIR_TERMINAL_COUNT_NR, _PROTECTION_ANGLE_DEG and
+# _CONDUCTOR_CROSS_SECT_MM2, and nine more would have followed.
+#
+# Every one of them already has a TEXT twin - the _NR / _TXT pairing this
+# library uses throughout - so the label reads the twin.
+_dt = {}
+for _line in io.open("StingTools/Data/MR_PARAMETERS.txt", encoding="utf-8-sig"):
+    _f = _line.rstrip("\n").split("\t")
+    if _f[0] == "PARAM" and len(_f) > 3:
+        _dt.setdefault(_f[2], _f[3])
+
+
+def text_source(param):
+    """The TEXT parameter a label row should read, and why it differs."""
+    if _dt.get(param, "TEXT") == "TEXT":
+        return param, None
+    # Both spellings are in use: ELC_LPS_PROTECTION_ANGLE_DEG pairs with
+    # ..._ANGLE_TXT (unit dropped), while ELC_LPS_INSPECTION_INTERVAL_MONTHS
+    # pairs with ..._MONTHS_TXT (unit kept). Trying only the first reported the
+    # second as having no twin, which would have removed a real row.
+    stem = re.sub(r"_(NR|BOOL|MM2|MM|DEG|OHM|MONTHS|M|YRS|KG|PCT)$", "", param)
+    for twin in (param + "_TXT", stem + "_TXT"):
+        if _dt.get(twin) == "TEXT":
+            return twin, _dt.get(param)
+    # No twin: say so in the sheet rather than emitting a formula that cannot
+    # be entered. Silence here would be found one dialog at a time.
+    return None, _dt.get(param)
+
+
 def nice(param, tier):
     """Calc Value Name, following the universal sheet's convention."""
     core = param.replace("ELC_LPS_", "")
@@ -114,6 +147,16 @@ w("`used` is how many of the nine declare the row. A row used by one family stil
 w("belongs in the master: it renders blank on the other eight, exactly as every")
 w("tier already does.")
 w("")
+w("**Numeric parameters read their TEXT twin.** Revit has no number-to-string")
+w("conversion in family formulas, so `if(BOOL, <NUMBER>, \"\")` is rejected as")
+w("\"Inconsistent Units\" - the branches are different types. Twelve rows here are")
+w("affected and each names the twin it reads, with the original type in italics.")
+w("")
+w("> The twins are NOT yet written by anything. A label pointed at")
+w("> `ELC_LPS_PROTECTION_ANGLE_TXT` renders blank until that parameter holds a")
+w("> value, whether typed by hand or mirrored from the numeric. Build the rows")
+w("> now; the mirror is a separate job.")
+w("")
 w("**Break is a suggestion here** - one per tier boundary. The declarations do not")
 w("record line breaks, so unlike the T4-T10 block below these are not verified.")
 w("Adjust as the label reads.")
@@ -140,7 +183,15 @@ for idx, k in enumerate(order):
         brk = "YES"
     else:
         name = nice(k, tier)
-        formula = '`if(TAG_PARA_STATE_%s_BOOL, %s, "")`' % (tier[1:], k)
+        src, was = text_source(k)
+        if src is None:
+            formula = ("**cannot be a label row** - `%s` is %s and has no _TXT twin; "
+                       "Revit rejects a number in a Text formula" % (k, was))
+        elif was:
+            formula = ('`if(TAG_PARA_STATE_%s_BOOL, %s, "")` <br>_(%s is %s - reads its TEXT twin)_'
+                       % (tier[1:], src, k, was))
+        else:
+            formula = '`if(TAG_PARA_STATE_%s_BOOL, %s, "")`' % (tier[1:], src)
     w("| %d | %s | %s | %s | %s | %s | %s | %d/9 |"
       % (n, tier, name, formula, pre or "", suf or "", brk, len(owners[k])))
 

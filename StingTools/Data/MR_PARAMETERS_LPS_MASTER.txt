@@ -39,23 +39,23 @@ PARAM	081c2e86-3af9-5658-8a26-63da9c1eccc2	ELC_LPS_CLASS_TXT	TEXT		4	1	LPS class
 PARAM	b1080057-9890-5a0c-959a-46fb8847c766	TAG_PARA_STATE_2_BOOL	YESNO		17	1	Standard mode (tiers 1+2) [ISO 19650-3:2020]	1
 PARAM	a01025f4-6155-524e-8514-72507f5e04ef	ELC_LPS_ZONE_TXT	TEXT		4	1	Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)	1
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
-PARAM	423133ca-7535-521d-9c37-65ec7ae68166	ELC_LPS_CONDUCTOR_CROSS_SECT_MM2	NUMBER		4	1	Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)	1
+PARAM	16ff46ea-ac8e-5b6e-8f74-6e8c9e76b962	ELC_LPS_CONDUCTOR_CROSS_SECT_TXT	TEXT		4	1	ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 display mirror [auto-generated]	1
 PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4	1	Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)	1
-PARAM	0063477e-cda5-58a3-a802-061838e57a47	ELC_LPS_PROTECTION_ANGLE_DEG	NUMBER		4	1	Protection cone half-angle in degrees per BS EN 62305 class	1
-PARAM	36889f59-a8ba-55c8-8777-6ba332b39bff	ELC_LPS_AIR_TERMINAL_COUNT_NR	NUMBER		4	1	Count of air terminals / lightning rods on the protected zone	1
-PARAM	157527ba-17a8-5014-b6c5-f70273ccd5f5	ELC_LPS_DOWN_CONDUCTOR_COUNT_NR	NUMBER		4	1	Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)	1
-PARAM	441346ff-828f-5298-9fbb-96f27feb22ef	ELC_LPS_SEPARATION_DISTANCE_MM	LENGTH		4	1	Separation distance (s) between LPS and services in millimetres	1
+PARAM	381046ca-eec3-5a46-b69a-c1ab709280e1	ELC_LPS_PROTECTION_ANGLE_TXT	TEXT		4	1	ELC_LPS_PROTECTION_ANGLE_DEG display mirror [auto-generated]	1
+PARAM	2d8bee86-b579-52d0-9e8b-13d3ac70344c	ELC_LPS_AIR_TERMINAL_COUNT_TXT	TEXT		4	1	ELC_LPS_AIR_TERMINAL_COUNT_NR display mirror [auto-generated]	1
+PARAM	79636e90-122f-51ca-8c70-fc0fe1311656	ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT	TEXT		4	1	ELC_LPS_DOWN_CONDUCTOR_COUNT_NR display mirror [auto-generated]	1
+PARAM	a2bc7edc-fd77-5617-9b04-c39c623050dd	ELC_LPS_SEPARATION_DISTANCE_TXT	TEXT		4	1	ELC_LPS_SEPARATION_DISTANCE_MM display mirror [auto-generated]	1
 PARAM	3703245d-a866-5e05-8737-72babfbb85a4	ELC_LPS_EARTH_TYPE_TXT	TEXT		4	1	Earth electrode type (ROD / RING / FOUNDATION / MESH)	1
-PARAM	80da349f-708b-5165-bb2e-f369dec80e4b	ELC_LPS_EARTH_RESISTANCE_OHM	NUMBER		4	1	Measured earth resistance in ohms (target <10 ohm per BS EN 62305)	1
-PARAM	d02bca9d-9159-5477-8488-48f9076841fa	ELC_LPS_EARTH_ELECTRODE_COUNT_NR	NUMBER		4	1	Count of earth electrodes serving the LPS	1
+PARAM	64bfbc63-3117-5b2e-907d-1599ae95ec61	ELC_LPS_EARTH_RESISTANCE_TXT	TEXT		4	1	ELC_LPS_EARTH_RESISTANCE_OHM display mirror [auto-generated]	1
+PARAM	f7f74ece-6f7b-5b34-becc-fe0271252d4a	ELC_LPS_EARTH_ELECTRODE_COUNT_TXT	TEXT		4	1	ELC_LPS_EARTH_ELECTRODE_COUNT_NR display mirror [auto-generated]	1
 PARAM	d654df13-0913-5e8f-8dfe-98b3971beb86	ELC_LPS_TEST_DATE_TXT	TEXT		4	1	ISO 8601 date of last LPS test / inspection	1
 PARAM	c1605d30-bdcb-560e-9d97-bae3303a078e	ELC_LPS_SURGE_PROTECTION_LVL_TXT	TEXT		4	1	Surge protection device level (Type 1 / Type 2 / Type 3)	1
 PARAM	1cb4c3d3-8c12-5be3-9eeb-4072b4be3240	ELC_LPS_BOND_TYPE_TXT	TEXT		4	1	Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)	1
 PARAM	825a73c0-4b3b-5474-8db5-f54072ff40b8	TAG_PARA_STATE_3_BOOL	YESNO		17	1	Comprehensive mode (tiers 1+2+3) [ISO 19650-3:2020]	1
 PARAM	330d6fb5-2891-5a28-8ec6-e04618c9d1e4	ELC_LPS_RISK_ASSESSMENT_TXT	TEXT		4	1	Risk assessment reference document per BS EN 62305-2	1
-PARAM	c4eeed34-608c-56a5-b97f-7c899d76f208	ELC_LPS_ROLLING_SPHERE_RADIUS_M	LENGTH		4	1	Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)	1
-PARAM	d6a9566f-eda9-5e6d-9dcf-fd14440c395b	ELC_LPS_MESH_SIZE_M	LENGTH		4	1	Air terminal mesh grid size in metres per BS EN 62305 class	1
-PARAM	5339fe4f-caa3-5edc-99b1-53c0defd4ad8	ELC_LPS_INSPECTION_INTERVAL_MONTHS	NUMBER		4	1	Inspection interval in months (12 for class I/II, 24 for class III/IV)	1
+PARAM	5eb70931-71f1-5b83-b3aa-ef8bace4b339	ELC_LPS_ROLLING_SPHERE_RADIUS_TXT	TEXT		4	1	ELC_LPS_ROLLING_SPHERE_RADIUS_M display mirror [auto-generated]	1
+PARAM	d9e69f3e-8750-5314-a669-5afd7b4ee6ce	ELC_LPS_MESH_SIZE_TXT	TEXT		4	1	ELC_LPS_MESH_SIZE_M display mirror [auto-generated]	1
+PARAM	8242b244-78a9-5bbf-8dd0-2a327eb2868f	ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT	TEXT		4	1	ELC_LPS_INSPECTION_INTERVAL_MONTHS display mirror [auto-generated]	1
 PARAM	0a8dbcfb-6f73-5c8c-94eb-b72606feae87	ELC_LPS_CERT_REF_TXT	TEXT		4	1	Certificate reference for the LPS inspection / commissioning	1
 PARAM	5753b5aa-0004-4000-8000-000000000001	COMM_STATE_TXT	TEXT		25	1	Commissioning state (NOT_STARTED / PRE_COMM / FUNCTIONAL_TEST / WITNESSED / ACCEPTED / HANDED_OVER)	1
 PARAM	3ac69694-7584-5ba2-9bce-4d045ca21088	TAG_PARA_STATE_4_BOOL	YESNO		17	1	Paragraph depth state tier 4 [ISO 19650-3:2020]	1
@@ -73,7 +73,7 @@ PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 42
 PARAM	2f6725f9-94b3-58f6-8d85-0f542659fd8f	ASS_CST_FX_TO_BASE_NR_DISP_TXT	TEXT		2	1	FX rate to project base currency at write time — TEXT display mirror for tag labels	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44	ASS_CST_FX_DATE_DT	TEXT		2	1	ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45	ASS_CST_AS_OF_DT	TEXT		2	1	Pricing reference date for inflation indexing [Phase 184]	1
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	YESNO		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1
+PARAM	59de159f-ea20-5f57-b508-5679ddc19d37	ASS_CST_STALE_TXT	TEXT		2	1	ASS_CST_STALE_BOOL display mirror [auto-generated]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47	ASS_CST_STALE_REASON_TXT	TEXT		2	1	Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184]	1
 PARAM	f27e6d2a-a647-5fd5-9c41-9ef2a54f22e3	ASS_PMT_PCT_COMPLETE_NR_DISP_TXT	TEXT		2	1	Per-element percent complete (0-100) driving payment certificate valuation — TEXT display mirror for tag labels	1
 PARAM	1fee3b2b-7f2a-56a5-9d89-81d40113b725	ASS_PMT_CERT_NO_NR_DISP_TXT	TEXT		2	1	Payment certificate number this line item was last valued in — TEXT display mirror for tag labels	1
@@ -104,7 +104,7 @@ PARAM	24b29d51-28da-59b4-a011-007d932651b7	CLASH_TRIAGE_SEVERITY_NR_DISP_TXT	TEX
 PARAM	dd2f491c-8806-5cd2-bb21-d3b915646070	TAG_PARA_STATE_8_BOOL	YESNO		17	1	Paragraph depth state tier 8 [ISO 19650-3:2020]	1
 PARAM	5753b5aa-0008-4000-8000-000000000002	CLASH_TRIAGE_CATEGORY_TXT	TEXT		20	1	Clash triage category (STRUCTURAL / SERVICES / NON_CRITICAL)	1
 PARAM	5753b5aa-0008-4000-8000-000000000003	CLASH_RESOLUTION_STATUS_TXT	TEXT		20	1	Clash resolution status (PENDING / APPLIED / ACCEPTED)	1
-PARAM	fbbf5b6d-776a-58e2-a3ce-cbd9fbfe3f93	ASS_CRITICALITY_RATING_NR	NUMBER		1	1	Ass Criticality Rating Nr [ISO 19650-3:2020]	1
+PARAM	ab05e034-3374-5996-a39f-cefdf502e852	ASS_CRITICALITY_RATING_TXT	TEXT		1	1	ASS_CRITICALITY_RATING_NR display mirror [auto-generated]	1
 PARAM	dc0d940f-e4ce-5e73-a0a7-fc7094148c84	ASS_ZONE_TXT	TEXT		1	1	Ass Zone Txt [ISO 19650-3:2020]	1
 PARAM	b1e51fab-fa88-50df-8b2f-bcdbe48e7c78	ASS_LVL_COD_TXT	TEXT		1	1	Ass Lvl Cod Txt [ISO 19650-3:2020]	1
 PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1

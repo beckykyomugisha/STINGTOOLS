@@ -1,8 +1,8 @@
 # STING LPS Tag master — hand-authoring sheet
 
 Copy-paste companion to `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`, generated from
-`STING_TAG_CONFIG_v5_0_*.csv` and that sheet on 2026-09-22. Regenerate with `python tools/gen_lps_authoring_sheet.py` rather than hand-editing;
-`LpsMasterSheetTests` fails if STEP 2 drifts from the universal sheet.
+`STING_TAG_CONFIG_v5_0_*.csv` and that sheet on 2026-09-22. Regenerate rather
+than hand-edit.
 
 **Build from `Multi-Category Tag.rft`, as a TENTH family named
 `STING_LPS_Tag_Universal`.** Not by editing one of the nine: a master that is
@@ -44,6 +44,16 @@ different shared label.
 belongs in the master: it renders blank on the other eight, exactly as every
 tier already does.
 
+**Numeric parameters read their TEXT twin.** Revit has no number-to-string
+conversion in family formulas, so `if(BOOL, <NUMBER>, "")` is rejected as
+"Inconsistent Units" - the branches are different types. Twelve rows here are
+affected and each names the twin it reads, with the original type in italics.
+
+> The twins are NOT yet written by anything. A label pointed at
+> `ELC_LPS_PROTECTION_ANGLE_TXT` renders blank until that parameter holds a
+> value, whether typed by hand or mirrored from the numeric. Build the rows
+> now; the mirror is a separate job.
+
 **Break is a suggestion here** - one per tier boundary. The declarations do not
 record line breaks, so unlike the T4-T10 block below these are not verified.
 Adjust as the label reads.
@@ -60,22 +70,22 @@ Adjust as the label reads.
 | 8 | T2 | Show T2 - LPS Class | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CLASS_TXT, "")` | Class: |  | no | 5/9 |
 | 9 | T2 | Show T2 - LPS Zone | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_ZONE_TXT, "")` | LPZ: |  | no | 6/9 |
 | 10 | T2 | Show T2 - LPS Conductor Material | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_MATERIAL_TXT, "")` | Mat: |  | no | 2/9 |
-| 11 | T2 | Show T2 - LPS Conductor Cross Sect | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_MM2, "")` | t: | mm | no | 3/9 |
+| 11 | T2 | Show T2 - LPS Conductor Cross Sect | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_CONDUCTOR_CROSS_SECT_TXT, "")` <br>_(ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 is NUMBER - reads its TEXT twin)_ | t: | mm | no | 3/9 |
 | 12 | T2 | Show T2 - LPS Compliance Status | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_COMPLIANCE_STATUS_TXT, "")` |  |  | no | 2/9 |
-| 13 | T2 | Show T2 - LPS Protection Angle | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_PROTECTION_ANGLE_DEG, "")` | α: | ° | no | 1/9 |
-| 14 | T2 | Show T2 - LPS Air Terminal Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_AIR_TERMINAL_COUNT_NR, "")` | N: |  | no | 1/9 |
-| 15 | T2 | Show T2 - LPS Down Conductor Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_DOWN_CONDUCTOR_COUNT_NR, "")` | N: |  | no | 1/9 |
-| 16 | T2 | Show T2 - LPS Separation Distance | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_SEPARATION_DISTANCE_MM, "")` | s: | mm | no | 1/9 |
+| 13 | T2 | Show T2 - LPS Protection Angle | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_PROTECTION_ANGLE_TXT, "")` <br>_(ELC_LPS_PROTECTION_ANGLE_DEG is NUMBER - reads its TEXT twin)_ | α: | ° | no | 1/9 |
+| 14 | T2 | Show T2 - LPS Air Terminal Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_AIR_TERMINAL_COUNT_TXT, "")` <br>_(ELC_LPS_AIR_TERMINAL_COUNT_NR is NUMBER - reads its TEXT twin)_ | N: |  | no | 1/9 |
+| 15 | T2 | Show T2 - LPS Down Conductor Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT, "")` <br>_(ELC_LPS_DOWN_CONDUCTOR_COUNT_NR is NUMBER - reads its TEXT twin)_ | N: |  | no | 1/9 |
+| 16 | T2 | Show T2 - LPS Separation Distance | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_SEPARATION_DISTANCE_TXT, "")` <br>_(ELC_LPS_SEPARATION_DISTANCE_MM is LENGTH - reads its TEXT twin)_ | s: | mm | no | 1/9 |
 | 17 | T2 | Show T2 - LPS Earth Type | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_TYPE_TXT, "")` | Type: |  | no | 2/9 |
-| 18 | T2 | Show T2 - LPS Earth Resistance | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_OHM, "")` | R: | Ω | no | 3/9 |
-| 19 | T2 | Show T2 - LPS Earth Electrode Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_ELECTRODE_COUNT_NR, "")` | N: |  | no | 1/9 |
+| 18 | T2 | Show T2 - LPS Earth Resistance | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_RESISTANCE_TXT, "")` <br>_(ELC_LPS_EARTH_RESISTANCE_OHM is NUMBER - reads its TEXT twin)_ | R: | Ω | no | 3/9 |
+| 19 | T2 | Show T2 - LPS Earth Electrode Count | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_EARTH_ELECTRODE_COUNT_TXT, "")` <br>_(ELC_LPS_EARTH_ELECTRODE_COUNT_NR is NUMBER - reads its TEXT twin)_ | N: |  | no | 1/9 |
 | 20 | T2 | Show T2 - LPS Test Date | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_TEST_DATE_TXT, "")` | Tested: |  | no | 3/9 |
 | 21 | T2 | Show T2 - LPS Surge Protection Lvl | `if(TAG_PARA_STATE_2_BOOL, ELC_LPS_SURGE_PROTECTION_LVL_TXT, "")` | SPD: |  | YES | 1/9 |
 | 22 | T3 | Show T3 - LPS Bond Type | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_BOND_TYPE_TXT, "")` | Bond: |  | no | 4/9 |
 | 23 | T3 | Show T3 - LPS Risk Assessment | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_RISK_ASSESSMENT_TXT, "")` | Risk: |  | no | 2/9 |
-| 24 | T3 | Show T3 - LPS Rolling Sphere Radius | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_ROLLING_SPHERE_RADIUS_M, "")` | r: | m | no | 1/9 |
-| 25 | T3 | Show T3 - LPS Mesh Size | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_MESH_SIZE_M, "")` | Mesh: | m | no | 1/9 |
-| 26 | T3 | Show T3 - LPS Inspection Interval | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_INSPECTION_INTERVAL_MONTHS, "")` | Inspect: | mo | no | 2/9 |
+| 24 | T3 | Show T3 - LPS Rolling Sphere Radius | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_ROLLING_SPHERE_RADIUS_TXT, "")` <br>_(ELC_LPS_ROLLING_SPHERE_RADIUS_M is LENGTH - reads its TEXT twin)_ | r: | m | no | 1/9 |
+| 25 | T3 | Show T3 - LPS Mesh Size | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_MESH_SIZE_TXT, "")` <br>_(ELC_LPS_MESH_SIZE_M is LENGTH - reads its TEXT twin)_ | Mesh: | m | no | 1/9 |
+| 26 | T3 | Show T3 - LPS Inspection Interval | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT, "")` <br>_(ELC_LPS_INSPECTION_INTERVAL_MONTHS is NUMBER - reads its TEXT twin)_ | Inspect: | mo | no | 2/9 |
 | 27 | T3 | Show T3 - LPS Cert Ref | `if(TAG_PARA_STATE_3_BOOL, ELC_LPS_CERT_REF_TXT, "")` | Cert: |  | YES | 3/9 |
 
 ## STEP 2 - Shared rows (T4-T10, 61 rows)
@@ -100,7 +110,7 @@ a decision, and the Break values are known-good.
 | 39 | T5 | Show T5 - Cost - FX to Base | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")` | FX: |  | no |
 | 40 | T5 | Show T5 - Cost - FX Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, "")` | FX date: |  | no |
 | 41 | T5 | Show T5 - Cost - As-of Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, "")` | As of: |  | YES |
-| 42 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, "")` | Stale: |  | no |
+| 42 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_TXT, "")` <br>_(ASS_CST_STALE_BOOL is YESNO - reads its TEXT twin; Revit rejects a number in a Text formula)_| Stale: |  | no |
 | 43 | T5 | Show T5 - Cost - Stale Reason | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, "")` | - |  | YES |
 | 44 | T5 | Show T5 - Payment - % Complete | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")` | Cmpl: | % | no |
 | 45 | T5 | Show T5 - Payment - Cert No | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, "")` | Cert#: |  | no |
@@ -128,7 +138,7 @@ a decision, and the Break values are known-good.
 | 67 | T8 | Show T8 - Clash - Triage Severity | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")` | Sev: | /5 | no |
 | 68 | T8 | Show T8 - Clash - Triage Category | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, "")` |  |  | no |
 | 69 | T8 | Show T8 - Clash - Resolution Status | `if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, "")` | Res: |  | YES |
-| 70 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, "")` | Crit: | /5 | no |
+| 70 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_TXT, "")` <br>_(ASS_CRITICALITY_RATING_NR is NUMBER - reads its TEXT twin; Revit rejects a number in a Text formula)_| Crit: | /5 | no |
 | 71 | T8 | Show T8 - Coordination - ASS_ZONE_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, "")` | Zone: |  | no |
 | 72 | T8 | Show T8 - Coordination - ASS_LVL_COD_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, "")` | Lvl: |  | YES |
 | 73 | T9 | Show T9 - As-built - Deviation | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, "")` | Δ: | mm | no |

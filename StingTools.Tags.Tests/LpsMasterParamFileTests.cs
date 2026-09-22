@@ -1,4 +1,4 @@
-// MR_PARAMETERS_LPS_MASTER.txt is a 113-parameter subset of MR_PARAMETERS.txt,
+﻿// MR_PARAMETERS_LPS_MASTER.txt is a 113-parameter subset of MR_PARAMETERS.txt,
 // so Revit's "Add parameter" dialog offers only what the LPS master needs
 // instead of 3,617 definitions.
 //
@@ -40,6 +40,18 @@ namespace StingTools.Tags.Tests
             string p = Path.Combine(root.FullName, "StingTools", "Data", name);
             Assert.True(File.Exists(p), name + " not found");
             return p;
+        }
+
+        /// <summary>Line reader that tolerates the file being open in an editor.</summary>
+        private static IEnumerable<string> ReadShared(string path)
+        {
+            using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read,
+                                           FileShare.ReadWrite | FileShare.Delete))
+            using (var sr = new StreamReader(fs))
+            {
+                string line;
+                while ((line = sr.ReadLine()) != null) yield return line;
+            }
         }
 
         /// <summary>Shared by name to GUID. Tolerates the file being open elsewhere.</summary>
@@ -118,27 +130,40 @@ namespace StingTools.Tags.Tests
             string sheet = Path.Combine(root.FullName, "docs", "LPS_TAG_MASTER_BUILD_SHEET.md");
             Assert.True(File.Exists(sheet), "LPS_TAG_MASTER_BUILD_SHEET.md not found");
 
+            // Parse the sheet the way tools/gen_lps_params.py does: the
+            // parameters it says to ADD, not every name it mentions.
+            //
+            // A regex over every capitalised token also caught the explanatory
+            // italics - "(ELC_LPS_PROTECTION_ANGLE_DEG is NUMBER - reads its
+            // TEXT twin)" - and demanded the NUMERIC be in the subset. That is
+            // precisely backwards: those parameters are named to explain why
+            // the label does NOT use them, and putting one in the picker invites
+            // choosing it and hitting "Inconsistent Units" again.
             var named = new HashSet<string>(StringComparer.Ordinal);
-            using (var fs = new FileStream(sheet, FileMode.Open, FileAccess.Read,
-                                           FileShare.ReadWrite | FileShare.Delete))
-            using (var sr = new StreamReader(fs))
+            foreach (string line in ReadShared(sheet))
             {
-                string line;
-                while ((line = sr.ReadLine()) != null)
+                // The value branch of a tier gate.
+                var f = System.Text.RegularExpressions.Regex.Match(
+                    line, @"TAG_PARA_STATE_(\d+)_BOOL,\s*([A-Z0-9_]+)");
+                if (f.Success)
                 {
-                    foreach (System.Text.RegularExpressions.Match m in
-                             System.Text.RegularExpressions.Regex.Matches(line, @"\b[A-Z][A-Z0-9_]{5,}\b"))
-                    {
-                        string p = m.Value;
-                        // Only things that look like STING parameters, and not
-                        // the tier gates' own template text.
-                        if (p.StartsWith("ELC_") || p.StartsWith("ASS_") || p.StartsWith("CST_") ||
-                            p.StartsWith("CBN_") || p.StartsWith("COMM_") || p.StartsWith("WARN_") ||
-                            p.StartsWith("TAG_PARA_STATE_"))
-                            named.Add(p);
-                    }
+                    named.Add(f.Groups[2].Value);
+                    named.Add("TAG_PARA_STATE_" + f.Groups[1].Value + "_BOOL");
+                    continue;
                 }
+                // A T1 row names its parameter in backticks; a warning row does too.
+                var t1 = System.Text.RegularExpressions.Regex.Match(
+                    line, @"^\|\s*\d+\s*\|\s*T1\s*\|\s*`([A-Z0-9_]+)`");
+                if (t1.Success) { named.Add(t1.Groups[1].Value); continue; }
+
+                var wrn = System.Text.RegularExpressions.Regex.Match(
+                    line, @"^\|\s*(?:HIGH|MEDIUM|CRITICAL|MED|LOW)\s*\|\s*`([A-Z0-9_]+)`");
+                if (wrn.Success) named.Add(wrn.Groups[1].Value);
             }
+
+            Assert.True(named.Count > 80,
+                        $"only {named.Count} parameters parsed from the build sheet - " +
+                        "the table format has probably changed and this gate is not reading it");
 
             var absent = named.Where(p => !subset.ContainsKey(p))
                               .OrderBy(p => p, StringComparer.Ordinal).ToList();

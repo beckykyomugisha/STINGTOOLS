@@ -158,5 +158,49 @@ namespace StingTools.Tags.Tests
             Assert.Contains("Break is a suggestion", text, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("verbatim", text, StringComparison.OrdinalIgnoreCase);
         }
-    }
+    
+        [Fact]
+        public void NoTextFormulaReadsANonTextParameter()
+        {
+            // Revit has no number-to-string conversion in family formulas, so a
+            // Text calculated value referencing a NUMBER, LENGTH or YESNO
+            // parameter is rejected as "Inconsistent Units" the moment it is
+            // entered. Both sheets shipped rows that could not be typed in -
+            // found one dialog at a time while hand-building the master, after
+            // the sheets had been reviewed and committed.
+            //
+            // Every affected parameter already had a TEXT twin. This makes the
+            // next one fail here instead of in a Family Editor.
+            var types = new Dictionary<string, string>(StringComparer.Ordinal);
+            string mr = Path.Combine(RepoRoot().FullName, "StingTools", "Data", "MR_PARAMETERS.txt");
+            foreach (string line in ReadShared(mr))
+            {
+                var f = line.Split('	');
+                if (f.Length > 3 && f[0] == "PARAM" && !types.ContainsKey(f[2])) types[f[2]] = f[3];
+            }
+            Assert.True(types.Count > 3000, $"only {types.Count} parameters parsed from MR_PARAMETERS.txt");
+
+            var bad = new List<string>();
+            foreach (string sheet in new[] { "UNIVERSAL_TAG_LABEL_BUILD_SHEET.md",
+                                             "LPS_TAG_MASTER_BUILD_SHEET.md" })
+            {
+                foreach (string line in ReadShared(Doc(sheet)))
+                {
+                    // The VALUE branch of the tier gate - not the gate itself,
+                    // which is a YESNO by design.
+                    var m = Regex.Match(line, @"TAG_PARA_STATE_\d+_BOOL,\s*([A-Z0-9_]+)");
+                    if (!m.Success) continue;
+                    string param = m.Groups[1].Value;
+                    string t2;
+                    if (types.TryGetValue(param, out t2) && t2 != "TEXT")
+                        bad.Add($"{sheet}: {param} is {t2}");
+                }
+            }
+
+            Assert.True(bad.Count == 0,
+                $"{bad.Count} label row(s) read a non-TEXT parameter from a Text formula. Revit " +
+                "rejects these as \"Inconsistent Units\" and they cannot be entered at all. Point " +
+                "them at the parameter's _TXT twin:\n  " + string.Join("\n  ", bad.Distinct().Take(10)));
+        }
+}
 }
