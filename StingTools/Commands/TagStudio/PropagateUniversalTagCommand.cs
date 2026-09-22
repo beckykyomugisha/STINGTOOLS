@@ -626,7 +626,14 @@ namespace StingTools.Commands.TagStudio
                 why.Append($"\n  • … and {failedRows.Count - 5} more in the report");
 
             var td = new TaskDialog("Propagate Universal Tag — done");
+            // Skipped belongs in the headline. The run of 2026-09-22 reported
+            // "197 propagated, 0 failed" against a 206-family library and said
+            // nothing about the other nine - a shortfall the reader has to
+            // either explain away or go and investigate. The log knew
+            // (skipped=9); the dialog simply did not pass it on. Every family
+            // is accounted for in one line, or the counts invite a wrong guess.
             td.MainInstruction = $"{succeeded} propagated, {failed} failed" +
+                                 (skipped > 0 ? $", {skipped} skipped (declared)" : "") +
                                  (cancelled > 0 ? $", {cancelled} cancelled" : "");
             td.MainContent =
                 $"Master: {master.Name}\n" +
