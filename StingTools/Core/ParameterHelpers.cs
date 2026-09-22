@@ -5034,6 +5034,18 @@ namespace StingTools.Core
                     }
                 }
 
+                // Mirror numerics into their TEXT twins, AFTER the formula engine
+                // (so computed values are included) and BEFORE the tag is built
+                // (so containers and TAG7 read the filled twins).
+                //
+                // A Text label formula cannot reference a NUMBER, LENGTH or
+                // YESNO — Revit rejects it as "Inconsistent Units" — so twelve
+                // rows across the two build sheets read a _TXT twin instead.
+                // Those twins were defined but nothing filled them, which would
+                // have rendered every one of those rows blank forever.
+                try { NumericTextMirror.MirrorAll(el, overwrite: overwrite); }
+                catch (Exception mex) { StingLog.Warn($"TagPipeline: numeric mirror on {el.Id}: {mex.Message}"); }
+
                 // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
                 // pass _prevTag in so BuildAndWriteTag
                 // doesn't read TAG1 a second time, and pass tokenValuesOut so we get
