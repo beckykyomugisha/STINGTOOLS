@@ -482,6 +482,16 @@
       "role": "export",
       "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Color Palette Schedule\". A schedule is a real reader; this scan only sees C#."
     },
+    "CST_S_REI_SPACING_MM": {
+      "state": "read_only",
+      "role": "unresolved",
+      "reason": ""
+    },
+    "CST_S_REI_TYPE_TXT": {
+      "state": "read_only",
+      "role": "unresolved",
+      "reason": ""
+    },
     "CST_TOTAL_MATERIAL_COST": {
       "state": "read_only",
       "role": "export",
@@ -1297,6 +1307,11 @@
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
     },
+    "STR_BAR_MARK_TXT": {
+      "state": "read_only",
+      "role": "unresolved",
+      "reason": ""
+    },
     "STR_BEAM_DEFLECTION_LIM_TXT": {
       "state": "write_only",
       "role": "export",
@@ -1397,10 +1412,10 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "STR_REBAR_SIZE_MM": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    "STR_REBAR_TOTAL_NO_NR": {
+      "state": "read_only",
+      "role": "unresolved",
+      "reason": ""
     },
     "STR_ROBUST_STATUS_TXT": {
       "state": "write_only",
