@@ -1873,7 +1873,7 @@
                             "category":  "LPS Air Terminal",
                             "discipline":  "M",
                             "familyFile":  "STING - LPS Air Terminal Tag.rfa",
-                            "checksum":  "a3f77deb7471cf90911126abc0a859d73ee421e483e98bafe4ba7f0e0570ce2b",
+                            "checksum":  "f6c30a276fa5ef6ecea3a6d1d03ced252ad87e4197f54b8e3f557dd1cb884c93",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1883,7 +1883,7 @@
                             "category":  "LPS Down Conductor",
                             "discipline":  "M",
                             "familyFile":  "STING - LPS Down Conductor Tag.rfa",
-                            "checksum":  "db14f74154f3590025506b0154ee43dab10a617f68b74bef38419ff45e376f60",
+                            "checksum":  "e35657d399e5c7062d1ef232cd80dffd2ded68ca443b6e8fe65b343ba2b5d26a",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1893,7 +1893,7 @@
                             "category":  "LPS Earth Electrode",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Earth Electrode Tag.rfa",
-                            "checksum":  "d13d3ff661eb42e2163c6d5b2b265debeaa9175911401587ce96211f20a04c65",
+                            "checksum":  "99f7edb22717e3a1f81f3e8bce89bb0d02cd1c0f81e6fe31db1d74e8a6b171c3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1903,7 +1903,7 @@
                             "category":  "LPS Bond",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Bond Tag.rfa",
-                            "checksum":  "2e5d36a10fbd546ea49c264e99f0ff76ff41ad8a4c6fc9212a5248e13a484a97",
+                            "checksum":  "02f394bcdf64770057e60e1e2839b04b2785f468db90d2936f0f7d204782c151",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1913,7 +1913,7 @@
                             "category":  "LPS SPD",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS SPD Tag.rfa",
-                            "checksum":  "ca5577969afd8b87b1d7eee5c0995c33263704a7c596ff24d9ec009689105169",
+                            "checksum":  "0a4259517d4e5be585b9f341091453a2ec535bca0ef508790ba84a8aaf6349e8",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1923,7 +1923,7 @@
                             "category":  "LPS Test Clamp",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Test Clamp Tag.rfa",
-                            "checksum":  "2941167927ec4792b77a1c015dd46f956eb4ed10fad3e65113c890e8c4d74dad",
+                            "checksum":  "7df5f4b9032f635dc5b6286671557568ed0f54a603d55ef0171016bc86702f04",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1933,7 +1933,7 @@
                             "category":  "LPS Foundation Earth (Structural Reuse)",
                             "discipline":  "S",
                             "familyFile":  "STING - LPS Foundation Earth (Structural Reuse) Tag.rfa",
-                            "checksum":  "1d3e67e3940f6153801a1f1efb047036c2253d742379fb205efec0eb41635b3a",
+                            "checksum":  "b8bceb8796e3c1a1329c8650d6a676e6445237d297d6e500f61d1ee77eaf4d5c",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1943,7 +1943,7 @@
                             "category":  "LPS Natural Air Termination (Architectural Reuse)",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Natural Air Termination (Architectural Reuse) Tag.rfa",
-                            "checksum":  "9e264f0347150a62998553a54e50e289a9d9f562bbc2de261146ad7d2dfb4ee1",
+                            "checksum":  "6036e329112348c915a79c9e04df4a89a17c6a8746f06cfd2f09bd9a6f57ffa3",
                             "status":  "built",
                             "origin":  "corporate"
                         },
@@ -1953,7 +1953,7 @@
                             "category":  "LPS Generic Component",
                             "discipline":  "*",
                             "familyFile":  "STING - LPS Generic Component Tag.rfa",
-                            "checksum":  "7a1b9f1e69cc95530cecb7fb6b6b3445b339ab580b60d66b2e7ffa332a1b7673",
+                            "checksum":  "e07bd65878767152eb92ec07ce47f43d0cab175f75b4cdfaf747aa6f28e320e4",
                             "status":  "built",
                             "origin":  "corporate"
                         },
