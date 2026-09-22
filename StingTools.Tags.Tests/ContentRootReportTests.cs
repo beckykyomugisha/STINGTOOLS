@@ -1,4 +1,4 @@
-// Tests for the shadow rule.
+﻿// Tests for the shadow rule.
 //
 // The case it was written for, exactly as it happened on 2026-09-21:
 // %PROGRAMDATA%/STING/ContentLibrary/Tags held 207 tag families dated 8 August
@@ -157,5 +157,69 @@ namespace StingTools.Tags.Tests
         {
             Assert.Empty(ContentRootReport.Describe(null, null));
         }
-    }
+    
+        // ── stale vs promoted ────────────────────────────────────────────────
+        //
+        // The MESSAGE is the same either way and is never suppressed: once a
+        // shared library wins, a deploy alone stops changing what loads. Only
+        // the severity differs, and IsStale is what LogRoots asks.
+
+        [Fact]
+        public void AnOlderShadowIsStale()
+        {
+            // The 2026-09-21 bug: 8 August winning over corrections made today.
+            Assert.True(ContentRootReport.IsStale(new List<ContentRootInfo>
+            {
+                Root(1, "shared",   207, "2026-08-08"),
+                Root(2, "baseline", 206, "2026-09-21"),
+            }));
+        }
+
+        [Fact]
+        public void ANewerShadowIsNotStale()
+        {
+            // Promote Tag Library working as intended - informational, not a
+            // warning, or the correct configuration nags on every open.
+            Assert.False(ContentRootReport.IsStale(new List<ContentRootInfo>
+            {
+                Root(1, "shared",   206, "2026-09-22"),
+                Root(2, "baseline", 206, "2026-09-21"),
+            }));
+        }
+
+        [Fact]
+        public void ASameDayShadowIsNotStale()
+        {
+            // What today's promotion actually produces: both sides written
+            // minutes apart from the same source.
+            Assert.False(ContentRootReport.IsStale(new List<ContentRootInfo>
+            {
+                Root(1, "shared",   206, "2026-09-22"),
+                Root(2, "baseline", 206, "2026-09-22"),
+            }));
+        }
+
+        [Fact]
+        public void AnUnknownDateIsTreatedAsStale()
+        {
+            // Not knowing how old a library is has never been evidence that it
+            // is current, and the cost of guessing wrong here is six weeks of
+            // fixes that silently never load.
+            Assert.True(ContentRootReport.IsStale(new List<ContentRootInfo>
+            {
+                Root(1, "shared",   3, null),
+                Root(2, "baseline", 206, "2026-09-22"),
+            }));
+        }
+
+        [Fact]
+        public void AnEmptyOrAbsentShadowIsNotStale()
+        {
+            Assert.False(ContentRootReport.IsStale(new List<ContentRootInfo>
+            {
+                Root(1, "shared",   0, null, exists: false),
+                Root(2, "baseline", 206, "2026-09-22"),
+            }));
+        }
+}
 }

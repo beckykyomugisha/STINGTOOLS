@@ -161,7 +161,43 @@ namespace StingTools.Core.Content
             foreach (var r in roots) StingLog.Info("Content root " + r);
 
             string warn = ShadowWarning(roots);
-            if (!string.IsNullOrEmpty(warn)) StingLog.Warn(warn);
+            if (string.IsNullOrEmpty(warn)) return;
+
+            // The MESSAGE is right either way and is never suppressed: once a
+            // shared library wins, a deploy alone stops changing what loads, and
+            // a fix that looks ignored is the whole failure this exists to
+            // prevent. Only the SEVERITY differs.
+            //
+            // A newer shared library is Promote Tag Library working as intended.
+            // Logging that as a warning would put one on every document open in
+            // the correct configuration - and a warning that is always there is
+            // one nobody reads, including on the day it finally matters.
+            //
+            // An OLDER one is the 2026-09-21 bug itself: 207 families from 8
+            // August winning over 206 corrected that day, so six weeks of fixes
+            // could never load. That stays a warning.
+            if (IsStale(roots)) StingLog.Warn(warn);
+            else StingLog.Info(warn + " (the shadowing library is NEWER, so this is " +
+                               "a promoted library winning as intended - but remember that " +
+                               "deploying alone will no longer change what loads.)");
+        }
+
+        /// <summary>
+        /// Is anything shadowing the baseline actually OLDER than it?
+        ///
+        /// <para>An unknown date on either side counts as stale. A library whose
+        /// age cannot be established is not evidence of safety, and the cost of
+        /// being wrong in that direction is six weeks of invisible fixes.</para>
+        /// </summary>
+        public static bool IsStale(List<ContentRootInfo> roots)
+        {
+            if (roots == null) return false;
+            var baseline = roots.FirstOrDefault(r => r.Tier == "baseline" && r.Exists && r.FamilyCount > 0);
+            if (baseline == null) return false;
+
+            return roots.Any(r => r.Rank < baseline.Rank && r.Exists && r.FamilyCount > 0 &&
+                                  (!r.Newest.HasValue || !baseline.Newest.HasValue ||
+                                   r.Newest.Value.Date < baseline.Newest.Value.Date));
         }
 
         private static bool SafeExists(string p)
