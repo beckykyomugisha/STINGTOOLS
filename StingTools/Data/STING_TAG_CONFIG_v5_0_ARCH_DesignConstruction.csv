@@ -1818,7 +1818,7 @@ Tag Family #36: STING - LPS Natural Air Termination (Architectural Reuse) Tag
 # Category: Roofs, Walls, Wall Sweeps, Curtain Wall Mullions, Fascia, Gutter, Roof Soffits | PROD: ATR (Air Terminal — Natural) | SYS: LPS | FUNC: AT | DISC: A
 # Cross-discipline integration: metal roof / parapet / coping / metallic facade reused as a BS EN 62305-3 §5.2.5 natural air-termination component.
 # DC variant: T4-T10 use Design intent / Performance / Material / Installation / Coordination / Warranty / Classification.
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow

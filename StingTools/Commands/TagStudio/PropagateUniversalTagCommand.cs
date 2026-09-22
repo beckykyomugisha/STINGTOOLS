@@ -221,8 +221,21 @@ namespace StingTools.Commands.TagStudio
             // could appear, and the command never logged a line because it never
             // got that far (2026-09-22). The flag is a hash lookup; the
             // resolution is not needed to read it.
+            // Which master is this? A family declares the group it belongs to,
+            // and a master is just the family that serves that group - so the
+            // master's own declaration answers it. An undeclared master is the
+            // universal one, which is what every existing run is.
+            //
+            // This is the whole point of the change. "Universal: No" meant SKIP
+            // unconditionally, whichever master was running: it protected the
+            // nine LPS tags from the universal master, and would have blocked
+            // the LPS master from reaching those same nine. A skip that cannot
+            // tell which master is asking is not a rule, it is a wall.
+            string masterGroup = TagCategoryResolver.LabelMasterGroup(master.Name);
+
             var declaredOut = targets
-                .Where(t => TagCategoryResolver.IsNonUniversal(t.Name))
+                .Where(t => !string.Equals(TagCategoryResolver.LabelMasterGroup(t.Name),
+                                           masterGroup, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             // Blocked by Revit rather than by choice. Listed separately because
@@ -250,10 +263,13 @@ namespace StingTools.Commands.TagStudio
                 "The universal label rows carry over unchanged (recategorise preserves\n" +
                 "label rows). Re-running is a safe RE-SYNC — master edits re-propagate.\n\n" +
                 (declaredOut.Count > 0
-                    ? $"{declaredOut.Count} of these declare \"Universal: No\" and will be SKIPPED:\n  " +
-                      string.Join("\n  ", declaredOut.Take(5).Select(f => f.Name)) +
+                    ? $"{declaredOut.Count} of these belong to a different label-master group and " +
+                      $"will be SKIPPED:\n  " +
+                      string.Join("\n  ", declaredOut.Take(5).Select(
+                          f => $"{f.Name} -> '{TagCategoryResolver.LabelMasterGroup(f.Name)}'")) +
                       (declaredOut.Count > 5 ? "\n  ..." : "") +
-                      "\nThey keep their own bespoke label, which this master does not carry.\n\n"
+                      $"\nThis run propagates the '{masterGroup}' master. Propagate the other master " +
+                      "to reach them.\n\n"
                     : "") +
                 (unreachable.Count > 0
                     ? $"{unreachable.Count} of these are Multi-Category Tags and will be SKIPPED:\n  " +
@@ -556,7 +572,7 @@ namespace StingTools.Commands.TagStudio
                     progress.Increment($"Propagating → {targetName} ({i + 1}/{targets.Count})");
 
                     var r = PropagateOne(doc, app, master, target, sharedParamFile,
-                        styleAndVisParams, variants, arrowheads, mode);
+                        styleAndVisParams, variants, arrowheads, mode, masterGroup);
                     totalTypes += r.TypesCreated;
                     totalParams += r.ParamsAdded;
                     totalScope += r.ScopeFixed;
@@ -725,9 +741,12 @@ namespace StingTools.Commands.TagStudio
             Family master, Family target, string sharedParamFile,
             List<string> styleAndVisParams, List<TypeVariantSpec> variants,
             Dictionary<string, ElementId> arrowheads,
-            RecategoriseMode mode = RecategoriseMode.EnforceDeclared)
+            RecategoriseMode mode = RecategoriseMode.EnforceDeclared,
+            string masterGroup = null)
         {
             var result = new PropResult();
+            masterGroup = string.IsNullOrWhiteSpace(masterGroup)
+                ? TagConfigDeclarations.UniversalGroup : masterGroup;
             string targetName = target.Name;
 
             // Reading the category off the TARGET propagates whatever the target
@@ -767,12 +786,12 @@ namespace StingTools.Commands.TagStudio
             // ASS_* rows and ZERO ELC_LPS_* rows, so had that error ever stopped
             // firing, propagation would have deleted every LPS row without a
             // word. Build a Multi-Category master and it stops firing.
-            if (!catRes.Universal)
+            if (!string.Equals(catRes.LabelMaster, masterGroup, StringComparison.OrdinalIgnoreCase))
             {
                 result.Skipped = true;
                 result.ErrorMessage =
-                    "declared \"Universal: No\" in STING_TAG_CONFIG_v5_0_*.csv - it keeps its own " +
-                    "bespoke label, which the universal master does not carry.";
+                    $"takes its label from the '{catRes.LabelMaster}' master, and this run is " +
+                    $"propagating the '{masterGroup}' master.";
                 StingLog.Info($"PropagateUniversalTag: '{targetName}' skipped — {result.ErrorMessage}");
                 return result;
             }

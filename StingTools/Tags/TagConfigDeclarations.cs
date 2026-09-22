@@ -1,4 +1,4 @@
-// TagConfigDeclarations - family name -> declared host category, from the
+﻿// TagConfigDeclarations - family name -> declared host category, from the
 // shipped STING_TAG_CONFIG_v5_0_*.csv files.
 //
 // Revit-free on purpose, and split out of TagCategoryResolver so both dialects
@@ -54,8 +54,25 @@ namespace StingTools.Tags
         public string Dialect { get; set; }
 
         /// <summary>
-        /// False when the family declares "Universal: No" - it keeps its own
-        /// bespoke label and must never receive the universal one.
+        /// Which master this family takes its label from. Default
+        /// <see cref="TagConfigDeclarations.UniversalGroup"/>.
+        ///
+        /// <para>Declared as "LabelMaster: LPS". A family is propagated to only
+        /// by the master of its own group, so one library can carry several
+        /// masters without any of them overwriting each other's families.</para>
+        ///
+        /// <para>This replaced a boolean. "Universal: No" meant SKIP, always,
+        /// whichever master was running - which protected the nine LPS tags from
+        /// the universal master and would equally have blocked the LPS master
+        /// from reaching its own nine targets. A skip that cannot tell which
+        /// master is asking is not a rule, it is a wall.</para>
+        /// </summary>
+        public string LabelMaster { get; set; } = TagConfigDeclarations.UniversalGroup;
+
+        /// <summary>
+        /// False when the family belongs to a group other than the universal
+        /// one - it keeps its own bespoke label and must never receive the
+        /// universal one.
         ///
         /// <para>This exists because the protection was previously an ACCIDENT.
         /// The nine LPS tags are Multi-Category, Revit refuses to move a clone
@@ -72,7 +89,9 @@ namespace StingTools.Tags
         /// tenth specialist tag - single-category or not - opts out the same
         /// way instead of rediscovering this.</para>
         /// </summary>
-        public bool Universal { get; set; } = true;
+        public bool Universal
+            => string.Equals(LabelMaster, TagConfigDeclarations.UniversalGroup,
+                             StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Parses the tag-config CSVs into family -> declared category.</summary>
@@ -88,7 +107,22 @@ namespace StingTools.Tags
             new Regex(@"Category\s*:\s*(?<cat>[^,•|]+)",
                       RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        // "Universal: No" opts a family out of universal-label propagation.
+        /// <summary>The group every family belongs to unless it says otherwise.</summary>
+        public const string UniversalGroup = "universal";
+
+        /// <summary>
+        /// The group a legacy "Universal: No" resolves to.
+        ///
+        /// <para>It names no master, so nothing propagates to it - exactly the
+        /// old behaviour. It is a distinct value rather than an empty string so
+        /// the gates can tell "declared out of everything, the old way" from
+        /// "declared into a named group", and report the first as something to
+        /// migrate rather than as a silent exclusion.</para>
+        /// </summary>
+        public const string UnnamedGroup = "(unnamed)";
+
+        // "LabelMaster: <group>" says which master serves this family.
+        // "Universal: No" is the legacy spelling and still parses.
         //
         // Only an explicit NO counts. Anything else - absent, blank, misspelled,
         // "N0" - leaves the family opted IN, because the failure modes are not
@@ -100,6 +134,37 @@ namespace StingTools.Tags
         private static readonly Regex UniversalLine =
             new Regex(@"Universal\s*:\s*(?<val>[A-Za-z]+)",
                       RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex LabelMasterLine =
+            new Regex(@"LabelMaster\s*:\s*(?<val>[A-Za-z0-9_-]+)",
+                      RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// The label-master group declared on this line.
+        ///
+        /// <para>"LabelMaster: X" wins. A legacy "Universal: No" gives
+        /// <see cref="UnnamedGroup"/>. Anything else - absent, blank, a typo -
+        /// gives <see cref="UniversalGroup"/>, because the two failure modes are
+        /// not symmetric: a family wrongly INCLUDED gets the universal label and
+        /// is recoverable from git, while a family wrongly EXCLUDED is silently
+        /// passed over on every run forever. The gates catch the typo that this
+        /// leniency would otherwise hide.</para>
+        /// </summary>
+        internal static string DeclaredLabelMaster(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return UniversalGroup;
+
+            var m = LabelMasterLine.Match(line);
+            if (m.Success)
+            {
+                string g = m.Groups["val"].Value;
+                // "LabelMaster: universal" is just the default said out loud.
+                return string.Equals(g, UniversalGroup, StringComparison.OrdinalIgnoreCase)
+                    ? UniversalGroup : g;
+            }
+
+            return DeclaresNonUniversal(line) ? UnnamedGroup : UniversalGroup;
+        }
 
         /// <summary>True when the text declares an explicit "Universal: No".</summary>
         internal static bool DeclaresNonUniversal(string line)
@@ -153,7 +218,7 @@ namespace StingTools.Tags
                                 // this: a family declared in only one of them would
                                 // otherwise opt out in prose and back in by row,
                                 // and the merge would pick whichever came first.
-                                Universal = !DeclaresNonUniversal(line)
+                                LabelMaster = DeclaredLabelMaster(line)
                             });
                     }
                     // A row never becomes the "current" family for prose lines.
@@ -185,7 +250,7 @@ namespace StingTools.Tags
                     Dialect = "prose",
                     // Read off the SAME line as the category, which is where the
                     // TAG7 line already carries the family's own declarations.
-                    Universal = !DeclaresNonUniversal(line)
+                    LabelMaster = DeclaredLabelMaster(line)
                 });
             }
 

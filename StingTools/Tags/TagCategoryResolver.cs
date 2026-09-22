@@ -63,13 +63,21 @@ namespace StingTools.Tags
         /// <summary>True when the family's current category differs from the declared one.</summary>
         public bool IsMismatch { get; set; }
         /// <summary>
-        /// False when the config declares "Universal: No" - the family keeps its
-        /// own bespoke label and must never receive the universal one. Defaults
-        /// TRUE, including for an undeclared family, because opting a family IN
-        /// by mistake is recoverable from git and opting one OUT by mistake is
-        /// silent forever.
+        /// Which master this family takes its label from, e.g. "universal" or
+        /// "LPS". Declared as "LabelMaster: LPS" in the tag config.
+        ///
+        /// <para>Defaults to the universal group, including for an undeclared
+        /// family, because the two mistakes are not symmetric: a family wrongly
+        /// INCLUDED gets the universal label and is recoverable from git, while
+        /// a family wrongly EXCLUDED is silently passed over on every run
+        /// forever.</para>
         /// </summary>
-        public bool Universal { get; set; } = true;
+        public string LabelMaster { get; set; } = TagConfigDeclarations.UniversalGroup;
+
+        /// <summary>True when this family belongs to the universal group.</summary>
+        public bool Universal
+            => string.Equals(LabelMaster, TagConfigDeclarations.UniversalGroup,
+                             StringComparison.OrdinalIgnoreCase);
         /// <summary>
         /// Why resolution failed, or — when it succeeded and
         /// <see cref="IsMismatch"/> is true — what disagrees with what. Null only
@@ -87,9 +95,10 @@ namespace StingTools.Tags
     {
         // family name (upper, trimmed) → declared host category name
         private static Dictionary<string, string> _declared;
-        // Families that declared "Universal: No". A set, not a flag on
-        // _declared, so an UNDECLARED family cannot land in it by accident.
-        private static HashSet<string> _nonUniversal;
+        // key -> label-master group, for families that declared one. Absent
+        // means the universal group; a map rather than a flag on _declared so an
+        // UNDECLARED family cannot land in it by accident.
+        private static Dictionary<string, string> _labelMaster;
         private static readonly object _lock = new object();
 
         // Anchored at both ends: unanchored, "Tag Family" could match mid-line in a
@@ -105,7 +114,7 @@ namespace StingTools.Tags
         /// <summary>Drops the cache so an edited tag-config CSV is picked up without restarting Revit.</summary>
         public static void Reload()
         {
-            lock (_lock) { _declared = null; _nonUniversal = null; }
+            lock (_lock) { _declared = null; _labelMaster = null; }
         }
 
         /// <summary>Number of families with a declared category. Zero means the config was not found.</summary>
@@ -166,7 +175,7 @@ namespace StingTools.Tags
             // Normalised on BOTH sides: a declaration is a human name, the family
             // is a FILE, and Windows forbids characters a human name may contain.
             string key = TagCategoryNameForms.NormaliseKey(res.FamilyName);
-            res.Universal = !_nonUniversal.Contains(key);
+            res.LabelMaster = LookupGroup(key);
             if (!_declared.TryGetValue(key, out string hostCat) || string.IsNullOrWhiteSpace(hostCat))
             {
                 res.Note = "no Category declared in STING_TAG_CONFIG_v5_0_*.csv";
@@ -206,7 +215,7 @@ namespace StingTools.Tags
             {
                 if (_declared != null) return;
                 _declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                _nonUniversal = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                _labelMaster = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
                 string dataDir = StingToolsApp.DataPath;
                 if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
@@ -231,7 +240,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                StingLog.Info($"TagCategoryResolver: {_declared.Count} families with a declared category, from {files.Length} config file(s); {_nonUniversal.Count} declared \"Universal: No\"");
+                StingLog.Info($"TagCategoryResolver: {_declared.Count} families with a declared category, from {files.Length} config file(s); {_labelMaster.Count} declared a non-universal LabelMaster group");
             }
         }
 
@@ -261,14 +270,28 @@ namespace StingTools.Tags
                 // rather than silently resolved.
                 if (!d.Universal)
                 {
-                    if (_nonUniversal.Add(key))
-                        StingLog.Info($"TagCategoryResolver: '{d.FamilyName}' declares Universal: No - " +
-                                      "it keeps its own label and is skipped by universal propagation");
+                    string existingGroup;
+                    if (!_labelMaster.TryGetValue(key, out existingGroup))
+                    {
+                        _labelMaster[key] = d.LabelMaster;
+                        StingLog.Info($"TagCategoryResolver: '{d.FamilyName}' takes its label from the " +
+                                      $"'{d.LabelMaster}' master, not the universal one");
+                    }
+                    else if (!string.Equals(existingGroup, d.LabelMaster, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Two files, two different masters. Keeping the first is
+                        // arbitrary, so say so - a family served by whichever
+                        // config happened to be read first is a bug waiting for
+                        // a directory listing to change.
+                        StingLog.Warn($"TagCategoryResolver: '{d.FamilyName}' is declared under TWO label-master " +
+                                      $"groups ('{existingGroup}' and '{d.LabelMaster}'). Keeping the first - " +
+                                      "fix the config so every declaration of this family agrees.");
+                    }
                 }
-                else if (_nonUniversal.Contains(key))
+                else if (_labelMaster.ContainsKey(key))
                 {
-                    StingLog.Warn($"TagCategoryResolver: '{d.FamilyName}' declares Universal: No in one " +
-                                  "config file and not in another. Treating it as NO - fix the config so " +
+                    StingLog.Warn($"TagCategoryResolver: '{d.FamilyName}' declares a LabelMaster group in one " +
+                                  "config file and not in another. Keeping the group - fix the config so " +
                                   "every declaration of this family agrees.");
                 }
 
@@ -300,10 +323,28 @@ namespace StingTools.Tags
         /// Callers that only need the flag must use this.</para>
         /// </summary>
         public static bool IsNonUniversal(string familyName)
+            => !string.Equals(LabelMasterGroup(familyName), TagConfigDeclarations.UniversalGroup,
+                              StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Which master this family takes its label from. EnsureLoaded plus one
+        /// hash lookup - no category resolution.
+        ///
+        /// <para>An undeclared family belongs to the universal group. That is
+        /// the lenient direction on purpose: wrongly included is recoverable
+        /// from git, wrongly excluded is silently passed over forever.</para>
+        /// </summary>
+        public static string LabelMasterGroup(string familyName)
         {
-            if (string.IsNullOrWhiteSpace(familyName)) return false;
+            if (string.IsNullOrWhiteSpace(familyName)) return TagConfigDeclarations.UniversalGroup;
             EnsureLoaded();
-            return _nonUniversal.Contains(TagCategoryNameForms.NormaliseKey(familyName));
+            return LookupGroup(TagCategoryNameForms.NormaliseKey(familyName));
+        }
+
+        private static string LookupGroup(string key)
+        {
+            string g;
+            return _labelMaster.TryGetValue(key, out g) ? g : TagConfigDeclarations.UniversalGroup;
         }
 
         private static Category FindTagCategory(Document doc, string hostCategoryName)

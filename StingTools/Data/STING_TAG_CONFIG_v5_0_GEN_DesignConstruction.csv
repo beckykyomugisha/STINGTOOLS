@@ -1532,7 +1532,7 @@ Tag Family #34: STING - LPS Generic Component Tag
 # DC variant — same content as Handover/FM (tier 1-2 + warnings only; no T4-T10 expansion).
 # CROSS-REFERENCE: 6 specialised LPS tag families live in STING_TAG_CONFIG_v5_0_MEP_DesignConstruction.csv (#54-#59).
 # CROSS-DISCIPLINE REUSE: STR Tag #22 (Foundation Earth — rebar reuse), ARCH Tag #36 (Natural Air Termination).
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow

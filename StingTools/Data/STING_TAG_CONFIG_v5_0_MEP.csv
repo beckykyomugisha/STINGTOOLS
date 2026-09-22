@@ -3417,7 +3417,7 @@ TAG7: ASS_TAG_7_PARA_PENETRATION_TXT  •  Category: Generic Models
 Tag Family #54: STING - LPS Air Terminal Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ATR (Air Terminal Rod) / AMS (Air Mesh Section) / ACT (Air Catenary) | SYS: LPS | FUNC: AT | DISC: E
 # Lightning protection air-termination per BS EN 62305-3 §5.2 — rolling sphere / mesh / protection angle method
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3482,7 +3482,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 Tag Family #55: STING - LPS Down Conductor Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Conduit Fittings, Specialty Equipment | PROD: DCN (Down Conductor) / DCS (Steel reinforcement reused) | SYS: LPS | FUNC: DC | DISC: E
 # Lightning protection down conductor per BS EN 62305-3 §5.3 — minimum count + cross-section by class
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3544,7 +3544,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 Tag Family #56: STING - LPS Earth Electrode Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: ERD (Earth Rod) / ERG (Earth Ring) / EFE (Foundation Earth) / EME (Mesh Earth) | SYS: LPS | FUNC: EE | DISC: E
 # Lightning protection earth electrode per BS EN 62305-3 §5.4 — Type A (rod/plate) or Type B (ring/foundation)
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3605,7 +3605,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 Tag Family #57: STING - LPS Bond Tag
 # Category: Electrical Equipment, Generic Models, Conduits, Specialty Equipment | PROD: BCN (Bond Conductor) / BBR (Bonding Bar) / BSG (Spark Gap) | SYS: LPS | FUNC: BOND | DISC: E
 # Lightning protection equipotential bonding per BS EN 62305-3 §6.2 — DIRECT / SPD / ISOLATING_SPARK_GAP
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3659,7 +3659,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 Tag Family #58: STING - LPS SPD Tag
 # Category: Electrical Equipment, Specialty Equipment | PROD: SPD1 (Type 1) / SPD2 (Type 2) / SPD3 (Type 3) | SYS: LPS | FUNC: SPD | DISC: E
 # Surge protective device per BS EN 62305-4 + BS EN 61643 — coordinated SPD strategy across LPZ boundaries
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3674,7 +3674,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
 Tag Family #59: STING - LPS Test Clamp Tag
 # Category: Electrical Equipment, Generic Models, Specialty Equipment | PROD: TCL (Test Clamp) / TIP (Inspection Point) | SYS: LPS | FUNC: TC | DISC: E
 # Test clamp / inspection point per BS EN 62305-3 §7.2 — required for periodic earth resistance testing
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  Universal: No
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -3901,3 +3901,4 @@ TAG7: FLS_TAG_7_PARA_TIEIN_TXT  •  Category: Pipes
 #,Sev,Warning Parameter Name,Threshold Condition,Standard,Dis.,Type,Name,Calculated Value Formula
 1,CRITICAL,WARN_ASS_TIEIN_OPEN_FIREPIPE,Tie-in OPEN on fire suppression system — life safety risk,NFPA 13 / FM Global / BS EN 12845,Common,Text,⚠ CRITICAL: Open Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_OPEN_FIREPIPE, """")"
 2,HIGH,WARN_ASS_TIEIN_DEFERRED_FIREPIPE,Fire suppression tie-in DEFERRED — AHJ notification required,NFPA 13 Cl. 8 / BS EN 12845 Cl. 10,Common,Text,⚠ Warning: Deferred Fire Suppression Tie-In,"if(TAG_WARN_VISIBLE_BOOL, WARN_ASS_TIEIN_DEFERRED_FIREPIPE, """")"
+TAG_FAMILY,STING_LPS_Tag_Universal,E,Multi-Category,LabelMaster: LPS,the hand-built Multi-Category master the nine LPS tags take their label from (see docs/LPS_TAG_MASTER_BUILD_SHEET.md). Declared so propagation can tell WHICH master is running; it is not itself a shipped tag family.
