@@ -1154,6 +1154,7 @@ TAG7: ELC_TAG_7_PARA_PANEL_TXT  •  Category: Electrical Equipment
 5,HIGH,WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI,Protective device discrimination not verified with upstream,BS 7671 Regulation 536 / BS EN 60947,Common,Text,⚠ Warning: Circuit Discrimination,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_DISCRIMINATION_ELECTRICAL_EQUI, """")"
 6,MEDIUM,WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI,Earth fault loop impedance exceeds maximum for device type,BS 7671 Table 41.3 / IEC 60364,Common,Text,⚠ Warning: Earth Fault Loop Impedance,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_EARTH_FAULT_ELECTRICAL_EQUI, """")"
 7,LOW,WARN_ELC_LABELLING_ELECTRICAL_EQUI,Panel schedule / circuit labelling incomplete,BS 7671 Regulation 514 / IEC 60364,Common,Text,⚠ Warning: Panel Labelling Incomplete,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LABELLING_ELECTRICAL_EQUI, """")"
+8,HIGH,WARN_ELC_PNL_NO_TVSS,Critical panel without surge protection,BS 7671 §443,E,Text,⚠ Warning: Panel No TVSS,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_PNL_NO_TVSS, """""""")"
 Tag Family #19: STING - Electrical Fixture Tag
 TAG7: ELC_TAG_7_PARA_CIRCUIT_TXT  •  Category: Electrical Fixtures
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow

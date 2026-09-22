@@ -48,7 +48,7 @@ overwritten by its own propagation, and the run reports success.
 | T10 | 3 | shared with the universal master — same parameters, same order |
 | **total** | **62** | 27 LPS-specific + 35 shared |
 
-Plus **21 warning rows** (10 LPS, 11 inherited generic — see the last section).
+Plus **17 warning rows** (10 LPS, 7 inherited generic — see the last section).
 
 **Tiers T4-T10 are the same 35 rows as the universal master**, in the same
 order. They are not LPS at all - commissioning, cost, carbon, fabrication,
@@ -119,7 +119,7 @@ where `<n>` is the tier number. T1 rows have no gate - they are always on.
 | HIGH | `WARN_ELC_LPS_EARTH_RESISTANCE_HIGH` | Earth resistance > 10 ohm — supplement electrodes or add ring earth | 2/9 |
 | MEDIUM | `WARN_ELC_LPS_INSPECTION_OVERDUE` | Inspection interval exceeded (Class I/II=12mo III/IV=24mo) | 2/9 |
 
-### Inherited generic (11) — check before building
+### Inherited generic (7) — check before building
 
 These appear in the LPS declarations but are not about lightning protection.
 The `PRJ_*` and `STING_*` ones are project/drawing hygiene and are carried by
@@ -136,10 +136,6 @@ tag. Decide whether they belong before authoring them.
 | HIGH | `WARN_STING_CROP_DRIFT` | Crop kind/margin drift from profile | 1/9 |
 | HIGH | `WARN_STING_PACK_DRIFT` | Pack checksum drift on managed template | 1/9 |
 | MEDIUM | `WARN_STING_STYLE_LOCKED_NOTICE` | STING_STYLE_LOCKED_BOOL=1 | 1/9 |
-| HIGH | `WARN_ELC_PNL_SPARES_LOW` | ELC_PNL_SPARE_WAYS_NR < 10% of NUM_OF_WAYS | 1/9 |
-| HIGH | `WARN_ELC_PNL_SCCR_LOW` | ELC_PNL_SHORT_CIRCUIT_RATING_KA < fault | 1/9 |
-| HIGH | `WARN_ELC_PNL_AIC_INADEQUATE` | ELC_PNL_AIC_RATING_KA < available fault | 1/9 |
-| HIGH | `WARN_ELC_PNL_NO_TVSS` | Critical panel without surge protection | 1/9 |
 
 ## After the master is built
 
