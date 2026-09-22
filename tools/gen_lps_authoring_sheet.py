@@ -90,21 +90,27 @@ def text_source(param):
 
 
 def pad(v):
-    """Render a cell so leading/trailing spaces survive the markdown.
+    """Render a cell so markdown cannot eat what matters.
+
+    Two hazards, both silent:
 
     A markdown cell pads with a space either side, so `| - |` is the same
     whether the prefix is "-" or " - ". Eighty prefixes across the tag config
-    carry padding that separates two values sharing a line, and typing them
-    without it runs the values together.
+    carry padding that separates two values sharing a line.
+
+    And a raw pipe ENDS the cell. Three prefixes begin with one - "| A4:",
+    "| B6:", "| " - and printed unescaped they became an empty Prefix and a
+    Suffix holding what should have been the prefix. That is exactly how they
+    were typed into the master.
     """
     if not v:
         return ""
     lead = len(v) - len(v.lstrip(" "))
     trail = len(v) - len(v.rstrip(" "))
     core = v.strip(" ")
-    if not core:
-        return "\u2423" * len(v)
-    return "\u2423" * lead + core + "\u2423" * trail
+    out = ("\u2423" * len(v)) if not core else (
+        "\u2423" * lead + core + "\u2423" * trail)
+    return out.replace("|", "\\|")
 
 
 def nice(param, tier):

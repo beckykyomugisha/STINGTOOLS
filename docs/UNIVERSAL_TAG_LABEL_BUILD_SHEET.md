@@ -76,10 +76,10 @@ Select row, click left-arrow (remove-from-label):
 | 33 | T5 | Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, "")` | 0 | Flow: |  | YES |
 | 34 | T5 | Show T5-Ph179 - Item Code | `if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, "")` | 0 | Item: |  | YES |
 | 35 | T6 | Show T6 - Carbon - Product A1-A3 | `if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, "")` | 0 | A1-A3: | kgCO₂e | no |
-| 36 | T6 | Show T6 - Carbon - Transport A4 | `if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, "")` | 0 | | A4: | kgCO₂e | no |
-| 37 | T6 | Show T6 - Carbon - Operational B6 | `if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, "")` | 0 | | B6: | kgCO₂e/yr | YES |
+| 36 | T6 | Show T6 - Carbon - Transport A4 | `if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, "")` | 0 | \| A4: | kgCO₂e | no |
+| 37 | T6 | Show T6 - Carbon - Operational B6 | `if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, "")` | 0 | \| B6: | kgCO₂e/yr | YES |
 | 38 | T6 | Show T6 - Material & finish - ASS_MANUFACTURER_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, "")` | 0 | Mfr: |  | no |
-| 39 | T6 | Show T6 - Material & finish - ASS_MODEL_NR_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, "")` | 0 | |␣ |  | no |
+| 39 | T6 | Show T6 - Material & finish - ASS_MODEL_NR_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, "")` | 0 | \|␣ |  | no |
 | 40 | T6 | Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS | `if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, "")` | 0 | Life: | yrs | YES |
 | 41 | T7 | Show T7 - Fabrication - Spool No | `if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, "")` | 0 | Spool: |  | no |
 | 42 | T7 | Show T7 - Fabrication - Status | `if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, "")` | 0 | Fab: |  | no |

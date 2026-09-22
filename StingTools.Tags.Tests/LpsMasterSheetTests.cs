@@ -202,5 +202,46 @@ namespace StingTools.Tags.Tests
                 "rejects these as \"Inconsistent Units\" and they cannot be entered at all. Point " +
                 "them at the parameter's _TXT twin:\n  " + string.Join("\n  ", bad.Distinct().Take(10)));
         }
+
+        [Fact]
+        public void NoRowHasAStrayPipeThatShiftsItsColumns()
+        {
+            // A raw | ENDS a markdown cell. Three prefixes begin with one -
+            // "| A4:", "| B6:", "| ", the separator between two carbon values
+            // sharing a line - and printed unescaped each became an empty
+            // Prefix and a Suffix holding what should have been the prefix.
+            // Both sheets shipped that way, and it is exactly how those rows
+            // were typed into the master on 2026-09-22.
+            //
+            // Column count is the check: a stray pipe adds a column, and
+            // nothing else in a well-formed row does.
+            foreach (string sheet in new[] { "UNIVERSAL_TAG_LABEL_BUILD_SHEET.md",
+                                             "LPS_TAG_MASTER_BUILD_SHEET.md" })
+            {
+                int expected = -1;
+                var bad = new List<string>();
+
+                foreach (string line in ReadShared(Doc(sheet)))
+                {
+                    string row = line.TrimEnd();
+                    bool isHeader = row.StartsWith("| # | Tier |");
+                    if (!isHeader && !Regex.IsMatch(row, @"^\|\s*\d+\s*\|\s*T\d+\s*\|")) continue;
+
+                    // An escaped pipe is content, not a separator.
+                    int cells = row.Replace(@"\|", "\u0001").Split('|').Length;
+
+                    if (isHeader) { expected = cells; continue; }
+                    if (expected > 0 && cells != expected)
+                        bad.Add($"row {row.Split('|').ElementAtOrDefault(1)?.Trim()}: " +
+                                $"{cells} cells, header has {expected}");
+                }
+
+                Assert.True(expected > 0, sheet + ": no table header found");
+                Assert.True(bad.Count == 0,
+                    $"{sheet}: {bad.Count} row(s) have the wrong column count, which means a raw " +
+                    "pipe inside a cell. Escape it or the Prefix and Suffix shift one column " +
+                    "right:\n  " + string.Join("\n  ", bad.Take(8)));
+            }
+        }
 }
 }
