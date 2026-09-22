@@ -29,6 +29,13 @@ Select row, click left-arrow (remove-from-label):
 
 ## STEP 2 - Full universal row list (build/verify all in order)
 
+> **The FIRST row's Spaces and the LAST row's Break are not editable.**
+> Revit greys both out, and the printed values for those two rows are what it
+> fixes them to, not something to set. Spaces counts the gap to the PRECEDING
+> parameter, so row 1 has nothing to space from; Break ends a line, so the
+> last row has nothing to break before. Confirmed in the Family Editor
+> 2026-09-22 - row 1 sits at Spaces=1 and cannot be changed.
+
 > **Spaces is 0 on every row.** The column is printed rather than stated once,
 > because it is easy to leave at Revit's default of 1 and the effect - an extra
 > gap before every value - is subtle enough to survive review.

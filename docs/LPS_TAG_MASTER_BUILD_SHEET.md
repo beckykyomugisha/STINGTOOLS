@@ -44,6 +44,12 @@ different shared label.
 belongs in the master: it renders blank on the other eight, exactly as every
 tier already does.
 
+> **The FIRST row's Spaces and the LAST row's Break are not editable.**
+> Revit greys both out. Spaces counts the gap to the PRECEDING parameter, so
+> row 1 has nothing to space from and sits at 1; Break ends a line, so the
+> last row has nothing to break before. The printed values for those two rows
+> are what Revit fixes them to, not something to set.
+
 **Spaces is 0 on every row**, and the column is printed rather than stated
 once: Revit defaults it to 1, and an extra gap before every value is subtle
 enough to survive review.
