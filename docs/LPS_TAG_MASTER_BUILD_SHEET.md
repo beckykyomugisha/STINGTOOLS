@@ -160,9 +160,34 @@ a decision, and the Break values are known-good.
 
 **Total: 88 rows** (27 LPS + 61 shared).
 
-## STEP 3 - Warning rows (17)
+## STEP 3 - Warnings (17) - NOT label rows
 
-Same pattern as the universal sheet's warning block.
+**Nothing to author here.** The universal master contains zero warning label
+rows, and neither should this one. They are listed so the set is visible, not
+so it can be typed in.
+
+Warnings reach a tag by a different route entirely:
+
+1. They are DECLARED in `STING_TAG_CONFIG_v5_0_*.csv` - already done, all 17.
+2. The plugin evaluates each against its `warning_thresholds` entry in
+   `PARAMETER_REGISTRY.json` (`EvaluateAndPopulateWarnings`) and writes the
+   `WARN_*` parameters onto the element.
+3. The text is concatenated into the **TAG7 narrative**, which reaches the
+   label through the `ASS_TAG_7A..7F_TXT` rows - already in STEP 2, so the
+   master gets them with the shared block.
+4. Optionally, the green/amber/red **badges** read
+   `STING_GATE_DATA_STATUS_INT` / `STING_GATE_QA_STATUS_INT`. Those are
+   family glyphs, not label rows - see STEP 4 of the universal sheet.
+
+Two switches control all of it at tag level, and both are already shared
+parameters: `TAG_WARN_VISIBLE_BOOL` (master on/off) and
+`TAG_WARN_SEVERITY_FILTER_TXT`.
+
+> `TAG_WARN_VISIBLE_BOOL` is YESNO - write it BARE in a formula. Comparing it
+> to "Yes" fails with the same "Inconsistent Units" that blocked the twelve
+> numeric rows.
+
+The set, for reference:
 
 | severity | parameter | condition |
 |---|---|---|
