@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -207,7 +207,7 @@ namespace StingTools.Tags
                         // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
                         // the panel global; otherwise every type gets the global depth.
                         int effDepth = depth;
-                        var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
+                        var ov = TokenDepthOverrides.Resolve(doc, typeEl.Category?.Name);
                         if (ov != null && ov.Depth.HasValue)
                             effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                         bool anySet = false;

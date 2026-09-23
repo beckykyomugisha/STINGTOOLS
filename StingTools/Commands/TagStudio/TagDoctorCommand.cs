@@ -137,7 +137,7 @@ namespace StingTools.Commands.TagStudio
             int cap = MaxTier;
             try
             {
-                var ov = StingTools.Tags.TokenDepthOverrides.Resolve(cat);
+                var ov = StingTools.Tags.TokenDepthOverrides.Resolve(doc, cat);
                 if (ov != null && ov.Depth.HasValue) cap = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
             }
             catch (Exception ex) { StingLog.Warn($"TagDoctor: depth override for '{cat}': {ex.Message}"); }
@@ -148,8 +148,8 @@ namespace StingTools.Commands.TagStudio
                 : "CAP      none — this category follows the global depth.");
 
             sb.AppendLine();
-            sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap   value        verdict");
-            sb.AppendLine("----  ---------  -------------  ------------  ----  -----------  ----------------------------");
+            sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap    value     param@tag  verdict");
+            sb.AppendLine("----  ---------  -------------  ------------  -----  --------  ---------  --------------------------------");
 
             for (int t = 1; t <= MaxTier; t++)
             {
@@ -165,22 +165,48 @@ namespace StingTools.Commands.TagStudio
                 string val = valParam == null ? "?" :
                     (string.IsNullOrWhiteSpace(ParameterHelpers.GetString(host, valParam)) ? "EMPTY" : "present");
 
-                sb.AppendLine(string.Format("T{0,-3}  {1,-9}  {2,-13}  {3,-12}  {4,-4}  {5,-11}  {6}",
-                    t, atHost, atHostType, atTagType, capped ? "BLOCK" : "ok", val,
-                    Verdict(atHost, atHostType, atTagType, capped, val)));
+                // Does the TAG FAMILY carry the value parameter at all? A label
+                // row can only read a parameter the tag family has, so an absent
+                // one is a propagation gap and a present one is not.
+                string inTag = "?";
+                if (valParam != null && tagType != null)
+                {
+                    try { inTag = tagType.LookupParameter(valParam) != null ? "yes" : "NO"; }
+                    catch { inTag = "?"; }
+                }
+
+                sb.AppendLine(string.Format("T{0,-3}  {1,-9}  {2,-13}  {3,-12}  {4,-5}  {5,-8}  {6,-9}  {7}",
+                    t, atHost, atHostType, atTagType, capped ? "BLOCK" : "ok", val, inTag,
+                    Verdict(atHost, atHostType, atTagType, capped, val, inTag)));
             }
 
             sb.AppendLine();
             sb.AppendLine("HOW TO READ IT");
             sb.AppendLine("  A gate shown as '-' is NOT BOUND on that element. Not false — absent.");
-            sb.AppendLine("  The three gate columns exist because the label may read any of them, and");
-            sb.AppendLine("  which one it reads has never been established. If a tier is ON at the tag");
-            sb.AppendLine("  type, its value is present, nothing caps it, and the row still does not");
-            sb.AppendLine("  draw, then the label is reading the HOST copy — record that in");
-            sb.AppendLine("  docs/UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md and the question is closed.");
+            sb.AppendLine("  'param@tag' is whether the TAG FAMILY carries the value parameter. A");
+            sb.AppendLine("  label row can only read a parameter the family has, so NO is a");
+            sb.AppendLine("  propagation gap and yes rules one out.");
+            sb.AppendLine();
+            sb.AppendLine("  WHAT THIS CANNOT SEE: Revit exposes no API for listing a tag family's");
+            sb.AppendLine("  label rows. So when every column above is clean and the row is still");
+            sb.AppendLine("  blank, the row itself is absent and must be hand-authored in the Family");
+            sb.AppendLine("  Editor. That is a real answer, not a shrug — it is the only remaining");
+            sb.AppendLine("  suspect once the other four are cleared.");
         }
 
-        private static string Verdict(string host, string hostType, string tagType, bool capped, string val)
+        /// <summary>
+        /// Name the first broken link, or say what is left when none are.
+        ///
+        /// <para>Deliberately never says "should render". Revit exposes no API
+        /// for enumerating a tag family's LABEL ROWS, so whether a row exists
+        /// to draw the value is the one link this command cannot see. Claiming
+        /// it renders would be asserting the unmeasured - the failure this
+        /// codebase produces most - so the all-clear is phrased as what it
+        /// actually is: everything measurable is fine, therefore the remaining
+        /// suspect is the thing that was not measured.</para>
+        /// </summary>
+        private static string Verdict(string host, string hostType, string tagType,
+                                      bool capped, string val, string inTag)
         {
             if (capped) return "blocked by the category cap";
             bool anyOn = host == "ON" || hostType == "ON" || tagType == "ON";
@@ -188,8 +214,9 @@ namespace StingTools.Commands.TagStudio
             if (!anyBound) return "gate NOT BOUND anywhere — row can never open";
             if (!anyOn) return "gate off everywhere — raise the depth";
             if (val == "EMPTY") return "gate open, VALUE empty — re-run Tag+Combine";
-            if (val == "?") return "gate open; value source not checked for this tier";
-            return "should render";
+            if (inTag == "NO") return "tag family lacks the parameter — re-run Propagate";
+            if (val == "?") return "gate open; no single value source to check for this tier";
+            return "all measurable links OK — so the LABEL ROW is missing (hand-author)";
         }
 
         /// <summary>The parameter a tier draws from, where there is a single obvious one.</summary>

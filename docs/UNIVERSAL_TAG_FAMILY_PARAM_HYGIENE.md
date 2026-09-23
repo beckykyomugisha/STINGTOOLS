@@ -105,28 +105,53 @@ worth doing now.
 
 ---
 
-## 4 · The open question — and the 30-second test
+## 4 · ANSWERED (2026-09-23) — the tag type's copy wins, because it is the only copy
 
-Which copy of a gate does a label row actually read: **the tag type's, or the tagged
-element's?** A tag label's calculated value is evaluated against the tagged element's
-parameters, which suggests the tagged element's — and `MR_PARAMETERS` binds all ten gates
-across model categories, so both copies exist.
+**Which copy of a gate does a label row read: the tag type's, or the tagged element's?**
 
-It matters:
+**The tag type's.** Measured with `Tag Doctor` on a duct and an air terminal, both tagged,
+in a live model. Every one of the ten tiers reported the gate as **NOT BOUND** on the host
+instance and on the host type, and **ON** at the tag type. There is no second copy to
+compete, so the question of precedence does not arise.
 
-- **If the tagged element's copy wins**, the tag family's own gates are inert, and tier
-  visibility is controlled entirely by `Set depth` on model types. The smoke test's V3
-  ("flip `TAG_PARA_STATE_4_BOOL` on the Duct tag type") would then be testing the wrong
-  parameter and would fail for a reason that is not a defect.
-- **If the tag type's copy wins**, the scope fix in §1 is load-bearing, not hygiene.
+### The premise that made this look open
 
-**The test**, once a tag is placed on a duct: flip `TAG_PARA_STATE_7_BOOL` on the **tag
-type** and see whether the T7 rows disappear. Then flip it back, flip it on the **duct
-type** instead, and see whether they disappear then. Whichever one moves the tag is the one
-that matters, and the answer belongs in this document rather than in anyone's memory.
+This section previously said "`MR_PARAMETERS` binds all ten gates across model categories,
+so both copies exist". That conflated two different files, and neither says what was
+claimed:
 
-Until it is answered, keep both copies Type-scoped and consistent — which is what §1 now
-enforces.
+| File | What it actually says about `TAG_PARA_STATE_*_BOOL` |
+|---|---|
+| `MR_PARAMETERS.txt` | **Defines** all ten. A shared-parameter *definition* is not a binding — it is a name and a GUID waiting for one. |
+| `PARAMETER_CATEGORIES.csv` | **Specs a binding for tiers 1–3 only**, Type-scoped, across 35 model categories. Tiers **4–10 appear nowhere**. |
+| `CATEGORY_BINDINGS.csv` | **Zero rows.** No gate is bound here at all. |
+
+So even in a project where the spec had been fully applied, tiers 4–10 could never have a
+host copy — the binding for them is not specified anywhere. For those tiers the tag type's
+copy is **structurally** the only one, independent of any project's state.
+
+And in this project, tiers 1–3 are not bound either: the spec exists, the binding was never
+loaded. Being listed in `PARAMETER_CATEGORIES.csv` is not being bound, in the same way that
+a migration file on disk is not a migration EF will run (`CLAUDE.md` §9).
+
+### What follows
+
+- **The §1 scope fix is load-bearing, not hygiene.** The tag family's own gates are the
+  operative ones.
+- **The smoke test's V3 was testing the right parameter.** Flipping the gate on the *tag
+  type* is correct; flipping it on the duct type would move nothing, because the parameter
+  is not there to flip.
+- **`Set depth` reaches tags through tag types**, which is what `ParagraphDepthCommand`
+  already does — it sweeps element types and skips any that do not carry
+  `TAG_PARA_STATE_1_BOOL`, so tag family types are the carriers it finds.
+
+### The measurement, so it can be repeated
+
+`Tag Doctor` (TAGGING tab) prints `gate@host`, `gate@hostType` and `gate@tagType` side by
+side, where `-` means **not bound** rather than false. The three columns exist precisely to
+settle this, and the run that settled it had a built-in control: the same `LookupParameter`
+call that returned `-` on the host returned `ON` on the tag type, so `-` is absence, not a
+broken probe.
 
 ---
 
