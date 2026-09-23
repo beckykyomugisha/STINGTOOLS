@@ -1,4 +1,4 @@
-PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,DISCIPLINE,SYSTEM,STANDARD_REF
+﻿PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,DISCIPLINE,SYSTEM,STANDARD_REF
 # ^^ THE HEADER ROW MUST STAY ON LINE 1. TagConfig.LoadProdCsv skips exactly one
 #    line before it starts skipping '#' comments, and so does ProdCodeDataTests.
 #    Move this block above it and the header is parsed as DATA, minting a rule
@@ -37,7 +37,8 @@ CAB,Mechanical Equipment,*Cabinet*,Cabinet Unit Heater / Ventilator,M,HVAC,CIBSE
 HRU,Mechanical Equipment,*Heat Recovery*|*MVHR*,Heat Recovery Unit,M,HVAC,BS EN 308
 EAT,Air Terminals,*Exhaust*|*Extract*,Exhaust Air Terminal,M,HVAC,BS EN 1751
 SAT,Air Terminals,*Supply*|*Diffuser*,Supply Air Terminal / Diffuser,M,HVAC,BS EN 1751
-GRL,Air Terminals,*Grille*,Return / Transfer Grille,M,HVAC,BS EN 1751
+RAT,Air Terminals,*Return Diffuser*|*Return Air*|*Return Valve*|*Return*,Return Air Terminal,M,HVAC,BS EN 1751
+GRL,Air Terminals,*Return Grille*|*Transfer Grille*|*Grille*,Return / Transfer Grille,M,HVAC,BS EN 1751
 LVR,Air Terminals,*Louvre*,Louvre / Fresh Air Intake,M,HVAC,BS EN 13141
 FRG,Air Terminals,*Fire Resist*,Fire / Smoke Damper (integral),M,HVAC,BS EN 15650
 VRV,Mechanical Equipment,*VRF*|*VRV*,Variable Refrigerant Flow / Volume Unit,M,HVAC,BS EN 14511

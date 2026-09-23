@@ -1858,11 +1858,11 @@ namespace StingTools.Core
                     if (val.Contains("EXHAUST") || val.Contains("EXTRACT")) return "EXH";
                 }
 
-                // Check family name for duct-related equipment
-                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
-                if (familyName.Contains("SUPPLY") || familyName.Contains("DIFFUSER")) return "SUP";
-                if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
-                if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
+                // Check family name for duct-related equipment.
+                // Direction beats shape - see HvacDirectionFromName for why a
+                // "Return Diffuser" used to resolve as SUP.
+                string dir = HvacDirectionFromName.Resolve(ParameterHelpers.GetFamilyName(el));
+                if (!string.IsNullOrEmpty(dir)) return dir;
             }
             catch (Exception ex) { StingLog.Warn($"HVAC sub-function detection failed: {ex.Message}"); }
             return null;
