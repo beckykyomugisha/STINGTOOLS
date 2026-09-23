@@ -105,94 +105,98 @@ worth doing now.
 
 ---
 
-## 4 · ANSWERED (2026-09-23) — the tag type's copy wins, because it is the only copy
+## 4 · ANSWERED (2026-09-23) — the TAGGED ELEMENT's type copy wins
 
-**Which copy of a gate does a label row read: the tag type's, or the tagged element's?**
+**Which copy of a gate does a label row read: the tag type's, or the tagged
+element's?**
 
-**The tag type's.** Measured with `Tag Doctor` on a duct and an air terminal, both tagged,
-in a live model. Every one of the ten tiers reported the gate as **NOT BOUND** on the host
-instance and on the host type, and **ON** at the tag type. There is no second copy to
-compete, so the question of precedence does not arise.
+**The tagged element's type.** Measured in Revit on a live air terminal:
 
-### The premise that made this look open
-
-This section previously said "`MR_PARAMETERS` binds all ten gates across model categories,
-so both copies exist". That conflated two different files, and neither says what was
-claimed:
-
-| File | What it actually says about `TAG_PARA_STATE_*_BOOL` |
+| `TAG_PARA_STATE_6_BOOL` on the air terminal's TYPE | The tag |
 |---|---|
-| `MR_PARAMETERS.txt` | **Defines** all ten. A shared-parameter *definition* is not a binding — it is a name and a GUID waiting for one. |
-| `PARAMETER_CATEGORIES.csv` | **Specs a binding for tiers 1–3 only**, Type-scoped, across 35 model categories. Tiers **4–10 appear nowhere**. |
-| `CATEGORY_BINDINGS.csv` | **Zero rows.** No gate is bound here at all. |
+| unticked | one line |
+| **ticked** | one line **+ the three T6 carbon rows** |
 
-So even in a project where the spec had been fully applied, tiers 4–10 could never have a
-host copy — the binding for them is not specified anywhere. For those tiers the tag type's
-copy is **structurally** the only one, independent of any project's state.
+Same element, same tag, nothing else changed. The gate was simultaneously **ON at
+the tag type** throughout — so the tag type's copy is inert for rendering.
 
-And in this project, tiers 1–3 are not bound either: the spec exists, the binding was never
-loaded. Being listed in `PARAMETER_CATEGORIES.csv` is not being bound, in the same way that
-a migration file on disk is not a migration EF will run (`CLAUDE.md` §9).
+An integer comparison behaves identically:
+`if(TAG_DEPTH_TIER_INT > 5, ASS_TAG_7F_TXT, "")` with the value 6 drew its row.
 
-### What follows
+### This reverses the answer recorded here earlier the same day
 
-- **The §1 scope fix is load-bearing, not hygiene.** The tag family's own gates are the
-  operative ones.
-- **The smoke test's V3 was testing the right parameter.** Flipping the gate on the *tag
-  type* is correct; flipping it on the duct type would move nothing, because the parameter
-  is not there to flip.
-- **`Set depth` reaches tags through tag types**, which is what `ParagraphDepthCommand`
-  already does — it sweeps element types and skips any that do not carry
-  `TAG_PARA_STATE_1_BOOL`, so tag family types are the carriers it finds.
+The first version of this section concluded *"the tag type's copy wins, because it
+is the only copy."* That was **inferred**, not measured — from the gates reading
+`ON` at the tag type and `-` at the host while nothing drew. The inference was
+backwards: nothing drew *because* the host had no copy, and the tag-type copy
+that was `ON` never mattered.
 
-### The measurement, so it can be repeated
+The premise was wrong too. It claimed tiers 4–10 have no model-category binding
+spec anywhere, so a host copy was impossible. `PARAMETER_CATEGORIES.csv` does
+cover only tiers 1–3 — but a spec is not a binding and its absence is not a
+prohibition. Binding tier 6 by hand took two minutes and worked.
 
-`Tag Doctor` (TAGGING tab) prints `gate@host`, `gate@hostType` and `gate@tagType` side by
-side, where `-` means **not bound** rather than false. The three columns exist precisely to
-settle this, and the run that settled it had a built-in control: the same `LookupParameter`
-call that returned `-` on the host returned `ON` on the tag type, so `-` is absence, not a
-broken probe.
+**The lesson is the one this file keeps relearning:** four causes of a blank row
+look identical on a drawing, and reasoning from which of them *seems* most likely
+produced a confident wrong answer twice in one day. The experiment that settled
+it was a single tick.
+
+### Consequences
+
+- **The gate must be bound to the tagged element, Type-scoped.** Nothing else
+  makes a tier draw.
+- **Per-drawing depth is not achievable** through tag type variants. A duct cannot
+  carry a T2 tag on the coordination sheet and a T10 tag on handover — depth is a
+  property of the element, not of the tag. `TagTypeVariantWriter`'s depth tiers
+  are real type variants, but their gate values do not reach the label.
+- **`Set depth`'s writes to tag types change nothing on a drawing.** It now also
+  writes `TAG_DEPTH_TIER_INT` on element types, which does.
+- **One integer beats ten booleans**, now that binding is required either way: one
+  binding instead of ten, "all ten on at depth 2" becomes unrepresentable, and
+  tier 11 costs nothing. The 70 formulas are in
+  [`UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md`](UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md).
+
+### Two Revit rules found on the way
+
+1. **No `>=` operator.** Revit answers `Operator not expected: =`. Tier N is
+   written `> N-1`.
+2. **An unset integer reads as 0**, so a gated row stays hidden until
+   `TAG_DEPTH_TIER_INT` has a value — the correct default.
 
 ---
 
-## 4b · Why a duct tag shows one line — measured 2026-09-23
+## 4b · Why a duct tag showed one line — measured 2026-09-23
 
-Every link that can be measured in code is clean. The remaining one cannot be
-measured in code, and that is the answer.
+Not the label rows. **All 71 are present and correct in the master.** Row 1 is a
+plain parameter; rows 2–71 are calculated values, each gated on
+`if(TAG_PARA_STATE_n_BOOL, …, "")`.
 
-| Link | Duct (`STING - Tie-In Point Tag`) | Air terminal (`STING_Tag_Universal`) |
-|---|---|---|
-| Gate bound + ON at the tag type | ✅ all tiers except T3 | ✅ all tiers except T3 |
-| Per-category depth cap | none configured for Ducts | **T4** — T5–T10 can never show |
-| Token/narrative value on the host | ✅ present T1–T6 | ✅ present T1–T6 |
-| Tag family can label the parameter | ✅ **212** shared parameters | ✅ **211** shared parameters |
-| **Label row exists in the family** | **not measurable — Revit has no API** | **not measurable** |
+Exactly one line drew — row 1, the only ungated row. Every gated row returned `""`
+because the gate was not bound to the tagged element, so the condition could never
+be true.
 
-So propagation did its job: both families carry the parameters, and the gates are
-open. What is missing for the blank tiers is the **label row** — the row inside the
-family that binds a parameter to a line of text. Revit's API cannot author one and
-cannot list one, so this is Family Editor work, and it is the tier 2–10 row
-authoring already tracked, not a new defect.
+The sequence that proved it, each step a positive readout rather than an absence:
 
-### The trap in reading this table
+| Row 71's formula | Result |
+|---|---|
+| `if(TAG_PARA_STATE_6_BOOL, ASS_TAG_7F_TXT, "")` | blank |
+| `ASS_TAG_7F_TXT` | **drew** — so the row and the value are fine |
+| `"HELLO"` | **drew** — so the reload reaches the drawing |
+| gate restored, **then bound + ticked on the host type** | **drew** |
 
-`Tag Doctor` deliberately does **not** say "the label row is missing". It says
-*if blank, only the label row is left*. The difference matters: T1 reads clean here
-**and renders**. An earlier wording asserted T1's row was absent while it was
-visibly drawing on the sheet — asserting the negative of an unmeasured fact is the
-same error as asserting the positive. Compare the table against the tag on the
-drawing; the command cannot see which rows drew.
+The third line matters as much as the fourth. Two rounds of "nothing happened"
+could have been a formula that fails, a gate that is false, or a change that never
+reached the drawing. `"HELLO"` ruled out the third, and only then did the silences
+become evidence.
 
-### Two facts worth keeping
+### Two data defects this uncovered
 
-- **T3 is gone from the universal master**, so `gate@tagType` reads `-` and the tier
-  can never open. The 36 formulas in `FORMULAS_WITH_DEPENDENCIES.csv` that still gate
-  on `TAG_PARA_STATE_3_BOOL` are gating on a parameter the universal families do not
-  have — ~180 formula failures per depth run. The LPS master does carry T3, so this
-  is now group-specific rather than global.
-- **Air Terminals is capped at T4** by `STING_TOKEN_DEPTH_OVERRIDES.json`. Raising
-  the global depth will never show a fifth line there. That is the design, but it is
-  invisible without this command.
+- `ASS_TAG_7F_TXT` holds an **OmniClass classification sentence**, not the carbon
+  narrative its row name promises — and it duplicates the ISO tag already on line 1.
+- The three carbon rows draw **`A1-A3:0kgCO2e A4:0kgCO2e B6:0kgCO2e/yr`** — real
+  parameters with no data behind them.
+
+Both were invisible while nothing drew, and neither is a label problem.
 
 ---
 
