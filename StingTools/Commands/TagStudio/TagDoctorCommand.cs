@@ -147,6 +147,14 @@ namespace StingTools.Commands.TagStudio
                   + $"tiers above T{cap} can never show here, whatever the global depth."
                 : "CAP      none — this category follows the global depth.");
 
+            // What parameters can this tag family actually label? Resolved once,
+            // from the family DOCUMENT - see TagFamilyParams for why the symbol
+            // is the wrong place to ask.
+            HashSet<string> famParams = TagFamilyParams(doc, tagType);
+            sb.AppendLine(famParams == null
+                ? "FAMILY   could not open the tag family to read its parameters — param@tag shows '?'"
+                : $"FAMILY   tag family exposes {famParams.Count} shared parameter(s) to its labels");
+
             sb.AppendLine();
             sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap    value     param@tag  verdict");
             sb.AppendLine("----  ---------  -------------  ------------  -----  --------  ---------  --------------------------------");
@@ -165,15 +173,10 @@ namespace StingTools.Commands.TagStudio
                 string val = valParam == null ? "?" :
                     (string.IsNullOrWhiteSpace(ParameterHelpers.GetString(host, valParam)) ? "EMPTY" : "present");
 
-                // Does the TAG FAMILY carry the value parameter at all? A label
-                // row can only read a parameter the tag family has, so an absent
-                // one is a propagation gap and a present one is not.
+                // Does the TAG FAMILY carry the value parameter at all?
                 string inTag = "?";
-                if (valParam != null && tagType != null)
-                {
-                    try { inTag = tagType.LookupParameter(valParam) != null ? "yes" : "NO"; }
-                    catch { inTag = "?"; }
-                }
+                if (valParam != null && famParams != null)
+                    inTag = famParams.Contains(valParam) ? "yes" : "NO";
 
                 sb.AppendLine(string.Format("T{0,-3}  {1,-9}  {2,-13}  {3,-12}  {4,-5}  {5,-8}  {6,-9}  {7}",
                     t, atHost, atHostType, atTagType, capped ? "BLOCK" : "ok", val, inTag,
@@ -183,9 +186,10 @@ namespace StingTools.Commands.TagStudio
             sb.AppendLine();
             sb.AppendLine("HOW TO READ IT");
             sb.AppendLine("  A gate shown as '-' is NOT BOUND on that element. Not false — absent.");
-            sb.AppendLine("  'param@tag' is whether the TAG FAMILY carries the value parameter. A");
-            sb.AppendLine("  label row can only read a parameter the family has, so NO is a");
-            sb.AppendLine("  propagation gap and yes rules one out.");
+            sb.AppendLine("  'param@tag' is read from the tag family's own DOCUMENT, not from the");
+            sb.AppendLine("  placed symbol — the symbol only carries the TAG's parameters, never the");
+            sb.AppendLine("  host ones its labels read. NO means the family cannot label that");
+            sb.AppendLine("  parameter at all; yes means it can, not that a row does.");
             sb.AppendLine();
             sb.AppendLine("  WHAT THIS CANNOT SEE: Revit exposes no API for listing a tag family's");
             sb.AppendLine("  label rows. So when every column above is clean and the row is still");
@@ -214,9 +218,64 @@ namespace StingTools.Commands.TagStudio
             if (!anyBound) return "gate NOT BOUND anywhere — row can never open";
             if (!anyOn) return "gate off everywhere — raise the depth";
             if (val == "EMPTY") return "gate open, VALUE empty — re-run Tag+Combine";
-            if (inTag == "NO") return "tag family lacks the parameter — re-run Propagate";
+            if (inTag == "NO") return "tag family cannot label this parameter — re-run Propagate";
             if (val == "?") return "gate open; no single value source to check for this tier";
             return "all measurable links OK — so the LABEL ROW is missing (hand-author)";
+        }
+
+        /// <summary>
+        /// The shared parameters a tag family's labels can read, by name, or null
+        /// when the family could not be opened.
+        ///
+        /// <para>WHY IT OPENS THE FAMILY DOCUMENT. The first version of this
+        /// asked the loaded FamilySymbol - <c>tagType.LookupParameter(name)</c> -
+        /// which returns the TAG's own parameters. A label that reads the tagged
+        /// element's shared parameter is not one of those; it lives in the family
+        /// document. So the symbol returned null for all ten tiers whatever the
+        /// truth, and the command turned a guaranteed null into a confident
+        /// "re-run Propagate".</para>
+        ///
+        /// <para>It was caught because it contradicted the drawing: it reported
+        /// T1's parameter missing while the T1 line was visibly rendering. A
+        /// probe that cannot return "yes" is not a probe, and a verdict built on
+        /// one is worse than no column at all - it is actionable and wrong.</para>
+        ///
+        /// <para>HONEST LIMIT: a parameter being present means the family CAN
+        /// label it, not that a visible label row does. Revit exposes no API for
+        /// enumerating label rows, so "yes" narrows the suspects without
+        /// clearing the last one.</para>
+        /// </summary>
+        private static HashSet<string> TagFamilyParams(Document doc, ElementType tagType)
+        {
+            var sym = tagType as FamilySymbol;
+            Family fam = sym?.Family;
+            if (fam == null) return null;
+
+            Document famDoc = null;
+            try
+            {
+                // EditFamily cannot run inside an open transaction; this command
+                // is ReadOnly, so none is open.
+                famDoc = doc.EditFamily(fam);
+                if (famDoc == null) return null;
+
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (FamilyParameter fp in famDoc.FamilyManager.Parameters)
+                {
+                    string nm = fp?.Definition?.Name;
+                    if (!string.IsNullOrEmpty(nm)) names.Add(nm);
+                }
+                return names;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagDoctor: opening tag family '{fam.Name}': {ex.Message}");
+                return null;
+            }
+            finally
+            {
+                try { famDoc?.Close(false); } catch { }
+            }
         }
 
         /// <summary>The parameter a tier draws from, where there is a single obvious one.</summary>
