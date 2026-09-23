@@ -192,22 +192,30 @@ namespace StingTools.Commands.TagStudio
             sb.AppendLine("  parameter at all; yes means it can, not that a row does.");
             sb.AppendLine();
             sb.AppendLine("  WHAT THIS CANNOT SEE: Revit exposes no API for listing a tag family's");
-            sb.AppendLine("  label rows. So when every column above is clean and the row is still");
-            sb.AppendLine("  blank, the row itself is absent and must be hand-authored in the Family");
-            sb.AppendLine("  Editor. That is a real answer, not a shrug — it is the only remaining");
-            sb.AppendLine("  suspect once the other four are cleared.");
+            sb.AppendLine("  label rows, and none for telling which rows actually drew. So compare");
+            sb.AppendLine("  this table against the tag on the drawing:");
+            sb.AppendLine("    · a tier that DRAWS and reads clean here — nothing is wrong with it;");
+            sb.AppendLine("    · a tier that is BLANK and reads clean here — the label row is the");
+            sb.AppendLine("      only remaining suspect, and must be hand-authored in the Family");
+            sb.AppendLine("      Editor, which no API can do for you.");
         }
 
         /// <summary>
         /// Name the first broken link, or say what is left when none are.
         ///
-        /// <para>Deliberately never says "should render". Revit exposes no API
-        /// for enumerating a tag family's LABEL ROWS, so whether a row exists
-        /// to draw the value is the one link this command cannot see. Claiming
-        /// it renders would be asserting the unmeasured - the failure this
-        /// codebase produces most - so the all-clear is phrased as what it
-        /// actually is: everything measurable is fine, therefore the remaining
-        /// suspect is the thing that was not measured.</para>
+        /// <para>Deliberately never says "should render", and equally never says
+        /// the label row IS missing. Revit exposes no API for enumerating a tag
+        /// family's LABEL ROWS, so whether a row exists is the one link this
+        /// command cannot see - and asserting either side of an unmeasured fact
+        /// is the same error twice.</para>
+        ///
+        /// <para>Both wordings were tried and both were falsified by the same
+        /// observation. "should render" was wrong because rows were blank.
+        /// "the LABEL ROW is missing" was wrong because T1 was rendering while
+        /// the command declared its row absent. The only defensible phrasing is
+        /// conditional: everything measurable is fine, so IF the row is blank,
+        /// the label row is what is left. The user can see which rows are blank;
+        /// this command cannot.</para>
         /// </summary>
         private static string Verdict(string host, string hostType, string tagType,
                                       bool capped, string val, string inTag)
@@ -220,7 +228,7 @@ namespace StingTools.Commands.TagStudio
             if (val == "EMPTY") return "gate open, VALUE empty — re-run Tag+Combine";
             if (inTag == "NO") return "tag family cannot label this parameter — re-run Propagate";
             if (val == "?") return "gate open; no single value source to check for this tier";
-            return "all measurable links OK — so the LABEL ROW is missing (hand-author)";
+            return "all measurable links OK — if blank, only the label row is left";
         }
 
         /// <summary>

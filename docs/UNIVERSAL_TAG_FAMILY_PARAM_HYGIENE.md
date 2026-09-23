@@ -155,6 +155,47 @@ broken probe.
 
 ---
 
+## 4b · Why a duct tag shows one line — measured 2026-09-23
+
+Every link that can be measured in code is clean. The remaining one cannot be
+measured in code, and that is the answer.
+
+| Link | Duct (`STING - Tie-In Point Tag`) | Air terminal (`STING_Tag_Universal`) |
+|---|---|---|
+| Gate bound + ON at the tag type | ✅ all tiers except T3 | ✅ all tiers except T3 |
+| Per-category depth cap | none configured for Ducts | **T4** — T5–T10 can never show |
+| Token/narrative value on the host | ✅ present T1–T6 | ✅ present T1–T6 |
+| Tag family can label the parameter | ✅ **212** shared parameters | ✅ **211** shared parameters |
+| **Label row exists in the family** | **not measurable — Revit has no API** | **not measurable** |
+
+So propagation did its job: both families carry the parameters, and the gates are
+open. What is missing for the blank tiers is the **label row** — the row inside the
+family that binds a parameter to a line of text. Revit's API cannot author one and
+cannot list one, so this is Family Editor work, and it is the tier 2–10 row
+authoring already tracked, not a new defect.
+
+### The trap in reading this table
+
+`Tag Doctor` deliberately does **not** say "the label row is missing". It says
+*if blank, only the label row is left*. The difference matters: T1 reads clean here
+**and renders**. An earlier wording asserted T1's row was absent while it was
+visibly drawing on the sheet — asserting the negative of an unmeasured fact is the
+same error as asserting the positive. Compare the table against the tag on the
+drawing; the command cannot see which rows drew.
+
+### Two facts worth keeping
+
+- **T3 is gone from the universal master**, so `gate@tagType` reads `-` and the tier
+  can never open. The 36 formulas in `FORMULAS_WITH_DEPENDENCIES.csv` that still gate
+  on `TAG_PARA_STATE_3_BOOL` are gating on a parameter the universal families do not
+  have — ~180 formula failures per depth run. The LPS master does carry T3, so this
+  is now group-specific rather than global.
+- **Air Terminals is capped at T4** by `STING_TOKEN_DEPTH_OVERRIDES.json`. Raising
+  the global depth will never show a fifth line there. That is the design, but it is
+  invisible without this command.
+
+---
+
 ## 5 · Why the propagated family differs from the master
 
 Measured 2026-09-17 from the first successful propagation (`22:16:38 — succeeded=1,
