@@ -1595,6 +1595,7 @@ namespace StingTools.Core
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();
                 case "PreTagAudit": return new Tags.PreTagAuditCommand();
+                case "TagDoctor": return new Commands.TagStudio.TagDoctorCommand();
                 case "TokenConfidenceAudit": return new Tags.TokenConfidenceAuditCommand();
                 case "TagScheme_Render": return new Tags.RenderSchemeTagsCommand();
                 case "TagScheme_Inspect": return new Tags.TagSchemeInspectCommand();
