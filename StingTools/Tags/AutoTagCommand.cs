@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -173,7 +173,25 @@ namespace StingTools.Tags
             }
 
             // GAP-020: Pre-flight audit trail log
-            StingLog.Info($"AutoTag pre-flight: {taggable} taggable, {alreadyTagged} tagged, {untagged} new, mode={collisionMode}");
+            // The discipline filter belongs in BOTH log lines, not only in the
+            // report and the nothing-to-do dialog.
+            //
+            // 2026-09-23: a duct and an air terminal "never built tokens".
+            // The view was called "L1 - Architectural", so the name heuristic
+            // resolved the view to discipline A and every M element was
+            // dropped before the pre-flight counted anything. The log said
+            // "361 taggable ... tagged=361, skipped=0", which reads as
+            // everything succeeded - it never mentioned the elements it had
+            // declined to consider.
+            //
+            // A count silently narrowed by a heuristic is the same failure as
+            // an empty list standing in for an error: the number is true and
+            // the impression it gives is false.
+            StingLog.Info($"AutoTag pre-flight: {taggable} taggable, {alreadyTagged} tagged, {untagged} new, mode={collisionMode}, " +
+                          $"view-discipline=[{discFilterLabel}]" +
+                          (filteredOut > 0
+                              ? $", {filteredOut} element(s) EXCLUDED as the wrong discipline for this view"
+                              : ""));
 
             // Smart sort for contiguous SEQ assignment
             var sorted = BatchTagCommand.SmartSortElements(doc, taggableElements);
@@ -299,7 +317,10 @@ namespace StingTools.Tags
 
             StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
-                $"mode={collisionMode}");
+                $"mode={collisionMode}, view-discipline=[{discFilterLabel}]" +
+                (filteredOut > 0
+                    ? $", {filteredOut} EXCLUDED as the wrong discipline for this view"
+                    : ""));
 
             // Phase 165 follow-up — explicit batch teardown so the room-index
             // TTL drops from 90s back to 30s now that this command is done.

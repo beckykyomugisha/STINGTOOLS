@@ -2594,14 +2594,14 @@ namespace StingTools.Core
             }
             else
             {
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.DISC, disc);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.LOC, loc);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.ZONE, zone);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.LVL, lvl);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SYS, sys);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.FUNC, func);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.PROD, prod);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SEQ, seq);
 
                 // Re-read actual stored token values to ensure TAG1 reflects
                 // what's on the element. Do NOT fill empty slots with derived defaults —
