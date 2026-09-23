@@ -155,6 +155,8 @@ namespace StingTools.Commands.TagStudio
                 ? "FAMILY   could not open the tag family to read its parameters — param@tag shows '?'"
                 : $"FAMILY   tag family exposes {famParams.Count} shared parameter(s) to its labels");
 
+            sb.AppendLine(GateReport(doc, tagType));
+
             sb.AppendLine();
             sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap    value     param@tag  verdict");
             sb.AppendLine("----  ---------  -------------  ------------  -----  --------  ---------  --------------------------------");
@@ -229,6 +231,105 @@ namespace StingTools.Commands.TagStudio
             if (inTag == "NO") return "tag family cannot label this parameter — re-run Propagate";
             if (val == "?") return "gate open; no single value source to check for this tier";
             return "all measurable links OK — if blank, only the label row is left";
+        }
+
+        /// <summary>
+        /// What the TAG FAMILY itself holds for each tier gate: whether the
+        /// parameter exists, how it is STORED, and its value in the placed type.
+        ///
+        /// <para>WHY STORAGE TYPE IS THE POINT. A label calculated value gates on
+        /// <c>if(TAG_PARA_STATE_n_BOOL, X, "")</c>. That is only a boolean test if
+        /// the parameter is stored as an INTEGER. If the family was hand-authored
+        /// with a TEXT variant holding "Yes"/"No" - a case TagTypeVariantWriter
+        /// explicitly carries a fallback for - the if() has a string where it
+        /// wants a condition, and falls to the else branch every time, whatever
+        /// is ticked anywhere. That failure is invisible on a drawing: the row
+        /// simply does not draw, exactly like an unbound gate or a missing label
+        /// row.</para>
+        ///
+        /// <para>Measured here rather than in the Family Editor because three
+        /// round trips through Edit Label produced three silences, and a silence
+        /// does not say which of its causes it is.</para>
+        /// </summary>
+        private static string GateReport(Document doc, ElementType tagType)
+        {
+            var sym = tagType as FamilySymbol;
+            Family fam = sym?.Family;
+            if (fam == null) return "GATES    tag type is not a family symbol — cannot inspect.";
+
+            Document famDoc = null;
+            try
+            {
+                famDoc = doc.EditFamily(fam);
+                if (famDoc == null) return "GATES    could not open the tag family.";
+
+                var fm = famDoc.FamilyManager;
+
+                // Point CurrentType at the type that is actually placed, so the
+                // values read are the ones the drawing uses - not whichever type
+                // the family happened to open on.
+                FamilyType placed = null;
+                foreach (FamilyType ft in fm.Types)
+                    if (string.Equals(ft.Name, tagType.Name, StringComparison.OrdinalIgnoreCase))
+                    { placed = ft; break; }
+                if (placed != null) { try { fm.CurrentType = placed; } catch { } }
+
+                var byName = new Dictionary<string, FamilyParameter>(StringComparer.OrdinalIgnoreCase);
+                foreach (FamilyParameter fp in fm.Parameters)
+                {
+                    string nm = fp?.Definition?.Name;
+                    if (!string.IsNullOrEmpty(nm)) byName[nm] = fp;
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine("GATES    as the TAG FAMILY holds them, in type '"
+                              + (placed != null ? placed.Name : "(not matched — values below are another type's)") + "'");
+                sb.AppendLine("  tier  in family  stored as  shared  value");
+                sb.AppendLine("  ----  ---------  ---------  ------  -----");
+
+                for (int t = 1; t <= MaxTier; t++)
+                {
+                    string gp = "TAG_PARA_STATE_" + t + "_BOOL";
+                    if (!byName.TryGetValue(gp, out FamilyParameter fp))
+                    {
+                        sb.AppendLine(string.Format("  T{0,-3}  {1,-9}  {2,-9}  {3,-6}  {4}",
+                            t, "NO", "-", "-", "absent — if() on it cannot evaluate"));
+                        continue;
+                    }
+
+                    string stored = fp.StorageType.ToString();
+                    string shared = fp.IsShared ? "yes" : "NO";
+                    string val = "?";
+                    try
+                    {
+                        var ct = fm.CurrentType;
+                        if (ct != null)
+                        {
+                            if (fp.StorageType == StorageType.Integer)
+                            { int? i = ct.AsInteger(fp); val = i.HasValue ? (i.Value != 0 ? "1 (on)" : "0 (off)") : "(unset)"; }
+                            else if (fp.StorageType == StorageType.String)
+                            { string sv = ct.AsString(fp); val = string.IsNullOrEmpty(sv) ? "(empty)" : "\"" + sv + "\""; }
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"TagDoctor gate {gp}: {ex.Message}"); }
+
+                    string note = fp.StorageType == StorageType.Integer
+                        ? ""
+                        : "  <-- NOT Integer: if() cannot use it as a condition";
+                    sb.AppendLine(string.Format("  T{0,-3}  {1,-9}  {2,-9}  {3,-6}  {4}{5}",
+                        t, "yes", stored, shared, val, note));
+                }
+
+                sb.Append("  A gate stored as String holds \"Yes\"/\"No\" text. if() wants a condition, "
+                          + "so it takes the else branch every time — whatever is ticked.");
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TagDoctor.GateReport '{fam.Name}': {ex.Message}");
+                return "GATES    could not read the tag family: " + ex.Message;
+            }
+            finally { try { famDoc?.Close(false); } catch { } }
         }
 
         /// <summary>
