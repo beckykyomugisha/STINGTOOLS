@@ -19,15 +19,15 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-15
+## Counts — re-derived 2026-09-23
 
-- **Total IExternalCommand classes**: **1747**
-- **Reached by a dispatch layer**: **1715**
+- **Total IExternalCommand classes**: **1748**
+- **Reached by a dispatch layer**: **1716**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1747; the script fails if they stop adding up.
+The four buckets partition all 1748; the script fails if they stop adding up.
 
 **+3 since earlier on 2026-09-15**, all reached: `Rooms_Renumber`,
 `Rooms_NumberingInspect` and `Rooms_PlaceTags` — room renumbering did not exist, and
