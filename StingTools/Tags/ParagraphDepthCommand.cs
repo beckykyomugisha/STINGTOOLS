@@ -174,6 +174,26 @@ namespace StingTools.Tags
             string[] paraNames = ParamRegistry.AllParaStates;
 
             TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category tier depth
+
+            // Which model category does each TAG type annotate?
+            //
+            // The per-category depth cap has never fired. STING_TOKEN_DEPTH_-
+            // OVERRIDES.json keys on MODEL categories ("Air Terminals"), but the
+            // types that actually carry TAG_PARA_STATE_n_BOOL are TAG types,
+            // whose own category is "Air Terminal Tags". The key never matched
+            // the carrier, so every cap was silently ignored here - while Tag
+            // Doctor, which resolves the cap from the HOST, reported it as
+            // enforced. Two halves of one feature disagreeing is worse than
+            // either answer alone: the drawing showed ten tiers and the
+            // diagnostic said four.
+            //
+            // Revit exposes no API mapping a tag category to the category it
+            // annotates, and deriving it from the name ("Air Terminal Tags" ->
+            // "Air Terminals") needs pluralisation rules that will be wrong
+            // somewhere. So this MEASURES it instead: every placed tag knows its
+            // own host. A tag type with no placement anywhere caps nothing,
+            // which is harmless - it is not drawing.
+            var tagTypeHostCat = BuildTagTypeHostCategoryMap(doc);
             int updated = 0, carriers = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
             // PERF: the all-types scope sweeps EVERY ElementType in the project, but only a
@@ -207,7 +227,15 @@ namespace StingTools.Tags
                         // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
                         // the panel global; otherwise every type gets the global depth.
                         int effDepth = depth;
-                        var ov = TokenDepthOverrides.Resolve(doc, typeEl.Category?.Name);
+                        // For a tag type, cap by what it TAGS, not by what it IS.
+                        string capCat = typeEl.Category?.Name;
+                        if (typeEl.Category != null
+                            && typeEl.Category.CategoryType == CategoryType.Annotation
+                            && tagTypeHostCat.TryGetValue(typeId, out string annotated))
+                        {
+                            capCat = annotated;
+                        }
+                        var ov = TokenDepthOverrides.Resolve(doc, capCat);
                         if (ov != null && ov.Depth.HasValue)
                             effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                         bool anySet = false;
@@ -440,6 +468,40 @@ namespace StingTools.Tags
         }
 
         /// <summary>Backward-compatible overload — defaults to DC mode.</summary>
+        /// <summary>
+        /// Tag type id → the model category its placements tag. Built from placed
+        /// IndependentTags, because Revit offers no mapping from a tag category to
+        /// the category it annotates, and the name-stripping shortcut ("Duct Tags"
+        /// → "Ducts") needs pluralisation rules that will eventually be wrong.
+        /// Types with no placement are absent, and absent means "no cap" - correct,
+        /// since an unplaced tag draws nothing.
+        /// </summary>
+        private static Dictionary<ElementId, string> BuildTagTypeHostCategoryMap(Document doc)
+        {
+            var map = new Dictionary<ElementId, string>();
+            try
+            {
+                foreach (IndependentTag tag in new FilteredElementCollector(doc)
+                             .OfClass(typeof(IndependentTag)).Cast<IndependentTag>())
+                {
+                    ElementId typeId = tag.GetTypeId();
+                    if (typeId == null || map.ContainsKey(typeId)) continue;
+                    foreach (var r in tag.GetTaggedReferences())
+                    {
+                        Element hostEl = doc.GetElement(r.ElementId);
+                        string cat = hostEl?.Category?.Name;
+                        if (!string.IsNullOrEmpty(cat)) { map[typeId] = cat; break; }
+                    }
+                }
+                StingLog.Info($"Set depth: {map.Count} tag type(s) mapped to the category they annotate.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Set depth: building tag→host category map: {ex.Message}");
+            }
+            return map;
+        }
+
         private static string DepthDisplayName(int depth)
             => DepthDisplayName(depth, ParamRegistry.TagMode.DC);
 

@@ -77,6 +77,7 @@
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
+    <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
     <Compile Include="..\StingTools\Core\Content\TagLibraryPromotion.cs" Link="Core\Content\TagLibraryPromotion.cs" />
     <Compile Include="..\StingTools\Commands\TagStudio\RevitBackupSweeper.cs" Link="Commands\TagStudio\RevitBackupSweeper.cs" />
     <!-- Text an author left for themselves, which propagation would clone into 206
