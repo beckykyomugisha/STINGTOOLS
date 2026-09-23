@@ -156,6 +156,7 @@ namespace StingTools.Commands.TagStudio
                 : $"FAMILY   tag family exposes {famParams.Count} shared parameter(s) to its labels");
 
             sb.AppendLine(GateReport(doc, tagType));
+            sb.AppendLine(HostGateDetail(doc, host, hostType));
 
             sb.AppendLine();
             sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap    value     param@tag  verdict");
@@ -231,6 +232,87 @@ namespace StingTools.Commands.TagStudio
             if (inTag == "NO") return "tag family cannot label this parameter — re-run Propagate";
             if (val == "?") return "gate open; no single value source to check for this tier";
             return "all measurable links OK — if blank, only the label row is left";
+        }
+
+        /// <summary>
+        /// For every tier gate that IS bound to the tagged element, why it reads
+        /// the way it does: read-only or not, how it is stored, its raw value,
+        /// and whether the project bound it to Instances or to Types.
+        ///
+        /// <para>WHY. On 2026-09-23 a gate was bound to Air Terminals, ticked in
+        /// Type Properties, and still read 'off' on the next run - twice. A
+        /// checkbox that will not hold a value and a checkbox nobody ticked look
+        /// the same afterwards, and so does a Type binding when the value was set
+        /// on an Instance. This prints the three apart instead of leaving them to
+        /// be argued about.</para>
+        /// </summary>
+        private static string HostGateDetail(Document doc, Element host, ElementType hostType)
+        {
+            var sb = new StringBuilder();
+            int shown = 0;
+
+            for (int t = 1; t <= MaxTier; t++)
+            {
+                string gp = "TAG_PARA_STATE_" + t + "_BOOL";
+                Parameter pInst = null, pType = null;
+                try { pInst = host?.LookupParameter(gp); } catch { }
+                try { pType = hostType?.LookupParameter(gp); } catch { }
+                if (pInst == null && pType == null) continue;
+
+                if (shown == 0)
+                {
+                    sb.AppendLine("HOSTGATE why the bound gate(s) on this element read as they do");
+                    sb.AppendLine("  tier  on        read-only  stored as  raw       project binding");
+                    sb.AppendLine("  ----  --------  ---------  ---------  --------  ---------------");
+                }
+                shown++;
+
+                Parameter p = pType ?? pInst;
+                string on = pType != null ? "type" : "instance";
+                string ro = "?";
+                string stored = "?";
+                string raw = "?";
+                try { ro = p.IsReadOnly ? "YES" : "no"; } catch { }
+                try { stored = p.StorageType.ToString(); } catch { }
+                try
+                {
+                    if (p.StorageType == StorageType.Integer) raw = p.AsInteger().ToString();
+                    else if (p.StorageType == StorageType.String) raw = "\"" + (p.AsString() ?? "") + "\"";
+                    else raw = p.AsValueString() ?? "(none)";
+                }
+                catch { }
+
+                sb.AppendLine(string.Format("  T{0,-3}  {1,-8}  {2,-9}  {3,-9}  {4,-8}  {5}",
+                    t, on, ro, stored, raw, BindingKind(doc, gp)));
+            }
+
+            if (shown == 0)
+                return "HOSTGATE no tier gate is bound to this element — nothing to detail.";
+
+            sb.AppendLine("  read-only YES means the checkbox cannot hold a value, so a tick never sticks.");
+            sb.Append("  A Type binding set on an Instance (or the reverse) also reads back unchanged.");
+            return sb.ToString();
+        }
+
+        /// <summary>Instance or Type, as the PROJECT bound it — not as it was asked for.</summary>
+        private static string BindingKind(Document doc, string paramName)
+        {
+            try
+            {
+                var it = doc.ParameterBindings.ForwardIterator();
+                while (it.MoveNext())
+                {
+                    var def = it.Key;
+                    if (def == null || !string.Equals(def.Name, paramName, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    var b = it.Current as Binding;
+                    if (b is TypeBinding) return "Type";
+                    if (b is InstanceBinding) return "Instance";
+                    return "(bound, kind unknown)";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"TagDoctor.BindingKind '{paramName}': {ex.Message}"); }
+            return "not a project parameter";
         }
 
         /// <summary>
