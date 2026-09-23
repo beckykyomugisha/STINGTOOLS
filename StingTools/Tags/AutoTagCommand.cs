@@ -61,11 +61,45 @@ namespace StingTools.Tags
                 collector.WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>(catEnums)));
             var viewElements = collector.Cast<Element>();
 
+            // An explicit SELECTION beats an inferred filter.
+            //
+            // 2026-09-23: a duct and an air terminal would not tag. The view is
+            // called "L1 - Architectural", so the name heuristic resolved it to
+            // discipline A and excluded 44 MEP elements - correct for a sheet,
+            // useless when someone has pointed at the duct and asked for it.
+            //
+            // Selecting an element is a statement of intent. Guessing from a
+            // view's NAME is not. The guess must not override the statement, so
+            // a selection both narrows the scope and switches the discipline
+            // filter off - and says so, because a silently widened scope is as
+            // bad as a silently narrowed one.
+            var selectedIds = new List<ElementId>();
+            try
+            {
+                if (uidoc != null && uidoc.Selection != null)
+                    selectedIds.AddRange(uidoc.Selection.GetElementIds());
+            }
+            catch (Exception selEx) { StingLog.Warn($"AutoTag: reading selection: {selEx.Message}"); }
+
+            bool fromSelection = selectedIds.Count > 0;
+            if (fromSelection)
+            {
+                var picked = new List<Element>();
+                foreach (ElementId id in selectedIds)
+                {
+                    Element e = doc.GetElement(id);
+                    // A selection can include element TYPES and view-specific
+                    // annotation; neither carries asset tokens.
+                    if (e != null && e.Category != null && !(e is ElementType)) picked.Add(e);
+                }
+                viewElements = picked;
+            }
+
             // Intelligence Layer: detect relevant disciplines from view name/template/VG
-            var relevantDiscs = TagConfig.GetViewRelevantDisciplines(activeView);
+            var relevantDiscs = fromSelection ? null : TagConfig.GetViewRelevantDisciplines(activeView);
             string discFilterLabel = relevantDiscs != null
                 ? string.Join(", ", relevantDiscs.OrderBy(x => x))
-                : "ALL";
+                : (fromSelection ? "ALL (selection overrides the view filter)" : "ALL");
 
             // Pre-flight: count taggable, already-tagged, untagged
             int taggable = 0, alreadyTagged = 0, filteredOut = 0;
@@ -110,7 +144,13 @@ namespace StingTools.Tags
                 string filterMsg = skipParts.Count > 0
                     ? $"\n(Skipped: {string.Join(", ", skipParts)})"
                     : "";
-                TaskDialog.Show("Auto Tag", "No taggable elements in this view." + filterMsg);
+                // Name the scope. "No taggable elements in this view" is wrong
+                // and misleading when the run was scoped to a selection that
+                // happened to hold nothing taggable.
+                TaskDialog.Show("Auto Tag",
+                    (fromSelection
+                        ? $"Nothing taggable in the {selectedIds.Count} selected element(s)."
+                        : "No taggable elements in this view.") + filterMsg);
                 return Result.Succeeded;
             }
 
@@ -188,6 +228,7 @@ namespace StingTools.Tags
             // an empty list standing in for an error: the number is true and
             // the impression it gives is false.
             StingLog.Info($"AutoTag pre-flight: {taggable} taggable, {alreadyTagged} tagged, {untagged} new, mode={collisionMode}, " +
+                          (fromSelection ? $"scope=SELECTION ({selectedIds.Count} picked), " : "scope=view, ") +
                           $"view-discipline=[{discFilterLabel}]" +
                           (filteredOut > 0
                               ? $", {filteredOut} element(s) EXCLUDED as the wrong discipline for this view"
@@ -315,7 +356,9 @@ namespace StingTools.Tags
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"AutoTag: view='{activeView.Name}', tagged={stats.TotalTagged}, " +
+            StingLog.Info($"AutoTag: view='{activeView.Name}', " +
+                (fromSelection ? $"scope=SELECTION ({selectedIds.Count} picked), " : "scope=view, ") +
+                $"tagged={stats.TotalTagged}, " +
                 $"skipped={stats.TotalSkipped}, collisions={stats.TotalCollisions}, " +
                 $"mode={collisionMode}, view-discipline=[{discFilterLabel}]" +
                 (filteredOut > 0
