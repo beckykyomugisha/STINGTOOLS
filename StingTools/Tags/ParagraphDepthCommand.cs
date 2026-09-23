@@ -241,6 +241,37 @@ namespace StingTools.Tags
                         bool anySet = false;
                         for (int i = 0; i < MaxTier; i++)
                             anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
+
+                        // Write the depth as a NUMBER as well as ten flags.
+                        //
+                        // Measured in Revit 2026-09-23: a label row reads its gate
+                        // from the TAGGED ELEMENT's type, and an integer comparison
+                        // works there exactly as a boolean does -
+                        // if(TAG_DEPTH_TIER_INT > 5, ...) with the value 6 drew its
+                        // row. So one number can replace the ten flags, and the
+                        // label migration in
+                        // docs/UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md moves the
+                        // rows over to it.
+                        //
+                        // Written here too, not instead, because the library
+                        // migrates one family at a time: an unmigrated family still
+                        // reads the flags, a migrated one reads the number, and
+                        // both must be right during the changeover. Setting only
+                        // the number would blank every family not yet migrated.
+                        //
+                        // Costs nothing where the parameter is unbound - SetInt
+                        // finds no parameter and returns false.
+                        //
+                        // overwrite: true is REQUIRED. SetInt defaults to
+                        // overwrite: false, which refuses any element whose value
+                        // is already non-zero - so a type sitting at depth 2 could
+                        // never be moved to 6, and "Set depth" would report success
+                        // having changed nothing. The same shape as the SEQ bug
+                        // fixed on 2026-09-23, where a token blocked its own repair.
+                        if (ParameterHelpers.SetInt(typeEl, ParamRegistry.TAG_DEPTH_TIER,
+                                                    effDepth, overwrite: true))
+                            anySet = true;
+
                         if (anySet) updated++;
                     }
                     tx.Commit();
