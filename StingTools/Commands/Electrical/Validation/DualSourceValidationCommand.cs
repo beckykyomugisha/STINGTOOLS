@@ -123,7 +123,13 @@ namespace StingTools.Commands.Electrical.Validation
                 .Cast<ElectricalSystem>()
                 .ToList();
 
-            double totalEmergencyLoadVa = SumLoadVaForPanels(emergencyPanels, allCircuits);
+            // Only ROOT emergency panels are summed: an emergency panel feeding an
+            // emergency sub-panel already carries the sub-panel's load on its
+            // feeder circuit, so summing both double-counted and could fail a
+            // generator that is adequately sized.
+            var rootPanels = RootEmergencyPanels(emergencyPanels, allCircuits);
+            int nestedPanels = emergencyPanels.Count - rootPanels.Count;
+            double totalEmergencyLoadVa = SumLoadVaForPanels(rootPanels, allCircuits);
 
             // ── Collect UPS-fed circuits ──────────────────────────────────────
             // UPS-fed circuits are identified by the ELC_UPS_FEED_BOOL parameter = 1
@@ -258,7 +264,10 @@ namespace StingTools.Commands.Electrical.Validation
             string report =
                 $"Dual-Source Load-Transfer Validation\n" +
                 $"Generators: {generators.Count}   UPS units: {upsList.Count}   " +
-                $"Emergency panels: {emergencyPanels.Count} (ELC_FEED_TYPE_TXT or emergency keyword in name)\n" +
+                $"Emergency panels: {emergencyPanels.Count} (ELC_FEED_TYPE_TXT or emergency keyword in name)" +
+                (nestedPanels > 0
+                    ? $"; {nestedPanels} fed from another emergency panel — counted through their feeder, not again\n"
+                    : "\n") +
                 $"Total emergency load: {totalEmergencyLoadVa / 1000.0:F1} kVA\n" +
                 $"Passes: {passes.Count}   Violations: {violations.Count}\n\n";
 
@@ -272,6 +281,34 @@ namespace StingTools.Commands.Electrical.Validation
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Emergency panels with no emergency panel upstream. A panel's supply is
+        /// the BaseEquipment of the circuit that serves it.
+        /// </summary>
+        private static List<FamilyInstance> RootEmergencyPanels(
+            List<FamilyInstance> emergencyPanels, IEnumerable<ElectricalSystem> allCircuits)
+        {
+            var supplyOf = new Dictionary<long, long>();
+            foreach (var es in allCircuits)
+            {
+                long baseId;
+                try { baseId = es.BaseEquipment?.Id.Value ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"DualSource base {es.Id}: {ex.Message}"); continue; }
+                if (baseId == 0) continue;
+                try
+                {
+                    if (es.Elements == null) continue;
+                    foreach (Element load in es.Elements)
+                        if (load != null && load.Id.Value != baseId && !supplyOf.ContainsKey(load.Id.Value))
+                            supplyOf[load.Id.Value] = baseId;
+                }
+                catch (Exception ex) { StingLog.Warn($"DualSource loads {es.Id}: {ex.Message}"); }
+            }
+            var roots = StingTools.Core.Electrical.EmergencyLoadRoots.Roots(
+                emergencyPanels.Select(p => p.Id.Value), supplyOf);
+            return emergencyPanels.Where(p => roots.Contains(p.Id.Value)).ToList();
+        }
 
         /// <summary>
         /// Sums the apparent load (VA) for all circuits served by the given panels.
