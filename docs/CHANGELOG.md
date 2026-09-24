@@ -2,6 +2,34 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (NLP intents — 97 that answered "Unknown Command")
+
+A user typing "cobie", "pdf export", "wind load", "sld" or "rainwater drain" got a
+confident match and then the "STING - Unknown Command" dialog. 97 of the 405 command tags
+the natural-language processor emits resolved in no dispatch layer. Most were near-misses
+of real tags (`CobieExport` vs `COBieExport`, `Structural*` vs `Str*`, `Plumb*` vs
+`Plumb_*`); the C# switches are ordinal, so a case difference is a dead end.
+
+- **79 retargeted** to the real command, each checked against the class it resolves to,
+  not just the name. Two old tags split by meaning (`CreateMeeting` → `NewMeeting` /
+  `OpenActions`; `MEPScheduleCommands` → `MEPScheduleAll` / `MechanicalEquipmentSchedule`).
+  Descriptions changed where the target does less than promised (`purge` now "find unused
+  elements to review"; grids/levels "from CSV").
+- **18 intents deleted** where no feature exists (design briefs, RCD audit, gas, grease
+  traps, spool audit, handover certificate, select-structural, airtightness / circularity /
+  Passivhaus / WELL). An intent promising a feature that is not there is worse than none.
+- **`Elec_BusbarModel` made reachable** — only the Electrical panel's handler knew it; now a
+  `ResolveCommand` case, so NLP and presets reach it. Two baselines shrank by one.
+- **The startup check is gone.** `NLPEngine.ValidateIntentPatterns` could ask only the
+  WorkflowEngine layer and vouched for the rest from a hand-kept allowlist — which listed
+  `Validate` and `SetTagCategoryLineWeight`, neither of which had a handler. It only logged.
+- **`tools/check_nlp_dispatch.py`** replaces it in CI: every tag from the intent table, Quick
+  Commands and Suggestions must resolve through the four layers NLP actually reaches
+  (`ResolveCommand` cases, `StingCommandHandler.Execute` cases and prefix routes, registry
+  modules). Satellite panel handlers do not count; a `ResolveCommand` case that only throws
+  does not count. Controls are asserted so a broken scan cannot report "all clear".
+  RED on the unfixed tree (97, exit 1), GREEN after (0 of 387).
+
 #### Completed (Phase 293 — the universal-tag question, and four helpers my own gate missed)
 
 **My gate in Phase 289 was incomplete, and it passed anyway.** It named four helpers —

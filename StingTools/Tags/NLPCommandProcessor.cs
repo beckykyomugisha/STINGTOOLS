@@ -75,7 +75,7 @@ namespace StingTools.Tags
             (@"\b(batch.?tag|tag\s+all|tag\s+project|tag\s+everything)\b", "BatchTag", "BatchTag", "Tag all elements in project"),
             (@"\b(tag.?and.?combine|one.?click.?tag|full.?tag)\b", "TagAndCombine", "TagAndCombine", "One-click tag and combine pipeline"),
             (@"\b(tag\s+new|incremental.?tag|untag)\b", "TagNewOnly", "TagNewOnly", "Tag only new/untagged elements"),
-            (@"\b(verify\s+tags?|check\s+tags?\s+only)\b", "Validate", "ValidateTags", "Validate tag completeness"),
+            (@"\b(verify\s+tags?|check\s+tags?\s+only)\b", "ValidateTags", "ValidateTags", "Validate tag completeness"),
             (@"\b(combine|merge\s+param|write\s+containers?)\b", "CombineParameters", "CombineParameters", "Combine parameters into containers"),
             (@"\b(pre.?tag\s+audit|audit\s+tags?)\b", "PreTagAudit", "PreTagAudit", "Dry-run tag prediction audit"),
             (@"\b(duplicate.?tags?|find\s+dup|fix\s+dup)\b", "FixDuplicates", "FixDuplicates", "Find and fix duplicate tags"),
@@ -105,7 +105,7 @@ namespace StingTools.Tags
             (@"\b(select\s+window)\b", "SelectWindows", "SelectWindows", "Select windows"),
 
             // Color
-            (@"\b(color|colour|colorize|colorise|highlight)\s+(by|param|element)\b", "ColorByParam", "ColorByParameter", "Color elements by parameter value"),
+            (@"\b(color|colour|colorize|colorise|highlight)\s+(by|param|element)\b", "ColorByParameter", "ColorByParameter", "Color elements by parameter value"),
             (@"\b(clear\s+color|clear\s+colour|remove\s+override|reset\s+color)\b", "ClearColorOverrides", "ClearColors", "Clear color overrides"),
 
             // Documents
@@ -118,7 +118,7 @@ namespace StingTools.Tags
 
             // Template & Setup
             (@"\b(master\s+setup|full\s+setup|setup\s+project)\b", "MasterSetup", "MasterSetup", "One-click full project setup"),
-            (@"\b(project\s+wizard|setup\s+wizard|wizard)\b", "ProjectSetupWizard", "Wizard", "Launch project setup wizard"),
+            (@"\b(project\s+wizard|setup\s+wizard|wizard)\b", "ProjectSetup", "Wizard", "Launch project setup wizard"),
             (@"\b(load\s+param|create\s+param|bind\s+param)\b", "LoadParams", "LoadParams", "Load shared parameters"),
             (@"\b(create\s+material|material)\b", "CreateBLEMaterials", "CreateMaterials", "Create materials from CSV"),
             (@"\b(create\s+sched|schedule|batch\s+sched)\b", "BatchSchedules", "CreateSchedules", "Batch create schedules"),
@@ -137,15 +137,15 @@ namespace StingTools.Tags
             (@"\b(standard.*dash|compliance.*dash|all\s+standard)\b", "StandardsDashboard", "StandardsDashboard", "Standards compliance dashboard"),
 
             // Operations
-            (@"\b(workflow|preset|chain|pipeline)\b", "WorkflowPresets", "Workflow", "Execute workflow preset"),
-            (@"\b(pdf\s+export|export\s+pdf|print\s+pdf)\b", "PdfExport", "PDFExport", "Export sheets to PDF"),
-            (@"\b(ifc\s+export|export\s+ifc)\b", "IfcExport", "IFCExport", "Export to IFC"),
-            (@"\b(cobie|facility\s+data)\b", "CobieExport", "COBie", "Export COBie data"),
+            (@"\b(workflow|preset|chain|pipeline)\b", "WorkflowPreset", "Workflow", "Execute workflow preset"),
+            (@"\b(pdf\s+export|export\s+pdf|print\s+pdf)\b", "PDFExport", "PDFExport", "Export sheets to PDF"),
+            (@"\b(ifc\s+export|export\s+ifc)\b", "IFCExport", "IFCExport", "Export to IFC"),
+            (@"\b(cobie|facility\s+data)\b", "COBieExport", "COBie", "Export COBie data"),
             (@"\b(quantity|takeoff|take.?off|bill\s+of|boq)\b", "QuantityTakeoff", "QuantityTakeoff", "Quantity takeoff"),
             (@"\b(clash|collision|intersect|conflict)\b", "ClashDetection", "ClashDetection", "Clash detection"),
-            (@"\b(model\s+health|health\s+check|model\s+audit)\b", "ModelHealth", "ModelHealth", "Model health check"),
-            (@"\b(purge|clean\s+up|remove\s+unused)\b", "PurgeUnused", "Purge", "Purge unused elements"),
-            (@"\b(batch\s+print|print\s+all|print\s+sheets?)\b", "BatchPrint", "BatchPrint", "Batch print sheets"),
+            (@"\b(model\s+health|health\s+check|model\s+audit)\b", "ModelHealthCheck", "ModelHealth", "Model health check"),
+            (@"\b(purge|clean\s+up|remove\s+unused)\b", "ExplorerUnusedElements", "Purge", "Find unused elements to review before purging"),
+            (@"\b(batch\s+print|print\s+all|print\s+sheets?)\b", "BatchPrintSheets", "BatchPrint", "Batch print sheets"),
 
             // IoT / Maintenance
             (@"\b(condition|asset\s+condition|assess)\b", "AssetCondition", "AssetCondition", "Asset condition assessment"),
@@ -171,8 +171,8 @@ namespace StingTools.Tags
             (@"\b(place\s+door|insert\s+door)\b", "PlaceDoors", "PlaceDoors", "Place doors in walls"),
             (@"\b(place\s+window|insert\s+window)\b", "PlaceWindows", "PlaceWindows", "Place windows in walls"),
             (@"\b(create\s+room|auto\s+room)\b", "AutoCreateRooms", "CreateRooms", "Auto-create rooms"),
-            (@"\b(create\s+grid|place\s+grid)\b", "CreateGrids", "CreateGrids", "Create grids"),
-            (@"\b(create\s+level|add\s+level)\b", "CreateLevels", "CreateLevels", "Create levels"),
+            (@"\b(create\s+grid|place\s+grid)\b", "CreateGridsFromCSV", "CreateGrids", "Create grids from a CSV definition"),
+            (@"\b(create\s+level|add\s+level)\b", "CreateLevelsFromCSV", "CreateLevels", "Create levels from a CSV definition"),
 
             // MEP
             (@"\b(place\s+mep|mep\s+equip|place\s+equip)\b", "PlaceMEPEquipment", "PlaceMEP", "Place MEP equipment"),
@@ -268,11 +268,11 @@ namespace StingTools.Tags
 
             // Penetrations & Sleeves (PenetrationsDetectAndPlaceCommand / SleeveEngine)
             (@"\b(detect\s*penetration|penetration\s*detect|mep\s*penetration|auto\s*penetrat)\b",
-                "Routing_DetectPenetrations", "Penetrations", "Detect and place MEP penetrations through structure"),
+                "Penetrations_DetectAndPlace", "Penetrations", "Detect and place MEP penetrations through structure"),
             (@"\b(auto\s*sleeve|place\s*sleeve|sleeve\s*place|sleeve\s*size)\b",
-                "Routing_AutoSleeve", "Penetrations", "Auto-size and place fire-rated MEP sleeves"),
+                "Mep_AutoSleeve", "Penetrations", "Auto-size and place fire-rated MEP sleeves"),
             (@"\b(sleeve\s*audit|sleeve\s*check|sleeve\s*rating|slv\s*audit)\b",
-                "Routing_SleeveAudit", "Penetrations", "Audit MEP sleeves for missing fire rating / seal type"),
+                "Validation_PenetrationCoverage", "Penetrations", "Audit MEP sleeves for missing fire rating / seal type"),
 
             // Fabrication (v4 MVP — GenerateFabPackageCommand)
             (@"\b(generate\s*fab|fab\s*package|fabrication\s*package)\b",
@@ -281,8 +281,6 @@ namespace StingTools.Tags
                 "Fabrication_ExportCutList", "Fabrication", "Export cut list / isometric drawings from fab package"),
             (@"\b(weld\s*map|export\s*weld|iso\s*symbol)\b",
                 "Fabrication_ExportWeldMap", "Fabrication", "Export weld map and ISO 6412 symbols"),
-            (@"\b(spool\s*(number|nr|check|audit)|check\s*spool)\b",
-                "Fabrication_SpoolAudit", "Fabrication", "Check elements for missing spool numbers (v4 MVP)"),
 
             // Placement (v4 MVP — PlaceFixturesCommand, LightingGridCommand)
             (@"\b(place\s*fixture|fixture\s*place|auto\s*fix\s*place)\b",
@@ -304,9 +302,9 @@ namespace StingTools.Tags
 
             // Lightning Protection (LPS — Phase 176)
             (@"\b(lightning\s*protect|lps\s*audit|lps\s*check|earth\s*resist(ance)?)\b",
-                "LPS_Audit", "LPS", "Audit lightning protection system compliance (BS EN 62305)"),
+                "LPS_ComplianceCheck", "LPS", "Audit lightning protection system compliance (BS EN 62305)"),
             (@"\b(down\s*conduct|air\s*terminal\s*audit|lps\s*class)\b",
-                "LPS_Conductors", "LPS", "Check LPS down conductor count and cross-section"),
+                "LPS_DownConductorCheck", "LPS", "Check LPS down conductor count and cross-section"),
 
             // Symbol Standards (Phase 175 — multi-standard model family symbols)
             (@"\b(author\s*symbol|wire\s*symbol|inject\s*symbol|symbol\s*author|embed\s*symbol)\b",
@@ -324,9 +322,9 @@ namespace StingTools.Tags
 
             // GAP-NLP-01: Validation / ISO compliance patterns (previously unmapped)
             (@"\b(validate\s+tags?|check\s+iso|iso\s+(audit|check|valid)|run\s+validation|tag\s+valid)\b",
-                "Validate", "ValidateTags", "Validate all tags against ISO 19650 rules"),
+                "ValidateTags", "ValidateTags", "Validate all tags against ISO 19650 rules"),
             (@"\b(iso\s*19650\s*(deep|full|strict)|full\s+compliance\s+check|strict\s+(tag|iso)\s+check)\b",
-                "Validate", "ValidateTags", "Deep ISO 19650 compliance validation"),
+                "ValidateTags", "ValidateTags", "Deep ISO 19650 compliance validation"),
             (@"\b(pre\s+tag\s+audit|dry\s+run\s+tag|predict\s+tag|tag\s+predict)\b",
                 "PreTagAudit", "PreTagAudit", "Dry-run tag prediction audit before tagging"),
 
@@ -380,7 +378,7 @@ namespace StingTools.Tags
             (@"\b(select\s+by\s+disc(ipline)?|discipline\s+select|filter\s+disc)\b",
                 "SelectByDiscipline", "SelectByDiscipline", "Select elements of a specific discipline"),
             (@"\b(re.?tag\s+select(ed)?|retag\s+select|force\s+retag)\b",
-                "ReTagSelected", "ReTagSelected", "Force re-derive tags on selected elements"),
+                "ReTag", "ReTagSelected", "Force re-derive tags on selected elements"),
             (@"\b(family\s+stage\s+pop|pre.?pop(ulate)?|stage\s+fill)\b",
                 "FamilyStagePopulate", "FamilyStagePopulate", "Pre-populate 7 tokens from category and spatial data"),
             (@"\b(select\s+stale|stale\s+select|find\s+stale)\b",
@@ -397,8 +395,6 @@ namespace StingTools.Tags
                 "SelectAirTerminals", "SelectAirTerminals", "Select air terminals in active view"),
             (@"\b(select\s+furniture|furniture\s+select)\b",
                 "SelectFurniture", "SelectFurniture", "Select furniture and casework elements"),
-            (@"\b(select\s+(structural|column|beam)|structural\s+select)\b",
-                "SelectStructural", "SelectStructural", "Select structural elements"),
             (@"\b(select\s+empty\s+mark|empty\s+mark|missing\s+mark)\b",
                 "SelectEmptyMark", "SelectEmptyMark", "Select elements with empty Mark parameter"),
             (@"\b(select\s+pin(ned)?|pinned\s+elem)\b",
@@ -466,11 +462,11 @@ namespace StingTools.Tags
             (@"\b(batch\s+align\s+viewport|align\s+all\s+viewport)\b",
                 "BatchAlignViewports", "BatchAlignViewports", "Batch align viewports across sheets"),
             (@"\b(magic\s+rename|smart\s+rename\s+view|auto\s+rename\s+view)\b",
-                "MagicRenameViews", "MagicRenameViews", "Smart rename views by discipline and level"),
+                "MagicRename", "MagicRenameViews", "Smart rename views by discipline and level"),
             (@"\b(view\s+tab\s+col|colorise\s+tab|colour\s+tab|tab\s+color)\b",
                 "ViewTabColour", "ViewTabColour", "Colour-code view tabs by discipline"),
             (@"\b(apply\s+filter\s+to\s+view|view\s+filter\s+apply)\b",
-                "ApplyFiltersToViews", "ApplyFilters", "Apply view filters to selected views"),
+                "ApplyFilters", "ApplyFilters", "Apply view filters to selected views"),
             (@"\b(auto.?assign\s+(view\s+)?template|template\s+auto\s+assign)\b",
                 "AutoAssignTemplates", "AutoAssignTemplates", "Auto-assign view templates using 5-layer matching"),
             (@"\b(view\s+template\s+audit|template\s+audit|audit\s+template)\b",
@@ -488,7 +484,7 @@ namespace StingTools.Tags
             (@"\b(batch\s+vg\s+reset|reset\s+vg\s+batch|vg\s+batch\s+reset)\b",
                 "BatchVGReset", "BatchVGReset", "Reset VG overrides across multiple views"),
             (@"\b(create\s+batch\s+(views?|section)|batch\s+section|batch\s+elevation)\b",
-                "BatchSections", "BatchSections", "Batch-create sections or elevations from rooms"),
+                "BatchCreateSections", "BatchSections", "Batch-create sections or elevations from rooms"),
 
             // ── Legends Extended ──────────────────────────────────────────────────
             (@"\b(discipline\s+legend|legend\s+disc|disc\s+legend)\b",
@@ -532,111 +528,105 @@ namespace StingTools.Tags
             (@"\b(set\s+tag\s+(text\s+)?size|tag\s+size\s+set|text\s+size\s+tags?)\b",
                 "BatchTagTextSize", "BatchTagTextSize", "Set text size for all tags in view"),
             (@"\b(tag\s+line\s+weight|set\s+line\s+weight\s+tag|tag\s+weight)\b",
-                "SetTagCategoryLineWeight", "SetLineWeight", "Set line weight for tag annotations by category"),
+                "SetTagCatLineWeight", "SetLineWeight", "Set line weight for tag annotations by category"),
             (@"\b(set\s+(tag\s+)?text\s+color|tag\s+text\s+colour|annotation\s+text\s+color)\b",
                 "SetTagTextColor", "SetTagTextColor", "Set text colour for selected annotation tags"),
 
             // ── Structural Extended ───────────────────────────────────────────────
             (@"\b(pad\s+footing|pad\s+foundation|column\s+base\s+foundation)\b",
-                "StructuralPadFooting", "PadFooting", "Create pad footing foundation under column"),
+                "StrCreatePadFooting", "PadFooting", "Create pad footing foundation under column"),
             (@"\b(strip\s+footing|strip\s+foundation|wall\s+footing)\b",
-                "StructuralStripFooting", "StripFooting", "Create strip footing foundation under wall"),
+                "StrCreateStripFooting", "StripFooting", "Create strip footing foundation under wall"),
             (@"\b(retaining\s+wall|basement\s+retaining|earth\s+retaining)\b",
-                "StructuralRetainingWall", "RetainingWall", "Create retaining wall element"),
+                "StrRetainingWall", "RetainingWall", "Create retaining wall element"),
             (@"\b(structural\s+slab|concrete\s+slab|rc\s+slab|reinforced\s+slab)\b",
-                "StructuralSlab", "StructuralSlab", "Create structural concrete slab"),
+                "StrCreateStructuralSlab", "StructuralSlab", "Create structural concrete slab"),
             (@"\b(rebar|reinforce(ment)?|bar\s+size|rc\s+design)\b",
-                "StructuralRebar", "Rebar", "Add rebar reinforcement to structural elements"),
+                "StrAutoRebar", "Rebar", "Add rebar reinforcement to structural elements"),
             (@"\b(bar\s+bending|bbs|rebar\s+schedule|bar\s+bending\s+sched)\b",
-                "StructuralBarBendingSchedule", "BBS", "Create bar bending schedule to BS 8666"),
+                "StrBarBending", "BBS", "Create bar bending schedule to BS 8666"),
             (@"\b(truss|roof\s+truss|steel\s+truss)\b",
-                "StructuralTruss", "Truss", "Create structural truss element"),
+                "StrCreateTruss", "Truss", "Create structural truss element"),
             (@"\b(bracing|cross\s+brace|lateral\s+brace)\b",
-                "StructuralBracing", "Bracing", "Create structural bracing member"),
+                "StrCreateBracing", "Bracing", "Create structural bracing member"),
             (@"\b(structural\s+analysis|load\s+analysis|frame\s+analysis)\b",
-                "StructuralAnalysis", "StructuralAnalysis", "Run structural analysis (load paths, deflection, stress)"),
+                "StrFrameAnalysis", "StructuralAnalysis", "Run structural analysis (load paths, deflection, stress)"),
             (@"\b(load\s+takedown|column\s+load\s+takedown|gravity\s+load)\b",
-                "StructuralLoadTakedown", "LoadTakedown", "Calculate column load takedown"),
+                "StrColumnLoadTakedown", "LoadTakedown", "Calculate column load takedown"),
             (@"\b(deflection\s+check|slab\s+deflect|beam\s+deflect)\b",
-                "StructuralDeflection", "Deflection", "Check beam and slab deflection to Eurocode 2"),
+                "StrDeflectionCheck", "Deflection", "Check beam and slab deflection to Eurocode 2"),
             (@"\b(steel\s+section|ub\s+section|uc\s+section|rsj|universal\s+beam)\b",
-                "StructuralSteelSection", "SteelSection", "Select and apply UK steel section from library"),
+                "StrBrowseTypeCatalog", "SteelSection", "Select and apply UK steel section from library"),
             (@"\b(connection\s+design|steel\s+connection|bolted\s+joint)\b",
-                "StructuralConnection", "ConnectionDesign", "Design steel connections to SCI P358"),
+                "StrConnectionDesign", "ConnectionDesign", "Design steel connections to SCI P358"),
             (@"\b(structural\s+dwg\s+wizard|dwg\s+struct\s+wizard)\b",
-                "StructuralDWGWizard", "StructuralDWGWizard", "7-page wizard for structural DWG to BIM"),
+                "StrCADWizard", "StructuralDWGWizard", "7-page wizard for structural DWG to BIM"),
             (@"\b(excel\s+structural|structural\s+spreadsheet|import\s+structural\s+excel)\b",
-                "ExcelStructuralImport", "StructuralExcel", "Import structural member data from Excel"),
+                "StrExcelImport", "StructuralExcel", "Import structural member data from Excel"),
             (@"\b(auto\s+size\s+struct|auto\s+size\s+beam|smart\s+size\s+struct)\b",
-                "StructuralAutoSize", "AutoSize", "Auto-size structural members to Eurocode"),
+                "StrAutoSize", "AutoSize", "Auto-size structural members to Eurocode"),
             (@"\b(foundation\s+design|ec7|eurocode\s+7|soil\s+bearing)\b",
-                "StructuralFoundationDesign", "FoundationDesign", "Foundation design check to EC7"),
+                "StrSmartFoundation", "FoundationDesign", "Foundation design check to EC7"),
             (@"\b(seismic|earthquake\s+load|lateral\s+seismic)\b",
-                "StructuralSeismic", "Seismic", "Seismic lateral load analysis"),
+                "StrSeismicAnalysis", "Seismic", "Seismic lateral load analysis"),
             (@"\b(wind\s+load|wind\s+analysis|bs\s+en\s*1991.1.4)\b",
-                "StructuralWindLoad", "WindLoad", "Wind load analysis to BS EN 1991-1-4"),
+                "StrWindLoad", "WindLoad", "Wind load analysis to BS EN 1991-1-4"),
             (@"\b(structural\s+optim|carbon\s+optim\s+struct|section\s+optim)\b",
-                "StructuralOptimize", "StructuralOptimize", "Optimize structural sections for carbon and cost"),
+                "StrCarbonOptimize", "StructuralOptimize", "Optimize structural sections for carbon and cost"),
             (@"\b(punching\s+shear|flat\s+slab\s+design|column\s+punch)\b",
-                "StructuralPunchingShear", "PunchingShear", "Punching shear check for flat slabs to Eurocode 2"),
+                "StrPunchingShearCheck", "PunchingShear", "Punching shear check for flat slabs to Eurocode 2"),
 
             // ── Electrical Extended ───────────────────────────────────────────────
             (@"\b(circuit\s+trace|trace\s+circuit|follow\s+circuit)\b",
-                "ElecCircuitTrace", "CircuitTrace", "Trace electrical circuit from panel to endpoint"),
+                "Elec_CircuitTrace", "CircuitTrace", "Trace electrical circuit from panel to endpoint"),
             (@"\b(load\s+calc(ulation)?|connected\s+load|demand\s+factor)\b",
-                "ElecLoadCalc", "LoadCalc", "Calculate electrical loads and demand factors"),
+                "Calc_LoadSummary", "LoadCalc", "Calculate electrical loads and demand factors"),
             (@"\b(arc\s+flash|fault\s+current|short\s+circuit\s+calc|isc\s+calc)\b",
-                "ElecArcFlash", "ArcFlash", "Arc flash hazard and fault current analysis"),
+                "Elec_ArcFlash", "ArcFlash", "Arc flash hazard and fault current analysis"),
             (@"\b(sld|single\s+line\s+diagram|elec\s+schematic|one\s+line\s+diag)\b",
-                "ElecSLD", "SLD", "Generate single-line diagram for electrical distribution"),
+                "SLD_Generate", "SLD", "Generate single-line diagram for electrical distribution"),
             (@"\b(cable\s+siz(ing)?|conductor\s+siz|wire\s+siz(ing)?)\b",
-                "ElecCableSize", "CableSize", "Size electrical cables to BS 7671"),
+                "Cable_Calculate", "CableSize", "Size electrical cables to BS 7671"),
             (@"\b(earth(ing)?|bond(ing)?|cpc\s+siz|protective\s+conductor)\b",
-                "ElecEarthing", "Earthing", "Check earthing and bonding conductor sizes"),
-            (@"\b(rcd|rccb|gfci|residual\s+current|earth\s+fault\s+prot)\b",
-                "ElecRCD", "RCD", "RCD/RCCB protection circuit audit"),
+                "Earthing_Diagram", "Earthing", "Check earthing and bonding conductor sizes"),
             (@"\b(busbar|bus\s+bar|main\s+switch|incomer\s+rating)\b",
-                "ElecBusbar", "Busbar", "Busbar rating and incomer circuit check"),
+                "Elec_BusbarModel", "Busbar", "Busbar rating and incomer circuit check"),
             (@"\b(lighting\s+calc|lux\s+level|illuminance|em\s+lighting)\b",
-                "ElecLightingCalc", "LightingCalc", "Lighting calculation and lux level check"),
+                "Std_CalcLighting", "LightingCalc", "Lighting calculation and lux level check"),
             (@"\b(fire\s+alarm\s+zone|detector\s+layout|fa\s+zone|fire\s+alarm\s+layout)\b",
-                "ElecFireAlarm", "FireAlarmZone", "Fire alarm detector layout and zone audit"),
+                "FireAlarm_Schematic", "FireAlarmZone", "Fire alarm detector layout and zone audit"),
             (@"\b(create\s+conduit|run\s+conduit|conduit\s+route)\b",
                 "CreateConduits", "CreateConduits", "Create conduit runs for cable routing"),
             (@"\b(create\s+cable\s+tray|cable\s+tray\s+create|run\s+tray)\b",
                 "CreateCableTrays", "CreateCableTrays", "Create cable tray runs"),
             (@"\b(mep\s+sched|elec\s+fixture\s+sched|panel\s+list)\b",
-                "MEPScheduleCommands", "MEPSchedule", "Create MEP equipment/fixture schedules"),
+                "MEPScheduleAll", "MEPSchedule", "Create MEP equipment/fixture schedules"),
 
             // ── Plumbing & Public Health ───────────────────────────────────────────
             (@"\b(drain(age)?|sanitary\s+drain|foul\s+water|sewer)\b",
-                "PlumbDrainage", "Drainage", "Plumbing drainage and sanitary system layout"),
+                "Plumb_SizeDrainage", "Drainage", "Plumbing drainage and sanitary system layout"),
             (@"\b(cold\s+water|dcw|mains\s+water|potable\s+water)\b",
-                "PlumbColdWater", "ColdWater", "Cold water distribution system layout"),
+                "Plumb_SizeSupply", "ColdWater", "Cold water distribution system layout"),
             (@"\b(hot\s+water|dhw|hws|domestic\s+hot\s+water)\b",
-                "PlumbHotWater", "HotWater", "Hot water service system layout and sizing"),
+                "Plumb_SizeSupply", "HotWater", "Hot water service system layout and sizing"),
             (@"\b(wc\s+layout|toilet\s+layout|bathroom\s+layout|sanitary\s+fittings?)\b",
-                "PlumbSanitaryLayout", "SanitaryLayout", "Sanitary fittings layout and drainage grouping"),
+                "Placement_ToiletRoom", "SanitaryLayout", "Sanitary fittings layout and drainage grouping"),
             (@"\b(booster\s+pump|water\s+boost|pressurisation\s+set)\b",
-                "PlumbBoosterPump", "BoosterPump", "Cold water booster pump sizing and layout"),
+                "Plumb_PumpSelect", "BoosterPump", "Cold water booster pump sizing and layout"),
             (@"\b(rainwater\s+drain|storm\s+water|roof\s+drain|surface\s+water)\b",
-                "PlumbRainwater", "Rainwater", "Rainwater and stormwater drainage layout"),
-            (@"\b(gas\s+(supply|pipe|network|meter)|natural\s+gas\s+pipe)\b",
-                "PlumbGas", "Gas", "Natural gas supply pipe sizing and layout"),
-            (@"\b(grease\s+trap|oil\s+interceptor|grease\s+interceptor)\b",
-                "PlumbGreaseTrap", "GreaseTrap", "Grease trap and interceptor placement"),
+                "Plumb_RoofDrainage", "Rainwater", "Rainwater and stormwater drainage layout"),
             (@"\b(backflow|non.?return\s+valve|prevent\s+contamination)\b",
-                "PlumbBackflow", "Backflow", "Backflow prevention device placement audit"),
+                "Plumbing_BackflowAudit", "Backflow", "Backflow prevention device placement audit"),
             (@"\b(pipe\s+siz(ing)?|plumb\s+siz|flow\s+rate\s+calc(ulation)?)\b",
-                "PlumbPipeSize", "PipeSize", "Plumbing pipe sizing and flow rate calculations"),
+                "Plumb_SizeSupply", "PipeSize", "Plumbing pipe sizing and flow rate calculations"),
             (@"\b(create\s+pipe|run\s+pipe|place\s+pipe|pipe\s+route)\b",
                 "CreatePipes", "CreatePipes", "Create plumbing pipe runs"),
             (@"\b(plumbing\s+audit|water\s+audit|plumbing\s+check)\b",
-                "PlumbAudit", "PlumbingAudit", "Plumbing system completeness audit"),
+                "Plumb_FullAudit", "PlumbingAudit", "Plumbing system completeness audit"),
 
             // ── HVAC / Mechanical Extended ────────────────────────────────────────
             (@"\b(hvac\s+(design|layout|system)|air\s+handling\s+unit|ahu)\b",
-                "MEPCreation", "HVACDesign", "HVAC system design and equipment placement"),
+                "Equip_PlaceHvac", "HVACDesign", "HVAC system design and equipment placement"),
             (@"\b(duct\s+siz(ing)?|ductwork\s+siz|duct\s+velocity\s+check)\b",
                 "MEPSizingCheck", "DuctSize", "Duct sizing and velocity check to CIBSE Guide B"),
             (@"\b(extract\s+duct|supply\s+duct|duct\s+route|ductwork\s+layout)\b",
@@ -644,11 +634,11 @@ namespace StingTools.Tags
             (@"\b(heat\s+load|cooling\s+load|hvac\s+load|thermal\s+load)\b",
                 "EnergyAnalysis", "HeatLoad", "HVAC heat and cooling load calculation"),
             (@"\b(vav|variable\s+air\s+volume|air\s+balance|air\s+flow\s+balance)\b",
-                "MEPFlowBalance", "AirBalance", "Variable air volume and air flow balancing"),
+                "Mep_Balance", "AirBalance", "Variable air volume and air flow balancing"),
             (@"\b(chiller|cooling\s+tower|condenser\s+unit)\b",
-                "MEPCoolingPlant", "CoolingPlant", "Cooling plant equipment layout and connections"),
+                "Equip_PlaceHvac", "CoolingPlant", "Cooling plant equipment layout and connections"),
             (@"\b(boiler|heat\s+exchanger|heating\s+plant|calorifier)\b",
-                "MEPHeatingPlant", "HeatingPlant", "Heating plant equipment layout and connections"),
+                "Equip_PlaceHvac", "HeatingPlant", "Heating plant equipment layout and connections"),
             (@"\b(ventilation\s+audit|mech\s+audit|hvac\s+audit)\b",
                 "MEPSystemAudit", "HVACAudit", "HVAC and ventilation system audit"),
             (@"\b(create\s+duct|place\s+duct|duct\s+create|run\s+duct)\b",
@@ -656,15 +646,15 @@ namespace StingTools.Tags
 
             // ── Schedules Extended ────────────────────────────────────────────────
             (@"\b(door\s+schedule|schedule\s+doors?)\b",
-                "DoorSchedule", "DoorSchedule", "Create door schedule with hardware specifications"),
+                "ISBDoorSchedule", "DoorSchedule", "Create door schedule with hardware specifications"),
             (@"\b(window\s+schedule|schedule\s+windows?)\b",
-                "WindowSchedule", "WindowSchedule", "Create window schedule with specifications"),
+                "ISBWindowSchedule", "WindowSchedule", "Create window schedule with specifications"),
             (@"\b(room\s+schedule|space\s+schedule|area\s+schedule)\b",
                 "RoomSpaceAudit", "RoomSchedule", "Create room/space schedule with areas and departments"),
             (@"\b(finish\s+schedule|material\s+finish\s+sched|interior\s+finish)\b",
-                "FinishSchedule", "FinishSchedule", "Create interior finish schedule for floors/walls/ceilings"),
+                "ISBRoomFinish", "FinishSchedule", "Create interior finish schedule for floors/walls/ceilings"),
             (@"\b(equipment\s+schedule|plant\s+schedule|asset\s+schedule)\b",
-                "MEPScheduleCommands", "EquipmentSchedule", "Create MEP equipment and plant schedule"),
+                "MechanicalEquipmentSchedule", "EquipmentSchedule", "Create MEP equipment and plant schedule"),
             (@"\b(compare\s+schedule|schedule\s+diff|schedule\s+delta)\b",
                 "ScheduleCompare", "ScheduleCompare", "Compare two schedules and report differences"),
             (@"\b(schedule\s+audit|audit\s+sched(ule)?)\b",
@@ -688,27 +678,19 @@ namespace StingTools.Tags
 
             // ── Sustainability / Carbon ────────────────────────────────────────────
             (@"\b(breeam|green\s+building\s+cert|sustainability\s+cert)\b",
-                "SustainabilityBreeam", "BREEAM", "BREEAM v6 sustainability assessment"),
+                "BREEAMAssessment", "BREEAM", "BREEAM v6 sustainability assessment"),
             (@"\b(embodied\s+carbon|upfront\s+carbon|a1.?a3\s+carbon)\b",
-                "SustainabilityCarbon", "EmbodiedCarbon", "Embodied carbon assessment (BS EN 15978, ICE v3)"),
+                "EmbodiedCarbon", "EmbodiedCarbon", "Embodied carbon assessment (BS EN 15978, ICE v3)"),
             (@"\b(lifecycle\s+carbon|whole\s+life\s+carbon|wlc\s+carbon|cradle.?grave)\b",
-                "SustainabilityLifecycle", "LifecycleCarbon", "Whole lifecycle carbon analysis (A1–C4+D)"),
+                "LifecycleAssessment", "LifecycleCarbon", "Whole lifecycle carbon analysis (A1–C4+D)"),
             (@"\b(carbon\s+footprint|co2\s+emiss|greenhouse\s+gas|ghg\s+report)\b",
-                "SustainabilityCarbon", "CarbonFootprint", "Project carbon footprint report"),
+                "EmbodiedCarbon", "CarbonFootprint", "Project carbon footprint report"),
             (@"\b(ice\s+database|ice\s+v3|inventory\s+carbon\s+energy)\b",
-                "SustainabilityCarbonICE", "ICEDatabase", "ICE Database v3 material carbon intensity lookup"),
-            (@"\b(circularity|circular\s+economy|end.?of.?life\s+material|reuse\s+score)\b",
-                "SustainabilityCircularity", "Circularity", "Circularity and end-of-life recyclability scoring"),
+                "CarbonCalculator", "ICEDatabase", "ICE Database v3 material carbon intensity lookup"),
             (@"\b(leed\s+cert|leed\s+point|leed\s+credit)\b",
-                "SustainabilityLEED", "LEED", "LEED credit checklist and assessment"),
-            (@"\b(well\s+building|well\s+cert|health\s+well\s+standard)\b",
-                "SustainabilityWELL", "WELL", "WELL building standard health checks"),
-            (@"\b(passive\s+house|passivhaus|ultra.?low\s+energy\s+design)\b",
-                "SustainabilityPassivhaus", "Passivhaus", "Passivhaus energy standard compliance check"),
+                "Sustain_LeedScorecard", "LEED", "LEED credit checklist and assessment"),
             (@"\b(solar\s+(pv|panel|gain)|photovoltaic|renewable\s+energy)\b",
-                "SustainabilitySolar", "Solar", "Solar gain and PV panel feasibility analysis"),
-            (@"\b(airtight(ness)?|air\s+permea|q50|blower\s+door\s+test)\b",
-                "SustainabilityAirtightness", "Airtightness", "Air permeability and airtightness check to Part L"),
+                "Sustain_Dashboard", "Solar", "Solar gain and PV panel feasibility analysis"),
 
             // ── Worksets & Revisions ───────────────────────────────────────────────
             (@"\b(workset\s+audit|audit\s+workset|check\s+workset)\b",
@@ -746,7 +728,7 @@ namespace StingTools.Tags
             (@"\b(bcf\s+import|import\s+bcf|load\s+bcf)\b",
                 "BCFImport", "BCFImport", "Import BCF issues from coordination tool"),
             (@"\b(sticky\s+note|model\s+note|3d\s+comment|3d\s+markup)\b",
-                "ElementStickyNote", "StickyNote", "Create sticky note on 3D element"),
+                "StickyNote", "StickyNote", "Create sticky note on 3D element"),
             (@"\b(export\s+sticky|sticky\s+report|note\s+export)\b",
                 "ExportStickyNotes", "ExportStickyNotes", "Export all sticky notes to report"),
             (@"\b(acc\s+publish|bim\s+360\s+upload|acc\s+upload|autodesk\s+cloud)\b",
@@ -770,13 +752,13 @@ namespace StingTools.Tags
             (@"\b(material\s+takeoff|material\s+quantity|material\s+count)\b",
                 "QuantityTakeoff", "MaterialTakeoff", "Generate material quantity takeoff"),
             (@"\b(material\s+schema|material\s+prop(erty)?|material\s+data)\b",
-                "CheckDataFiles", "MaterialSchema", "Inspect material schema and data files"),
+                "CheckData", "MaterialSchema", "Inspect material schema and data files"),
 
             // ── Formula Engine ─────────────────────────────────────────────────────
             (@"\b(formula|evaluate\s+formula|calc(ulate)?\s+formula|formula\s+engine)\b",
                 "FormulaEvaluator", "Formula", "Run formula evaluator on elements (199 formulas)"),
             (@"\b(formula\s+audit|formula\s+check|eval\s+all\s+formula)\b",
-                "DataPipelineValidate", "FormulaAudit", "Audit formula evaluation for all parameters"),
+                "EvaluateFormulas", "FormulaAudit", "Audit formula evaluation for all parameters"),
             (@"\b(parameter\s+formula|param\s+calc|derived\s+param(eter)?)\b",
                 "FormulaEvaluator", "ParamFormula", "Calculate derived parameter values using formulas"),
 
@@ -790,9 +772,7 @@ namespace StingTools.Tags
             (@"\b(cobie\s+type\s+map|type\s+map\s+browser|cobie\s+type\s+browser)\b",
                 "COBieTypeMap", "COBieTypeMap", "Browse and manage COBie equipment type mappings"),
             (@"\b(cobie\s+picklist|picklist\s+browser|controlled\s+vocab(ulary)?)\b",
-                "COBiePicklistBrowser", "COBiePicklist", "Browse COBie V2.4 controlled vocabulary picklists"),
-            (@"\b(handover\s+cert(ificate)?|practical\s+complet|completion\s+cert)\b",
-                "HandoverCertificate", "HandoverCertificate", "Generate handover certificate document"),
+                "COBiePickLists", "COBiePicklist", "Browse COBie V2.4 controlled vocabulary picklists"),
             (@"\b(issue\s+deliverable|deliverable\s+issue|publish\s+deliverable)\b",
                 "IssueDeliverable", "IssueDeliverable", "Issue deliverable through CDE workflow"),
             (@"\b(create\s+transmittal|transmittal\s+create|document\s+issue\s+transmit)\b",
@@ -806,13 +786,13 @@ namespace StingTools.Tags
 
             // ── Meetings & Documents ───────────────────────────────────────────────
             (@"\b(meeting\s+minute|meeting\s+notes?|create\s+meeting)\b",
-                "CreateMeeting", "MeetingMinutes", "Create meeting minutes from agenda and actions"),
+                "NewMeeting", "MeetingMinutes", "Create meeting minutes from agenda and actions"),
             (@"\b(action\s+(item|point)|follow\s+up\s+action|open\s+action)\b",
-                "CreateMeeting", "ActionItems", "Record and track meeting action items"),
+                "OpenActions", "ActionItems", "Record and track meeting action items"),
             (@"\b(daily\s+(qa|quality|check)|morning\s+health\s+check|daily\s+audit)\b",
-                "WorkflowDailyQA", "DailyQA", "Run daily quality assurance workflow"),
+                "WorkflowPreset_DailyQA", "DailyQA", "Run daily quality assurance workflow"),
             (@"\b(weekly\s+report|weekly\s+data\s+drop|weekly\s+iso\s+drop)\b",
-                "WorkflowWeeklyDataDrop", "WeeklyReport", "Run weekly ISO 19650 data drop workflow"),
+                "RunWorkflow_WeeklyDataDrop", "WeeklyReport", "Run weekly ISO 19650 data drop workflow"),
             (@"\b(document\s+register|doc\s+register\s+open|add\s+document\s+cde)\b",
                 "DocumentRegister", "DocumentRegister", "Open document register and CDE management"),
             (@"\b(validate\s+doc\s+naming|doc\s+naming\s+check|file\s+naming\s+check)\b",
@@ -836,7 +816,7 @@ namespace StingTools.Tags
             (@"\b(full\s+compliance\s+dash|all\s+standards\s+check|compliance\s+full)\b",
                 "FullComplianceDashboard", "FullCompliance", "Run full compliance dashboard across all standards"),
             (@"\b(midp\s+track|master\s+info\s+delivery|info\s+delivery\s+plan\s+track)\b",
-                "MIDPTracker", "MIDP", "Track MIDP deliverables and information delivery milestones"),
+                "MidpTracker", "MIDP", "Track MIDP deliverables and information delivery milestones"),
             (@"\b(stage\s+compliance\s+gate|riba\s+stage\s+gate|design\s+gate)\b",
                 "StageComplianceGate", "StageGate", "Validate project meets RIBA stage compliance gate"),
             (@"\b(excel\s+export|export\s+to\s+excel|data\s+export\s+excel)\b",
@@ -862,49 +842,31 @@ namespace StingTools.Tags
             (@"\b(iso\s+reference|iso\s+code\s+ref|lookup\s+iso\s+code)\b",
                 "ISO19650Reference", "ISOReference", "Look up ISO 19650 codes and requirements"),
 
-            // ── Residential / Design Brief ─────────────────────────────────────────
-            (@"\b(design\s+(a|me\s+a?)\s+(house|home|building)|house\s+design\s+brief)\b",
-                "DesignBrief_Residential", "DesignBrief", "Parse residential design brief and generate building model"),
-            (@"\b(\d+\s+bed(room)?s?\s+house|bedroom\s+house|\d+\s+bed\s+home)\b",
-                "DesignBrief_Residential", "DesignBrief", "Design house with specified number of bedrooms"),
-            (@"\b(budget\s+feasib(ility)?|cost\s+feasib|can\s+i\s+afford|budget\s+estim(ate)?)\b",
-                "DesignBrief_Residential", "BudgetFeasibility", "Residential budget feasibility check"),
-            (@"\b(ugx|uganda\s+shilling|kampala\s+build|uganda\s+house)\b",
-                "DesignBrief_Residential", "UGXBudget", "Residential design with Uganda Shilling budget"),
-            (@"\b(modern\s+house|contemporary\s+home|bungalow\s+design|storey\s+house)\b",
-                "DesignBrief_Residential", "HouseStyle", "Residential design for specified architectural style"),
-            (@"\b(floor\s+plan\s+layout|room\s+layout\s+design|space\s+planning\s+house)\b",
-                "DesignBrief_Residential", "FloorPlanLayout", "Generate residential floor plan layout"),
-            (@"\b(commercial\s+build(ing)?|office\s+design|retail\s+space|warehouse\s+design)\b",
-                "DesignBrief_Commercial", "CommercialBrief", "Commercial building design brief parsing"),
-
             // ── BIM Knowledge Q&A ──────────────────────────────────────────────────
             (@"\b(what\s+is|explain|define|what\s+does|meaning\s+of)\s+(iso|bim|cde|lod|cobie|ifc)\b",
-                "NLPKnowledgeQuery", "KnowledgeQuery", "Answer a BIM knowledge question"),
+                "BimKnowledgeBase", "KnowledgeQuery", "Answer a BIM knowledge question"),
             (@"\b(what\s+is|explain|define)\s+(uniclass|cibse|breeam|ashrae|nfpa)\b",
-                "NLPKnowledgeQuery", "KnowledgeQuery", "Explain a BIM standard or code"),
+                "BimKnowledgeBase", "KnowledgeQuery", "Explain a BIM standard or code"),
             (@"\b(what\s+is|explain|define)\s+(bep|midp|tidp|oir|pir|air|eir|aim|pim)\b",
-                "NLPKnowledgeQuery", "KnowledgeQuery", "Explain a BIM information management term"),
+                "BimKnowledgeBase", "KnowledgeQuery", "Explain a BIM information management term"),
             (@"\b(how\s+do\s+i|how\s+to\s+use|can\s+i|show\s+me\s+how)\s+\w+\b",
-                "NLPKnowledgeQuery", "KnowledgeQuery", "Step-by-step guide for a BIM task"),
+                "BimKnowledgeBase", "KnowledgeQuery", "Step-by-step guide for a BIM task"),
             (@"\b(what\s+(are|is)\s+disc(ipline)?\s+codes?|list\s+disc\s+codes?)\b",
-                "NLPKnowledgeQuery", "DisciplineCodes", "List and explain STING discipline codes"),
+                "BimKnowledgeBase", "DisciplineCodes", "List and explain STING discipline codes"),
             (@"\b(what\s+(are|is)\s+sys(tem)?\s+codes?|system\s+type\s+codes?)\b",
-                "NLPKnowledgeQuery", "SystemCodes", "List and explain STING system type codes"),
+                "BimKnowledgeBase", "SystemCodes", "List and explain STING system type codes"),
             (@"\b(suitability\s+code|cde\s+suitab|s0|s1|s2|s3|s4\s+suitab)\b",
-                "NLPKnowledgeQuery", "SuitabilityCode", "Explain ISO 19650 suitability codes"),
+                "BimKnowledgeBase", "SuitabilityCode", "Explain ISO 19650 suitability codes"),
             (@"\b(riba\s+stage|plan\s+of\s+work\s+stage|riba\s+plan\s+of\s+work)\b",
-                "NLPKnowledgeQuery", "RIBAStages", "Explain RIBA Plan of Work stages 0-7"),
+                "BimKnowledgeBase", "RIBAStages", "Explain RIBA Plan of Work stages 0-7"),
             (@"\b(tag\s+format\s+explain|iso\s+tag\s+format\s+help|how\s+are\s+tags?\s+format)\b",
-                "NLPKnowledgeQuery", "TagExplain", "Explain STING ISO 19650 tag format"),
+                "BimKnowledgeBase", "TagExplain", "Explain STING ISO 19650 tag format"),
             (@"\b(list\s+workflow|what\s+workflows?\s+(are|exist)|available\s+workflows?)\b",
                 "ListWorkflowPresets", "ListWorkflows", "List all available workflow presets"),
 
             // ── AI / Smart Features ────────────────────────────────────────────────
             (@"\b(ai\s+(tag|learn|smart)|machine\s+learn\s+tag|learn\s+tag\s+rule)\b",
                 "Placement_Learn", "AITagLearn", "Learn tagging rules from existing placement using AI"),
-            (@"\b(ai\s+(design|generate|brief)|generate\s+with\s+ai|ai\s+building)\b",
-                "DesignBrief_Residential", "AIDesign", "Generate building design from AI design brief"),
             (@"\b(ai\s+(question|q&a)|ask\s+ai|bim\s+ai\s+assist)\b",
                 "BimKnowledgeBase", "AIQuestion", "Ask an AI-powered BIM knowledge question"),
             (@"\b(ai\s+draft|draft\s+with\s+ai|ai\s+write\s+doc|generate\s+document\s+ai)\b",
@@ -916,7 +878,7 @@ namespace StingTools.Tags
 
             // ── Project Setup Extended ─────────────────────────────────────────────
             (@"\b(check\s+data\s+files?|data\s+file\s+check|data\s+inventory)\b",
-                "CheckDataFiles", "CheckDataFiles", "Inventory all STING data files with checksums"),
+                "CheckData", "CheckDataFiles", "Inventory all STING data files with checksums"),
             (@"\b(create\s+line\s+style|line\s+style\s+create|add\s+line\s+style)\b",
                 "CreateLineStyles", "CreateStyles", "Create ISO-standard line styles"),
             (@"\b(fill\s+pattern\s+create|hatch\s+create|drafting\s+pattern)\b",
@@ -928,7 +890,7 @@ namespace StingTools.Tags
             (@"\b(family\s+param\s+creator|inject\s+param\s+family|shared\s+param\s+family)\b",
                 "FamilyParamCreator", "FamilyParamCreator", "Inject STING shared parameters into family files"),
             (@"\b(family\s+param\s+proc|batch\s+family\s+param\s+proc|process\s+rfa)\b",
-                "FamilyParameterProcessor", "FamilyParameterProcessor", "Batch process RFA families to add shared parameters"),
+                "FamilyParamProcessor", "FamilyParameterProcessor", "Batch process RFA families to add shared parameters"),
             (@"\b(nlp\s+processor|natural\s+language\s+command|command\s+processor\s+nlp)\b",
                 "NLPCommandProcessor", "NLPProcessor", "Open NLP command processor for natural language commands"),
         };
@@ -1095,81 +1057,21 @@ namespace StingTools.Tags
                 .ToList();
         }
 
-        // Tags that StingCommandHandler dispatches directly (not via WorkflowEngine.ResolveCommand).
-        // These bypass WorkflowEngine so ResolveCommandPublic returns null for them — that's correct.
-        // Keep this list in sync with the direct-dispatch cases in StingCommandHandler.Execute().
-        private static readonly HashSet<string> _directDispatchTags = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase)
-        {
-            // Smart placement
-            "SmartPlaceTags", "ArrangeTags", "RemoveAnnotationTags", "BatchPlaceTags",
-            "LearnTagPlacement", "ApplyTagTemplate", "TagOverlapAnalysis", "BatchTagTextSize",
-            "SetTagCategoryLineWeight", "AlignTagBands", "SwitchTagPosition", "ExportTagPositions",
-            "BatchPlaceLinkedTags", "ExportLinkedManifest", "AdjustElbows", "SetArrowheadStyle",
-            // Leader / organise
-            "AlignTagsH", "AlignTagsV", "StackTags", "PinTags",
-            "ToggleLeaders","AddLeaders","RemoveLeaders","AlignTags","ResetTagPositions",
-            "ToggleOrientation","SnapLeaderElbows","AutoAlignLeaderText",
-            "FlipTags","AlignTagText","PinUnpin","NudgeTags","AttachLeader","SelectLeaderTags",
-            // Tag style
-            "ApplyTagStyle","ApplyColorScheme","ClearColorScheme","SetParagraphDepthExt",
-            "TagStyleReport","SwitchTagStyleByDisc","BatchApplyColorScheme","ColorByVariable",
-            "SetBoxColor","SetViewTagStyle",
-            // Mode / tier switch patterns (dispatched inline by StingCommandHandler)
-            "SetPatternMode_Handover","SetPatternMode_DC","SetPatternMode_Custom",
-            "WriteSystemBTier_4","WriteSystemBTier_5","WriteSystemBTier_6",
-            "WriteSystemBTier_7","WriteSystemBTier_8","WriteSystemBTier_9","WriteSystemBTier_10",
-            // Misc direct-dispatch
-            "Validate","FixDuplicates","CompletenessDashboard",
-            "ColorByParameter","ClearColorOverrides","SaveColorPreset","LoadColorPreset","CreateFilters",
-        };
-
-        /// <summary>
-        /// Validates all IntentPatterns at startup — logs any commandTag that resolves via
-        /// neither WorkflowEngine nor the known direct-dispatch set.  Call once from OnStartup.
-        /// </summary>
-        internal static void ValidateIntentPatterns()
-        {
-            var unresolved = new System.Text.StringBuilder();
-            int unresolvedCount = 0;
-
-            var distinctTags = IntentPatterns
-                .Select(p => p.CommandTag)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(t => t)
-                .ToList();
-
-            foreach (string tag in distinctTags)
-            {
-                // Direct-dispatch tags are known-valid — skip
-                if (_directDispatchTags.Contains(tag)) continue;
-
-                // WorkflowEngine-routed tags — attempt resolution
-                try
-                {
-                    var cmd = WorkflowEngine.ResolveCommandPublic(tag);
-                    if (cmd != null) continue; // resolved OK
-                }
-                catch { /* ignore instantiation errors */ }
-
-                // Tag not resolved by either path
-                unresolved.Append("  ").AppendLine(tag);
-                unresolvedCount++;
-            }
-
-            if (unresolvedCount == 0)
-                StingLog.Info($"NLPEngine: all {distinctTags.Count} distinct commandTags validated OK");
-            else
-                StingLog.Warn($"NLPEngine: {unresolvedCount} commandTag(s) not resolvable:\n{unresolved}");
-        }
+        // Every commandTag above must resolve through NlpDispatcher.Run: WorkflowEngine.ResolveCommand,
+        // StingCommandHandler.Execute (its switch and prefix routes) or a CommandRegistry module.
+        // tools/check_nlp_dispatch.py enforces that in CI across ALL of those layers.
+        //
+        // It replaces NLPEngine.ValidateIntentPatterns, a startup check that could ask only the
+        // WorkflowEngine layer and vouched for everything else with a hand-kept allowlist. Two
+        // tags on that list ("Validate", "SetTagCategoryLineWeight") had no handler at all, 97
+        // intents in total ended in "Unknown Command", and the check only ever wrote a log line.
     }
 
     // ════════════════════════════════════════════════════════════════
     //  Shared dispatch helper — keeps the three NLP selection branches
     //  (Quick / Browse / Suggestions) in lock-step. Tags that route via
     //  WorkflowEngine run inline; tags handled by StingCommandHandler's
-    //  direct-dispatch switch (Validate, FixDuplicates, ApplyTagStyle, …)
+    //  direct-dispatch switch (FixDuplicates, ApplyTagStyle, …)
     //  go through StingDockPanel.DispatchCommand so the user always sees
     //  the chosen command actually fire.
     // ════════════════════════════════════════════════════════════════
