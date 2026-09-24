@@ -26,7 +26,10 @@ whichever tag of that category happened to load first — arbitrary instead of m
 But the specialisation is now silently lost rather than loudly missing, which is the trade
 being recorded here.
 
-**DT-3 · 30 `tagFamilies` entries name a category no `AutoTag` rule asks for**, 22 of them
+**DT-3 · 30 `tagFamilies` entries name a category no `AutoTag` rule asks for** *(28 on
+re-measure 2026-09-24; the runner now allows several tag rules per category — see
+`TagRuleIdentity` — so the 22 healthcare types can take rules naming the 58 shipped healthcare
+tag families via per-rule `tagFamily`)*, 22 of them
 `OST_GenericModel`. The family is never consulted, so these are inert config. Left in place:
 they carry intent, and removing them is a judgement about what those drawing types were meant
 to annotate, which is not a judgement to make from a data file. The near-miss case — a key that

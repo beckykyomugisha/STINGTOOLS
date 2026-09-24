@@ -89,6 +89,17 @@ turned two of them into defects, both now fixed in code:
   inside Revit against a model it builds itself; `tools/run_revit_smoke.ps1`. Not yet run. Its
   author predicted three column-to-grid defects by reading; all three were real and are fixed.
 
+- **Two tag rules on one category both run.** The runner tagged each category at most once per
+  view and skipped any element carrying any tag, so a second rule — a Pressure Regime Tag beside
+  the Room Tag, or familyMatch-split Specialty Equipment rules on different tag families — was
+  dropped without a warning. Rules are now one pass per (category, rule `tagFamily`,
+  `familyMatch`); a rule that names its own `tagFamily` skips only elements already carrying that
+  family, and a primary rule still skips an element with any other tag (a user's own tag still
+  wins) except one placed by this pack's specialist families. Primary rules run first. Room
+  AutoTag / AutoTagRoomName / AutoTagRoomNumber still collapse onto one pass. Logic in the
+  Revit-free `TagRuleIdentity`; 14 tests, 5 of them RED against the old semantics. This is the
+  prerequisite for giving the 22 rule-less healthcare drawing types their shipped specialist tags.
+
 Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
 not in the workflows this branch was checked against), fixed with a named, justified
 exemption rather than a raised ceiling.

@@ -289,9 +289,16 @@ namespace StingTools.Core.Drawing
             // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
             // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
             // .Apply doubled every tag on the view.
-            var taggedIndex = new Lazy<HashSet<ElementId>>(() => BuildTaggedElementIndex(doc, view, stats));
+            var taggedIndex = new Lazy<Dictionary<ElementId, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
 
-            var doneCats = new HashSet<long>(); // tag each category at most once
+            // One pass per (category, rule tag family, familyMatch) — not per
+            // category, which silently dropped the second of two rules on one
+            // category (room tag + pressure-regime tag). See TagRuleIdentity.
+            var doneRules = new HashSet<string>(StringComparer.Ordinal);
+            var specialistFamilies = TagRuleIdentity.SpecialistFamilies(effective.Select(r => r?.TagFamily));
+            // Primary rules first, so a specialist tag placed earlier in the run
+            // can never be what a later primary rule reads as "already tagged".
+            effective = effective.OrderBy(r => string.IsNullOrWhiteSpace(r?.TagFamily) ? 0 : 1).ToList();
             foreach (var rule in effective)
             {
                 if (rule == null) continue;
@@ -326,14 +333,15 @@ namespace StingTools.Core.Drawing
                         continue;
                     }
                     long cv = catId.Value;
-                    if (!doneCats.Add(cv)) continue;
+                    if (!doneRules.Add(TagRuleIdentity.DedupKey(cv, rule.TagFamily, rule.FamilyMatch))) continue;
                     // BuiltInCategory's underlying type is long (Revit 2024+), so
                     // handing Enum.IsDefined an int threw "Enum underlying type
                     // and the object must be same type" for EVERY rule — the
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
-                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType);
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType,
+                        specialistFamilies);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
             }
@@ -866,12 +874,13 @@ namespace StingTools.Core.Drawing
         // TagDepthLayering / TokenProfileApplier.WriteCategoryDepths.
 
         /// <summary>
-        /// Element ids already carrying an IndependentTag in this view.
-        /// Built once per view and shared across every tag rule.
+        /// Element ids already carrying an IndependentTag in this view, each with
+        /// the families of those tags ("" when the family cannot be read — still a
+        /// tag). Built once per view and shared across every tag rule.
         /// </summary>
-        private static HashSet<ElementId> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        private static Dictionary<ElementId, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
         {
-            var set = new HashSet<ElementId>();
+            var set = new Dictionary<ElementId, List<string>>();
             try
             {
                 foreach (var el in new FilteredElementCollector(doc, view.Id)
@@ -881,8 +890,13 @@ namespace StingTools.Core.Drawing
                     if (!(el is IndependentTag tag)) continue;
                     try
                     {
+                        string fam = (doc.GetElement(tag.GetTypeId()) as FamilySymbol)?.FamilyName ?? "";
                         foreach (var id in tag.GetTaggedLocalElementIds())
-                            if (id != null && id != ElementId.InvalidElementId) set.Add(id);
+                        {
+                            if (id == null || id == ElementId.InvalidElementId) continue;
+                            if (!set.TryGetValue(id, out var fams)) set[id] = fams = new List<string>();
+                            fams.Add(fam);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -931,8 +945,8 @@ namespace StingTools.Core.Drawing
 
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
-            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null,
-            DrawingType drawingType = null)
+            AutoAnnotationRule rule = null, Dictionary<ElementId, List<string>> alreadyTagged = null,
+            DrawingType drawingType = null, ISet<string> specialistFamilies = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
@@ -962,6 +976,11 @@ namespace StingTools.Core.Drawing
             // variants of the chosen family are loaded — see TagSizeVariant.
             if (drawingType != null)
                 tagTypeId = ApplyTagSizeVariant(doc, tagTypeId, drawingType, catKey, stats);
+
+            // The family this rule actually places — what "already tagged" is
+            // measured against (TagRuleIdentity.ShouldSkip).
+            string placedFamily = (doc.GetElement(tagTypeId) as FamilySymbol)?.FamilyName ?? "";
+            bool isSpecialistRule = !string.IsNullOrWhiteSpace(rule?.TagFamily);
 
             // Paragraph depth is NOT resolved or written here any more.
             //
@@ -1020,7 +1039,9 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    if (skipIfTagged && alreadyTagged != null && alreadyTagged.Contains(el.Id))
+                    if (skipIfTagged && alreadyTagged != null
+                        && alreadyTagged.TryGetValue(el.Id, out var onElement)
+                        && TagRuleIdentity.ShouldSkip(onElement, isSpecialistRule, placedFamily, specialistFamilies))
                     {
                         stats.Skipped++;
                         continue;
@@ -1080,7 +1101,12 @@ namespace StingTools.Core.Drawing
                         stats.TagsPlaced++;
                         // Keep the index current so a later rule covering the
                         // same element in this run doesn't tag it twice.
-                        alreadyTagged?.Add(el.Id);
+                        if (alreadyTagged != null)
+                        {
+                            if (!alreadyTagged.TryGetValue(el.Id, out var fams))
+                                alreadyTagged[el.Id] = fams = new List<string>();
+                            fams.Add(placedFamily);
+                        }
                     }
 
                     // CategoryDepths are applied by TokenProfileApplier.WriteCategoryDepths
