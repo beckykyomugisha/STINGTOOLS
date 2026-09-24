@@ -110,6 +110,9 @@ namespace StingTools.Tags.Tests
         [InlineData("M_Supply Diffuser", "SAT")]
         [InlineData("M_Diffuser", "SAT")]
         [InlineData("Exhaust Grille", "EAT")]
+        [InlineData("M_Exhaust Diffuser", "EAT")]   // "Diffuser"(8) used to beat "Exhaust"(7)
+        [InlineData("M_Extract Diffuser", "EAT")]
+        [InlineData("Exhaust Air Terminal", "EAT")]
         [InlineData("Return Grille", "GRL")]           // GRL's own description claims it
         [InlineData("Transfer Grille", "GRL")]
         [InlineData("Fresh Air Louvre", "LVR")]
