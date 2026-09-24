@@ -118,6 +118,53 @@ namespace StingTools.Tags.Tests
                 + "the lookup misses and the family is never used:\n" + string.Join("\n", bad));
         }
 
+        /// <summary>Rules that name their own tag family (per-rule <c>tagFamily</c>).</summary>
+        private static IEnumerable<(string TypeId, string Category, string Family)> RuleFamilies()
+        {
+            foreach (var t in Catalogue()["drawingTypes"] ?? new JArray())
+                foreach (var r in (t["annotation"]?["rules"] as JArray) ?? new JArray())
+                    if (!string.IsNullOrWhiteSpace((string)r["tagFamily"]) && (string)r["ruleType"] == "AutoTag")
+                        yield return ((string)t["id"], (string)r["category"], (string)r["tagFamily"]);
+        }
+
+        /// <summary>Host category each tag family is declared for, from the TAG_FAMILY rows of the tag configs.</summary>
+        private static Dictionary<string, string> DeclaredCategories()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in Directory.GetFiles(Path.Combine(Repo().FullName, "StingTools", "Data"), "STING_TAG_CONFIG_v5_0_*.csv"))
+                foreach (var line in File.ReadLines(f))
+                {
+                    if (!line.StartsWith("TAG_FAMILY,", StringComparison.Ordinal)) continue;
+                    var cells = line.Split(',');
+                    if (cells.Length > 3 && !map.ContainsKey(cells[1].Trim())) map[cells[1].Trim()] = cells[3].Trim();
+                }
+            return map;
+        }
+
+        [Fact]
+        public void EveryRuleLevelTagFamilyExistsAndTagsTheRulesCategory()
+        {
+            // A rule naming a family that is not loaded falls back to the pack default, so
+            // the specialist tag silently becomes a generic one. A family of ANOTHER
+            // category is worse: IndependentTag.Create throws once per element.
+            var lib = Library();
+            var declared = DeclaredCategories();
+            var rules = RuleFamilies().ToList();
+            Assert.True(rules.Count >= 40, $"expected the healthcare rules; found {rules.Count}");
+            Assert.True(declared.Count >= 50, "expected the TAG_FAMILY declarations to be read");
+
+            var bad = new List<string>();
+            foreach (var r in rules)
+            {
+                if (!lib.Contains(r.Family))
+                    bad.Add($"{r.TypeId}: {r.Category} -> '{r.Family}' is not in the library");
+                else if (declared.TryGetValue(r.Family, out var cat)
+                         && !string.Equals(cat, r.Category, StringComparison.OrdinalIgnoreCase))
+                    bad.Add($"{r.TypeId}: '{r.Family}' is a {cat} tag, the rule tags {r.Category}");
+            }
+            Assert.True(bad.Count == 0, string.Join("\n", bad));
+        }
+
         [Fact]
         public void TheCatalogueWasActuallyRead()
         {

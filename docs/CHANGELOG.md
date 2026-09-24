@@ -99,6 +99,23 @@ turned two of them into defects, both now fixed in code:
   AutoTag / AutoTagRoomName / AutoTagRoomNumber still collapse onto one pass. Logic in the
   Revit-free `TagRuleIdentity`; 14 tests, 5 of them RED against the old semantics. This is the
   prerequisite for giving the 22 rule-less healthcare drawing types their shipped specialist tags.
+- **Healthcare drawing types tag with the healthcare tag families.** 21 of the 22 healthcare types
+  had `autoTag: true` and no rules, which the runner reads as "tag every category with its default
+  tag" — a pressure-regime plan got a generic tag on every duct fitting and no pressure label. They
+  now carry 78 targeted rules naming the shipped specialist families per rule (Pressure Regime,
+  Infection Class, MRI Zone, 5-Gauss Marker, Faraday Cage, X-ray Barrier / Door / Window, Linac
+  Maze, Controlled Area Sign, Dosimetry Post, Anti-Ligature ×3, Medical Gas Terminal Unit, Area /
+  Master Alarm Panel, Zone Valve Box, Medical Gas Pipeline, the five MGPS plant tags, Bedhead
+  Trunking, Pendant, Nurse Call, Operating Light, Washer Disinfector, Autoclave, Endoscope
+  Reprocessor, Bedpan Washer, Mortuary Fridge, Imaging Modality, RTLS Reader, AGV Dock, PTS
+  Station). Where one category holds several kinds of object, `familyMatch` routes each; a pattern
+  that matches nothing in a view says so. The dead `Generic Models` tagFamilies entry was dropped
+  from the types that now have no Generic Models rule. `health-rds-A3` is a schedule and is left
+  alone. New test: a rule's own `tagFamily` must exist in the library and be declared (TAG_FAMILY
+  rows) for the category the rule tags — RED on a Pressure Regime rule pointed at Doors.
+  **Found:** `STING - Medical Gas Terminal Unit Tag` is a Plumbing Fixture tag but STING's own
+  outlet seed is Specialty Equipment, so seeded outlets get the Specialty Equipment tag instead
+  (ROADMAP DT-4). Not run in Revit; the familyMatch patterns are guesses at manufacturer naming.
 
 Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
 not in the workflows this branch was checked against), fixed with a named, justified

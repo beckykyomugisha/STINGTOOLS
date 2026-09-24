@@ -7357,7 +7357,7 @@
       "id": "health-eqp-pln-A1-1to50",
       "name": "Healthcare — Clinical Equipment Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "c166f3dfccd5988cb1892421d88efdccf95ee986352f326f1d38f85b0ecaafe7",
+      "checksum": "c79ac247b2dee43abf3fca178539f639c1ceafeb424ff3b3acc8bb642d226f77",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7391,8 +7391,33 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
+          "Rooms": "STING - Room Tag",
+          "Medical Equipment": "STING - Medical Equipment Tag",
+          "Specialty Equipment": "STING - Specialty Equipment Tag",
           "Generic Models": "STING - Generic Model Tag"
-        }
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7426,7 +7451,7 @@
       "id": "health-mep-coord-A1-1to50",
       "name": "Healthcare — MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
-      "checksum": "8c3164c15a363be8ce0a82c047d626f80c5de7bfbb686fc484f11bbc36a42051",
+      "checksum": "346d3234c6502cebe9e5d1243ca311f6c7961d6b41ecf94ea98aeb5550dab467",
       "purpose": "Coordination",
       "discipline": "M",
       "phase": "*",
@@ -7460,8 +7485,27 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
           "Generic Models": "STING - Generic Model Tag"
-        }
+        },
+        "rules": [
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7496,7 +7540,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "de7afe59cb5a4e967fda0db128578889b26add4d6a59b0215561718a5261bff0",
+      "checksum": "9e3c94f3ef1786f2d060f178b769a66fbc76be9830c25c0814e403e9e88cee77",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7530,8 +7574,57 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Medical Gas Terminal Unit Tag",
+            "familyMatch": "(med(ical)? ?gas|terminal unit|\\bTU\\b|oxygen|\\bO2\\b|medical air|entonox|nitrous)"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Area Alarm Panel Tag",
+            "familyMatch": "(area alarm|\\bAAP\\b)"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Master Alarm Panel Tag",
+            "familyMatch": "(master alarm|\\bMAP\\b)"
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Zone Valve Box Tag",
+            "familyMatch": "(zone valve|\\bZVB\\b|\\bAVSU\\b)"
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Medical Gas Pipeline Tag",
+            "familyMatch": "(medical|med ?gas|oxygen|\\bO2\\b|vacuum|nitrous|entonox|\\bMGPS\\b)"
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Specialty Equipment Tag",
+            "familyMatch": "(medical gas outlet|med(ical)? ?gas|terminal unit)"
+          }
+        ]
       },
       "titleBlockParams": {
         "PRJ_SHEET_SYSTEM_TXT": "{sys}",
@@ -7566,7 +7659,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "0980ae7ab34d00fb61001e942bbf850f3fd63978f0726581ebc510b7ebca408d",
+      "checksum": "e514c87263f180392ef0c471f474302c3edeb010ba07b2fcdfc67565f48bea03",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -7599,9 +7692,64 @@
         "autoDim": false,
         "autoTag": true,
         "denseUntilScale": 100,
-        "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+        "rules": [
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Manifold Tag",
+            "familyMatch": "manifold"
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - VIE Tag",
+            "familyMatch": "(\\bVIE\\b|vacuum.insulated|liquid oxygen|\\bLOX\\b)"
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Medical Air Plant Tag",
+            "familyMatch": "(medical air|\\bMA4\\b|air (plant|compressor))"
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Medical Vacuum Plant Tag",
+            "familyMatch": "(vacuum (plant|pump|unit)|\\bMVP\\b)"
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - AGS Plant Tag",
+            "familyMatch": "(\\bAGS\\b|scaveng)"
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Zone Valve Box Tag",
+            "familyMatch": "(zone valve|\\bZVB\\b|\\bAVSU\\b)"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Area Alarm Panel Tag",
+            "familyMatch": "(area alarm|\\bAAP\\b)"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Master Alarm Panel Tag",
+            "familyMatch": "(master alarm|\\bMAP\\b)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7635,7 +7783,7 @@
       "id": "health-pressure-pln-A1-1to100",
       "name": "Healthcare — Pressure Regime Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "19e3b37bca67ed8d9ab9761fcc3d1306e7729a57c5db2192e3d0794b5471f0d0",
+      "checksum": "9ad4a5acf35403b02b43b50de36785e60ec3f94b9dfbbd07d9d139fa603751e6",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7669,8 +7817,21 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Pressure Regime Tag"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7704,7 +7865,7 @@
       "id": "health-ess-power-riser-A1",
       "name": "Healthcare — Essential Power Single-Line (A1)",
       "origin": "corporate",
-      "checksum": "2bb9cee51d42ece083ca964c97b552747e22f81979db73ea3ff81d441edca16f",
+      "checksum": "0beb165b8135f4b88bda6800c220d7a822cb9e5f797e4a1f9a82b89f4c389063",
       "purpose": "Schematic",
       "discipline": "E",
       "phase": "*",
@@ -7738,8 +7899,15 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Electrical Equipment": "STING - Electrical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7773,7 +7941,7 @@
       "id": "health-ips-pln-A1-1to50",
       "name": "Healthcare — Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "c92beb782bef3c46314945031e217721f33e279c9e7920969ad2f2764093d338",
+      "checksum": "1f9bb0a2b21f5c82f022c8e1d2123235ef87c866da23b0400581b3464e25f9bc",
       "purpose": "Plan",
       "discipline": "E",
       "phase": "*",
@@ -7807,8 +7975,27 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Electrical Fixtures": "STING - Electrical Fixture Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7842,7 +8029,7 @@
       "id": "health-decon-flow-A1-1to50",
       "name": "Healthcare — Decontamination Flow Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "1f9df6b65c09ca9d2b7c7a47d516056c097fc3351b5cf8daca6579fd55d9ff47",
+      "checksum": "bcf65697eddfa123549bfcb65f44a375aadcdab6bab8d91d09cfcfd777d1cced",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7876,8 +8063,49 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Infection Class Tag"
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Washer Disinfector Tag",
+            "familyMatch": "(washer.?disinfector|\\bWD\\b)"
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Autoclave Tag",
+            "familyMatch": "(autoclave|sterili[sz]er)"
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Endoscope Reprocessor Tag",
+            "familyMatch": "(endoscope|\\bAER\\b|\\bEWD\\b)"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Bedpan Washer Tag",
+            "familyMatch": "(bedpan|macerator)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7911,7 +8139,7 @@
       "id": "health-mortuary-pln-A3-1to100",
       "name": "Healthcare — Mortuary Plan (A3 1:100)",
       "origin": "corporate",
-      "checksum": "cb466091553eca4dc40a09be6d2d8f7c2521a343327d0f41f0097f1d44f3248d",
+      "checksum": "478d734a700fb8b2e9e0664f34d3c402bc63a4d4cc5fe1112282205f8e4253f4",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7945,8 +8173,22 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Mortuary Fridge Tag",
+            "familyMatch": "(mortuary|body (store|fridge|refrigerat)|cold store)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -7980,7 +8222,7 @@
       "id": "health-fire-comp-A1-1to100",
       "name": "Healthcare — Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "d92580f8938dd08f128c78feee83ec93b67d3d3b99de51c9d7faed35e9786aef",
+      "checksum": "8caf095b60a2ee07589186e76dd4913d24120a8a971447bc2e4ff84416aead4b",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8014,8 +8256,21 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag",
+          "Doors": "STING - Door Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8049,7 +8304,7 @@
       "id": "health-rad-shield-A1-1to50",
       "name": "Healthcare — Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "2af9e7891f42d4c58eff055b1cd4bb234ebf539835fb31e4642c913e3b1a3c75",
+      "checksum": "93ca3248862758d3d6c5efb2a7e465cc357af74cb9ccc080abf689597f402900",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8083,8 +8338,57 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - X-ray Barrier Tag",
+            "familyMatch": "^(?!.*(maze|bunker)).*(lead|\\bPb\\b|x-?ray|radiation|shield)"
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Linac Maze Tag",
+            "familyMatch": "(maze|linac|bunker)"
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - X-ray Door Tag",
+            "familyMatch": "(lead|\\bPb\\b|x-?ray|radiation|shield)"
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - X-ray Window Tag",
+            "familyMatch": "(lead|\\bPb\\b|x-?ray|radiation|shield)"
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Controlled Area Sign Tag",
+            "familyMatch": "(controlled area|trefoil|radiation sign)"
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Dosimetry Post Tag",
+            "familyMatch": "(dosimet|monitoring post|\\bTLD\\b)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8118,7 +8422,7 @@
       "id": "health-mri-zoning-A1-1to50",
       "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
-      "checksum": "635e2df7dfd21e27df63515e92a9979e223efd62c25a14a634c022b2d2739879",
+      "checksum": "836ec93ff739d85d1c4ec54431507d6c36b5a069945033222c5bb0896dc28e2e",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8152,8 +8456,36 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - MRI Zone Tag",
+            "familyMatch": "(mri.?zone|access.?zone)"
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - 5-Gauss Marker Tag",
+            "familyMatch": "(gauss|fringe.?field)"
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - MRI Faraday Cage Tag",
+            "familyMatch": "(faraday|rf.?(shield|cage))"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8187,7 +8519,7 @@
       "id": "health-ligature-pln-A1-1to50",
       "name": "Healthcare — Anti-Ligature Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "7b3549fc05b2fc62b8714df6c7b40fac9515f1f0255c6d5147fab8ea4cfb538e",
+      "checksum": "80268ff377454074dfe5ade2f1bb7ac742d12b1577a98528bda32108d4684006",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8221,8 +8553,33 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Anti-Ligature (Door) Tag"
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Anti-Ligature (Plumbing Fixture) Tag"
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Anti-Ligature (Lighting Fixture) Tag"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8256,7 +8613,7 @@
       "id": "health-bedhead-elev-A3-1to50",
       "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
-      "checksum": "23eca4d2eb63a903e4b599fd405ccbfc5eb8f2f81a90f6ee3b8166a8c3dc5dfb",
+      "checksum": "5ec621dafe64d7995e5fee58f07dbbc259b16fdda66a66aa143047dbc8b70322",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
@@ -8290,8 +8647,42 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Electrical Fixtures": "STING - Electrical Fixture Tag"
+        },
+        "rules": [
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Bedhead Trunking Tag",
+            "familyMatch": "(bed ?head|trunking|\\bBHU\\b)"
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Pendant Tag",
+            "familyMatch": "pendant"
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Specialty Equipment Tag",
+            "familyMatch": "(medical gas outlet|med(ical)? ?gas|terminal unit)"
+          },
+          {
+            "category": "Nurse Call Devices",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Nurse Call Tag"
+          },
+          {
+            "category": "Electrical Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8331,7 +8722,7 @@
       "id": "health-or-ceiling-A3-1to50",
       "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
-      "checksum": "58a8e17261b08014a65116ec9301457ff8cf7426ff083794cd81b231d7068c45",
+      "checksum": "0b9142c3d03f81b3bb4fbd49d696efce9caef7a048be528e8cf622087878a9ed",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
@@ -8365,8 +8756,29 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Air Terminals": "STING - Air Terminal Tag"
+        },
+        "rules": [
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Operating Light Tag",
+            "familyMatch": "(operating|surgical|theatre)"
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Pendant Tag",
+            "familyMatch": "pendant"
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8400,7 +8812,7 @@
       "id": "health-water-safety-A1-1to100",
       "name": "Healthcare — Water Safety Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "89007127ad29aa86757580fea97d3cc88365e37866b75c9d40eb86b11ca477f5",
+      "checksum": "7ceff5430fb6430cad50556af7c892e1a66ed341f2e85b794bd7ce02faa273fe",
       "purpose": "Plan",
       "discipline": "P",
       "phase": "*",
@@ -8434,8 +8846,21 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag"
+        },
+        "rules": [
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8469,7 +8894,7 @@
       "id": "health-acoustic-A1-1to100",
       "name": "Healthcare — Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "4363be18e3507e48a98dd3528f7fa57b3a8501db1982ebbd366fbdcb4daa7f6e",
+      "checksum": "7e879af7a41e2036f2f51076490873dfc7d5af832d2d1c0e2faa6ec2169b2ccd",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8503,8 +8928,27 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag",
+          "Walls": "STING - Wall Tag",
+          "Doors": "STING - Door Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8538,7 +8982,7 @@
       "id": "health-struct-loads-A1-1to100",
       "name": "Healthcare — Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
-      "checksum": "36c262cc7b0e276eba2380b7c34c568af3598e10b6c4f92c205e171ef7d0fbe4",
+      "checksum": "23d6c538b6af61cb8df5593d17e1ad57cc91a12f08e3d386dc1e47c6e17dd260",
       "purpose": "Plan",
       "discipline": "S",
       "phase": "*",
@@ -8572,8 +9016,22 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Medical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Imaging Modality Tag",
+            "familyMatch": "(\\bMRI\\b|\\bCT\\b|scanner|x-?ray|fluoro|angio|linac|imaging|gamma|\\bPET\\b)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8607,7 +9065,7 @@
       "id": "health-rtls-coverage-A1-1to100",
       "name": "Healthcare — RTLS Coverage Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "6747063a15e899ae24dd1fa32a6476edded223813861d0c0730c41d6b8f66ec5",
+      "checksum": "f242bf600b75d49017851c129a4857c9c29224a11986e76a83f45dcefcd06524",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8641,8 +9099,22 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - RTLS Reader Tag",
+            "familyMatch": "(\\bRTLS\\b|reader|beacon|locating)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8676,7 +9148,7 @@
       "id": "health-waste-flow-A1-1to100",
       "name": "Healthcare — Clinical Waste Flow (A1 1:100)",
       "origin": "corporate",
-      "checksum": "cf4ef9c921f18d92086d0a4698cf0374c2535938a8ee6464e7fc9ad186cea9fb",
+      "checksum": "e878c7e7d9934b169c8a84405bb8863542fafa33ba4c0c433c75cb209a2c5131",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8710,8 +9182,29 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - AGV Dock Tag",
+            "familyMatch": "(\\bAGV\\b|automated guided)"
+          },
+          {
+            "category": "Specialty Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - PTS Station Tag",
+            "familyMatch": "(\\bPTS\\b|pneumatic tube)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",
@@ -8745,7 +9238,7 @@
       "id": "health-nuclear-medicine-A1",
       "name": "Healthcare — Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
-      "checksum": "a2d9f3b869b97e57107046d740f44af1f7631a0e4a3ada02efc6abb12e93a43f",
+      "checksum": "ccf64beb47a152985e60e93662351c6cf87b567388c43cc5946b8c306aa337c6",
       "purpose": "Schematic",
       "discipline": "RP",
       "phase": "*",
@@ -8779,8 +9272,43 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "Generic Models": "STING - Generic Model Tag"
-        }
+          "Rooms": "STING - Room Tag"
+        },
+        "rules": [
+          {
+            "category": "Rooms",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - X-ray Barrier Tag",
+            "familyMatch": "^(?!.*(maze|bunker)).*(lead|\\bPb\\b|x-?ray|radiation|shield)"
+          },
+          {
+            "category": "Doors",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - X-ray Door Tag",
+            "familyMatch": "(lead|\\bPb\\b|x-?ray|radiation|shield)"
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Controlled Area Sign Tag",
+            "familyMatch": "(controlled area|trefoil|radiation sign)"
+          },
+          {
+            "category": "Generic Models",
+            "ruleType": "AutoTag",
+            "enabled": true,
+            "tagFamily": "STING - Dosimetry Post Tag",
+            "familyMatch": "(dosimet|monitoring post|\\bTLD\\b)"
+          }
+        ]
       },
       "titleBlockParams": {
         "Client Name": "${PRJ_ORG_CLIENT_NAME}",

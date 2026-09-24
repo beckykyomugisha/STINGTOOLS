@@ -36,6 +36,23 @@ to annotate, which is not a judgement to make from a data file. The near-miss ca
 differs from a real rule only in spelling — IS now a test failure, because that one looks
 connected and is not.
 
+*Update 2026-09-24:* the 22 healthcare `Generic Models` entries are resolved — 21 types now have
+rules using the shipped healthcare tag families (`health-rds-A3` is a schedule). Six non-healthcare
+entries remain: `arch-rcp-A1-1to100` (Ceilings, Lighting Fixtures — its rules are a copy of the
+floor plan's and tag doors/furniture on a ceiling plan), `fm-asset-location` (Rooms),
+`pres-exterior-elev` (Walls), `pres-context-site` (Site), `clar-markup` (Rooms).
+
+**DT-4 · The medical-gas terminal unit tag cannot tag STING's own outlet seed.**
+`STING - Medical Gas Terminal Unit Tag` is declared for Plumbing Fixtures; `STING_SEED_MedGasOutlet`
+builds Specialty Equipment. `health-medgas-pln` therefore tags seeded outlets with the generic
+Specialty Equipment tag. Fix one side: add a Specialty Equipment variant of the TU tag, or move the
+seed to Plumbing Fixtures (check manufacturer families first — both categories occur in practice).
+
+**DT-5 · The healthcare familyMatch patterns need a Revit run.** They are written against STING
+seed names and common manufacturer wording (`pendant`, `bed ?head|trunking`, `zone valve|ZVB|AVSU`,
+lead/`Pb`/x-ray for shielding, …). A pattern that matches nothing warns per view, so a miss is
+visible — collect those warnings from a real hospital model and adjust.
+
 ---
 
 ## Tag token policy (2026-09-15, Phase 286)
