@@ -2,6 +2,261 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
+
+Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
+before. Recorded plainly because the useful lesson is in the ratio: the gates written in Phase 294
+caught five of these, and the two I introduced were caught by a gate I wrote *after* the code.
+
+**A regression of my own.** `AnnotationRuleKinds.ForcedCategory` held BIC strings
+(`"OST_Rooms"`). AnnotationRunner forwards the effective category to `ResolveTagTypeId` as the
+`pack.TagFamilies` lookup key — and every tagFamilies table in the catalogue is keyed by DISPLAY
+name ("Rooms" on 12 profiles). So the three `RoomTag` rules stopped finding `STING - Room Tag` and
+silently fell through to "first loaded room tag". Exactly the silent-substitution failure the phase
+existed to remove, re-created while removing it. `ForcedCategory` is now documented as
+display-name-only and `Forced_categories_are_display_names_not_BIC_strings` enforces it.
+
+**And a second one.** The pack save I added carried the loaded document header forward so a save
+would not truncate `schemaVersion` / `description` / `namespace`. That header includes `routing`,
+which lands in `[JsonExtensionData]` because `ViewStylePackDoc` does not model it — and
+`ViewStylePackRegistry.Merge` PREPENDS project routing over corporate. So saving packs froze all 28
+corporate routing rules into the project override where they win for ever: the identical bug I had
+just fixed on the drawing-type side, re-introduced on the pack side by the fix for a different
+problem. `routing` is now stripped from the carried header.
+
+**Editing a corporate pack still discarded the edit.** Phase 294 made the pack tab save, then
+filtered to project-origin packs — and a corporate pack edited in place still carries
+`origin: "corporate"`, so it was skipped. Two silent-loss bugs stacked: no write at all, then a
+write that excluded the thing you edited. Fixed by snapshotting every pack as loaded and writing
+any whose serialisation has moved, flipping its origin — which mirrors what
+`DrawingTypeRegistry.ComputeChecksums` already does for a drifted drawing type. Deliberately NOT a
+dirty flag inside each of the ~40 inline edit lambdas: a snapshot comparison cannot be forgotten by
+a future editor control.
+
+**Seven tagFamilies keys resolved to nothing.** `StructuralColumns`, `StructuralFoundations`,
+`StructuralFraming`, `StructuralRebar`, `LightingFixtures` — display names with the spaces removed,
+which is neither spelling `ResolveTagTypeId` can match. So `STING_TAG_COL`, `STING_TAG_FTG`,
+`STING_TAG_BEAM`, `STING_TAG_BAR` and `STING_TAG_LIGHT` were all declared and all silently replaced
+by whatever tag loaded first. There was a warning for a family that is not LOADED and none for a
+key nothing looks up, which is why this sat unnoticed. Renamed; `OST_GenericModel` normalised to
+`Generic Models` on 22 healthcare profiles for the same reason; `RainwaterOutlets` and `RoofLights`
+dropped — they name no Revit category and no rule consulted them (DRAW-8). **DT-139-FAM** now
+reports both an unresolvable key and a key no rule consults.
+
+**A managed pack minting a template Revit cannot assign.** `health-rds-A3` and
+`plumb-pressure-schedule-A3` are Schedule profiles bound to MANAGED packs, and Revit rejects
+`View.ViewTemplateId` on a schedule — so `EnsureTemplate` created a template it could never apply
+and the assignment threw on every produce. `CanCarryViewTemplate` is now a whitelist: an
+unfamiliar view type is refused with a named warning rather than discovered by a throw. Both
+profiles re-pointed to `corp-standard-detail`, which is external and already serves the other six
+schedule profiles. `health-rds-A3` was also asking for a `ScopeBoxOrBbox` crop on a view with no
+crop box.
+
+**Three spellings for one slot type.** `IsViewTypeCompatible` switches on ten terms and its default
+arm **allows any view**. The eight Schematic profiles used three spellings between them: four said
+`Drafting` (unlisted → allow-all, working by accident), four said `Section` — which *requires*
+`ViewType.Section`, so a drafting-view schematic was **rejected by its own slot** — and the declared
+term `Schematic`, the one that accepts a DraftingView, was used by none of them.
+`health-mep-coord` said `Coordination`, also unlisted. Both missing terms are now declared, all
+eight schematic slots normalised, and **DT-137-SLOTVT** plus
+`DrawingSlotVocabularyTests` close the vocabulary. That file's first test verifies its own mirror
+against `SheetPlacementBridge.KnownSlotViewTypes` read from source — without it the other four
+would be checking the wrong list, which is the failure mode a hardcoded expectation always has.
+
+**Verification.** Build 0/0. `StingTools.Tags.Tests` **1,599 passing** (1,582 → 1,591 → 1,599
+across the two passes). Checksums re-stamped and `--check` verified after each data edit. A full
+test plan — what runs now, what needs Revit and has never run, and how each gate was driven RED —
+is in [`docs/DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md).
+
+#### Completed (Phase 294 — the drawing-type catalogue said more than the engine did)
+
+A review of the Drawing Type Editor, the 36 view style packs, the 290-filter registry and all
+93 drawing types, then every finding fixed. The pattern across almost all of them is the same
+one this codebase keeps producing: **data that declares an intention, and an engine that
+silently declines it.** Nothing threw, nothing warned, and every symptom read as "the tool
+didn't run".
+
+**56 of 334 annotation rules placed nothing, silently — 17% of the authored intent.**
+`AnnotationRunner` filtered tag rules through a private `HashSet` and dim rules through three
+`string.Equals` calls. Anything outside both fell through BOTH passes with no warning, so
+`AutoDimWallLength`, `AutoDimOpenings`, `AutoDimColumnGrid`, `AutoAnnotateSlope`,
+`AutoAnnotateFlowArrow`, `AutoTagRoomName`, `AutoTagRoomNumber` and `AutoAnnotateSpaceNumber`
+were indistinguishable from rules that ran and found nothing to do. Worse, the engines for
+half of them already existed and were **unreachable**: `MEPDimensioner` and
+`DrainageInvertDimensioner` had zero call sites anywhere in the tree, and the latter's own
+docstring named a trigger (`AutoSpotInvert`) that no drawing type declared and no switch
+handled. Data and engine both present; the wiring between them never made.
+
+The fix is not "add eight more cases". `Core/Drawing/AnnotationRuleKinds.cs` is now the one
+declared vocabulary: the runner dispatches from it, `DrawingTypeValidator` validates the JSON
+against it (**DT-139**, an ERROR), and a test walks `AllRuleTypes` in both directions — the
+data may only use names the registry declares, and every declared name must belong to a pass.
+A contributor can therefore neither add a ruleType to the JSON without an implementation nor
+declare one in the registry and leave it unhandled. Three new engines back the previously-dead
+kinds: `ElementDimensioner` (wall lengths, opening chains per host wall, column-to-grid
+setting-out) and `MepAnnotator` (spot slopes, flow arrows with direction read from the
+connector graph rather than assumed). An unrecognised name is now a warning naming the rule and
+listing the valid vocabulary.
+
+**"Some VGs are duplicated and don't reflect what's inside" — three separate causes.**
+`ResolveExtends` merged `vgOverrides` by key but ACCUMULATED filters with `.Add()`, so a child
+re-declaring a parent's rule produced two entries for one filter. `ApplyFilterRules` then read
+back the live overrides per rule and overlaid only the fields each stated, so the two
+**partially merged** into a combination nobody authored — `corp-healthcare-water` inherited
+`corp-coordination`'s light-blue DCW surface fill under its own darker line colour. Filters now
+merge BY NAME, child wins, matching the precedence `vgOverrides` always had. Separately, three
+packs declared the same filter twice *inside their own list*, every pair disagreeing on colour
+or weight (`corp-healthcare-pressure` had Pressure Positive as both `#1976D2` and `#64B5F6`);
+the later row had been winning, so the earlier was removed — no pixel changes, the ambiguity
+goes. And 10 no-op VG repeats, byte-identical to an ancestor, were deleted: they are what made
+the editor show a child "owning" settings it only echoed, which is how the within-pack
+duplicates got created in the first place.
+
+**The pack editor's Save never saved packs.** The footer hint said it did, the tab offers New /
+Clone / Delete and a full VG editor, and one of its own actions told the user to "Save to
+persist to `view_style_packs.json`" — but nothing in the dialog ever wrote that file. Every
+pack edit was discarded on close. It writes now, project-origin packs only, with the document
+header preserved.
+
+**And when it did write, it wrote keys the runtime cannot read.** The editor's private
+`ViewStylePack` mirror had drifted from `Core.Drawing.ViewStylePack`: its pattern fields
+serialised as `surfaceFgPatternName` / `surfaceFgPatternColor` where the runtime reads
+`surfaceFgPattern` / `surfaceFgColor`, so every pattern override authored in the editor was
+invisible to the applier. Its weights were non-nullable `int` with `NullValueHandling.Ignore`,
+which never suppresses `0` — so every saved override carried `projWeight: 0`, and because
+Revit's range is 1..16 and `SetProjectionLineWeight` throws, the applier abandoned that
+category's ENTIRE override (colour, halftone, transparency) on the first zero. And it bound
+`filterRules` only, so opening either of the two packs that use the canonical `filters` key and
+saving **deleted all 19 rules**.
+
+Keys renamed to the runtime's contract with the old spellings kept as read aliases; weights
+switched to `DefaultValueHandling.Ignore`; `visible`/`halftone` made `bool?` with a genuine
+tri-state checkbox, because as plain bools the editor could not express "the pack does not say"
+and turned every unstated value into a hard override on save. `[JsonExtensionData]` on all
+three mirror classes is the structural half of the fix — enumerating today's missing fields
+would close today's gap; extension data closes the class of it, so the mirror can fall behind
+the runtime without losing user data. `ApplyWeight` in the applier now treats a stray 0 as
+unset and reports anything else by name instead of letting one bad value discard the block, so
+both halves fail safe independently.
+
+**A 13-rule routing table that bound to nothing, in a vocabulary that could not have matched.**
+`STING_VIEW_STYLE_PACKS.json` has always shipped a `routing` array; `ViewStylePackLibrary`
+declared only `Version` and `Packs`. Nothing read `stylePackId`. Its purposes were `Coord` /
+`QA` / `ClientReview` / `DesignReview` — none are `DrawingPurpose` values — and its disciplines
+`ARCH` / `MEP` rather than the single letters every drawing type carries. Now wired as the
+documented fallback for a profile that names no pack, vocabulary corrected, 28 rules ending in
+a catch-all. This mattered: **8 of 93 profiles named no pack and so received no category
+overrides and no filters at all**, silently, because every downstream step is null-guarded.
+
+**35 packs shipped, 8 of them healthcare, zero structural.** `corp-standard-struct` is new —
+frame and rebar at full weight, architectural fabric halftoned as context, MEP hidden — and the
+four structural profiles are bound to it. The four discipline packs had **five** filters each,
+the phase rules inherited from `corp-base`, so MEP production drawings carried no system
+colour-coding while healthcare packs carried up to 31. They now reference 151 of the 290
+registry filters (was 87), declared BY NAME ONLY so `inheritDefaults` pulls each colour from the
+filter registry — one source of truth, rather than 100+ hex values copied into the pack file
+where they would immediately drift.
+
+**Profiles bound to packs that hide their own subject.** Four plumbing schematics, a SuDS
+drainage plan and a pressure schedule were bound to `corp-standard-plan`, which *hides Pipes*;
+an electrical riser to the same; and `health-mep-coord` to the radiation-shielding pack. All
+re-pointed. Two annotation rules targeted categories their pack hid — and because the tagger
+uses a view-scoped collector, which cannot see a hidden element, they placed nothing rather than
+placing an invisible tag. `corp-standard-rcp` now halftones Rooms instead of hiding them (room
+tags belong on an RCP); `arch-section` dropped its Rooms / Furniture tag rules (a building
+section does not tag either). **DT-140** catches the next one.
+
+**Four NTS schematics carried `scale: 1`.** DT-095 only fires on `scale <= 0`, so scale 1 passed
+validation — and `DrawingTypePresentation` applies it, giving a genuine 1:1 drafting view and a
+5 mm tag text height instead of 2.5 mm. Set to `"NA"`, alongside the eight schedules whose
+`view.Scale` assignment had been throwing and being swallowed as a warning on every single run,
+and three 3D profiles that disagreed with their three siblings.
+
+**`print` was inert, and `lineWeightScale` with it.** `print.lineWeightScale` (0.6–1.1 on the
+presentation and clarification profiles, whose entire purpose is lighter line work) and
+`print.halftoneLinks` were read only by the Excel round-trip. Both act now; the profile's scale
+folds into the pack's so the two cannot compound in an order-dependent way. `colourScheme` had
+two spellings for one concept — `Monochrome` (38) and `BlackAndWhite` (28), neither validated —
+normalised, with **DT-142** on a closed set. `textStyle`, `hatchPalette` and pack `colorScheme`
+genuinely have nothing to apply to a Revit view; they are now documented as DECLARATIVE with
+the reasoning, rather than left as unread fields that read as bugs.
+
+**ISO 19650 numbering was declared on 90 profiles and used by 9.** Every profile with an
+`isoNaming` block carries volume / level / type / role / suitability / revision, yet 84 number
+by bespoke short codes. Rewriting the patterns would silently renumber every sheet in every
+project in flight, and a second per-type pattern field would double the drift. Instead
+`PRJ_ORG_SHEET_NUMBER_POLICY_TXT` selects the convention and the ISO number is **derived** from
+`isoNaming` — no new per-type data, nothing to keep in sync. Default is unchanged behaviour,
+because a numbering change is a document-control event, not a side effect of a plugin update. A
+profile with no `isoNaming` keeps its own pattern and says why rather than rendering
+`--ZZ--DR--0001--`.
+
+Also: `dimensionStrategy: "None"` was offered in the Excel dropdown and mapped to Linear by
+`Parse`'s default arm, so "None" dimensioned exactly like "Linear" — now a real member,
+honoured once centrally. Rule `condition` was evaluated for tags only, so a conditional dim rule
+ran unconditionally — now shared by the dim / spot / symbol passes, still fail-open. The editor
+persisted the fully MERGED routing table into the project override, freezing all 113 corporate
+rules where they are prepended and win for ever; `DrawingRoutingRule.Origin` makes "mine"
+answerable and only project rules are written. Five 3D profiles declared `Auto3DTag` eight times
+each — 40 rows expressing 5 decisions, the per-row category ignored — collapsed to one.
+
+**Four more found by the gates, after the fixes.** Writing a gate against the real data is not
+the same as writing one against what you assumed the data looked like, and the difference showed
+up four times.
+
+The new dimension engines first shipped resolving categories with `Enum.TryParse<BuiltInCategory>`
+alone. The catalogue writes **localised display names** — "Doors", "Windows", "Structural
+Columns", "Walls", "Pipes", "Ducts" — not `OST_` strings, so every shipped rule resolved to null
+and the engines would have collected nothing while reporting "category is not a built-in
+category". A brand-new instance of the exact failure this phase existed to remove, one commit
+after removing it. Both spellings now route through `RevitCategoryTree`.
+
+`RevitCategoryTree` then turned out to be a MODEL-category table missing Levels, Scope Boxes,
+Reference Lines, Matchline, Section Boxes, Dimensions, Text Notes and Generic Annotations — eight
+categories `corp-base` actually overrides. `RevitVgEditor` builds its VG tree from
+`RevitCategoryTree.All`, so **the Drawing Type Editor could not show or edit eight overrides the
+corporate baseline ships**, which is squarely part of "the editor doesn't reflect what's inside".
+Added, with `IsTaggable = false` so `TaggableCategories` and the synthesised-rule set it feeds are
+untouched. Medical Equipment added too, the category `corp-healthcare-clinical` colour-codes.
+
+`"Insulation"` is **not a Revit category** — it is a subcategory of ducts, pipes and their
+fittings — yet `corp-standard-section` and `corp-standard-detail` used it as a `vgOverrides` key.
+`ResolveCategoryIdCached` found nothing, the applier warned "Category 'Insulation' not found", and
+the override was dropped, so insulation on every section and detail rendered at full weight
+instead of the halftone grey both packs asked for. Replaced with `Duct Insulations` +
+`Pipe Insulations`.
+
+And three clarification profiles declared `AutoTag` on "Generic Annotations". Revit cannot tag an
+annotation category — `IndependentTag.Create` needs a taggable model category — so the tagger
+would throw once per element and bury a clarification sheet's result in warnings. Dropped; the
+pack already shows and colours them, which was the intent. **DT-139-TAG** reads
+`RevitCategoryTree`'s taggable flag so the next one is caught rather than discovered in a warning
+storm.
+
+A flow-arrow rotation bug was caught by reading rather than running: `Atan2(dir.Y, dir.X)` about
+`view.ViewDirection` is wrong, because a floor plan's ViewDirection is **-Z** (it points towards
+the viewer), so a world-XY angle applied about it turns the arrow the opposite way — every arrow
+in every plan would have pointed upstream. The angle is now measured against the view's own
+`RightDirection` / `UpDirection`, which is correct in any view orientation.
+
+**Verification.** `dotnet build` 0 errors / 0 warnings, clean `-t:Rebuild` included.
+`StingTools.Tags.Tests` **1,591** passing (was 1,582).
+Three new gate files (49 cases) prove RED before GREEN: reverting the two data files to `main`
+turns **6** of them red; injecting one invented ruleType turns the vocabulary gate red; and the
+category gate went red on first run, which is how the four findings above were caught — checked
+in every case, because a gate only ever seen passing is not evidence. 93 corporate checksums
+re-stamped and `--check` verified. `tools/check_path_discipline.ps1` clean.
+
+**Not verified in Revit.** The three new dimensioners and the MEP annotator create real
+geometry through `NewDimension`, `NewSpotElevation` and `NewFamilyInstance`, and none of that
+can run outside Revit. The reference strategies are the risk: wall end-caps are recovered from
+solid geometry (`ComputeReferences = true`) because Revit exposes no "end of wall" reference,
+and the column-to-grid dimension picks between a column's two centre planes by transform
+alignment. Both fail to a named warning rather than an exception, but "fails safely" is not
+"produces the right drawing". Run `DrawingTypes_ProducePerLevel` on a model with walls, doors,
+windows, columns, grids and a sloped drainage run, and check the placed dimensions before
+trusting the counts. Logged as DRAW-1 in `ROADMAP.md`.
+
 #### Completed (Phase 293 — the universal-tag question, and four helpers my own gate missed)
 
 **My gate in Phase 289 was incomplete, and it passed anyway.** It named four helpers —

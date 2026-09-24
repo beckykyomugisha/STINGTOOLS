@@ -101,6 +101,11 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || drawingType?.Annotation == null) return stats;
             var pack = drawingType.Annotation;
 
+            // Surface unimplemented ruleTypes before any pass runs, so a
+            // typo or an un-migrated name reads as a warning rather than as
+            // a quietly empty drawing.
+            ReportUnknownRuleTypes(pack, stats);
+
             // Scale-aware density — at scales coarser than DenseUntilScale,
             // skip per-element tagging. View.Scale is 1:N so a larger
             // number means a coarser drawing.
@@ -128,11 +133,27 @@ namespace StingTools.Core.Drawing
                 }
             }
 
-            // ── Dimensioning — AutoDim + AutoDim/GridDim/LevelAnnotation rules.
+            // ── Dimensioning — every dim kind in AnnotationRuleKinds.
             if (options?.SkipDims != true)
             {
                 try { DimByRules(doc, view, pack, stats); }
                 catch (Exception ex) { stats.Warnings.Add("DimByRules: " + ex.Message); }
+            }
+
+            // ── Spot + symbol rules carried in pack.Rules. These share the
+            // Spots / Decorative opt-outs with the array-driven passes below
+            // because they produce the same kinds of element; what is new is
+            // that a rule row naming AutoSpotInvert / AutoAnnotateSlope /
+            // AutoAnnotateFlowArrow now reaches an engine at all.
+            if (options?.SkipSpots != true)
+            {
+                try { SpotByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("SpotByRules: " + ex.Message); }
+            }
+            if (options?.SkipDecorative != true)
+            {
+                try { SymbolByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("SymbolByRules: " + ex.Message); }
             }
 
             // ── Decorative (north arrow / scale bar / key plan / matchlines)
@@ -163,9 +184,39 @@ namespace StingTools.Core.Drawing
 
         // ─── Rules-based drivers (wire pack.Rules into the proven helpers) ──
 
-        private static readonly HashSet<string> _tagRuleKinds =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "AutoTag", "RoomTag", "SpaceTag", "AreaTag", "MaterialTag", "KeynoteTag", "MultiCategoryTag" };
+        // The rule-type vocabulary lives in AnnotationRuleKinds — ONE
+        // declared registry the runner dispatches from, DrawingTypeValidator
+        // validates against (DT-139) and DrawingTypeExcelCommands offers as
+        // enum options. It replaced a private HashSet here plus a chain of
+        // string.Equals in DimByRules, which between them let any
+        // unrecognised ruleType fall through BOTH passes in silence: 56 of
+        // the 334 rules in the shipped catalogue were in that state.
+        //
+        // ReportUnknownRuleTypes below is the other half of the fix. A name
+        // the registry does not know is now a WARNING naming the rule and
+        // listing the valid vocabulary, so "declared but unimplemented" can
+        // never again look identical to "ran and placed nothing".
+
+        /// <summary>
+        /// Warn once per unrecognised ruleType in the pack. Called at the top
+        /// of the run so the report lands even when every pass then declines
+        /// the rule.
+        /// </summary>
+        private static void ReportUnknownRuleTypes(AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                var rt = r.RuleType;
+                if (AnnotationRuleKinds.IsKnown(rt)) continue;
+                if (!seen.Add(rt ?? "<null>")) continue;
+                stats.Warnings.Add(
+                    $"Unknown annotation ruleType '{rt}' (category '{r.Category}') — no pass claims it, so nothing was placed. "
+                    + $"Valid values: {string.Join(", ", AnnotationRuleKinds.AllRuleTypes)}.");
+            }
+        }
 
         /// <summary>
         /// Phase 137 Rules-based tagging. Walks pack.Rules (which, post-
@@ -179,7 +230,7 @@ namespace StingTools.Core.Drawing
         private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
             if (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
-                    string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase)))
+                    AnnotationRuleKinds.IsThreeDKind(r.RuleType)))
             {
                 try
                 {
@@ -203,7 +254,7 @@ namespace StingTools.Core.Drawing
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
                 effective = pack.Rules
-                    .Where(r => r != null && r.Enabled && _tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .Where(r => r != null && r.Enabled && AnnotationRuleKinds.IsTagKind(r.RuleType))
                     .ToList();
             else if (pack.AutoTag == true)
                 effective = SharedParamGuids.AllCategoryEnums
@@ -241,8 +292,19 @@ namespace StingTools.Core.Drawing
                         }
                     }
 
-                    var catId = ResolveCategoryId(doc, rule.Category);
-                    if (catId == ElementId.InvalidElementId) continue;
+                    // The kind's forced category wins over the row's own, so
+                    // RoomTag / AutoTagRoomName / AutoTagRoomNumber /
+                    // SpaceTag / AutoAnnotateSpaceNumber / AreaTag always act
+                    // on the category they name, never on whatever the row
+                    // happened to carry. A row with no resolvable category is
+                    // reported, not skipped in silence.
+                    var effCat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                    var catId = ResolveCategoryId(doc, effCat);
+                    if (catId == ElementId.InvalidElementId)
+                    {
+                        stats.Warnings.Add($"Tag rule '{rule.RuleType}': category '{effCat}' not found in this document — skipped.");
+                        continue;
+                    }
                     long cv = catId.Value;
                     if (!doneCats.Add(cv)) continue;
                     // BuiltInCategory's underlying type is long (Revit 2024+), so
@@ -251,44 +313,220 @@ namespace StingTools.Core.Drawing
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
-                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
             }
         }
 
         /// <summary>
-        /// Phase 137 Rules-based dimensioning. Honours AutoDim / GridDim /
-        /// LevelAnnotation rules — placing one grid chain and/or one level
-        /// chain — plus the general AutoDim bool fallback, via the proven
-        /// DimGrids / DimLevels helpers. Each chain is placed at most once.
+        /// Rules-based dimensioning, dispatched from AnnotationRuleKinds.
+        ///
+        /// Grid and level chains are placed at most once per view however
+        /// many rules ask for them (they are whole-view chains, so a second
+        /// is always a duplicate). The element and MEP kinds are per-rule,
+        /// because each carries its own category / minSizeMm narrowing, and
+        /// each engine holds its own idempotency index.
+        ///
+        /// Every dim kind the registry declares reaches a handler here; the
+        /// default arm is unreachable while registry and switch agree, and
+        /// says so loudly rather than dropping the rule — which is exactly
+        /// what the old three-string.Equals form did for AutoDimWallLength,
+        /// AutoDimOpenings, AutoDimColumnGrid, AutoDimMEPRun and
+        /// AutoDimMEPToGrid.
         /// </summary>
         private static void DimByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
             bool didGrids = false, didLevels = false;
+
+            // dimensionStrategy "None" means the profile wants no automatic
+            // dimensioning. Honoured once here rather than in each engine.
+            if (DimensionStrategy.Suppresses(pack?.DimensionStrategy))
+            {
+                int asked = pack?.Rules?.Count(x => x != null && x.Enabled && AnnotationRuleKinds.IsDimKind(x.RuleType)) ?? 0;
+                if (asked > 0)
+                {
+                    stats.Skipped += asked;
+                    stats.Warnings.Add(
+                        $"dimensionStrategy is \"None\" — {asked} dimension rule(s) deliberately skipped. "
+                        + "Set Linear / Chain / Ordinate to enable them.");
+                }
+                return;
+            }
+
             if (pack.Rules != null)
             {
                 foreach (var r in pack.Rules)
                 {
                     if (r == null || !r.Enabled) continue;
-                    var rt = r.RuleType ?? "";
-                    bool isDim = string.Equals(rt, "AutoDim", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(rt, "GridDim", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(rt, "LevelAnnotation", StringComparison.OrdinalIgnoreCase);
-                    if (!isDim) continue;
-                    bool isLevels = (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!AnnotationRuleKinds.IsDimKind(r.RuleType)) continue;
+                    if (!RuleConditionPasses(doc, view, r, "Dim", stats)) continue;
+
+                    var aux = new AnnotationResult();
                     try
                     {
-                        if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } }
-                        else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids = true; } }
+                        switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                        {
+                            case AnnotationRuleKinds.AutoDim:
+                            case AnnotationRuleKinds.GridDim:
+                            case AnnotationRuleKinds.LevelAnnotation:
+                            {
+                                // AutoDim is polymorphic on the row's category —
+                                // the catalogue writes {Grids, AutoDim} and
+                                // {Levels, AutoDim} — whereas GridDim and
+                                // LevelAnnotation name their target outright.
+                                bool isLevels =
+                                    string.Equals(r.RuleType, AnnotationRuleKinds.LevelAnnotation, StringComparison.OrdinalIgnoreCase)
+                                    || (!string.Equals(r.RuleType, AnnotationRuleKinds.GridDim, StringComparison.OrdinalIgnoreCase)
+                                        && (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0);
+                                if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } else stats.Skipped++; }
+                                else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids  = true; } else stats.Skipped++; }
+                                break;
+                            }
+
+                            case AnnotationRuleKinds.AutoDimWallLength:
+                                ElementDimensioner.RunWallLength(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimOpenings:
+                                ElementDimensioner.RunOpenings(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimColumnGrid:
+                                ElementDimensioner.RunColumnToGrid(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimMEPRun:
+                                MEPDimensioner.RunChain(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimMEPToGrid:
+                                MEPDimensioner.RunGridDrop(doc, view, pack, r, aux);
+                                break;
+
+                            default:
+                                stats.Warnings.Add(
+                                    $"Dim ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                    + "AnnotationRunner.DimByRules — nothing placed. This is a wiring bug, not a data error.");
+                                break;
+                        }
                     }
-                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.Category}': {ex.Message}"); }
+                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                    stats.DimsCreated += aux.DimsPlaced;
+                    stats.Skipped     += aux.Skipped;
+                    stats.Warnings.AddRange(aux.Warnings);
                 }
             }
+
             if (pack.AutoDim == true && !didGrids)
             {
                 try { DimGrids(doc, view, pack, stats); }
                 catch (Exception ex) { stats.Warnings.Add("AutoDim grids: " + ex.Message); }
+            }
+        }
+
+        /// <summary>
+        /// Evaluate a rule's optional <c>condition</c>. Fail-open — an
+        /// unparseable condition runs the rule rather than silently dropping
+        /// requested annotation — and shared by the dim / spot / symbol
+        /// passes so all four honour the field the tag pass already did.
+        /// </summary>
+        private static bool RuleConditionPasses(Document doc, View view, AutoAnnotationRule r,
+            string passLabel, AnnotationRunStats stats)
+        {
+            if (string.IsNullOrWhiteSpace(r?.Condition)) return true;
+            try
+            {
+                var cctx = ConditionContext.FromView(doc, view, r.Category);
+                if (AnnotationConditionEvaluator.Evaluate(r.Condition, cctx)) return true;
+                stats.Skipped++;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                stats.Warnings.Add($"{passLabel} rule condition '{r.Condition}': {ex.Message} — rule run anyway (fail-open).");
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Spot-annotation rules carried in pack.Rules — AutoSpotInvert
+        /// (drainage invert levels) and AutoAnnotateSlope (spot slopes).
+        /// Distinct from ProcessSpotRules, which serves the separate
+        /// spotElevationRules / spotCoordinateRules arrays; these two arrive
+        /// as ordinary rows in pack.Rules and so had no route at all —
+        /// DrainageInvertDimensioner had zero call sites anywhere in the tree.
+        /// </summary>
+        private static void SpotByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                if (!AnnotationRuleKinds.IsSpotKind(r.RuleType)) continue;
+                if (!RuleConditionPasses(doc, view, r, "Spot", stats)) continue;
+
+                var aux = new AnnotationResult();
+                try
+                {
+                    switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                    {
+                        case AnnotationRuleKinds.AutoSpotInvert:
+                            DrainageInvertDimensioner.Run(doc, view, pack, r, aux);
+                            break;
+                        case AnnotationRuleKinds.AutoAnnotateSlope:
+                            MepAnnotator.RunSlope(doc, view, pack, r, aux);
+                            break;
+                        default:
+                            stats.Warnings.Add(
+                                $"Spot ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                + "AnnotationRunner.SpotByRules — nothing placed. This is a wiring bug, not a data error.");
+                            break;
+                    }
+                }
+                catch (Exception ex) { stats.Warnings.Add($"Spot rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                stats.DecorativePlaced += aux.SpotsPlaced;
+                stats.Skipped          += aux.Skipped;
+                stats.Warnings.AddRange(aux.Warnings);
+            }
+        }
+
+        /// <summary>
+        /// Annotation-symbol rules carried in pack.Rules — currently
+        /// AutoAnnotateFlowArrow. Its own pass because a symbol is neither a
+        /// tag (no host element) nor a dimension (no references).
+        /// </summary>
+        private static void SymbolByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                if (!AnnotationRuleKinds.IsSymbolKind(r.RuleType)) continue;
+                if (!RuleConditionPasses(doc, view, r, "Symbol", stats)) continue;
+
+                var aux = new AnnotationResult();
+                try
+                {
+                    switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                    {
+                        case AnnotationRuleKinds.AutoAnnotateFlowArrow:
+                            MepAnnotator.RunFlowArrow(doc, view, pack, r, aux);
+                            break;
+                        default:
+                            stats.Warnings.Add(
+                                $"Symbol ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                + "AnnotationRunner.SymbolByRules — nothing placed. This is a wiring bug, not a data error.");
+                            break;
+                    }
+                }
+                catch (Exception ex) { stats.Warnings.Add($"Symbol rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                stats.DecorativePlaced += aux.DecorativePlaced;
+                stats.Skipped          += aux.Skipped;
+                stats.Warnings.AddRange(aux.Warnings);
             }
         }
 

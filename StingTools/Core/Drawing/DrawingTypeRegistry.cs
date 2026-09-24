@@ -349,6 +349,11 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes)
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "corporate";
+                        // Routing rules carry an origin too, so the editor can
+                        // persist only the project's own rules instead of
+                        // freezing the whole corporate table into the override.
+                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
+                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "corporate";
                         DedupeById(lib, "corporate");
                         return lib;
                     }
@@ -378,6 +383,8 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
+                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
                         DedupeById(lib, "project");
                     }
                     return lib;
@@ -395,6 +402,8 @@ namespace StingTools.Core.Drawing
                 {
                     foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
                         if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    foreach (var rr in libOnDisk.Routing ?? new List<DrawingRoutingRule>())
+                        if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
                     DedupeById(libOnDisk, "project");
                 }
                 return libOnDisk;

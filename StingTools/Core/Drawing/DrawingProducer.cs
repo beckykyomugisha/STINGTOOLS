@@ -798,16 +798,32 @@ namespace StingTools.Core.Drawing
             // before substituting so the operator sees which token was blank
             // and where to set it, rather than discovering "KBL26-PLN-COT01--DR"
             // on an issued drawing.
+            // The project's sheet-number policy decides whether this profile
+            // numbers by its own pattern or by the ISO 19650-2 field order
+            // derived from its isoNaming block. Default is the profile's own
+            // pattern, so this changes nothing until a project opts in by
+            // setting PRJ_ORG_SHEET_NUMBER_POLICY_TXT = "iso". See
+            // Core/Drawing/SheetNumberPolicy.cs for why the ISO number is
+            // derived rather than authored per type.
+            string numberPattern = dt.SheetNumberPattern;
+            try
+            {
+                var policy = SheetNumberPolicy.Parse(ReadSheetNumberPolicy(doc));
+                numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy, out var policyNote);
+                if (!string.IsNullOrEmpty(policyNote)) result.Warnings.Add(policyNote);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Sheet-number policy: {ex.Message}"); }
+
             if (opts.OverrideSheetNumber == null)
                 result.Warnings.AddRange(
-                    DrawingTokenContext.AuditPattern(dt.SheetNumberPattern, tokens, "Sheet number"));
+                    DrawingTokenContext.AuditPattern(numberPattern, tokens, "Sheet number"));
             if (opts.OverrideSheetName == null)
                 result.Warnings.AddRange(
                     DrawingTokenContext.AuditPattern(dt.SheetNamePattern, tokens, "Sheet name"));
 
             try
             {
-                var number = opts.OverrideSheetNumber ?? SubstituteTokens(dt.SheetNumberPattern, dt, ctx, seq, tokens);
+                var number = opts.OverrideSheetNumber ?? SubstituteTokens(numberPattern, dt, ctx, seq, tokens);
                 // A known-but-empty token substitutes to "" and leaves both of its
                 // separators — "A-{lvl}-{seq:D3}" with no level produces "A--001".
                 // Collapse before the uniqueness check, so two sheets differing only
@@ -1442,5 +1458,25 @@ namespace StingTools.Core.Drawing
             d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;
             return d;
         }
+        /// <summary>
+        /// Read the project's sheet-number policy from ProjectInformation.
+        /// Absent / unreadable ⇒ null ⇒ SheetNumberPolicy.Parse returns
+        /// Profile, i.e. existing behaviour.
+        /// </summary>
+        private static string ReadSheetNumberPolicy(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                var p = pi?.LookupParameter(SheetNumberPolicy.PolicyParameterName);
+                return p != null && p.StorageType == StorageType.String ? p.AsString() : null;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"ReadSheetNumberPolicy: {ex.Message}");
+                return null;
+            }
+        }
+
     }
 }

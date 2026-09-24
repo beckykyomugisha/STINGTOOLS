@@ -725,6 +725,28 @@ namespace StingTools.Core.Drawing
         [JsonProperty("docType")]       public string DocType { get; set; } = "*"; // matches DrawingPurpose values or user codes
         [JsonProperty("drawingTypeId")] public string DrawingTypeId { get; set; }
 
+        /// <summary>
+        /// "corporate" (shipped baseline) or "project" (added by this
+        /// project's override). Stamped by DrawingTypeRegistry on load, and
+        /// read by the editor's save so only PROJECT rules are written back.
+        ///
+        /// The editor used to persist DrawingTypeRegistry.ListRouting(doc) —
+        /// the fully MERGED table — into the project override. The signature
+        /// de-dup in Merge stopped that from doubling at runtime, but it froze
+        /// all 113 corporate rules into the project file, where they are
+        /// prepended and therefore win: a later corporate change to an
+        /// existing (discipline, phase, docType) key could never reach that
+        /// project again. Origin makes "which rules are mine" answerable, so
+        /// the save can be correct.
+        /// </summary>
+        [JsonProperty("origin", NullValueHandling = NullValueHandling.Ignore)]
+        public string Origin { get; set; }
+
+        /// <summary>True when this rule came from the project override, not the corporate baseline.</summary>
+        [JsonIgnore]
+        public bool IsProjectRule =>
+            string.Equals(Origin, "project", StringComparison.OrdinalIgnoreCase);
+
         // Week 6 — predicate extensions. Each optional field narrows
         // the match further. When null the field does not participate
         // in matching. All set predicates must match for the rule to
