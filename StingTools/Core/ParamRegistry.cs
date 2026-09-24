@@ -738,6 +738,16 @@ namespace StingTools.Core
         public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
         public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
 
+        // DRAW-6 — project sheet-number policy (short / profile / iso), read by
+        // DrawingProducer through SheetNumberPolicy. Referenced since the policy
+        // landed but registered in no data file, so LookupParameter returned
+        // null on every model and the "iso" opt-in could not be set. The name
+        // is SheetNumberPolicy's constant so the two cannot drift; the GUID is
+        // UUIDv5(Planscape docs namespace, name), the scheme every PRJ_ORG_*
+        // sibling uses. Not in AllOrganisationParams (template-engine seed set).
+        public const string ORG_SHEET_NUMBER_POLICY      = StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName;
+        public const string ORG_SHEET_NUMBER_POLICY_GUID = "89828bdc-25ad-5245-bce8-3274203c34b2";
+
         /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
         public static readonly string[] AllOrganisationParams = new[]
         {

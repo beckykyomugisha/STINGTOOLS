@@ -9,4 +9,6 @@
 #      were invisible to this gate. The ceiling ROSE because COVERAGE rose, not
 #      because violations were introduced — a gate that cannot see a whole family
 #      of parameters is the blind spot it exists to prevent.
-384
+# 383  PRJ_ORG_SHEET_NUMBER_POLICY_TXT registered (DRAW-6) — it was read by
+#      DrawingProducer and declared nowhere, so it could never be set (2026-09-24).
+383
