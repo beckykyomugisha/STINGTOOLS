@@ -142,7 +142,7 @@ namespace StingTools.Core.Drawing
             {
                 if (dense)
                 {
-                    try { TagByRules(doc, view, pack, stats); }
+                    try { TagByRules(doc, view, pack, stats, drawingType); }
                     catch (Exception ex) { stats.Warnings.Add("TagByRules: " + ex.Message); }
                 }
                 else
@@ -246,7 +246,8 @@ namespace StingTools.Core.Drawing
         /// category is tagged at most once via the proven TagCategory helper;
         /// custom (non-built-in) categories are skipped.
         /// </summary>
-        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats,
+            DrawingType drawingType = null)
         {
             if (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
                     AnnotationRuleKinds.IsThreeDKind(r.RuleType)))
@@ -332,7 +333,7 @@ namespace StingTools.Core.Drawing
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
-                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value);
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
             }
@@ -930,7 +931,8 @@ namespace StingTools.Core.Drawing
 
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
-            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
+            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null,
+            DrawingType drawingType = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
@@ -956,6 +958,10 @@ namespace StingTools.Core.Drawing
                 stats.Warnings.Add($"No tag family available for {catKey} — skipped.");
                 return;
             }
+            // Tag text size for this drawing (1:50 → 2.5 mm …). Inert until size
+            // variants of the chosen family are loaded — see TagSizeVariant.
+            if (drawingType != null)
+                tagTypeId = ApplyTagSizeVariant(doc, tagTypeId, drawingType, catKey, stats);
 
             // Paragraph depth is NOT resolved or written here any more.
             //
@@ -1153,6 +1159,59 @@ namespace StingTools.Core.Drawing
         }
 
         // ─── Resolution helpers ──────────────────────────────────────────
+
+        /// <summary>
+        /// Swap the chosen tag for its size variant for this drawing, when one is
+        /// loaded: a family "&lt;base&gt; &lt;n&gt;mm", else a type "&lt;n&gt;mm" in the base
+        /// family, nearest available size to DrawingType.EffectiveTagTextSizeMm.
+        /// Returns the base unchanged when no variant exists.
+        /// </summary>
+        private static ElementId ApplyTagSizeVariant(Document doc, ElementId baseTypeId, DrawingType dt,
+            string catKey, AnnotationRunStats stats)
+        {
+            try
+            {
+                if (!(doc.GetElement(baseTypeId) is FamilySymbol baseSym)) return baseTypeId;
+                string baseFam = baseSym.FamilyName;
+                var sameCat = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                    .Where(fs => fs.Category != null && baseSym.Category != null && fs.Category.Id == baseSym.Category.Id)
+                    .ToList();
+
+                var famVariants = sameCat
+                    .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
+                    .Where(x => x.size.HasValue).ToList();
+                var typeVariants = sameCat
+                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase))
+                    .Select(fs => (fs, size: TagSizeVariant.ParseToken(fs.Name)))
+                    .Where(x => x.size.HasValue).ToList();
+
+                var choice = TagSizeVariant.Choose(dt,
+                    famVariants.Select(x => x.size.Value), typeVariants.Select(x => x.size.Value));
+                if (choice.Kind == TagSizeVariant.Kind.None) return baseTypeId;
+
+                FamilySymbol pick;
+                if (choice.Kind == TagSizeVariant.Kind.Family)
+                {
+                    var inFamily = famVariants.Where(x => Math.Abs(x.size.Value - choice.SizeMm) < 1e-6).Select(x => x.fs).ToList();
+                    // Keep the base's type (e.g. "Standard") if the variant family has it.
+                    pick = inFamily.FirstOrDefault(fs => string.Equals(fs.Name, baseSym.Name, StringComparison.OrdinalIgnoreCase))
+                        ?? inFamily.FirstOrDefault();
+                }
+                else
+                    pick = typeVariants.Where(x => Math.Abs(x.size.Value - choice.SizeMm) < 1e-6).Select(x => x.fs).FirstOrDefault();
+
+                if (pick == null) return baseTypeId;
+                if (Math.Abs(choice.SizeMm - dt.EffectiveTagTextSizeMm()) > 1e-6)
+                    stats.Warnings.Add($"{catKey}: no {DrawingType.TagSizeToken(dt.EffectiveTagTextSizeMm())} variant of " +
+                                       $"'{baseFam}' is loaded; used the nearest, {DrawingType.TagSizeToken(choice.SizeMm)}.");
+                return pick.Id;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ApplyTagSizeVariant {catKey}: {ex.Message}");
+                return baseTypeId;
+            }
+        }
 
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
             string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)
