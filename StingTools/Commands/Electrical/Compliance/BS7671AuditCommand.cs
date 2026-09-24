@@ -42,6 +42,11 @@ namespace StingTools.Commands.Electrical.Compliance
 
             string earthing = StingElectricalCommandHandler.CurrentEarthingSystem ?? "TN-C-S";
             var wireTables = WireTableSet.Load(null);
+            // Corporate thresholds + <project>/_BIM_COORD/bs7671_disconnection.json
+            // (ROADMAP ELEC-14) — the override is how a non-UK supply declares its Ze.
+            string overridePath = StingPaths.MetaFile(doc, "_BIM_COORD",
+                BS7671ComplianceEngine.ProjectOverrideFileName);
+            var thresholds = BS7671ComplianceEngine.Thresholds(overridePath);
 
             var systems = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>()
@@ -61,6 +66,7 @@ namespace StingTools.Commands.Electrical.Compliance
                 {
                     var inp = BuildInput(doc, sys, earthing, wireTables);
                     if (inp == null) continue;
+                    inp.Thresholds = thresholds;
                     var r = BS7671ComplianceEngine.AuditCircuit(inp);
                     if (r != null) results.Add(r);
                 }
@@ -77,6 +83,13 @@ namespace StingTools.Commands.Electrical.Compliance
 
             var sb = new StringBuilder();
             sb.AppendLine($"Audited {results.Count} power circuit(s) on {earthing} earthing.");
+            double zeShown = thresholds.Ze.TryGetValue(earthing, out double zeV) ? zeV : double.NaN;
+            string zeFrom = thresholds.ZeSource.TryGetValue(earthing, out var zs) ? zs : "not declared";
+            sb.AppendLine(double.IsNaN(zeShown)
+                ? $"Ze: {earthing} not in the thresholds file — 0.8 Ω ASSUMED."
+                : $"Ze = {zeShown:0.00} Ω ({zeFrom}{(zeFrom == "project" ? "" : " — UK DNO maximum; declare the local supply's Ze in _BIM_COORD/" + BS7671ComplianceEngine.ProjectOverrideFileName)}), " +
+                  $"Cmin = {thresholds.Cmin:0.00}, U0 = {thresholds.NominalUo:0} V.");
+            foreach (var w in thresholds.Warnings) sb.AppendLine($"⚠ {w}");
             sb.AppendLine();
             sb.AppendLine($"✅ PASS         : {pass}");
             sb.AppendLine($"⚠ PASS_VIA_RCD : {viaRcd}  (Zs fails ADS but RCD makes it compliant per §411.4.5)");

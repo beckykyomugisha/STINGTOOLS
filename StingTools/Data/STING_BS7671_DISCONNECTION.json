@@ -33,6 +33,9 @@
   "_uo_comment": "Phase-to-earth voltage Uo (V). 230 V single-phase TN; 240 V is also accepted for legacy installations.",
   "nominalUoV": 230,
 
+  "_cmin_comment": "Minimum voltage factor Cmin in Zs x Ia <= U0 x Cmin, BS 7671:2018+A2:2022 Reg 411.4.4 (0.95; accounts for supply-voltage variation and is already built into the Table 41.2-41.4 maximum Zs values). PROJECT OVERRIDE: put a file at <project>/_BIM_COORD/bs7671_disconnection.json with only the keys to change - e.g. {\"earthingSystems\": {\"TN-C-S\": {\"ZeOhm\": 0.25}}} to declare a measured/declared Ze for a non-UK (e.g. UMEME) supply. The Ze values in this corporate file are UK DNO maxima.",
+  "cMin": 0.95,
+
   "_k_comment": "Adiabatic constant k for (k·S)² ≥ I²·t check (BS 7671 §434.5.2 Table 43.1). 115=Cu/PVC, 143=Cu/XLPE (90°C), 76=Al/PVC, 94=Al/XLPE.",
   "adiabaticK": {
     "Cu/PVC":  115,

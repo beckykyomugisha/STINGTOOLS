@@ -4,27 +4,41 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Core.Electrical;
 
 namespace StingTools.Commands.Electrical.FaultCurrent
 {
     /// <summary>
-    /// Pure resistive-impedance fault-current engine. No Revit API. Implements
-    /// the IEC 60909 simplified resistive method:
-    ///   Z_source = V_LN / (sqrt(3) * I_fault_kA * 1000)   [3-phase, ohms]
-    ///   Z_total  = Z_source + Z_feeder
-    ///   I_fault_downstream = V_LN / (sqrt(3) * Z_total)    [kA]
-    /// Cable resistance is read from the wire-tables JSON the Phase 177
-    /// CableSizerEngine already consumes, with linear T-coefficient correction
-    /// per BS 7671 Appx 4 and IEC 60228.
+    /// Fault-level propagation down the SLD hierarchy. No Revit API calls -
+    /// the command resolves each panel's voltage, phase count and feeder
+    /// cable and hands them in through <see cref="PanelSupplyInfo"/>.
+    ///
+    /// The arithmetic is IEC 60909-0:2016's equivalent-voltage-source method
+    /// in <see cref="Iec60909Lv"/>: voltage factor cmax, a source impedance
+    /// recovered from the upstream fault level with an R/X split, and the
+    /// feeder's R (20 °C, for maximum fault current) and X added as complex
+    /// impedances. What it is NOT: see the header of Iec60909Lv.cs.
+    ///
+    /// Every input the model did not supply is recorded per panel in
+    /// <see cref="FaultPropagationResult.Assumptions"/> - nothing is defaulted
+    /// silently.
     /// </summary>
     public static class FaultCurrentEngine
     {
-        public const double Sqrt3 = 1.7320508075688772;
+        public const double Sqrt3 = Iec60909Lv.Sqrt3;
 
         /// <summary>
-        /// Total impedance of one cable run in milliohms. Single-phase callers
-        /// must double the result to account for the return loop; three-phase
-        /// callers use it as-is (line-to-line uses the same per-conductor R).
+        /// ASSUMPTION used only when no panel in the chain declares a voltage:
+        /// 400 V line-to-line, 3-phase (IEC 60038 / BS EN 60038 nominal LV).
+        /// Surfaced per panel in the result, never applied silently.
+        /// </summary>
+        public const double AssumedLineToLineV = 400.0;
+
+        /// <summary>
+        /// Resistance of one cable run in milliohms at the conductor operating
+        /// temperature. Used by the BS 7671 Zs check (R1 + R2 at 70/90 °C) -
+        /// NOT by the maximum-fault calculation, which uses 20 °C resistance
+        /// per IEC 60909-0.
         /// </summary>
         public static double CableImpedanceMohm(WireTableSet wireTables,
             double csaMm2, string material, double lengthM,
@@ -46,64 +60,119 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         }
 
         /// <summary>
-        /// Available short-circuit current at the downstream end of a feeder
-        /// given the upstream bus fault level + feeder loop impedance.
-        /// systemVoltageV = phase-to-neutral voltage (e.g. 240 for 415V 3Ph TN-S
-        /// / 277 for 480V 3Ph US / 240 for 240V 1Ph).
+        /// Fault level at the downstream end of a feeder, kA, IEC 60909-0 cmax.
+        /// <paramref name="systemVoltageV"/> is the LINE-TO-LINE voltage for
+        /// <paramref name="phases"/> = 3 (e.g. 400) and the LINE-TO-NEUTRAL
+        /// voltage for a single-phase system (e.g. 230). The feeder impedance
+        /// is one conductor, taken as purely resistive here - callers that know
+        /// the cable should use <see cref="Iec60909Lv"/> directly with R and X.
         /// </summary>
         public static double DownstreamFaultKa(double upstreamFaultKa, double feederZMohm,
             double systemVoltageV, int phases = 3)
         {
-            if (upstreamFaultKa <= 0 || systemVoltageV <= 0) return 0;
-            double zSource = phases == 3
-                ? systemVoltageV / (Sqrt3 * upstreamFaultKa * 1000.0)
-                : systemVoltageV / (upstreamFaultKa * 1000.0);
-            double zTotalOhm = zSource + feederZMohm / 1000.0;
-            if (zTotalOhm <= 0) return upstreamFaultKa;
-            double iFaultA = phases == 3
-                ? systemVoltageV / (Sqrt3 * zTotalOhm)
-                : systemVoltageV / zTotalOhm;
-            return iFaultA / 1000.0;
+            var feeder = new ImpedanceMohm(Math.Max(0, feederZMohm), 0);
+            return phases == 3
+                ? Iec60909Lv.Downstream3PhKa(upstreamFaultKa, systemVoltageV, feeder)
+                : Iec60909Lv.Downstream1PhKa(upstreamFaultKa, systemVoltageV, feeder);
         }
 
         /// <summary>
-        /// Walk the SLD hierarchy depth-first, propagating the fault level
-        /// downward. The returned dictionary maps each panel ElementId to the
-        /// computed fault level + AIC requirement.
-        /// Caller supplies the SLD root from
-        /// <c>StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc)</c>.
+        /// Walk the SLD hierarchy depth-first, propagating the maximum fault
+        /// level downward. <paramref name="utilityFaultKa"/> is the fault level
+        /// at the root board: 3-phase I"k for a 3-phase root, the line-to-neutral
+        /// prospective fault current for a single-phase root.
+        /// <paramref name="supplyOf"/> returns what the model knows about a node;
+        /// it may return null.
         /// </summary>
         public static Dictionary<long, FaultPropagationResult> PropagateAll(
             StingTools.Core.SLD.SLDNode root, double utilityFaultKa, WireTableSet wireTables,
-            double systemVoltageV = 240.0, int phases = 3, double[] aicTiers = null)
+            Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf, double[] aicTiers = null)
         {
             var results = new Dictionary<long, FaultPropagationResult>();
             if (root == null) return results;
-            PropagateNode(root, utilityFaultKa, wireTables, systemVoltageV, phases, aicTiers ?? new double[0], results);
+            PropagateNode(root, utilityFaultKa, 0, 0, false, wireTables, supplyOf,
+                aicTiers ?? new double[0], results);
             return results;
         }
 
         private static void PropagateNode(StingTools.Core.SLD.SLDNode node,
-            double parentFaultKa, WireTableSet wireTables,
-            double systemVoltageV, int phases, double[] aicTiers,
-            Dictionary<long, FaultPropagationResult> results)
+            double parentFaultKa, double parentVoltageLL, int parentPhases, bool parentVoltageAssumed,
+            WireTableSet wireTables, Func<StingTools.Core.SLD.SLDNode, PanelSupplyInfo> supplyOf,
+            double[] aicTiers, Dictionary<long, FaultPropagationResult> results)
         {
             if (node == null) return;
+            var info = supplyOf?.Invoke(node) ?? new PanelSupplyInfo();
+            var notes = new List<string>();
+            bool voltageAssumed = false;
 
-            // For non-root panel nodes, compute downstream fault from feeder cable.
-            double feederZMohm = 0;
-            double feederCsa   = 0;
-            if (node.HierarchyLevel > 0 && node.RevitElement != null)
+            // ── Voltage + phases: model, else inherit from the parent, else assume ──
+            int phases = info.Phases == 1 || info.Phases == 3 ? info.Phases : 0;
+            double vLL = info.VoltageLineToLineV;
+            double vLN = info.VoltageLineToNeutralV;
+            if (phases == 0 && parentPhases != 0)
             {
-                feederCsa = ReadDoubleParameter(node.RevitElement, "ELC_FEEDER_CSA_MM2");
-                if (feederCsa <= 0) feederCsa = ReadDoubleParameter(node.RevitElement, "ELC_CBL_SZ_MM");
-                double feederLenM = 5.0;  // conservative default when no length is recorded
-                feederZMohm = CableImpedanceMohm(wireTables, feederCsa, "Cu", feederLenM);
+                phases = parentPhases;
+                notes.Add($"phase count not declared — inherited {phases}-phase from upstream");
+            }
+            if (vLL <= 0 && vLN > 0) vLL = vLN * Sqrt3;
+            if (vLN <= 0 && vLL > 0) vLN = vLL / Sqrt3;
+            if (vLL <= 0 && parentVoltageLL > 0)
+            {
+                vLL = parentVoltageLL; vLN = vLL / Sqrt3;
+                voltageAssumed = parentVoltageAssumed;
+                notes.Add($"voltage not declared — inherited {vLL:0} V L-L from upstream" +
+                          (parentVoltageAssumed ? " (which was itself ASSUMED)" : ""));
+            }
+            if (vLL <= 0)
+            {
+                vLL = AssumedLineToLineV; vLN = vLL / Sqrt3;
+                voltageAssumed = true;
+                notes.Add($"ASSUMED {AssumedLineToLineV:0} V L-L (no voltage on this panel or any upstream)");
+            }
+            if (phases == 0)
+            {
+                phases = 3;
+                notes.Add("ASSUMED 3-phase (phase count not declared)");
+            }
+            if (!string.IsNullOrEmpty(info.VoltageNote)) notes.Add(info.VoltageNote);
+
+            // ── Feeder cable (non-root panels only) ──
+            double rPerM = 0, lengthM = 0, csa = info.FeederCsaMm2;
+            var conductor = new ImpedanceMohm(0, 0);
+            if (node.HierarchyLevel > 0)
+            {
+                string material = string.IsNullOrEmpty(info.Material) ? "Cu" : info.Material;
+                lengthM = info.FeederLengthM;
+                rPerM = csa > 0 && wireTables != null ? wireTables.GetMohmPerMetre(csa, material) : 0;
+                if (csa <= 0)
+                    notes.Add("feeder CSA unknown — cable impedance ignored, fault level taken as upstream " +
+                              "(conservative for breaking capacity only)");
+                else if (rPerM <= 0)
+                    notes.Add($"no resistance data for {csa:0.#} mm² — cable impedance ignored");
+                if (lengthM <= 0)
+                    notes.Add("feeder length unknown — cable impedance ignored, fault level taken as upstream " +
+                              "(conservative for breaking capacity only)");
+                if (rPerM > 0 && lengthM > 0)
+                {
+                    conductor = Iec60909Lv.CableConductor(rPerM, lengthM);
+                    notes.Add($"cable X ASSUMED {Iec60909Lv.AssumedCableReactanceMohmPerM:0.00} mΩ/m");
+                    if (!string.IsNullOrEmpty(info.LengthSource))
+                        notes.Add($"length {lengthM:0.#} m from {info.LengthSource}");
+                }
             }
 
-            double thisFaultKa = node.HierarchyLevel == 0
-                ? parentFaultKa
-                : DownstreamFaultKa(parentFaultKa, feederZMohm, systemVoltageV, phases);
+            double thisFaultKa;
+            if (node.HierarchyLevel == 0)
+                thisFaultKa = parentFaultKa;
+            else if (phases == 3)
+                thisFaultKa = Iec60909Lv.Downstream3PhKa(parentFaultKa, vLL, conductor);
+            else
+            {
+                if (parentPhases == 3)
+                    notes.Add("upstream L-N fault level ASSUMED equal to its 3-phase level " +
+                              "(true at Dyn transformer terminals, high further downstream — conservative for breaking capacity)");
+                thisFaultKa = Iec60909Lv.Downstream1PhKa(parentFaultKa, vLN, conductor);
+            }
 
             if (node.IsPanel && node.ElementId != null)
             {
@@ -112,15 +181,19 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     PanelId       = node.ElementId,
                     PanelName     = node.Label,
                     FaultKa       = thisFaultKa,
-                    ZtotalMohm    = feederZMohm,
+                    ZtotalMohm    = conductor.Magnitude,
                     AicRequiredKa = NextAicTierKa(thisFaultKa, aicTiers),
-                    Voltage       = $"{systemVoltageV:0}V",
-                    FeederCsaMm2  = feederCsa
+                    Voltage       = phases == 3 ? $"{vLL:0}V 3ph" : $"{vLN:0}V 1ph",
+                    FeederCsaMm2  = csa,
+                    FeederLengthM = lengthM,
+                    Phases        = phases,
+                    VoltageFactorC = Iec60909Lv.CMaxLv,
+                    Assumptions   = notes
                 };
             }
 
             foreach (var child in node.Children ?? Enumerable.Empty<StingTools.Core.SLD.SLDNode>())
-                PropagateNode(child, thisFaultKa, wireTables, systemVoltageV, phases, aicTiers, results);
+                PropagateNode(child, thisFaultKa, vLL, phases, voltageAssumed, wireTables, supplyOf, aicTiers, results);
         }
 
         /// <summary>Look up the next AIC tier ≥ <paramref name="faultKa"/> × (1 + safetyMargin).</summary>
@@ -132,38 +205,44 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 if (t >= target) return t;
             return tiers.Last();
         }
+    }
 
-        /// <summary>
-        /// Soft reflection-style read of a string-valued parameter; callers
-        /// that don't reference Revit API can pass null and get 0 back.
-        /// We use Object so the engine assembly stays Revit-API-free.
-        /// </summary>
-        private static double ReadDoubleParameter(object revitElement, string paramName)
-        {
-            if (revitElement == null) return 0;
-            try
-            {
-                var t = revitElement.GetType();
-                var lookup = t.GetMethod("LookupParameter", new Type[] { typeof(string) });
-                var p = lookup?.Invoke(revitElement, new object[] { paramName });
-                if (p == null) return 0;
-                var asString = p.GetType().GetMethod("AsString", Type.EmptyTypes);
-                var s = asString?.Invoke(p, null) as string;
-                return double.TryParse(s, out double v) ? v : 0;
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
-        }
+    /// <summary>
+    /// What the model says about one panel's supply. Filled by the command
+    /// from Revit; 0 / null means "not known" and the engine records the
+    /// resulting assumption rather than inventing a value.
+    /// </summary>
+    public class PanelSupplyInfo
+    {
+        public double VoltageLineToLineV   { get; set; }
+        public double VoltageLineToNeutralV { get; set; }
+        /// <summary>1 or 3; 0 = unknown.</summary>
+        public int    Phases               { get; set; }
+        /// <summary>Where the voltage came from, or an inference note. Optional.</summary>
+        public string VoltageNote          { get; set; }
+        public double FeederCsaMm2         { get; set; }
+        public double FeederLengthM        { get; set; }
+        public string LengthSource         { get; set; }
+        public string Material             { get; set; } = "Cu";
     }
 
     public class FaultPropagationResult
     {
         public object PanelId       { get; set; }   // ElementId boxed
         public string PanelName     { get; set; }
+        /// <summary>Maximum initial symmetrical fault current I"k at the panel, kA (IEC 60909-0, cmax).</summary>
         public double FaultKa       { get; set; }
+        /// <summary>|Z| of ONE conductor of the feeder into this panel, mΩ (20 °C R + assumed X).</summary>
         public double ZtotalMohm    { get; set; }
         public double AicRequiredKa { get; set; }
+        /// <summary>"400V 3ph" (line-to-line) or "230V 1ph" (line-to-neutral).</summary>
         public string Voltage       { get; set; }
         public double FeederCsaMm2  { get; set; }
+        public double FeederLengthM { get; set; }
+        public int    Phases        { get; set; }
+        public double VoltageFactorC { get; set; }
+        /// <summary>Every input this panel's result rests on that the model did not supply.</summary>
+        public List<string> Assumptions { get; set; } = new List<string>();
     }
 
     /// <summary>
