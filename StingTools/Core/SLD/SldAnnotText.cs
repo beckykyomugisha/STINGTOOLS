@@ -31,8 +31,115 @@ namespace StingTools.Core.SLD
         public const string P_IMPEDANCE = "ELC_CIR_ZS_TXT";
         public const string P_DIVERSITY = "ELC_CIR_DIVERSITY_FACTOR_TXT";
 
-        /// <summary>Parameters whose presence makes an element worth annotating.</summary>
+        /// <summary>Parameters whose presence makes an element worth annotating.
+        /// Resolved through <see cref="WithFallbacks"/>, so a value from a real
+        /// source (Revit circuit property, fault study, importer) counts too.</summary>
         public static readonly string[] DataParams = { P_VOLTAGE, P_CURRENT, P_CABLE, P_CIRCUIT };
+
+        // ── Fallback sources ─────────────────────────────────────────────────
+        //
+        // Nothing in the plugin WRITES the ELC_CIR_* / ELC_CABLE_CSA_TXT text
+        // parameters above, so on a real model every annotation came out empty.
+        // Each STING key now falls back to where the value actually lives:
+        //   * STING parameters that ARE written — the fault study stamps
+        //     ELC_PNL_SHORT_CIRCUIT_RATING_KA (alias ELC_PNL_FAULT_KA) on panels;
+        //     the Amtech / Trimble importers stamp ELC_CABLE_CSA_MM2_TXT;
+        //   * Revit's own circuit / equipment properties, passed in by the caller
+        //     under the "@" keys below as SI numbers (invariant culture):
+        //     volts, amps, VA — the caller converts from internal units.
+        public const string P_FAULT_KA    = "ELC_PNL_SHORT_CIRCUIT_RATING_KA";
+        public const string P_FAULT_ALIAS = "ELC_PNL_FAULT_KA";
+        public const string P_CABLE_MM2   = "ELC_CABLE_CSA_MM2_TXT";
+
+        public const string N_VOLTAGE_V  = "@RBS_ELEC_VOLTAGE";                 // volts
+        public const string N_CURRENT_A  = "@RBS_ELEC_APPARENT_CURRENT_PARAM";  // amps
+        public const string N_LOAD_VA    = "@RBS_ELEC_APPARENT_LOAD";           // VA
+        public const string N_RATING_A   = "@RBS_ELEC_CIRCUIT_RATING_PARAM";    // amps
+        public const string N_WIRE_SIZE  = "@RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM"; // Revit text, e.g. "3x2.5mm²"
+        public const string N_PANEL      = "@CIRCUIT_PANEL_NAME";               // supply circuit's panel
+        public const string N_CIRCUIT_NO = "@CIRCUIT_NUMBER";                   // supply circuit's number
+
+        /// <summary>Fallback keys per STING key, in priority order.</summary>
+        public static readonly IReadOnlyDictionary<string, string[]> Fallbacks = new Dictionary<string, string[]>
+        {
+            [P_VOLTAGE] = new[] { N_VOLTAGE_V },
+            [P_CURRENT] = new[] { N_CURRENT_A },
+            [P_FAULT]   = new[] { P_FAULT_KA, P_FAULT_ALIAS },
+            [P_CABLE]   = new[] { P_CABLE_MM2, N_WIRE_SIZE },
+            [P_LOAD]    = new[] { N_LOAD_VA },
+            [P_BREAKER] = new[] { N_RATING_A },
+            [P_PANEL]   = new[] { N_PANEL },
+            [P_CIRCUIT] = new[] { N_CIRCUIT_NO },
+        };
+
+        /// <summary>
+        /// Wraps a raw getter so each STING key returns its own value when set,
+        /// else the first fallback that yields a usable value, formatted for the
+        /// annotation builders (units the builder does not add itself are included,
+        /// e.g. "230 V", "12.5 kVA", "32 A").
+        /// </summary>
+        public static Func<string, string> WithFallbacks(Func<string, string> raw)
+        {
+            if (raw == null) return _ => "";
+            return key =>
+            {
+                string own = (raw(key) ?? "").Trim();
+                if (own.Length > 0) return own;
+                if (!Fallbacks.TryGetValue(key, out var alts)) return "";
+                foreach (var alt in alts)
+                {
+                    string v = FormatFallback(alt, (raw(alt) ?? "").Trim());
+                    if (v.Length > 0) return v;
+                }
+                return "";
+            };
+        }
+
+        /// <summary>Formats one fallback source value; "" when absent or not positive.</summary>
+        public static string FormatFallback(string key, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            switch (key)
+            {
+                case N_VOLTAGE_V:
+                    return TryNum(value, out double v) && v > 0 ? $"{Fmt(v, "0.#")} V" : "";
+                case N_CURRENT_A:
+                    return TryNum(value, out double a) && a > 0 ? Fmt(a, "0.#") : "";
+                case N_LOAD_VA:
+                    // Apparent load — shown in kVA with its unit, never relabelled kW.
+                    return TryNum(value, out double va) && va > 0 ? $"{Fmt(va / 1000.0, "0.##")} kVA" : "";
+                case N_RATING_A:
+                    return TryNum(value, out double r) && r > 0 ? $"{Fmt(r, "0.#")} A" : "";
+                case P_FAULT_KA:
+                case P_FAULT_ALIAS:
+                    return TryNum(value, out double ka) && ka > 0 ? Fmt(ka, "0.##") : "";
+                case P_CABLE_MM2:
+                case N_WIRE_SIZE:
+                {
+                    // One parser for every wire-size string: ELC_CABLE_CSA_MM2_TXT is
+                    // usually a bare number, Revit's wire size is "3x2.5mm²" / "#12".
+                    double mm2 = IsBareNumber(value) && TryNum(value, out double bare)
+                        ? bare
+                        : StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(value);
+                    return mm2 > 0 ? Fmt(mm2, "0.##") : "";
+                }
+                default:
+                    return value; // text sources (panel name, circuit number)
+            }
+        }
+
+        private static bool IsBareNumber(string s)
+            => System.Text.RegularExpressions.Regex.IsMatch(s.Trim(), @"^[0-9]+(?:[.,][0-9]+)?$");
+
+        private static bool TryNum(string s, out double n)
+        {
+            n = 0;
+            var m = System.Text.RegularExpressions.Regex.Match(s ?? "", @"[-+]?[0-9]*[.,]?[0-9]+");
+            return m.Success && double.TryParse(m.Value.Replace(',', '.'), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out n);
+        }
+
+        private static string Fmt(double d, string f) => d.ToString(f, System.Globalization.CultureInfo.InvariantCulture);
 
         /// <summary>
         /// The annotation text for one element. The Reference format means
@@ -132,6 +239,10 @@ namespace StingTools.Core.SLD
         {
             string load = G(get, P_LOAD);
             if (load.Length == 0) return "";
+            // A value that already carries its unit (the kVA fallback) keeps it —
+            // apparent load must not be relabelled kW.
+            if (char.IsLetter(load[load.Length - 1]))
+                return fmt == SldAnnotFormat.Full ? $"Load: {load}" : load.Replace(" ", "");
             return fmt == SldAnnotFormat.Full ? $"Load: {load} kW" : $"{load}kW";
         }
 

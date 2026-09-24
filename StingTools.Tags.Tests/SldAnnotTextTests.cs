@@ -109,5 +109,76 @@ namespace StingTools.Tags.Tests
                 Assert.Equal(f, back);
             }
         }
+
+        // ── Fallbacks: the ELC_CIR_* keys are written by nothing, so a real model
+        //    has only Revit natives + the params that ARE written. ───────────────
+
+        private static readonly Dictionary<string, string> RealModel = new Dictionary<string, string>
+        {
+            [SldAnnotText.N_VOLTAGE_V]  = "400",        // ElecUnits already converted from internal units
+            [SldAnnotText.N_CURRENT_A]  = "27.43",
+            [SldAnnotText.N_LOAD_VA]    = "19000",
+            [SldAnnotText.N_RATING_A]   = "32",
+            [SldAnnotText.N_WIRE_SIZE]  = "3x2.5mm²",
+            [SldAnnotText.P_FAULT_KA]   = "6.00",
+            [SldAnnotText.N_PANEL]      = "DB-L1",
+            [SldAnnotText.N_CIRCUIT_NO] = "7",
+        };
+
+        private static string BF(SldAnnotKind k, SldAnnotFormat f, Dictionary<string, string> d)
+            => SldAnnotText.Build(k, f, SldAnnotText.WithFallbacks(p => Get(d, p)));
+
+        [Fact]
+        public void Real_model_values_reach_every_annotation_kind()
+        {
+            Assert.Equal("400 V", BF(SldAnnotKind.Voltage, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("27.4A", BF(SldAnnotKind.Current, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("6kA", BF(SldAnnotKind.Fault, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("2.5 / 27.4 / 32 A", BF(SldAnnotKind.Cable, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("3Ph+N+PE", BF(SldAnnotKind.Phase, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("DB-L1 — 7", BF(SldAnnotKind.Reference, SldAnnotFormat.Compact, RealModel));
+        }
+
+        [Fact]
+        public void Apparent_load_fallback_is_kVA_never_relabelled_kW()
+        {
+            // 19000 VA / 1000 = 19 kVA.
+            Assert.Equal("19kVA", BF(SldAnnotKind.Load, SldAnnotFormat.Compact, RealModel));
+            Assert.Equal("Load: 19 kVA", BF(SldAnnotKind.Load, SldAnnotFormat.Full, RealModel));
+        }
+
+        [Fact]
+        public void Sting_value_wins_over_its_fallback()
+        {
+            var d = new Dictionary<string, string>(RealModel) { [SldAnnotText.P_VOLTAGE] = "230 V" };
+            Assert.Equal("230 V", BF(SldAnnotKind.Voltage, SldAnnotFormat.Compact, d));
+        }
+
+        [Fact]
+        public void Imported_csa_wins_over_revit_wire_size_and_fault_alias_is_read()
+        {
+            var d = new Dictionary<string, string>
+            {
+                [SldAnnotText.P_CABLE_MM2]   = "4",
+                [SldAnnotText.N_WIRE_SIZE]   = "3x2.5mm²",
+                [SldAnnotText.P_FAULT_ALIAS] = "10",
+            };
+            Assert.Equal("4", BF(SldAnnotKind.Cable, SldAnnotFormat.Compact, d));
+            Assert.Equal("10kA", BF(SldAnnotKind.Fault, SldAnnotFormat.Compact, d));
+        }
+
+        [Theory]
+        [InlineData(SldAnnotText.N_VOLTAGE_V, "0")]
+        [InlineData(SldAnnotText.N_RATING_A, "-5")]
+        [InlineData(SldAnnotText.N_WIRE_SIZE, "n/a")]
+        public void Zero_or_unparseable_fallback_is_empty_not_a_placeholder(string key, string raw)
+            => Assert.Equal("", SldAnnotText.FormatFallback(key, raw));
+
+        [Fact]
+        public void Every_data_param_has_a_fallback()
+        {
+            foreach (var p in SldAnnotText.DataParams)
+                Assert.True(SldAnnotText.Fallbacks.ContainsKey(p), p);
+        }
     }
 }
