@@ -2,6 +2,33 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — material callouts built: identity sync, working rule kinds, thinning, build-ups)
+
+- **`Materials_SyncIdentity`.** A material callout reads the material's Mark / Description /
+  Keynote, and those disagreed: Mark = code only on materials STING created, Description held
+  the multi-hundred-character "enriched" paragraph, Keynote held `MAT_ISO_19650_ID` (in no
+  keynote table). The command plans (Revit-free `MaterialIdentityPlanner`, measured against the
+  whole shipped register) Mark / Keynote ← code, Description ← short name, paragraph →
+  `MAT_SPECIFICATIONS`, `MAT_CODE` from the register where empty; a value someone typed is
+  reported and left unless the user picks Overwrite. Plan CSV first.
+- **Keynote Sync wrote every row wrong.** Rows were `key<TAB><TAB>name` — key, EMPTY text, name
+  in the PARENT column — so every keynote it produced printed blank. Now `key<TAB>text` via
+  `KeynoteTableFormat`, and one row per material code under a `MAT` heading.
+- **`MaterialTag` works; `MaterialTagLayers` added.** The kind resolved the host's own tag
+  category and its only catalogue rule (category `*`) could not resolve, so it placed nothing.
+  It now resolves a Material Tags family (rule → `tagFamilies["Materials"]` → first loaded) and
+  tags host faces: one callout per material within 80 mm on paper (existing callouts count, so a
+  re-run adds nothing), painted faces first, curtain walls through panels, stacked walls through
+  members, family instances through their geometry, no-code callouts placed and counted.
+  `MaterialTagLayers` puts build-up callouts on the cut faces of hosts in sections / details,
+  heads stacked in a column. Rules on `pres-exterior-elev-A1`, `arch-elev-A1-1to100`,
+  `arch-interior-elev-A1-1to50`, `arch-section-A1-1to50`, `arch-detail-A3-1to20`,
+  `arch-screed-buildup-A3-1to10` (its dead `*` rule replaced). `FaceReferenceFor` now shares the
+  same face logic. 18 tests; 7 fail when the old behaviours are put back. Not run in Revit.
+- Noticed, not changed: `arch-elev`, `arch-interior-elev` and `arch-detail` carry the floor
+  plan's copied rules (room, furniture and area tags on an elevation) — the same defect fixed on
+  the RCP.
+
 #### Completed (Phase 296 — material callouts reviewed; tag size read from the style catalogue's type names)
 
 - **Tag size switching ignored the tag-style catalogue's type names.** `TagSizeVariant` only

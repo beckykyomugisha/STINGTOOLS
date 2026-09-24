@@ -1398,6 +1398,7 @@ namespace StingTools.Core
                 // then never stamped a code, set a class, or audited what it built.
                 // Class names taken from StingCommandHandler, not guessed.
                 case "Materials_StampCodes": return new Commands.Materials.StampMaterialCodesCommand();
+                case "Materials_SyncIdentity": return new Commands.Materials.SyncMaterialIdentityCommand();
                 case "Materials_SetClass": return new Commands.Baseline.SetMaterialClassCommand();
                 // Read-only. Compares what the model BUILT against what the register
                 // DECLARES for the row each type is named after.

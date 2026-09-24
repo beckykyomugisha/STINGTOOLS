@@ -219,8 +219,10 @@ describes — the callout on an elevation, and (later, §5.7) on a wall build-up
 | Material identity from the CSV | ✅ **only for materials STING created**: `CreateBLEMaterials` / `CreateMEPMaterials` write Mark = `MAT_CODE`, Keynote = `MAT_ISO_19650_ID`, Description = the long enriched paragraph, Manufacturer, Model (holds the standard), Cost, URL. Existing materials are skipped. | `Temp/MaterialCommands.cs` `ApplyIdentityProperties` |
 | Other writers | ⚠ `Materials_StampCodes` and the compound-type creator write the shared `MAT_CODE` only, **not Mark**, so Mark and `MAT_CODE` can disagree. | `StampMaterialCodesCommand.cs`, `Temp/FamilyCommands.cs` |
 | `STING - Materials Tag.rfa` (in the library) | ❌ **Not usable as a callout.** It is the universal 55-row label master on a material tag: its rows gate on `TAG_PARA_STATE_*` (cannot resolve on a Material) and ~35 of its parameters are never on Materials. Leave it alone; build the callout as a new family. | `STING_TAG_CONFIG_v5_0_GEN.csv`, `LABEL_DEFINITIONS.json` |
-| Engine: tag a face | ✅ Walls, floors, roofs, ceilings, plain solids. ❌ Family instances (doors, windows, curtain panels, furniture) — counted and reported, not tagged. ❌ Painted faces are not preferred. ❌ Every element gets a callout — no one-per-material thinning yet. | `AnnotationRunner.FaceReferenceFor` |
-| Engine: the `MaterialTag` rule kind | ❌ Dead. It resolves the host's own tag category, never Material Tags, and the one catalogue rule (`arch-screed-buildup-A3-1to10`, category `"*"`) cannot resolve a category. **Use an `AutoTag` rule with `tagFamily` instead (§5.6)** — that route works today. | `AnnotationRunner.ResolveTagTypeId`, `STING_DRAWING_TYPES.json` |
+| Engine: tag a face | ✅ (2026-09-24) Hosts through their finish faces; curtain walls through their **panels**, stacked walls through their **members**, family instances through their own geometry (instance, else symbol). A **painted** face towards the viewer wins and reports the paint material. | `AnnotationRunner.MaterialCallouts.cs` `FaceCandidates` |
+| Engine: the `MaterialTag` rule kind | ✅ (2026-09-24) Resolves a **Material Tags** family — the rule's `tagFamily`, else `tagFamilies["Materials"]`, else the first loaded — with `category` as the hosts to tag (`"*"` = walls, floors, roofs, ceilings). **One callout per material** within 80 mm on paper; callouts already on the view count, so a re-run adds nothing. Callouts on materials with no code are placed, counted and warned about. | `AnnotationRunner.MaterialCallouts.cs`, `MaterialCalloutPlan` |
+| Engine: `MaterialTagLayers` | ✅ (2026-09-24) Sections and details only: each cut host's cut faces grouped by material, one callout per material, heads stacked in a column beside the element. A host already carrying a material tag in the view is skipped. | same |
+| Drawing types | ✅ `MaterialTag` on walls: `pres-exterior-elev-A1` (and roofs), `arch-elev-A1-1to100`, `arch-interior-elev-A1-1to50`. `MaterialTagLayers` on walls / floors / roofs: `arch-section-A1-1to50`, `arch-detail-A3-1to20`; floors: `arch-screed-buildup-A3-1to10` (replacing the dead `"*"` rule). Until the family below exists they use whatever Material Tag is loaded. | `STING_DRAWING_TYPES.json` |
 
 ### 5.2 Data contract — do this on the project first
 
@@ -234,10 +236,13 @@ called out needs:
 | **Description** | a **short** name, e.g. `Gypsum board standard 12.5 mm` | STING writes the long enriched paragraph here — too long for a callout. Replace it with `MAT_NAME`. |
 | **Manufacturer**, **Model** | maker, product / standard | As STING writes them. |
 
-A `Materials_SyncIdentity` command that does this for every coded material (Mark ←
-`MAT_CODE`, Description ← `MAT_NAME`, Keynote ← `MAT_CODE`, long paragraph moved to a
-specification parameter) is **not built yet** — see §5.8. Until it is, the material
-callout is only as good as those three fields.
+**Run `Materials_SyncIdentity`** (SETUP → Model Baseline, "Sync material identity") —
+it does this for every coded material: Mark ← code, Keynote ← code, Description ← the
+short register name, STING's long paragraph moved to `MAT_SPECIFICATIONS`, and the shared
+`MAT_CODE` filled from the register where empty. It writes the plan to CSV first, and it
+never replaces a value someone typed unless you pick *Overwrite*. Then run **Keynote
+Sync**: the keynote table now carries one `code → name` row per material (under a `MAT`
+heading), so a Keynote-by-Material tag reads the same code.
 
 ### 5.3 Template, category, types
 
@@ -294,52 +299,44 @@ Edit Label list (§5.9, check 1).
 2. Declare it — one `TAG_FAMILY` row with its **own** `LabelMaster` group and category
    `Materials` in `STING_TAG_CONFIG_v5_0_ARCH.csv` (and the `_DesignConstruction` twin),
    exactly like the four above, so Propagate Universal never overwrites it.
-3. Add a rule — **AutoTag with `tagFamily`, not `MaterialTag`** (§5.1):
-
-   ```json
-   { "category": "Walls", "ruleType": "AutoTag", "enabled": true,
-     "tagFamily": "STING - Material Callout Tag" }
-   ```
-
-   to `pres-exterior-elev-A1` and `arch-elev-A1-1to100`; add `Roofs` the same way for
-   elevations that show them. `DrawingTypeTagFamilyTests` accepts a Materials-declared
-   family on a Walls / Roofs rule (a material tag tags a face of any host).
+3. **Point the drawing types at it.** The rules already exist (§5.1, `MaterialTag` /
+   `MaterialTagLayers`); add `"Materials": "STING - Material Callout Tag"` to
+   `annotation.tagFamilies` of each of the six drawing types listed there. Until then they
+   use the first Material Tag loaded in the project.
 4. Re-stamp checksums, run the tests (as for §1–4).
-5. **Expect clutter until §5.8 lands:** every wall gets its own callout. Try it on one
-   elevation before rolling it out.
+5. Produce one elevation and one section on a model with coded materials and check §5.9.
 
-### 5.7 Sections and build-ups — not yet
+### 5.7 Sections and build-ups
 
-A compound wall's inner layers are only taggable where they are **cut**, in a section or
-detail. That needs the engine to take the view's cut faces, group them by material, and
-stack one callout per material in a column — the classic build-up note. Not built; until
-it is, tag build-ups by hand with this family (it works on cut faces when you place it
-yourself). The detail and screed build-up types already have "Materials Key" / "Materials
-Strip" slots for the legend that goes with it.
+`MaterialTagLayers` does the classic build-up note: in a section or detail it takes each
+host's **cut** faces, keeps one per material (the largest), and places one callout per
+material with its head in a column to the right of the element, ordered across the
+element so the column reads outside-in. It needs the same family; the `CODE` types are the
+ones to use at 1:20 and denser with the Materials Key legend (the detail and screed
+build-up types already have "Materials Key" / "Materials Strip" slots). A host that
+already carries a material tag in the view is skipped, so re-running adds nothing — to
+redo one, delete its callouts first.
 
-### 5.8 What would make it robust — recommended next work
+### 5.8 What is built, and what is still open
 
-In order of value:
+**Built (2026-09-24):**
 
-1. **`Materials_SyncIdentity`** — one command, Revit-free planner plus thin writer (the
-   shape of `Materials_StampCodes`): Mark ← `MAT_CODE`, Description ← `MAT_NAME`, Keynote ←
-   `MAT_CODE`; the long paragraph moves to a specification parameter; empty-only unless
-   forced. Then **extend `KeynoteSync`** to write one `MAT_CODE → MAT_NAME` row per
-   material, so a Keynote-by-Material tag and a keynote legend work from the same code.
-   One source of truth, three ways to read it.
-2. **Make the `MaterialTag` rule kind real** — always resolve a Material Tags symbol
-   (rule `tagFamily`, then pack `tagFamilies["Materials"]`, then the first loaded), treat
-   `category` as the host filter, reject `"*"` with a message.
-3. **One callout per material** per wall run (or per N metres) instead of per element —
-   the difference between a readable elevation and a noisy one.
-4. **Paint first**: prefer a painted face (`Document.IsPainted`) and report its paint
-   material; **family instances** through symbol geometry (curtain panels, doors, windows);
-   **stacked walls** through their members.
-5. **QA in the engine**: before placing, read the face's material; if it has no code, place
-   anyway (so the gap shows), count it, and warn "N callouts have no MAT_CODE — run
-   Materials_SyncIdentity".
-6. **Section build-ups** (§5.7) and a data test that every label parameter is a built-in
-   or actually bound to Materials — the test that would have caught `STING - Materials Tag`.
+1. **`Materials_SyncIdentity`** — Mark / Keynote ← code, Description ← short name,
+   paragraph → `MAT_SPECIFICATIONS`, `MAT_CODE` from the register; `MaterialIdentityPlanner`
+   is Revit-free and measured against the whole shipped register. **Keynote Sync** writes one
+   row per material — and its existing rows were fixed: every one was `key<TAB><TAB>name`,
+   which puts the name in the PARENT column and leaves the text blank.
+2. **`MaterialTag` rule kind** — resolves a Material Tags family; `category` is the hosts.
+3. **One callout per material** within 80 mm on paper (`MaterialCalloutPlan.Thin`).
+4. **Paint first; curtain panels, stacked members, family instances.**
+5. **No-code QA** — placed, counted, named in the warning, pointing at SyncIdentity.
+6. **`MaterialTagLayers`** — build-up callouts on cut faces.
+
+**Still open:** a data test that every label parameter of a material tag family is a
+built-in or bound to Materials (it would have caught `STING - Materials Tag`); retiring or
+rebuilding that universal-label family; and the Revit run in §5.9 — every Revit-side piece
+above is unverified (face references on panels and instances, cut-face references, paint
+read-back, head placement).
 
 Alternatives considered: a **Material Keynote** is the right second route for offices that
 keynote (needs item 1 and a loaded keynote table); a **wall or multi-category tag reading a
@@ -356,6 +353,12 @@ to paint.
 3. That a tag on a painted face reports the paint material.
 4. What an existing `STING - Materials Tag` row gated on `TAG_PARA_STATE_*` draws — blank
    or everything. It settles whether that family has any use left.
+5. `MaterialTagLayers` in a wall section: one callout per layer, leaders landing on the
+   right layer, heads in a tidy column; re-run adds nothing.
+6. An elevation: one callout per material (not per wall), a re-run adds nothing, and a
+   material with no code shows a blank callout plus the warning naming it.
+7. `Materials_SyncIdentity` on an existing project: the CSV before, then Mark / Keynote /
+   Description after; a hand-typed Mark left alone.
 
 ---
 

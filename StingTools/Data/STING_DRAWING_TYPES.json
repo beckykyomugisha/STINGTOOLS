@@ -380,7 +380,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "ace4e48a02f4655982fe2dfbe03d2c3a3a0aeda0a6be140daca0b3f51b011f91",
+      "checksum": "97672281b18f8a30b0e678ddce6d25ef5b2c3c7d07578b8f949a6b703c5651bd",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -492,6 +492,21 @@
             "category": "Windows",
             "ruleType": "AutoDimOpenings",
             "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
           }
         ]
       },
@@ -530,7 +545,7 @@
       "id": "arch-elev-A1-1to100",
       "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "de97633264ae6f097b91b3f3baf873d1b264fc3bec6e6fbeabe084f31c9d0a63",
+      "checksum": "9fd84062a013fc818570c04e1a811ee620ce96b9e811915915799186b9164c20",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -684,6 +699,11 @@
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
             "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
+            "enabled": true
           }
         ]
       },
@@ -722,7 +742,7 @@
       "id": "arch-detail-A3-1to20",
       "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "a24f73b2c6d971ca8bbd8b742ee1592a4d2a98cdd943afdc9a53ee35339513d8",
+      "checksum": "1507fd37e02571a77c1a4a34c680ddce11d7e799381f65b0e73e11d36e7ddab0",
       "purpose": "Detail",
       "discipline": "A",
       "paperSize": "A3",
@@ -876,6 +896,21 @@
           {
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTagLayers",
             "enabled": true
           }
         ]
@@ -2882,7 +2917,7 @@
       "id": "arch-interior-elev-A1-1to50",
       "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "2cdb05414b9b309941bcf804a24a1935afa94b3d9cdd0c10c50ab55f367295d3",
+      "checksum": "99f1b2b13ebc8fd1e456b9d8fa5e2f59a2c0b03b34d3b70606497f8384f85824",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -3035,6 +3070,11 @@
           {
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
             "enabled": true
           }
         ]
@@ -4774,7 +4814,7 @@
       "id": "pres-exterior-elev-A1",
       "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
-      "checksum": "ee12a397556005463d73ee8fae664b84279e0010b5a6ccdfd25329655c20f57f",
+      "checksum": "3068afdc2647609e02ad65649b6fb58c9d9a574efbf2d5cbab9fc4fe226a9aaf",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -4841,7 +4881,18 @@
         "tagFamilies": {
           "Walls": "STING - Wall Tag"
         },
-        "rules": []
+        "rules": [
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "PresentationMono",
@@ -5893,7 +5944,7 @@
       "name": "Floor Build-Up Detail — A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
-      "checksum": "3d9c16562e3429aab929f3fe5ae0cf36adb31998b9cbe668344126cefb46dab4",
+      "checksum": "30ad0854a224443917ab8867c4ac258f0f7fd0248402d58259b05f85b6ccd33e",
       "purpose": "Detail",
       "discipline": "A",
       "phase": "*",
@@ -5948,8 +5999,8 @@
         "autoTag": false,
         "rules": [
           {
-            "category": "*",
-            "ruleType": "MaterialTag",
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
             "enabled": true
           }
         ]

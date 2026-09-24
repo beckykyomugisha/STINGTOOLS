@@ -21,13 +21,16 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-24
 
-- **Total IExternalCommand classes**: **1747**
-- **Reached by a dispatch layer**: **1722**
+- **Total IExternalCommand classes**: **1748**
+- **Reached by a dispatch layer**: **1723**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1747; the script fails if they stop adding up.
+The four buckets partition all 1748; the script fails if they stop adding up.
+
+**+1 on 2026-09-24 (material callouts)**, reached from SETUP → Model Baseline and as a
+workflow step: `Materials_SyncIdentity`.
 
 **+2 on 2026-09-24 (drawings branch)**, both reached from the SETUP tab and as workflow steps:
 `DrawingTypes_EnsureViewTypes` (creates the view types drawing types name) and
