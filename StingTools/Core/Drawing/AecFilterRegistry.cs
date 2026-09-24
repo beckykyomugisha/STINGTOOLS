@@ -103,10 +103,10 @@ namespace StingTools.Core.Drawing
                 var path = StingTools.Core.StingToolsApp.FindDataFile("STING_AEC_FILTERS.json");
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
-                    // S3.6.2 — version gate before deserialise.
-                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                        path, "planscape.aec-filters",
-                        StingTools.Core.PluginSchemaVersion.CurrentAecFilters);
+                    // S3.6.2 — version gate before deserialise. Read-only: the
+                    // corporate baseline is shipped data and is never rewritten.
+                    StingTools.Core.PluginSchemaVersion.CheckShippedVersion(
+                        path, StingTools.Core.PluginSchemaVersion.CurrentAecFilters);
                     var lib = JsonConvert.DeserializeObject<AecFilterLibrary>(File.ReadAllText(path));
                     if (lib?.Filters != null && lib.Filters.Count > 0)
                     {

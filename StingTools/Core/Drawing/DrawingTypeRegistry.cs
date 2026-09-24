@@ -343,10 +343,10 @@ namespace StingTools.Core.Drawing
                 var path = StingTools.Core.StingToolsApp.FindDataFile("STING_DRAWING_TYPES.json");
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
-                    // S3.6.2 — version gate before deserialise.
-                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                        path, "planscape.drawing-types",
-                        StingTools.Core.PluginSchemaVersion.CurrentDrawingTypes);
+                    // S3.6.2 — version gate before deserialise. Read-only: the
+                    // corporate baseline is shipped data and is never rewritten.
+                    StingTools.Core.PluginSchemaVersion.CheckShippedVersion(
+                        path, StingTools.Core.PluginSchemaVersion.CurrentDrawingTypes);
                     var json = File.ReadAllText(path);
                     var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
                     if (lib != null && lib.DrawingTypes != null && lib.DrawingTypes.Count > 0)

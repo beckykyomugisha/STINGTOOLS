@@ -49,11 +49,35 @@ namespace StingTools.Core.Drawing
             { r.Error = "definition or document is null/empty"; return r; }
 
             // Existing match by name?
-            var existing = new FilteredElementCollector(doc)
+            var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
-                .FirstOrDefault(f => string.Equals(f.Name, def.Name, StringComparison.OrdinalIgnoreCase));
+                .ToList();
+            var existing = all.FirstOrDefault(f => string.Equals(f.Name, def.Name, StringComparison.OrdinalIgnoreCase));
             if (existing != null) { r.Filter = existing; r.Created = false; return r; }
+
+            // A project may hold this filter under the mojibake name the corporate
+            // data carried until 2026-09 ("â‰¤" for "≤"). Rename it rather than
+            // minting a correctly-named twin beside it; views keep their overrides
+            // because the element — and so its id — is the same.
+            var garbled = Utf8Mojibake.Garble(def.Name);
+            if (garbled != null)
+            {
+                var legacy = all.FirstOrDefault(f => string.Equals(f.Name, garbled, StringComparison.OrdinalIgnoreCase));
+                if (legacy != null)
+                {
+                    try
+                    {
+                        legacy.Name = def.Name;
+                        r.Warnings.Add($"Renamed filter '{garbled}' to '{def.Name}' (text-encoding repair).");
+                    }
+                    catch (Exception ex)
+                    {
+                        r.Warnings.Add($"Filter '{garbled}' matches '{def.Name}' but could not be renamed: {ex.Message}");
+                    }
+                    r.Filter = legacy; r.Created = false; return r;
+                }
+            }
 
             // Resolve category ids (skip categories not present in this Revit version).
             var catIds = ResolveCategories(doc, def.Categories, r.Warnings);

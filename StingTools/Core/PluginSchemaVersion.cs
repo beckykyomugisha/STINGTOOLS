@@ -68,6 +68,35 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Read-only version gate for a SHIPPED corporate baseline.
+        ///
+        /// <see cref="EnsureFileVersion"/> writes: a file with no <c>$schemaVersion</c>
+        /// reads as v0 and is rewritten in place — reformatted, stamped, with a .bak
+        /// beside it. Pointed at STING_DRAWING_TYPES.json / STING_AEC_FILTERS.json
+        /// (neither carries the key) that rewrote the plugin's own install data on
+        /// first load, or threw into a warning where the folder is read-only. A
+        /// baseline is data the plugin ships, not state it owns: it is checked, never
+        /// migrated. A NEWER version than the plugin knows is the one case worth
+        /// reporting, because the plugin may then misread it.
+        /// </summary>
+        public static void CheckShippedVersion(string filePath, int knownVersion)
+        {
+            try
+            {
+                if (!File.Exists(filePath)) return;
+                var obj = JObject.Parse(File.ReadAllText(filePath));
+                int v = obj.Value<int?>("$schemaVersion") ?? 0;
+                if (v > knownVersion)
+                    StingLog.Warn($"{Path.GetFileName(filePath)} is schema v{v}; this plugin knows v{knownVersion}. " +
+                                  "It may misread fields added since — update the plugin.");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PluginSchemaVersion.CheckShippedVersion('{Path.GetFileName(filePath)}'): {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// Read a plugin JSON file, bring it up to <paramref name="targetVersion"/>
         /// by running every registered migrator in version order, write back
         /// atomically. Returns the upgraded JObject so callers don't re-read.
