@@ -1714,7 +1714,7 @@
       "id": "duct-spool-A1-1to50",
       "name": "Duct Spool — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "0ec9cdba2d35a322c12f6c80c28ae476120df0199569945c025c501c17a982ae",
+      "checksum": "b174a82be30cabe6155513fe7a692e5b894258a2df1f593f3fade72a3532e8e2",
       "purpose": "Spool",
       "discipline": "M",
       "paperSize": "A1",
@@ -1870,7 +1870,23 @@
         "colourScheme": "Monochrome",
         "lineWeightScale": 1.0,
         "halftoneLinks": false
-      }
+      },
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "FloorPlan",
+          "slotIndex": 0,
+          "required": true,
+          "nameSuffix": " - PLAN"
+        },
+        {
+          "idx": 1,
+          "viewType": "ThreeD",
+          "slotIndex": 1,
+          "required": true,
+          "nameSuffix": " - ISO"
+        }
+      ]
     },
     {
       "id": "elec-riser-A3-1to200",
@@ -5107,7 +5123,7 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "a10585d7c96ee4e0f09b1d22ee8ad81249aec2dc34d4a7100f93100510fc32e1",
+      "checksum": "568540f2598ca92e5b038792655f6b9e1d1d98c8dd288b14168b14e0c1db84b8",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
@@ -5205,7 +5221,16 @@
         "suitability": "S2",
         "revision": "P01"
       },
-      "phase": "*"
+      "phase": "*",
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "FloorPlan",
+          "slotIndex": 0,
+          "required": true,
+          "nameSuffix": " - MARKUP"
+        }
+      ]
     },
     {
       "id": "clar-rfi-A3",
