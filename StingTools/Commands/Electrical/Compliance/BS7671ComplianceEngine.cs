@@ -29,63 +29,48 @@ namespace StingTools.Commands.Electrical.Compliance
     /// bathrooms zones 1+2, outdoor sockets, construction sites.</item>
     /// </list>
     ///
-    /// All thresholds load from <c>STING_BS7671_DISCONNECTION.json</c> so
-    /// projects can tweak Ze (e.g. PME-treated TN-C-S), substitute country
-    /// regs, or extend the OCPD multiplier table without recompiling.
+    /// All thresholds load from <c>STING_BS7671_DISCONNECTION.json</c>, with a
+    /// per-project override at <c>&lt;project&gt;/_BIM_COORD/bs7671_disconnection.json</c>
+    /// layered on top (see <see cref="BS7671Thresholds"/>), so a project can
+    /// declare its own Ze (e.g. a UMEME supply), Cmin, U0 or OCPD multipliers
+    /// without recompiling. Callers with a Document resolve the override path
+    /// through <c>StingPaths.MetaFile</c> and pass it in; this class stays
+    /// Revit-free.
     /// </summary>
     public static class BS7671ComplianceEngine
     {
-        private static BS7671Thresholds _cache;
+        /// <summary>Project override file name under the _BIM_COORD bucket.</summary>
+        public const string ProjectOverrideFileName = "bs7671_disconnection.json";
+
+        private static readonly Dictionary<string, BS7671Thresholds> _cache =
+            new Dictionary<string, BS7671Thresholds>(StringComparer.OrdinalIgnoreCase);
         private static readonly object _lock = new object();
 
-        public static BS7671Thresholds Thresholds()
+        /// <summary>Corporate thresholds only (no project override).</summary>
+        public static BS7671Thresholds Thresholds() => Thresholds(null);
+
+        /// <summary>
+        /// Corporate thresholds with the project override at
+        /// <paramref name="projectOverridePath"/> merged over them (ignored when
+        /// null or absent). Cached per override path.
+        /// </summary>
+        public static BS7671Thresholds Thresholds(string projectOverridePath)
         {
+            string key = projectOverridePath ?? "";
             lock (_lock)
             {
-                if (_cache != null) return _cache;
-                _cache = LoadThresholds();
-                return _cache;
+                if (_cache.TryGetValue(key, out var hit)) return hit;
+                string corporate = null;
+                try { corporate = StingToolsApp.FindDataFile("STING_BS7671_DISCONNECTION.json"); }
+                catch (Exception ex) { StingLog.Warn($"BS7671 thresholds locate: {ex.Message}"); }
+                var t = BS7671Thresholds.LoadLayered(corporate, projectOverridePath);
+                foreach (var w in t.Warnings) StingLog.Warn($"BS7671 thresholds: {w}");
+                _cache[key] = t;
+                return t;
             }
         }
 
-        public static void InvalidateCache() { lock (_lock) _cache = null; }
-
-        private static BS7671Thresholds LoadThresholds()
-        {
-            var t = new BS7671Thresholds();
-            try
-            {
-                string path = StingToolsApp.FindDataFile("STING_BS7671_DISCONNECTION.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) { t.SeedDefaults(); return t; }
-                var root = JObject.Parse(File.ReadAllText(path));
-                t.NominalUo = root["nominalUoV"]?.Value<double>() ?? 230;
-                foreach (var sys in (root["earthingSystems"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
-                    t.Ze[sys.Name] = sys.Value["ZeOhm"]?.Value<double>() ?? 0;
-                foreach (var m in (root["iaMultipliers"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
-                    if (m.Value.Type == JTokenType.Float || m.Value.Type == JTokenType.Integer)
-                        t.IaMultiplier[m.Name] = m.Value.Value<double>();
-                foreach (var k in (root["adiabaticK"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
-                    t.AdiabaticK[k.Name] = k.Value.Value<double>();
-                foreach (var d in (root["disconnectionTimesSec"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
-                {
-                    t.DisconnectFinal[d.Name]       = d.Value["final_le32A"]?.Value<double>() ?? 0.4;
-                    t.DisconnectDistribution[d.Name]= d.Value["distribution"]?.Value<double>() ?? 5.0;
-                }
-                foreach (var s in root["rcdRequiredScenarios"] as JArray ?? new JArray())
-                    t.RcdScenarios.Add(new RcdScenario
-                    {
-                        Scenario = s["scenario"]?.ToString() ?? "",
-                        IMaxMA   = s["imaxMA"]?.Value<int>() ?? 30,
-                        Reg      = s["regulation"]?.ToString() ?? ""
-                    });
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"BS7671 thresholds load: {ex.Message}");
-                t.SeedDefaults();
-            }
-            return t;
-        }
+        public static void InvalidateCache() { lock (_lock) _cache.Clear(); }
 
         // ── Earth fault loop impedance Zs ───────────────────────────────
 
@@ -109,23 +94,21 @@ namespace StingTools.Commands.Electrical.Compliance
             return zeOhm + (r1Mohm + r2Mohm) / 1000.0;
         }
 
-        /// <summary>BS 7671 minimum voltage factor (Reg 411.4.4, Appendix 3).</summary>
-        public const double Cmin = 0.95;
-
         /// <summary>
         /// Verify Zs × Ia ≤ Uo × Cmin (BS 7671 Reg 411.4.4). Returns the result
         /// with the maximum permitted Zs for that OCPD type/rating, the actual
-        /// Zs, and pass/fail. Cmin = 0.95 is the minimum voltage factor that
-        /// Table 41.3 already includes (B32: 0.95 × 230 / 160 = 1.37 ohm).
+        /// Zs, and pass/fail. Cmin (0.95 shipped, <c>cMin</c> in the JSON) is the
+        /// minimum voltage factor that Table 41.3 already includes
+        /// (B32: 0.95 × 230 / 160 = 1.37 ohm).
         /// </summary>
         public static ZsCheckResult VerifyZs(double computedZsOhm, string ocpdType, double ratingA,
-            double uoV = 230)
+            double uoV = 230, BS7671Thresholds thresholds = null)
         {
-            var th = Thresholds();
+            var th = thresholds ?? Thresholds();
             double iaMult = th.IaMultiplier.TryGetValue(ocpdType?.ToUpperInvariant() ?? "", out double m)
                 ? m : 5.0;
             double ia = iaMult * Math.Max(ratingA, 1);
-            double zsMax = Cmin * uoV / Math.Max(ia, 1);
+            double zsMax = th.Cmin * uoV / Math.Max(ia, 1);
             return new ZsCheckResult
             {
                 OcpdType         = ocpdType,
@@ -146,9 +129,9 @@ namespace StingTools.Commands.Electrical.Compliance
         /// (k·S)² ≥ I²·t. Negative margin = conductor undersized.
         /// </summary>
         public static AdiabaticResult VerifyAdiabatic(double csaMm2, string material, string insulation,
-            double faultCurrentA, double clearingTimeSec)
+            double faultCurrentA, double clearingTimeSec, BS7671Thresholds thresholds = null)
         {
-            var th = Thresholds();
+            var th = thresholds ?? Thresholds();
             string key = $"{material ?? "Cu"}/{(insulation ?? "PVC").ToUpperInvariant()}";
             if (!th.AdiabaticK.TryGetValue(key, out double k)) k = 115; // Cu/PVC fallback
             double left  = Math.Pow(k * csaMm2, 2);
@@ -176,9 +159,10 @@ namespace StingTools.Commands.Electrical.Compliance
         /// based on regulatory scenarios it matches. Returns the lowest
         /// tier that satisfies all matching scenarios (most onerous wins).
         /// </summary>
-        public static RcdRecommendation RecommendRcd(string circuitContext, string earthingSystem)
+        public static RcdRecommendation RecommendRcd(string circuitContext, string earthingSystem,
+            BS7671Thresholds thresholds = null)
         {
-            var th = Thresholds();
+            var th = thresholds ?? Thresholds();
             string ctx = (circuitContext ?? "").ToLowerInvariant();
             int chosen = 0;
             string regList = "";
@@ -230,13 +214,19 @@ namespace StingTools.Commands.Electrical.Compliance
         public static CircuitAuditResult AuditCircuit(CircuitAuditInput inp)
         {
             if (inp == null) return null;
-            var th = Thresholds();
-            double ze = th.Ze.TryGetValue(inp.EarthingSystem ?? "TN-C-S", out double zev) ? zev : 0.8;
+            var th = inp.Thresholds ?? Thresholds();
+            // An earthing system with no Ze in either layer takes 0.8 ohm (the
+            // UK TN-S maximum) and says so in ZeSource rather than silently.
+            bool zeKnown = th.Ze.TryGetValue(inp.EarthingSystem ?? "TN-C-S", out double zev);
+            double ze = zeKnown ? zev : 0.8;
+            string zeSource = zeKnown
+                ? (th.ZeSource.TryGetValue(inp.EarthingSystem ?? "TN-C-S", out var src) ? src : "corporate")
+                : "ASSUMED 0.8 ohm (earthing system not in the thresholds file)";
 
             double zs = ComputeZs(ze, inp.PhaseCsaMm2, inp.CpcCsaMm2, inp.LengthM,
                 inp.Material, inp.Insulation, inp.WireTables);
 
-            var zsCheck = VerifyZs(zs, inp.OcpdType, inp.RatingA, th.NominalUo);
+            var zsCheck = VerifyZs(zs, inp.OcpdType, inp.RatingA, th.NominalUo, th);
 
             // Resolve OCPD clearing time at the *prospective fault current*
             // for the circuit (computed from Zs and Uo).
@@ -248,9 +238,9 @@ namespace StingTools.Commands.Electrical.Compliance
             double clearingSec = tcc.ClearingTimeMs(pscA / 1000.0) / 1000.0;
 
             var ad = VerifyAdiabatic(inp.PhaseCsaMm2, inp.Material, inp.Insulation,
-                pscA, clearingSec);
+                pscA, clearingSec, th);
 
-            var rcd = RecommendRcd(inp.Context, inp.EarthingSystem);
+            var rcd = RecommendRcd(inp.Context, inp.EarthingSystem, th);
 
             // Final verdict — fail any single check, escalate to overall fail.
             string verdict = (zsCheck.Passes && ad.Passes) ? "PASS"
@@ -264,6 +254,8 @@ namespace StingTools.Commands.Electrical.Compliance
                 LoadName        = inp.LoadName,
                 EarthingSystem  = inp.EarthingSystem,
                 ZeOhm           = ze,
+                ZeSource        = zeSource,
+                Cmin            = th.Cmin,
                 ZsActualOhm     = zsCheck.ZsActualOhm,
                 ZsMaxOhm        = zsCheck.ZsMaxOhm,
                 ZsMarginPct     = zsCheck.MarginPercent,
@@ -281,33 +273,7 @@ namespace StingTools.Commands.Electrical.Compliance
     }
 
     // ── DTOs ────────────────────────────────────────────────────────────
-
-    public class BS7671Thresholds
-    {
-        public double NominalUo { get; set; } = 230;
-        public Dictionary<string, double> Ze { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, double> IaMultiplier { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, double> AdiabaticK { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, double> DisconnectFinal { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, double> DisconnectDistribution { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public List<RcdScenario> RcdScenarios { get; } = new();
-
-        public void SeedDefaults()
-        {
-            NominalUo = 230;
-            // UK DNO maximum declared Ze: TN-C-S (PME) 0.35 ohm, TN-S 0.8 ohm.
-            Ze["TN-S"] = 0.80; Ze["TN-C-S"] = 0.35; Ze["TT"] = 21.0; Ze["IT"] = 100.0;
-            IaMultiplier["MCB_B"] = 5; IaMultiplier["MCB_C"] = 10; IaMultiplier["MCB_D"] = 20;
-            IaMultiplier["RCBO_B"] = 5; IaMultiplier["RCBO_C"] = 10;
-            IaMultiplier["MCCB"] = 10; IaMultiplier["ACB"] = 8;
-            AdiabaticK["Cu/PVC"] = 115; AdiabaticK["Cu/XLPE"] = 143;
-            AdiabaticK["Al/PVC"] = 76;  AdiabaticK["Al/XLPE"] = 94;
-            DisconnectFinal["TN-S"] = 0.4; DisconnectFinal["TN-C-S"] = 0.4; DisconnectFinal["TT"] = 0.2;
-            DisconnectDistribution["TN-S"] = 5.0; DisconnectDistribution["TN-C-S"] = 5.0; DisconnectDistribution["TT"] = 1.0;
-        }
-    }
-
-    public class RcdScenario { public string Scenario; public int IMaxMA; public string Reg; }
+    // BS7671Thresholds + RcdScenario live in BS7671Thresholds.cs (Revit-free, tested).
 
     public class ZsCheckResult
     {
@@ -333,11 +299,14 @@ namespace StingTools.Commands.Electrical.Compliance
         public string CircuitTag, PanelName, LoadName, EarthingSystem, OcpdType, Material, Insulation, Context;
         public double RatingA, LengthM, PhaseCsaMm2, CpcCsaMm2;
         public WireTableSet WireTables;
+        /// <summary>Corporate + project thresholds; null = corporate only.</summary>
+        public BS7671Thresholds Thresholds;
     }
 
     public class CircuitAuditResult
     {
-        public string CircuitTag, PanelName, LoadName, EarthingSystem, RcdRegulation, Verdict;
+        public string CircuitTag, PanelName, LoadName, EarthingSystem, RcdRegulation, Verdict, ZeSource;
+        public double Cmin;
         public double ZeOhm, ZsActualOhm, ZsMaxOhm, ZsMarginPct, ProspectivePscA, ClearingTimeMs, AdiabaticMinCsa, K;
         public bool ZsPasses, AdiabaticPasses;
         public int RcdRequiredMA;
