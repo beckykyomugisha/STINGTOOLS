@@ -123,7 +123,7 @@ ASS_ELEVATION_M,1,asset-universal,<ALL>,Element elevation in metres from project
 ASS_ELEVATION_TXT,1,asset-universal,<ALL>,ASS_ELEVATION_M display mirror [auto-generated]
 ASS_EQUIPMENT_TAG_TXT,1,universal,<ALL>,Ass Equipment Tag Txt [ISO 19650-3:2020]
 ASS_EXPECTED_LIFE_YEARS_YRS,1,asset-universal,<ALL>,Ass Expected Life Years Yrs [ISO 19650-3:2020]
-ASS_FAB_LOC_TXT,1,asset-universal,<ALL>,Fabrication location (SHOP / FIELD / VENDOR)
+ASS_FAB_LOC_TXT,1,asset-universal,<ALL>,Fabrication location (WORKSHOP / SITE)
 ASS_FAB_NOTES_TXT,1,asset-universal,<ALL>,Free-text fabrication notes consumed by ShopDrawingComposer
 ASS_FAB_SEQ_NR,1,asset-universal,<ALL>,Fabrication sequence number within the fabrication package
 ASS_FAB_STATUS_TXT,1,asset-universal,<ALL>,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)
@@ -1906,6 +1906,8 @@ PLM_DRN_ACCESS_POINTS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Fle
 PLM_DRN_BKWTR_VALVE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Bkwtr Valve Txt [ISO 19650-1:2018]
 PLM_DRN_BODY_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Body Mat Txt [ISO 19650-1:2018]
 PLM_DRN_CLEANOUT_LOCS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Cleanout Locs Txt [ISO 19650-1:2018]
+PLM_DRN_COVER_DS_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
+PLM_DRN_COVER_US_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
 PLM_DRN_FILL_RATIO_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fill Ratio Nr [ISO 19650-1:2018]
 PLM_DRN_FITTING_ACCESS_PROVISION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Access Provision Txt [ISO 19650-1:2018]
 PLM_DRN_FITTING_CONNECTION_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018]
@@ -1914,6 +1916,8 @@ PLM_DRN_FITTING_INST_DETAIL_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessorie
 PLM_DRN_FLW_RATE_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Flw Rate Lps [ISO 19650-1:2018]
 PLM_DRN_GRT_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Grt Mat Txt [ISO 19650-1:2018]
 PLM_DRN_GRT_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Grt Type Txt [ISO 19650-1:2018]
+PLM_DRN_INV_DS_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]"
+PLM_DRN_INV_US_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]"
 PLM_DRN_PPE_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Ppe Length M [ISO 19650-1:2018]
 PLM_DRN_PPE_SLOPE_PCT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Ppe Slope Pct [ISO 19650-1:2018]
 PLM_DRN_SPARE_01_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Spare parameter 1 for PLM_DRN group

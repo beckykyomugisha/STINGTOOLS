@@ -1,4 +1,4 @@
-# v6.8 | 3618 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3622 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3627,3 +3627,7 @@ Generic Models,STR_REBAR_DIM_E_MM,324969fd-cdf8-544b-b834-3aee08721cfa,TEXT,BLE_
 Generic Models,STR_REBAR_BEND_RADIUS_MM,faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6,TEXT,BLE_STRUCTURE,Instance,"Scheduling radius R, mm [BS 8666 Table 2]",False,,,MULTI,1,0
 Generic Models,BI_ACCENT_COLOR_TXT,43f56f0f-61bd-58d0-83ef-9b782ab05a95,TEXT,TPL_TRACKING,Instance,Accent colour RGB [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,BI_THEME_NAME_TXT,a07310e6-24ec-5507-a7c2-4b8e9b85b74c,TEXT,TPL_TRACKING,Instance,Brand theme name [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,PLM_DRN_INV_US_M,e8b25343-14ee-57f3-9189-040f37a8b5fc,TEXT,PLM_DRN,Instance,"Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",False,,,MULTI,1,0
+Generic Models,PLM_DRN_INV_DS_M,bc8ddf77-76cf-5ef4-8421-52ab6e7016f7,TEXT,PLM_DRN,Instance,"Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",False,,,MULTI,1,0
+Generic Models,PLM_DRN_COVER_US_M,d273038b-4055-506d-a005-d7237e32c4da,TEXT,PLM_DRN,Instance,"Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",False,,,MULTI,1,0
+Generic Models,PLM_DRN_COVER_DS_M,2c7ae32a-fd45-5b6c-af34-cc780830e87e,TEXT,PLM_DRN,Instance,"Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",False,,,MULTI,1,0

@@ -4772,6 +4772,54 @@
       "curated": true
     },
     {
+      "param_name": "PLM_DRN_INV_US_M",
+      "guid": "e8b25343-14ee-57f3-9189-040f37a8b5fc",
+      "description": "Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_INV_DS_M",
+      "guid": "bc8ddf77-76cf-5ef4-8421-52ab6e7016f7",
+      "description": "Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_COVER_US_M",
+      "guid": "d273038b-4055-506d-a005-d7237e32c4da",
+      "description": "Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_COVER_DS_M",
+      "guid": "2c7ae32a-fd45-5b6c-af34-cc780830e87e",
+      "description": "Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "VT_SILHOUETTES_BOOL",
       "guid": "7866511b-90b5-421a-80e7-2b6dd258c608",
       "description": "Silhouettes enabled [ISO 19650-1:2018]",

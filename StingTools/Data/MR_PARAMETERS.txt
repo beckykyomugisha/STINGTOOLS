@@ -479,6 +479,10 @@ PARAM	40b3a419-f8e1-5dd8-84ea-268e43f59a88	PLM_DRN_FITTING_INLET_COUNT_NR	TEXT		
 PARAM	67f44a1a-3864-4d00-b8cf-8b2380ebb8ef	TS_FONT_SIZE_NR	NUMBER		11	1	Font size in mm [ISO 19650-1:2018]	1
 PARAM	3efc7b1a-5be1-533b-af3e-99cbd8c04af5	ELC_PNL_CKT_SOURCE_NAME_TXT	TEXT		4	1	Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]	1
 PARAM	ceb5c41a-60ee-57f5-a2c0-fea148f0862d	PLM_DRN_PPE_LENGTH_M	TEXT		6	1	Plm Drn Ppe Length M [ISO 19650-1:2018]	1
+PARAM	e8b25343-14ee-57f3-9189-040f37a8b5fc	PLM_DRN_INV_US_M	TEXT		6	1	Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	bc8ddf77-76cf-5ef4-8421-52ab6e7016f7	PLM_DRN_INV_DS_M	TEXT		6	1	Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	d273038b-4055-506d-a005-d7237e32c4da	PLM_DRN_COVER_US_M	TEXT		6	1	Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
+PARAM	2c7ae32a-fd45-5b6c-af34-cc780830e87e	PLM_DRN_COVER_DS_M	TEXT		6	1	Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
 PARAM	7866511b-90b5-421a-80e7-2b6dd258c608	VT_SILHOUETTES_BOOL	YESNO		11	1	Silhouettes enabled [ISO 19650-1:2018]	1
 PARAM	c687911b-13b2-54c6-be89-3db4e44282ff	BLE_MAT_L1_THK_MM	TEXT		2	1	Ble Mat L1 Thk Mm [ISO 19650-1:2018]	1
 PARAM	1545e81b-0197-59e2-a346-ae418f64b5ad	PROP_TENS_STRENGTH_MPA	TEXT		14	1	Prop Tens Strength Mpa [ISO 19650-1:2018]	1
