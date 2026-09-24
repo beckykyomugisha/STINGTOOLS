@@ -4712,6 +4712,21 @@ namespace StingTools.Core
                 double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
+
+                // Voltage and power are stored in internal units (1 V = 10.7639).
+                // Hand the target SI values unless it shares the source's spec,
+                // in which case the internal value is already correct.
+                if (p.StorageType == StorageType.Double
+                    && StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
+                {
+                    double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                    val = si.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+                    Parameter tp = ParameterHelpers.CachedLookup(writeTarget, targetParamName);
+                    bool sameSpec = false;
+                    try { sameSpec = tp != null && tp.Definition.GetDataType() == p.Definition.GetDataType(); }
+                    catch (Exception exSpec) { StingLog.Warn($"MapBuiltIn spec: {exSpec.Message}"); }
+                    if (!sameSpec) raw = si;
+                }
                 return WriteMapped(writeTarget, targetParamName, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }

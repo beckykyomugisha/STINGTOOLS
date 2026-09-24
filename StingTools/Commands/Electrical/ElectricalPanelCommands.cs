@@ -66,7 +66,7 @@ namespace StingTools.Commands.Electrical
                                   ?? p.LookupParameter("Panel Voltage");
                             if (vp != null && vp.StorageType == StorageType.Double)
                             {
-                                double vDouble = vp.AsDouble();
+                                double vDouble = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                                 if (vDouble > 0)
                                     ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
                             }
@@ -76,7 +76,7 @@ namespace StingTools.Commands.Electrical
                         // Connected load (kW)
                         try
                         {
-                            var loadVA = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM)?.AsDouble() ?? 0;
+                            var loadVA = StingTools.Core.Electrical.ElecUnits.Read(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM);
                             if (loadVA > 0)
                                 ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_LOAD, $"{loadVA / 1000.0:0.0}", overwrite: true);
                         }

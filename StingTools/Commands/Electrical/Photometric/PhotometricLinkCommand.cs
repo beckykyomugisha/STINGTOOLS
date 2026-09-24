@@ -214,7 +214,7 @@ namespace StingTools.Commands.Electrical.Photometric
                         double watts = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_WATTAGE));
                         if (watts < 1)
                         {
-                            try { watts = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                            try { watts = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         }
                         lumens = watts * 80.0;
                     }

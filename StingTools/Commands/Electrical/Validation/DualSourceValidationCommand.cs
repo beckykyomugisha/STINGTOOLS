@@ -119,7 +119,7 @@ namespace StingTools.Commands.Electrical.Validation
                     })
                     .Sum(es =>
                     {
-                        try { return es.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0.0; }
+                        try { return StingTools.Core.Electrical.ElecUnits.Read(es, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); }
                         catch { return 0.0; }
                     });
                 totalUpsLoadVa += upsCircuitVa;
@@ -207,7 +207,7 @@ namespace StingTools.Commands.Electrical.Validation
                         })
                         .Sum(es =>
                         {
-                            try { return es.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0.0; }
+                            try { return StingTools.Core.Electrical.ElecUnits.Read(es, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); }
                             catch { return 0.0; }
                         });
 
@@ -269,7 +269,7 @@ namespace StingTools.Commands.Electrical.Validation
                 })
                 .Sum(es =>
                 {
-                    try { return es.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0.0; }
+                    try { return StingTools.Core.Electrical.ElecUnits.Read(es, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); }
                     catch { return 0.0; }
                 });
         }

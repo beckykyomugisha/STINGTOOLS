@@ -398,7 +398,7 @@ namespace StingTools.Core.Electrical
 
         private static double SafeDouble(Parameter p)
         {
-            try { return p != null && p.HasValue ? p.AsDouble() : 0; }
+            try { return ElecUnits.ToSi(p); }
             catch (Exception ex) { StingLog.Warn($"CableSizer read: {ex.Message}"); return 0; }
         }
 

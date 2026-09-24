@@ -90,10 +90,10 @@ namespace StingTools.Commands.Electrical.Validation
                     double systemVoltage = 230.0; // IEC default
                     try
                     {
-                        var voltParam = panel.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                        var voltParam = panel.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
                             ?? panel.LookupParameter("Voltage");
-                        if (voltParam != null && voltParam.AsDouble() > 0)
-                            systemVoltage = voltParam.AsDouble();
+                        double v = StingTools.Core.Electrical.ElecUnits.ToSi(voltParam);
+                        if (v > 0) systemVoltage = v;
                     }
                     catch (Exception ex) { StingLog.Warn($"IPSValidate voltage: {ex.Message}"); }
 
@@ -115,7 +115,7 @@ namespace StingTools.Commands.Electrical.Validation
                         try
                         {
                             var loadParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
-                            if (loadParam != null) loadVa = loadParam.AsDouble();
+                            if (loadParam != null) loadVa = StingTools.Core.Electrical.ElecUnits.ToSi(loadParam);
                         }
                         catch (Exception ex2) { StingLog.Warn($"IPSValidate load: {ex2.Message}"); }
 

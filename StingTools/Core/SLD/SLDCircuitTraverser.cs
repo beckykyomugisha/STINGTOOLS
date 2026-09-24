@@ -458,7 +458,7 @@ namespace StingTools.Core.SLD
                 try
                 {
                     var loadParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
-                    if (loadParam != null) node.LoadKW = loadParam.AsDouble() / 1000.0;
+                    if (loadParam != null) node.LoadKW = StingTools.Core.Electrical.ElecUnits.ToSi(loadParam) / 1000.0;
                 }
                 catch (Exception ex) { StingLog.Warn($"Load: {ex.Message}"); }
 
@@ -492,15 +492,16 @@ namespace StingTools.Core.SLD
                         System.Globalization.CultureInfo.InvariantCulture, out double vd))
                     node.VdPct = vd;
 
-                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM (stored in Revit internal
-                // units, i.e. volts).  Values < 50 are assumed to be in kV and converted.
+                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM. Revit stores it in
+                // internal units (1 V = 10.7639), so convert to volts first; values
+                // < 50 after conversion are assumed to be kV.
                 try
                 {
                     var voltParam = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
                         ?? fi.LookupParameter("Voltage");
                     if (voltParam != null)
                     {
-                        double rawV = voltParam.AsDouble();
+                        double rawV = StingTools.Core.Electrical.ElecUnits.ToSi(voltParam);
                         if (rawV > 0)
                         {
                             // Convert: if suspiciously small (<50) treat as kV.

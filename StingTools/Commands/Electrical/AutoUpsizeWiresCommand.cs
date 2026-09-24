@@ -136,7 +136,7 @@ namespace StingTools.Commands.Electrical
         private static int SafePoles(ElectricalSystem s)
         { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
         private static double SafeVoltage(ElectricalSystem s)
-        { try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
+        { try { return StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_VOLTAGE); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static double ParseCsa(string s)
         {
             if (string.IsNullOrEmpty(s)) return 0;

@@ -100,7 +100,7 @@ namespace StingTools.Commands.Electrical.Import
                     PanelName    = fi.LookupParameter("RBS_PANEL_NAME")?.AsString() ?? fi.Name,
                     MainRating   = fi.LookupParameter("RBS_ELEC_PANEL_TOTAL_INSTALLED_LOAD_PARAM")?.AsValueString() ?? "",
                     BusbarRating = fi.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString() ?? "",
-                    VoltageV     = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")?.AsDouble() ?? 0,
+                    VoltageV     = StingTools.Core.Electrical.ElecUnits.Volts(fi),
                     PhaseConfig  = fi.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? "",
                     Level        = fi.LevelId != ElementId.InvalidElementId
                         ? (doc.GetElement(fi.LevelId) as Level)?.Name ?? "" : "",
@@ -122,8 +122,8 @@ namespace StingTools.Commands.Electrical.Import
                     CircuitNumber = sys.CircuitNumber ?? "",
                     LoadNameTxt   = sys.LookupParameter("ELC_CIRCUIT_DESC_TXT")?.AsString() ?? "",
                     Rating        = sys.LookupParameter("ELC_CIRCUIT_RATING_TXT")?.AsString() ?? "",
-                    LoadKVA       = sys.LookupParameter("RBS_ELEC_APPARENT_LOAD") != null
-                        ? (sys.LookupParameter("RBS_ELEC_APPARENT_LOAD").AsDouble() / 1000.0).ToString("F2")
+                    LoadKVA       = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD) != null
+                        ? (StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(sys) / 1000.0).ToString("F2")
                         : "",
                     CsaMm2        = sys.LookupParameter("ELC_CABLE_CSA_MM2_TXT")?.AsString() ?? "",
                     Poles         = sys.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? ""

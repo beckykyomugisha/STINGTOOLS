@@ -158,7 +158,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             }
             try
             {
-                double native = panel.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0;
+                double native = StingTools.Core.Electrical.ElecUnits.Read(panel, BuiltInParameter.RBS_ELEC_VOLTAGE);
                 if (native > 0) return native;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

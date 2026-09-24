@@ -341,7 +341,7 @@ namespace StingTools.Commands.Electrical
         private static string SafeStr(Element e, BuiltInParameter bip)
         { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static double SafeDouble(Element e, BuiltInParameter bip)
-        { try { return e.get_Parameter(bip)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
+        { try { return StingTools.Core.Electrical.ElecUnits.ToSi(e.get_Parameter(bip)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static int SafeInt(Element e, BuiltInParameter bip)
         { try { return e.get_Parameter(bip)?.AsInteger() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static T TrySafe<T>(Func<T> f) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return default(T); } }

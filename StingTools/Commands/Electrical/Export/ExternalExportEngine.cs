@@ -169,7 +169,7 @@ namespace StingTools.Commands.Electrical.Export
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
                 double v = 0;
-                try { v = p.LookupParameter("Voltage")?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { v = StingTools.Core.Electrical.ElecUnits.ToSi(p.LookupParameter("Voltage")); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (v <= 0) v = ParseDouble(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_VOLTAGE));
                 double connectedKw = SafeDouble(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM) / 1000.0;
                 double faultKa = byId.TryGetValue(p.Id.Value, out var f) ? f.FaultKa : 0;
@@ -372,7 +372,7 @@ namespace StingTools.Commands.Electrical.Export
         }
 
         private static double SafeDouble(Element e, BuiltInParameter bip)
-        { try { return e.get_Parameter(bip)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
+        { try { return StingTools.Core.Electrical.ElecUnits.ToSi(e.get_Parameter(bip)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
         private static string SafeStr(Element e, BuiltInParameter bip)
         { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static T TrySafe<T>(Func<T> f, T fallback = default) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fallback; } }

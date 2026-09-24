@@ -37,7 +37,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 try
                 {
                     string panel = sys.PanelName ?? "(unassigned)";
-                    double kw = (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
+                    double kw = StingTools.Core.Electrical.ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_APPARENT_LOAD) / 1000.0;
                     double iA = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0;
                     double csa = SafeDouble(sys, "ELC_FEEDER_CSA_MM2");
                     if (csa <= 0) csa = SafeDouble(sys, "ELC_CBL_SZ_MM");

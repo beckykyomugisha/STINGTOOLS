@@ -106,7 +106,7 @@ namespace StingTools.Commands.MepDesign
         {
             try { var p = el?.get_Parameter(bip);
                   if (p == null) return 0;
-                  if (p.StorageType == StorageType.Double) return p.AsDouble();
+                  if (p.StorageType == StorageType.Double) return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                   if (p.StorageType == StorageType.Integer) return p.AsInteger();
                   if (p.StorageType == StorageType.String &&
                       double.TryParse(p.AsString(),
@@ -124,7 +124,7 @@ namespace StingTools.Commands.MepDesign
             {
                 try { var p = el.LookupParameter(n);
                       if (p == null) continue;
-                      if (p.StorageType == StorageType.Double) return p.AsDouble();
+                      if (p.StorageType == StorageType.Double) return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                       if (p.StorageType == StorageType.Integer) return p.AsInteger();
                       if (p.StorageType == StorageType.String &&
                           double.TryParse(p.AsString(),

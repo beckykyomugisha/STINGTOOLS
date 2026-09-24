@@ -126,7 +126,7 @@ namespace StingTools.UI
             int poles = 1;
             try
             {
-                load = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
+                load = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                 var cm = fi.MEPModel?.ConnectorManager;
                 if (cm != null)
                 {
@@ -148,7 +148,7 @@ namespace StingTools.UI
                 try
                 {
                     var vp = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE);
-                    if (vp != null) voltageV = vp.AsDouble();
+                    if (vp != null) voltageV = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }

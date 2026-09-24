@@ -111,7 +111,7 @@ namespace StingTools.Commands.Electrical.Busbar
                                 s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? "",
                                 cable.CircuitId, StringComparison.OrdinalIgnoreCase));
                         if (sys != null)
-                            totalKW += (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
+                            totalKW += StingTools.Core.Electrical.ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_APPARENT_LOAD) / 1000.0;
                     }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
