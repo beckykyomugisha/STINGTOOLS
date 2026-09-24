@@ -19,15 +19,24 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-23
+## Counts — re-derived 2026-09-24
 
-- **Total IExternalCommand classes**: **1748**
-- **Reached by a dispatch layer**: **1716**
+- **Total IExternalCommand classes**: **1744**
+- **Reached by a dispatch layer**: **1719**
 - **Referenced only from non-dispatch code**: **0**
-- **Named nowhere outside their own file**: **10**
-- **Ambiguous — name declared twice**: **22** (under 11 names)
+- **Named nowhere outside their own file**: **11**
+- **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1748; the script fails if they stop adding up.
+The four buckets partition all 1744; the script fails if they stop adding up.
+
+**−4 on 2026-09-24 (PR #976):** `Clash/ClashDetectionCommands.cs` — a resurrected
+file of stub duplicates, which issue #596's test exists to keep deleted — was deleted
+again. Its four twins (`ClashDetectionCommand`, `CrossModelClashCommand`,
+`MEPClearanceValidationCommand`, `NamingConventionAuditCommand`) go, so the ambiguous
+bucket falls 22 → 14 and three `Temp/DataPipelineCommands.cs` commands become
+unambiguously reached. The fourth, `ClashDetectionCommand` (Temp), turns out to be
+named only by the deleted twin and a comment, so it joins the orphans (10 → 11). It
+is not newly dead; the twin was hiding that it was already unreachable.
 
 **+3 since earlier on 2026-09-15**, all reached: `Rooms_Renumber`,
 `Rooms_NumberingInspect` and `Rooms_PlaceTags` — room renumbering did not exist, and
@@ -97,6 +106,7 @@ which was intended.
 
 | Class | Declared in | Note |
 |---|---|---|
+| `ClashDetectionCommand` | `Temp/DataPipelineCommands.cs` | Named only in a comment in `Temp/OperationsCommands.cs`. Surfaced 2026-09-24 when its stub twin in `Clash/ClashDetectionCommands.cs` was deleted (#596). Live clash detection dispatches to `Core.Clash.ClashRunCommand`. |
 | `BatchPrintSheetsCommand` | `Docs/SheetTemplateCommands.cs` | Named only in a comment in `Docs/TitleBlockCommands.cs`. Its tag already routes to a newer command. |
 | `EnsureSeedsCommand` | `Commands/Placement/EnsureSeedsCommand.cs` | Seed-family ensure step; the penetration presets express this intent through `skipIfFamilyLoaded`, a key the engine does not bind (WF-4). |
 | `HubSchedulingDashboardCommand` | `Core/StingToolsApp.cs` | The one `Hub*Command` with no `AddButton` call; its 12 siblings all have one. Most likely an omission when the hub panel was assembled. |
@@ -107,7 +117,7 @@ which was intended.
 | `TierTemplateClearGuidesCommand` | `Tags/TagTierCommands.cs` | Pair with the one below. |
 | `TierTemplatePrepCommand` | `Tags/TagTierCommands.cs` | Drops guide notes for tag-tier authoring; the clear-guides command removes them. A usable pair with no way to run either. |
 
-## The 22 whose name is declared twice
+## The 14 whose name is declared twice
 
 A name-reference scan cannot say which of two same-named classes a
 `RunCommand<ClashDetectionCommand>` binds — that depends on the referring file's
@@ -120,17 +130,12 @@ These are reported separately rather than folded into one:
 | `ArcFlashCommand` | `Commands/Electrical/ArcFlash/ArcFlashCommand.cs` · `Commands/StandardsExt/StandardsBulkWrappers.cs` |
 | `BOQExportCommand` | `BOQ/BOQExportCommand.cs` · `Temp/DataPipelineCommands.cs` |
 | `BatchPDFExportCommand` | `Docs/PrintManagerCommands.cs` · `ExLink/AutomationEngine.cs` |
-| `ClashDetectionCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
-| `CrossModelClashCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
 | `EnergyAnalysisCommand` | `Commands/StandardsExt/StandardsBulkWrappers.cs` · `Temp/IoTMaintenanceCommands.cs` |
 | `LifecycleCostCommand` | `Commands/StandardsExt/StandardsExtCommands.cs` · `Temp/IoTMaintenanceCommands.cs` |
-| `MEPClearanceValidationCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
-| `NamingConventionAuditCommand` | `Clash/ClashDetectionCommands.cs` · `Temp/DataPipelineCommands.cs` |
 | `StickyNoteDashboardCommand` | `BIMManager/BIMManagerCommands.cs` · `ExLink/StickyNotesEngine.cs` |
 
-Five of the eleven are the same pair of files — `Clash/ClashDetectionCommands.cs`
-against `Temp/DataPipelineCommands.cs` — which suggests one wholesale supersession
-rather than eleven coincidences. Resolving these is the natural follow-up to this
+The four `Clash/ClashDetectionCommands.cs` twins were one wholesale supersession;
+that file was deleted on 2026-09-24 (#596). Resolving these is the natural follow-up to this
 audit and is tracked in [`ROADMAP.md`](ROADMAP.md).
 
 ## Methodology, and what it does not claim
