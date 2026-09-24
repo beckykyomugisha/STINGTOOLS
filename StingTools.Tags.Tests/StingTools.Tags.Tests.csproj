@@ -145,6 +145,8 @@
     <!-- V-11: the pack-intent-before-document-capability decision. -->
     <Compile Include="..\StingTools\Core\Drawing\WorksetVisibilityPlan.cs" Link="Core\Drawing\WorksetVisibilityPlan.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
+    <!-- A-2: minSizeMm gate, tag leader parse, tag-depth layering. -->
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleResolution.cs" Link="Core\Drawing\AnnotationRuleResolution.cs" />
     <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">

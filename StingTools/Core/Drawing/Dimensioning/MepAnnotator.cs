@@ -287,23 +287,13 @@ namespace StingTools.Core.Drawing.Dimensioning
 
             if (rule?.MinSizeMm.HasValue == true)
             {
-                double minFt = rule.MinSizeMm.Value / DimensionStrategy.MmPerFt;
-                els = els.Where(e => { double s = SizeFt(e); return s <= 0 || s >= minFt; }).ToList();
+                // A-2: one size definition (ElementSize.SectionFt) shared with
+                // MEPDimensioner and AutoTag; this used to read Width only, so a
+                // tall narrow duct measured smaller here than in the dimensioner.
+                els = els.Where(e => AnnotationMinSize.Keeps(
+                    ElementSize.SectionFt(e) * AnnotationMinSize.MmPerFt, rule.MinSizeMm)).ToList();
             }
             return els;
-        }
-
-        private static double SizeFt(MEPCurve e)
-        {
-            try
-            {
-                var dia = e.LookupParameter("Diameter");
-                if (dia != null && dia.StorageType == StorageType.Double) return dia.AsDouble();
-                var w = e.LookupParameter("Width");
-                if (w != null && w.StorageType == StorageType.Double) return w.AsDouble();
-            }
-            catch (Exception ex) { StingLog.Warn($"MepAnnotator.SizeFt: {ex.Message}"); }
-            return 0;
         }
 
         /// <summary>

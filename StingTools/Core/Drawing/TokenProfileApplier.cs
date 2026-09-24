@@ -75,7 +75,13 @@ namespace StingTools.Core.Drawing
             // Phase 177 — pack-level CategoryDepths feeds the per-category
             // depth map when the profile doesn't set it. Profile entries
             // still win on a per-key basis (Merge semantics).
-            var    catDeps  = MergeCategoryDepths(profile?.CategoryDepths, pack?.CategoryDepths);
+            // A-2: the drawing type's annotation layer (annotation.tagDepths +
+            // per-rule depth) sits between them -- it was edited in the
+            // Drawing Type editor and read by nothing. Drawing type beats pack.
+            var    catDeps  = TagDepthLayering.Merge(
+                                  profile?.CategoryDepths,
+                                  TagDepthLayering.FromAnnotation(dt.Annotation),
+                                  pack?.CategoryDepths);
             // Phase 165 — T4-T10 payload pattern mode (HANDOVER / DC / CUSTOM).
             string patternMode = profile?.PatternMode;
 
@@ -294,18 +300,6 @@ namespace StingTools.Core.Drawing
         // entries always win; pack entries fill in keys the profile didn't
         // set. Returns null if both inputs are empty/null so the existing
         // null-check downstream can short-circuit.
-        private static Dictionary<string, int> MergeCategoryDepths(
-            Dictionary<string, int> profileMap, Dictionary<string, int> packMap)
-        {
-            bool hasP = profileMap != null && profileMap.Count > 0;
-            bool hasK = packMap    != null && packMap.Count    > 0;
-            if (!hasP && !hasK) return null;
-            if (!hasK) return profileMap;
-            var merged = new Dictionary<string, int>(packMap, StringComparer.OrdinalIgnoreCase);
-            if (hasP) foreach (var kv in profileMap) merged[kv.Key] = kv.Value;
-            return merged;
-        }
-
         // PERF-03: helper used by the merged single-pass loop above.
         private static Dictionary<string, bool> CanonicaliseSectionVisibility(Dictionary<string, bool> map)
         {
@@ -337,6 +331,16 @@ namespace StingTools.Core.Drawing
                 if (!byCat.TryGetValue(cat, out var list))
                     byCat[cat] = list = new List<ElementId>();
                 list.Add(id);
+                // A-2: depth keys come from three editors -- some write the
+                // display name ("Doors"), the rule grids write whatever the
+                // category combo held, which may be the BIC name ("OST_Doors").
+                // Index both spellings onto the same list.
+                long cv = el.Category.Id.Value;
+                if (cv < 0 && Enum.IsDefined(typeof(BuiltInCategory), cv))
+                {
+                    string bicName = ((BuiltInCategory)cv).ToString();
+                    if (!byCat.ContainsKey(bicName)) byCat[bicName] = list;
+                }
             }
 
             string[] states = ParamRegistry.AllParaStates;
