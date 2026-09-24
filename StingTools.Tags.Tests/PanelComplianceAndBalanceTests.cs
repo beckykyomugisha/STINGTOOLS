@@ -22,6 +22,48 @@ namespace StingTools.Tags.Tests
         };
 
         [Fact]
+        public void Tabulated_Iz_pass_is_never_a_plain_OK()
+        {
+            // Iz with no Ca/Cg/Ci is an upper bound: In <= It proves nothing about the
+            // derated cable, so the verdict must say derating was not checked.
+            var c = Good(); c.IzIsUpperBound = true;
+            var r = CircuitComplianceRule.Evaluate(c);
+            Assert.False(r.Failed);
+            Assert.False(r.FullyVerified);
+            Assert.Contains("Iz derating", r.Summary);
+            Assert.StartsWith("OK (not checked:", r.Summary);
+        }
+
+        [Fact]
+        public void Tabulated_Iz_fail_is_still_conclusive()
+        {
+            // In > It fails whatever the derating, so the upper bound still fails it.
+            var c = Good(); c.IzIsUpperBound = true; c.InA = 32;
+            var r = CircuitComplianceRule.Evaluate(c);
+            Assert.True(r.Failed);
+            Assert.Contains("In 32 A > Iz 27 A", r.Summary);
+            Assert.DoesNotContain("Iz derating", r.Summary);
+        }
+
+        [Theory]
+        [InlineData(10, true, 10)]        // "10 kA"
+        [InlineData(10, false, 10)]       // "10" — no LV device above 200 kA, so kA
+        [InlineData(10000, false, 10)]    // "10000" / "10000 A" — amps
+        [InlineData(6000, false, 6)]
+        [InlineData(250, true, 250)]      // explicit kA is trusted
+        public void Breaking_capacity_amps_are_not_read_as_kA(double value, bool kaUnit, double expected)
+            => Assert.Equal(expected, CircuitComplianceRule.BreakingCapacityKa(value, kaUnit), 6);
+
+        [Fact]
+        public void Amps_read_as_kA_would_hide_a_breaking_capacity_failure()
+        {
+            // 10 kA fault on a 6000 A (6 kA) device: must FAIL once units are right.
+            var c = Good(); c.ProspectiveFaultKa = 10;
+            c.BreakingCapacityKa = CircuitComplianceRule.BreakingCapacityKa(6000, false);
+            Assert.True(CircuitComplianceRule.Evaluate(c).Failed);
+        }
+
+        [Fact]
         public void All_rules_pass_is_plain_OK()
         {
             var r = CircuitComplianceRule.Evaluate(Good());
@@ -37,7 +79,9 @@ namespace StingTools.Tags.Tests
             c = Good(); c.InA = 32;                           // 32 A device on 2.5 mm² (Iz 27 A)
             Assert.Contains("In 32 A > Iz 27 A", CircuitComplianceRule.Evaluate(c).Summary);
             c = Good(); c.VdPct = 6.1;                        // 6.1 % against 5 %
-            Assert.Contains("VD 6.1 % > 5 %", CircuitComplianceRule.Evaluate(c).Summary);
+            Assert.Contains("VD 6.10 % > 5 %", CircuitComplianceRule.Evaluate(c).Summary);
+            c = Good(); c.VdPct = 3.04; c.VdLimitPct = 3;     // just over: must not display as "3.0 > 3"
+            Assert.Contains("VD 3.04 % > 3 %", CircuitComplianceRule.Evaluate(c).Summary);
             c = Good(); c.ProspectiveFaultKa = 10;            // 10 kA on a 6 kA MCB
             Assert.Contains("PSC 10 kA > Icn 6 kA", CircuitComplianceRule.Evaluate(c).Summary);
         }

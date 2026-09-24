@@ -22972,3 +22972,34 @@ From the panel-schedule competitor review (ROADMAP PNL-1…18), the two stronges
 Tests: `PanelComplianceAndBalanceTests` (9) with hand-worked cases (e.g. 3000/1000/2000 VA
 → one 1000 VA move → 2000/2000/2000, 50 % → 0 %). Tags 2242/2242; build 0/0; all repo gates
 and CI's CSV/GUID checks pass locally. **Not exercised in Revit.**
+
+#### Completed (self-review of the panel-schedule work, same branch)
+
+Two independent reviews (correctness + silent failures) of PR #977 before merge. Fixed:
+
+- **Breaking capacity read in amps, compared as kA.** `RBS_ELEC_SHORT_CIRCUIT_RATING` is a
+  current parameter; a 6 kA device came back as 6000 and PSC ≤ Icn could never fail — a false
+  OK on an overduty breaker. Now `CircuitComplianceRule.BreakingCapacityKa`: explicit "kA" is
+  kA, any other value above 200 is amps (no LV device is rated above 200 kA).
+- **A pass against tabulated Iz is no longer a bare "OK".** Iz is It with no Ca/Cg/Ci, an
+  upper bound: In > It is a conclusive FAIL, but In ≤ It proves nothing, so the verdict is
+  "OK (not checked: Iz derating (Ca/Cg/Ci))". No circuit reaches "fully verified" from this
+  command; that needs the cable sizer's derated Iz.
+- **"Cells verified N/N" counted only cells whose write succeeded**, so a template missing
+  half its columns could show green. The total is now every cell the spec asks for; green
+  needs every cell persisted and no problems (`PanelTemplateBuildResult.Clean`).
+- **Rebuilding an existing template before Load Params wiped it** (cleared, then found the
+  parameters missing, then committed). Every parameter is now resolved first; if any is
+  missing the existing template is left untouched and the reason is reported.
+- **Red-to-green did not go green:** devices coloured on an earlier run stayed red. A device
+  on a now-passing circuit is cleared, only when its override is exactly STING's red.
+- Colouring no longer depends on the parameter being bound; only devices the view draws are
+  coloured and counted; refused writes are counted and shown.
+- Batch Schedules' "create templates first" path now shows a creation failure and the spec
+  warnings (e.g. a project override that failed to parse) instead of only logging them.
+- A misspelt or missing `scheduleType` / `configuration` key no longer defaults to
+  Branch / OneColumn silently; it fails validation.
+- VD in the verdict is shown to 2 dp so "3.04 % > 3 %" is not printed as "3.0 % > 3 %".
+
+Tests: +9 (Iz upper bound pass/fail, kA/amps theory, misspelt keys, VD precision). Panel
+tests 73/73. Build 0/0. Still **not exercised in Revit**.

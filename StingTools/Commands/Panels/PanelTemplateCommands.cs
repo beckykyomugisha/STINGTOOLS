@@ -89,10 +89,11 @@ namespace StingTools.Commands.Panels
                 panel.AddSection(r.Name.ToUpperInvariant());
                 if (r.Failed) { panel.MetricError("Not built", r.FailReason); continue; }
                 panel.Metric("Action", r.Created ? "created" : "rebuilt in place");
-                if (r.CellsVerified == r.CellsRequested)
+                if (r.Clean)
                     panel.MetricHighlight("Cells verified", $"{r.CellsVerified}/{r.CellsRequested}");
                 else
-                    panel.MetricWarn("Cells verified", $"{r.CellsVerified}/{r.CellsRequested}");
+                    panel.MetricWarn("Cells verified", $"{r.CellsVerified}/{r.CellsRequested}",
+                                     r.Problems.Count > 0 ? $"{r.Problems.Count} problem(s) below" : null);
                 foreach (var p in r.Problems.Take(12)) panel.Text("⚠ " + p);
                 if (r.Problems.Count > 12) panel.Text($"… {r.Problems.Count - 12} more (STING log).");
                 foreach (var n in r.Notes.Take(5)) panel.Text("ℹ " + n);

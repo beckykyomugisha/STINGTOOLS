@@ -28,6 +28,15 @@ namespace StingTools.Commands.Panels
     {
         public const string CheckParam = "ELC_CKT_CHECK_TXT";
         private const string IzBasis = "Table 4D2A method C, 70 °C PVC Cu, no derating (best case)";
+        private const byte RedR = 220, RedG = 40, RedB = 40;
+        private const int RedWeight = 6;
+
+        private static bool IsOurRed(OverrideGraphicSettings o)
+        {
+            if (o == null || o.ProjectionLineWeight != RedWeight) return false;
+            var c = o.ProjectionLineColor;
+            return c != null && c.IsValid && c.Red == RedR && c.Green == RedG && c.Blue == RedB;
+        }
 
         private sealed class Row
         {
@@ -58,13 +67,21 @@ namespace StingTools.Commands.Panels
             var table = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables()
                             .FindTable("Cu", "PVC70", "C");
             var rows = new List<Row>();
-            int written = 0, unbound = 0;
+            int written = 0, unbound = 0, writeFailed = 0;
             var view = doc.ActiveView;
             bool colourView = view != null && !view.IsTemplate && view.ViewType != ViewType.Schedule
                               && view.ViewType != ViewType.PanelSchedule && view.ViewType != ViewType.DrawingSheet;
             var red = new OverrideGraphicSettings()
-                .SetProjectionLineColor(new Color(220, 40, 40)).SetProjectionLineWeight(6);
-            int coloured = 0;
+                .SetProjectionLineColor(new Color(RedR, RedG, RedB)).SetProjectionLineWeight(RedWeight);
+            int coloured = 0, cleared = 0;
+            // Only elements the view actually draws are coloured and counted; members on
+            // other levels or outside the crop would inflate the count.
+            HashSet<ElementId> inView = null;
+            if (colourView)
+            {
+                try { inView = new HashSet<ElementId>(new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType().ToElementIds()); }
+                catch (Exception ex) { StingLog.Warn($"Check view scope: {ex.Message}"); colourView = false; }
+            }
 
             using (var tx = new Transaction(doc, "STING Circuit Compliance Check"))
             {
@@ -73,13 +90,24 @@ namespace StingTools.Commands.Panels
                 {
                     var row = Evaluate(doc, sys, table, opts);
                     rows.Add(row);
-                    var p = sys.LookupParameter(CheckParam);
-                    if (p == null) { unbound++; continue; }
-                    if (ParameterHelpers.SetString(sys, CheckParam, row.Summary, overwrite: true)) written++;
-                    if (colourView && row.Result.Failed)
+                    // The parameter write and the colouring are independent: an unbound
+                    // parameter must not stop failing devices being shown red.
+                    if (sys.LookupParameter(CheckParam) == null) unbound++;
+                    else if (ParameterHelpers.SetString(sys, CheckParam, row.Summary, overwrite: true)) written++;
+                    else { writeFailed++; StingLog.Warn($"Check write refused on circuit {sys.Id.Value}"); }
+                    if (colourView)
                         foreach (Element el in SafeMembers(sys))
                         {
-                            try { view.SetElementOverrides(el.Id, red); coloured++; }
+                            if (!inView.Contains(el.Id)) continue;
+                            try
+                            {
+                                if (row.Result.Failed) { view.SetElementOverrides(el.Id, red); coloured++; }
+                                // "Red to green": a device this check coloured on an earlier run
+                                // whose circuit now passes is cleared, but only when its override is
+                                // exactly our red, so a hand-set override is never wiped.
+                                else if (IsOurRed(view.GetElementOverrides(el.Id)))
+                                { view.SetElementOverrides(el.Id, new OverrideGraphicSettings()); cleared++; }
+                            }
                             catch (Exception ex) { StingLog.Info($"Check colour {el.Id}: {ex.Message}"); }
                         }
                 }
@@ -98,8 +126,12 @@ namespace StingTools.Commands.Panels
                  .MetricHighlight("Fully verified OK", full.ToString())
                  .MetricWarn("OK but not every rule could run", partial.ToString())
                  .Metric("Written to " + CheckParam, written.ToString(),
-                         unbound > 0 ? $"{unbound} circuit(s) lack the parameter — run Load Params" : null)
-                 .Metric("Devices coloured red", coloured.ToString(), colourView ? $"in '{view.Name}'" : "open a plan to colour devices");
+                         unbound > 0 ? $"{unbound} circuit(s) lack the parameter — run Load Params" : null);
+            if (writeFailed > 0)
+                panel.MetricError("Writes refused", writeFailed.ToString(), "see the STING log");
+            panel
+                 .Metric("Devices coloured red", coloured.ToString(), colourView ? $"in '{view.Name}'" : "open a plan to colour devices")
+                 .Metric("Devices cleared (now passing)", cleared.ToString());
             if (fail > 0)
             {
                 panel.AddSection("FAILURES");
@@ -157,7 +189,7 @@ namespace StingTools.Commands.Panels
 
             row.Result = CircuitComplianceRule.Evaluate(new CircuitCheckInput
             {
-                IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = IzBasis,
+                IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = IzBasis, IzIsUpperBound = true,
                 VdPct = row.Vd, VdLimitPct = row.VdLimit,
                 ProspectiveFaultKa = row.Psc, BreakingCapacityKa = row.Icn,
             });
@@ -171,15 +203,26 @@ namespace StingTools.Commands.Panels
             if (p == null || !p.HasValue) return null;
             try
             {
-                if (p.StorageType == StorageType.Double) { double v = ElecUnits.ToSi(p); return v > 0 ? v : (double?)null; }
+                if (p.StorageType == StorageType.Double)
+                {
+                    double v = ElecUnits.ToSi(p);           // amps when the spec is current
+                    return v > 0 ? KaFrom(v, hasKaUnit: false, raw: v.ToString(CultureInfo.InvariantCulture)) : (double?)null;
+                }
                 string s = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
                 var m = Regex.Match(s ?? "", @"(\d+(?:[.,]\d+)?)");
                 if (m.Success && double.TryParse(m.Groups[1].Value.Replace(',', '.'), NumberStyles.Float,
                         CultureInfo.InvariantCulture, out double v2) && v2 > 0)
-                    return v2;
+                    return KaFrom(v2, Regex.IsMatch(s, @"k\s*A", RegexOptions.IgnoreCase), s);
             }
             catch (Exception ex) { StingLog.Info($"Check kA read: {ex.Message}"); }
             return null;
+        }
+
+        private static double KaFrom(double value, bool hasKaUnit, string raw)
+        {
+            double ka = CircuitComplianceRule.BreakingCapacityKa(value, hasKaUnit);
+            if (ka != value) StingLog.Info($"Check kA: '{raw}' read as amps → {ka:0.##} kA");
+            return ka;
         }
 
         private static IEnumerable<Element> SafeMembers(ElectricalSystem sys)

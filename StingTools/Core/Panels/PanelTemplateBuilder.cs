@@ -27,8 +27,11 @@ namespace StingTools.Core.Panels
         public bool Created;
         public bool Failed;
         public string FailReason = "";
+        /// <summary>Every cell the spec asks for — including ones that could not be written.</summary>
         public int CellsRequested;
         public int CellsVerified;
+        /// <summary>Every requested cell persisted and nothing was reported.</summary>
+        public bool Clean => !Failed && CellsRequested > 0 && CellsVerified == CellsRequested && Problems.Count == 0;
         public List<string> Problems = new List<string>();
         public List<string> Notes = new List<string>();
     }
@@ -102,6 +105,23 @@ namespace StingTools.Core.Panels
             }
 
             var ctx = new Ctx(doc, res);
+
+            // An existing template is only rewritten when every parameter the spec
+            // names is in the project: clearing it first and then finding half the
+            // fields unresolvable would leave labels over empty cells.
+            if (!res.Created)
+            {
+                var missing = spec.Header.Concat(spec.Body).Concat(spec.Footer)
+                    .Where(f => ctx.TryResolve(f) == null).Select(f => f.ParamName).Distinct().ToList();
+                if (missing.Count > 0)
+                {
+                    res.Failed = true;
+                    res.FailReason = $"{missing.Count} parameter(s) not in this project ({string.Join(", ", missing.Take(6))}"
+                                   + (missing.Count > 6 ? ", …" : "") + ") — existing template left untouched; run Load Params, then re-run";
+                    return res;
+                }
+            }
+
             PanelScheduleData data = template.GetTableData();
             var expected = new List<(SectionType sec, int row, int col, ElementId pid, string text)>();
 
@@ -113,7 +133,7 @@ namespace StingTools.Core.Panels
 
             // Verify against a FRESH read: what SetTableData actually kept.
             var fresh = template.GetTableData();
-            res.CellsRequested = expected.Count;
+            res.CellsRequested = Math.Max(ctx.Intended, expected.Count);
             foreach (var e in expected)
             {
                 try
@@ -143,6 +163,7 @@ namespace StingTools.Core.Panels
             ClearAll(s);
             int r0 = s.FirstRowNumber, c0 = s.FirstColumnNumber;
 
+            ctx.Intended += (string.IsNullOrWhiteSpace(spec.Title) ? 0 : 1) + 2 * pairs;
             if (!string.IsNullOrWhiteSpace(spec.Title) && WriteText(ctx, s, r0, c0, spec.Title, "header title"))
                 expected.Add((SectionType.Header, r0, c0, null, spec.Title));
 
@@ -183,6 +204,7 @@ namespace StingTools.Core.Panels
             if (headingRow < 0)
                 ctx.Res.Notes.Add("Circuit table has no heading row above the circuit row — column headings could not be written; check with Inspect.");
 
+            ctx.Intended += want * (paramRows.Count + (headingRow >= 0 ? 1 : 0));
             int cols = Math.Min(want, s.NumberOfColumns);
             if (cols < want)
                 ctx.Res.Problems.Add($"circuit table: only {cols} of {want} columns available — {string.Join(", ", spec.Body.Skip(cols).Select(f => f.Heading))} not placed");
@@ -221,6 +243,7 @@ namespace StingTools.Core.Panels
             ResizeGrid(ctx, s, rowsNeeded, 4, "footer");
             ClearAll(s);
             int r0 = s.FirstRowNumber, c0 = s.FirstColumnNumber;
+            ctx.Intended += 2 * spec.Footer.Count + spec.Notes.Count;
 
             for (int i = 0; i < spec.Footer.Count; i++)
             {
@@ -367,26 +390,32 @@ namespace StingTools.Core.Panels
         {
             public readonly Document Doc;
             public readonly PanelTemplateBuildResult Res;
+            public int Intended;
             private Dictionary<string, ElementId> _shared;
 
             public Ctx(Document doc, PanelTemplateBuildResult res) { Doc = doc; Res = res; }
 
-            public ElementId Resolve(PanelTemplateField f, string where)
+            /// <summary>Resolve without reporting (pre-flight).</summary>
+            public ElementId TryResolve(PanelTemplateField f)
             {
                 string name = f.ParamName;
                 if (f.IsBuiltIn)
-                {
-                    if (Enum.TryParse(name, out BuiltInParameter bip) && bip != BuiltInParameter.INVALID)
-                        return new ElementId(bip);
-                    Res.Problems.Add($"{where}: '{name}' is not a Revit built-in parameter");
-                    return null;
-                }
+                    return Enum.TryParse(name, out BuiltInParameter bip) && bip != BuiltInParameter.INVALID
+                        ? new ElementId(bip) : null;
                 _shared ??= new FilteredElementCollector(Doc).OfClass(typeof(SharedParameterElement))
                     .Cast<SharedParameterElement>()
                     .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
-                if (_shared.TryGetValue(name, out var id)) return id;
-                Res.Problems.Add($"{where}: shared parameter '{name}' is not in this project — run Load Params, then re-run");
+                return _shared.TryGetValue(name, out var id) ? id : null;
+            }
+
+            public ElementId Resolve(PanelTemplateField f, string where)
+            {
+                var id = TryResolve(f);
+                if (id != null) return id;
+                Res.Problems.Add(f.IsBuiltIn
+                    ? $"{where}: '{f.ParamName}' is not a Revit built-in parameter"
+                    : $"{where}: shared parameter '{f.ParamName}' is not in this project — run Load Params, then re-run");
                 return null;
             }
 

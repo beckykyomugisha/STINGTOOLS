@@ -157,5 +157,18 @@ namespace StingTools.Tags.Tests
             Assert.Contains(p, x => x.Contains("used in 2 columns"));
             Assert.Contains(p, x => x.Contains("has no label/heading"));
         }
+
+        [Fact]
+        public void Misspelt_or_missing_type_keys_fail_validation_instead_of_defaulting()
+        {
+            // "schedule_type" is not the key: Newtonsoft ignores it. With a default of
+            // Branch a switchboard template would silently be built as a branch panel.
+            var bad = PanelTemplateSpecSet.Parse(@"{ ""templates"": [
+                { ""name"": ""SB"", ""schedule_type"": ""Switchboard"",
+                  ""body"": [ { ""heading"": ""Way"", ""param"": ""bip:X"" } ] } ] }");
+            var p = bad.Validate();
+            Assert.Contains(p, x => x.Contains("scheduleType ''"));
+            Assert.Contains(p, x => x.Contains("configuration ''"));
+        }
     }
 }

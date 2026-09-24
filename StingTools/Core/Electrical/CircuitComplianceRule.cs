@@ -21,6 +21,12 @@ namespace StingTools.Core.Electrical
         public double InA;                 // device rating (0 = unknown)
         public double? IzA;                // cable capacity; null = unknown
         public string IzBasis = "";        // e.g. "4D2A method C, no derating"
+        /// <summary>
+        /// Iz is the tabulated It with no Ca/Cg/Ci applied — an upper bound on the real
+        /// Iz. In &gt; It is then a conclusive FAIL, but In ≤ It proves nothing, so a pass
+        /// is reported as "not checked: derating", never as a clean OK.
+        /// </summary>
+        public bool IzIsUpperBound;
         public double? VdPct;              // voltage drop %; null = not calculated
         public double VdLimitPct;          // limit for this circuit
         public double? ProspectiveFaultKa; // at the board; null = unknown
@@ -47,6 +53,14 @@ namespace StingTools.Core.Electrical
     {
         private static string N(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
 
+        /// <summary>
+        /// A breaking capacity in kA. "10 kA" is kA; a value with no kA unit above 200 is
+        /// amps (no LV device is rated above 200 kA), so "10000" or "10000 A" → 10 kA.
+        /// Reading amps as kA would make the PSC ≤ Icn check impossible to fail.
+        /// </summary>
+        public static double BreakingCapacityKa(double value, bool hasKaUnit)
+            => hasKaUnit || value <= 200 ? value : value / 1000.0;
+
         public static CircuitCheckResult Evaluate(CircuitCheckInput c)
         {
             var r = new CircuitCheckResult();
@@ -61,13 +75,15 @@ namespace StingTools.Core.Electrical
             {
                 if (c.InA > c.IzA.Value + 1e-9)
                     r.Failures.Add($"In {N(c.InA)} A > Iz {N(c.IzA.Value)} A");
+                else if (c.IzIsUpperBound)
+                    r.NotChecked.Add("Iz derating (Ca/Cg/Ci)");
             }
             else r.NotChecked.Add("Iz (cable size/table)");
 
             if (c.VdPct.HasValue && c.VdLimitPct > 0)
             {
                 if (c.VdPct.Value > c.VdLimitPct + 1e-9)
-                    r.Failures.Add($"VD {c.VdPct.Value.ToString("0.0", CultureInfo.InvariantCulture)} % > {N(c.VdLimitPct)} %");
+                    r.Failures.Add($"VD {c.VdPct.Value.ToString("0.00", CultureInfo.InvariantCulture)} % > {N(c.VdLimitPct)} %");
             }
             else r.NotChecked.Add("VD (run Recalculate)");
 

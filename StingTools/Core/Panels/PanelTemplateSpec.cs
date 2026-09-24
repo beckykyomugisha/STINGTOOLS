@@ -37,9 +37,9 @@ namespace StingTools.Core.Panels
     {
         [JsonProperty("name")]          public string Name { get; set; } = "";
         /// <summary>Branch | Switchboard | Data (Revit PanelScheduleType).</summary>
-        [JsonProperty("scheduleType")]  public string ScheduleType { get; set; } = "Branch";
+        [JsonProperty("scheduleType")]  public string ScheduleType { get; set; } = "";   // no default: a missing or misspelt key must fail Validate, not become Branch
         /// <summary>OneColumn | TwoColumnsCircuitsAcross | TwoColumnsCircuitsDown.</summary>
-        [JsonProperty("configuration")] public string Configuration { get; set; } = "OneColumn";
+        [JsonProperty("configuration")] public string Configuration { get; set; } = "";  // no default, same reason
         [JsonProperty("title")]         public string Title { get; set; } = "";
         [JsonProperty("header")]        public List<PanelTemplateField> Header { get; set; } = new List<PanelTemplateField>();
         [JsonProperty("body")]          public List<PanelTemplateField> Body { get; set; } = new List<PanelTemplateField>();
