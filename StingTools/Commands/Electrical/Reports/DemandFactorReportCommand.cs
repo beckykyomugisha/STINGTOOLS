@@ -123,7 +123,8 @@ namespace StingTools.Commands.Electrical.Reports
                 if (first == null) return "Other";
                 string fname = (first as FamilyInstance)?.Symbol?.FamilyName ?? first.Name ?? "";
                 string cat   = first.Category?.Name ?? "";
-                return CircuitWizardEngine.ClassifyLoad(fname, cat);
+                return CircuitWizardEngine.ClassifyLoad(fname, cat,
+                    StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(sys.Document));
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "Other"; }
         }

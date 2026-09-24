@@ -78,6 +78,12 @@
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
+    <!-- ELEC-17: the one emergency keyword list the matcher reads. The shipped JSON is
+         asserted equal to the built-in fallback so the two cannot drift. -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyKeywords.cs" Link="Core\Electrical\EmergencyKeywords.cs" />
+    <None Include="..\StingTools\Data\STING_EMERGENCY_KEYWORDS.json" Link="Data\STING_EMERGENCY_KEYWORDS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
