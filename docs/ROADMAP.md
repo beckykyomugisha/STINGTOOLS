@@ -58,9 +58,9 @@ pass criteria, and what each failure mode looks like. Do not re-derive it.
 
 | ID | Status | Detail |
 |---|---|---|
-| DRAW-1 | **OPEN — needs Revit, check this first** | The three new dimension kinds and the two new MEP annotation kinds create real geometry and have never run in Revit. The reference strategies are the risk. `ElementDimensioner.EndCapReferences` recovers a wall's end faces from its solid (`ComputeReferences = true`, planar faces whose normal is parallel to the location curve) because Revit exposes no "end of wall" reference — curved, stacked and heavily-joined walls legitimately return fewer than two and are reported, but a wall that returns the WRONG pair produces a dimension with no visible error. `AutoDimColumnGrid` picks between a column's `CenterLeftRight` and `CenterFrontBack` planes by instance-transform alignment; the wrong choice yields "references are not parallel" (caught, warned) or a zero-length dimension (not caught). **To verify:** run `DrawingTypes_ProducePerLevel` on a model with straight and curved walls, wall-hosted doors and windows, structural columns on a grid, and a sloped drainage run. Check that wall-length dims span the wall, opening chains read left to right along the wall, column dims measure ACROSS the nearest grid, and spot slopes report a slope not an elevation. Count-only success is not evidence. |
+| DRAW-1 | **OPEN — needs Revit, check this first** | The three new dimension kinds and the two new MEP annotation kinds create real geometry and have never run in Revit. The reference strategies are the risk. `ElementDimensioner.EndCapReferences` recovers a wall's end faces from its solid (`ComputeReferences = true`, planar faces whose normal is parallel to the location curve) because Revit exposes no "end of wall" reference — curved, stacked and heavily-joined walls legitimately return fewer than two and are reported, but a wall that returns the WRONG pair produces a dimension with no visible error. `AutoDimColumnGrid` picks between a column's `CenterLeftRight` and `CenterFrontBack` planes by instance-transform alignment; the wrong choice yields "references are not parallel" (caught, warned) or a zero-length dimension (not caught). **To verify:** run `DrawingTypes_ProducePerLevel` on a model with straight and curved walls, wall-hosted doors and windows, structural columns on a grid, and a sloped drainage run. Check that wall-length dims span the wall, opening chains read left to right along the wall, column dims measure ACROSS the nearest grid, and spot slopes report a slope not an elevation. Count-only success is not evidence. **Advisory 2026-09-24 — how to automate it:** nothing in the repo can run this in Revit today (`StingTools.Headless` is read-only Design Automation; the MCP server's `run_command` is fire-and-forget with no result; no journal replay). Recommended: a `StingTools.Revit.SmokeTests` project on **ricaun.RevitTest** (MIT; NUnit inside real desktop Revit via `dotnet test`, uses the local licence) that builds its own model from `Default-Multi-Discipline_Metric.rte` with `NewProjectDocument` — grids, straight/arc/stacked walls, hosted doors/windows, columns on/off grid, a 1:80 and a level pipe — so no `.rvt` is checked in. Assert: one dim per straight wall with `Value` = `CURVE_ELEM_LENGTH` ±1 mm; curved wall warns by id; re-run creates nothing; opening chains have openings+1 segments ordered along the wall; column dims perpendicular to the nearest grid, >0, on-grid column skipped. Needs `InternalsVisibleTo` for the test assembly and a `tools/run_revit_smoke.ps1`. Local-only first (GitHub runners have no Revit; a self-hosted licensed runner later). Effort ~M (2–3 days). Visual placement quality stays manual. |
 | DRAW-2 | 🟡 **Family authorable — needs Revit** | `DrawingTypes_BuildFlowArrow` (DOCS panel) authors `STING_ANNO_FLOW_ARROW` from Revit's Generic Annotation template into the project content root and loads it; `MepAnnotator` falls back to that name and loads the `.rfa` from a content root when the family is not yet in the project. Neither the authored geometry nor the rotation path (`ElementTransformUtils.RotateElement` about `view.ViewDirection`) has run. Check arrow shape, head direction on a PLAN (ViewDirection −Z) and scale. |
-| DRAW-3 | **OPEN — needs Revit** | `AutoAnnotateSlope` places a `SpotDimension` and then `ChangeTypeId`s it to a spot-SLOPE type. When the project has no `OST_SpotSlopes` type the annotation prints an ELEVATION, and the code says so loudly — but that warning has never been seen in Revit, and a project that ignores it gets a plausible-looking wrong number on a drainage drawing. Confirm a Spot Slope type exists in the template, or treat the warning as a blocker. |
+| DRAW-3 | **OPEN — needs Revit** | `AutoAnnotateSlope` places a `SpotDimension` and then `ChangeTypeId`s it to a spot-SLOPE type. When the project has no `OST_SpotSlopes` type the annotation prints an ELEVATION, and the code says so loudly — but that warning has never been seen in Revit, and a project that ignores it gets a plausible-looking wrong number on a drainage drawing. Confirm a Spot Slope type exists in the template, or treat the warning as a blocker. **Advisory 2026-09-24 — likely a real defect, not just unverified:** spot elevations and spot slopes are different categories, so `ChangeTypeId(slopeTypeId)` on a `NewSpotElevation` result very probably fails; `SafeWrite.Try` swallows it and `SpotsPlaced++` still runs, so an ELEVATION is reported as a slope — and `SpottedIndex` only looks in `OST_SpotSlopes`, so every re-run adds another. There is no `NewSpotSlope` and no API to create a spot-slope type from nothing (`Duplicate` needs one to exist; test `SpotDimensionType.StyleType == DimensionStyleType.SpotSlope`). **Fix, in order:** (1) replace the spot route with a pipe/duct tag whose label shows Slope (`IndependentTag.Create`, fully supported); (2) until then guard with `sd.IsValidType(slopeTypeId)` — if invalid, delete the elevation and hard-block with "load a spot-slope type", never count it; (3) ship a spot-slope type in the STING seed template. (2) is an S change that can land alone. |
 | DRAW-4 | **DELIBERATELY OPEN** | 139 of the 290 registry filters are still referenced by no pack (was 203). The remainder are healthcare-, FM-, LPS-, QA- and sustainability-specific and belong to workflows that select them per project. `DT-143-ORPHAN` reports unreferenced PACKS as INFO; there is no equivalent for filters, on purpose — a filter library is meant to be larger than any one pack. Revisit only if a discipline turns out to be genuinely uncovered. |
 | DRAW-5 | ✅ **CLOSED 2026-09-24** | `ViewStylePack.Checksum` deleted, with the always-empty Excel "checksum" column. Packs stay deliberately unlocked (CLAUDE.md explains why); a field that looked like a lock and was not one is gone. |
 | DRAW-6 | ✅ **CLOSED 2026-09-24** | `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` registered in MR_PARAMETERS / PARAMETER_REGISTRY / bindings with a `ParamRegistry` constant, so `iso` can be set; an unbound parameter now warns. The ISO policy was ALSO colliding by construction (29 architectural types → identical ISO fields, per-type counters) — fixed by template-keyed counters. Still never produced a sheet in Revit. |
@@ -668,10 +668,30 @@ not survive verification and are recorded here so they are not re-raised:
   every canonical purpose explicitly (Schematic/Clarification → Drafting, Coordination → plan,
   Spool → 3D, Legend → reported as not producible); an unknown purpose is reported and produces
   no view and no empty sheet.
-- **ISO 19650 suitability colouring has no mechanism — STILL OPEN, needs a decision.** The 8
-  `iso-status-*` filters were the attempt and could never work — Revit view filters cannot
-  target `OST_Sheets`. A title-block parameter or a view-template route would work; a view
-  filter never will. Choosing between them is a presentation decision, not a defect fix.
+- **ISO 19650 suitability colouring has no mechanism — OPEN, design chosen (advisory
+  2026-09-24), four owner decisions pending.** The 8 `iso-status-*` filters could never work
+  (view filters cannot target `OST_Sheets`); a separate stamp family orphans on title-block
+  swap; browser/schedule colouring does not print; revision-cloud colour belongs to revisions.
+  **Recommended:** coloured bands *inside the title-block family*, one per CDE state, driven by
+  a new shared Integer `PRJ_TB_CDE_STATE_INT` (0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED,
+  4 ARCHIVED). Family formulas cannot compare text but can compare integers, so each band's
+  visibility is a private Yes/No with formula `PRJ_TB_CDE_STATE_INT = n`, bound via
+  `AssociateElementParameterToFamilyParameter(IS_VISIBLE_PARAM)`; unknown shows no band.
+  Colour is office convention, not an ISO requirement, so the printed code always stays.
+  **Blockers found on the way:** (1) `FilledRegionSpec.Color` in `STING_TITLE_BLOCKS.json` is
+  never read — `TitleBlockFactory.PlaceFilledRegion` picks a fill type by name and silently
+  falls back to the first one; (2) the factory has no visibility-binding path;
+  (3) **live bug:** `TitleBlockRevisionSyncer` writes `PRJ_DWG_SUITABILITY_COD_TXT` without
+  re-deriving `PRJ_TB_DELIVERABLE_CDE_TXT`, so after a revision sync the code can read A1 while
+  STATUS still reads SHARED. **Plan:** a Revit-free `SuitabilityPresentation.Derive(raw)`
+  called by both Populate and the syncer (fixes 3); factory honours `Color` and binds
+  `visibleWhen`; `cdeBands` palette in `STING_TITLE_BLOCKS.json`; `PreExportValidate` blocks a
+  band that disagrees with the code; ARCHIVED written only by Supersede/Cancel.
+  **Owner decisions:** palette (default WIP #BDBDBD, SHARED #F9A825, PUBLISHED #2E7D32,
+  ARCHIVED #616161 — clear of brand amber/navy); band shape (default: tint the STATUS cell);
+  whether ARCHIVED gets a band; unknown code → no band (recommended) or red "UNVERIFIED".
+  **Needs Revit:** region visibility association in a title-block family, formula-driven
+  Yes/No from an instance integer, draw order over labels, and monochrome print schemes.
 - ✅ **`ViewStylePack.Checksum` was declared but never computed.** Deleted (DRAW-5), with the
   always-empty Excel "checksum" column that looked like a lock.
 - ✅ **`tools/StampDrawingTypeChecksums` was not gated by CI.** `--check` runs in the
@@ -681,9 +701,28 @@ not survive verification and are recorded here so they are not re-raised:
 - ✅ **`minSizeMm` applied to dimension rules only.** Honoured on tag rules through the shared
   `ElementSize` measure.
 
-**SURFACED AND NOT ACTED ON — needs a drainage engineer.** `DrainageInvertDimensioner` places
-the invert one wall thickness low. The geometry fix is understood, but the corrected value is an
-engineering number on a drainage deliverable and is not an autonomous call. Left unwired.
+**Drainage invert — reclassified 2026-09-24 from "needs a drainage engineer" to a code fix
+(advisory).** The invert is the lowest point of the pipe BORE: centreline minus the *internal*
+radius — textbook (BS EN 752 / BS EN 12056-2), not a judgement call. This entry was stale in
+three ways: the wall-thickness subtraction is already gone, the dimensioner IS wired
+(`AnnotationRunner.SpotByRules` → `AutoSpotInvert`), and Revit DOES expose inside vs outside —
+`RBS_PIPE_INNER_DIAM_PARAM` / `RBS_PIPE_OUTER_DIAMETER`, and its own computed
+`MEP_PIPE_UPPER/LOWER_INVERT_ELEVATION` (level-relative). Only `Pipe.Diameter` is ambiguous: it
+is the NOMINAL size. **Remaining defects:** (a) nominal/2 used instead of the inside radius;
+(b) the spot is placed at the MIDPOINT — meaningless on a sloped drain; ILs belong at both
+ends/chambers with the gradient "1:X" between, upstream = the higher end; (c) most likely,
+`NewSpotElevation` on a centreline reference reports the reference (or the spot type's "Display
+Elevations" setting), so the computed Z offset may change nothing. `InvertLevelEngine` has its
+own copy with further faults: nominal/2, endpoint 0 assumed upstream, `datumMaOd` added to
+internal-origin Z, and `PLM_DRN_INV_US_M` / `_DS_M` / `PLM_DRN_COVER_*` are **defined in no
+parameter file**, so its write-back silently writes nothing (and `PlumbingDocsCommands.cs:333`
+reads them as feet). **Plan:** one shared Revit-free `InvertMath` — Revit's own invert first,
+then inner diameter, then flagged nominal fallback — used by the dimensioner, `InvertLevelEngine`
+and the chamber-connector path; spots at both ends with a "Bottom Elevation" spot type or a tag
+carrying the computed IL; unit cases (ID 103.2 at centreline 10.000 → 9.9484; nominal fallback
+flagged; reversed endpoints swap US/DS; "1:100" gradient). **One owner decision:** the reported
+datum (AOD via survey point vs project level) and precision (0.01 m usual). **Needs Revit:** the
+invert parameters populate on 2025–2027 and are ID-based; what a placed spot actually shows.
 
 **P-7 slot convention** — ✅ closed in Phase 225. `TemplateViewSlot` converged on the
 bottom-left convention: 16 built-in slots re-authored, placement and save maths aligned
