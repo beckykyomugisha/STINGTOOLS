@@ -157,6 +157,7 @@ namespace StingTools.Commands.TagStudio
 
             sb.AppendLine(GateReport(doc, tagType));
             sb.AppendLine(HostGateDetail(doc, host, hostType));
+            sb.AppendLine(DepthIntegerDetail(doc, host, hostType));
 
             sb.AppendLine();
             sb.AppendLine("tier  gate@host  gate@hostType  gate@tagType  cap    value     param@tag  verdict");
@@ -292,6 +293,50 @@ namespace StingTools.Commands.TagStudio
             sb.AppendLine("  read-only YES means the checkbox cannot hold a value, so a tick never sticks.");
             sb.Append("  A Type binding set on an Instance (or the reverse) also reads back unchanged.");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// TAG_DEPTH_TIER_INT on the tagged element — the parameter the migrated
+        /// label actually gates on.
+        ///
+        /// <para>After the ten-BOOLs-to-one-INTEGER migration every gated row
+        /// reads <c>if(TAG_DEPTH_TIER_INT &gt; N-1, …, "")</c>, so this one value
+        /// decides what draws. Unbound it does not resolve and every row returns
+        /// empty; unset it reads 0 and every row is correctly hidden. Those two
+        /// look identical on a drawing and have completely different fixes, so
+        /// they are printed apart.</para>
+        /// </summary>
+        private static string DepthIntegerDetail(Document doc, Element host, ElementType hostType)
+        {
+            string nm = ParamRegistry.TAG_DEPTH_TIER;
+            Parameter pInst = null, pType = null;
+            try { pInst = host?.LookupParameter(nm); } catch { }
+            try { pType = hostType?.LookupParameter(nm); } catch { }
+
+            if (pInst == null && pType == null)
+                return "DEPTHINT " + nm + " is NOT BOUND to this element.\n"
+                     + "  After the label migration every gated row reads it, so until it is bound\n"
+                     + "  Type-scoped to this category, no tier can ever draw.";
+
+            Parameter p = pType ?? pInst;
+            string on = pType != null ? "type" : "instance";
+            string raw = "?", ro = "?";
+            int val = -1;
+            try { ro = p.IsReadOnly ? "YES" : "no"; } catch { }
+            try
+            {
+                if (p.StorageType == StorageType.Integer) { val = p.AsInteger(); raw = val.ToString(); }
+                else if (p.StorageType == StorageType.String)
+                { string sv = p.AsString(); raw = string.IsNullOrEmpty(sv) ? "(empty)" : sv; int.TryParse(sv, out val); }
+            }
+            catch { }
+
+            string meaning = val <= 0
+                ? "0 or unset — every gated row is hidden. Correct default, not a fault."
+                : $"tiers 1..{val} draw; {val + 1} and above do not.";
+
+            return $"DEPTHINT {nm} on {on}: {raw}   read-only={ro}   binding={BindingKind(doc, nm)}\n"
+                 + "  " + meaning;
         }
 
         /// <summary>Instance or Type, as the PROJECT bound it — not as it was asked for.</summary>
