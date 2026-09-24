@@ -1097,6 +1097,7 @@ ELC_CIR_ZS_TXT,Electrical Circuits
 ELC_CKT_BRK_RATING_A,Electrical Circuits|Electrical Connectors|Electrical Equipment|Electrical Fixtures
 ELC_CKT_CBL_SZ_MM,Electrical Circuits
 ELC_CKT_CBL_TYPE_TXT,Electrical Circuits
+ELC_CKT_CHECK_TXT,Electrical Circuits
 ELC_CKT_CUR_A,Electrical Circuits|Electrical Equipment
 ELC_CKT_CUR_TXT,Electrical Circuits
 ELC_CKT_FINAL_TXT,Electrical Circuits

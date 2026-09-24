@@ -246,6 +246,14 @@ namespace StingTools.Tags
             (@"\b(iot\s*(devices|registry|inventory)|bms\s*registry)\b",
                 "Healthcare_IoTRegistry", "HealthcareValidate", "IoT device registry inspector"),
 
+            (@"\b(circuit\s*(compliance|check)|bs\s*7671\s*check|check\s*circuits?)\b",
+                "Panel_ComplianceCheck", "PanelSchedules", "Per-circuit BS 7671 check: Ib <= In <= Iz, VD, breaking capacity"),
+            (@"\b(apply\s*(phase\s*)?balanc\w*|balance\s*(the\s*)?phases?)\b",
+                "Panel_BalanceApply", "PanelSchedules", "Move single-pole circuits to balance the phases (preview first)"),
+            // STING standard panel schedule templates — listed BEFORE the batch
+            // entry so "create panel schedule template" does not match "create panel schedule".
+            (@"\b(panel\s*(schedule\s*)?templates?|schedule\s*templates?\s*(for\s*)?panels?)\b",
+                "Panel_TemplatesCreate", "PanelSchedules", "Create / update the STING standard panel schedule templates"),
             // Panel Schedule commands (Phase 176 — BatchPanelSchedulesCommand)
             (@"\b(batch\s*panel\s*schedule|create\s*panel\s*schedule|auto\s*panel)\b",
                 "Panel_BatchSchedules", "PanelSchedules", "Batch-create panel schedules from rules (Phase 176)"),

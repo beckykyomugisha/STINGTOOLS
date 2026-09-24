@@ -141,11 +141,32 @@ namespace StingTools.Commands.Panels
                 .ToList();
             if (allTemplates.Count == 0) return ordered;
 
-            string panelName = panel?.Name ?? "";
+            // panel.Name is the family TYPE name; boards are named in "Panel Name"
+            // ("MDB", "DB-L1"). Rules are matched against both.
+            string typeName = panel?.Name ?? "";
+            string boardName = "";
+            try { boardName = panel?.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"Panel name read: {ex.Message}"); }
+
+            // 1. What the board IS: switchboard flag + supply phases. The STING template
+            //    for that role goes first; the name rules below are the fallback.
+            string role = BoardRole(doc, panel, boardName, typeName);
+            if (role != null)
+            {
+                var roleRule = _rules.FirstOrDefault(r => string.Equals(r.PanelType, role, StringComparison.OrdinalIgnoreCase));
+                var rt = roleRule != null ? FindTemplateByName(allTemplates, roleRule.TemplateName) : null;
+                if (rt != null)
+                {
+                    ordered.Add(rt.Id);
+                    ruleUsed = $"board properties → {role}";
+                    templateUsed = rt.Name;
+                }
+            }
 
             foreach (var rule in _rules)
             {
-                if (!MatchesAnyPattern(panelName, rule.NamePatterns)) continue;
+                if (!MatchesAnyPattern(boardName, rule.NamePatterns)
+                    && !MatchesAnyPattern(typeName, rule.NamePatterns)) continue;
 
                 var t = FindTemplateByName(allTemplates, rule.TemplateName);
                 if (t != null && !ordered.Contains(t.Id))
@@ -218,6 +239,29 @@ namespace StingTools.Commands.Panels
             }
             catch (Exception ex) { StingLog.Warn($"PanelTypeMatches '{t?.Name}' vs '{ruleType}': {ex.Message}"); }
             return false;
+        }
+
+        /// <summary>
+        /// Template role from the board's own properties (see PanelBoardProfile);
+        /// null when they cannot decide.
+        /// </summary>
+        private static string BoardRole(Document doc, FamilyInstance panel, string boardName, string typeName)
+        {
+            if (panel == null) return null;
+            bool? isSwitchboard = null;
+            int phases = 0;
+            try
+            {
+                if (panel.MEPModel is ElectricalEquipment ee)
+                {
+                    isSwitchboard = ee.IsSwitchboard;
+                    if (ee.DistributionSystem != null && doc.GetElement(ee.DistributionSystem.Id) is DistributionSysType ds)
+                        phases = ds.ElectricalPhase == ElectricalPhase.ThreePhase ? 3
+                               : ds.ElectricalPhase == ElectricalPhase.SinglePhase ? 1 : 0;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Board profile '{boardName}': {ex.Message}"); }
+            return StingTools.Core.Panels.PanelBoardProfile.RoleFor(isSwitchboard, phases, boardName, typeName);
         }
 
         private static bool MatchesAnyPattern(string name, List<string> patterns)

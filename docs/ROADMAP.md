@@ -2,6 +2,36 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Panel schedule enhancements — competitor review (2026-09-24)
+
+Reviewed: DiRoots (SheetLink/PanelLink, ProSheets, TableGen), Revit 2025/2026 native, Design
+Master ElectroBIM, Naviate Electrical, MagiCAD Electrical, Electrical Panels Manager (BIM_OS,
+IEC — closest competitor), RushForth, Ideate, ETAP DataX, small App Store exporters, Stabicad.
+Sources are in the PR for `claude/panel-schedule-templates`. Notable: **Revit 2026 removed
+its own voltage-drop calculation** (STING's is now the only one inside Revit 2026), and
+`PanelScheduleSheetInstance.Create` is still broken 2024-2026 (open Revit Idea).
+
+| ID | Pri | Enhancement | Who has it | API |
+|---|---|---|---|---|
+| PNL-1 | P1 | Auto-size breaker + cable into the schedule (In ≥ Ib, In ≤ Iz), with a lock-to-override flag | Design Master, Panels Manager | circuit Rating + shared params |
+| PNL-2 | ~~P1~~ **Done 2026-09-24** | Compliance flags per way (Ib ≤ In ≤ Iz, VD, breaking capacity vs PSC) as a schedule column + coloured Excel | Panels Manager | `STING_*_STATUS` text param; ClosedXML |
+| PNL-3 | P1 | One export → formatted issue sheet AND round-trip sheet (DiRoots forces a choice) | DiRoots, Ideate | `GetTableData` / `GetCircuitByCell` |
+| PNL-4 | P1 | Load-classification summary with demand factors (IET OSG App A) | Design Master, ETAP | `GetLoadClassification*`; demand-factor creation API to confirm |
+| PNL-5 | ~~P1~~ **Done 2026-09-24** | Auto phase balance APPLIED via slot moves, respecting locked ways | Design Master | `CanMoveSlotTo`/`MoveSlotTo`/`SwitchPhases`, `IsSlotLocked` |
+| PNL-6 | P1 | Create one circuit per selected element on a chosen board | Naviate | `ElectricalSystem.Create` + `SelectPanel` |
+| PNL-7 | P1 | Move / merge circuits between boards | RushForth, Naviate | `SelectPanel`, `AddToCircuit`/`RemoveFromCircuit` |
+| PNL-8 | P1 | Spare-way rules (≥ N % spare, rating/name from rule) | RushForth; Revit 2026 | `AddSpare`, `SetSpareLoadValue` |
+| PNL-9 | P2 | Feeder / sub-main schedule (cable, length, VD, Zs, Ik, device) | Design Master, ETAP | `ViewSchedule.CreateSchedule` |
+| PNL-10 | P2 | Batch PDF of panel schedules without sheets (test `Document.Export` accepts PanelScheduleView) | App Store tools | `PDFExportOptions` |
+| PNL-11 | P2 | BS 7671 / IET circuit naming scheme | — | `CircuitNamingScheme*`, `RenumberIndexes` |
+| PNL-12 | P2 | SLD ↔ schedule sync incl. spares/spaces/renumber | MagiCAD, Naviate, Design Master | extend `SLDSyncUpdater` |
+| PNL-13 | P2 | Multi-board editing grid + board auto-naming | Panels Manager, Design Master | — |
+| PNL-14 | P2 | Stamp browser-grouping params Revit 2026 groups by | Revit 2026 | param writes |
+| PNL-15 | P3 | Schedule snapshot + revision diff (no competitor found) | — | row hashes |
+| PNL-16 | P3 | Import validation with typical-value substitution (flagged) | ETAP | — |
+| PNL-17 | P3 | Schedule/one-line first, from Excel, before modelling | Naviate | — |
+| PNL-18 | P3 | Copy a board with its downstream circuits | Naviate | `CopyElements` + recreate circuits |
+
 ## Electrical calculations — deep review (2026-09-24, updated after the fix round)
 
 A static review of the electrical module ahead of an MEP presentation, followed by a fix
