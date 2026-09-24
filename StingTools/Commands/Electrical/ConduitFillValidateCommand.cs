@@ -86,6 +86,10 @@ namespace StingTools.Commands.Electrical
                     try
                     {
                         var report = TrayFillCalculator.Compute(doc, el, manifest);
+                        // No manifest cables = no data, not a verified-empty pass.
+                        // Writing 0 % and counting it as passing made an unchecked
+                        // conduit indistinguishable from a checked one.
+                        if (report.CableCount == 0) { noCablesOnRecord++; continue; }
                         double pct = report.FillRatio * 100.0;
                         ParameterHelpers.SetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT,
                             $"{pct:0.0}", overwrite: true);
@@ -97,7 +101,6 @@ namespace StingTools.Commands.Electrical
                             LimitPct    = report.FillLimit * 100.0,
                             Passes      = report.PassesLimit
                         });
-                        if (report.CableCount == 0) noCablesOnRecord++;
                         if (report.PassesLimit) passed++;
                         else
                         {
@@ -117,8 +120,9 @@ namespace StingTools.Commands.Electrical
             TaskDialog.Show("STING Conduit Fill",
                 $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}." +
                 (noCablesOnRecord > 0
-                    ? $"\n\n{noCablesOnRecord} of them have NO manifest cables recorded against them, so they show 0 % " +
-                      "by absence of data, not because they were verified empty. Record or route their cables to check them."
+                    ? $"\n\nNo cable data: {noCablesOnRecord} element(s) have no manifest cables recorded against them. " +
+                      "They were NOT checked, are not counted as passing, and no fill % was written to them. " +
+                      "Record or route their cables to check them."
                     : ""));
 
             // --- Iterative auto-size: upsize conduits that fail fill limit ---
