@@ -78,6 +78,11 @@
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
+    <!-- ELEC-3/5: BS 7671 Appendix 4 cable sizing, device selection and the wire-size
+         parser, plus the resistive voltage-drop engine. Both Revit-free; the sizing
+         tests run against the SHIPPED STING_WIRE_TABLES.json so a data edit fails here. -->
+    <Compile Include="..\StingTools\Core\Electrical\Bs7671CableSizing.cs" Link="Core\Electrical\Bs7671CableSizing.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" Link="Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" />
     <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
