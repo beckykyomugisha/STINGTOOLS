@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════════════
 //  MaterialIdentityPlanner.cs — one identity per material, readable by a tag.
 //
-//  WHY. A material callout (STING - Material Callout Tag, SPECIALIST_TAG_BUILD_SHEET
+//  WHY. A material callout (STING - Materials Tag, SPECIALIST_TAG_BUILD_SHEET
 //  §5) reads the MATERIAL's built-in identity — Mark, Description, Keynote — because
 //  those need no shared parameter. Today they disagree:
 //    • Mark = MAT_CODE only on materials CreateBLE/MEPMaterials made; StampCodes and
@@ -10,8 +10,9 @@
 //      Durability: …) — hundreds of characters, unusable as a callout.
 //    • Keynote holds MAT_ISO_19650_ID, a key that is in no keynote table.
 //  This plans the fix: Mark ← code, Keynote ← code, Description ← the short name,
-//  the long paragraph moved to MAT_SPECIFICATIONS, and the shared MAT_CODE filled
-//  where the register names the material (the StampCodes rule).
+//  the long paragraph moved to MAT_SPECIFICATIONS, the shared MAT_CODE filled where
+//  the register names the material (the StampCodes rule), and the shared MAT_NAME
+//  filled when empty — STING - Materials Tag prints MAT_CODE / MAT_NAME.
 //
 //  ── THE RULES ────────────────────────────────────────────────────────────
 //  CODE: the shared MAT_CODE if set, else the register's code for an exact name
@@ -41,6 +42,9 @@ namespace StingTools.Core.Materials
         public string Specifications = "";  // MAT_SPECIFICATIONS (shared)
         public bool HasSharedCodeParam = true;
         public bool HasSpecificationsParam = true;
+        /// <summary>MAT_NAME (shared) — row 2 of STING - Materials Tag.</summary>
+        public string SharedName = "";
+        public bool HasSharedNameParam = true;
     }
 
     /// <summary>One planned field write.</summary>
@@ -126,6 +130,12 @@ namespace StingTools.Core.Materials
 
             void Write(string field, string from, string to) =>
                 row.Writes.Add(new MaterialIdentityWrite { Field = field, From = from ?? "", To = to });
+
+            // Shared MAT_NAME — what STING - Materials Tag prints under the code. Only
+            // CreateBLE/MEPMaterials ever wrote it, so every other material's tag printed
+            // a code with nothing under it. Filled when empty; never overwritten.
+            if (T(m.SharedName).Length == 0 && m.HasSharedNameParam)
+                Write("MAT_NAME", "", shortName);
 
             // Shared MAT_CODE — the StampCodes rule: only when empty, from the register.
             if (shared.Length == 0 && m.HasSharedCodeParam)

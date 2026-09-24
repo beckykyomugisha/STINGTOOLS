@@ -932,11 +932,6 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "MAT_NAME": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
     "MAT_STANDARD": {
       "state": "write_only",
       "role": "reference",

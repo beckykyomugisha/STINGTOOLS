@@ -17,9 +17,10 @@
 // WHAT THIS CHECKS
 //
 // Every parameter a Materials tag spec names — as a row or inside a row's formula — must
-// be a Material built-in or bound to Materials in RESOLVED_BINDINGS.csv. The legacy spec
-// is held to a ratchet (tools/material_tag_label_baseline.txt: may shrink, never grow);
-// any OTHER material tag spec must be clean outright.
+// be a Material built-in or bound to Materials in RESOLVED_BINDINGS.csv. Zero exceptions:
+// STING - Materials Tag was rebuilt in place on 2026-09-24 (MAT_CODE / MAT_NAME /
+// MAT_MANUFACTURER / MAT_STANDARD, no tier gates), so the 68-row baseline this test
+// started with is gone.
 
 using System;
 using System.Collections.Generic;
@@ -99,10 +100,6 @@ namespace StingTools.Tags.Tests
             return result;
         }
 
-        private static HashSet<string> Baseline() => new HashSet<string>(
-            File.ReadLines(Path.Combine(Repo(), "tools", "material_tag_label_baseline.txt"))
-                .Select(l => l.Trim()).Where(l => l.Length > 0 && !l.StartsWith("#")), StringComparer.Ordinal);
-
         [Fact]
         public void The_measurement_is_real()
         {
@@ -120,23 +117,22 @@ namespace StingTools.Tags.Tests
         public void No_material_tag_row_names_a_parameter_a_material_cannot_carry()
         {
             var readable = BoundToMaterials();
-            var baseline = Baseline();
             var dead = MaterialSpecParams()
                 .Where(r => !readable.Contains(r.Param) && !MaterialBuiltIns.Contains(r.Param))
-                .ToList();
-
-            var newDead = dead.Where(r => r.Spec != "Materials" || !baseline.Contains(r.Param))
                 .Select(r => $"{r.Spec} ({r.Family}): {r.Param}").Distinct().OrderBy(x => x).ToList();
-            Assert.True(newDead.Count == 0,
+            Assert.True(dead.Count == 0,
                 "A material tag row names a parameter no Material carries — it will print blank on every tag. " +
                 "Use a Material built-in (Mark, Description, Keynote, Manufacturer, Model, …) or a parameter " +
-                "bound to Materials (MAT_*, PROP_*, BLE_MAT_* …):\n" + string.Join("\n", newDead));
+                "bound to Materials (MAT_*, PROP_*, BLE_MAT_* …). Tier gates (TAG_PARA_STATE_*, " +
+                "TAG_WARN_VISIBLE_BOOL) cannot work either: a Material has no type to read them from.\n" +
+                string.Join("\n", dead));
+        }
 
-            var fixedStill = baseline.Where(p => !dead.Any(r => r.Spec == "Materials" && r.Param == p))
-                .OrderBy(x => x).ToList();
-            Assert.True(fixedStill.Count == 0,
-                "These are no longer dead rows of the Materials spec — remove them from " +
-                "tools/material_tag_label_baseline.txt (it may shrink, never grow):\n" + string.Join("\n", fixedStill));
+        [Fact]
+        public void The_rebuilt_Materials_Tag_carries_the_callout_rows()
+        {
+            var rows = MaterialSpecParams().Where(r => r.Spec == "Materials").Select(r => r.Param).ToList();
+            Assert.Equal(new[] { "MAT_CODE", "MAT_NAME", "MAT_MANUFACTURER", "MAT_STANDARD" }, rows);
         }
     }
 }

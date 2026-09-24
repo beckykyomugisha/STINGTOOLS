@@ -112,6 +112,20 @@ namespace StingTools.Core.Drawing
         public const string AreaTag             = "AreaTag";
         public const string MaterialTag         = "MaterialTag";
         public const string MaterialTagLayers   = "MaterialTagLayers";
+
+        /// <summary>
+        /// The tagFamilies key MaterialTag / MaterialTagLayers read their family from. Not a
+        /// host category — a material tag tags a face of any host — so it is exempt from the
+        /// "key must be a Revit category" checks (DT-139-FAM, DrawingCategoryNameTests).
+        /// </summary>
+        public const string MaterialTagFamilyKey = "Materials";
+
+        /// <summary>True for the two rule kinds that place material callouts.</summary>
+        public static bool IsMaterialCalloutKind(string ruleType)
+        {
+            var n = Resolve(ruleType)?.Name;
+            return n == MaterialTag || n == MaterialTagLayers;
+        }
         public const string KeynoteTag          = "KeynoteTag";
         public const string MultiCategoryTag    = "MultiCategoryTag";
         public const string AutoTagRoomName     = "AutoTagRoomName";

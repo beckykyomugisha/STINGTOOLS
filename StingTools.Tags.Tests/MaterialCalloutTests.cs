@@ -65,6 +65,18 @@ namespace StingTools.Tags.Tests
             Assert.Equal(r.Code, w["Mark"]);
             Assert.Equal(r.Code, w["Keynote"]);
             Assert.Equal(r.Name, w["Description"]);
+            Assert.Equal(r.Name, w["MAT_NAME"]);   // row 2 of STING - Materials Tag
+        }
+
+        [Fact]
+        public void An_existing_MAT_NAME_is_never_overwritten()
+        {
+            var r = ARow();
+            var row = MaterialIdentityPlanner.Plan(new MaterialIdentityInput
+            {
+                Name = r.Name, SharedCode = r.Code, SharedName = "Our own name", Mark = r.Code, Keynote = r.Code, Description = r.Name,
+            }, Shipped(), force: true);
+            Assert.DoesNotContain(row.Writes, w => w.Field == "MAT_NAME");
         }
 
         [Fact]
@@ -73,7 +85,8 @@ namespace StingTools.Tags.Tests
             var r = ARow();
             var input = new MaterialIdentityInput
             {
-                Name = r.Name, SharedCode = r.Code, Mark = "W-01", Description = "Office partition board", Keynote = "09 21 16",
+                Name = r.Name, SharedCode = r.Code, SharedName = r.Name,
+                Mark = "W-01", Description = "Office partition board", Keynote = "09 21 16",
             };
             var row = MaterialIdentityPlanner.Plan(input, Shipped());
             Assert.Equal(MaterialIdentityVerdict.InSync, row.Verdict);

@@ -380,7 +380,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "97672281b18f8a30b0e678ddce6d25ef5b2c3c7d07578b8f949a6b703c5651bd",
+      "checksum": "a339c960d1dc8121cdf0f12df2334ca4439a1f44a9dabc73b5b2987664538219",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -437,6 +437,9 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "denseUntilScale": 100,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -545,7 +548,7 @@
       "id": "arch-elev-A1-1to100",
       "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "9fd84062a013fc818570c04e1a811ee620ce96b9e811915915799186b9164c20",
+      "checksum": "b9896e58263687fa5fc6edeb2882d7e8712dc91d62325a1efb4982744a738ba0",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -624,6 +627,9 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -742,7 +748,7 @@
       "id": "arch-detail-A3-1to20",
       "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "1507fd37e02571a77c1a4a34c680ddce11d7e799381f65b0e73e11d36e7ddab0",
+      "checksum": "0a608631daad96faf3f161530079190948b16bbfa327c75752191040b264b972",
       "purpose": "Detail",
       "discipline": "A",
       "paperSize": "A3",
@@ -822,6 +828,9 @@
       "annotation": {
         "dimensionStrategy": "Chain",
         "denseUntilScale": 50,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -2917,7 +2926,7 @@
       "id": "arch-interior-elev-A1-1to50",
       "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "99f1b2b13ebc8fd1e456b9d8fa5e2f59a2c0b03b34d3b70606497f8384f85824",
+      "checksum": "808577ed0de1b4729e60dbfc7d30a6189e1d3813f2efd7efed2609dc96cc9c62",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -2996,6 +3005,9 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -4814,7 +4826,7 @@
       "id": "pres-exterior-elev-A1",
       "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
-      "checksum": "3068afdc2647609e02ad65649b6fb58c9d9a574efbf2d5cbab9fc4fe226a9aaf",
+      "checksum": "fe5391020e444cd4327e8a3e509542a7aab4ad123148c54e65eb147867782abf",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -4879,7 +4891,8 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "Walls": "STING - Wall Tag"
+          "Walls": "STING - Wall Tag",
+          "Materials": "STING - Materials Tag"
         },
         "rules": [
           {
@@ -5944,7 +5957,7 @@
       "name": "Floor Build-Up Detail — A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
-      "checksum": "30ad0854a224443917ab8867c4ac258f0f7fd0248402d58259b05f85b6ccd33e",
+      "checksum": "f6090a49a28c84a1890aeffbe613151ce5ea1916dba312fc0bf229546a23e2a4",
       "purpose": "Detail",
       "discipline": "A",
       "phase": "*",
@@ -5997,6 +6010,9 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "autoTag": false,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Floors",

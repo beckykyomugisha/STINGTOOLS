@@ -117,7 +117,10 @@ namespace StingTools.Tags.Tests
                 var fam = t["annotation"]?["tagFamilies"] as JObject;
                 if (fam == null) continue;
                 foreach (var kv in fam)
-                    if (!Resolves(kv.Key))
+                    // The material-callout key is not a host category (a material tag tags a
+                    // face of any host) — MaterialTag / MaterialTagLayers read it directly.
+                    if (!Resolves(kv.Key)
+                        && !string.Equals(kv.Key, StingTools.Core.Drawing.AnnotationRuleKinds.MaterialTagFamilyKey, StringComparison.Ordinal))
                         offenders.Add($"{t["id"]}: '{kv.Key}' → '{kv.Value}'");
             }
             Assert.True(offenders.Count == 0,

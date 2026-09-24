@@ -2,6 +2,29 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — STING - Materials Tag rebuilt in place as the material callout)
+
+- **Decision: rebuild, not retire.** `STING - Materials Tag` carried the universal label — 68
+  fields, none of which can appear on a material. Retiring it would have left the broken family
+  in every project that has it and left the engine's "first material tag loaded" fallback
+  pointing at it; a second family name would have done the same. Rebuilt in place, it keeps the
+  name the loader, the manifest and the fallback use, and reloading it fixes existing projects.
+- **Spec rebuilt.** `LABEL_DEFINITIONS.json` `category_labels.Materials` and the Materials Tag
+  blocks of `STING_TAG_CONFIG_v5_0_GEN` / `_MEP` (and their `_DesignConstruction` twins) now
+  carry `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` / `MAT_STANDARD` — all bound to Materials —
+  in tier 1 only, with no tier gates and no warning rows (neither can resolve on a material,
+  which has no type). The family is declared `LabelMaster: MaterialsTag` in all four configs, so
+  Propagate Universal skips it (`UniversalOptOutTests` lists it; its consistency check caught the
+  MEP configs missing the declaration).
+- **`MaterialTagLabelTests` is now strict** — the 68-row baseline is deleted, and a new test pins
+  the four callout rows.
+- **`Materials_SyncIdentity` fills `MAT_NAME`** when empty (never overwrites): only
+  `CreateBLE/MEPMaterials` ever wrote it, so most materials' tags would have printed a code
+  with nothing under it.
+- The six material drawing types name `tagFamilies["Materials"] = "STING - Materials Tag"`;
+  checksums re-stamped. The build sheet §5 is rewritten for the in-place rebuild; the `.rfa`
+  itself is the one manual step left (ROADMAP MATTAG-1). Not run in Revit.
+
 #### Completed (Phase 296 — parameter audit for the recent work; material tag labels measured)
 
 - **Parameters and bindings re-verified.** Regenerating the binding spec and the parameter CSV

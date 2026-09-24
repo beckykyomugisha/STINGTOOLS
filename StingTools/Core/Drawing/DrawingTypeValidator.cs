@@ -507,6 +507,19 @@ namespace StingTools.Core.Drawing
             {
                 if (string.IsNullOrWhiteSpace(kv.Key)) continue;
 
+                // The material-callout key is not a host category; the MaterialTag kinds
+                // read it directly. Only report it when no rule would read it.
+                if (string.Equals(kv.Key, AnnotationRuleKinds.MaterialTagFamilyKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    bool read = (dt.Annotation.Rules ?? new List<AutoAnnotationRule>())
+                        .Any(x => x != null && x.Enabled && AnnotationRuleKinds.IsMaterialCalloutKind(x.RuleType));
+                    if (!read)
+                        r.Add(ValidationSeverity.Info, "DT-139-FAM-UNUSED",
+                            $"tagFamilies key '{kv.Key}' (→ '{kv.Value}') is read only by MaterialTag / MaterialTagLayers rules, and this profile has none.",
+                            "Add a MaterialTag rule, or remove the entry.");
+                    continue;
+                }
+
                 bool resolves = kv.Key.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)
                     ? RevitCategoryTree.FindByBic(kv.Key) != null
                     : RevitCategoryTree.FindByDisplayName(kv.Key) != null;

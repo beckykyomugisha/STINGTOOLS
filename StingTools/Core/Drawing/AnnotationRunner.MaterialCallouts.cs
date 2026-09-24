@@ -64,7 +64,7 @@ namespace StingTools.Core.Drawing
 
             var symId = ResolveMaterialTagSymbol(doc, pack, rule, stats, label);
             if (symId == ElementId.InvalidElementId) return;
-            if (drawingType != null) symId = ApplyTagSizeVariant(doc, symId, drawingType, "Materials", stats);
+            if (drawingType != null) symId = ApplyTagSizeVariant(doc, symId, drawingType, AnnotationRuleKinds.MaterialTagFamilyKey, stats);
 
             var hosts = CollectMaterialHosts(doc, view, rule, stats, label);
             if (hosts.Count == 0) return;
@@ -152,7 +152,7 @@ namespace StingTools.Core.Drawing
         {
             var all = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
                 .Where(fs => fs.Category?.Id.Value == (long)BuiltInCategory.OST_MaterialTags).ToList();
-            foreach (var name in new[] { rule?.TagFamily, pack?.TagFamilies != null && pack.TagFamilies.TryGetValue("Materials", out var m) ? m : null })
+            foreach (var name in new[] { rule?.TagFamily, pack?.TagFamilies != null && pack.TagFamilies.TryGetValue(AnnotationRuleKinds.MaterialTagFamilyKey, out var m) ? m : null })
             {
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 var hit = all.FirstOrDefault(fs => string.Equals(fs.FamilyName, name.Trim(), StringComparison.OrdinalIgnoreCase));
@@ -162,7 +162,7 @@ namespace StingTools.Core.Drawing
             var first = all.FirstOrDefault();
             if (first == null)
             {
-                stats.Warnings.Add($"{label}: no Material Tag family is loaded — load STING - Material Callout Tag " +
+                stats.Warnings.Add($"{label}: no Material Tag family is loaded — load STING - Materials Tag " +
                                    "(SPECIALIST_TAG_BUILD_SHEET §5) or any material tag. Nothing placed.");
                 return ElementId.InvalidElementId;
             }

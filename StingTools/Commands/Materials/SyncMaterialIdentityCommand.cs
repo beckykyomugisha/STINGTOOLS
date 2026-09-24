@@ -122,6 +122,8 @@ namespace StingTools.Commands.Materials
             Specifications = ParameterHelpers.GetString(m, "MAT_SPECIFICATIONS") ?? "",
             HasSharedCodeParam = Has(m, "MAT_CODE"),
             HasSpecificationsParam = Has(m, "MAT_SPECIFICATIONS"),
+            SharedName = ParameterHelpers.GetString(m, "MAT_NAME") ?? "",
+            HasSharedNameParam = Has(m, "MAT_NAME"),
         };
 
         private static bool WriteField(Material m, MaterialIdentityWrite w)
