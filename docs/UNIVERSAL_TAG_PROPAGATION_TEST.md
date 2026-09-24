@@ -255,6 +255,40 @@ The T3 half of this passes: Tag Doctor confirms the gate is absent from the fami
 This is what the single-integer migration removes — one value cannot disagree with itself.
 See [`UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md`](UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md).
 
+### V4b · The depth INTEGER drives the label — ✅ PROVEN 2026-09-24, both directions
+
+After migrating the 70 formulas to `if(TAG_DEPTH_TIER_INT > N-1, …, "")` and binding the
+parameter Type-scoped, one air terminal type was walked through five values:
+
+| `TAG_DEPTH_TIER_INT` | What the tag drew |
+|---|---|
+| **1** | the ISO tag, one line |
+| **2** | + mark, status, and the T2 narrative |
+| **3** | identical to 2 — see below |
+| **5** | + cost, payment, performance, carbon rows |
+| **6** | + the T6 OmniClass / TAG7F line |
+
+**Both directions were checked.** Raising the value added rows and lowering it removed them.
+That matters: a row that always draws is as wrong as one that never does, and only the
+downward half catches it. Most of this feature's history is failures that looked like
+successes because nobody ran the test the other way.
+
+**Depth 2 and 3 are identical, and that is correct.** T3 owns **zero** label rows — counted
+from the generated migration sheet, not assumed:
+
+```
+T1  >0    0 rows      (row 1 is an ungated plain parameter)
+T2  >1    9 rows
+T3  >2    0 rows      <- nothing to draw
+T4  >3    7 rows
+T5  >4   22 rows
+T6  >5    7 rows      T7..T10  6,6,6,7 rows
+```
+
+T3 was dropped from the master, so `depth_tiers` still accepting 1-10 is `Set depth`'s
+vocabulary, not a promise that every value looks different. Already listed in §7. To make
+depth 3 distinct: label rows first, then the variants.
+
 ### V5 · Type variants
 Family Types should list the **12** catalogue variants, named `_T1` or `_T2` only:
 
