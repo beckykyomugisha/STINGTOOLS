@@ -123,6 +123,14 @@ entries remain: `arch-rcp-A1-1to100` (Ceilings, Lighting Fixtures — its rules 
 floor plan's and tag doors/furniture on a ceiling plan), `fm-asset-location` (Rooms),
 `pres-exterior-elev` (Walls), `pres-context-site` (Site), `clar-markup` (Rooms).
 
+*Closed 2026-09-24:* `fm-asset-location` and `pres-context-site` gained the Rooms / Site
+`AutoTag` rule their key promised; `clar-markup` (hand-marked) and `pres-exterior-elev` (walls
+carry material callouts, not the wall-type tag) lost the key. `arch-rcp` was already fixed.
+`DrawingTypeTagFamilyTests.EveryTagFamilyKeyIsAskedForByARule` now fails on any unused key, so
+this cannot drift back; the two exemptions are the `Materials` key on a pack with a material
+callout rule and a rule-less `autoTag: true` pack (the runner synthesises its rules), which is
+why `health-rds-A3` passes.
+
 **DT-4 · The medical-gas terminal unit tag cannot tag STING's own outlet seed.**
 `STING - Medical Gas Terminal Unit Tag` is declared for Plumbing Fixtures; `STING_SEED_MedGasOutlet`
 builds Specialty Equipment. `health-medgas-pln` therefore tags seeded outlets with the generic

@@ -4139,7 +4139,7 @@
       "id": "fm-asset-location-A1-1to100",
       "name": "FM Asset Location Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "69c62eb06c135dd946080320259d2bdb4e8568144204d1dc59e0e9ed19c44632",
+      "checksum": "d4891c627f9c38d98e9433f8959cbd4058d8808661f9bdeb10d8e35624402414",
       "purpose": "Plan",
       "discipline": "*",
       "paperSize": "A1",
@@ -4216,6 +4216,11 @@
           },
           {
             "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Rooms",
             "ruleType": "AutoTag",
             "enabled": true
           }
@@ -4651,7 +4656,7 @@
       "id": "pres-exterior-elev-A1",
       "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
-      "checksum": "fe5391020e444cd4327e8a3e509542a7aab4ad123148c54e65eb147867782abf",
+      "checksum": "a552e4549d0b71125ad441695bb044692f795adc522fb6ecca52f05205f3ed58",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -4716,7 +4721,6 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "Walls": "STING - Wall Tag",
           "Materials": "STING - Materials Tag"
         },
         "rules": [
@@ -4874,7 +4878,7 @@
       "id": "pres-context-site-A1",
       "name": "Presentation Context / Site — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "ae6e53bb902f28cb2a48aa269656716d2b1c72f85b2519a03dccd54ed1e7eaf3",
+      "checksum": "ae93129fd2d707ce6a5e367db81d1d37c1e5a9125ea24e8c7899f48007bd5c5d",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -4950,7 +4954,13 @@
         "tagFamilies": {
           "Site": "STING - Site Tag"
         },
-        "rules": []
+        "rules": [
+          {
+            "category": "Site",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "PresentationRich",
@@ -4986,7 +4996,7 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "568540f2598ca92e5b038792655f6b9e1d1d98c8dd288b14168b14e0c1db84b8",
+      "checksum": "cee81b724df2ce37d27b89a8af5c1e6d1eaec80182e31fb2fd51298a07b37cfa",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
@@ -5051,9 +5061,7 @@
         }
       ],
       "annotation": {
-        "tagFamilies": {
-          "Rooms": "STING - Room Tag"
-        },
+        "tagFamilies": {},
         "rules": []
       },
       "print": {
