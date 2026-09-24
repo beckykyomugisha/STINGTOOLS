@@ -149,6 +149,11 @@
          GenerateFromScopeBoxesCommand call this same file, so
          DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingPurposeViewKind.cs" Link="Core\Drawing\DrawingPurposeViewKind.cs" />
+    <!-- D-4 / D-5: routing matcher + audit, and slot geometry. DrawingDispatcher
+         and DrawingTypeValidator call these same files, so
+         DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
