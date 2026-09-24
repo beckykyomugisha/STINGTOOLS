@@ -619,6 +619,7 @@
                                 </WrapPanel>
                                 <WrapPanel Margin="0,4,0,0">
                                     <Button Style="{StaticResource ActionBtn}" Content="Pre-Audit" Tag="PreTagAudit" Click="Cmd_Click" ToolTip="Dry-run audit before committing"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Doctor" Tag="TagDoctor" Click="Cmd_Click" ToolTip="Select an element (or its tag): reports per tier whether the gate is bound, on, capped by category, and whether the value is there - so a blank row says which."/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Re-Tag" Tag="ReTag" Click="Cmd_Click" ToolTip="Force re-derive selected tags"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Copy Tags" Tag="CopyTags" Click="Cmd_Click" ToolTip="Copy tags from first to all selected"/>
                                     <Button Style="{StaticResource ActionBtn}" Content="Swap Tags" Tag="SwapTags" Click="Cmd_Click" ToolTip="Swap tag values between 2 elements"/>

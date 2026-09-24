@@ -1858,11 +1858,11 @@ namespace StingTools.Core
                     if (val.Contains("EXHAUST") || val.Contains("EXTRACT")) return "EXH";
                 }
 
-                // Check family name for duct-related equipment
-                string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
-                if (familyName.Contains("SUPPLY") || familyName.Contains("DIFFUSER")) return "SUP";
-                if (familyName.Contains("RETURN") || familyName.Contains("RETURN GRILLE")) return "RTN";
-                if (familyName.Contains("EXHAUST") || familyName.Contains("EXTRACT FAN")) return "EXH";
+                // Check family name for duct-related equipment.
+                // Direction beats shape - see HvacDirectionFromName for why a
+                // "Return Diffuser" used to resolve as SUP.
+                string dir = HvacDirectionFromName.Resolve(ParameterHelpers.GetFamilyName(el));
+                if (!string.IsNullOrEmpty(dir)) return dir;
             }
             catch (Exception ex) { StingLog.Warn($"HVAC sub-function detection failed: {ex.Message}"); }
             return null;
@@ -2594,14 +2594,14 @@ namespace StingTools.Core
             }
             else
             {
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod);
-                ParameterHelpers.SetIfEmpty(el, ParamRegistry.SEQ, seq);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.DISC, disc);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.LOC, loc);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.ZONE, zone);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.LVL, lvl);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SYS, sys);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.FUNC, func);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.PROD, prod);
+                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SEQ, seq);
 
                 // Re-read actual stored token values to ensure TAG1 reflects
                 // what's on the element. Do NOT fill empty slots with derived defaults —

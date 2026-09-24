@@ -537,6 +537,34 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// SetIfEmpty for the eight ISO 19650 TOKEN parameters, where "empty"
+        /// means what the readers mean: blank, or sanitising away to nothing.
+        ///
+        /// <para>Plain SetIfEmpty asks only whether the string has length. A
+        /// token holding a bare separator has length and no content, so it
+        /// blocked its own repair while every reader treated it as absent -
+        /// measured 2026-09-23, eight elements tagged
+        /// "A-BLD1-Z01-L01-ARC-FIT-SBP-" with a blank mandatory SEQ, which
+        /// STING_TAG_TOKEN_POLICY.json calls ALWAYS wrong.</para>
+        ///
+        /// <para>Deliberately NOT folded into SetString: most parameters are
+        /// not tokens, and "sanitises to empty" is a token rule. A description
+        /// reading "-" is a description.</para>
+        /// </summary>
+        public static bool SetTokenIfEmpty(Element el, string paramName, string value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            string existing = GetString(el, paramName);
+            if (!ParamRegistry.IsTokenEffectivelyEmpty(existing))
+                return false;                       // a real value; leave it alone
+
+            // Empty or junk - overwrite, because SetIfEmpty would refuse junk.
+            return SetString(el, paramName, value, overwrite: true);
+        }
+
+        /// <summary>
         /// Set a Yes/No (integer) parameter. Works with YESNO StorageType.
         /// Also handles string-stored BOOL params for compatibility.
         /// </summary>

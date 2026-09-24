@@ -3580,6 +3580,25 @@ namespace StingTools.Core
         /// or a carry-over of an earlier full tag. Callers treat an empty string
         /// as "re-derive on next tag build", which is the safe behaviour.
         /// </summary>
+        /// <summary>
+        /// True when a stored token value carries no usable token - it is blank,
+        /// or it sanitises away to nothing.
+        ///
+        /// <para>WHY THIS IS PUBLIC. Readers and writers disagreed about what
+        /// "empty" means, and the disagreement shipped tags. SEQ held a bare
+        /// "-" on eight elements (a leftover from the deprecated ZonePrefix /
+        /// DiscPrefix schemes, which emitted "Z1-0042"). Every READER sanitised
+        /// that to "" and rendered a tag ending in a bare separator; the WRITER
+        /// saw a string of length 1, decided the slot was occupied, and refused
+        /// the write that would have fixed it. The element could never recover
+        /// on its own.</para>
+        ///
+        /// <para>So the writer now asks the same question the reader does. A
+        /// value that reads as nothing must not block a write.</para>
+        /// </summary>
+        public static bool IsTokenEffectivelyEmpty(string raw)
+            => string.IsNullOrWhiteSpace(SanitiseTokenValue(raw, null, null));
+
         private static string SanitiseTokenValue(string raw, string paramName, Element el)
         {
             if (string.IsNullOrEmpty(raw)) return "";

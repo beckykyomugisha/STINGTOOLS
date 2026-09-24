@@ -105,28 +105,98 @@ worth doing now.
 
 ---
 
-## 4 · The open question — and the 30-second test
+## 4 · ANSWERED (2026-09-23) — the TAGGED ELEMENT's type copy wins
 
-Which copy of a gate does a label row actually read: **the tag type's, or the tagged
-element's?** A tag label's calculated value is evaluated against the tagged element's
-parameters, which suggests the tagged element's — and `MR_PARAMETERS` binds all ten gates
-across model categories, so both copies exist.
+**Which copy of a gate does a label row read: the tag type's, or the tagged
+element's?**
 
-It matters:
+**The tagged element's type.** Measured in Revit on a live air terminal:
 
-- **If the tagged element's copy wins**, the tag family's own gates are inert, and tier
-  visibility is controlled entirely by `Set depth` on model types. The smoke test's V3
-  ("flip `TAG_PARA_STATE_4_BOOL` on the Duct tag type") would then be testing the wrong
-  parameter and would fail for a reason that is not a defect.
-- **If the tag type's copy wins**, the scope fix in §1 is load-bearing, not hygiene.
+| `TAG_PARA_STATE_6_BOOL` on the air terminal's TYPE | The tag |
+|---|---|
+| unticked | one line |
+| **ticked** | one line **+ the three T6 carbon rows** |
 
-**The test**, once a tag is placed on a duct: flip `TAG_PARA_STATE_7_BOOL` on the **tag
-type** and see whether the T7 rows disappear. Then flip it back, flip it on the **duct
-type** instead, and see whether they disappear then. Whichever one moves the tag is the one
-that matters, and the answer belongs in this document rather than in anyone's memory.
+Same element, same tag, nothing else changed. The gate was simultaneously **ON at
+the tag type** throughout — so the tag type's copy is inert for rendering.
 
-Until it is answered, keep both copies Type-scoped and consistent — which is what §1 now
-enforces.
+An integer comparison behaves identically:
+`if(TAG_DEPTH_TIER_INT > 5, ASS_TAG_7F_TXT, "")` with the value 6 drew its row.
+
+### This reverses the answer recorded here earlier the same day
+
+The first version of this section concluded *"the tag type's copy wins, because it
+is the only copy."* That was **inferred**, not measured — from the gates reading
+`ON` at the tag type and `-` at the host while nothing drew. The inference was
+backwards: nothing drew *because* the host had no copy, and the tag-type copy
+that was `ON` never mattered.
+
+The premise was wrong too. It claimed tiers 4–10 have no model-category binding
+spec anywhere, so a host copy was impossible. `PARAMETER_CATEGORIES.csv` does
+cover only tiers 1–3 — but a spec is not a binding and its absence is not a
+prohibition. Binding tier 6 by hand took two minutes and worked.
+
+**The lesson is the one this file keeps relearning:** four causes of a blank row
+look identical on a drawing, and reasoning from which of them *seems* most likely
+produced a confident wrong answer twice in one day. The experiment that settled
+it was a single tick.
+
+### Consequences
+
+- **The gate must be bound to the tagged element, Type-scoped.** Nothing else
+  makes a tier draw.
+- **Per-drawing depth is not achievable** through tag type variants. A duct cannot
+  carry a T2 tag on the coordination sheet and a T10 tag on handover — depth is a
+  property of the element, not of the tag. `TagTypeVariantWriter`'s depth tiers
+  are real type variants, but their gate values do not reach the label.
+- **`Set depth`'s writes to tag types change nothing on a drawing.** It now also
+  writes `TAG_DEPTH_TIER_INT` on element types, which does.
+- **One integer beats ten booleans**, now that binding is required either way: one
+  binding instead of ten, "all ten on at depth 2" becomes unrepresentable, and
+  tier 11 costs nothing. The 70 formulas are in
+  [`UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md`](UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md).
+
+### Two Revit rules found on the way
+
+1. **No `>=` operator.** Revit answers `Operator not expected: =`. Tier N is
+   written `> N-1`.
+2. **An unset integer reads as 0**, so a gated row stays hidden until
+   `TAG_DEPTH_TIER_INT` has a value — the correct default.
+
+---
+
+## 4b · Why a duct tag showed one line — measured 2026-09-23
+
+Not the label rows. **All 71 are present and correct in the master.** Row 1 is a
+plain parameter; rows 2–71 are calculated values, each gated on
+`if(TAG_PARA_STATE_n_BOOL, …, "")`.
+
+Exactly one line drew — row 1, the only ungated row. Every gated row returned `""`
+because the gate was not bound to the tagged element, so the condition could never
+be true.
+
+The sequence that proved it, each step a positive readout rather than an absence:
+
+| Row 71's formula | Result |
+|---|---|
+| `if(TAG_PARA_STATE_6_BOOL, ASS_TAG_7F_TXT, "")` | blank |
+| `ASS_TAG_7F_TXT` | **drew** — so the row and the value are fine |
+| `"HELLO"` | **drew** — so the reload reaches the drawing |
+| gate restored, **then bound + ticked on the host type** | **drew** |
+
+The third line matters as much as the fourth. Two rounds of "nothing happened"
+could have been a formula that fails, a gate that is false, or a change that never
+reached the drawing. `"HELLO"` ruled out the third, and only then did the silences
+become evidence.
+
+### Two data defects this uncovered
+
+- `ASS_TAG_7F_TXT` holds an **OmniClass classification sentence**, not the carbon
+  narrative its row name promises — and it duplicates the ISO tag already on line 1.
+- The three carbon rows draw **`A1-A3:0kgCO2e A4:0kgCO2e B6:0kgCO2e/yr`** — real
+  parameters with no data behind them.
+
+Both were invisible while nothing drew, and neither is a label problem.
 
 ---
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -106,6 +106,30 @@ namespace StingTools.Core
         };
 
         /// <summary>
+        /// FUNC codes produced by the family-aware SUB-FUNCTION resolvers rather
+        /// than by <c>FuncMap</c>.
+        ///
+        /// <para>These never appear in FuncMap at all: FuncMap answers "what is
+        /// this SYSTEM's default function", while these are refinements read off
+        /// the element - a duct's airflow direction, an LPS component's role, a
+        /// drainage run being a vent. A validator built only from FuncMap rejects
+        /// every one of them.</para>
+        ///
+        /// <para>Kept beside the fallback list, and covered by a test that scans
+        /// the resolvers for the literals they return, so a new sub-function
+        /// cannot be added in code without appearing here.</para>
+        /// </summary>
+        internal static readonly HashSet<string> SubFunctionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // HVAC airflow direction - GetHvacSubFunction / HvacDirectionFromName
+            "SUP", "RTN", "EXH", "FRA",
+            // Wet services - GetHwsSubFunction / drainage
+            "HTG", "DHW", "VNT",
+            // Lightning protection - ResolveLpsFunc
+            "AT", "DC", "EE", "BOND", "SPD", "TC",
+        };
+
+        /// <summary>
         /// BUG-06: Valid FUNC codes derived from TagConfig.FuncMap keys when available,
         /// so project-specific codes added via project_config.json are accepted.
         /// Falls back to ISO 19650 standard codes when FuncMap is empty.
@@ -119,7 +143,26 @@ namespace StingTools.Core
                 if (TagConfig.FuncMap == null || TagConfig.FuncMap.Count == 0) return _fallbackFuncCodes;
                 var cached = _cachedValidFuncCodes;
                 if (cached != null) return cached;
-                var set = new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase);
+
+                // FuncMap is SYS -> FUNC, so the FUNC vocabulary is its VALUES.
+                //
+                // This read Keys. The keys are SYSTEM codes, so the validator was
+                // checking FUNC tokens against the wrong vocabulary in every
+                // project that has a FuncMap - which is every project, because the
+                // built-in defaults populate it. Measured 2026-09-24: 14 codes the
+                // resolvers legitimately emit were rejected, SUP among them - the
+                // most common FUNC code there is - while ARC, HVAC, HWS and LV
+                // were accepted as functions although they are systems.
+                //
+                // The fallback list below was right all along, which is why this
+                // survived: it is correct exactly when FuncMap is empty, and that
+                // is the one case that never happens.
+                var set = new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
+
+                // Sub-functions are read off the element, not from FuncMap, so
+                // they have to be added or every one of them fails validation.
+                foreach (string c in SubFunctionCodes) set.Add(c);
+
                 if (CustomFuncCodes.Count > 0) foreach (string c in CustomFuncCodes) set.Add(c);
                 _cachedValidFuncCodes = set;
                 return set;

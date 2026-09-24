@@ -1065,6 +1065,7 @@ namespace StingTools.UI
                     case "ClearOverrides": RunCommand<Organise.ClearOverridesCommand>(app); break;
                     case "CompletenessDashboard": RunCommand<Tags.CompletenessDashboardCommand>(app); break;
                     case "PreTagAudit": RunCommand<Tags.PreTagAuditCommand>(app); break;
+                    case "TagDoctor": RunCommand<Commands.TagStudio.TagDoctorCommand>(app); break;
                     case "ResolveAllIssues": RunCommand<Tags.ResolveAllIssuesCommand>(app); break;
 
                     // ── Tag Schemes (Phase 191 — project grammar renderings) ──
