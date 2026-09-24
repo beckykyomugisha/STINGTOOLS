@@ -586,33 +586,7 @@ namespace StingTools.Core.Drawing
         /// the A1 masters themselves and for fab/specialty families (their
         /// layouts are not derivable from a working-sheet master).</summary>
         private static string ResolveMasterSeedId(string specId)
-        {
-            // Cover families (landscape only) propagate from the single A1 cover
-            // master, so one authored A1 cover fans out to A0 / A3 via the same
-            // whole-sheet affine remap used for working sheets.
-            var cov = Regex.Match(specId ?? "",
-                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
-            if (cov.Success)
-            {
-                const string coverMaster = "STING_TB_COVER_A1_v1.0";
-                return string.Equals(coverMaster, specId, StringComparison.OrdinalIgnoreCase)
-                    ? null : coverMaster;
-            }
-
-            var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
-                RegexOptions.IgnoreCase);
-            if (!m.Success) return null;
-            // Keep the ORIENTATION when picking the master: a _PORT family
-            // propagates from the A1 _PORT seed, not the landscape A1 seed.
-            // Mapping every orientation to the landscape master squished the
-            // portrait/right-strip design (non-uniform paper ratio). Same
-            // orientation => uniform scale => the seed's layout is preserved.
-            string port = m.Groups[2].Success ? "_PORT" : "";
-            string master = $"STING_TB_A1{port}_{m.Groups[3].Value.ToUpperInvariant()}_v2.0";
-            return string.Equals(master, specId, StringComparison.OrdinalIgnoreCase)
-                ? null : master;
-        }
+            => TitleBlockSeedRemap.ResolveMasterSeedId(specId);
 
         /// <summary>CopyElements duplicate-type collisions resolve to the
         /// destination's types so the target family's text styles win.</summary>
@@ -640,72 +614,27 @@ namespace StingTools.Core.Drawing
             return null;
         }
 
-        /// <summary>ISO A-series paper dims (mm) parsed from a working-sheet
-        /// spec id. Returns false for non-working-sheet ids.</summary>
-        private static bool TryGetIsoPaper(string specId, out double wMm, out double hMm)
-        {
-            wMm = hMm = 0;
-
-            // Cover families are landscape A0 / A1 / A3 (no portrait variant).
-            var cov = Regex.Match(specId ?? "",
-                @"^STING_TB_COVER_(A0|A1|A2|A3)_v[\d.]+$", RegexOptions.IgnoreCase);
-            if (cov.Success)
-            {
-                switch (cov.Groups[1].Value.ToUpperInvariant())
-                {
-                    case "A0": wMm = 1189; hMm = 841; break;
-                    case "A1": wMm = 841;  hMm = 594; break;
-                    case "A2": wMm = 594;  hMm = 420; break;
-                    case "A3": wMm = 420;  hMm = 297; break;
-                }
-                return true;
-            }
-
-            var m = Regex.Match(specId ?? "",
-                @"^STING_TB_(A0|A1|A2|A3)(_PORT)?_(BIM|NONBIM)_v[\d.]+$",
-                RegexOptions.IgnoreCase);
-            if (!m.Success) return false;
-            switch (m.Groups[1].Value.ToUpperInvariant())
-            {
-                case "A0": wMm = 1189; hMm = 841; break;
-                case "A1": wMm = 841;  hMm = 594; break;
-                case "A2": wMm = 594;  hMm = 420; break;
-                case "A3": wMm = 420;  hMm = 297; break;
-                default: return false;
-            }
-            if (m.Groups[2].Success) { var tmp = wMm; wMm = hMm; hMm = tmp; }
-            return true;
-        }
-
-        // ISO 3098 drafting text-height series (mm). Text must NOT scale
-        // linearly with paper (A1->A3 = 50% would print unreadably small);
-        // instead it steps DOWN one tier on A3 and stays put on A0/A1.
-        private static readonly double[] IsoTextTiers = { 1.8, 2.0, 2.5, 3.5, 5.0, 7.0, 10.0 };
-
-        private static double StepTextTierDown(double heightMm)
-        {
-            int idx = 0;
-            for (int i = 0; i < IsoTextTiers.Length; i++)
-                if (heightMm >= IsoTextTiers[i] - 1e-6) idx = i;
-            return IsoTextTiers[Math.Max(0, idx - 1)];
-        }
-
         /// <summary>Copy the ENTIRE design (detail/symbolic lines, filled
         /// regions, captions and labels) from the A1 master seed into
         /// <paramref name="famDoc"/>. Positions remap by the paper-size ratio
         /// (whole-sheet affine, so the strip lands where the design intends,
-        /// not just the drawable zone). Text keeps drafting-standard heights:
-        /// unchanged on A0, stepped one ISO 3098 tier down on A3. Uses the
-        /// view-to-view CopyElements overload (these elements are
-        /// view-specific). Returns the number of LABELS propagated.</summary>
+        /// not just the drawable zone). Text moves between ISO 3098 tiers by
+        /// paper class (see <see cref="TitleBlockSeedRemap"/>): unchanged on
+        /// A0, one tier down on A2 and A3. Arcs rescale (centre + radius);
+        /// splines / ellipses and filled regions bounded by them cannot be
+        /// remapped and are COUNTED into a warning rather than left 1:1 in
+        /// silence. Uses the view-to-view CopyElements overload (these
+        /// elements are view-specific). Returns the number of LABELS propagated.
+        /// <para>NOT VERIFIED IN REVIT: the arc rebuild (Arc.Create 3-point /
+        /// centre-radius) and arc-bounded filled-region rebuild. The line and
+        /// text paths are unchanged from the Revit-verified version.</para></summary>
         private static int PropagateFromMasterSeed(Application app, Document famDoc,
             TitleBlockSpec spec, string masterPath, string masterId, TitleBlockBuildResult r)
         {
-            if (!TryGetIsoPaper(masterId, out double srcW, out double srcH)
-                || !TryGetIsoPaper(spec?.Id, out double tgtW, out double tgtH))
+            if (!TitleBlockSeedRemap.TryCreate(masterId, spec?.Id, out var remap))
                 return 0;
-            double kx = tgtW / srcW, ky = tgtH / srcH;
-            bool isA3 = (spec.Id ?? "").IndexOf("_A3", StringComparison.OrdinalIgnoreCase) >= 0;
+            double kx = remap.Kx, ky = remap.Ky;
+            int curvesSkipped = 0, regionsSkipped = 0, arcsRemapped = 0;
 
             string tempCopy = null;
             Document masterDoc = null;
@@ -766,42 +695,35 @@ namespace StingTools.Core.Drawing
                                 {
                                     XYZ pp = te.Coord;
                                     if (pp == null) break;
-                                    var np = new XYZ(pp.X * kx, pp.Y * ky, pp.Z);
+                                    var np = MapXyz(remap, pp);
                                     ElementTransformUtils.MoveElement(famDoc, id, np - pp);
                                     if (!(te is TextNote)) labels++;
                                     break;
                                 }
                                 case CurveElement ce:
                                 {
-                                    if (ce.GeometryCurve is Line ln)
+                                    var src = ce.GeometryCurve;
+                                    var mapped = RemapCurve(remap, src);
+                                    if (mapped != null)
                                     {
-                                        var a = ln.GetEndPoint(0); var b = ln.GetEndPoint(1);
-                                        var na = new XYZ(a.X * kx, a.Y * ky, a.Z);
-                                        var nb = new XYZ(b.X * kx, b.Y * ky, b.Z);
-                                        if (na.DistanceTo(nb) > 1e-6)
-                                            ce.SetGeometryCurve(Line.CreateBound(na, nb), false);
+                                        ce.SetGeometryCurve(mapped, false);
+                                        if (src is Arc) arcsRemapped++;
                                     }
-                                    // arcs/splines: rare in title blocks -- left 1:1.
+                                    else curvesSkipped++;
                                     break;
                                 }
                                 case FilledRegion fr:
                                 {
-                                    var loops = fr.GetBoundaries();
                                     var newLoops = new List<CurveLoop>();
                                     bool ok = true;
-                                    foreach (var loop in loops)
+                                    foreach (var loop in fr.GetBoundaries())
                                     {
                                         var nl = new CurveLoop();
                                         foreach (var c in loop)
                                         {
-                                            if (c is Line l2)
-                                            {
-                                                var a = l2.GetEndPoint(0); var b = l2.GetEndPoint(1);
-                                                nl.Append(Line.CreateBound(
-                                                    new XYZ(a.X * kx, a.Y * ky, a.Z),
-                                                    new XYZ(b.X * kx, b.Y * ky, b.Z)));
-                                            }
-                                            else { ok = false; break; }
+                                            var mc = RemapCurve(remap, c);
+                                            if (mc == null) { ok = false; break; }
+                                            nl.Append(mc);
                                         }
                                         if (!ok) break;
                                         newLoops.Add(nl);
@@ -811,7 +733,9 @@ namespace StingTools.Core.Drawing
                                         var newFr = FilledRegion.Create(
                                             famDoc, fr.GetTypeId(), dstView.Id, newLoops);
                                         if (newFr != null) famDoc.Delete(fr.Id);
+                                        else regionsSkipped++;
                                     }
+                                    else regionsSkipped++;
                                     break;
                                 }
                                 default:
@@ -835,10 +759,12 @@ namespace StingTools.Core.Drawing
                         { StingLog.Warn($"master remap {id}: {exEl.Message}"); }
                     }
 
-                    // Pass 2 -- A3 text: step every distinct text type one ISO
-                    // 3098 tier down via a duplicated "<name> (A3)" type.
-                    if (isA3)
+                    // Pass 2 -- text tier by paper class: every distinct text
+                    // type moves remap.TextTierSteps ISO 3098 tiers via a
+                    // duplicated "<name> (<size>)" type.
+                    if (remap.TextTierSteps != 0)
                     {
+                        string suffix = $" ({remap.TargetSize})";
                         var typeSwap = new Dictionary<ElementId, ElementId>();
                         foreach (var id in copied)
                         {
@@ -856,10 +782,10 @@ namespace StingTools.Core.Drawing
                                         if (szP != null)
                                         {
                                             double hMm = szP.AsDouble() * 304.8;
-                                            double newMm = StepTextTierDown(hMm);
-                                            if (newMm < hMm - 1e-6)
+                                            double newMm = remap.MapTextHeight(hMm);
+                                            if (Math.Abs(newMm - hMm) > 1e-6)
                                             {
-                                                string dupName = et.Name + " (A3)";
+                                                string dupName = et.Name + suffix;
                                                 var existing = new FilteredElementCollector(famDoc)
                                                     .OfClass(et.GetType()).Cast<ElementType>()
                                                     .FirstOrDefault(x => x.Name == dupName);
@@ -872,19 +798,25 @@ namespace StingTools.Core.Drawing
                                     }
                                 }
                                 catch (Exception exT)
-                                { StingLog.Warn($"A3 text-tier dup: {exT.Message}"); }
+                                { StingLog.Warn($"{remap.TargetSize} text-tier dup: {exT.Message}"); }
                                 typeSwap[tid] = newTid;
                             }
                             try { if (newTid != tid) te.ChangeTypeId(newTid); }
-                            catch (Exception exS) { StingLog.Warn($"A3 text-tier swap: {exS.Message}"); }
+                            catch (Exception exS) { StingLog.Warn($"{remap.TargetSize} text-tier swap: {exS.Message}"); }
                         }
                     }
 
                     tx.Commit();
                 }
+                if (curvesSkipped > 0 || regionsSkipped > 0)
+                    r.Warnings.Add(
+                        $"'{spec.Id}': master-seed propagation left {curvesSkipped} curve(s) and "
+                      + $"{regionsSkipped} filled region(s) at A1 geometry — splines / ellipses cannot be "
+                      + "remapped (and arcs only when the scale is near-uniform). Redraw them in the "
+                      + $"{remap.TargetSize} family or give this size its own seed.");
                 StingLog.Info($"TitleBlockFactory '{spec.Id}': propagated full design "
-                    + $"({labels} label(s)) from master seed {masterId} (kx={kx:0.###}, ky={ky:0.###}"
-                    + (isA3 ? ", text -1 tier)" : ")"));
+                    + $"({labels} label(s), {arcsRemapped} arc(s)) from master seed {masterId} "
+                    + $"(kx={kx:0.###}, ky={ky:0.###}, text {remap.TextTierSteps:+0;-0;0} tier)");
                 return labels;
             }
             catch (Exception ex)
@@ -902,6 +834,52 @@ namespace StingTools.Core.Drawing
                     try { if (File.Exists(tempCopy)) File.Delete(tempCopy); }
                     catch (Exception exD) { StingLog.Warn($"master temp cleanup: {exD.Message}"); }
                 }
+            }
+        }
+
+        private static XYZ MapXyz(TitleBlockSeedRemap m, XYZ p)
+        {
+            var (x, y) = m.MapPoint(p.X, p.Y);
+            return new XYZ(x, y, p.Z);
+        }
+
+        /// <summary>The curve under the seed affine, or null when it cannot be
+        /// represented (splines, ellipses, arcs under a non-uniform scale).
+        /// Lines map exactly. Bound arcs map through their end points and
+        /// mid-point (Arc.Create 3-point), unbound circles through centre +
+        /// geometric-mean radius. NOT VERIFIED IN REVIT for the arc paths.</summary>
+        private static Curve RemapCurve(TitleBlockSeedRemap m, Curve c)
+        {
+            try
+            {
+                switch (c)
+                {
+                    case Line ln:
+                    {
+                        var a = MapXyz(m, ln.GetEndPoint(0));
+                        var b = MapXyz(m, ln.GetEndPoint(1));
+                        return a.DistanceTo(b) > 1e-6 ? Line.CreateBound(a, b) : null;
+                    }
+                    case Arc arc when m.ArcSurvives:
+                    {
+                        if (arc.IsBound)
+                        {
+                            var a   = MapXyz(m, arc.GetEndPoint(0));
+                            var b   = MapXyz(m, arc.GetEndPoint(1));
+                            var mid = MapXyz(m, arc.Evaluate(0.5, true));
+                            return Arc.Create(a, b, mid);
+                        }
+                        return Arc.Create(MapXyz(m, arc.Center), m.MapRadius(arc.Radius),
+                            0.0, 2.0 * Math.PI, arc.XDirection, arc.YDirection);
+                    }
+                    default:
+                        return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RemapCurve {c?.GetType().Name}: {ex.Message}");
+                return null;
             }
         }
 
