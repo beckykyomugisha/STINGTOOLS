@@ -188,15 +188,16 @@ runners have no Revit. It is local-only until a self-hosted licensed runner exis
 | `SpotSlope_EveryPlacedSpotIsASlope_…` | §2.4 #1 #3 #5, DRAW-3 | every spot left in the view has `StyleType == SpotSlope` (no elevation survives); engine tally = spots present; exactly one on the 1:80 drain, none on the level pipe; level run reported; re-run adds nothing. If Revit refuses the re-type the test is **Inconclusive** with the BLOCKED warning — the guard held, but nothing is placed |
 | `SpotSlope_WithNoSlopeType_Blocks_…` | §2.4 #2, DRAW-3 | slope types deleted ⇒ zero elements added to the view, `SpotsPlaced` 0, a `BLOCKED` warning |
 | `FlowArrow_…` | §2.5 #2 #3 #5 #6 | authors `STING_ANNO_FLOW_ARROW` via `BuildFlowArrowFamilyCommand.Author`; one arrow per unconnected run, within 1 ft of the run midpoint, aligned with the pipe; if the engine does *not* warn that direction is unknown, the drain's arrow must point downhill; re-run adds nothing |
-| `Invert_PlanView_…` | §2.6 | 2 IL notes + one `1:80` on the drain only (cold-water pipe gets none); IL text = centreline Z + survey-point datum (fixture sets +45.250 m) − **internal** radius, at `IlReportingOptions.Default.Decimals`; no NOMINAL fallback; re-run keeps the same note ids and texts; after moving the pipe 2 m the run reports exactly 3 orphans and writes 3 correct new notes |
+| `Invert_PlanView_…` | §2.6 | 2 IL notes + one `1:80` on the drain only (cold-water pipe gets none); IL text = centreline Z + survey-point datum (fixture sets +45.250 m) − **internal** radius, at `IlReportingOptions.Default.Decimals`; no NOMINAL fallback; re-run keeps the same note ids and texts; after moving the pipe 2 m the SAME three notes (they are provenance-stamped) follow it with correct values, no orphan warning and nothing new; after deleting the pipe its notes are removed |
 | `Invert_SectionAlongTheRun_…` | §2.6 | the same IL / gradient values in a section cut along the drain; re-run adds nothing |
 
-**Predicted from reading the code, before any run:** `ColumnToGrid_…` is expected to **fail**.
-`RunColumnToGrid` builds its witness line along `gridDir` (parallel to the grid), and
-`BestAlignedReference` prefers the column plane whose normal is *parallel* to the grid direction;
-and an on-grid column is filtered only for the grids it sits on (`D > 1e-6`), so it is then
-dimensioned to the next-nearest grid. If the run confirms this, it is the §2.3 failure predicted
-above, now reproducible.
+**Predicted from reading the code, and fixed before any run:** `ColumnToGrid_…` would have
+failed three ways — the witness line ran along the grid instead of across it,
+`BestAlignedReference` was handed the grid direction and so chose the column plane
+perpendicular to the grid, and an on-grid column (`D > 1e-6` filter) was dimensioned to the
+next-nearest grid. All three are fixed (line along the grid's in-plane normal, reference chosen
+for that normal, `PickSettingOutGrid` skips a column at a grid intersection and dimensions a
+column on one grid line only in the other direction). The first run is what confirms it.
 
 **Still manual** (not asserted by the harness): visual placement quality — offsets, overlap, text
 legibility (§2.1 #2, §2.2 #4); the flow-arrow **glyph** and its direction on a connected duct run

@@ -282,20 +282,29 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var origin = OriginOf(col);
                     if (origin == null) continue;
 
-                    var nearest = grids
+                    // Grids by distance, the one the column SITS on included. The
+                    // old filter dropped distance ~0, so a column set out on a grid
+                    // was dimensioned to the next grid over — a number that is
+                    // correct and useless.
+                    var ranked = grids
                         .Select(g => (G: g, D: PerpDistanceFt(origin, (Line)g.Curve)))
-                        .Where(t => t.D < MaxGridSearchFt && t.D > 1e-6)
+                        .Where(t => t.D < MaxGridSearchFt)
                         .OrderBy(t => t.D)
-                        .FirstOrDefault();
+                        .ToList();
+                    var nearest = PickSettingOutGrid(ranked);
                     if (nearest.G == null) { result.Skipped++; continue; }
 
                     var gridDir = ((Line)nearest.G.Curve).Direction;
-                    // The dimension measures ACROSS the grid, so the useful
-                    // column reference is the one whose plane is perpendicular
-                    // to the grid — i.e. parallel to the grid direction's
-                    // normal. Try both column reference planes and keep the
-                    // better-aligned one.
-                    var colRef = BestAlignedReference(col, gridDir);
+                    // The dimension measures ACROSS the grid: its line runs along the
+                    // grid's in-plane normal, and the column reference must be the
+                    // centre plane PARALLEL to the grid — the one whose normal is
+                    // that same across direction. Both used to be built from the grid
+                    // direction itself, which draws the line along the grid and picks
+                    // the plane perpendicular to it.
+                    var across = view.ViewDirection.CrossProduct(gridDir);
+                    if (across.GetLength() < 1e-9) { result.Skipped++; continue; }
+                    across = across.Normalize();
+                    var colRef = BestAlignedReference(col, across);
                     if (colRef == null)
                     {
                         result.Warnings.Add($"AutoDimColumnGrid: column {col.Id} exposes no usable centre reference — skipped.");
@@ -306,7 +315,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     refs.Append(new Reference(nearest.G));
                     refs.Append(colRef);
 
-                    var line = DimensionStrategy.BuildWitnessLine(origin, gridDir, ColumnGridOffsetMm, 1.0);
+                    var line = DimensionStrategy.BuildWitnessLine(origin, across, ColumnGridOffsetMm, Math.Max(nearest.D, 1.0));
                     if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → grid {nearest.G.Name}",
                             AnnotationProvenance.DimColumnGrid, col))
                         already.Add(col.Id);
@@ -491,6 +500,27 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// rather than the one parallel to it (which yields a zero-length or
         /// "references are not parallel" failure).
         /// </summary>
+        private const double OnGridTolFt = 1.0 / 304.8;   // 1 mm: set out ON the grid
+
+        /// <summary>
+        /// The grid a column should be dimensioned to. A column ON a grid needs no
+        /// dimension in that direction, so the answer is the nearest grid in the
+        /// OTHER direction — unless it is on one of those too (a grid intersection),
+        /// in which case there is nothing to set out and null is returned.
+        /// </summary>
+        private static (Grid G, double D) PickSettingOutGrid(List<(Grid G, double D)> ranked)
+        {
+            if (ranked == null || ranked.Count == 0) return default;
+            var first = ranked[0];
+            if (first.D > OnGridTolFt) return first;
+            var onDir = ((Line)first.G.Curve).Direction;
+            bool Parallel((Grid G, double D) t) =>
+                Math.Abs(((Line)t.G.Curve).Direction.CrossProduct(onDir).GetLength()) < 1e-3;
+            var other = ranked.Where(t => !Parallel(t)).ToList();
+            if (other.Count == 0 || other[0].D <= OnGridTolFt) return default;   // at an intersection
+            return other[0];
+        }
+
         private static Reference BestAlignedReference(FamilyInstance fi, XYZ alongDir)
         {
             try

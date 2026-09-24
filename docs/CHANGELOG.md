@@ -77,6 +77,18 @@ turned two of them into defects, both now fixed in code:
   and a missing fill-type name silently became the first one in the file. Pre-export blocks a
   band that disagrees with the printed code. Not yet run in Revit.
 
+- **Annotations know what they are for.** Dimensions (wall, openings, column-to-grid, grid and
+  level chains), match-line captions and drainage IL notes are stamped at creation in Extensible
+  Storage with their producer and host (`AnnotationProvenance`). Re-runs find their own work
+  exactly: no duplicate from unreadable references, captions and IL notes follow a moved boundary
+  or pipe, and a deleted host's annotations are removed. Pre-stamp annotations keep the old
+  heuristics and are adopted when they match.
+- **Tag text size per drawing** — the scale-derived size finally chooses a size-variant tag
+  (`TagSizeVariant`); inert until variants are authored.
+- **DRAW-1 harness** — `StingTools.Revit.SmokeTests` runs the dimension / MEP / invert engines
+  inside Revit against a model it builds itself; `tools/run_revit_smoke.ps1`. Not yet run. Its
+  author predicted three column-to-grid defects by reading; all three were real and are fixed.
+
 Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
 not in the workflows this branch was checked against), fixed with a named, justified
 exemption rather than a raised ceiling.

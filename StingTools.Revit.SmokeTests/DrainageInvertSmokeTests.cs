@@ -111,7 +111,7 @@ namespace StingTools.Revit.SmokeTests
         }
 
         [Test]
-        public void Invert_PlanView_IlAtBothEnds_Gradient_OnlyOnDrainage_ReRunUpdatesInPlace_MovedPipeReportsOrphans()
+        public void Invert_PlanView_IlAtBothEnds_Gradient_OnlyOnDrainage_ReRunUpdatesInPlace_MovedPipeNotesFollow_DeletedPipeNotesGo()
         {
             Assume.That(_m.Drain, Is.Not.Null, "No pipes in the fixture: " + _m.Describe());
             var e = ExpectFor(_m.Drain);
@@ -148,18 +148,26 @@ namespace StingTools.Revit.SmokeTests
                 Assert.That(notes2.Select(n => n.Id).OrderBy(i => i.Value).ToList(), Is.EqualTo(ids1), "re-run replaced notes.");
                 AssertNotesOnDrain(view, notes2, e, r2);
 
-                // Move the drain 2 m sideways: the old notes no longer sit on a pipe end.
+                // Move the drain 2 m sideways. The notes are provenance-stamped with
+                // their pipe and end, so they must FOLLOW it: same ids, new positions,
+                // no orphans and nothing created.
                 Tx(Doc, "move drain", () => ElementTransformUtils.MoveElement(Doc, _m.Drain.Id, new XYZ(0, 2000 / 304.8, 0)));
+                var beforeMove = Snapshot(Doc, view);
                 var r3 = RunEngine(Doc, "DrainageInvert #3 (moved)", r => DrainageInvertDimensioner.Run(Doc, view, Pack(), Rule(), r));
-                var orphanWarning = r3.Warnings.FirstOrDefault(w => w.Contains("no longer sit on a pipe end"));
-                Assert.That(orphanWarning, Is.Not.Null, $"moved pipe: stale notes were not reported. {Dump(r3)}");
-                var m = Regex.Match(orphanWarning, @"(\d+) older IL/gradient note");
-                Assert.That(m.Success && int.Parse(m.Groups[1].Value) == 3, Is.True,
-                    $"expected 3 orphaned notes (2 ILs + gradient), warning says: {orphanWarning}");
-                var moved = ExpectFor(_m.Drain);
-                var fresh = OurNotes(Doc, view).Where(n => !ids1.Contains(n.Id)).ToList();
-                Assert.That(fresh.Count, Is.EqualTo(3), $"moved pipe: expected 3 new notes at its new position, found {fresh.Count}.");
-                AssertNotesOnDrain(view, fresh, moved, r3);
+                Assert.That(r3.Warnings.Any(w => w.Contains("no longer sit on a pipe end")), Is.False,
+                    $"moved pipe: stamped notes were treated as orphans instead of following the pipe. {Dump(r3)}");
+                Assert.That(NewSince<Element>(Doc, view, beforeMove), Is.Empty,
+                    $"moved pipe: new notes were created instead of the stamped ones moving. {Dump(r3)}");
+                var notes3 = OurNotes(Doc, view);
+                Assert.That(notes3.Select(n => n.Id).OrderBy(i => i.Value).ToList(), Is.EqualTo(ids1),
+                    "moved pipe: the stamped notes were replaced rather than moved.");
+                AssertNotesOnDrain(view, notes3, ExpectFor(_m.Drain), r3);
+
+                // Delete the drain: its stamped notes are provably ours and must go.
+                Tx(Doc, "delete drain", () => Doc.Delete(_m.Drain.Id));
+                var r4 = RunEngine(Doc, "DrainageInvert #4 (deleted)", r => DrainageInvertDimensioner.Run(Doc, view, Pack(), Rule(), r));
+                Assert.That(OurNotes(Doc, view), Is.Empty,
+                    $"deleted pipe: its IL/gradient notes were left behind. {Dump(r4)}");
             });
         }
 
