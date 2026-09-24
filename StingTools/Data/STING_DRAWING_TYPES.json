@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 1,
   "_comment": "STING corporate Drawing Types. Override per project by dropping a drawing_types.json under <project>/_BIM_COORD/. Project entries win by id; routing rules from the project file are PREPENDED (first-match-wins).",
   "_tokenProfileDesign": {
