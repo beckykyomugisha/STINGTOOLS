@@ -2,6 +2,21 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — material callouts reviewed; tag size read from the style catalogue's type names)
+
+- **Tag size switching ignored the tag-style catalogue's type names.** `TagSizeVariant` only
+  recognised types named `2.5mm`, but the catalogue (`TagStyleCatalogue.CanonicalTypeName`) and
+  the specialist tag build sheet name them `2.5_NOM_BLACK_Open30_T2`, so those families would
+  have kept their default size on every drawing. It now reads both, and only switches between
+  types whose non-size part matches — a bold red 2.5 mm tag becomes a bold red 2 mm tag, never
+  a black one. 8 new cases; 5 fail against the old parsing.
+- **Material callout reviewed and specified** (`SPECIALIST_TAG_BUILD_SHEET.md` §5, ROADMAP
+  MATTAG-1..5). What exists, what Revit allows, why the library's `STING - Materials Tag` cannot
+  serve as a callout, the data contract, the family (Material Tags, content × size types, no
+  tiers), how to wire it with today's engine, and the ordered engine work that would make it
+  robust. `DrawingTypeTagFamilyTests` now accepts a Materials-declared tag family on a host rule
+  (a material tag tags a face of any host), so wiring the family later is a data-only change.
+
 #### Completed (Phase 296 — closing the drawings-production review, measured before touched)
 
 The 2026-07-20 drawings-production review still listed ~33 findings as open. Every one was

@@ -68,5 +68,35 @@ namespace StingTools.Tags.Tests
             var dt = new DrawingType { Id = "t", Scale = 50, TagTextSizeMm = 3.5 };
             Assert.Equal(3.5, TagSizeVariant.Choose(dt, new[] { 2.5, 3.5 }, null).SizeMm);
         }
+
+        // The tag style catalogue names types "{size}_{style}_{colour}_{arrow}_T{tier}", and the
+        // specialist tag build sheet follows it. Only "2.5mm" was recognised, so those
+        // families never had their size chosen.
+        [Theory]
+        [InlineData("2.5mm", 2.5)]
+        [InlineData("2.5_NOM_BLACK_Open30_T2", 2.5)]
+        [InlineData("2_BOLD_RED_Filled30_T2", 2.0)]
+        [InlineData("3.5_NOM_BLACK_Open30_T2", 3.5)]
+        [InlineData("Standard", null)]
+        [InlineData("Code + Name", null)]
+        [InlineData("_NOM", null)]
+        public void Type_name_size_reads_both_conventions(string name, double? size)
+            => Assert.Equal(size, TagSizeVariant.SizeOfTypeName(name));
+
+        [Theory]
+        [InlineData("2.5_BOLD_RED_Open30_T2", "BOLD_RED_Open30_T2")]
+        [InlineData("2.5mm", "")]
+        [InlineData("Standard", "")]
+        public void Style_is_everything_but_the_size(string name, string style)
+            => Assert.Equal(style, TagSizeVariant.StyleOfTypeName(name));
+
+        [Fact]
+        public void Only_a_type_differing_in_size_alone_is_a_size_variant()
+        {
+            // Switching a bold red 2.5 mm tag to 2 mm must not make it normal black.
+            string baseStyle = TagSizeVariant.StyleOfTypeName("2.5_BOLD_RED_Open30_T2");
+            Assert.Equal(baseStyle, TagSizeVariant.StyleOfTypeName("2_BOLD_RED_Open30_T2"));
+            Assert.NotEqual(baseStyle, TagSizeVariant.StyleOfTypeName("2_NOM_BLACK_Open30_T2"));
+        }
     }
 }

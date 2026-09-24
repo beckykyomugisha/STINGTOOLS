@@ -1290,9 +1290,14 @@ namespace StingTools.Core.Drawing
                 var famVariants = sameCat
                     .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
                     .Where(x => x.size.HasValue).ToList();
+                // Types of the base family that differ from the base type in SIZE ONLY:
+                // "2mm" beside "2.5mm", or "2_BOLD_RED_Open30_T2" beside
+                // "2.5_BOLD_RED_Open30_T2" — never a type of another style or colour.
+                string baseStyle = TagSizeVariant.StyleOfTypeName(baseSym.Name);
                 var typeVariants = sameCat
-                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase))
-                    .Select(fs => (fs, size: TagSizeVariant.ParseToken(fs.Name)))
+                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase)
+                              && string.Equals(TagSizeVariant.StyleOfTypeName(fs.Name), baseStyle, StringComparison.OrdinalIgnoreCase))
+                    .Select(fs => (fs, size: TagSizeVariant.SizeOfTypeName(fs.Name)))
                     .Where(x => x.size.HasValue).ToList();
 
                 var choice = TagSizeVariant.Choose(dt,

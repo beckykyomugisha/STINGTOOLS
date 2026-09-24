@@ -38,6 +38,21 @@ a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths)
 fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
 audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
 
+## Material callouts (2026-09-24)
+
+Reviewed end to end; the design and the build steps are in
+[`SPECIALIST_TAG_BUILD_SHEET.md`](SPECIALIST_TAG_BUILD_SHEET.md) §5. Shared parameters DO bind
+to Materials (116 added in a 2026-09-21 run) — the comments in `LoadSharedParamsCommand.cs`,
+`SharedParamGuids.cs` and `ParamRegistry.cs` saying otherwise are stale.
+
+| ID | Status | Detail |
+|---|---|---|
+| MATTAG-1 | **OPEN — manual** | `STING - Material Callout Tag` does not exist; build it from §5 of the build sheet (Material Tags, types `{size}_{CODE/CODENAME/FULL}`, no tiers). |
+| MATTAG-2 | **OPEN** | No single material identity. Mark = `MAT_CODE` only on materials STING created; `Materials_StampCodes` writes the shared `MAT_CODE` only; Description holds a paragraph too long for a callout; Keynote holds `MAT_ISO_19650_ID`, which is in no keynote table. Build `Materials_SyncIdentity` and give `KeynoteSync` one row per material. |
+| MATTAG-3 | **OPEN** | The `MaterialTag` rule kind is dead: it resolves the host's tag category, never Material Tags, and its one catalogue rule (`arch-screed-buildup-A3-1to10`, category `*`) cannot resolve. Workaround in use: `AutoTag` + `tagFamily`. |
+| MATTAG-4 | **OPEN** | Face selection: no one-callout-per-material thinning (every wall gets one), painted faces not preferred, family instances / curtain panels / stacked walls not handled, no build-up callouts on cut faces in sections. |
+| MATTAG-5 | **OPEN** | `STING - Materials Tag.rfa` carries the universal label: tier-gated rows that cannot resolve on a Material and ~35 parameters never bound to Materials. Retire it or rebuild it on the §5 pattern; add a data test that a material tag's label parameters are built-ins or bound to Materials. |
+
 ## Drawing-type tag families (2026-09-24)
 
 43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve
