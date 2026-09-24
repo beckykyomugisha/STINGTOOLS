@@ -175,6 +175,8 @@
                     <StackPanel>
                         <TextBlock Text="PANEL SCHEDULE MANAGEMENT" Style="{StaticResource ElecSectionHeader}"/>
                         <WrapPanel>
+                            <Button Content="📐" Style="{StaticResource ElecToolBtn}" Tag="Panel_TemplatesCreate"
+                                    ToolTip="Create / update STING standard panel schedule templates (ISO 19650 + BS 7671)" Click="Cmd_Click"/>
                             <Button Content="⚡" Style="{StaticResource ElecToolBtn}" Tag="Panel_BatchSchedules"
                                     ToolTip="Batch Create Schedules" Click="Cmd_Click"/>
                             <Button Content="🔍" Style="{StaticResource ElecToolBtn}" Tag="Panel_Audit"
@@ -291,6 +293,12 @@
                                           IsChecked="True" Margin="0,4,0,0"/>
                                 <Button Content="Edit Rules JSON" Style="{StaticResource ElecActionBtn}"
                                         Tag="Panel_EditTemplateRules" Click="Cmd_Click" Margin="0,4,0,0"/>
+                                <Button Content="▶ Create / update STING templates" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Panel_TemplatesCreate" Click="Cmd_Click" Margin="0,4,0,0"
+                                        ToolTip="Builds the STING standard templates from STING_PANEL_SCHEDULE_SPECS.json (+ project override) and reports every cell it could not write"/>
+                                <Button Content="🔍 Inspect a template (CSV)" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Panel_TemplateInspect" Click="Cmd_Click" Margin="0,4,0,0"
+                                        ToolTip="Dumps every cell of a panel schedule template (section, row, column, type, text, parameter) to CSV"/>
                             </StackPanel>
                         </Expander>
 

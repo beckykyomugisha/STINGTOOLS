@@ -54,7 +54,7 @@ Work on a **copy**: `…\DEMO\STING_MEP_Demo.rvt`. Several buttons change the wh
 **Setup buttons (run once, in this order)**
 - [ ] Main STING panel → **CREATE TAGS** tab → **Load Params** (binds the shared parameters).
 - [ ] Main STING panel → **SETUP** tab → symbols → **SLD** (builds the IEC 60617 SLD symbol families). Then **load them into the project** if they are not already (Insert → Load Family from the folder it reports). *Without these the SLD is lines and text only — the dialog now tells you so.*
-- [ ] Make sure the project has at least one **panel schedule template** (Manage → Panel Schedule Templates). Revit's API cannot create one.
+- [ ] **Do NOT pre-create panel schedule templates.** Step ② builds the STING ones live. In rehearsal, run **PNLS → 📐** once on a scratch copy and check that every template in the report shows "Cells verified N/N" with both numbers equal. If any cells are listed as not persisted, run **🔍 Inspect a template (CSV)** on a Revit default template and send the CSV.
 - [ ] Project Information: set **Number** (project code) and address.
 
 **Save the model.** Keep a pristine copy `STING_MEP_Demo_CLEAN.rvt` to restore from.
@@ -97,10 +97,10 @@ Each step: **Say** (one or two sentences) → **Click** → **Expect** → **If 
 - **Click:** orbit the 3D view briefly, then open the Level 1 plan.
 
 ### ② Panel schedules in one click (2 min)
-- **Say:** "Normally someone builds each panel schedule by hand. STING builds all of them, picks the right template per board, and fills the board data."
-- **Click:** Electrical panel → **PNLS** → **⚡ (Batch Create Schedules)**.
-- **Expect:** result panel with one schedule per board. Open **DB-L1**'s schedule from the Project Browser.
-- **If it fails:** "The template in this model isn't set up for that board type. Here's the output from our test project" → screenshot.
+- **Say:** "Normally someone designs a panel schedule template, then builds each schedule by hand. STING has its own standard: an ISO 19650 header (asset tag, location, status, supply, fault level) and a BS 7671 circuit table. It builds the templates, picks the right one for each board from what the board *is* (switchboard, 3-phase DB, single-phase CU), and creates every schedule."
+- **Click:** Electrical panel → **PNLS** → **⚡ (Batch Create Schedules)** → answer **Yes** to "Create the STING templates first?".
+- **Expect:** result panel: STING templates created (cells verified), one schedule per board. Open **MDB** (switchboard layout) and **DB-L1** (3-phase layout) from the Project Browser and show the header and the circuit columns.
+- **If templates fail:** answer **No** next time, and the project's own templates are used. Say: "the standard layouts are data-driven; here's the one from this morning's run."
 
 ### ③ Excel round-trip (3 min)
 - **Say:** "Engineers still live in Excel. STING exports every schedule, you edit it there, and it comes back into the model with a list of exactly what changed."

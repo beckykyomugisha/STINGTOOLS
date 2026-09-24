@@ -176,6 +176,10 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.ElecPanelWriteParamsCommand>(app); break;
                 case "Panel_EditTemplateRules":
                     OpenTemplateRulesFile(doc); break;
+                case "Panel_TemplatesCreate":
+                    RunCommand<StingTools.Commands.Panels.PanelTemplatesCreateCommand>(app); break;
+                case "Panel_TemplateInspect":
+                    RunCommand<StingTools.Commands.Panels.PanelTemplateInspectCommand>(app); break;
                 // Panel_PlaceOnSheets dispatched in the Phase 178 block below.
 
                 // ── CIRCTS ───────────────────────────────────────────

@@ -38,6 +38,28 @@ namespace StingTools.Commands.Panels
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // One-click path: if none of the STING standard templates exist yet, offer
+            // to build them first, so the rules pick STING layouts rather than falling
+            // back to whatever template happens to be first in the project.
+            PanelTemplatesCreateCommand.RunResult templateRun = null;
+            try
+            {
+                var warn = new List<string>();
+                var specNames = StingTools.Core.Panels.PanelTemplateBuilder.LoadSpecs(doc, warn)
+                    .Templates.Select(t => t.Name).ToList();
+                var missing = specNames.Where(n => StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, n) == null).ToList();
+                if (specNames.Count > 0 && missing.Count == specNames.Count)
+                {
+                    var ask = TaskDialog.Show("STING Panel Schedules",
+                        "This project has none of the STING standard panel schedule templates " +
+                        "(ISO 19650 header + BS 7671 circuit table).\n\nCreate them now, then build the schedules?\n\n" +
+                        "Choose No to use the project's existing templates.",
+                        TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No, TaskDialogResult.Yes);
+                    if (ask == TaskDialogResult.Yes) templateRun = PanelTemplatesCreateCommand.Run(doc);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"STING template pre-check: {ex.Message}"); }
+
             StingTools.Core.Panels.PanelScheduleApplyResult applied;
             try
             {
@@ -66,6 +88,17 @@ namespace StingTools.Commands.Panels
                   .Metric("Drawing-type stamps", applied.DrawingTypeStamped.ToString(), $"id={DrawingTypeId}")
                   .Metric("Panel-param fills", applied.ParamsStamped.ToString(), "ELC_PNL_NAME / VOLTAGE / LOAD / FED_FROM / MAIN_BRK / WAYS")
                   .Metric("Circuit back-refs", applied.CircuitRefsStamped.ToString(), "ELC_PANEL_SCHEDULE_REF_TXT");
+
+            if (templateRun != null)
+            {
+                result.AddSection("STING TEMPLATES (created first)");
+                foreach (var r in templateRun.Results)
+                {
+                    if (r.Failed) result.MetricError(r.Name, "not built", r.FailReason);
+                    else if (r.CellsVerified == r.CellsRequested) result.MetricHighlight(r.Name, $"{r.CellsVerified}/{r.CellsRequested} cells");
+                    else result.MetricWarn(r.Name, $"{r.CellsVerified}/{r.CellsRequested} cells", "run PNLS 📐 for the full report");
+                }
+            }
 
             if (applied.NoWritesPersisted)
                 result.AddSection("WARNING")

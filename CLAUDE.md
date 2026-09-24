@@ -807,16 +807,21 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 | `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` |
 | `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` |
 | `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces |
+| `Panel_TemplatesCreate` | `PanelTemplatesCreateCommand` | Build / rebuild the STING standard templates from `STING_PANEL_SCHEDULE_SPECS.json` (+ project override); every cell read back and reported |
+| `Panel_TemplateInspect` | `PanelTemplateInspectCommand` | Dump any template's cells (section, row, column, type, text, parameter) to CSV |
+
+**STING standard templates** (`Core/Panels/PanelTemplateSpec.cs` Revit-free + `PanelTemplateBuilder.cs`): four templates — 3-Phase Distribution Board, Single-Phase Consumer Unit, Switchboard, Data Comms Panel — with an ISO 19650 header (asset tag, location/level/zone, status, supply, main device, prospective fault, IP), a BS 7671 circuit table (way, description, device, poles, cable, length, phase loads / load, Ib, VD %) and a totals/notes footer. Only parameters something writes are used. Boards pick a template by what they ARE (`PanelBoardProfile`: `IsSwitchboard`, supply phases; data by name) before the name rules, which now match Panel Name as well as type name. Batch Schedules offers to build the templates when none exist.
 
 ### Data files
 
-- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json`
+- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json` (board → template rules)
+- `StingTools/Data/STING_PANEL_SCHEDULE_SPECS.json` (template content; project override `_BIM_COORD/panel_schedule_specs.json`)
 - `StingTools/Data/WORKFLOW_PanelScheduleProduction.json`
 
 ### API limits honoured
 
 - `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026
-- `PanelScheduleTemplate` cell layout / column order / formulas remain read-only
+- `PanelScheduleTemplate.Create` + `GetTableData`/`SetTableData` + `TableSectionData` DO create and edit templates (rows, columns, parameter cells, text, widths) — the earlier "read-only" note was wrong (checked against the Revit 2025 API reference, 2026-09-24). The internal layout of a fresh template is undocumented, so the builder adapts and reads back; use `Panel_TemplateInspect` to see it
 - Real-circuit detection uses `PanelScheduleView.GetCircuitByCell(r, c)`
 
 ---

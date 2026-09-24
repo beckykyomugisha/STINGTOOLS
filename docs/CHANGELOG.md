@@ -22459,3 +22459,35 @@ Placement 69, Scheduling 38, SitePhotos 37 (+1 skipped by design), Templates 37,
 Licensing 14. Build 0/0 Debug and Release; wiring and path-discipline gates pass.
 **No Revit runtime path was exercised** — ELEC-13 (run the smoke-test checklist) is now the
 largest open risk.
+
+#### Completed (STING standard panel schedule templates, branch `claude/panel-schedule-templates`)
+
+The panel-schedule rules had always named four STING templates that nothing created, so
+every board fell back to "first template in the project". The reason given in
+`STING_PANEL_SCHEDULE_TEMPLATES.json` — that the Revit API cannot create or edit panel
+schedule templates — was wrong: `PanelScheduleTemplate.Create` plus
+`GetTableData`/`SetTableData` and `TableSectionData` (rows, columns, parameter cells, text,
+widths) do exactly that (checked against the Revit 2025 API reference).
+
+- **`STING_PANEL_SCHEDULE_SPECS.json`** — the seed: four templates (3-Phase Distribution
+  Board, Single-Phase Consumer Unit, Switchboard, Data Comms Panel). ISO 19650 header (asset
+  tag, supplied from, supply system, location/level/zone, status, main device, busbar,
+  prospective fault, breaking capacity, IP, project), BS 7671 circuit table (way,
+  description, device, poles, cable, length, phase loads / load, Ib, VD %), totals + notes
+  footer. Only parameters something writes are used. Project override
+  `_BIM_COORD/panel_schedule_specs.json`, merged by name.
+- **`Panel_TemplatesCreate`** (PNLS 📐) builds/rebuilds them in per-template
+  sub-transactions and **reads every cell back** from a fresh `GetTableData()`, reporting
+  anything that did not persist. **`Panel_TemplateInspect`** dumps any template's cells to
+  CSV — the ground truth for Revit's undocumented template layout.
+- **Board → template by what the board is** (`PanelBoardProfile`: `IsSwitchboard`, supply
+  phases; data by name), before the name rules — which now match the Panel Name as well as
+  the family type name (they only ever saw the type name).
+- **Batch Schedules** offers to build the STING templates when none exist (one click).
+- Wired into `WorkflowEngine.ResolveCommand` and the natural-language command list.
+
+Tests: `PanelTemplateSpecTests` (17) against the shipped files — spec validates, every
+template named by a rule, every board role has a rule and a spec, every shared parameter
+defined and bound to the category its cell reads; sabotage (misspelt parameter, renamed
+template) RED 3/17, GREEN 17/17. **Not exercised in Revit**: the builder adapts to the
+template's actual layout and reports; the first run's report is the verification.

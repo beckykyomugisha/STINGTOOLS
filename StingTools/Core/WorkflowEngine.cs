@@ -1446,6 +1446,8 @@ namespace StingTools.Core
                 case "EvaluateFormulas": return new Temp.FormulaEvaluatorCommand();
 
                 // Electrical Panel Schedules (Commands.Panels)
+                case "Panel_TemplatesCreate":   return new Commands.Panels.PanelTemplatesCreateCommand();
+                case "Panel_TemplateInspect":   return new Commands.Panels.PanelTemplateInspectCommand();
                 case "Panel_BatchSchedules":    return new Commands.Panels.BatchPanelSchedulesCommand();
                 case "Panel_Audit":             return new Commands.Panels.PanelScheduleAuditCommand();
                 case "Panel_ExportToExcel":     return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
