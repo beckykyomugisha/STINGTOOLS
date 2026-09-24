@@ -82,14 +82,13 @@ jobs:
       #
       # KNOWN-FAILING BASELINE
       # ----------------------
-      # Two tests fail for reasons established and filed, NOT silenced. Each is
+      # One test fails for a reason established and filed, NOT silenced. It is
       # excluded BY NAME with its issue number, so the exclusion is greppable and
       # any OTHER failure in the same project still turns this job red.
       #
-      #   #596  DuplicateLiveClashUpdater_FileIsRemoved
-      #         Real regression: StingTools/Clash/ClashDetectionCommands.cs is back
-      #         (recreated at 2c20e6724) carrying duplicate LiveClashUpdater +
-      #         ClashSession types. Product defect, not a test defect.
+      # (#596 DuplicateLiveClashUpdater_FileIsRemoved was excluded here until the
+      # resurrected StingTools/Clash/ClashDetectionCommands.cs was deleted again;
+      # it now runs.)
       #
       #   #597  ComputeRoute_StraightHorizontal_ProducesOneSegment
       #         Test defect: asserts reference equality on a stub XYZ that has no
@@ -98,11 +97,11 @@ jobs:
       #         commit 41ee9d591.
       #
       # Do NOT add to this list to make a build green. Fix the test or file the
-      # defect, the way these two were.
+      # defect, the way this one was.
       - name: Run every Revit-free test project
         run: |
           set -uo pipefail
-          EXCLUDE='FullyQualifiedName!~DuplicateLiveClashUpdater_FileIsRemoved&FullyQualifiedName!~ComputeRoute_StraightHorizontal_ProducesOneSegment'
+          EXCLUDE='FullyQualifiedName!~ComputeRoute_StraightHorizontal_ProducesOneSegment'
           FAIL=0
           for proj in StingTools.*.Tests/*.csproj; do
             name=$(basename "$proj" .csproj)
