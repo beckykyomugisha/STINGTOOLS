@@ -1556,6 +1556,7 @@ namespace StingTools.Core
                 case "MatchLine_Generate":             return new Commands.Drawing.MatchLineGenerateCommand();
                 case "MatchLine_Sync":                 return new Commands.Drawing.MatchLineSyncCommand();
                 case "MatchLine_Validate":             return new Commands.Drawing.MatchLineValidateCommand();
+                case "DrawingTypes_BuildFlowArrow":    return new Commands.Drawing.BuildFlowArrowFamilyCommand();
                 case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
                 case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();

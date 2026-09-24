@@ -162,9 +162,9 @@ namespace StingTools.Core.Drawing.Dimensioning
             if (sym == null)
             {
                 result.Warnings.Add(
-                    "AutoAnnotateFlowArrow: no flow-arrow annotation family found. Set the rule's tagFamily "
-                    + "(or the pack's tagFamilies entry for the category) to a loaded generic-annotation family, "
-                    + "e.g. \"STING_ANNO_FLOW_ARROW\". No arrows placed.");
+                    $"AutoAnnotateFlowArrow: no flow-arrow annotation family found. Run \"Build Flow-Arrow Family\" "
+                    + $"(DrawingTypes_BuildFlowArrow) to author {FlowArrowFamily}, or set the rule's tagFamily to a "
+                    + "loaded generic-annotation family. No arrows placed.");
                 return;
             }
             if (!sym.IsActive)
@@ -445,6 +445,11 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
         }
 
+        /// <summary>The corporate flow-arrow family, authored by
+        /// Commands.Drawing.BuildFlowArrowFamilyCommand. The last named candidate,
+        /// so a rule's own tagFamily or the pack's always wins.</summary>
+        internal const string FlowArrowFamily = "STING_ANNO_FLOW_ARROW";
+
         private static FamilySymbol ResolveArrowSymbol(Document doc, AutoAnnotationRule rule, AnnotationRulePack pack)
         {
             var names = new List<string>();
@@ -453,6 +458,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 && pack.TagFamilies.TryGetValue(rule.Category, out var fromPack)
                 && !string.IsNullOrWhiteSpace(fromPack))
                 names.Add(fromPack.Trim());
+            names.Add(FlowArrowFamily);
 
             try
             {
@@ -469,6 +475,12 @@ namespace StingTools.Core.Drawing.Dimensioning
                     if (hit != null) return hit;
                 }
 
+                // Not loaded, but a project may carry the .rfa (authored earlier, or
+                // copied in with the content library). Load it from a content root —
+                // the caller is inside a transaction, which LoadFamily(path) needs.
+                var loaded = TryLoadFromContentRoots(doc, names);
+                if (loaded != null) return loaded;
+
                 // Last resort: a generic annotation whose name reads as a flow
                 // arrow. Name-probing only — never a synthesised symbol.
                 return anno.FirstOrDefault(s =>
@@ -484,6 +496,31 @@ namespace StingTools.Core.Drawing.Dimensioning
                 });
             }
             catch (Exception ex) { StingLog.Warn($"ResolveArrowSymbol: {ex.Message}"); return null; }
+        }
+
+        private static FamilySymbol TryLoadFromContentRoots(Document doc, IEnumerable<string> names)
+        {
+            try
+            {
+                foreach (var root in StingTools.Core.Content.ContentRoots.Resolve(doc))
+                {
+                    if (string.IsNullOrEmpty(root) || !System.IO.Directory.Exists(root)) continue;
+                    foreach (var n in names)
+                    {
+                        var path = System.IO.Path.Combine(root, n + ".rfa");
+                        if (!System.IO.File.Exists(path)) continue;
+                        if (!doc.LoadFamily(path, out var fam) || fam == null) continue;
+                        var symId = fam.GetFamilySymbolIds().FirstOrDefault();
+                        if (symId != null && doc.GetElement(symId) is FamilySymbol sym)
+                        {
+                            StingLog.Info($"MepAnnotator: loaded flow-arrow family from {path}");
+                            return sym;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"MepAnnotator.TryLoadFromContentRoots: {ex.Message}"); }
+            return null;
         }
 
         /// <summary>
