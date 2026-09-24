@@ -639,11 +639,22 @@ namespace StingTools.Core.Drawing
                         // shape + proximity to the placement point, so a user's
                         // own annotation and a different pair's caption are
                         // both left alone.
+                        // Stamped captions of THIS pair go first, wherever they now sit —
+                        // a boundary that moved no longer strands its old caption. The
+                        // shape + proximity sweep remains for captions placed before
+                        // stamping existed.
+                        RemoveStampedCaptions(doc, view, viewPairGuid, r);
                         RemoveExistingCaptions(doc, view, noteTypeId, cfg.Captions.TipFormat, points, r);
 
-                        foreach (var pt in points)
+                        for (int i = 0; i < points.Count; i++)
                         {
-                            try { TextNote.Create(doc, view.Id, pt, caption, noteTypeId); r.TipCaptionsPlaced++; }
+                            try
+                            {
+                                var tn = TextNote.Create(doc, view.Id, points[i], caption, noteTypeId);
+                                r.TipCaptionsPlaced++;
+                                Storage.StingAnnotationProvenanceSchema.Stamp(tn, AnnotationProvenance.MatchCaption,
+                                    AnnotationProvenance.Key(viewPairGuid, i.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                            }
                             catch (Exception ex) { StingLog.Warn($"Caption create: {ex.Message}"); }
                         }
                     }
@@ -781,6 +792,25 @@ namespace StingTools.Core.Drawing
         /// orphan rather than deleted. That is strictly better than the
         /// previous behaviour, which orphaned one on EVERY sweep regardless.
         /// </summary>
+        /// <summary>Delete the captions this segment stamped last time, by key —
+        /// exact, and independent of where the boundary has moved to.</summary>
+        private static void RemoveStampedCaptions(Document doc, View view, string viewPairGuid, MatchLineRunResult r)
+        {
+            try
+            {
+                foreach (var kv in Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.MatchCaption))
+                {
+                    if (!string.Equals(AnnotationProvenance.HostOf(kv.Key), viewPairGuid, StringComparison.Ordinal)) continue;
+                    foreach (var el in kv.Value)
+                    {
+                        try { doc.Delete(el.Id); }
+                        catch (Exception ex) { StingLog.Warn($"Stamped caption prune {el.Id}: {ex.Message}"); }
+                    }
+                }
+            }
+            catch (Exception ex) { r?.Warnings.Add($"Could not clear stamped captions in '{view.Name}': {ex.Message}"); }
+        }
+
         private static void RemoveExistingCaptions(Document doc, View view, ElementId noteTypeId,
             string tipFormat, IList<XYZ> points, MatchLineRunResult r)
         {
@@ -905,6 +935,27 @@ namespace StingTools.Core.Drawing
             }
             if (pruned > 0)
                 r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — paired scope boxes no longer adjacent");
+
+            // Their captions too. Only STAMPED captions can be tied to a pair, so
+            // only those are pruned; an unstamped caption might be a person's note.
+            int captions = 0;
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(TextNote)))
+                {
+                    var s = Storage.StingAnnotationProvenanceSchema.Read(el);
+                    if (s == null || s.Value.Producer != AnnotationProvenance.MatchCaption) continue;
+                    var host = AnnotationProvenance.HostOf(s.Value.Key) ?? "";
+                    var sep = host.IndexOf(':');
+                    var scopePairGuid = sep > 0 ? host.Substring(0, sep) : host;
+                    if (liveScopePairs.Contains(scopePairGuid)) continue;
+                    try { doc.Delete(el.Id); captions++; }
+                    catch (Exception ex) { StingLog.Warn($"Orphan caption prune {el.Id}: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { r.Warnings.Add($"Could not prune orphan match-line captions: {ex.Message}"); }
+            if (captions > 0)
+                r.Warnings.Add($"pruned {captions} orphan match-line caption(s)");
         }
 
         public sealed class ValidationReport

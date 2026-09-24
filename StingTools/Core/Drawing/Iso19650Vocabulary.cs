@@ -267,28 +267,15 @@ namespace StingTools.Core.Drawing
         };
 
         // ── Drawing Purpose (STING extension on top of ISO Type=DR) ──
-        public static readonly string[] DrawingPurposes =
-        {
-            "Plan",
-            "RCP",
-            "Section",
-            "Elevation",
-            "Detail",
-            "Schedule",
-            "Spool",
-            "Coordination",
-            "Legend",
-            "3D",                 // E-8: must match DrawingPurpose.ThreeD ("3D"). "ThreeD"
-                                  // missed the DT-095 scale exemption and every
-                                  // 3D-specific code path for editor-authored profiles.
-            "Cover",
-            "Startup",
-            "Render",
-            "Submission",
-            "Clarification",
-            "ClientReview",
-            "DesignReview",
-        };
+        // Derived from the canonical set, not listed. The hand-written copy
+        // drifted twice: E-8 ("ThreeD" instead of "3D" missed the DT-095 scale
+        // exemption) and D-7 (no "Schematic", so eight shipped types carried a
+        // purpose the editor could not offer). It also offered six values —
+        // Cover, Startup, Render, Submission, ClientReview, DesignReview — that
+        // no code path understood: the producer turned them into floor plans.
+        // A purpose must be in DrawingPurpose.All AND mapped by
+        // DrawingPurposeViewKind before it can be picked; a test enforces both.
+        public static readonly string[] DrawingPurposes = DrawingPurpose.All;
 
         // ── Paper sizes (ISO 216) ──
         public static readonly string[] PaperSizes = { "A0", "A1", "A2", "A3", "A4" };

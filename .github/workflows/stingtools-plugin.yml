@@ -44,6 +44,22 @@ jobs:
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
 
+      # Drawing-type corporate lock: every corporate entry in
+      # STING_DRAWING_TYPES.json carries a SHA-256 of its C# serialisation, and
+      # DrawingTypeRegistry demotes any entry whose hash does not match to
+      # origin "project" — so a data edit (or a field added to DrawingType /
+      # AnnotationRulePack) without a restamp silently turns the lock off for
+      # that type. The tool compiles the shipped model to hash it; --check
+      # verifies without writing and exits 1 on a missing or stale checksum.
+      # It was documented as "CI-gate ready" and wired into no workflow.
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Drawing-type checksums are current
+        run: dotnet run --project tools/StampDrawingTypeChecksums -c Release -- --check
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #

@@ -123,7 +123,7 @@ ASS_ELEVATION_M,1,asset-universal,<ALL>,Element elevation in metres from project
 ASS_ELEVATION_TXT,1,asset-universal,<ALL>,ASS_ELEVATION_M display mirror [auto-generated]
 ASS_EQUIPMENT_TAG_TXT,1,universal,<ALL>,Ass Equipment Tag Txt [ISO 19650-3:2020]
 ASS_EXPECTED_LIFE_YEARS_YRS,1,asset-universal,<ALL>,Ass Expected Life Years Yrs [ISO 19650-3:2020]
-ASS_FAB_LOC_TXT,1,asset-universal,<ALL>,Fabrication location (SHOP / FIELD / VENDOR)
+ASS_FAB_LOC_TXT,1,asset-universal,<ALL>,Fabrication location (WORKSHOP / SITE)
 ASS_FAB_NOTES_TXT,1,asset-universal,<ALL>,Free-text fabrication notes consumed by ShopDrawingComposer
 ASS_FAB_SEQ_NR,1,asset-universal,<ALL>,Fabrication sequence number within the fabrication package
 ASS_FAB_STATUS_TXT,1,asset-universal,<ALL>,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)
@@ -407,14 +407,17 @@ BLE_DOOR_HARDWARE_SPECIFICATION_TXT,2,ble-sub,Doors,Ble Door Hardware Specificat
 BLE_DOOR_HEAD_HEIGHT_MM,2,ble-sub,Doors,Door head height from floor in mm
 BLE_DOOR_HEIGHT_MM,2,ble-sub,Doors,Ble Door Height Mm [ISO 19650-1:2018]
 BLE_DOOR_HEIGHT_TXT,2,ble-sub,Doors,BLE_DOOR_HEIGHT_MM display mirror [auto-generated]
+BLE_DOOR_LEADING_EDGE_CLEAR_MM,10,ble-sub,Doors,"Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]"
 BLE_DOOR_MATERIAL_FINISH_TXT,2,ble-sub,Doors,Door material and finish specification [ISO 19650-1:2018]
 BLE_DOOR_MAT_TXT,2,ble-sub,Doors,Ble Door Mat Txt [ISO 19650-1:2018]
+BLE_DOOR_OPENING_FORCE_N,10,ble-sub,Doors,"Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]"
 BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,2,ble-sub,Doors,Ble Door Operation Type Swing Slide Fold Roll Txt [ISO 19650-1:2018]
 BLE_DOOR_OPERATION_TYPE_TXT,10,ble-sub,Doors,Ble Door Operation Type [ISO 19650-1:2018]
 BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,2,ble-sub,Doors,Ble Door Panic Hardware Required Bool [ISO 19650-1:2018]
 BLE_DOOR_SECURITY_RATING_GRADE_TXT,2,ble-sub,Doors,Ble Door Security Rating Grade Txt [ISO 19650-1:2018]
 BLE_DOOR_THRESHOLD_TXT,2,ble-sub,Doors,Door threshold type and specification [ISO 19650-1:2018]
 BLE_DOOR_TYPE_TXT,2,ble-sub,Doors,Door type classification (Solid/Glazed/Fire/Acoustic) [ISO 19650-1:2018]
+BLE_DOOR_VISION_PANEL_ZONE_BOOL,10,ble-sub,Doors,Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]
 BLE_DOOR_WIDTH_MM,2,ble-sub,Doors,Ble Door Width Mm [ISO 19650-1:2018]
 BLE_DOOR_WIDTH_TXT,2,ble-sub,Doors,BLE_DOOR_WIDTH_MM display mirror [auto-generated]
 BLE_ELES_SPARE_01_TXT,2,UNRESOLVED(polluted-curated),,Spare parameter 1 for BLE_ELES group
@@ -1330,7 +1333,8 @@ FIN_TAG_1_TXT,1,tag-container,<ALL>,Finish tag container
 FIN_WALL_TAG_TXT,10,curated-fallback,Curtain Panels|Generic Models|Walls,"Wall finish schedule tag: interior, exterior, paint coats, finish type [ISO 19650-1:2018]"
 FLS_ALARM_CIRCUIT_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Alarm Circuit Count Nr [ISO 19650-1:2018]
 FLS_ALARM_CIRCUIT_COUNT_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_ALARM_CIRCUIT_COUNT_NR display mirror [auto-generated]
-FLS_COMPARTMENT_ID_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]
+FLS_COMPARTMENT_FR_MINS_TXT,8,fls-compartment,Fire Alarm Devices|Rooms|Sprinklers,"Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]"
+FLS_COMPARTMENT_ID_TXT,8,fls-compartment,Fire Alarm Devices|Rooms|Sprinklers,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]
 FLS_DETECTION_COST_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_DETECTION_COST_UGX display mirror [auto-generated]
 FLS_DETECTION_COST_UGX,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detection Cost Ugx [ISO 19650-1:2018]
 FLS_DETECTOR_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detector Count Nr [ISO 19650-1:2018]
@@ -1906,6 +1910,8 @@ PLM_DRN_ACCESS_POINTS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Fle
 PLM_DRN_BKWTR_VALVE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Bkwtr Valve Txt [ISO 19650-1:2018]
 PLM_DRN_BODY_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Body Mat Txt [ISO 19650-1:2018]
 PLM_DRN_CLEANOUT_LOCS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Cleanout Locs Txt [ISO 19650-1:2018]
+PLM_DRN_COVER_DS_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
+PLM_DRN_COVER_US_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
 PLM_DRN_FILL_RATIO_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fill Ratio Nr [ISO 19650-1:2018]
 PLM_DRN_FITTING_ACCESS_PROVISION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Access Provision Txt [ISO 19650-1:2018]
 PLM_DRN_FITTING_CONNECTION_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018]
@@ -1914,6 +1920,8 @@ PLM_DRN_FITTING_INST_DETAIL_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessorie
 PLM_DRN_FLW_RATE_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Flw Rate Lps [ISO 19650-1:2018]
 PLM_DRN_GRT_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Grt Mat Txt [ISO 19650-1:2018]
 PLM_DRN_GRT_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Grt Type Txt [ISO 19650-1:2018]
+PLM_DRN_INV_DS_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]"
+PLM_DRN_INV_US_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]"
 PLM_DRN_PPE_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Ppe Length M [ISO 19650-1:2018]
 PLM_DRN_PPE_SLOPE_PCT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Ppe Slope Pct [ISO 19650-1:2018]
 PLM_DRN_SPARE_01_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Spare parameter 1 for PLM_DRN group
@@ -2138,6 +2146,7 @@ PRJ_ORG_PROJECT_NUMBER_TXT,13,project-level,Project Information,Project number /
 PRJ_ORG_REGION_TXT,13,project-level,Project Information,Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]
 PRJ_ORG_RIBA_STAGE_TXT,13,project-level,Project Information,RIBA work stage (0-7) shown on the title block [STING Phase 171]
 PRJ_ORG_SECURITY_CLASS_TXT,13,project-level,Project Information,"Information security classification, e.g. ""OFFICIAL"" / ""OFFICIAL-SENSITIVE"" / ""SECRET"" / ""PUBLIC"" -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]"
+PRJ_ORG_SHEET_NUMBER_POLICY_TXT,13,project-level,Project Information,Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]
 PRJ_ORG_SIGNATURE_PROVIDER_TXT,13,project-level,Project Information,Signature provider id (empty = signatures disabled) [template engine v1.1]
 PRJ_ORG_UNICLASS_CO_TXT,13,project-level,Project Information,"Project Uniclass 2015 Complex (Co_) classification, e.g. ""Co_25_30 Office buildings"" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]"
 PRJ_ORG_WORKFLOW_PROFILE_TXT,13,project-level,Project Information,"Workflow profile key (default ""default"") [template engine v1.1]"
@@ -2167,6 +2176,7 @@ PRJ_TB_AUTHORISED_BY_TXT,13,sheet-identity,Sheets,"4-eyes authorisation signatur
 PRJ_TB_AUTHORISED_DATE_TXT,13,sheet-identity,Sheets,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
 PRJ_TB_CDE_REF_FORMAT_TXT,13,sheet-identity,Sheets,"How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. ""SHARED/A/DR""), SUFFIX (suitability + revision, e.g. ""S4-P01"") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]"
 PRJ_TB_CDE_REF_TXT,13,sheet-identity,Sheets,"CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. ""SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01"". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]"
+PRJ_TB_CDE_STATE_INT,13,sheet-identity,Sheets,"CDE state as a number, derived from PRJ_DWG_SUITABILITY_COD_TXT and driving the title-block status band: 0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED, 4 ARCHIVED. Written by the plugin; do not edit by hand [ISO 19650-1:2018]"
 PRJ_TB_CHECKED_BY_TXT,13,sheet-identity,Sheets,Name or initials of person who checked the drawing [ISO 19650-1:2018]
 PRJ_TB_CLIENT_ADDRESS_TXT,13,sheet-identity,Sheets,Client / appointing party address [ISO 19650-1:2018]
 PRJ_TB_CLIENT_NAME_TXT,13,sheet-identity,Sheets,Client / appointing party name. Populated from PRJ_ORG_CLIENT_NAME_TXT. [ISO 19650-1:2018]

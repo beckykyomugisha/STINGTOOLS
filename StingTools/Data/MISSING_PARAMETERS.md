@@ -125,7 +125,7 @@ pending family-library authoring.
 | `ASS_SPOOL_NR_TXT` | TEXT | Spool / bundle number assigned by AssemblyBuilder |
 | `ASS_WEIGHT_KG` | MASS | Assembly total weight (sum of member volume × material density) |
 | `ASS_TEST_PRESSURE_BAR` | NUMBER | Hydrostatic / pneumatic test pressure in bar |
-| `ASS_FAB_LOC_TXT` | TEXT | Fabrication location (SHOP / FIELD / VENDOR) |
+| `ASS_FAB_LOC_TXT` | TEXT | Fabrication location (WORKSHOP / SITE) |
 | `ASS_FAB_SEQ_NR` | INTEGER | Fabrication sequence number within the fab package |
 | `ASS_FAB_STATUS_TXT` | TEXT | Fabrication status (NOT_STARTED → INSTALLED) |
 | `ASS_SHIP_DATE_TXT` | TEXT | ISO 8601 ship date |

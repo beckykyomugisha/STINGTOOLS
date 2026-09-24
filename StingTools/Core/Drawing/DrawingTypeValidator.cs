@@ -76,7 +76,18 @@ namespace StingTools.Core.Drawing
             try { declaredFam = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (string.IsNullOrWhiteSpace(declaredFam)) declaredFam = dt.TitleBlockFamily;
             string concreteFam = declaredFam;
-            try { concreteFam = TitleBlockResolver.ToConcreteFamily(doc, dt, declaredFam); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try
+            {
+                // T-6: surface the resolver's reasons (blank paper, unsupported
+                // size, no presentation variant at this size, name/paper
+                // mismatch) instead of only logging them.
+                var res = TitleBlockResolver.Resolve(doc, dt, declaredFam);
+                if (res.IsResolved) concreteFam = res.Family;
+                foreach (var w in res.Warnings)
+                    r.Add(ValidationSeverity.Warning, "DT-012", w,
+                        "Set paperSize / orientation / titleBlockFamily so they name a family in STING_TITLE_BLOCKS.json.");
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
             string resolvedNote = string.Equals(concreteFam, declaredFam, StringComparison.OrdinalIgnoreCase)
                 ? "" : $" (resolved from '{declaredFam}')";
 
@@ -119,9 +130,16 @@ namespace StingTools.Core.Drawing
             if (!string.IsNullOrWhiteSpace(dt.ViewportTypeName))
             {
                 if (!HasViewportType(doc, dt.ViewportTypeName))
-                    r.Add(ValidationSeverity.Warning, "DT-021",
-                        $"Viewport type '{dt.ViewportTypeName}' not found.",
-                        "Duplicate an existing Viewport Type and name it to match, or clear the field.");
+                {
+                    if (StingViewportTypes.CanonicalFor(dt.ViewportTypeName) != null)
+                        r.Add(ValidationSeverity.Info, "DT-021",
+                            $"Viewport type '{dt.ViewportTypeName}' not in this project yet.",
+                            "It is created on first placement by duplicating an existing viewport type; style it afterwards.");
+                    else
+                        r.Add(ValidationSeverity.Warning, "DT-021",
+                            $"Viewport type '{dt.ViewportTypeName}' not found.",
+                            "Duplicate an existing Viewport Type and name it to match, or clear the field.");
+                }
             }
 
             // Section marker family --------------------------------------
@@ -131,6 +149,19 @@ namespace StingTools.Core.Drawing
                     r.Add(ValidationSeverity.Warning, "DT-030",
                         $"Section/elevation marker family '{dt.SectionMarker.Family}' not loaded.",
                         "Load the marker family or set sectionMarker.family to null to use project default.");
+            }
+
+            // Named view type -------------------------------------------
+            // Without it the producer falls back to the first view type of the
+            // family and says so on every run; this surfaces it before producing.
+            if (!string.IsNullOrWhiteSpace(dt.ViewFamilyTypeName))
+            {
+                bool present = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
+                    .Any(t => string.Equals(t.Name, dt.ViewFamilyTypeName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (!present)
+                    r.Add(ValidationSeverity.Warning, "DT-031",
+                        $"View type '{dt.ViewFamilyTypeName}' is not in this project.",
+                        "Run DrawingTypes_EnsureViewTypes (SETUP → Drawing production) to create it.");
             }
 
             // Tag families ------------------------------------------------
@@ -151,7 +182,7 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-050",
                     "DrawingType has no slots defined — generation will place views at sheet origin.");
             else
-                foreach (var s in dt.Slots) ValidateSlot(s, r);
+                ValidateSlotGeometry(dt, r);
 
             // Pattern sanity ---------------------------------------------
             if (string.IsNullOrWhiteSpace(dt.SheetNumberPattern))
@@ -350,6 +381,27 @@ namespace StingTools.Core.Drawing
                         "Load the family or clear the field on the profile.");
             }
 
+            // DT-142: print.colourScheme against a closed vocabulary. The
+            // shipped catalogue used TWO spellings for one concept —
+            // "Monochrome" (38 profiles) and "BlackAndWhite" (28) — and
+            // nothing validated either, so a third could have appeared and
+            // silently meant "no scheme".
+            ValidatePrintBlock(dt, r);
+
+            // DT-139: every annotation rule's ruleType must be a name
+            // AnnotationRuleKinds declares — i.e. one a runner pass actually
+            // handles. This is an ERROR, not a warning: an unknown ruleType
+            // places nothing, and before this gate existed that was
+            // indistinguishable from a rule that ran. 56 of the 334 rules in
+            // the shipped catalogue were in exactly that state.
+            //
+            // Doc-independent, so it runs even when the caller has no model.
+            ValidateAnnotationRuleTypes(dt, r);
+
+            // DT-140: a rule whose category the resolved style pack hides.
+            // The tag lands on an invisible host — the drawing shows neither.
+            ValidateAnnotationAgainstHiddenCategories(doc, dt, r);
+
             CheckFamily(dt.Annotation.NorthArrowFamily, "DT-137-NA", "North arrow");
             CheckFamily(dt.Annotation.ScaleBarFamily,   "DT-137-SB", "Scale bar");
             CheckFamily(dt.Annotation.KeyPlanFamily,    "DT-137-KP", "Key plan");
@@ -362,8 +414,320 @@ namespace StingTools.Core.Drawing
                     CheckFamily(s?.SymbolFamily, "DT-137-SC", $"Spot-coordinate symbol ({s?.Category})");
         }
 
+        /// <summary>
+        /// DT-139 — ruleType vocabulary check against AnnotationRuleKinds.
+        /// Revit-free so it holds in every caller, including a headless
+        /// data-file validation pass.
+        /// </summary>
+        internal static void ValidateAnnotationRuleTypes(DrawingType dt, ValidationReport r)
+        {
+            var rules = dt?.Annotation?.Rules;
+            if (rules == null || rules.Count == 0) return;
+
+            var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rule in rules)
+            {
+                if (rule == null) continue;
+                var rt = rule.RuleType;
+                if (AnnotationRuleKinds.IsKnown(rt)) continue;
+                var key = rt ?? "<null>";
+                if (!reported.Add(key)) continue;
+                r.Add(ValidationSeverity.Error, "DT-139",
+                    $"Annotation ruleType '{key}' (category '{rule.Category}') is not in the implemented vocabulary — "
+                    + "no runner pass claims it, so this rule places nothing.",
+                    $"Use one of: {string.Join(", ", AnnotationRuleKinds.AllRuleTypes)}. "
+                    + "If the behaviour is genuinely new, declare it in AnnotationRuleKinds and wire a handler in AnnotationRunner.");
+            }
+
+            // DT-139-FAM: a tagFamilies key that resolves to no category, or
+            // that no rule in this profile will ever look up.
+            //
+            // ResolveTagTypeId does pack.TagFamilies.TryGetValue(catKey) with
+            // the RULE's category string, so a key spelled any other way is
+            // dead: the declared family is silently replaced by "first loaded
+            // tag of that category". There was a warning for a family that is
+            // not LOADED, but none for a key nothing looks up, which is why
+            // seven PascalCase-without-spaces keys (StructuralColumns,
+            // LightingFixtures, …) went unnoticed.
+            ValidateTagFamilyKeys(dt, r);
+
+            // DT-139-TAG: a tag rule on a category Revit cannot tag.
+            // IndependentTag.Create requires a taggable MODEL category, so a
+            // rule on an annotation or datum category throws once per element
+            // and buries the run in warnings. RevitCategoryTree carries the
+            // taggable flag, so this reads the same table the runner does.
+            foreach (var rule in rules)
+            {
+                if (rule == null || !rule.Enabled) continue;
+                if (!AnnotationRuleKinds.IsTagKind(rule.RuleType)) continue;
+                var cat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                if (string.IsNullOrWhiteSpace(cat) || cat == "*") continue;
+                var meta = cat.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)
+                    ? RevitCategoryTree.FindByBic(cat)
+                    : RevitCategoryTree.FindByDisplayName(cat);
+                if (meta != null && !meta.IsTaggable)
+                    r.Add(ValidationSeverity.Warning, "DT-139-TAG",
+                        $"Annotation rule '{rule.RuleType}' targets '{cat}', which Revit cannot tag "
+                        + "(IndependentTag.Create needs a taggable model category).",
+                        "Drop the rule; use the style pack's vgOverrides to control how that category reads.");
+            }
+
+            // Auto3DTag is a whole-view operation dispatched once; extra
+            // per-category rows express nothing the runner can act on, so
+            // flag the redundancy rather than leaving 8 rows implying 8
+            // distinct behaviours.
+            int threeD = rules.Count(x => x != null && x.Enabled && AnnotationRuleKinds.IsThreeDKind(x.RuleType));
+            if (threeD > 1)
+                r.Add(ValidationSeverity.Info, "DT-139-3D",
+                    $"{threeD} Auto3DTag rules declared. The 3D pass tags the whole view once, so only the first has effect.",
+                    "Collapse to a single Auto3DTag rule (category \"*\").");
+        }
+
+        /// <summary>
+        /// DT-139-FAM — tagFamilies key hygiene. Revit-free.
+        /// </summary>
+        internal static void ValidateTagFamilyKeys(DrawingType dt, ValidationReport r)
+        {
+            var fam = dt?.Annotation?.TagFamilies;
+            if (fam == null || fam.Count == 0) return;
+
+            // Categories a rule in THIS profile could look up.
+            var consulted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool wildcard = false;
+            foreach (var rule in dt.Annotation.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (rule == null || !rule.Enabled) continue;
+                if (!AnnotationRuleKinds.IsTagKind(rule.RuleType)) continue;
+                var cat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                if (cat == "*") { wildcard = true; continue; }
+                if (!string.IsNullOrWhiteSpace(cat)) consulted.Add(cat);
+            }
+
+            foreach (var kv in fam)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+
+                bool resolves = kv.Key.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)
+                    ? RevitCategoryTree.FindByBic(kv.Key) != null
+                    : RevitCategoryTree.FindByDisplayName(kv.Key) != null;
+
+                if (!resolves)
+                {
+                    r.Add(ValidationSeverity.Warning, "DT-139-FAM",
+                        $"tagFamilies key '{kv.Key}' (→ '{kv.Value}') resolves to no Revit category, so the "
+                        + "lookup misses and the declared family is silently replaced by the first loaded tag.",
+                        "Use the localised category display name, e.g. \"Structural Columns\", not \"StructuralColumns\".");
+                    continue;
+                }
+
+                if (!wildcard && !consulted.Contains(kv.Key))
+                    r.Add(ValidationSeverity.Info, "DT-139-FAM-UNUSED",
+                        $"tagFamilies key '{kv.Key}' (→ '{kv.Value}') is never consulted — no enabled tag rule in "
+                        + "this profile targets that category.",
+                        "Add a tag rule for the category, or remove the key so the profile does not read as configured.");
+            }
+        }
+
+        /// <summary>
+        /// DT-140 — an annotation rule targeting a category the resolved view
+        /// style pack sets visible:false. The annotation is created against a
+        /// host the view does not draw, so neither appears: a silent
+        /// double-negative that reads on the sheet as "the tagger did not run".
+        /// </summary>
+        internal static void ValidateAnnotationAgainstHiddenCategories(Document doc, DrawingType dt, ValidationReport r)
+        {
+            if (doc == null || dt?.Annotation == null || string.IsNullOrWhiteSpace(dt.ViewStylePackId)) return;
+
+            ViewStylePack pack;
+            try { pack = ViewStylePackRegistry.Get(doc, dt.ViewStylePackId); }
+            catch { return; }
+            if (pack?.VgOverrides == null || pack.VgOverrides.Count == 0) return;
+
+            var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in pack.VgOverrides)
+                if (kv.Value?.Visible == false && !string.IsNullOrWhiteSpace(kv.Key))
+                    hidden.Add(kv.Key.Trim());
+            if (hidden.Count == 0) return;
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rule in dt.Annotation.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (rule == null || !rule.Enabled) continue;
+                var cat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                if (string.IsNullOrWhiteSpace(cat)) continue;
+                // Compare on the display name the pack uses as well as the
+                // BIC form the rule may carry.
+                foreach (var candidate in new[] { cat, DisplayNameForBic(doc, cat) })
+                {
+                    if (string.IsNullOrWhiteSpace(candidate) || !hidden.Contains(candidate)) continue;
+                    if (!seen.Add(candidate)) break;
+                    r.Add(ValidationSeverity.Warning, "DT-140",
+                        $"Annotation rule '{rule.RuleType}' targets category '{candidate}', which style pack "
+                        + $"'{dt.ViewStylePackId}' sets visible:false. The annotation is placed on a host the view does not draw.",
+                        "Either show the category in the pack, or drop the annotation rule.");
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The closed set of print colour schemes. Kept here rather than in a
+        /// data file because each value is only meaningful to code that
+        /// branches on it (title-block variant conditions today, an export
+        /// preset tomorrow) — a value nothing branches on is not a scheme.
+        /// </summary>
+        internal static readonly string[] PrintColourSchemes =
+        {
+            "Monochrome",        // single-colour line work — the production default
+            "ByDiscipline",      // discipline-coloured line work
+            "PresentationRich",  // full-colour client presentation
+            "PresentationMono",  // single-colour presentation
+            "ClarificationRed",  // red mark-up over halftone base
+        };
+
+        /// <summary>
+        /// DT-142 — print block sanity. Revit-free.
+        /// </summary>
+        internal static void ValidatePrintBlock(DrawingType dt, ValidationReport r)
+        {
+            var pr = dt?.Print;
+            if (pr == null) return;
+
+            if (!string.IsNullOrWhiteSpace(pr.ColourScheme)
+                && !PrintColourSchemes.Any(x => string.Equals(x, pr.ColourScheme, StringComparison.OrdinalIgnoreCase)))
+            {
+                r.Add(ValidationSeverity.Warning, "DT-142",
+                    $"print.colourScheme '{pr.ColourScheme}' is not a known scheme, so nothing branches on it.",
+                    $"Use one of: {string.Join(", ", PrintColourSchemes)}.");
+            }
+
+            if (pr.LineWeightScale.HasValue)
+            {
+                double v = pr.LineWeightScale.Value;
+                if (v <= 0 || v > 4)
+                    r.Add(ValidationSeverity.Warning, "DT-142-LW",
+                        $"print.lineWeightScale {v} is outside a sensible 0.1..4 range.",
+                        "A scale multiplies the pack's declared weights and is clamped to Revit's 1..16.");
+            }
+        }
+
+        /// <summary>
+        /// DT-143 — style-pack hygiene, reported once per library rather than
+        /// per drawing type. Covers the three things that were invisible:
+        /// a pack referenced by nothing, a duplicate filter rule inside one
+        /// pack, and a drawing type that resolves to no pack at all.
+        /// </summary>
+        public static void ValidateStylePackLibrary(Document doc, ValidationReport r)
+        {
+            if (doc == null || r == null) return;
+            IReadOnlyList<ViewStylePack> packs;
+            IReadOnlyList<DrawingType> types;
+            try
+            {
+                packs = ViewStylePackRegistry.ListAll(doc);
+                types = DrawingTypeRegistry.ListAll(doc);
+            }
+            catch { return; }
+            if (packs == null || packs.Count == 0) return;
+
+            // ── DT-143-DUP: two rows for one filter inside a single pack.
+            // The applier iterates in order and overlays, so the later row
+            // silently wins and the earlier one is dead data that still reads
+            // as authoritative in the editor.
+            foreach (var p in packs)
+            {
+                if (p?.Filters == null) continue;
+                var dupes = p.Filters
+                    .Where(f => !string.IsNullOrWhiteSpace(f?.FilterName))
+                    .GroupBy(f => f.FilterName, StringComparer.OrdinalIgnoreCase)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => $"{g.Key} (x{g.Count()})")
+                    .ToList();
+                if (dupes.Count > 0)
+                    r.Add(ValidationSeverity.Warning, "DT-143-DUP",
+                        $"Style pack '{p.Id}' declares the same filter more than once: {string.Join("; ", dupes)}. "
+                        + "The last row wins; the earlier ones are dead but still shown as owned.",
+                        "Delete the earlier rows so the pack says what it means.");
+            }
+
+            // ── DT-143-ORPHAN: a pack nothing selects. Informational, not a
+            // warning — the presentation palettes are deliberately opt-in.
+            var referenced = new HashSet<string>(
+                types.Where(t => !string.IsNullOrWhiteSpace(t?.ViewStylePackId))
+                     .Select(t => t.ViewStylePackId), StringComparer.OrdinalIgnoreCase);
+            foreach (var p in packs)
+                if (!string.IsNullOrWhiteSpace(p?.Extends)) referenced.Add(p.Extends);
+            try
+            {
+                foreach (var rule in ViewStylePackRegistry.ListRouting(doc))
+                    if (!string.IsNullOrWhiteSpace(rule?.StylePackId)) referenced.Add(rule.StylePackId);
+            }
+            catch { /* routing is optional */ }
+
+            var orphans = packs.Where(p => p != null && !string.IsNullOrWhiteSpace(p.Id)
+                                        && !referenced.Contains(p.Id))
+                               .Select(p => p.Id).ToList();
+            if (orphans.Count > 0)
+                r.Add(ValidationSeverity.Info, "DT-143-ORPHAN",
+                    $"{orphans.Count} style pack(s) are selected by no drawing type, no extends and no routing rule: "
+                    + string.Join(", ", orphans) + ".",
+                    "Fine for an opt-in palette library — pick one on a project drawing type. Delete any that are genuinely unused.");
+
+            // ── DT-143-NOPACK: a drawing type that resolves to nothing, so
+            // its views get no category overrides and no filters whatsoever.
+            // This is the condition that left 8 of 93 profiles unstyled and
+            // silent before the routing fallback was wired.
+            var unstyled = new List<string>();
+            foreach (var t in types)
+            {
+                if (t == null) continue;
+                try
+                {
+                    if (ViewStylePackRegistry.ResolveForDrawingType(doc, t) == null) unstyled.Add(t.Id);
+                }
+                catch { /* keep going */ }
+            }
+            if (unstyled.Count > 0)
+                r.Add(ValidationSeverity.Warning, "DT-143-NOPACK",
+                    $"{unstyled.Count} drawing type(s) resolve to NO style pack — no category overrides and no "
+                    + $"filters will be applied to their views: {string.Join(", ", unstyled.Take(12))}"
+                    + (unstyled.Count > 12 ? ", …" : "") + ".",
+                    "Set viewStylePackId on the profile, or add a routing rule in STING_VIEW_STYLE_PACKS.json.");
+        }
+
+        /// <summary>Localised category name for a BIC string, or null.</summary>
+        private static string DisplayNameForBic(Document doc, string key)
+        {
+            try
+            {
+                if (!Enum.TryParse<BuiltInCategory>(key, true, out var bic)) return null;
+                return Category.GetCategory(doc, bic)?.Name;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// DT-137-SLOTVT — slot viewType against the closed vocabulary
+        /// SheetPlacementBridge actually discriminates on.
+        /// </summary>
+        internal static void ValidateSlotViewTypes(DrawingType dt, ValidationReport r)
+        {
+            foreach (var slot in dt?.Slots ?? new List<DrawingSlot>())
+            {
+                if (slot == null || string.IsNullOrWhiteSpace(slot.ViewType)) continue;
+                if (SheetPlacementBridge.IsKnownSlotViewType(slot.ViewType)) continue;
+                r.Add(ValidationSeverity.Warning, "DT-137-SLOTVT",
+                    $"Slot '{slot.Label}' declares viewType '{slot.ViewType}', which the placement "
+                    + "compatibility check does not recognise — the slot will accept ANY view, which is "
+                    + "the opposite of what declaring a viewType implies.",
+                    $"Use one of: {string.Join(", ", SheetPlacementBridge.KnownSlotViewTypes)}.");
+            }
+        }
+
         private static void ValidatePhase137ProductionRules(DrawingType dt, ValidationReport r)
         {
+            ValidateSlotViewTypes(dt, r);
+
             if (dt?.ProductionRules == null) return;
             var rules = dt.ProductionRules;
             if (rules.Count > 0 && (dt.Slots?.Count ?? 0) > 0)
@@ -552,6 +916,19 @@ namespace StingTools.Core.Drawing
             try { reports = DrawingTypeRegistry.ListAll(doc).Select(t => Validate(doc, t)).ToList(); }
             finally { _snapshot = null; }
 
+            // DT-143 — style-pack library hygiene, once per library rather
+            // than once per drawing type: duplicate filter rows inside a pack,
+            // packs nothing selects, and drawing types that resolve to no pack
+            // at all (which means no category overrides and no filters on
+            // their views).
+            try
+            {
+                var packReport = new ValidationReport { DrawingTypeId = "(style packs)" };
+                ValidateStylePackLibrary(doc, packReport);
+                if (packReport.Issues != null && packReport.Issues.Count > 0) reports.Add(packReport);
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ValidateStylePackLibrary: {ex.Message}"); }
+
             // Routing coverage — flag routing rules pointing at
             // non-existent drawing types.
             var ids = new HashSet<string>(
@@ -666,6 +1043,34 @@ namespace StingTools.Core.Drawing
             }
             catch { /* validator never throws */ }
 
+            // DT-104 / DT-105 — the general form of DT-103, from the same
+            // Revit-free audit the shipped catalogue is gated by in CI
+            // (DrawingRoutingMatcher.Audit): any rule an earlier rule fully
+            // covers can never fire, and a predicate regex that does not
+            // compile never matches. Dangling ids stay DT-100 above.
+            try
+            {
+                var audit = DrawingRoutingMatcher.Audit(
+                    DrawingTypeRegistry.ListRouting(doc).ToList(), DrawingTypeRegistry.ListAll(doc));
+                foreach (var s in audit.Shadowed)
+                {
+                    var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                    r.Add(ValidationSeverity.Warning, "DT-104",
+                        $"Routing rule {s}; first-match-wins means it can never fire.",
+                        "Delete the later rule, or narrow / reorder the earlier one. Project rules are prepended, so a broad project rule shadows corporate rules.");
+                    reports.Add(r);
+                }
+                foreach (var s in audit.InvalidRegex)
+                {
+                    var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                    r.Add(ValidationSeverity.Error, "DT-105",
+                        $"Routing rule predicate regex does not compile: {s}. The rule can never match.",
+                        "Fix the pattern (patterns are .NET regex, unanchored, case-insensitive).");
+                    reports.Add(r);
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Routing audit (DT-104/105): {ex.Message}"); }
+
             return reports;
         }
 
@@ -727,20 +1132,20 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewportType(Document doc, string name)
         {
+            // Viewport naming: a STING name is satisfied by its canonical form
+            // or any legacy alias (StingViewportTypes.Candidates).
+            var candidates = StingViewportTypes.Candidates(name);
             var snapVp = SnapshotFor(doc);
-            if (snapVp != null) return snapVp.ViewportTypes.Contains(name ?? "");
+            if (snapVp != null) return candidates.Any(c => snapVp.ViewportTypes.Contains(c));
             try
             {
-                var col = new FilteredElementCollector(doc).OfClass(typeof(ElementType));
-                foreach (var el in col)
-                    if (el is ElementType t
-                        && t.FamilyName != null
-                        && t.FamilyName.IndexOf("Viewport", StringComparison.OrdinalIgnoreCase) >= 0
-                        && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                return ViewportTypeResolver.Exists(doc, name);
             }
-            catch { /* ignore */ }
-            return false;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawingTypeValidator.HasViewportType('{name}'): {ex.Message} -- reported as missing");
+                return false;
+            }
         }
 
         private static bool HasAnnotationFamily(Document doc, string familyName)
@@ -766,14 +1171,18 @@ namespace StingTools.Core.Drawing
                 || string.Equals(purpose, DrawingPurpose.Detail,    StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void ValidateSlot(DrawingSlot s, ValidationReport r)
+        // DT-055 / DT-056 — per-slot geometry. The rules live in the
+        // Revit-free DrawingSlotGeometry so the CI gate over the shipped
+        // catalogue (StingTools.Tags.Tests) runs the same check.
+        private static void ValidateSlotGeometry(DrawingType dt, ValidationReport r)
         {
-            if (s.NormX < 0 || s.NormY < 0 || s.NormW <= 0 || s.NormH <= 0)
-                r.Add(ValidationSeverity.Error, "DT-055",
-                    $"Slot '{s.Label}' has invalid geometry (normX={s.NormX} normY={s.NormY} normW={s.NormW} normH={s.NormH}).");
-            if (s.NormX + s.NormW > 1.0001 || s.NormY + s.NormH > 1.0001)
-                r.Add(ValidationSeverity.Warning, "DT-056",
-                    $"Slot '{s.Label}' extends beyond the drawable zone (normX+W={s.NormX + s.NormW:F2} normY+H={s.NormY + s.NormH:F2}).");
+            foreach (var issue in DrawingSlotGeometry.Check(dt.Slots))
+            {
+                if (issue.Kind == DrawingSlotGeometry.IssueKind.InvalidGeometry)
+                    r.Add(ValidationSeverity.Error, issue.Code, issue.Message);
+                else if (issue.Kind == DrawingSlotGeometry.IssueKind.OutOfBounds)
+                    r.Add(ValidationSeverity.Warning, issue.Code, issue.Message);
+            }
         }
 
         // GAP-K: profile.Purpose says "Plan" but a slot.ViewType is "Section",
@@ -886,30 +1295,17 @@ namespace StingTools.Core.Drawing
             if (dt?.Slots == null || dt.Slots.Count < 2) return;
             try
             {
-                for (int i = 0; i < dt.Slots.Count; i++)
+                // AABB overlap via the shared Revit-free helper (see
+                // ValidateSlotGeometry). Edges shared within
+                // DrawingSlotGeometry.Tolerance are not an overlap.
+                foreach (var issue in DrawingSlotGeometry.Check(dt.Slots))
                 {
-                    for (int j = i + 1; j < dt.Slots.Count; j++)
-                    {
-                        var a = dt.Slots[i];
-                        var b = dt.Slots[j];
-                        if (a == null || b == null) continue;
-                        // AABB overlap test
-                        bool overlapX = a.NormX < b.NormX + b.NormW && a.NormX + a.NormW > b.NormX;
-                        bool overlapY = a.NormY < b.NormY + b.NormH && a.NormY + a.NormH > b.NormY;
-                        if (overlapX && overlapY)
-                        {
-                            // Compute overlap area as a fraction of page
-                            double ox = Math.Min(a.NormX + a.NormW, b.NormX + b.NormW) - Math.Max(a.NormX, b.NormX);
-                            double oy = Math.Min(a.NormY + a.NormH, b.NormY + b.NormH) - Math.Max(a.NormY, b.NormY);
-                            double area = Math.Round(ox * oy * 100, 1);
-                            r.Add(ValidationSeverity.Warning, "DT-SLT-03",
-                                $"Slots [{i}] '{a.Label ?? $"slot{i}"}' and [{j}] '{b.Label ?? $"slot{j}"}' overlap by {area}% of sheet area.",
-                                "Adjust normX/normY/normW/normH to eliminate overlap, or confirm intentional side-by-side layout (e.g. BOM strip adjacent to ISO view).");
-                        }
-                    }
+                    if (issue.Kind != DrawingSlotGeometry.IssueKind.Overlap) continue;
+                    r.Add(ValidationSeverity.Warning, issue.Code, issue.Message,
+                        "Adjust normX/normY/normW/normH to eliminate overlap, or confirm intentional side-by-side layout (e.g. BOM strip adjacent to ISO view).");
                 }
             }
-            catch { /* validator must never throw */ }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ValidateSlotOverlaps('{dt.Id}'): {ex.Message}"); }
         }
     }
 }

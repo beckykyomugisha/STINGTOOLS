@@ -384,7 +384,9 @@ namespace StingTools.UI
             _tagGrid.Columns.Add(MakeTextCol("Category", "Category"));
             _tagGrid.Columns.Add(MakeTextCol("Tag Family", "TagFamily"));
             _tagGrid.Columns.Add(MakeTextCol("Leader",     "LeaderStyle"));
-            _tagGrid.Columns.Add(MakeTextCol("Depth",      "Tag7Depth"));
+            // A-2: was bound to Tag7Depth, a field no engine read (removed).
+            // Depth is the per-rule depth TagDepthLayering folds in.
+            _tagGrid.Columns.Add(MakeTextCol("Depth",      "Depth"));
             _tagGrid.Columns.Add(MakeBoolCol("Skip Tagged","SkipIfTagged"));
             sp.Children.Add(_tagGrid);
             var addTag = new Button { Content = "+ Add Tag Rule", Margin = new Thickness(0,4,0,4), HorizontalAlignment = HorizontalAlignment.Left };

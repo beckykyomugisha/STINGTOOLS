@@ -278,6 +278,9 @@ namespace StingTools.Tags
             // ── Legend entries (with multi-column support) ──
             int col = 0;
             double maxRowHeight = 0;
+            // A-15: one FilledRegionType index per legend build, not two
+            // whole-document collectors per swatch.
+            var swatchTypes = new SwatchTypeCache(doc);
 
             for (int ei = 0; ei < entries.Count; ei++)
             {
@@ -289,7 +292,7 @@ namespace StingTools.Tags
                 {
                     try
                     {
-                        ElementId regionTypeId = GetOrCreateFilledRegionType(doc, entry.Color, solidFill.Id);
+                        ElementId regionTypeId = swatchTypes.GetOrCreate(entry.Color, solidFill.Id);
 
                         var profile = new List<CurveLoop>();
                         var loop = new CurveLoop();
@@ -698,24 +701,45 @@ namespace StingTools.Tags
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
-        private static ElementId GetOrCreateFilledRegionType(Document doc, Color color, ElementId fillPatternId)
+        /// <summary>
+        /// A-15: "STING Swatch r-g-b" FilledRegionType lookup built ONCE per
+        /// legend build. GetOrCreateFilledRegionType used to run two
+        /// whole-document collectors (by-name, then the base type) for every
+        /// legend entry. Types minted during the build are added to the index,
+        /// so a colour repeated later in the same legend reuses its type.
+        /// </summary>
+        private sealed class SwatchTypeCache
         {
-            // Try to find an existing type with matching color name
-            string typeName = $"STING Swatch {color.Red:D3}-{color.Green:D3}-{color.Blue:D3}";
+            private readonly Dictionary<string, ElementId> _byName =
+                new Dictionary<string, ElementId>(StringComparer.Ordinal);
+            private readonly FilledRegionType _baseType;
 
-            var existing = new FilteredElementCollector(doc)
-                .OfClass(typeof(FilledRegionType))
-                .Cast<FilledRegionType>()
-                .FirstOrDefault(frt => frt.Name == typeName);
+            public SwatchTypeCache(Document doc)
+            {
+                foreach (var frt in new FilteredElementCollector(doc)
+                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>())
+                {
+                    if (_baseType == null) _baseType = frt;          // first, as before
+                    if (!_byName.ContainsKey(frt.Name)) _byName[frt.Name] = frt.Id; // first-wins, as FirstOrDefault did
+                }
+            }
 
-            if (existing != null) return existing.Id;
+            public ElementId GetOrCreate(Color color, ElementId fillPatternId)
+            {
+                string typeName = $"STING Swatch {color.Red:D3}-{color.Green:D3}-{color.Blue:D3}";
+                if (_byName.TryGetValue(typeName, out var id)) return id;
+                id = GetOrCreateFilledRegionType(_baseType, typeName, color, fillPatternId);
+                // Cache only a real swatch type; a base-type fallback must be
+                // retried (and re-reported) rather than remembered as correct.
+                if (id != ElementId.InvalidElementId && (_baseType == null || id != _baseType.Id))
+                    _byName[typeName] = id;
+                return id;
+            }
+        }
 
-            // Duplicate an existing FilledRegionType
-            var baseType = new FilteredElementCollector(doc)
-                .OfClass(typeof(FilledRegionType))
-                .Cast<FilledRegionType>()
-                .FirstOrDefault();
-
+        private static ElementId GetOrCreateFilledRegionType(FilledRegionType baseType, string typeName,
+            Color color, ElementId fillPatternId)
+        {
             if (baseType == null) return ElementId.InvalidElementId;
 
             try
@@ -1451,6 +1475,7 @@ namespace StingTools.Tags
 
             int annotationPlaced = 0;
             int drawnFallback = 0;
+            var swatchTypes = new SwatchTypeCache(doc);   // A-15
 
             foreach (var group in groups)
             {
@@ -1474,7 +1499,7 @@ namespace StingTools.Tags
                     {
                         try
                         {
-                            ElementId regionTypeId = GetOrCreateFilledRegionType(doc, entry.DisciplineColor, solidFill.Id);
+                            ElementId regionTypeId = swatchTypes.GetOrCreate(entry.DisciplineColor, solidFill.Id);
                             var loop = new CurveLoop();
                             XYZ p1 = new XYZ(x, y, 0);
                             XYZ p2 = new XYZ(x + swatchW, y, 0);

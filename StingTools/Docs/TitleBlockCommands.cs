@@ -193,6 +193,23 @@ namespace StingTools.Docs
                 // to catch. Add them here the day they are added to the CSV.
             };
 
+        /// <summary>
+        /// Integer twin of <see cref="SetOnSheetAndTitleBlock"/> — for
+        /// PRJ_TB_CDE_STATE_INT, whose value drives a family formula and so must be
+        /// a number, not text. Same two homes, same logging.
+        /// </summary>
+        internal static int SetIntOnSheetAndTitleBlock(ViewSheet sheet, Element tb, string paramName, int value)
+        {
+            int homes = 0;
+            foreach (Element target in new Element[] { sheet, tb })
+            {
+                if (target == null) continue;
+                try { if (ParameterHelpers.SetInt(target, paramName, value, overwrite: true)) homes++; }
+                catch (Exception ex) { StingLog.Warn($"TB: writing '{paramName}' to {target.Id}: {ex.Message}"); }
+            }
+            return homes;
+        }
+
         internal static bool SetOnSheetAndTitleBlock(
             ViewSheet sheet, Element tb, string paramName, string value, bool isBool, out int homes)
         {
@@ -805,7 +822,13 @@ namespace StingTools.Docs
                         // The CDE container. This is what the STATUS cell should show:
                         // SHARED / PUBLISHED / WIP -- information the suitability cell
                         // does NOT already carry.
-                        string state = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(suitCode);
+                        var derivation = StingTools.Core.Drawing.SuitabilityPresentation.Derive(suitCode);
+                        string state = derivation.CdeStateName;
+                        // The status band follows the code: its number is written on
+                        // every run, including 0 for an unrecognised code, so a band
+                        // can never outlive the code that justified it.
+                        TitleBlockEngine.SetIntOnSheetAndTitleBlock(
+                            sheet, tb, ParamRegistry.TB_CDE_STATE_INT, derivation.StateInt);
                         if (state != null)
                         {
                             TitleBlockEngine.SetOnSheetAndTitleBlock(
@@ -1216,6 +1239,23 @@ namespace StingTools.Docs
                     AddIssue(r, sheet.SheetNumber, "INVALID_SUIT",
                         $"PRJ_DWG_SUITABILITY_COD_TXT = '{suit}' is not a valid ISO 19650 code");
                     sheetClean = false;
+                }
+
+                // The status band is coloured from PRJ_TB_CDE_STATE_INT. If that number
+                // disagrees with the printed code (edited by hand, or written before a
+                // revision sync changed the code) the drawing would go out amber while
+                // saying A1. Only checked when the parameter is bound at all.
+                var stateParam = sheet.LookupParameter(ParamRegistry.TB_CDE_STATE_INT)
+                                 ?? tb.LookupParameter(ParamRegistry.TB_CDE_STATE_INT);
+                if (stateParam != null && stateParam.StorageType == StorageType.Integer)
+                {
+                    int? stored = stateParam.HasValue ? stateParam.AsInteger() : (int?)null;
+                    string bandIssue = StingTools.Core.Drawing.SuitabilityPresentation.Disagreement(suit, stored);
+                    if (bandIssue != null)
+                    {
+                        AddIssue(r, sheet.SheetNumber, "CDE_BAND_MISMATCH", bandIssue);
+                        sheetClean = false;
+                    }
                 }
 
                 // Sync staleness — only flags when sync field is populated
@@ -1856,8 +1896,16 @@ namespace StingTools.Docs
                         TitleBlockEngine.SetOnSheetAndTitleBlock(
                             sheet, tb, ParamRegistry.TB_DELIVERABLE_DUE, deliverableDue, false, out _);
                     if (!string.IsNullOrEmpty(deliverableCde))
+                    {
                         TitleBlockEngine.SetOnSheetAndTitleBlock(
                             sheet, tb, ParamRegistry.TB_DELIVERABLE_CDE, deliverableCde, false, out _);
+                        // The deliverable register is the one place ARCHIVED comes
+                        // from; keep the band's number in step with the text.
+                        var st = StingTools.Core.Drawing.SuitabilityPresentation.StateFor(deliverableCde);
+                        if (st != StingTools.Core.Drawing.CdeState.Unknown)
+                            TitleBlockEngine.SetIntOnSheetAndTitleBlock(
+                                sheet, tb, ParamRegistry.TB_CDE_STATE_INT, (int)st);
+                    }
 
                     StingLog.Info($"TB TxStamp: {sheet.SheetNumber} ← TX={txId} " +
                         $"(suit={suitability}, status={deliverableStatus}, cde={deliverableCde})");

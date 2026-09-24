@@ -78,7 +78,8 @@ namespace StingTools.Commands.Plumbing
             var td = new TaskDialog("Plumb_InvertLevels")
             {
                 MainInstruction = "Calculate invert levels?",
-                MainContent = "Computes US/DS invert (mAOD) and cover depth on every drainage pipe.",
+                MainContent = "Computes the upstream / downstream bore invert of every drainage pipe "
+                            + "(centreline minus internal radius; upstream = the higher end).",
                 CommonButtons = TaskDialogCommonButtons.Cancel
             };
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Calculate only (preview)");
@@ -87,12 +88,12 @@ namespace StingTools.Commands.Plumbing
             if (pick != TaskDialogResult.CommandLink1 && pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
             bool write = pick == TaskDialogResult.CommandLink2;
 
-            // Default datum: 0.0 mAOD; future enhancement reads an org-config datum.
+            // Datum and precision come from IlReportingOptions (survey point by default).
             InvertReport r;
             using (var tx = new Transaction(ctx.Doc, "STING Plumbing Invert Levels"))
             {
                 tx.Start();
-                r = InvertLevelEngine.Calculate(ctx.Doc, datumMaOd: 0.0, writeBack: write);
+                r = InvertLevelEngine.Calculate(ctx.Doc, writeBack: write);
                 if (write) tx.Commit(); else tx.RollBack();
             }
 
@@ -101,10 +102,12 @@ namespace StingTools.Commands.Plumbing
                 Pipe   = $"{row.PipeId.Value} DN{row.DnMm}",
                 UsInvM = row.UsInvertM,
                 DsInvM = row.DsInvertM,
-                CoverM = Math.Min(row.CoverUsM, row.CoverDsM)
+                CoverM = row.CoverUsM.HasValue && row.CoverDsM.HasValue
+                    ? Math.Min(row.CoverUsM.Value, row.CoverDsM.Value) : (double?)null
             }).ToList();
-            string status = $"Inverts · datum {r.DatumMaOd:F2} mAOD · "
+            string status = $"Inverts · {r.DatumLabel} · "
                           + $"{r.PipesAnalysed} pipes · {r.PipesWritten} written"
+                          + (r.PipesUnbound > 0 ? $" · {r.PipesUnbound} NOT written (parameter unbound)" : "")
                           + (r.CoverViolations > 0 ? $" · {r.CoverViolations} cover-fail" : "")
                           + (write ? "" : " (preview)");
 
@@ -116,16 +119,22 @@ namespace StingTools.Commands.Plumbing
             }
 
             var panel = StingResultPanel.Create("Invert Level Calculation");
-            panel.SetSubtitle($"Datum: {r.DatumMaOd:F2} mAOD");
+            panel.SetSubtitle($"Levels in {r.DatumLabel}");
             panel.AddSection("SUMMARY")
                  .Metric("Pipes analysed",    r.PipesAnalysed.ToString())
                  .Metric("Pipes written",     r.PipesWritten.ToString())
-                 .Metric("Cover violations",  r.CoverViolations.ToString());
+                 .Metric("Not written (unbound)", r.PipesUnbound.ToString())
+                 .Metric("Nominal-size fallbacks", r.NominalFallbacks.ToString());
+            if (r.Warnings.Any())
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in r.Warnings.Take(20)) panel.Text(w);
+            }
             if (r.Rows.Any())
             {
                 panel.AddSection("INVERT TABLE (first 30)");
                 foreach (var row in r.Rows.Take(30))
-                    panel.Text($"Pipe {row.PipeId.Value} DN{row.DnMm} · {row.SystemName} · US {row.UsInvertM:F3} m · DS {row.DsInvertM:F3} m · cover {row.CoverUsM:F2}/{row.CoverDsM:F2} m [{row.CoverStatus}]");
+                    panel.Text($"Pipe {row.PipeId.Value} ID{row.DnMm}{(row.Source == InvertSource.NominalFallback ? " (nominal)" : "")} · {row.SystemName} · US {row.UsInvertM:F3} m · DS {row.DsInvertM:F3} m · {row.Gradient}");
             }
             panel.Show();
             return Result.Succeeded;

@@ -23,6 +23,15 @@ namespace StingTools.Core.Drawing.Dimensioning
         Linear = 0,
         Chain = 1,
         Ordinate = 2,
+        /// <summary>
+        /// "None" — the profile declares that it does not want automatic
+        /// dimensioning. DrawingTypeExcelCommands has always offered "None"
+        /// in the dimensionStrategy dropdown and two shipped profiles use it,
+        /// but Parse's default arm mapped it to Linear, so "None" dimensioned
+        /// exactly like "Linear". Now it is a real member and
+        /// <see cref="Suppresses"/> is the one question callers ask.
+        /// </summary>
+        None = 3,
     }
 
     internal static class DimensionStrategy
@@ -36,9 +45,18 @@ namespace StingTools.Core.Drawing.Dimensioning
             {
                 case "ordinate": return DimStrategyKind.Ordinate;
                 case "chain":    return DimStrategyKind.Chain;
+                case "none":     return DimStrategyKind.None;
+                case "":         return DimStrategyKind.Linear;
                 default:         return DimStrategyKind.Linear;
             }
         }
+
+        /// <summary>
+        /// True when the profile has asked for no automatic dimensioning.
+        /// Checked by the dim pass before any engine runs, so "None" is
+        /// honoured once, centrally, rather than by each dimensioner.
+        /// </summary>
+        public static bool Suppresses(string strategy) => Parse(strategy) == DimStrategyKind.None;
 
         /// <summary>
         /// Resolve a project-loaded DimensionType matching the strategy +
