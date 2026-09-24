@@ -1034,16 +1034,26 @@ namespace StingTools.Temp
             ("STING - Key Note", "Arial", 1.5, false, false),
         };
 
-        /// <summary>Dimension type definitions.</summary>
-        public static readonly (string name, double textSizeMm, bool showUnits)[] DimensionStyleDefs =
+        /// <summary>
+        /// Dimension type definitions. <c>style</c> is the kind of type duplicated to make it;
+        /// <c>stringType</c> sets a linear type's "Dimension String Type" (LINEAR_DIM_TYPE:
+        /// 0 Continuous, 1 Baseline, 2 Ordinate) — an ordinate style is a LINEAR type with
+        /// that set to Ordinate, not a separate kind. "STING - Linear" and "STING - Chain"
+        /// are the names drawing types, style packs and the Drawing Type editor ask for;
+        /// they were never created, so every lookup fell back to the project default.
+        /// </summary>
+        public static readonly (string name, double textSizeMm, bool showUnits,
+            DimensionStyleType style, int? stringType)[] DimensionStyleDefs =
         {
-            ("STING - Linear mm", 2.0, true),
-            ("STING - Linear m", 2.0, true),
-            ("STING - Angular", 2.0, true),
-            ("STING - Ordinate", 2.0, true),
-            ("STING - String", 2.0, true),
-            ("STING - Detail", 1.8, true),
-            ("STING - Structural", 2.5, true),
+            ("STING - Linear",     2.0, true, DimensionStyleType.Linear,  0),
+            ("STING - Linear mm",  2.0, true, DimensionStyleType.Linear,  0),
+            ("STING - Linear m",   2.0, true, DimensionStyleType.Linear,  0),
+            ("STING - Chain",      2.0, true, DimensionStyleType.Linear,  0),
+            ("STING - Angular",    2.0, true, DimensionStyleType.Angular, null),
+            ("STING - Ordinate",   2.0, true, DimensionStyleType.Linear,  2),
+            ("STING - String",     2.0, true, DimensionStyleType.Linear,  0),
+            ("STING - Detail",     1.8, true, DimensionStyleType.Linear,  0),
+            ("STING - Structural", 2.5, true, DimensionStyleType.Linear,  0),
         };
 
         /// <summary>Object style overrides: BS 1192 / ISO 19650 drawing standard.</summary>
@@ -2190,47 +2200,71 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            DimensionType baseType = new FilteredElementCollector(doc)
-                .OfClass(typeof(DimensionType)).Cast<DimensionType>()
-                .FirstOrDefault(dt =>
-                { try { return dt.Name.Contains("Linear"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; } })
-                ?? new FilteredElementCollector(doc)
-                    .OfClass(typeof(DimensionType)).Cast<DimensionType>().FirstOrDefault();
-
-            if (baseType == null)
+            var allTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(DimensionType)).Cast<DimensionType>().ToList();
+            if (allTypes.Count == 0)
             {
                 TaskDialog.Show("Dimension Styles", "No existing dimension type found.");
                 return Result.Failed;
             }
 
-            var existingNames = new HashSet<string>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(DimensionType)).Select(e => e.Name));
+            // Duplicate from a type of the SAME kind. Every style used to be copied
+            // from the first "Linear" type, so "STING - Angular" was a linear type
+            // under an angular name, and "STING - Ordinate" printed a chain.
+            DimensionType BaseFor(DimensionStyleType style)
+            {
+                foreach (var dt in allTypes)
+                {
+                    try { if (dt.StyleType == style) return dt; }
+                    catch (Exception ex) { StingLog.Warn($"Dim style kind of '{dt.Id}': {ex.Message}"); }
+                }
+                return null;
+            }
 
-            int created = 0, skipped = 0;
+            var existingNames = new HashSet<string>(allTypes.Select(e => e.Name));
+            int created = 0, skipped = 0, failed = 0;
+            var problems = new List<string>();
 
             using (Transaction tx = new Transaction(doc, "STING Create Dimension Styles"))
             {
                 tx.Start();
-                foreach (var (name, textSizeMm, showUnits) in TemplateManager.DimensionStyleDefs)
+                foreach (var (name, textSizeMm, showUnits, style, stringType) in TemplateManager.DimensionStyleDefs)
                 {
                     if (existingNames.Contains(name)) { skipped++; continue; }
+                    var baseType = BaseFor(style);
+                    if (baseType == null)
+                    {
+                        failed++;
+                        problems.Add($"{name}: the project has no {style} dimension type to copy.");
+                        continue;
+                    }
                     try
                     {
                         DimensionType newType = baseType.Duplicate(name) as DimensionType;
-                        if (newType == null) { skipped++; continue; }
+                        if (newType == null) { failed++; problems.Add($"{name}: duplicate returned nothing."); continue; }
 
                         Parameter sizeP = newType.get_Parameter(BuiltInParameter.TEXT_SIZE);
                         if (sizeP != null && !sizeP.IsReadOnly) sizeP.Set(textSizeMm * MmToFeet);
 
+                        if (stringType.HasValue)
+                        {
+                            Parameter strP = newType.get_Parameter(BuiltInParameter.LINEAR_DIM_TYPE);
+                            if (strP != null && !strP.IsReadOnly) strP.Set(stringType.Value);
+                            else if (stringType.Value != 0)
+                                problems.Add($"{name}: could not set Dimension String Type — it is a copy of '{baseType.Name}'.");
+                        }
                         created++;
                     }
-                    catch (Exception ex2) { StingLog.Warn($"Dim style '{name}': {ex2.Message}"); skipped++; }
+                    catch (Exception ex2) { StingLog.Warn($"Dim style '{name}': {ex2.Message}"); failed++; problems.Add($"{name}: {ex2.Message}"); }
                 }
                 tx.Commit();
             }
 
-            LegacyResultAdapter.Publish("CreateDimensionStyles", "Create Dimension Styles", doc, $"Created {created} dimension types.\nSkipped {skipped}.\nTotal: {TemplateManager.DimensionStyleDefs.Length}", created: created, skipped: skipped, failed: 0);
+            string summary = $"Created {created} dimension types.\nSkipped {skipped} (already present).\n" +
+                             (failed > 0 ? $"Failed {failed}.\n" : "") +
+                             $"Total: {TemplateManager.DimensionStyleDefs.Length}" +
+                             (problems.Count > 0 ? "\n\n" + string.Join("\n", problems) : "");
+            LegacyResultAdapter.Publish("CreateDimensionStyles", "Create Dimension Styles", doc, summary, created: created, skipped: skipped, failed: failed);
             return Result.Succeeded;
         }
     }

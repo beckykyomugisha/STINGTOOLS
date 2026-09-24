@@ -340,7 +340,7 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
-                var vft = ResolveViewFamilyType(doc, rule, result);
+                var vft = ResolveViewFamilyType(doc, rule, result, dt?.ViewFamilyTypeName);
                 if (vft == null) return ElementId.InvalidElementId;
 
                 var viewId = CreateViewByType(doc, rule, ctx, dt, vft, result);
@@ -402,7 +402,8 @@ namespace StingTools.Core.Drawing
             return AnnotationPackLayering.Compose(dt?.Annotation, rule?.AnnotationOverride, presetAll, presetDt);
         }
 
-        private static ViewFamilyType ResolveViewFamilyType(Document doc, ProductionRule rule, ProduceResult result)
+        private static ViewFamilyType ResolveViewFamilyType(Document doc, ProductionRule rule, ProduceResult result,
+            string wantedName = null)
         {
             ViewFamily targetFamily;
             switch ((rule.ViewType ?? "").Trim())
@@ -420,13 +421,30 @@ namespace StingTools.Core.Drawing
                     result.Warnings.Add($"Unknown rule.ViewType '{rule.ViewType}'.");
                     return null;
             }
-            var vft = new FilteredElementCollector(doc)
+            // The drawing type's named view type when it names one of this family,
+            // else the first of the family (ViewFamilyTypeChoice) — which used to be
+            // the only behaviour, so a section got whichever section type loaded first.
+            var vft = ResolveNamedViewFamilyType(doc, targetFamily, wantedName, out var why);
+            if (why != null)
+                result.Warnings.Add(vft == null ? $"No ViewFamilyType found for '{rule.ViewType}'." : why);
+            return vft;
+        }
+
+        /// <summary>
+        /// The view type named <paramref name="wantedName"/> in <paramref name="family"/>,
+        /// else the first of the family (see ViewFamilyTypeChoice). Shared by every
+        /// production path so none of them falls back to "first found" on its own.
+        /// </summary>
+        internal static ViewFamilyType ResolveNamedViewFamilyType(Document doc, ViewFamily family,
+            string wantedName, out string warning)
+        {
+            var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewFamilyType))
                 .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == targetFamily);
-            if (vft == null)
-                result.Warnings.Add($"No ViewFamilyType found for '{rule.ViewType}'.");
-            return vft;
+                .ToList();
+            var keys = all.Select(t => (t.Name, t.ViewFamily.ToString())).ToList();
+            int pick = ViewFamilyTypeChoice.Pick(keys, family.ToString(), wantedName, out warning);
+            return pick < 0 ? null : all[pick];
         }
 
         private static ElementId CreateViewByType(Document doc, ProductionRule rule, DrawingContext ctx, DrawingType dt, ViewFamilyType vft, ProduceResult result)

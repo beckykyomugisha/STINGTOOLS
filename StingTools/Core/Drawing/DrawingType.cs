@@ -225,6 +225,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
+        /// <summary>
+        /// The Revit view type (ViewFamilyType) views of this drawing are created with —
+        /// "STING - Section", "STING - Elevation" … — instead of the first one of that
+        /// family. See ViewFamilyTypeChoice. Omitted from JSON when null, so drawing
+        /// types that do not set it keep their checksums.
+        /// </summary>
+        [JsonProperty("viewFamilyTypeName", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewFamilyTypeName { get; set; }
 
         /// <summary>
         /// References a <see cref="ViewStylePack"/> by id. The pack

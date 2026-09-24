@@ -916,6 +916,73 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// A face of <paramref name="el"/> a material tag can reference, and a point on it
+        /// for the tag head. Hosts use their finish faces (a wall's exterior and interior
+        /// sides, a floor/roof/ceiling's top and bottom) — the faces a material callout is
+        /// about. Anything else falls back to the planar faces of its own solids. Family
+        /// instances (whose faces live in symbol geometry) are not handled yet and return
+        /// null, which the caller counts and reports. The face that best faces the viewer
+        /// wins (FaceChoice). NOT VERIFIED IN REVIT.
+        /// </summary>
+        private static Reference FaceReferenceFor(Element el, View view, out XYZ point)
+        {
+            point = null;
+            var refs = new List<Reference>();
+            try
+            {
+                if (el is Wall wall)
+                {
+                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Exterior));
+                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior));
+                }
+                else if (el is HostObject host)
+                {
+                    refs.AddRange(HostObjectUtils.GetTopFaces(host));
+                    refs.AddRange(HostObjectUtils.GetBottomFaces(host));
+                }
+                else
+                {
+                    var opts = new Options { ComputeReferences = true, View = view };
+                    var ge = el.get_Geometry(opts);
+                    if (ge != null)
+                        foreach (var go in ge)
+                            if (go is Solid s && s.Faces.Size > 0)
+                                foreach (Face f in s.Faces)
+                                    if (f.Reference != null) refs.Add(f.Reference);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FaceReferenceFor {el.Id}: {ex.Message}");
+                return null;
+            }
+
+            var dots = new List<double>();
+            var areas = new List<double>();
+            var points = new List<XYZ>();
+            var kept = new List<Reference>();
+            var toViewer = view.ViewDirection;
+            foreach (var r in refs)
+            {
+                try
+                {
+                    if (!(el.GetGeometryObjectFromReference(r) is Face f)) continue;
+                    var bb = f.GetBoundingBox();
+                    var mid = (bb.Min + bb.Max) * 0.5;
+                    dots.Add(f.ComputeNormal(mid).DotProduct(toViewer));
+                    areas.Add(f.Area);
+                    points.Add(f.Evaluate(mid));
+                    kept.Add(r);
+                }
+                catch (Exception ex) { StingLog.Warn($"FaceReferenceFor {el.Id} face: {ex.Message}"); }
+            }
+            int best = FaceChoice.Best(dots, areas);
+            if (best < 0) return null;
+            point = points[best];
+            return kept[best];
+        }
+
+        /// <summary>
         /// Map a rule's declared <c>orientation</c> onto Revit's TagOrientation.
         /// The three accepted values mirror the enum exactly — Horizontal,
         /// Vertical, Model (= AnyModelDirection) — so no interpretation is
@@ -979,8 +1046,13 @@ namespace StingTools.Core.Drawing
 
             // The family this rule actually places — what "already tagged" is
             // measured against (TagRuleIdentity.ShouldSkip).
-            string placedFamily = (doc.GetElement(tagTypeId) as FamilySymbol)?.FamilyName ?? "";
+            var placedSymbol = doc.GetElement(tagTypeId) as FamilySymbol;
+            string placedFamily = placedSymbol?.FamilyName ?? "";
             bool isSpecialistRule = !string.IsNullOrWhiteSpace(rule?.TagFamily);
+            // A material tag labels a FACE's material and cannot tag a whole
+            // element — handing it new Reference(el) failed once per element.
+            bool tagsFaces = placedSymbol?.Category?.Id.Value == (long)BuiltInCategory.OST_MaterialTags;
+            int noFace = 0;
 
             // Paragraph depth is NOT resolved or written here any more.
             //
@@ -1085,8 +1157,17 @@ namespace StingTools.Core.Drawing
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
+                    Reference hostRef;
+                    if (tagsFaces)
+                    {
+                        hostRef = FaceReferenceFor(el, view, out var facePt);
+                        if (hostRef == null) { noFace++; stats.Skipped++; continue; }
+                        if (facePt != null) pt = facePt;
+                    }
+                    else hostRef = new Reference(el);
+
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), addLeader, orientation, pt);
+                        hostRef, addLeader, orientation, pt);
                     if (tag != null && leader == TagLeaderMode.Free)
                     {
                         try { tag.LeaderEndCondition = LeaderEndCondition.Free; }
@@ -1118,6 +1199,9 @@ namespace StingTools.Core.Drawing
 
             if (belowMin > 0)
                 stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");
+            if (noFace > 0)
+                stats.Warnings.Add($"{catKey}: {noFace} element(s) had no face a material tag could reference — not tagged. " +
+                                   "Hosts (walls, floors, roofs, ceilings) and plain solids are supported; family instances are not yet.");
             // An empty result under a family filter is the case worth hearing
             // about: the pattern may not match this project's family names.
             if (familyRx != null && outsideFamily > 0 && outsideFamily == elements.Count())

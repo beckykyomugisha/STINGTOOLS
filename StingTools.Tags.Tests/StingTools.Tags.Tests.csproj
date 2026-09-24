@@ -135,6 +135,8 @@
     <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewFamilyTypeChoice.cs" Link="Core\Drawing\ViewFamilyTypeChoice.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\FaceChoice.cs" Link="Core\Drawing\FaceChoice.cs" />
     <!-- T-5/T-6/T-7: title-block template grammar, title-block family
          resolution, and master-seed remap. Revit-free cores of
          TitleBlockParamApplier / TitleBlockResolver / TitleBlockFactory. -->

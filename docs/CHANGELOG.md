@@ -116,6 +116,41 @@ turned two of them into defects, both now fixed in code:
   **Found:** `STING - Medical Gas Terminal Unit Tag` is a Plumbing Fixture tag but STING's own
   outlet seed is Specialty Equipment, so seeded outlets get the Specialty Equipment tag instead
   (ROADMAP DT-4). Not run in Revit; the familyMatch patterns are guesses at manufacturer naming.
+- **Drawing production now has a setup, and stops using "whatever loaded first".**
+  - *Title blocks:* 23 drawing types named title blocks nothing creates (`STING - Healthcare
+    Title Block A1/A3`, `STING - A1 Title Block`), so production fell back to the first title
+    block in the project. Pointed at `STING_TB_SHEET_A1/A3`, which `TitleBlock_CreateAll` builds.
+  - *Dimension styles:* drawing types, packs and the Drawing Type editor ask for
+    `STING - Linear` (and the editor offers `STING - Chain`); `CreateDimensionStyles` made
+    `STING - Linear mm` / `m` instead, so every lookup fell back. Both are now created. Every
+    style was also a copy of the first *linear* type — `STING - Angular` was linear under an
+    angular name and `STING - Ordinate` printed a chain. Each is now duplicated from a type of
+    its own kind, and Ordinate sets Dimension String Type = Ordinate (`LINEAR_DIM_TYPE`); a kind
+    the project lacks is reported, not faked.
+  - *RCP:* `arch-rcp-A1-1to100`'s rules were a copy of the floor plan's — it tagged doors,
+    windows, furniture and casework on a ceiling plan and never the ceilings and lights it
+    declared tags for. Now: grids/levels, rooms, ceilings, lighting fixtures, air terminals.
+  - *View types from data:* views were created with the FIRST view type of their family, so a
+    section got whichever section type loaded first. Drawing types gain `viewFamilyTypeName`
+    (9 set: `STING - Section` / `Elevation` / `Interior Elevation` / `Callout`); the producer
+    and the interior-elevation batch path use it via `ViewFamilyTypeChoice`, warn and fall back
+    when it is missing, and ignore it for views of another kind. New
+    `DrawingTypes_EnsureViewTypes` creates the named types (duplicates, never edits); new
+    validator check DT-031. The field is omitted from JSON when null, so only the 9 re-stamp.
+  - *Setup:* every drawing prerequisite lived on DOCS and no setup path ran them. New
+    `WORKFLOW_DrawingProductionSetup.json` (12 steps, params → pre-flight) behind a new
+    `DrawingTypes_SetupProduction` command, and a DRAWING PRODUCTION section on SETUP with the
+    run-all button and each step in order. `TitleBlock_CreateAll`, `LoadTagFamilies`,
+    `AecFilters_Create`, `PresentationSetup`, `RegenerateTemplates` and `Doctor` became
+    workflow-callable; they had buttons but no workflow route.
+  - *Material tags by face:* a material tag labels a face and cannot tag a whole element, but
+    the runner only passed `new Reference(el)`, so a material-tag rule failed once per element.
+    When the resolved tag is a Material Tag it now references a face — a wall's exterior /
+    interior sides, a host's top / bottom, else the element's own solid faces — choosing the one
+    facing the viewer (`FaceChoice`). Family instances are not handled yet and are counted and
+    reported. Unblocks the material callout on presentation elevations once its family exists.
+  - 15 new tests; 3 fail against the old "first found" / "largest face" behaviour. Not run in
+    Revit.
 - **DRAW-4 closed: 100 of the 139 orphan filters now render.** 113 rows added across 23 packs,
   in each pack's own row style. Five new packs, each extending `corp-standard-plan` and selected
   by drawings that had been riding the generic plan pack: `corp-fire-strategy` (arch fire

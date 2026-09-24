@@ -21,13 +21,17 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-24
 
-- **Total IExternalCommand classes**: **1749**
-- **Reached by a dispatch layer**: **1717**
+- **Total IExternalCommand classes**: **1751**
+- **Reached by a dispatch layer**: **1719**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **22** (under 11 names)
 
-The four buckets partition all 1749; the script fails if they stop adding up.
+The four buckets partition all 1751; the script fails if they stop adding up.
+
+**+2 on 2026-09-24 (drawings branch)**, both reached from the SETUP tab and as workflow steps:
+`DrawingTypes_EnsureViewTypes` (creates the view types drawing types name) and
+`DrawingTypes_SetupProduction` (runs `WORKFLOW_DrawingProductionSetup.json`).
 
 **+3 since earlier on 2026-09-15**, all reached: `Rooms_Renumber`,
 `Rooms_NumberingInspect` and `Rooms_PlaceTags` — room renumbering did not exist, and

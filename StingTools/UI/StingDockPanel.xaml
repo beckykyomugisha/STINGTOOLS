@@ -2165,6 +2165,34 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- DRAWING PRODUCTION: everything the drawing types need, in order.
+                             Every one of these lived only on DOCS, several in collapsed
+                             expanders, and no setup path ran them, so a new project
+                             produced its first drawings against the defaults. -->
+                        <TextBlock Style="{StaticResource SectionLabel}" Text="DRAWING PRODUCTION"/>
+                        <Border Style="{StaticResource GroupBorder}" BorderBrush="#3F51B5">
+                            <StackPanel>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource GreenBtn}" Content="★ Set up drawing production" Tag="DrawingTypes_SetupProduction" Click="Cmd_Click" FontWeight="Bold" ToolTip="Runs every step below in order (WORKFLOW_DrawingProductionSetup.json): shared params → title blocks → tag families → text / dimension styles → view templates → AEC filters → view types → presentation fills → flow arrow → managed templates → pre-flight. Each step skips what exists. Set PRJ_ORG_SHEET_NUMBER_POLICY_TXT on Project Information first if you number sheets the ISO 19650 way."/>
+                                </WrapPanel>
+                                <TextBlock Text="or one step at a time, in this order" FontSize="9" Foreground="{DynamicResource SubtleFg}" Margin="0,4,0,2"/>
+                                <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="1 Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Bind STING shared parameters"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="2 Title Blocks" Tag="TitleBlock_CreateAll" Click="Cmd_Click" ToolTip="Create the STING_TB_* title block families the drawing types name"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="3 Tag Fams" Tag="LoadTagFamilies" Click="Cmd_Click" ToolTip="Load the STING tag families, generic and healthcare"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="4 Text" Tag="CreateTextStyles" Click="Cmd_Click" ToolTip="Create STING text styles"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="5 Dims" Tag="CreateDimensionStyles" Click="Cmd_Click" ToolTip="Create STING dimension styles — STING - Linear, Ordinate, Chain, Angular …"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="6 VTmpl" Tag="ViewTemplates" Click="Cmd_Click" ToolTip="Create STING view templates"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="7 AEC Filters" Tag="AecFilters_Create" Click="Cmd_Click" ToolTip="Create the AEC view filter library the style packs apply"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="8 View Types" Tag="DrawingTypes_EnsureViewTypes" Click="Cmd_Click" ToolTip="Create the view types drawing types name — STING - Section, Elevation, Interior Elevation, Callout — so sections and elevations stop using whichever type loaded first"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="9 Pres Fills" Tag="DrawingTypes_PresentationSetup" Click="Cmd_Click" ToolTip="Presentation fill patterns and materials for client-facing drawing types"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="10 Flow Arrow" Tag="DrawingTypes_BuildFlowArrow" Click="Cmd_Click" ToolTip="Author the MEP flow-arrow annotation family"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="11 Regen Tmpl" Tag="DrawingTypes_RegenerateTemplates" Click="Cmd_Click" ToolTip="Regenerate view templates for managed style packs"/>
+                                    <Button Style="{StaticResource OrangeBtn}" Content="12 Pre-flight" Tag="DrawingTypes_Inspect" Click="Cmd_Click" ToolTip="Validate every drawing type against this project: missing title blocks, view templates, view types, tag families, dimension styles"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- VIEW TEMPLATES -->
                         <TextBlock Style="{StaticResource SectionLabel}" Text="VIEW TEMPLATES"/>
                         <Border Style="{StaticResource GroupBorder}">

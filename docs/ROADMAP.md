@@ -48,6 +48,17 @@ builds Specialty Equipment. `health-medgas-pln` therefore tags seeded outlets wi
 Specialty Equipment tag. Fix one side: add a Specialty Equipment variant of the TU tag, or move the
 seed to Plumbing Fixtures (check manufacturer families first — both categories occur in practice).
 
+**DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
+DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step
+completes without a dialog blocking the chain (`TitleBlock_CreateAll` has never run unattended
+inside a workflow). Then: produce a section and an elevation and confirm the views use `STING -
+Section` / `STING - Elevation`; check `STING - Ordinate` really dimensions as ordinate; tag a wall
+on an elevation with a Material Tag and confirm it lands on the face you are looking at. The
+section-head graphics of the new view types are whatever the duplicated type had — the
+`sectionMarker.family` families still ship nowhere. Remaining setup gap: the Project Setup
+Wizard does not offer the drawing-production step, and the sheet-number policy parameter has no
+UI.
+
 **DT-5 · The healthcare familyMatch patterns need a Revit run.** They are written against STING
 seed names and common manufacturer wording (`pendant`, `bed ?head|trunking`, `zone valve|ZVB|AVSU`,
 lead/`Pb`/x-ray for shielding, …). A pattern that matches nothing warns per view, so a miss is

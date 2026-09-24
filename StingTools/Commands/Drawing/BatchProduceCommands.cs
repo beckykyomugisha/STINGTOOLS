@@ -505,10 +505,10 @@ namespace StingTools.Commands.Drawing
                                 {
                                     try
                                     {
-                                        var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
-                                            .Cast<ViewFamilyType>()
-                                            .FirstOrDefault(vt => vt.ViewFamily == ViewFamily.Elevation);
+                                        var vft = StingTools.Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
+                                            doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
                                         if (vft == null) { warnings.Add("No elevation ViewFamilyType."); continue; }
+                                        if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
                                         var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
                                         if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
                                         var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);

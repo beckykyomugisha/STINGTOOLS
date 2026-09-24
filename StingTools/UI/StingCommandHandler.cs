@@ -757,6 +757,8 @@ namespace StingTools.UI
                     case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
                     case "MatchLine_Validate":       RunCommand<Commands.Drawing.MatchLineValidateCommand>(app); break;
                     case "DrawingTypes_BuildFlowArrow": RunCommand<Commands.Drawing.BuildFlowArrowFamilyCommand>(app); break;
+                    case "DrawingTypes_EnsureViewTypes": RunCommand<Commands.Drawing.EnsureViewTypesCommand>(app); break;
+                    case "DrawingTypes_SetupProduction": RunCommand<Commands.Drawing.DrawingProductionSetupCommand>(app); break;
                     case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
                     case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
 

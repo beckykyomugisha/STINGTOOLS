@@ -151,6 +151,19 @@ namespace StingTools.Core.Drawing
                         "Load the marker family or set sectionMarker.family to null to use project default.");
             }
 
+            // Named view type -------------------------------------------
+            // Without it the producer falls back to the first view type of the
+            // family and says so on every run; this surfaces it before producing.
+            if (!string.IsNullOrWhiteSpace(dt.ViewFamilyTypeName))
+            {
+                bool present = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
+                    .Any(t => string.Equals(t.Name, dt.ViewFamilyTypeName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (!present)
+                    r.Add(ValidationSeverity.Warning, "DT-031",
+                        $"View type '{dt.ViewFamilyTypeName}' is not in this project.",
+                        "Run DrawingTypes_EnsureViewTypes (SETUP → Drawing production) to create it.");
+            }
+
             // Tag families ------------------------------------------------
             if (dt.Annotation?.TagFamilies != null)
             {
