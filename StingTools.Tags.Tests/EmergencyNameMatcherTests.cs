@@ -41,6 +41,9 @@ namespace StingTools.Tags.Tests
         [InlineData("Item-Luminaire")]
         [InlineData("SYSTEM-PANEL")]
         [InlineData("Emerald Pendant")]
+        [InlineData("EMBASSY Wall Light")]
+        [InlineData("EMPIRE Pendant")]
+        [InlineData("EMBOSSED Downlight")]
         [InlineData("")]
         [InlineData(null)]
         public void Does_not_flag_ordinary_fittings(string family)

@@ -124,8 +124,13 @@ namespace StingTools.Commands.Electrical.Lighting
                 // Original casing: the matcher needs it to tell "EMBulkhead" from "System".
                 string fname = fi.Symbol?.FamilyName ?? "";
                 if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fname)) return true;
-                string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
-                if (tm.StartsWith("em")) return true;
+                // Emergency variants are often a TYPE of an ordinary family
+                // ("Downlight : 3h EM"), so test the type name as well.
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fi.Symbol?.Name)) return true;
+                // Type mark: same token rule - StartsWith("em") also caught
+                // marks like "EMX-1" / "EMBOSS".
+                string tm = fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "";
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(tm)) return true;
                 // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
                 // is the project-wide fixture type discriminator (Phase 188 fix
                 // — earlier ELC_EMERG_TYPE literal had no canonical mapping).

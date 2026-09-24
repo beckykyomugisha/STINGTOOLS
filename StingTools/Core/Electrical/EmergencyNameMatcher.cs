@@ -24,9 +24,12 @@ namespace StingTools.Core.Electrical
             @"emergency|emerg|maintained|(?<![a-z])exit",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-        // Case-sensitive on purpose: "EM"/"Em"/"em" as its own token.
+        // Case-sensitive on purpose: "EM"/"Em"/"em" as its own token. Not
+        // followed by a lower-case letter ("Emerald") nor by two capitals
+        // ("EMBASSY", "EMPIRE" — an all-caps word), but "EMBulkhead" (capital
+        // then lower-case: a new CamelCase word) still counts.
         private static readonly Regex EmToken = new Regex(
-            @"(?<![A-Za-z])(EM|Em|em)(?![a-z])",
+            @"(?<![A-Za-z])(EM|Em|em)(?![a-z])(?![A-Z]{2})",
             RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
         /// <summary>Pass the family name in its original casing.</summary>

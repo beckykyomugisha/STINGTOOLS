@@ -342,13 +342,13 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 | Sub-system | Key files | What it does |
 |---|---|---|
-| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 / IEC 60364 cable sizing with derating; reports results (read-only — writes no parameters) |
+| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | Cable sizing with derating (**not** the BS 7671 Appendix 4 table method — see ROADMAP ELEC-3). The command reports only; `Core/Electrical/CableSizerApplyEngine` writes results to circuits |
 | **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropSolver.cs` + `VoltageDropScheduleCommand.cs` | Calculates and schedules voltage drop per circuit |
 | **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder cable sizing with diversity factor |
 | **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | Prospective fault current calculation; PSC / PSCC schedules |
-| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | IEEE 1584 / NFPA 70E arc flash energy; label sheets; schedules |
+| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | Arc flash energy, label sheets, schedules — **not IEEE 1584-2018 compliant; do not use for PPE** (ROADMAP ELEC-1) |
 | **Busbar Sizing** | `Busbar/BusbarModelingCommand.cs` + `BusbarSizerEngine.cs` | Busbar sizing + Revit modeling |
-| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit with A* + ACO; consolidate into trays |
+| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit as simple L/Z runs (the A* / ACO code exists but is not called — ROADMAP ELEC-7); consolidate parallel conduits |
 | **Cable Routing** | `Routing/CableScheduleBuilderCommand.cs` · `Core/Electrical/CableRouter.cs` + `CableManifest.cs` | Build cable schedules + route manifest |
 | **Circuit Wizard** | `CircuitWizard/CircuitWizardCommand.cs` + `CircuitWizardEngine.cs` · `UI/CircuitWizardDialog.xaml(.cs)` | Step-by-step circuit assignment wizard |
 | **Selective Coordination** | `Coordination/SelectiveCoordCommand.cs` + `SelectiveCoordEngine.cs` + `TccDatabaseLoader.cs` · `UI/SelectiveCoordDialog.xaml(.cs)` | TCC-based upstream/downstream breaker coordination |
@@ -842,7 +842,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `StingTools/Commands/Electrical/CircuitWizard/` | Guided circuit creation wizard |
 | `StingTools/Commands/Electrical/Coordination/` | Selective coordination checker |
 | `StingTools/Commands/Electrical/Export/` | ETAP, EasyPower, DIALux export |
-| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909 fault-current calculator + AIC rating |
+| `StingTools/Commands/Electrical/FaultCurrent/` | Indicative resistive fault-current estimate + AIC rating (not IEC 60909 — ROADMAP ELEC-2) |
 | `StingTools/Commands/Electrical/FeederSizing/` | Feeder sizing engine |
 | `StingTools/Commands/Electrical/IfcResults/` | IFC simulation results import + multi-engine aggregator |
 | `StingTools/Commands/Electrical/Lighting/` | Lighting power density + emergency lighting audit |
@@ -883,7 +883,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `ElecCircuitRenumberCommand` | `ElecCircuitRenumberCommand` | Renumber circuits |
 | `ElecLoadSummaryCommand` | `ElecLoadSummaryCommand` | Load summary report |
 | `ElecLightingScheduleCommand` | `ElecLightingScheduleCommand` | Generate lighting schedule |
-| `ArcFlashCommand` | `ArcFlashCommand` | IEEE 1584 arc-flash analysis |
+| `ArcFlashCommand` | `ArcFlashCommand` | Arc-flash estimate (not IEEE 1584 compliant — ROADMAP ELEC-1) |
 | `ArcFlashLabelSheetCommand` | `ArcFlashLabelSheetCommand` | Create arc-flash label sheet |
 | `ArcFlashScheduleCommand` | `ArcFlashScheduleCommand` | Arc-flash schedule |
 | `BusbarModelingCommand` | `BusbarModelingCommand` | Busbar modeling |
@@ -893,7 +893,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `EtapExportCommand` | `EtapExportCommand` | Export to ETAP |
 | `EasyPowerExportCommand` | `EasyPowerExportCommand` | Export to EasyPower |
 | `DIALuxExportCommand` | `DIALuxExportCommand` | Export to DIALux |
-| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909 fault-current calculation |
+| `FaultCurrentCommand` | `FaultCurrentCommand` | Indicative fault-current estimate (not IEC 60909 — ROADMAP ELEC-2) |
 | `AicRatingCommand` | `AicRatingCommand` | AIC rating check |
 | `FeederSizerCommand` | `FeederSizerCommand` | Feeder sizing |
 | `IfcResultsImportCommand` | `IfcResultsImportCommand` | Import IFC simulation results |
@@ -2750,6 +2750,7 @@ result set. Prove RED before GREEN and report both numbers.
 - Add `[Regeneration(RegenerationOption.Manual)]` for commands that modify the model
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
+- Read electrical quantities through `Core/Electrical/ElecUnits` (`ToSi`, `Read`, `VoltsFromInternal`, `VAFromInternal`), never a raw `AsDouble()`: Revit stores 1 V as 10.7639 internal units (VA/W likewise), and API properties such as `ElectricalSystem.Voltage` / `ApparentLoad` return internal units too
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance
 - For new commands, use shared helpers: `TagConfig.BuildAndWriteTag()`, `ParameterHelpers.SetIfEmpty()`, `SpatialAutoDetect.DetectLoc()/DetectZone()`

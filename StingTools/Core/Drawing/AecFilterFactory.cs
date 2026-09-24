@@ -194,6 +194,13 @@ namespace StingTools.Core.Drawing
                     {
                         if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
                             dv = 0;
+                        // Filter rules compare in Revit internal units (1 V = 10.7639).
+                        // Voltage values in STING_AEC_FILTERS.json are written in volts,
+                        // so "> 1000" meant ~93 V and flagged every 230/400 V element as
+                        // high voltage. (Length values there are already authored in
+                        // feet, so only voltage is converted here.)
+                        if (paramId.Value == (long)BuiltInParameter.RBS_ELEC_VOLTAGE)
+                            dv = UnitUtils.ConvertToInternalUnits(dv, UnitTypeId.Volts);
                         return BuildDoubleRule(paramId, op, dv, warnings);
                     }
                     case "elementid":

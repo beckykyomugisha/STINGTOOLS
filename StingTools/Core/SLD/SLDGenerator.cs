@@ -556,6 +556,9 @@ namespace StingTools.Core.SLD
             try
             {
                 StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, DrawingTypeId);
+                // Lock: the SLD is drawn 1:1 (true-mm layout, paper-sized text). Unlocked,
+                // drift checks / Sync Styles would push the drawing-type scale back.
+                StingTools.Core.Drawing.DrawingTypeStamper.SetLocked(view, true);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

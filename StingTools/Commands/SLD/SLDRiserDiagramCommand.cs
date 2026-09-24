@@ -243,6 +243,9 @@ namespace StingTools.Commands.SLD
             try
             {
                 StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, dtId);
+                // Lock: the riser is drawn 1:1; Sync Styles would otherwise reset it
+                // to the drawing type's 1:200 and the boxes would overlap again.
+                StingTools.Core.Drawing.DrawingTypeStamper.SetLocked(view, true);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

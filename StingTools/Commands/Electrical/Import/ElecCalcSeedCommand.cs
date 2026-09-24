@@ -34,7 +34,7 @@ namespace StingTools.Commands.Electrical.Import
                 {
                     TaskDialog.Show("Calc Seed Export",
                         "No electrical equipment found in the model.\n" +
-                        "Ensure panels are placed and have RBS_PANEL_NAME populated.");
+                        "Ensure panels are placed and have a Panel Name.");
                     return Result.Succeeded;
                 }
 
@@ -97,14 +97,14 @@ namespace StingTools.Commands.Electrical.Import
                 list.Add(new PanelSeedRecord
                 {
                     Name         = fi.Name,
-                    PanelName    = fi.LookupParameter("RBS_PANEL_NAME")?.AsString() ?? fi.Name,
-                    MainRating   = fi.LookupParameter("RBS_ELEC_PANEL_TOTAL_INSTALLED_LOAD_PARAM")?.AsValueString() ?? "",
+                    PanelName    = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? fi.Name,
+                    MainRating   = fi.get_Parameter(BuiltInParameter.RBS_ELEC_MAINS)?.AsValueString() ?? "",
                     BusbarRating = fi.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString() ?? "",
                     VoltageV     = StingTools.Core.Electrical.ElecUnits.Volts(fi),
-                    PhaseConfig  = fi.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? "",
+                    PhaseConfig  = fi.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES)?.AsInteger().ToString() ?? "",
                     Level        = fi.LevelId != ElementId.InvalidElementId
                         ? (doc.GetElement(fi.LevelId) as Level)?.Name ?? "" : "",
-                    FeedFrom     = fi.LookupParameter("RBS_ELEC_PANEL_FEED_PANEL_NAME")?.AsString() ?? ""
+                    FeedFrom     = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM)?.AsString() ?? ""
                 });
             }
             return list;
@@ -126,7 +126,7 @@ namespace StingTools.Commands.Electrical.Import
                         ? (StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(sys) / 1000.0).ToString("F2")
                         : "",
                     CsaMm2        = sys.LookupParameter("ELC_CABLE_CSA_MM2_TXT")?.AsString() ?? "",
-                    Poles         = sys.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? ""
+                    Poles         = sys.PolesNumber.ToString() ?? ""
                 });
             }
             return list.OrderBy(c => c.Panel).ThenBy(c => c.CircuitNumber).ToList();

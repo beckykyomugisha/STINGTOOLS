@@ -13,7 +13,7 @@ Mark each: **P** (pass) / **F** (fail) / **B** (blocked — precondition missing
 | ✓ | Step | Expect | Note |
 |---|---|---|---|
 | ☐ | Build Release: `dotnet build StingTools/StingTools.csproj -c Release -p:RevitApiPath="C:\Program Files\Autodesk\Revit 2025"` | 0 errors (baseline 0/0 warnings) | This machine can build. |
-| ☐ | Deploy: copy `StingTools.dll` + deps + `data/` to the folder your installed `.addin` loads from (your GOLD deploy target `C:\Dev\STING_PLACEMENT_GOLD`) | DLLs replaced | **Close Revit first.** Deploy copies DLLs only — it does **not** touch your `.rfa` tag families in GOLD. |
+| ☐ | Deploy: run `deploy.bat` from the checkout you want live, then confirm with `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin` that the manifest points at that checkout's `CompiledPlugin\` | Manifest points at this checkout | **Close Revit and the Planscape Companion first.** `C:\Dev\STING_PLACEMENT_GOLD` is retired — do not deploy there. |
 | ☐ | Launch Revit → open a test model → ribbon **⚡ Electrical → STING Electrical** | Dockable panel opens with tabs: PNLS · CIRCTS · CALCS · CABLE · SLD · LITE · RPRT | If panel missing: check `StingTools.log` next to the DLL. |
 | ☐ | Header context strip on panel reads a Standard (BS7671/NEC) + shows no exceptions | populated | |
 
@@ -84,14 +84,14 @@ Have these in the test model before running the tabs. Missing items → those co
 | ☐ | `Calc_ApplyBreakers` | [M] | after SizeBreakers → **Expect** `RBS_ELEC_CIRCUIT_RATING` written | skips read-only |
 | ☐ | `Calc_UpsizeWires` | [M] | after VD calc → **Expect** min CSA found; `ELC_CKT_CSA_MM2`+`ELC_CKT_VD_PCT` written; confirm prompt | native wire-size may be read-only (STING params still written) |
 | ☐ | `Calc_FeederSize` | [M] | SLD hierarchy + sub-panels → **Expect** `ELC_FEEDER_CSA`, `ELC_FEEDER_RATING_A`, `ELC_CKT_VD_PCT` per panel | BS7671; applies diversity+derate |
-| ☐ | `Calc_FaultCurrent` | [M] | SLD hierarchy + utility kA set → **Expect** `ELC_PNL_FAULT_KA` per panel; `LastResults` cached | IEC 60909 resistive method; feeder length falls back to 5 m if unrecorded |
+| ☐ | `Calc_FaultCurrent` | [M] | SLD hierarchy + utility kA set → **Expect** `ELC_PNL_FAULT_KA` per panel; `LastResults` cached | **Indicative only — not IEC 60909** (resistive, no c-factor/X-R; see ROADMAP ELEC-2); feeder length falls back to 5 m if unrecorded |
 | ☐ | `Calc_AicStamp` | [M] | after FaultCurrent → **Expect** `ELC_PNL_AIC_KA` per panel (next std tier) | falls back to fault value if no tier file |
 | ☐ | `Calc_LoadDemandAudit` | [RO] | circuits + panels → **Expect** 5-sheet Excel (spare RAG, diversity matrix, PFC sizing) | data: `STING_DIVERSITY_FACTORS.json` |
-| ☐ | `Elec_ArcFlash` | [M] | **FaultCurrent run first** → **Expect** `ELC_ARC_FLASH_IE/BD/PPE/WD/LABEL` + PPE colour overrides | IEEE 1584-2018; enclosure hardcoded VCB |
+| ☐ | `Elec_ArcFlash` | [M] | **FaultCurrent run first** → **Expect** `ELC_ARC_FLASH_IE/BD/PPE/WD/LABEL` + PPE colour overrides | **Not IEEE 1584-2018 compliant — do not use for PPE** (see ROADMAP ELEC-1); enclosure hardcoded VCB |
 | ☐ | `Elec_ArcFlashLabels` | [M] | after ArcFlash → **Expect** label sheet created | |
 | ☐ | `Elec_ArcFlashSched` | [M] | after ArcFlash → **Expect** arc-flash schedule view | |
 | ☐ | `Elec_ArcFlashBoundary` | [M] | after ArcFlash → **Expect** boundary view/overlay | |
-| ☐ | `Elec_SelectCoord` | [M] | SLD hierarchy + TCC db → **Expect** violations list; `ELC_SEL_COORD_OK` (1/0) on panels; dialog | IEEE 1584/BS7671; log-log interp; ZSI flag |
+| ☐ | `Elec_SelectCoord` | [M] | SLD hierarchy + TCC db → **Expect** violations list; `ELC_SEL_COORD_OK` (1/0) on panels; dialog | **Synthetic curves** — TCC database ships empty (see ROADMAP ELEC-4); ZSI flag |
 | ☐ | `Elec_TccPlot` | [RO] | TCC db → **Expect** SVG per breaker pair in `…/electrical/tcc/`; Explorer opens | data: `STING_TCC_DATABASE.json`; explorer launch is Windows-only |
 
 ## TAB: CABLE — Cable / conduit / busbar

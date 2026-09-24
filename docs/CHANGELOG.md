@@ -22356,7 +22356,9 @@ real rework are recorded as ELEC-1…ELEC-13 in ROADMAP.md.
   `RBS_ELEC_PANEL_TOTALLOAD_PARAM` and `ElectricalSystem.Voltage/ApparentLoad` raw, so a
   230 V circuit was ~2476 V: voltage drop ~10.8× too small, every kW/kVA/W/m² ~10.8× too
   large. New `Core/Electrical/ElecUnits` converts by the parameter's own spec (and
-  explicitly for API properties); every site routes through it, including `MapBuiltIn`.
+  explicitly for API properties); the electrical command/engine read sites route through it,
+  and `MapBuiltIn` now converts every measured quantity to the unit its target name
+  promises (see the follow-up entry below).
   `CircuitScheduleExporter` VD% now divides the drop (a voltage) by nominal voltage.
 - **Ze swapped.** TN-S 0.35 / TN-C-S 0.80 → TN-C-S 0.35 / TN-S 0.80 (UK DNO maxima), in
   `STING_BS7671_DISCONNECTION.json` and `SeedDefaults`. Zs limit now includes Cmin 0.95
@@ -22384,3 +22386,43 @@ real rework are recorded as ELEC-1…ELEC-13 in ROADMAP.md.
 Build 0/0. `StingTools.Tags.Tests` 1909/1909. **No Revit runtime path was exercised** —
 first check: RevitLookup a 230 V circuit, run Voltage Drop, and confirm STING reports
 ~230 V and a plausible VD %.
+
+#### Completed (Electrical deep review — second pass, same branch)
+
+A second review (correctness + alignment/flexibility) of the branch found issues the first
+pass had exposed or missed. Fixed:
+
+- **AEC filter "High Voltage" fired on every 230/400 V element.** Filter rules compare in
+  internal units, so `RBS_ELEC_VOLTAGE > 1000` meant ~93 V. `AecFilterFactory` now converts
+  voltage rule values from volts (length values in the JSON were already authored in feet).
+- **Batch Assign rejected single-phase circuits on three-phase boards** once panel voltage
+  was read correctly (230 V circuit vs 400 V board). Voltage bands now also compare at
+  line / √3 (400/230, 208/120, 480/277).
+- **SLD and riser views are locked after stamping**, so drift checks and Sync Styles no
+  longer push the drawing-type scale (1:100 / 1:200) back over the 1:1 fix.
+- **`MapBuiltIn` wrote internal units into every non-electrical measured target too**:
+  duct/pipe flow (ft³/s) into `HVC_AIRFLOW_LPS` / `PLM_PPE_FLW_LPS` / `HVC_DCT_FLW_CFM`,
+  velocity (ft/s) into `*_VEL_MPS`, duct width/height (ft) into TEXT `*_MM`. It now converts
+  to the unit the target NAME promises (`UnitSuffix`, 22 tests) unless the target shares the
+  source spec. The unitless loss coefficient is no longer written into `HVC_PRESSURE_DROP_PA`.
+- **Emergency detection**: "EMBASSY"/"EMPIRE"-style all-caps words no longer match "EM";
+  the type name and type mark now go through the same token rule (type mark used a bare
+  `StartsWith("em")`).
+- **`SetNumericFromString` overwrite=false** now respects a recorded 0 / "No" (uses
+  `HasValue`, not a non-zero test).
+- **Standards Dashboard BS 7671 check** compared VA (internal units) against a rating in A,
+  and a voltage-drop VOLTAGE against 3 %/5 %. Now design current vs rating, and drop as % of
+  nominal voltage.
+- **Calc seed export** looked up built-ins by enum name via `LookupParameter` (always null):
+  panel name, mains rating, poles and fed-from were always blank. Now `get_Parameter(BIP)`.
+- **Docs aligned with the code**: the smoke-test checklist no longer names the retired GOLD
+  folder and labels fault current / arc flash / coordination as indicative; CLAUDE.md no
+  longer claims IEEE 1584, IEC 60909, BS 7671 App 4 cable sizing or A*+ACO routing, and
+  gains an `ElecUnits` convention.
+
+Remaining flexibility gaps are ROADMAP ELEC-14…ELEC-20.
+
+Test run on this branch (2026-09-24): Tags 1953/1953, Boq 1355, Sustainability 438, Cost 144,
+Acc 132, Visibility 102, Placement 69, Scheduling 38, Templates 37, Rooms 24, Licensing 14 —
+all passing. Clash 81/82, Routing 44/45, SitePhotos 35/37 (1 skipped) — the same single
+failure in each reproduces on untouched `origin/main`, so none is introduced here.

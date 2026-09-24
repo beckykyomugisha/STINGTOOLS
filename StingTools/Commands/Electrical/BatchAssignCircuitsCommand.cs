@@ -510,12 +510,16 @@ namespace StingTools.Commands.Electrical
         {
             if (a <= 0 || b <= 0) return true; // unknown — let it through
             var bands = cfg?.VoltageBands ?? _defaultVoltageBands;
+            // A single-phase circuit on a three-phase board runs at the
+            // phase-to-neutral voltage (400/230, 208/120, 480/277), so compare
+            // each side at its line voltage AND at line/√3.
+            double[] aForms = { a, a / Math.Sqrt(3.0) };
+            double[] bForms = { b, b / Math.Sqrt(3.0) };
             foreach (var band in bands)
-            {
-                bool inA = a >= band.low && a <= band.high;
-                bool inB = b >= band.low && b <= band.high;
-                if (inA && inB) return true;
-            }
+                foreach (double av in aForms)
+                    foreach (double bv in bForms)
+                        if (av >= band.low && av <= band.high && bv >= band.low && bv <= band.high)
+                            return true;
             return false;
         }
 

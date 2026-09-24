@@ -519,7 +519,7 @@ namespace StingTools.Core
                     }
                     else if (!int.TryParse(s, System.Globalization.NumberStyles.Integer, inv, out iv))
                         return RefuseNumeric(el, paramName, value, "not an integer");
-                    if (!overwrite && p.HasValue && p.AsInteger() != 0) return false;
+                    if (!overwrite && p.HasValue) return false;   // HasValue separates a recorded 0 / "No" from unset
                     if (p.AsInteger() == iv && p.HasValue) return true;
                     p.Set(iv);
                     return true;
@@ -538,7 +538,7 @@ namespace StingTools.Core
                         && !double.TryParse(s, System.Globalization.NumberStyles.Float,
                                System.Globalization.CultureInfo.CurrentCulture, out dv))
                         return RefuseNumeric(el, paramName, value, "not a number");
-                    if (!overwrite && p.HasValue && Math.Abs(p.AsDouble()) > 1e-12) return false;
+                    if (!overwrite && p.HasValue) return false;   // a recorded 0 is a value, not empty
                     p.Set(dv);
                     return true;
                 }
@@ -4614,7 +4614,9 @@ namespace StingTools.Core
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
-                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
+                // RBS_LOSS_COEFFICIENT is a unitless K factor, not a pressure drop -
+                // it was mapped into HVC_PRESSURE_DROP_PA, which then read "0.3" Pa.
+                // Pressure drop comes from the calc engines, not from this mapper.
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
                 // Duct dimensions
                 written += MapBuiltIn(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, ParamRegistry.HVC_DUCT_WIDTH);
@@ -4787,29 +4789,77 @@ namespace StingTools.Core
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
 
-                // Voltage and power are stored in internal units (1 V = 10.7639).
-                // Hand the target SI values unless it shares the source's spec,
-                // in which case the internal value is already correct.
-                if (p.StorageType == StorageType.Double
-                    && StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
+                // Measured values are stored in internal units (feet, ft³/s, ft/s,
+                // and 1 V = 10.7639). A target with the SAME spec converts on write,
+                // so it takes the internal value. A TEXT or unitless-NUMBER target
+                // cannot, so give it the unit its name promises (UnitSuffix):
+                // HVC_AIRFLOW_LPS in L/s, HVC_DCT_WIDTH_MM in mm, ELC_CKT_PWR_KW in
+                // kilo-units. Previously each got the raw internal number.
+                if (p.StorageType == StorageType.Double)
                 {
-                    double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
-                    // A target named *_KW / *_KVA holds kilo-units (ELC_CKT_PWR_KW,
-                    // ELC_PNL_CONNECTED_LOAD_KW) - writing VA there put 45000 where
-                    // the cross-stamp writes 45.00 for the same parameter.
-                    string tn = (targetParamName ?? "").ToUpperInvariant();
-                    if (tn.EndsWith("_KW") || tn.EndsWith("_KVA") || tn.Contains("_KW_") || tn.Contains("_KVA_"))
-                        si /= 1000.0;
-                    val = si.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
-                    Parameter tp = ParameterHelpers.CachedLookup(writeTarget, targetParamName);
-                    bool sameSpec = false;
-                    try { sameSpec = tp != null && tp.Definition.GetDataType() == p.Definition.GetDataType(); }
-                    catch (Exception exSpec) { StingLog.Warn($"MapBuiltIn spec: {exSpec.Message}"); }
-                    if (!sameSpec) raw = si;
+                    double? display = DisplayValueForTarget(p, writeTarget, targetParamName, out bool sameSpec);
+                    if (display.HasValue)
+                    {
+                        val = display.Value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+                        if (!sameSpec) raw = display.Value;
+                    }
                 }
                 return WriteMapped(writeTarget, targetParamName, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// The source value expressed in the unit the TARGET expects, or null to
+        /// leave the mapper's old behaviour alone (unitless source, unknown
+        /// suffix, incompatible unit). <paramref name="sameSpec"/> is true when
+        /// the target shares the source's spec and so takes internal units.
+        /// </summary>
+        private static double? DisplayValueForTarget(Parameter p, Element target, string targetName,
+            out bool sameSpec)
+        {
+            sameSpec = false;
+            ForgeTypeId spec;
+            try { spec = p.Definition.GetDataType(); }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn spec: {ex.Message}"); return null; }
+            if (spec == null || !UnitUtils.IsMeasurableSpec(spec)) return null;
+
+            try
+            {
+                Parameter tp = ParameterHelpers.CachedLookup(target, targetName);
+                sameSpec = tp != null && tp.Definition.GetDataType() == spec;
+            }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn target spec: {ex.Message}"); }
+
+            // Electrical: SI (V / VA / W / A), scaled to kilo for *_KW / *_KVA.
+            if (StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
+            {
+                double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                return UnitSuffix.IsKilo(UnitSuffix.Of(targetName)) ? si / 1000.0 : si;
+            }
+
+            ForgeTypeId unit;
+            switch (UnitSuffix.Of(targetName))
+            {
+                case "mm":  unit = UnitTypeId.Millimeters;        break;
+                case "m":   unit = UnitTypeId.Meters;             break;
+                case "m2":  unit = UnitTypeId.SquareMeters;       break;
+                case "m3":  unit = UnitTypeId.CubicMeters;        break;
+                case "lps": unit = UnitTypeId.LitersPerSecond;    break;
+                case "cfm": unit = UnitTypeId.CubicFeetPerMinute; break;
+                case "mps": unit = UnitTypeId.MetersPerSecond;    break;
+                case "pa":  unit = UnitTypeId.Pascals;            break;
+                case "kpa": unit = UnitTypeId.Kilopascals;        break;
+                default: return null;
+            }
+            try { return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), unit); }
+            catch (Exception ex)
+            {
+                // Suffix does not fit the source quantity (e.g. a length into *_LPS):
+                // keep the old behaviour rather than invent a conversion.
+                StingLog.Warn($"MapBuiltIn '{targetName}': unit does not fit source spec ({ex.Message})");
+                return null;
+            }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>
