@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using StingTools.Core;
@@ -48,9 +49,17 @@ namespace StingTools.Commands.Electrical
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }
             catch (Exception ex) { message = ex.Message; return Result.Failed; }
 
+            var manifest = CableManifest.Load(doc);
+            if (!string.IsNullOrEmpty(manifest.LoadError))
+            {
+                // Adding to an empty stand-in and saving would overwrite every
+                // cable already recorded in the unreadable file.
+                TaskDialog.Show("STING v4 — Add Cable", manifest.DescribeEmpty());
+                return Result.Failed;
+            }
+
             var route = CableRouter.Route(doc, src, dst);
 
-            var manifest = CableManifest.Load(doc);
             var cable = new StingCable
             {
                 SourceEquipmentId = src.UniqueId,
@@ -60,18 +69,31 @@ namespace StingTools.Commands.Electrical
                 TotalLengthM      = route.LengthM,
                 RouteTrayIds      = new List<long>(route.TrayIds),
             };
+
+            // ELC-7: tie the record to its Revit circuit (the destination's
+            // circuit fed from the picked source) so auto-route, fill and
+            // busbar demand can find it; and take the voltage-drop inputs from
+            // that circuit instead of a hardcoded 10 A / 230 V / 1-phase.
+            ElectricalSystem sys = null;
+            CircuitMatch match;
+            try { match = CableCircuitResolver.Build(doc).Resolve(cable, out sys); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AddCable circuit resolve: {ex.Message}");
+                match = new CircuitMatch { Reason = ex.Message };
+            }
+            if (match.Found && sys != null) cable.CircuitElementId = sys.Id.Value;
+
+            var inputs = VdInputsFrom(sys);
             manifest.Add(cable);
 
-            // Voltage drop based on assumed 10 A load + 230 V single phase
-            // — these are defaults; the real project loads come from
-            // ProDesign / EasyPower integration in Phase K.
             var vd = VoltageDropSolver.Solve(new VoltageDropQuery
             {
                 CsaMm2 = cable.CsaMm2,
-                LoadAmps = 10.0,
+                LoadAmps = inputs.Amps,
                 LengthM = Math.Max(0.1, route.LengthM),
-                NominalVoltageV = 230.0,
-                ThreePhase = false,
+                NominalVoltageV = inputs.Volts,
+                ThreePhase = inputs.ThreePhase,
                 Material = cable.ConductorMaterial,
             });
             cable.VoltageDropPct = vd.VoltDropPct;
@@ -89,6 +111,18 @@ namespace StingTools.Commands.Electrical
                  .Metric("VD lighting",  vd.LightingPass ? "OK" : "FAIL (>3%)")
                  .Metric("VD power",     vd.PowerPass ? "OK" : "FAIL (>5%)")
                  .Metric("Trays",        route.TrayIds.Count.ToString());
+            panel.AddSection("CIRCUIT")
+                 .Metric("Circuit", match.Found && sys != null
+                     ? $"{SafePanelName(sys)} / {SafeCircuitNumber(sys)} (by {CableCircuitIdentity.Describe(match.Method)})"
+                     : "not matched — " + match.Reason);
+            var vdSec = panel.AddSection("VOLTAGE-DROP INPUTS")
+                 .Metric("Load",    $"{inputs.Amps:0.##} A ({inputs.AmpsSource})")
+                 .Metric("Voltage", $"{inputs.Volts:0.#} V ({inputs.VoltsSource})")
+                 .Metric("Phases",  $"{(inputs.ThreePhase ? "3-phase" : "1-phase")} ({inputs.PhaseSource})")
+                 .Metric("CSA",     $"{cable.CsaMm2:0.##} mm² (manifest default — size the cable to replace it)");
+            if (inputs.AnyDefault)
+                vdSec.Text("One or more voltage-drop inputs are DEFAULTS, not circuit data — " +
+                           "treat the VoltDrop % above as indicative only.");
             if (!route.Success)
             {
                 panel.AddSection("DIAGNOSTICS").Text(route.FailureReason);
@@ -99,7 +133,62 @@ namespace StingTools.Commands.Electrical
 
         private static string BuildCircuitId(Element src, Element dst)
         {
-            try { return $"{src.Name?.Replace(' ', '_')}-{dst.Id.Value}"; } catch { return ""; }
+            try { return CableCircuitIdentity.BuildLegacyCircuitId(src.Name, dst.Id.Value); }
+            catch (Exception ex) { StingLog.Warn($"AddCable BuildCircuitId: {ex.Message}"); return ""; }
+        }
+
+        private sealed class VdInputs
+        {
+            public double Amps = 10.0;   public string AmpsSource  = "DEFAULT 10 A — no circuit load";
+            public double Volts = 230.0; public string VoltsSource = "DEFAULT 230 V — no circuit voltage";
+            public bool ThreePhase;      public string PhaseSource = "DEFAULT single-phase — no circuit poles";
+            public bool AnyDefault => AmpsSource.StartsWith("DEFAULT") || VoltsSource.StartsWith("DEFAULT")
+                                      || PhaseSource.StartsWith("DEFAULT");
+        }
+
+        /// <summary>
+        /// Voltage-drop inputs from the circuit. ElectricalSystem.Voltage is in
+        /// Revit internal units (1 V = 10.7639), so it goes through ElecUnits;
+        /// ApparentCurrent is plain amps. Each value that cannot be read keeps
+        /// its default AND says so.
+        /// </summary>
+        private static VdInputs VdInputsFrom(ElectricalSystem sys)
+        {
+            var r = new VdInputs();
+            if (sys == null) return r;
+            try
+            {
+                double a = sys.ApparentCurrent;
+                if (a > 0) { r.Amps = a; r.AmpsSource = "circuit apparent current"; }
+                else r.AmpsSource = "DEFAULT 10 A — circuit reports 0 A";
+            }
+            catch (Exception ex) { StingLog.Warn($"AddCable ApparentCurrent: {ex.Message}"); }
+            try
+            {
+                double v = ElecUnits.VoltsFromInternal(sys.Voltage);
+                if (v > 0) { r.Volts = v; r.VoltsSource = "circuit voltage"; }
+                else r.VoltsSource = "DEFAULT 230 V — circuit reports 0 V";
+            }
+            catch (Exception ex) { StingLog.Warn($"AddCable Voltage: {ex.Message}"); }
+            try
+            {
+                int poles = sys.PolesNumber;
+                if (poles > 0) { r.ThreePhase = poles >= 3; r.PhaseSource = $"circuit poles = {poles}"; }
+            }
+            catch (Exception ex) { StingLog.Warn($"AddCable PolesNumber: {ex.Message}"); }
+            return r;
+        }
+
+        private static string SafePanelName(ElectricalSystem s)
+        {
+            try { return string.IsNullOrEmpty(s.PanelName) ? "(no panel)" : s.PanelName; }
+            catch (Exception ex) { StingLog.Warn($"AddCable PanelName: {ex.Message}"); return "(no panel)"; }
+        }
+
+        private static string SafeCircuitNumber(ElectricalSystem s)
+        {
+            try { return s.CircuitNumber ?? ""; }
+            catch (Exception ex) { StingLog.Warn($"AddCable CircuitNumber: {ex.Message}"); return ""; }
         }
     }
 

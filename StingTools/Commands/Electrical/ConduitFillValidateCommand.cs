@@ -31,10 +31,17 @@ namespace StingTools.Commands.Electrical
             CableManifest manifest;
             try { manifest = CableManifest.Load(doc); }
             catch (Exception ex) { StingLog.Warn($"CableManifest.Load: {ex.Message}"); manifest = null; }
-            if (manifest == null)
+            // ELC-7: CableManifest.Load never returns null — a missing file is
+            // an EMPTY manifest — so the old null guard could not fire and an
+            // empty manifest "passed" every conduit at 0 % fill, stamping 0.0
+            // onto each one. Fill cannot be computed without cables; say so and
+            // write nothing.
+            string emptyWhy = manifest == null ? "The cable manifest could not be loaded." : manifest.DescribeEmpty();
+            if (emptyWhy != null)
             {
                 TaskDialog.Show("STING Conduit Fill",
-                    "No cable manifest found. Add cables to the manifest first (CABLE tab → Phase 175 cable engine).");
+                    emptyWhy + "\n\nConduit fill is computed from the cables recorded against each run, " +
+                    "so nothing was checked and no fill values were written.");
                 return Result.Cancelled;
             }
 
@@ -67,7 +74,7 @@ namespace StingTools.Commands.Electrical
             }
 
             var results = new List<ConduitFillData>();
-            int passed = 0, failed = 0;
+            int passed = 0, failed = 0, noCablesOnRecord = 0;
             string worstName = ""; double worstFill = 0;
             View activeView = doc.ActiveView;
 
@@ -90,6 +97,7 @@ namespace StingTools.Commands.Electrical
                             LimitPct    = report.FillLimit * 100.0,
                             Passes      = report.PassesLimit
                         });
+                        if (report.CableCount == 0) noCablesOnRecord++;
                         if (report.PassesLimit) passed++;
                         else
                         {
@@ -107,7 +115,11 @@ namespace StingTools.Commands.Electrical
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
             string worstStr = string.IsNullOrEmpty(worstName) ? "—" : $"{worstName} ({worstFill:0.0}%)";
             TaskDialog.Show("STING Conduit Fill",
-                $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}.");
+                $"Checked {results.Count} containment element(s). Passing: {passed}. Failing: {failed}.\nWorst: {worstStr}." +
+                (noCablesOnRecord > 0
+                    ? $"\n\n{noCablesOnRecord} of them have NO manifest cables recorded against them, so they show 0 % " +
+                      "by absence of data, not because they were verified empty. Record or route their cables to check them."
+                    : ""));
 
             // --- Iterative auto-size: upsize conduits that fail fill limit ---
             if (failed > 0)

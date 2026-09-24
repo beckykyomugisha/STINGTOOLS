@@ -75,10 +75,10 @@ namespace StingTools.Commands.Electrical.Routing
             CableManifest manifest;
             try { manifest = CableManifest.Load(doc); }
             catch (Exception ex) { StingLog.Warn($"CableManifest.Load: {ex.Message}"); manifest = null; }
-            if (manifest == null || manifest.Cables == null || manifest.Cables.Count == 0)
+            string emptyWhy = manifest == null ? "The cable manifest could not be loaded." : manifest.DescribeEmpty();
+            if (emptyWhy != null)
             {
-                TaskDialog.Show("STING Consolidator",
-                    "No cable manifest. Run Auto-Route Conduit first.");
+                TaskDialog.Show("STING Consolidator", emptyWhy);
                 return Result.Cancelled;
             }
 
@@ -206,6 +206,10 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (var c in group.Members)
             {
                 if (c.RouteTrayIds == null || c.RouteTrayIds.Count == 0) continue;
+                // Only a conduit-routed cable can supply the run geometry; a
+                // tray-routed one (AddCable/CableRouter) would re-route along
+                // the tray's own centreline.
+                if (!(doc.GetElement(new ElementId((long)c.RouteTrayIds[0])) is Conduit)) continue;
                 rep = c;
                 firstConduitId = new ElementId((long)c.RouteTrayIds[0]);
                 break;
@@ -214,8 +218,16 @@ namespace StingTools.Commands.Electrical.Routing
 
             var firstCurve = (doc.GetElement(firstConduitId) as MEPCurve)?.Location as LocationCurve;
             if (firstCurve?.Curve == null) return;
+            // The whole run spans first-segment start → last-segment end.
+            // This used to take both endpoints from the FIRST segment only, so
+            // the replacement conduit covered just the first leg of an L/Z
+            // route after every member's full run had been deleted.
+            var lastId = new ElementId((long)rep.RouteTrayIds[rep.RouteTrayIds.Count - 1]);
+            var lastCurve = (doc.GetElement(lastId) as MEPCurve)?.Location as LocationCurve;
             XYZ start = firstCurve.Curve.GetEndPoint(0);
-            XYZ end   = firstCurve.Curve.GetEndPoint(1);
+            XYZ end   = (lastCurve?.Curve ?? firstCurve.Curve).GetEndPoint(1);
+            if (lastCurve?.Curve == null)
+                result.Warnings.Add($"{group.PanelName}: last routed segment {lastId.Value} missing — consolidated run ends at the first segment's end.");
             ElementId levelId = (doc.GetElement(firstConduitId) as MEPCurve)?.LevelId
                                 ?? doc.ActiveView?.GenLevel?.Id ?? ElementId.InvalidElementId;
 
@@ -223,21 +235,32 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (var c in group.Members)
             {
                 if (c.RouteTrayIds == null) continue;
+                var kept = new List<long>();   // ids that still exist and still carry this cable
                 foreach (long lid in c.RouteTrayIds)
                 {
                     try
                     {
                         var el = doc.GetElement(new ElementId((long)lid));
                         if (el == null) continue;
+                        // RouteTrayIds also carries CABLE TRAY ids written by
+                        // AddCable's CableRouter — shared containment that must
+                        // never be deleted by a conduit consolidation.
+                        if (!(el is Conduit))
+                        {
+                            kept.Add(lid);
+                            result.Warnings.Add($"Kept {el.Category?.Name ?? "element"} {lid}: not a conduit, not deleted.");
+                            continue;
+                        }
                         doc.Delete(el.Id);
                         result.DeletedConduits++;
                     }
                     catch (Exception ex)
                     {
+                        kept.Add(lid);
                         result.Warnings.Add($"Delete conduit {lid}: {ex.Message}");
                     }
                 }
-                c.RouteTrayIds = new List<long>();
+                c.RouteTrayIds = kept;
             }
 
             // 3) Route a single consolidated conduit at the union diameter.
@@ -247,12 +270,18 @@ namespace StingTools.Commands.Electrical.Routing
             int bends = ConduitRouteEngine.CountBends(segments);
             foreach (var seg in segments)
             {
-                if (seg.Start.DistanceTo(seg.End) < 0.01) continue;
+                if (seg.Start.DistanceTo(seg.End) < ConduitRouteEngine.MinLegFt) continue;
                 try
                 {
                     var conduit = Conduit.Create(doc, conduitTypeId, seg.Start, seg.End, levelId);
                     if (conduit != null)
                     {
+                        // The union diameter was computed then discarded, so the
+                        // "consolidated" run kept the type's default size.
+                        var outcome = ConduitDiameterApplier.Apply(conduit, group.UnionDiameterMm,
+                            out _, out string sizeNote);
+                        if (outcome != DiameterOutcome.Applied)
+                            result.Warnings.Add($"{group.PanelName}: {sizeNote}");
                         try
                         {
                             ParameterHelpers.SetString(conduit, ParamRegistry.ELC_CONDUIT_ROUTE,
@@ -281,7 +310,11 @@ namespace StingTools.Commands.Electrical.Routing
             }
 
             // 4) Point every member cable at the new consolidated run.
-            foreach (var c in group.Members) c.RouteTrayIds = new List<long>(newIds);
+            foreach (var c in group.Members)
+            {
+                if (c.RouteTrayIds == null) c.RouteTrayIds = new List<long>();
+                c.RouteTrayIds.AddRange(newIds.Where(id => !c.RouteTrayIds.Contains(id)));
+            }
             result.NewConsolidatedConduits += newIds.Count;
         }
 
