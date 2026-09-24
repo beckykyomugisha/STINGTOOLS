@@ -108,6 +108,56 @@ namespace StingTools.Core.Drawing
             return d;
         }
 
+        /// <summary>
+        /// T-5: the token dict for a sheet that ALREADY exists — Heal, Migrate,
+        /// drift and ApplyToSheet all re-stamp title blocks after production,
+        /// and each used to invent its own partial dict (Migrate passed none,
+        /// so "A-{lvl}-{seq:D3}" was written literally).
+        /// <para>
+        /// Recovers what the producer knew from the sheet's own stamps:
+        /// {lvl} and {mark}/{spool} from STING_SHEET_CONTEXT_TXT
+        /// ("levelName::roomId::tag[::scopeBox]"), {lvl} falling back to
+        /// PRJ_SHEET_LEVEL_TXT, {seq} from PRJ_SHEET_SEQUENCE_INT then the sheet
+        /// number. A value the sheet cannot prove is REMOVED from the dict, not
+        /// blanked, so TitleBlockParamApplier leaves that cell alone and says
+        /// why, instead of overwriting a good value with "" or a profile default.
+        /// </para>
+        /// </summary>
+        public static Dictionary<string, string> BuildForExistingSheet(
+            Document doc, ViewSheet sheet, DrawingType dt)
+        {
+            string ctxStamp = null, lvlStamp = null;
+            int? seqStamp = null;
+            try
+            {
+                ctxStamp = DrawingTypeStamper.ReadSheetContext(sheet);
+                lvlStamp = sheet?.LookupParameter("PRJ_SHEET_LEVEL_TXT")?.AsString();
+                var sp = sheet?.LookupParameter(DrawingTypeStamper.PARAM_SHEET_SEQUENCE);
+                if (sp != null && sp.HasValue)
+                {
+                    if (sp.StorageType == StorageType.Integer) seqStamp = sp.AsInteger();
+                    else if (sp.StorageType == StorageType.Double) seqStamp = (int)Math.Round(sp.AsDouble());
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet stamps ({sheet?.Id}): {ex.Message}"); }
+
+            var known = ExistingSheetTokens.Resolve(
+                ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber));
+
+            var d = Build(
+                doc:        doc,
+                dt:         dt,
+                discCode:   dt?.Discipline,
+                discipline: dt?.Discipline,
+                levelCode:  known.Level,
+                seq:        known.Seq,
+                spool:      known.Mark,
+                mark:       known.Mark);
+            if (known.Level == null) d.Remove("lvl");
+            if (known.Mark == null) { d.Remove("mark"); d.Remove("spool"); }
+            return d;
+        }
+
         // THE RULE FOR EVERY TOKEN, not just the one that prompted it.
         //
         // K-7 wrote this up for {lvl} and never asked whether the other fifteen

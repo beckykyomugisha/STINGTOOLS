@@ -672,13 +672,13 @@ namespace StingTools.Core.Drawing
 
                 if (dt?.TitleBlockParams == null || dt.TitleBlockParams.Count == 0) return;
 
-                var tokens = DrawingTokenContext.Build(
-                    doc:        doc,
-                    dt:         dt,
-                    discCode:   dt.Discipline,
-                    discipline: dt.Discipline,
-                    seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(sheet.SheetNumber));
-                var expected = TitleBlockParamApplier.Peek(doc, dt, tokens);
+                // T-5: same token source as Heal, and only compare cells Heal
+                // would actually write — an unresolved template has no
+                // "expected" value, so reporting "{lvl}" as drift is noise.
+                var tokens = DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
+                var expected = TitleBlockParamApplier.PeekResolved(doc, dt, tokens)
+                    .Where(kv => kv.Value.IsResolved)
+                    .ToDictionary(kv => kv.Key, kv => kv.Value.Text);
                 if (expected.Count == 0) return;
 
                 foreach (var kv in expected)

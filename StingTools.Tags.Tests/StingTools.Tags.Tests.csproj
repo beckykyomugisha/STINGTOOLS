@@ -131,6 +131,10 @@
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
+    <!-- T-5/T-6/T-7: title-block template grammar, title-block family
+         resolution, and master-seed remap. Revit-free cores of
+         TitleBlockParamApplier / TitleBlockResolver / TitleBlockFactory. -->
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockTemplate.cs" Link="Core\Drawing\TitleBlockTemplate.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
          the gates that keep the shipped JSON and the runner in agreement can
