@@ -22344,3 +22344,43 @@ not valid…") on any property access of a deleted element, so the command
 failed immediately in projects that had junk to purge (confirmed live in
 Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
 and the junk name is captured before `doc.Delete` for the failure log path.
+
+#### Completed (Electrical deep review — demo-blocking defects, branch `claude/electrical-mep-presentation-review-30b524`)
+
+A static review of the electrical module ahead of an MEP presentation found that several
+headline numbers were wrong by construction. Fixed here; the engineering gaps that need
+real rework are recorded as ELEC-1…ELEC-13 in ROADMAP.md.
+
+- **Voltage and power read in Revit internal units.** Revit stores 1 V as 10.7639 (and VA/W
+  likewise); ~40 sites read `RBS_ELEC_VOLTAGE` / `RBS_ELEC_APPARENT_LOAD` /
+  `RBS_ELEC_PANEL_TOTALLOAD_PARAM` and `ElectricalSystem.Voltage/ApparentLoad` raw, so a
+  230 V circuit was ~2476 V: voltage drop ~10.8× too small, every kW/kVA/W/m² ~10.8× too
+  large. New `Core/Electrical/ElecUnits` converts by the parameter's own spec (and
+  explicitly for API properties); every site routes through it, including `MapBuiltIn`.
+  `CircuitScheduleExporter` VD% now divides the drop (a voltage) by nominal voltage.
+- **Ze swapped.** TN-S 0.35 / TN-C-S 0.80 → TN-C-S 0.35 / TN-S 0.80 (UK DNO maxima), in
+  `STING_BS7671_DISCONNECTION.json` and `SeedDefaults`. Zs limit now includes Cmin 0.95
+  (Reg 411.4.4): B32 → 1.37 Ω, matching Table 41.3. `Bs7671EarthingDataTests` RED 3/3 on
+  the old data, GREEN 3/3.
+- **SetString dropped writes to NUMBER / INTEGER / YESNO parameters**, and callers reported
+  success. Unitless numbers, integers and yes/no words now write; measured quantities are
+  still refused (a bare number has no unit), and every refusal is logged.
+- **SLD** view 1:50 → 1:1 (layout is true-mm, text is paper-sized, so it overlapped);
+  rebuild scans before purging (was leaving a blank view); "Symbols placed: 0" now says
+  the SLD families are not loaded and shows warnings. **Riser**: outline instead of the
+  first FilledRegionType (often Solid Black), cleared before reuse, 1:1.
+- **Panel door diagram** read the text circuit number with `AsInteger()` → every slot
+  SPARE. `CircuitSlotParser` (11 tests) handles "5", "1,3,5", "2-4-6".
+- **VD schedule** had every column but voltage drop; now adds VD % and wire size, and
+  counts only writes that landed.
+- **Batch Assign Circuits** could never assign: a 2026-05 merge fix emptied the
+  `PanelState` constructor. Restored (slots from Max #1 Pole Breakers, poles-based usage,
+  Panel Name, volts converted, prior group tag).
+- **Guards**: Circuit "Delete" (really: remove all spares/spaces in every schedule) and
+  "Clear Overrides" (all overrides in the view) now confirm first. Emergency-fitting
+  detection matches whole tokens (`EmergencyNameMatcher`, 14 tests) — "Surface-Mounted"
+  no longer counts as emergency.
+
+Build 0/0. `StingTools.Tags.Tests` 1909/1909. **No Revit runtime path was exercised** —
+first check: RevitLookup a 230 V circuit, run Voltage Drop, and confirm STING reports
+~230 V and a plausible VD %.

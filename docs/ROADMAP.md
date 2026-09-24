@@ -2,6 +2,30 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Electrical calculations — deep review (2026-09-24)
+
+A static review of the electrical module ahead of an MEP presentation. The units, Ze,
+SLD, door-diagram, VD-schedule, SetString and Batch Assign defects were fixed on
+`claude/electrical-mep-presentation-review-30b524` (see CHANGELOG). **What follows was
+deliberately NOT fixed** — each needs engineering work, not a patch. None of the engines
+below has a unit test. **Do not present their numbers as design values until closed.**
+
+| ID | Gap | Evidence |
+|---|---|---|
+| ELEC-1 | **Arc flash is not IEEE 1584-2018** despite printing that label. The ≤600 V "regression" ignores voltage and gap, and its K3 term makes incident energy FALL as fault current rises (25 kA → ~0.94, 50 kA → ~0.25). It writes PPE category and label text onto panels. **Safety issue** — consider disabling the buttons until replaced. | `ArcFlash/ArcFlashEngine.cs:181-195` |
+| ELEC-2 | **Fault current is not IEC 60909**: resistance-only, no c-factor, no X/R, no transformer model; 240 V (`FaultCurrentCommand.cs:47`) and 5 m feeder (`FaultCurrentEngine.cs:100`) hard-coded; `DownstreamFaultKa` mixes phase-neutral voltage into a √3 formula. Understates fault level (non-conservative for breaking capacity). | `FaultCurrent/*` |
+| ELEC-3 | **Cable sizer is not the BS 7671 Appendix 4 method**: capacity is an uncited threshold ladder (2.5 mm² = 17 A vs ~27 A tabulated); `STING_WIRE_TABLES.json` capacities are never read; no grouping factor, PVC ambient applied to XLPE, no In ≤ Iz / 1.45·In check, no adiabatic check. Feeder sizer never applies its derate and fixes length at 10 m. The NEC path (Table 310.16) is structurally sound. | `CableSizer/CableSizerEngine.cs:111-137, 258, 414` |
+| ELEC-4 | **Selective coordination / TCC plots are synthetic**: `STING_TCC_DATABASE.json` has `"curves": []`, so every device is a linear ramp. `WireCoordStamp` "passes" when a rating string exists. | `TccDatabaseLoader.cs:246` |
+| ELEC-5 | **Voltage-drop engine**: resistance table high for small CSAs (2.5 mm² 8.71 vs 7.41 mΩ/m at 20 °C) then temperature-corrected again; limits 3 %/2 % by pole count, not BS 7671 App 12 (3 % lighting / 5 % other); CSA parsed as the first number in the wire-size string. `Core/Calc/VoltageDropSolver` multiplies 1-ph mV/A/m by √3 for 3-ph (should be ≈0.87×). | `VoltageDrop/*`, `Core/Calc/VoltageDropSolver.cs:92` |
+| ELEC-6 | **PFC kVAR table wrong** (`kvarPerKwAtPf` 0.85→0.31, true tan φ 0.620); diversity factors cited as "BS 7671 App 1" (they are IET OSG App A). | `LoadDemand/LoadDemandEngine.cs` |
+| ELEC-7 | **Conduit auto-route**: CLAUDE.md claims "A* + ACO"; the live path is a fixed L/Z with no fittings (`ConduitRouteEngine.cs:45`). `ComputeRouteAdvanced` and `AcoRefiner` have no callers. It matches circuits by number only while AddCable writes `<Type>-<Id>` ids, so it routes nothing. | `Routing/*` |
+| ELEC-8 | **Exports are not importable**: ETAP XML has root `Network` (not `rdf:RDF`) and duplicate IDs; EasyPower schema self-described as "best-effort"; DIALux IFC has no placement/geometry/units. Present as data hand-off drafts only. | `Export/*` |
+| ELEC-9 | **Wire-param stamp never finds a circuit**: `ConduitCircuitIndex` only accepts a connector owned by an `ElectricalSystem`, which conduit connectors never are, so Stamp/Batch Stamp report "no connected circuit" and wire annotations read "? Wire". | `WireParamSyncCommands.cs:85-127` |
+| ELEC-10 | **SLD annotate family is dead on the SLD view**: `ELC_CIR_*` bind only to Electrical Equipment (the SLD view holds annotation symbols), and the `STING_SLD_ANNOT_*` stamp parameters are defined in no data file, so Update/Toggle/Clear/Audit always find 0. | `Symbols/SldAnnotationCommands.cs:354-381` |
+| ELEC-11 | **Lighting**: missing lumens silently become 4000 lm (and 36 W) in Quick Lux and the calc sheets; UGR from Photometric Link is a 4-step lookup written as if calculated; IES absolute photometry (LED) yields 0 lm; LDT parser multiplies flux by lamp count. | `Lighting/*`, `Photometric/*`, `Photometrics/*` |
+| ELEC-12 | **Renumber / Sort / Phase Balance** write parameters Revit makes read-only once circuited, then report "applied". `WireElementAnnotate` null-refs on circuits with no length (`WireElementAnnotationCommands.cs:228-234, 355`). | `ElectricalPanelCommands.cs:222`, `CircuitCrudCommands.cs:296`, `PhaseBalanceCommand.cs:107` |
+| ELEC-13 | `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` has never been run (every box unticked) and still names the retired GOLD deploy folder. Electrical commands do not log on success, so the plugin log cannot show whether they ran. | — |
+
 ## Drawing-type tag families (2026-09-24)
 
 43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve
