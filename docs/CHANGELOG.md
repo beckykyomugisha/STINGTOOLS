@@ -22915,3 +22915,91 @@ Placement 69, Scheduling 38, SitePhotos 37 (+1 skipped by design), Templates 37,
 Licensing 14. Build 0/0 Debug and Release; wiring and path-discipline gates pass.
 **No Revit runtime path was exercised** — ELEC-13 (run the smoke-test checklist) is now the
 largest open risk.
+
+#### Completed (STING standard panel schedule templates, branch `claude/panel-schedule-templates`)
+
+The panel-schedule rules had always named four STING templates that nothing created, so
+every board fell back to "first template in the project". The reason given in
+`STING_PANEL_SCHEDULE_TEMPLATES.json` — that the Revit API cannot create or edit panel
+schedule templates — was wrong: `PanelScheduleTemplate.Create` plus
+`GetTableData`/`SetTableData` and `TableSectionData` (rows, columns, parameter cells, text,
+widths) do exactly that (checked against the Revit 2025 API reference).
+
+- **`STING_PANEL_SCHEDULE_SPECS.json`** — the seed: four templates (3-Phase Distribution
+  Board, Single-Phase Consumer Unit, Switchboard, Data Comms Panel). ISO 19650 header (asset
+  tag, supplied from, supply system, location/level/zone, status, main device, busbar,
+  prospective fault, breaking capacity, IP, project), BS 7671 circuit table (way,
+  description, device, poles, cable, length, phase loads / load, Ib, VD %), totals + notes
+  footer. Only parameters something writes are used. Project override
+  `_BIM_COORD/panel_schedule_specs.json`, merged by name.
+- **`Panel_TemplatesCreate`** (PNLS 📐) builds/rebuilds them in per-template
+  sub-transactions and **reads every cell back** from a fresh `GetTableData()`, reporting
+  anything that did not persist. **`Panel_TemplateInspect`** dumps any template's cells to
+  CSV — the ground truth for Revit's undocumented template layout.
+- **Board → template by what the board is** (`PanelBoardProfile`: `IsSwitchboard`, supply
+  phases; data by name), before the name rules — which now match the Panel Name as well as
+  the family type name (they only ever saw the type name).
+- **Batch Schedules** offers to build the STING templates when none exist (one click).
+- Wired into `WorkflowEngine.ResolveCommand` and the natural-language command list.
+
+Tests: `PanelTemplateSpecTests` (17) against the shipped files — spec validates, every
+template named by a rule, every board role has a rule and a spec, every shared parameter
+defined and bound to the category its cell reads; sabotage (misspelt parameter, renamed
+template) RED 3/17, GREEN 17/17. **Not exercised in Revit**: the builder adapts to the
+template's actual layout and reports; the first run's report is the verification.
+
+#### Completed (PNL-2 circuit compliance flags + PNL-5 applied phase balancing, same branch)
+
+From the panel-schedule competitor review (ROADMAP PNL-1…18), the two strongest demo items.
+
+- **PNL-2 — `Panel_ComplianceCheck` (PNLS ✅).** Every power circuit: Ib ≤ In (Reg 433.1.1),
+  In ≤ Iz (Iz = Table 4D2A method C tabulated, best case), VD ≤ App 12 limit (lighting/other,
+  from the panel), prospective fault ≤ board breaking capacity (434.5.1). A rule whose inputs
+  are missing is **NOT CHECKED**, never a pass; "OK" is shown only when every rule ran, else
+  "OK (not checked: …)". Written to new shared parameter **`ELC_CKT_CHECK_TXT`** (registered
+  in MR_PARAMETERS.txt/.csv, PARAMETER_REGISTRY, CATEGORY/RESOLVED_BINDINGS; GUID uuid5 of the
+  name) and shown as a **"BS 7671 check" column** in the three electrical STING templates;
+  failing circuits' devices go red in the active view; a colour-coded workbook is exported.
+  Revit-free rule: `CircuitComplianceRule`.
+- **PNL-5 — `Panel_BalanceApply` (CIRCTS ▶ Apply Balance, which previously only reported).**
+  `PhaseBalancer` greedily picks the move that cuts the phase spread most; only single-pole,
+  unlocked circuits move, only into EMPTY slots, each at most once, stop below 50 VA gain.
+  Slot phases are learned from the board's own circuits (row → phase, calibrated; any
+  disagreement skips the board). Preview → Yes → `MoveSlotTo`, then the actual imbalance is
+  re-read and reported. Switchboards and non-three-phase boards are skipped with a reason.
+- Wiring: handler, `WorkflowEngine.ResolveCommand`, NLP ("circuit check", "apply balance").
+
+Tests: `PanelComplianceAndBalanceTests` (9) with hand-worked cases (e.g. 3000/1000/2000 VA
+→ one 1000 VA move → 2000/2000/2000, 50 % → 0 %). Tags 2242/2242; build 0/0; all repo gates
+and CI's CSV/GUID checks pass locally. **Not exercised in Revit.**
+
+#### Completed (self-review of the panel-schedule work, same branch)
+
+Two independent reviews (correctness + silent failures) of PR #977 before merge. Fixed:
+
+- **Breaking capacity read in amps, compared as kA.** `RBS_ELEC_SHORT_CIRCUIT_RATING` is a
+  current parameter; a 6 kA device came back as 6000 and PSC ≤ Icn could never fail — a false
+  OK on an overduty breaker. Now `CircuitComplianceRule.BreakingCapacityKa`: explicit "kA" is
+  kA, any other value above 200 is amps (no LV device is rated above 200 kA).
+- **A pass against tabulated Iz is no longer a bare "OK".** Iz is It with no Ca/Cg/Ci, an
+  upper bound: In > It is a conclusive FAIL, but In ≤ It proves nothing, so the verdict is
+  "OK (not checked: Iz derating (Ca/Cg/Ci))". No circuit reaches "fully verified" from this
+  command; that needs the cable sizer's derated Iz.
+- **"Cells verified N/N" counted only cells whose write succeeded**, so a template missing
+  half its columns could show green. The total is now every cell the spec asks for; green
+  needs every cell persisted and no problems (`PanelTemplateBuildResult.Clean`).
+- **Rebuilding an existing template before Load Params wiped it** (cleared, then found the
+  parameters missing, then committed). Every parameter is now resolved first; if any is
+  missing the existing template is left untouched and the reason is reported.
+- **Red-to-green did not go green:** devices coloured on an earlier run stayed red. A device
+  on a now-passing circuit is cleared, only when its override is exactly STING's red.
+- Colouring no longer depends on the parameter being bound; only devices the view draws are
+  coloured and counted; refused writes are counted and shown.
+- Batch Schedules' "create templates first" path now shows a creation failure and the spec
+  warnings (e.g. a project override that failed to parse) instead of only logging them.
+- A misspelt or missing `scheduleType` / `configuration` key no longer defaults to
+  Branch / OneColumn silently; it fails validation.
+- VD in the verdict is shown to 2 dp so "3.04 % > 3 %" is not printed as "3.0 % > 3 %".
+
+Tests: +9 (Iz upper bound pass/fail, kA/amps theory, misspelt keys, VD precision). Panel
+tests 73/73. Build 0/0. Still **not exercised in Revit**.

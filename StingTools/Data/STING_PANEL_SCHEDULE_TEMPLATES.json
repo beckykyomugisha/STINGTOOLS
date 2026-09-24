@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "_comment": "STING panel schedule template selection rules. Maps Revit PanelConfiguration + panel attributes to a named PanelScheduleTemplate already present in the host project. The Revit API does NOT allow programmatic editing of the template structure (column order, headers, formulas) — this file only chooses which existing template to apply on PanelScheduleView.CreateInstanceView. Override per project by dropping a panel_schedule_templates.json under <project>/_BIM_COORD/.",
+  "_comment": "STING panel schedule template selection rules. Board -> template: first by what the board IS (ElectricalEquipment.IsSwitchboard, supply phases; data panels by name) via PanelBoardProfile, then by these name rules, matched against both the Panel Name and the family type name. The STING standard templates these rules name are BUILT by 'Panel templates -> Create / update' from STING_PANEL_SCHEDULE_SPECS.json.",
   "_apiNotes": [
-    "PanelScheduleTemplate is project-scoped; templates must be authored via the Revit UI Panel Schedule Template Editor and transferred between projects via 'Transfer Project Standards' or 'Insert Views from File'. There is no public API to import a template from a file.",
-    "PanelScheduleSheetInstance.Create has been broken in Revit 2024/2025/2026 — the call returns no visible instance. STING does NOT attempt programmatic placement; the user drags created views onto sheets manually.",
-    "PanelConfiguration enum values: OneSection, TwoSectionsHorizontal, TwoSectionsVertical, ThreeSections, ThreeSectionsHorizontal."
+    "PanelScheduleTemplate.Create(doc, PanelScheduleType, PanelConfiguration, name) creates templates, and GetTableData/SetTableData + TableSectionData edit them (insert/remove rows and columns, bind cells to parameters, text, widths) - verified against the Revit 2025 API reference on 2026-09-24. The earlier note that the API cannot edit template structure was wrong.",
+    "PanelScheduleSheetInstance.Create is reported broken in Revit 2024/2025/2026 (not re-verified) - STING does not place panel schedules on sheets; drag the views on manually.",
+    "PanelConfiguration values: OneColumn, TwoColumnsCircuitsAcross, TwoColumnsCircuitsDown. PanelScheduleType values: Branch, Switchboard, Data."
   ],
   "rules": [
     {
