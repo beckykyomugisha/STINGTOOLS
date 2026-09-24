@@ -15,14 +15,14 @@ namespace StingTools.Tags.Tests
 {
     public class CircuitEndpointChooserTests
     {
-        private static CircuitCandidate C(long id, long panel, params long[] members)
-            => new CircuitCandidate { CircuitId = id, BaseEquipmentId = panel, MemberIds = new HashSet<long>(members) };
+        private static EndpointCircuitCandidate C(long id, long panel, params long[] members)
+            => new EndpointCircuitCandidate { CircuitId = id, BaseEquipmentId = panel, MemberIds = new HashSet<long>(members) };
 
-        private static CircuitEndpoint Panel(long id, params CircuitCandidate[] circuits)
-            => new CircuitEndpoint { ElementId = id, IsPanel = true, Circuits = new List<CircuitCandidate>(circuits) };
+        private static CircuitEndpoint Panel(long id, params EndpointCircuitCandidate[] circuits)
+            => new CircuitEndpoint { ElementId = id, IsPanel = true, Circuits = new List<EndpointCircuitCandidate>(circuits) };
 
-        private static CircuitEndpoint Device(long id, params CircuitCandidate[] circuits)
-            => new CircuitEndpoint { ElementId = id, IsPanel = false, Circuits = new List<CircuitCandidate>(circuits) };
+        private static CircuitEndpoint Device(long id, params EndpointCircuitCandidate[] circuits)
+            => new CircuitEndpoint { ElementId = id, IsPanel = false, Circuits = new List<EndpointCircuitCandidate>(circuits) };
 
         [Fact]
         public void Run_from_panel_to_socket_takes_the_sockets_circuit_not_the_panels_first()

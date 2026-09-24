@@ -51,7 +51,7 @@ namespace StingTools.Core.Electrical
             catch (Exception ex) { result.Reason = "connectors unreadable: " + ex.Message; return result; }
 
             var endpoints = new List<CircuitEndpoint>();
-            var circuitCache = new Dictionary<long, CircuitCandidate>();
+            var circuitCache = new Dictionary<long, EndpointCircuitCandidate>();
 
             for (int hop = 0; hop < MaxHops && frontier.Count > 0 && endpoints.Count < MaxEndpoints; hop++)
             {
@@ -112,7 +112,7 @@ namespace StingTools.Core.Electrical
             return result;
         }
 
-        private static CircuitEndpoint EndpointOf(FamilyInstance fi, Dictionary<long, CircuitCandidate> cache)
+        private static CircuitEndpoint EndpointOf(FamilyInstance fi, Dictionary<long, EndpointCircuitCandidate> cache)
         {
             var ep = new CircuitEndpoint
             {
@@ -136,10 +136,10 @@ namespace StingTools.Core.Electrical
             return ep;
         }
 
-        private static CircuitCandidate CandidateOf(ElectricalSystem s, Dictionary<long, CircuitCandidate> cache)
+        private static EndpointCircuitCandidate CandidateOf(ElectricalSystem s, Dictionary<long, EndpointCircuitCandidate> cache)
         {
             if (cache.TryGetValue(s.Id.Value, out var c)) return c;
-            c = new CircuitCandidate { CircuitId = s.Id.Value };
+            c = new EndpointCircuitCandidate { CircuitId = s.Id.Value };
             try { c.BaseEquipmentId = s.BaseEquipment?.Id.Value ?? 0; } catch { }
             try
             {

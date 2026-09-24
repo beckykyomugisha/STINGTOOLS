@@ -16,7 +16,7 @@ using System.Linq;
 
 namespace StingTools.Core.Electrical
 {
-    internal sealed class CircuitCandidate
+    internal sealed class EndpointCircuitCandidate
     {
         public long CircuitId;
         /// <summary>The panel the circuit is fed from (ElectricalSystem.BaseEquipment), or 0.</summary>
@@ -31,7 +31,7 @@ namespace StingTools.Core.Electrical
         /// <summary>Electrical Equipment (a panel / board), as opposed to a load device.</summary>
         public bool IsPanel;
         /// <summary>Every circuit the endpoint takes part in — supplied by or feeding.</summary>
-        public List<CircuitCandidate> Circuits = new List<CircuitCandidate>();
+        public List<EndpointCircuitCandidate> Circuits = new List<EndpointCircuitCandidate>();
     }
 
     internal sealed class CircuitChoice
@@ -53,9 +53,9 @@ namespace StingTools.Core.Electrical
                     Reason = "the conduit run reaches no electrical device or panel (is it connected at either end?)"
                 };
 
-            var candidates = new Dictionary<long, CircuitCandidate>();
+            var candidates = new Dictionary<long, EndpointCircuitCandidate>();
             foreach (var ep in endpoints)
-                foreach (var c in ep.Circuits ?? new List<CircuitCandidate>())
+                foreach (var c in ep.Circuits ?? new List<EndpointCircuitCandidate>())
                     if (c != null && c.CircuitId != 0 && !candidates.ContainsKey(c.CircuitId))
                         candidates[c.CircuitId] = c;
 
@@ -95,7 +95,7 @@ namespace StingTools.Core.Electrical
             };
         }
 
-        private static bool Touches(CircuitCandidate c, CircuitEndpoint ep)
+        private static bool Touches(EndpointCircuitCandidate c, CircuitEndpoint ep)
             => ep.ElementId != 0
                && (c.BaseEquipmentId == ep.ElementId || (c.MemberIds != null && c.MemberIds.Contains(ep.ElementId)));
     }
