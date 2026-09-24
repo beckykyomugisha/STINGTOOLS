@@ -305,12 +305,7 @@ namespace StingTools.Core.Drawing
 
             try
             {
-                var effectiveTokens = tokens ?? DrawingTokenContext.Build(
-                    doc:        doc,
-                    dt:         dt,
-                    discCode:   dt.Discipline,
-                    discipline: dt.Discipline,
-                    seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(sheet.SheetNumber));
+                var effectiveTokens = tokens ?? DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
                 var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
                 r.Warnings.AddRange(tbResult.Warnings);
             }

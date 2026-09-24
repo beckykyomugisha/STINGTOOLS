@@ -18293,7 +18293,7 @@
     {
       "param_name": "ASS_FAB_LOC_TXT",
       "guid": "e420804b-d43f-593c-91b1-fd00a18aa584",
-      "description": "Fabrication location (SHOP / FIELD / VENDOR)",
+      "description": "Fabrication location (WORKSHOP / SITE)",
       "datatype": "TEXT",
       "group_id": 1,
       "group_name": "ASS_MNG",
@@ -32062,7 +32062,7 @@
         "key": "ASS_FAB_LOC",
         "param_name": "ASS_FAB_LOC_TXT",
         "guid": "e420804b-d43f-593c-91b1-fd00a18aa584",
-        "description": "Fabrication location (SHOP / FIELD / VENDOR)",
+        "description": "Fabrication location (WORKSHOP / SITE)",
         "categories": [
           "ALL"
         ],

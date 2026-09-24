@@ -76,7 +76,18 @@ namespace StingTools.Core.Drawing
             try { declaredFam = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (string.IsNullOrWhiteSpace(declaredFam)) declaredFam = dt.TitleBlockFamily;
             string concreteFam = declaredFam;
-            try { concreteFam = TitleBlockResolver.ToConcreteFamily(doc, dt, declaredFam); } catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try
+            {
+                // T-6: surface the resolver's reasons (blank paper, unsupported
+                // size, no presentation variant at this size, name/paper
+                // mismatch) instead of only logging them.
+                var res = TitleBlockResolver.Resolve(doc, dt, declaredFam);
+                if (res.IsResolved) concreteFam = res.Family;
+                foreach (var w in res.Warnings)
+                    r.Add(ValidationSeverity.Warning, "DT-012", w,
+                        "Set paperSize / orientation / titleBlockFamily so they name a family in STING_TITLE_BLOCKS.json.");
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Suppressed: {ex.Message}"); }
             string resolvedNote = string.Equals(concreteFam, declaredFam, StringComparison.OrdinalIgnoreCase)
                 ? "" : $" (resolved from '{declaredFam}')";
 
