@@ -2,6 +2,72 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
+
+Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
+before. Recorded plainly because the useful lesson is in the ratio: the gates written in Phase 294
+caught five of these, and the two I introduced were caught by a gate I wrote *after* the code.
+
+**A regression of my own.** `AnnotationRuleKinds.ForcedCategory` held BIC strings
+(`"OST_Rooms"`). AnnotationRunner forwards the effective category to `ResolveTagTypeId` as the
+`pack.TagFamilies` lookup key — and every tagFamilies table in the catalogue is keyed by DISPLAY
+name ("Rooms" on 12 profiles). So the three `RoomTag` rules stopped finding `STING - Room Tag` and
+silently fell through to "first loaded room tag". Exactly the silent-substitution failure the phase
+existed to remove, re-created while removing it. `ForcedCategory` is now documented as
+display-name-only and `Forced_categories_are_display_names_not_BIC_strings` enforces it.
+
+**And a second one.** The pack save I added carried the loaded document header forward so a save
+would not truncate `schemaVersion` / `description` / `namespace`. That header includes `routing`,
+which lands in `[JsonExtensionData]` because `ViewStylePackDoc` does not model it — and
+`ViewStylePackRegistry.Merge` PREPENDS project routing over corporate. So saving packs froze all 28
+corporate routing rules into the project override where they win for ever: the identical bug I had
+just fixed on the drawing-type side, re-introduced on the pack side by the fix for a different
+problem. `routing` is now stripped from the carried header.
+
+**Editing a corporate pack still discarded the edit.** Phase 294 made the pack tab save, then
+filtered to project-origin packs — and a corporate pack edited in place still carries
+`origin: "corporate"`, so it was skipped. Two silent-loss bugs stacked: no write at all, then a
+write that excluded the thing you edited. Fixed by snapshotting every pack as loaded and writing
+any whose serialisation has moved, flipping its origin — which mirrors what
+`DrawingTypeRegistry.ComputeChecksums` already does for a drifted drawing type. Deliberately NOT a
+dirty flag inside each of the ~40 inline edit lambdas: a snapshot comparison cannot be forgotten by
+a future editor control.
+
+**Seven tagFamilies keys resolved to nothing.** `StructuralColumns`, `StructuralFoundations`,
+`StructuralFraming`, `StructuralRebar`, `LightingFixtures` — display names with the spaces removed,
+which is neither spelling `ResolveTagTypeId` can match. So `STING_TAG_COL`, `STING_TAG_FTG`,
+`STING_TAG_BEAM`, `STING_TAG_BAR` and `STING_TAG_LIGHT` were all declared and all silently replaced
+by whatever tag loaded first. There was a warning for a family that is not LOADED and none for a
+key nothing looks up, which is why this sat unnoticed. Renamed; `OST_GenericModel` normalised to
+`Generic Models` on 22 healthcare profiles for the same reason; `RainwaterOutlets` and `RoofLights`
+dropped — they name no Revit category and no rule consulted them (DRAW-8). **DT-139-FAM** now
+reports both an unresolvable key and a key no rule consults.
+
+**A managed pack minting a template Revit cannot assign.** `health-rds-A3` and
+`plumb-pressure-schedule-A3` are Schedule profiles bound to MANAGED packs, and Revit rejects
+`View.ViewTemplateId` on a schedule — so `EnsureTemplate` created a template it could never apply
+and the assignment threw on every produce. `CanCarryViewTemplate` is now a whitelist: an
+unfamiliar view type is refused with a named warning rather than discovered by a throw. Both
+profiles re-pointed to `corp-standard-detail`, which is external and already serves the other six
+schedule profiles. `health-rds-A3` was also asking for a `ScopeBoxOrBbox` crop on a view with no
+crop box.
+
+**Three spellings for one slot type.** `IsViewTypeCompatible` switches on ten terms and its default
+arm **allows any view**. The eight Schematic profiles used three spellings between them: four said
+`Drafting` (unlisted → allow-all, working by accident), four said `Section` — which *requires*
+`ViewType.Section`, so a drafting-view schematic was **rejected by its own slot** — and the declared
+term `Schematic`, the one that accepts a DraftingView, was used by none of them.
+`health-mep-coord` said `Coordination`, also unlisted. Both missing terms are now declared, all
+eight schematic slots normalised, and **DT-137-SLOTVT** plus
+`DrawingSlotVocabularyTests` close the vocabulary. That file's first test verifies its own mirror
+against `SheetPlacementBridge.KnownSlotViewTypes` read from source — without it the other four
+would be checking the wrong list, which is the failure mode a hardcoded expectation always has.
+
+**Verification.** Build 0/0. `StingTools.Tags.Tests` **1,599 passing** (1,582 → 1,591 → 1,599
+across the two passes). Checksums re-stamped and `--check` verified after each data edit. A full
+test plan — what runs now, what needs Revit and has never run, and how each gate was driven RED —
+is in [`docs/DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md).
+
 #### Completed (Phase 294 — the drawing-type catalogue said more than the engine did)
 
 A review of the Drawing Type Editor, the 36 view style packs, the 290-filter registry and all

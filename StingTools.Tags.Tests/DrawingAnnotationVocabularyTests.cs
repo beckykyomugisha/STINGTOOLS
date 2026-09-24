@@ -128,11 +128,11 @@ namespace StingTools.Tags.Tests
             // AutoTagRoomName on a row whose category says "Walls" must still
             // tag Rooms — the alias only ever meant "tag rooms", and which
             // field the tag prints is the tag family's business.
-            Assert.Equal("OST_Rooms",
+            Assert.Equal("Rooms",
                 AnnotationRuleKinds.EffectiveCategory(AnnotationRuleKinds.AutoTagRoomName, "Walls"));
-            Assert.Equal("OST_Rooms",
+            Assert.Equal("Rooms",
                 AnnotationRuleKinds.EffectiveCategory(AnnotationRuleKinds.AutoTagRoomNumber, null));
-            Assert.Equal("OST_MEPSpaces",
+            Assert.Equal("Spaces",
                 AnnotationRuleKinds.EffectiveCategory(AnnotationRuleKinds.AutoAnnotateSpaceNumber, "Doors"));
 
             // A kind with no forced category passes the row's own through.

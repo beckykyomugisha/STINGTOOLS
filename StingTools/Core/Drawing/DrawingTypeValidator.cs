@@ -408,6 +408,18 @@ namespace StingTools.Core.Drawing
                     + "If the behaviour is genuinely new, declare it in AnnotationRuleKinds and wire a handler in AnnotationRunner.");
             }
 
+            // DT-139-FAM: a tagFamilies key that resolves to no category, or
+            // that no rule in this profile will ever look up.
+            //
+            // ResolveTagTypeId does pack.TagFamilies.TryGetValue(catKey) with
+            // the RULE's category string, so a key spelled any other way is
+            // dead: the declared family is silently replaced by "first loaded
+            // tag of that category". There was a warning for a family that is
+            // not LOADED, but none for a key nothing looks up, which is why
+            // seven PascalCase-without-spaces keys (StructuralColumns,
+            // LightingFixtures, …) went unnoticed.
+            ValidateTagFamilyKeys(dt, r);
+
             // DT-139-TAG: a tag rule on a category Revit cannot tag.
             // IndependentTag.Create requires a taggable MODEL category, so a
             // rule on an annotation or datum category throws once per element
@@ -438,6 +450,51 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-139-3D",
                     $"{threeD} Auto3DTag rules declared. The 3D pass tags the whole view once, so only the first has effect.",
                     "Collapse to a single Auto3DTag rule (category \"*\").");
+        }
+
+        /// <summary>
+        /// DT-139-FAM — tagFamilies key hygiene. Revit-free.
+        /// </summary>
+        internal static void ValidateTagFamilyKeys(DrawingType dt, ValidationReport r)
+        {
+            var fam = dt?.Annotation?.TagFamilies;
+            if (fam == null || fam.Count == 0) return;
+
+            // Categories a rule in THIS profile could look up.
+            var consulted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool wildcard = false;
+            foreach (var rule in dt.Annotation.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (rule == null || !rule.Enabled) continue;
+                if (!AnnotationRuleKinds.IsTagKind(rule.RuleType)) continue;
+                var cat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                if (cat == "*") { wildcard = true; continue; }
+                if (!string.IsNullOrWhiteSpace(cat)) consulted.Add(cat);
+            }
+
+            foreach (var kv in fam)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+
+                bool resolves = kv.Key.StartsWith("OST_", StringComparison.OrdinalIgnoreCase)
+                    ? RevitCategoryTree.FindByBic(kv.Key) != null
+                    : RevitCategoryTree.FindByDisplayName(kv.Key) != null;
+
+                if (!resolves)
+                {
+                    r.Add(ValidationSeverity.Warning, "DT-139-FAM",
+                        $"tagFamilies key '{kv.Key}' (→ '{kv.Value}') resolves to no Revit category, so the "
+                        + "lookup misses and the declared family is silently replaced by the first loaded tag.",
+                        "Use the localised category display name, e.g. \"Structural Columns\", not \"StructuralColumns\".");
+                    continue;
+                }
+
+                if (!wildcard && !consulted.Contains(kv.Key))
+                    r.Add(ValidationSeverity.Info, "DT-139-FAM-UNUSED",
+                        $"tagFamilies key '{kv.Key}' (→ '{kv.Value}') is never consulted — no enabled tag rule in "
+                        + "this profile targets that category.",
+                        "Add a tag rule for the category, or remove the key so the profile does not read as configured.");
+            }
         }
 
         /// <summary>
@@ -618,8 +675,28 @@ namespace StingTools.Core.Drawing
             catch { return null; }
         }
 
+        /// <summary>
+        /// DT-137-SLOTVT — slot viewType against the closed vocabulary
+        /// SheetPlacementBridge actually discriminates on.
+        /// </summary>
+        internal static void ValidateSlotViewTypes(DrawingType dt, ValidationReport r)
+        {
+            foreach (var slot in dt?.Slots ?? new List<DrawingSlot>())
+            {
+                if (slot == null || string.IsNullOrWhiteSpace(slot.ViewType)) continue;
+                if (SheetPlacementBridge.IsKnownSlotViewType(slot.ViewType)) continue;
+                r.Add(ValidationSeverity.Warning, "DT-137-SLOTVT",
+                    $"Slot '{slot.Label}' declares viewType '{slot.ViewType}', which the placement "
+                    + "compatibility check does not recognise — the slot will accept ANY view, which is "
+                    + "the opposite of what declaring a viewType implies.",
+                    $"Use one of: {string.Join(", ", SheetPlacementBridge.KnownSlotViewTypes)}.");
+            }
+        }
+
         private static void ValidatePhase137ProductionRules(DrawingType dt, ValidationReport r)
         {
+            ValidateSlotViewTypes(dt, r);
+
             if (dt?.ProductionRules == null) return;
             var rules = dt.ProductionRules;
             if (rules.Count > 0 && (dt.Slots?.Count ?? 0) > 0)

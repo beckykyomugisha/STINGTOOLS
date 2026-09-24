@@ -15,9 +15,13 @@ papered over.
 | TOKPOL-3 | ✅ **CLOSED** (Phase 291) | Every token carries `governedByResolve`, and the three that are not governed carry a `governedNote` saying why. A test asserts the claimed set equals the seven segments `BuildAndWriteTag` actually resolves — the file can no longer over-claim, which is the mistake it made for a month. |
 ## Drawing production — style packs, filters, annotation (2026-09-19, Phase 294)
 
-Phase 294 fixed every finding from the drawing-type / style-pack / filter review (see
+Phases 294 and 295 fixed every finding from the drawing-type / style-pack / filter review (see
 `CHANGELOG.md`). What is left is the part that cannot be proved outside Revit, plus two
 deliberate non-closures.
+
+**The manual procedure for every item below is written up in
+[`DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md) §2** — test model, per-case
+pass criteria, and what each failure mode looks like. Do not re-derive it.
 
 | ID | Status | Detail |
 |---|---|---|
@@ -27,6 +31,7 @@ deliberate non-closures.
 | DRAW-4 | **DELIBERATELY OPEN** | 139 of the 290 registry filters are still referenced by no pack (was 203). The remainder are healthcare-, FM-, LPS-, QA- and sustainability-specific and belong to workflows that select them per project. `DT-143-ORPHAN` reports unreferenced PACKS as INFO; there is no equivalent for filters, on purpose — a filter library is meant to be larger than any one pack. Revisit only if a discipline turns out to be genuinely uncovered. |
 | DRAW-5 | **DELIBERATELY OPEN** | `ViewStylePack.Checksum` is still declared and never computed, so style packs have no drift detection while drawing types do. Phase 225 reasoned that the asymmetry is correct — a drawing type decides the identity of an issued deliverable, a pack decides appearance, and locking packs would report drift on every project that has hand-tuned one. Phase 294 did not change that. The field should be wired or dropped; leaving it declared-and-unused is the part that reads as a bug. |
 | DRAW-6 | **OPEN — low risk** | The ISO sheet-number policy (`PRJ_ORG_SHEET_NUMBER_POLICY_TXT = "iso"`) is unit-tested but has never produced a sheet. The parameter is not in `MR_PARAMETERS.txt`, so `LookupParameter` returns null and the default (unchanged behaviour) applies — which is why this is low risk, and also why opting in currently requires adding the parameter by hand. Bind it in the shared-parameter file before offering the policy to a project. |
+| DRAW-8 | **OPEN** | The `RainwaterOutlets` and `RoofLights` tagFamilies keys were dropped from `arch-roof-A1-1to100`: they name no Revit category (a rainwater outlet is a Plumbing Fixture or Pipe Accessory, a roof light a Window or Generic Model) and no rule consulted them, so `STING_TAG_RWO` / `STING_TAG_RFL` were dead either way. Roof-plan tagging of RWOs and roof lights needs an AutoTag rule against the real host category. Not guessed here, because a wrong mapping would tag the wrong elements rather than none. |
 | DRAW-7 | **OPEN — needs Revit** | `DrawingPrintApplier.ApplyHalftoneLinks` uses a category override on `OST_RvtLinks` because `RevitLinkGraphicsSettings` has no `Halftone` member on the 2025 API. That is the right route for a single view-wide boolean, but it has not been confirmed against 2026/2027, where the per-link surface may have gained one. Re-check when the 2027 API reference is to hand. |
 
 ## Mapped parameter writes (2026-09-16, Phase 289)

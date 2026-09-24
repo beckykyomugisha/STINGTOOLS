@@ -100,6 +100,76 @@ namespace StingTools.Tags.Tests
                 + string.Join("\n  ", offenders.Distinct()));
         }
 
+        [Fact]
+        public void Every_tagFamilies_key_resolves_to_a_real_category()
+        {
+            // ResolveTagTypeId does pack.TagFamilies.TryGetValue(ruleCategory),
+            // so a key spelled any other way is DEAD: the declared family is
+            // silently replaced by "first loaded tag of that category". Seven
+            // PascalCase-without-spaces keys shipped that way — including
+            // 'StructuralColumns' → STING_TAG_COL and 'LightingFixtures' →
+            // STING_TAG_LIGHT — so those drawings used whatever tag happened to
+            // load first and reported success.
+            var doc = JObject.Parse(File.ReadAllText(Path.Combine(DataDir(), "STING_DRAWING_TYPES.json")));
+            var offenders = new List<string>();
+            foreach (var t in doc["drawingTypes"])
+            {
+                var fam = t["annotation"]?["tagFamilies"] as JObject;
+                if (fam == null) continue;
+                foreach (var kv in fam)
+                    if (!Resolves(kv.Key))
+                        offenders.Add($"{t["id"]}: '{kv.Key}' → '{kv.Value}'");
+            }
+            Assert.True(offenders.Count == 0,
+                "Unresolvable tagFamilies keys — the declared family is silently ignored:\n  "
+                + string.Join("\n  ", offenders.Distinct()));
+        }
+
+        [Fact]
+        public void No_tagFamilies_key_uses_the_PascalCase_no_space_spelling()
+        {
+            // The specific mistake, named: a key that is a display name with the
+            // spaces removed. Caught separately from the resolve sweep because
+            // "StructuralColumns" is the shape a contributor naturally types,
+            // and it fails silently rather than loudly.
+            var doc = JObject.Parse(File.ReadAllText(Path.Combine(DataDir(), "STING_DRAWING_TYPES.json")));
+            var squashed = RevitCategoryTree.All
+                .Where(c => c.DisplayName != null && c.DisplayName.Contains(' '))
+                .ToDictionary(c => c.DisplayName.Replace(" ", ""), c => c.DisplayName,
+                              StringComparer.OrdinalIgnoreCase);
+
+            var offenders = new List<string>();
+            foreach (var t in doc["drawingTypes"])
+            {
+                var fam = t["annotation"]?["tagFamilies"] as JObject;
+                if (fam == null) continue;
+                foreach (var kv in fam)
+                    if (squashed.TryGetValue(kv.Key, out var proper) && kv.Key != proper)
+                        offenders.Add($"{t["id"]}: '{kv.Key}' should be '{proper}'");
+            }
+            Assert.True(offenders.Count == 0,
+                "tagFamilies keys missing their spaces:\n  " + string.Join("\n  ", offenders.Distinct()));
+        }
+
+        [Fact]
+        public void Forced_categories_are_display_names_not_BIC_strings()
+        {
+            // AnnotationRuleKinds.ForcedCategory feeds BOTH ResolveCategoryId
+            // (which accepts either spelling) and the tagFamilies lookup (which
+            // accepts only the display name). A BIC there makes the family
+            // lookup miss — which is exactly the regression this test was
+            // written after causing: "OST_Rooms" broke the 12 profiles keying
+            // their room tag under "Rooms".
+            foreach (var kind in AnnotationRuleKinds.All)
+            {
+                if (string.IsNullOrWhiteSpace(kind.ForcedCategory)) continue;
+                Assert.False(kind.ForcedCategory.StartsWith("OST_", StringComparison.OrdinalIgnoreCase),
+                    $"{kind.Name}.ForcedCategory is '{kind.ForcedCategory}' — must be the display name, "
+                    + "or the tagFamilies lookup silently misses.");
+                Assert.NotNull(RevitCategoryTree.FindByDisplayName(kind.ForcedCategory));
+            }
+        }
+
         [Theory]
         [InlineData("Doors")]
         [InlineData("Windows")]

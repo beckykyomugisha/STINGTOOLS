@@ -55,11 +55,29 @@ namespace StingTools.UI
         private readonly List<DrawingType> _types;       // working copy
         /// <summary>
         /// Document-level keys of the style-pack file this editor loaded
-        /// (schemaVersion / name / description / namespace / lastUpdated /
-        /// routing), captured on load and re-emitted on save so persisting
-        /// packs never truncates the file header.
+        /// (schemaVersion / name / description / namespace / lastUpdated),
+        /// captured on load and re-emitted on save so persisting packs never
+        /// truncates the file header.
+        ///
+        /// <c>routing</c> is deliberately STRIPPED before it is carried — see
+        /// <see cref="SaveStylePacksToProjectOverride"/>.
         /// </summary>
         private IDictionary<string, JToken> _packDocExtra;
+
+        /// <summary>
+        /// Pack id → its serialisation exactly as loaded. A pack whose current
+        /// serialisation differs has been edited, and is saved to the project
+        /// override even if it arrived flagged "corporate".
+        ///
+        /// Without this, editing a corporate pack in place left
+        /// Origin == "corporate", the project-origin-only save skipped it, and
+        /// the edit was discarded on close — the same silent loss as the save
+        /// that never ran at all. Comparing a snapshot cannot be forgotten by a
+        /// future editor control, which flipping a dirty flag inside each of
+        /// the ~40 inline edit lambdas certainly could be.
+        /// </summary>
+        private Dictionary<string, string> _packSnapshot
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
@@ -1318,10 +1336,32 @@ namespace StingTools.UI
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
                 if (!File.Exists(path)) return list;
                 var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
+
                 // Keep the document header (schemaVersion / name / description /
-                // namespace / lastUpdated / routing) so a save re-emits it
-                // rather than truncating the file to a bare pack array.
+                // namespace / lastUpdated) so a save re-emits it rather than
+                // truncating the file to a bare pack array — but DROP routing.
+                // ViewStylePackRegistry.Merge prepends project routing over
+                // corporate, so re-emitting the corporate table into the project
+                // override would freeze all of it where it wins for ever.
                 _packDocExtra = doc?.Extra;
+                if (_packDocExtra != null)
+                {
+                    foreach (var key in _packDocExtra.Keys
+                        .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
+                        .ToList())
+                        _packDocExtra.Remove(key);
+                }
+
+                // Snapshot every pack as loaded, so an in-place edit to a
+                // corporate pack is detectable at save time.
+                _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
+                {
+                    if (p?.Id == null) continue;
+                    try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
+                    catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+                }
+
                 return doc?.StylePacks ?? list;
             }
             catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
@@ -3363,6 +3403,26 @@ namespace StingTools.UI
             try
             {
                 if (_packs == null) { error = "no packs were loaded."; return -1; }
+
+                // A pack is written when it is project-origin OR when its
+                // serialisation has moved since load. The second case is what
+                // makes editing a corporate pack persist: it arrives flagged
+                // "corporate", and a project-origin-only filter dropped the
+                // edit silently. Flipping Origin here mirrors what
+                // DrawingTypeRegistry.ComputeChecksums does for a drifted
+                // corporate drawing type.
+                foreach (var p in _packs)
+                {
+                    if (p?.Id == null) continue;
+                    if (string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!_packSnapshot.TryGetValue(p.Id, out var before)) continue;
+                    string now;
+                    try { now = JsonConvert.SerializeObject(p, Formatting.None); }
+                    catch (Exception ex) { StingLog.Warn($"Pack diff '{p.Id}': {ex.Message}"); continue; }
+                    if (string.Equals(before, now, StringComparison.Ordinal)) continue;
+                    p.Origin = "project";
+                    StingLog.Info($"Style pack '{p.Id}' was edited; origin flipped to project so the edit persists.");
+                }
 
                 var projectPacks = _packs
                     .Where(p => p != null && string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase))

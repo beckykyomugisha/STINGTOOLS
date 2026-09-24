@@ -239,7 +239,7 @@
       "id": "arch-rcp-A1-1to100",
       "name": "Architectural RCP — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "de0585ee25428a95c4cfb14e3e792d42b29cdd481b2c9eda0a86da5876c884b5",
+      "checksum": "42e8c43d69869268de18cba158f09b9ef441e29dc3c0f6249a0bd8e19d2d5672",
       "purpose": "RCP",
       "discipline": "A",
       "paperSize": "A1",
@@ -299,7 +299,7 @@
         "tagFamilies": {
           "Rooms": "STING_TAG_ROOM",
           "Ceilings": "STING_TAG_CEILING",
-          "LightingFixtures": "STING_TAG_LIGHT"
+          "Lighting Fixtures": "STING_TAG_LIGHT"
         },
         "denseUntilScale": 100,
         "rules": [
@@ -946,7 +946,7 @@
       "id": "struct-plan-A1-1to100",
       "name": "Structural Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "d57aba53754def96516ba4df8bf401672c0606f264a319255202069fcc72928e",
+      "checksum": "88869b5d84142dca4a02b19c708827dc846729ebde5c51911efdde5b580ef757",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -989,9 +989,9 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "StructuralColumns": "STING_TAG_COL",
-          "StructuralFraming": "STING_TAG_BEAM",
-          "StructuralFoundations": "STING_TAG_FTG"
+          "Structural Columns": "STING_TAG_COL",
+          "Structural Foundations": "STING_TAG_FTG",
+          "Structural Framing": "STING_TAG_BEAM"
         },
         "rules": [
           {
@@ -2403,7 +2403,7 @@
       "id": "arch-roof-A1-1to100",
       "name": "Architectural Roof Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "5447e1e2742a5369cc92f5d2f5b0c3c8ad9fac0833661d44a191627c0c01b89d",
+      "checksum": "db032ffe9450bafa2df309b017160edce9daf98a60687f223b84b8d9327fca91",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2454,10 +2454,7 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
-        "tagFamilies": {
-          "RainwaterOutlets": "STING_TAG_RWO",
-          "RoofLights": "STING_TAG_RFL"
-        },
+        "tagFamilies": {},
         "rules": [
           {
             "category": "Grids",
@@ -3158,7 +3155,7 @@
       "id": "struct-foundation-A1-1to100",
       "name": "Foundation Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "8605688c86a533d36e0beabcb6e75a44e69cf7e421b191d27f9dd2ccb11a0e9c",
+      "checksum": "81f14ea4b6347f7bd03eb701a51e5d6881fa23709adf8dab053f29886aae49c3",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -3208,8 +3205,8 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "StructuralFoundations": "STING_TAG_FTG",
-          "StructuralColumns": "STING_TAG_COL"
+          "Structural Columns": "STING_TAG_COL",
+          "Structural Foundations": "STING_TAG_FTG"
         },
         "rules": [
           {
@@ -3284,7 +3281,7 @@
       "id": "struct-rebar-detail-A3-1to20",
       "name": "Rebar Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "27593a655f674963c5a95681679c7038d7c010ba05972fadb516c7883e50e6c7",
+      "checksum": "88f9cb39ece5c863dc3651dff78983d20c7d02236c8daa864b56df1da7a9f9ee",
       "purpose": "Detail",
       "discipline": "S",
       "paperSize": "A3",
@@ -3340,7 +3337,7 @@
       "annotation": {
         "dimensionStrategy": "Chain",
         "tagFamilies": {
-          "StructuralRebar": "STING_TAG_BAR"
+          "Structural Rebar": "STING_TAG_BAR"
         },
         "denseUntilScale": 50,
         "rules": [
@@ -7252,7 +7249,7 @@
       "id": "health-rds-A3",
       "name": "Healthcare — Room Data Sheet (A3)",
       "origin": "corporate",
-      "checksum": "65da73a1f84fa007d43ccd8d1865e7b9bc7a0b95d225ec6e9cd596d5b1d19f4c",
+      "checksum": "2ce0ef3b884091fb341e5f0f6418c262edf268c8842d3ee8a13f1656b00f7c94",
       "purpose": "Schedule",
       "discipline": "H",
       "phase": "*",
@@ -7263,12 +7260,11 @@
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Healthcare Schedule",
       "viewportTypeName": "STING - Standard Viewport",
-      "viewStylePackId": "corp-healthcare-clinical",
+      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "{disc}-RDS-{lvl}-{seq:D4}",
       "sheetNamePattern": "Room Data Sheet — {mark}",
       "crop": {
-        "kind": "ScopeBoxOrBbox",
-        "marginMm": 50
+        "kind": "None"
       },
       "slots": [
         {
@@ -7286,7 +7282,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7321,7 +7317,7 @@
       "id": "health-eqp-pln-A1-1to50",
       "name": "Healthcare — Clinical Equipment Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "cd90e72bc43235b804b52487a929edc400f1703a2804965a251f2d53a2c8854a",
+      "checksum": "137f88499b6f0371b3e39340d1be7895d4f372dbd4d43aff59c63fa9beb49df0",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7355,7 +7351,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7390,7 +7386,7 @@
       "id": "health-mep-coord-A1-1to50",
       "name": "Healthcare — MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
-      "checksum": "4e3da6eb67b273dbcc48482339fc767fc1ddf03e63c2a474c2b7d485f166a855",
+      "checksum": "1ef39edcf48b1b598296036a762d73bc8bd4268f29d4d01877c740351850238d",
       "purpose": "Coordination",
       "discipline": "M",
       "phase": "*",
@@ -7424,7 +7420,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7460,7 +7456,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "96d561613dea19c4e2b4a78809ba60db71af83c79444d9e0fecb7a4fd2da6ff4",
+      "checksum": "9f6595693674f3bede3f32ca086bf650e712f1641e6e9dc23179ff7078f01cc3",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7494,7 +7490,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7530,7 +7526,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "d3e04ecafee860da91d21530c529f09318cb38f792299848a018afb7376b099b",
+      "checksum": "22dae80bc3945231ffec5e3becffff32e60f72f2ff74ce9f9e79606a3ab2e385",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -7551,7 +7547,7 @@
       "slots": [
         {
           "label": "Main Schematic",
-          "viewType": "Section",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -7564,7 +7560,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7599,7 +7595,7 @@
       "id": "health-pressure-pln-A1-1to100",
       "name": "Healthcare — Pressure Regime Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "87f11c7e97280af3aeaca89fc93985ab6757a6a3b65ba151e7d798c02e2ddffb",
+      "checksum": "e80156e8f1c163aba291808100da9c39363e73b2fc94ebb84d42817ecd3ea7bb",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7633,7 +7629,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7668,7 +7664,7 @@
       "id": "health-ess-power-riser-A1",
       "name": "Healthcare — Essential Power Single-Line (A1)",
       "origin": "corporate",
-      "checksum": "bd3af88775cc58c9efe52c8380eed5f86c105516118d888f0d608281c80b40c5",
+      "checksum": "a20a139a55165e6a692c3f702a5cd8f16e0e4decc796f3a2babeb50674e6cada",
       "purpose": "Schematic",
       "discipline": "E",
       "phase": "*",
@@ -7689,7 +7685,7 @@
       "slots": [
         {
           "label": "Main Schematic",
-          "viewType": "Section",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -7702,7 +7698,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7737,7 +7733,7 @@
       "id": "health-ips-pln-A1-1to50",
       "name": "Healthcare — Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "04e097d6b489f9d053bc7804537cdf1e148a93ea4b4ff1c3b00fda748c8d4f6e",
+      "checksum": "6715c709ad08a3680620d561f9eb644b11e1a2c4f2b888d36b5b9efe5a8de0dc",
       "purpose": "Plan",
       "discipline": "E",
       "phase": "*",
@@ -7771,7 +7767,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7806,7 +7802,7 @@
       "id": "health-decon-flow-A1-1to50",
       "name": "Healthcare — Decontamination Flow Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "485d029a2725e7f57b24b46fafa549672db79b49ff3d322841d1dbae3adc57b9",
+      "checksum": "7a00023f2475f2ad6a2adc66443989e936b645a08c12da9a77abce58ae0bee6a",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7840,7 +7836,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7875,7 +7871,7 @@
       "id": "health-mortuary-pln-A3-1to100",
       "name": "Healthcare — Mortuary Plan (A3 1:100)",
       "origin": "corporate",
-      "checksum": "2453dc829415852173251585f6c5d0e748cea6bc8078637aa9966b08dba89979",
+      "checksum": "c20e11f809cd99154ebab419bd3ee157123556767d4ef8a5c101b0f9222051b8",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7909,7 +7905,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -7944,7 +7940,7 @@
       "id": "health-fire-comp-A1-1to100",
       "name": "Healthcare — Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "8ebb759545c651c4174937449f0736855a2d5a63604439ed1eccc0500b1a1ac9",
+      "checksum": "5f662d94dc0ab14c3406a888983251dfb2aff99de82b929dc99de7f60bf11c9b",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -7978,7 +7974,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8013,7 +8009,7 @@
       "id": "health-rad-shield-A1-1to50",
       "name": "Healthcare — Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "d0adb0122f36662f6fec163b50b72dd1d156fe24d3825827a0fe1c6badae30a6",
+      "checksum": "28c6b268739fae1b85c5060f976a366b0cc614d1ea96f2c9ac6fa22c9b7d4193",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8047,7 +8043,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8082,7 +8078,7 @@
       "id": "health-mri-zoning-A1-1to50",
       "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
-      "checksum": "718505377ad6da3d74a349d1a9aa85e98f3aad4ca8c223e0a2d5cddd893a0dd8",
+      "checksum": "be258d3ea62a6fdff5e594b1f4d4f133f5d70fe56ba54d460189c4acd9034ec0",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8116,7 +8112,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8151,7 +8147,7 @@
       "id": "health-ligature-pln-A1-1to50",
       "name": "Healthcare — Anti-Ligature Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "2b5e03b691e85fc49e696615585c7b7c5197358439facc9ba09a7f635f6f9d24",
+      "checksum": "53faf27a2afae34e5e5f04779cb5e3a6e942f5ca8f347fb4ab884b31bd9ce7da",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8185,7 +8181,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8220,7 +8216,7 @@
       "id": "health-bedhead-elev-A3-1to50",
       "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
-      "checksum": "75ff3eceae312f9f509dc8fcb7e8fdbdc454aff2dc85b586180bf42a92c1a4e4",
+      "checksum": "a8241535f7d5566c1c84ea1d30119280751c35e464b79b30a04dedf3fc455d24",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
@@ -8254,7 +8250,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8295,7 +8291,7 @@
       "id": "health-or-ceiling-A3-1to50",
       "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
-      "checksum": "781ff271d4c89c65f7f8c40e88a1e06e07fcab83946594b7a018c4d836793d0f",
+      "checksum": "8a06654548b2380cb3cd322973cc402cec98b4115cbccca7ec90fea8b48f7d01",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
@@ -8329,7 +8325,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8364,7 +8360,7 @@
       "id": "health-water-safety-A1-1to100",
       "name": "Healthcare — Water Safety Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "3b50be976c79922cc6c0ce17534de7245202f5eb4418b3cf4356f9b0246daa8f",
+      "checksum": "b41dae36f241615dd8643b481a0b61a48f55ed477d3041d49db075d6dc9f7ef2",
       "purpose": "Plan",
       "discipline": "P",
       "phase": "*",
@@ -8398,7 +8394,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8433,7 +8429,7 @@
       "id": "health-acoustic-A1-1to100",
       "name": "Healthcare — Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "3d59686b92a06decb868117efc64986ec52e01bb2f55e1cca6eb42d7b7234ed2",
+      "checksum": "bbeca9131a6cf179aa01b9104e296b967ebc0566c90cc77524fa4a0f41f23ff8",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8467,7 +8463,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8502,7 +8498,7 @@
       "id": "health-struct-loads-A1-1to100",
       "name": "Healthcare — Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
-      "checksum": "c324a44f00fe7abbecf95b9af64c73f3f42c2a660a58d6f7ac199b30158139b5",
+      "checksum": "adbf59c8a9cdc575ebf7ea3544f1e4dfe26149ea9e8b71ac75bfb5ca5362228e",
       "purpose": "Plan",
       "discipline": "S",
       "phase": "*",
@@ -8536,7 +8532,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8571,7 +8567,7 @@
       "id": "health-rtls-coverage-A1-1to100",
       "name": "Healthcare — RTLS Coverage Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "71f8d7c678603645976da783d93badc49c1e8d56dafd3710d424aedf1ab1509e",
+      "checksum": "c9e2d30e5e8035648d50f9974a82ed261c20f27a1b7fe411806b469a9d25603e",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8605,7 +8601,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8640,7 +8636,7 @@
       "id": "health-waste-flow-A1-1to100",
       "name": "Healthcare — Clinical Waste Flow (A1 1:100)",
       "origin": "corporate",
-      "checksum": "c4a8174030373516fb3fc4baa0253614f60a056394f14efc2388f74fa4a73a6c",
+      "checksum": "ab0874dce55c57ef23f5e20ac2fb0a6f3069ea9da67f5910c9e942fdc35cd57e",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8674,7 +8670,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8709,7 +8705,7 @@
       "id": "health-nuclear-medicine-A1",
       "name": "Healthcare — Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
-      "checksum": "0ea42eccc188cb4931e045882c456a02516c8ea5126971b4d82053c621cc135a",
+      "checksum": "d7e9265c28360a6ba3e9a150f377ed703f8b7e0e1732c7763deed38a006be7b4",
       "purpose": "Schematic",
       "discipline": "RP",
       "phase": "*",
@@ -8730,7 +8726,7 @@
       "slots": [
         {
           "label": "Main Schematic",
-          "viewType": "Section",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -8743,7 +8739,7 @@
         "autoTag": true,
         "denseUntilScale": 100,
         "tagFamilies": {
-          "OST_GenericModel": "STING - Generic Tag"
+          "Generic Models": "STING - Generic Tag"
         }
       },
       "titleBlockParams": {
@@ -8779,7 +8775,7 @@
       "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
-      "checksum": "c4c39d07e76403fd14f3bcab61d889bb2307c3aaf173126a1732a985b51f5806",
+      "checksum": "9311e078addaf10465a7dce8fed95f1b40cec5587cb476dc1b37e7dbdf96c285",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -8797,7 +8793,7 @@
       "slots": [
         {
           "label": "Main",
-          "viewType": "Drafting",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -8843,7 +8839,7 @@
       "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
-      "checksum": "2e83d49c0dcbd5f939b8df0ee37ffcfbb344fbb5361076f673912d5fb86d525e",
+      "checksum": "350796a079fb68e9957585678756957a6c3b622c60842c3d9dbeaacca918203c",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -8861,7 +8857,7 @@
       "slots": [
         {
           "label": "Main",
-          "viewType": "Drafting",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -8907,7 +8903,7 @@
       "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "4a1e2b0d3b276c8547a1b24361852b869d56483de7853f48c48d83918d076dc3",
+      "checksum": "f26347e20544578b8fff7d4f3f1b97fd2df9624ef3e510fe4b33a2ef0882a458",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -8925,7 +8921,7 @@
       "slots": [
         {
           "label": "Main",
-          "viewType": "Drafting",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -9159,7 +9155,7 @@
       "id": "plumb-vent-riser-A3-NTS",
       "name": "Drainage Vent Riser — A3 NTS",
       "origin": "corporate",
-      "checksum": "57df7c3114b1e2e1e5842cb9afecee8b2e238fab6c83a0118382051decfbfdd7",
+      "checksum": "bcf3f074ba032ac29da0839e9322d2158c67e086d9a42ac243abee694918a211",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A3",
@@ -9177,7 +9173,7 @@
       "slots": [
         {
           "label": "Main",
-          "viewType": "Drafting",
+          "viewType": "Schematic",
           "normX": 0.03,
           "normY": 0.05,
           "normW": 0.94,
@@ -9221,7 +9217,7 @@
       "id": "plumb-pressure-schedule-A3",
       "name": "Pressure Zone / PRV Schedule — A3",
       "origin": "corporate",
-      "checksum": "08d9c8ce2fda5bd4b66ce80f237cbfcaed69835accfc26ac31b4ec3f81d15c98",
+      "checksum": "bd95be44e571a93ddc7d52d046928f5441b1408017717b2cacdb5f8dd5f12260",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
@@ -9230,7 +9226,7 @@
       "scale": "NA",
       "detailLevel": "Medium",
       "viewTemplateName": "STING - Plumbing Schedule",
-      "viewStylePackId": "corp-standard-plumb",
+      "viewStylePackId": "corp-standard-detail",
       "sheetNumberPattern": "P-PRV-{seq:D3}",
       "sheetNamePattern": "PRESSURE ZONE / PRV SCHEDULE",
       "crop": {
@@ -9362,11 +9358,11 @@
         "kind": "None"
       },
       "origin": "corporate",
-      "checksum": "6f36047a7ef0880b74eadbb56f43c41083dc988f878a32f0a2852951da5cb7e2",
+      "checksum": "b4ef2523ecd8351a1dc52c9ebb787a7fd38c7a93f027c79afbc2c73095ebc6a2",
       "slots": [
         {
           "label": "Schematic",
-          "viewType": "Section",
+          "viewType": "Schematic",
           "normX": 0.05,
           "normY": 0.05,
           "normW": 0.9,

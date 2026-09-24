@@ -77,6 +77,16 @@ namespace StingTools.Core.Drawing
         /// dispatch. Lets AutoTagRoomName / AutoTagRoomNumber be honest
         /// aliases — they only ever meant "tag Rooms" — without every
         /// caller having to know that.
+        ///
+        /// MUST be the localised DISPLAY name, not the <c>OST_</c> form.
+        /// AnnotationRunner forwards the effective category to
+        /// ResolveTagTypeId as the <c>pack.TagFamilies</c> lookup key, and
+        /// every tagFamilies table in the catalogue is keyed by display name
+        /// ("Rooms" on 12 profiles, "Doors" on 3, …). A BIC string there
+        /// makes the lookup miss and the declared tag family is silently
+        /// replaced by "first loaded tag of the category".
+        /// ResolveCategoryId accepts either spelling, so the display name is
+        /// the one form that satisfies both consumers.
         /// </summary>
         public string ForcedCategory { get; }
 
@@ -136,11 +146,11 @@ namespace StingTools.Core.Drawing
             new AnnotationRuleKind(AutoTag, AnnotationPass.Tag,
                 "Place the category's tag family on every untagged instance in the view."),
             new AnnotationRuleKind(RoomTag, AnnotationPass.Tag,
-                "Room tag.", forcedCategory: "OST_Rooms"),
+                "Room tag.", forcedCategory: "Rooms"),
             new AnnotationRuleKind(SpaceTag, AnnotationPass.Tag,
-                "MEP space tag.", forcedCategory: "OST_MEPSpaces"),
+                "MEP space tag.", forcedCategory: "Spaces"),
             new AnnotationRuleKind(AreaTag, AnnotationPass.Tag,
-                "Area tag.", forcedCategory: "OST_Areas"),
+                "Area tag.", forcedCategory: "Areas"),
             new AnnotationRuleKind(MaterialTag, AnnotationPass.Tag,
                 "Material tag."),
             new AnnotationRuleKind(KeynoteTag, AnnotationPass.Tag,
@@ -154,13 +164,13 @@ namespace StingTools.Core.Drawing
             // names so existing JSON (and the intent it records) survives.
             new AnnotationRuleKind(AutoTagRoomName, AnnotationPass.Tag,
                 "Room tag showing the room name (tag family's label decides the field).",
-                forcedCategory: "OST_Rooms"),
+                forcedCategory: "Rooms"),
             new AnnotationRuleKind(AutoTagRoomNumber, AnnotationPass.Tag,
                 "Room tag showing the room number (tag family's label decides the field).",
-                forcedCategory: "OST_Rooms"),
+                forcedCategory: "Rooms"),
             new AnnotationRuleKind(AutoAnnotateSpaceNumber, AnnotationPass.Tag,
                 "MEP space tag showing the space number.",
-                forcedCategory: "OST_MEPSpaces"),
+                forcedCategory: "Spaces"),
 
             // ── Dim pass ──
             new AnnotationRuleKind(AutoDim, AnnotationPass.Dim,
