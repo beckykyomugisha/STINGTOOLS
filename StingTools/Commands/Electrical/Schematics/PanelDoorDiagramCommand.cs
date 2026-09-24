@@ -140,11 +140,12 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 try
                 {
-                    int circNum = es
-                        .get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsInteger()
-                        ?? -1;
-                    if (circNum > 0 && !circuitBySlot.ContainsKey(circNum))
-                        circuitBySlot[circNum] = es;
+                    // The circuit number is TEXT - "5" single-pole, "1,3,5" three-pole.
+                    // AsInteger() on it always returned 0, so no circuit was ever
+                    // matched and every slot was drawn as SPARE.
+                    foreach (int slot in ParseCircuitSlots(es.CircuitNumber))
+                        if (!circuitBySlot.ContainsKey(slot))
+                            circuitBySlot[slot] = es;
                 }
                 catch (Exception ex)
                 {
@@ -275,6 +276,9 @@ namespace StingTools.Commands.Electrical.Schematics
         }
 
         // ---------------------------------------------------------------- helpers
+
+        private static List<int> ParseCircuitSlots(string circuitNumber)
+            => StingTools.Core.Electrical.CircuitSlotParser.Parse(circuitNumber);
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {
