@@ -1,4 +1,5 @@
-﻿# v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
+﻿# v3.14 | 20260924 | -56 Materials rows on NON-material parameters (mostly WARN_*, plus ASS_MANUFACTURER_TXT and five CST_*): LoadSharedParamsCommand.CleanMaterialBindings strips Materials from every parameter IsMaterialRelevantParam does not recognise, so each row claimed a binding that never happened, and a material tag reading one printed blank. param_binding_resolver.py now refuses such a row.
+# v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
 # v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
 # v3.11 | 20260916 | +14 bindings for tag rows that could never display: 8 Rooms (headroom/occupancy/ventilation/fire-escape, numeric + _TXT mirror), 4 Doors (type/operation/glazing-type/threshold), 2 Windows (vent area, was bound to Generic Models only). Found by tools/check_tag_row_bindings.py.
 # v3.10 | 20260808 | +2 STING_FINISH_* idempotency-stamp bindings on Floors (finish-floor creator, K-3)
@@ -860,7 +861,6 @@ BLE_MAT_L2_FUNC_TXT,Materials,Instance,True
 BLE_MAT_L2_MAT_TXT,Materials,Instance,True
 BLE_MAT_L2_THK_MM,Materials,Instance,True
 BLE_MAT_LAYER_CNT_INT,Materials,Instance,True
-ASS_MANUFACTURER_TXT,Materials,Instance,True
 BLE_MAT_NAME_TXT,Materials,Instance,True
 BLE_MAT_SPEC_TXT,Materials,Instance,True
 BLE_MAT_STANDARD_TXT,Materials,Instance,True
@@ -7598,7 +7598,6 @@ CST_PERCENTAGE_OF_TOTAL_PCT,Curtain Wall Mullions,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Doors,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Floors,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Generic Models,Type,True
-CST_PERCENTAGE_OF_TOTAL_PCT,Materials,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Ramps,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Roofs,Type,True
 CST_PERCENTAGE_OF_TOTAL_PCT,Rooms,Type,True
@@ -7616,7 +7615,6 @@ CST_S_EAR_CST_TOTAL_UGX_NR,Curtain Wall Mullions,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Doors,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Floors,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Generic Models,Type,True
-CST_S_EAR_CST_TOTAL_UGX_NR,Materials,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Ramps,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Roofs,Type,True
 CST_S_EAR_CST_TOTAL_UGX_NR,Rooms,Type,True
@@ -7632,7 +7630,6 @@ CST_S_EAR_DISPOSAL_VOLUME_CU_M,Curtain Wall Mullions,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Doors,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Floors,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Generic Models,Type,True
-CST_S_EAR_DISPOSAL_VOLUME_CU_M,Materials,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Ramps,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Roofs,Type,True
 CST_S_EAR_DISPOSAL_VOLUME_CU_M,Rooms,Type,True
@@ -7648,7 +7645,6 @@ CST_S_FRM_BEAM_LENGTH_M,Curtain Wall Mullions,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Doors,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Floors,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Generic Models,Type,True
-CST_S_FRM_BEAM_LENGTH_M,Materials,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Ramps,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Roofs,Type,True
 CST_S_FRM_BEAM_LENGTH_M,Rooms,Type,True
@@ -7664,7 +7660,6 @@ CST_TOTAL_EQUIPMENT_COST,Curtain Wall Mullions,Type,True
 CST_TOTAL_EQUIPMENT_COST,Doors,Type,True
 CST_TOTAL_EQUIPMENT_COST,Floors,Type,True
 CST_TOTAL_EQUIPMENT_COST,Generic Models,Type,True
-CST_TOTAL_EQUIPMENT_COST,Materials,Type,True
 CST_TOTAL_EQUIPMENT_COST,Ramps,Type,True
 CST_TOTAL_EQUIPMENT_COST,Roofs,Type,True
 CST_TOTAL_EQUIPMENT_COST,Rooms,Type,True
@@ -12757,7 +12752,6 @@ WARN_ASS_ROOM_AREA_MIN,Furniture Systems,Type,True
 WARN_ASS_ROOM_AREA_MIN,Generic Models,Type,True
 WARN_ASS_ROOM_AREA_MIN,Lighting Devices,Type,True
 WARN_ASS_ROOM_AREA_MIN,Lighting Fixtures,Type,True
-WARN_ASS_ROOM_AREA_MIN,Materials,Type,True
 WARN_ASS_ROOM_AREA_MIN,Mechanical Equipment,Type,True
 WARN_ASS_ROOM_AREA_MIN,Medical Equipment,Type,True
 WARN_ASS_ROOM_AREA_MIN,Nurse Call Devices,Type,True
@@ -12810,7 +12804,6 @@ WARN_ASS_ROOM_DAYLIGHT,Furniture Systems,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Generic Models,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Lighting Devices,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Lighting Fixtures,Type,True
-WARN_ASS_ROOM_DAYLIGHT,Materials,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Mechanical Equipment,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Medical Equipment,Type,True
 WARN_ASS_ROOM_DAYLIGHT,Nurse Call Devices,Type,True
@@ -12863,7 +12856,6 @@ WARN_ASS_ROOM_HEIGHT_MM,Furniture Systems,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Generic Models,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Lighting Devices,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Lighting Fixtures,Type,True
-WARN_ASS_ROOM_HEIGHT_MM,Materials,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Mechanical Equipment,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Medical Equipment,Type,True
 WARN_ASS_ROOM_HEIGHT_MM,Nurse Call Devices,Type,True
@@ -12916,7 +12908,6 @@ WARN_ASS_ROOM_VENTILATION,Furniture Systems,Type,True
 WARN_ASS_ROOM_VENTILATION,Generic Models,Type,True
 WARN_ASS_ROOM_VENTILATION,Lighting Devices,Type,True
 WARN_ASS_ROOM_VENTILATION,Lighting Fixtures,Type,True
-WARN_ASS_ROOM_VENTILATION,Materials,Type,True
 WARN_ASS_ROOM_VENTILATION,Mechanical Equipment,Type,True
 WARN_ASS_ROOM_VENTILATION,Medical Equipment,Type,True
 WARN_ASS_ROOM_VENTILATION,Nurse Call Devices,Type,True
@@ -12969,7 +12960,6 @@ WARN_BLE_CASEWORK_DEPTH_MM,Furniture Systems,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Generic Models,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Lighting Devices,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Lighting Fixtures,Type,True
-WARN_BLE_CASEWORK_DEPTH_MM,Materials,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Mechanical Equipment,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Medical Equipment,Type,True
 WARN_BLE_CASEWORK_DEPTH_MM,Nurse Call Devices,Type,True
@@ -13022,7 +13012,6 @@ WARN_BLE_CEIL_HEIGHT_MM,Furniture Systems,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Generic Models,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Lighting Devices,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Lighting Fixtures,Type,True
-WARN_BLE_CEIL_HEIGHT_MM,Materials,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Mechanical Equipment,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Medical Equipment,Type,True
 WARN_BLE_CEIL_HEIGHT_MM,Nurse Call Devices,Type,True
@@ -13075,7 +13064,6 @@ WARN_BLE_COLUMN_SLENDERNESS,Furniture Systems,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Generic Models,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Lighting Devices,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Lighting Fixtures,Type,True
-WARN_BLE_COLUMN_SLENDERNESS,Materials,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Mechanical Equipment,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Medical Equipment,Type,True
 WARN_BLE_COLUMN_SLENDERNESS,Nurse Call Devices,Type,True
@@ -13128,7 +13116,6 @@ WARN_BLE_CORRIDOR_WIDTH_MM,Furniture Systems,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Generic Models,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Lighting Devices,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Lighting Fixtures,Type,True
-WARN_BLE_CORRIDOR_WIDTH_MM,Materials,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Mechanical Equipment,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Medical Equipment,Type,True
 WARN_BLE_CORRIDOR_WIDTH_MM,Nurse Call Devices,Type,True
@@ -13181,7 +13168,6 @@ WARN_BLE_CW_PANEL_SHGC,Furniture Systems,Type,True
 WARN_BLE_CW_PANEL_SHGC,Generic Models,Type,True
 WARN_BLE_CW_PANEL_SHGC,Lighting Devices,Type,True
 WARN_BLE_CW_PANEL_SHGC,Lighting Fixtures,Type,True
-WARN_BLE_CW_PANEL_SHGC,Materials,Type,True
 WARN_BLE_CW_PANEL_SHGC,Mechanical Equipment,Type,True
 WARN_BLE_CW_PANEL_SHGC,Medical Equipment,Type,True
 WARN_BLE_CW_PANEL_SHGC,Nurse Call Devices,Type,True
@@ -13234,7 +13220,6 @@ WARN_BLE_CW_PANEL_U_VALUE,Furniture Systems,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Generic Models,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Lighting Devices,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Lighting Fixtures,Type,True
-WARN_BLE_CW_PANEL_U_VALUE,Materials,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Mechanical Equipment,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Medical Equipment,Type,True
 WARN_BLE_CW_PANEL_U_VALUE,Nurse Call Devices,Type,True
@@ -13287,7 +13272,6 @@ WARN_BLE_DOOR_ACOUSTIC,Furniture Systems,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Generic Models,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Lighting Devices,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Lighting Fixtures,Type,True
-WARN_BLE_DOOR_ACOUSTIC,Materials,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Mechanical Equipment,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Medical Equipment,Type,True
 WARN_BLE_DOOR_ACOUSTIC,Nurse Call Devices,Type,True
@@ -13340,7 +13324,6 @@ WARN_BLE_DOOR_HEIGHT_MM,Furniture Systems,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Generic Models,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Lighting Devices,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Lighting Fixtures,Type,True
-WARN_BLE_DOOR_HEIGHT_MM,Materials,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Mechanical Equipment,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Medical Equipment,Type,True
 WARN_BLE_DOOR_HEIGHT_MM,Nurse Call Devices,Type,True
@@ -13393,7 +13376,6 @@ WARN_BLE_ENTOURAGE_SCALE,Furniture Systems,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Generic Models,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Lighting Devices,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Lighting Fixtures,Type,True
-WARN_BLE_ENTOURAGE_SCALE,Materials,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Mechanical Equipment,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Medical Equipment,Type,True
 WARN_BLE_ENTOURAGE_SCALE,Nurse Call Devices,Type,True
@@ -13446,7 +13428,6 @@ WARN_BLE_FLR_LD_CAP_KPA,Furniture Systems,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Generic Models,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Lighting Devices,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Lighting Fixtures,Type,True
-WARN_BLE_FLR_LD_CAP_KPA,Materials,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Mechanical Equipment,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Medical Equipment,Type,True
 WARN_BLE_FLR_LD_CAP_KPA,Nurse Call Devices,Type,True
@@ -13499,7 +13480,6 @@ WARN_BLE_FURNITURE_CLEARANCE_MM,Furniture Systems,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Generic Models,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Lighting Devices,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Lighting Fixtures,Type,True
-WARN_BLE_FURNITURE_CLEARANCE_MM,Materials,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Mechanical Equipment,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Medical Equipment,Type,True
 WARN_BLE_FURNITURE_CLEARANCE_MM,Nurse Call Devices,Type,True
@@ -13552,7 +13532,6 @@ WARN_BLE_GENERIC_CLEARANCE_MM,Furniture Systems,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Generic Models,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Lighting Devices,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Lighting Fixtures,Type,True
-WARN_BLE_GENERIC_CLEARANCE_MM,Materials,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Mechanical Equipment,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Medical Equipment,Type,True
 WARN_BLE_GENERIC_CLEARANCE_MM,Nurse Call Devices,Type,True
@@ -13605,7 +13584,6 @@ WARN_BLE_PARKING_WIDTH_MM,Furniture Systems,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Generic Models,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Lighting Devices,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Lighting Fixtures,Type,True
-WARN_BLE_PARKING_WIDTH_MM,Materials,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Mechanical Equipment,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Medical Equipment,Type,True
 WARN_BLE_PARKING_WIDTH_MM,Nurse Call Devices,Type,True
@@ -13658,7 +13636,6 @@ WARN_BLE_RAIL_HEIGHT_MM,Furniture Systems,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Generic Models,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Lighting Devices,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Lighting Fixtures,Type,True
-WARN_BLE_RAIL_HEIGHT_MM,Materials,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Mechanical Equipment,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Medical Equipment,Type,True
 WARN_BLE_RAIL_HEIGHT_MM,Nurse Call Devices,Type,True
@@ -13711,7 +13688,6 @@ WARN_BLE_RAIL_LOAD_KN_M,Furniture Systems,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Generic Models,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Lighting Devices,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Lighting Fixtures,Type,True
-WARN_BLE_RAIL_LOAD_KN_M,Materials,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Mechanical Equipment,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Medical Equipment,Type,True
 WARN_BLE_RAIL_LOAD_KN_M,Nurse Call Devices,Type,True
@@ -13764,7 +13740,6 @@ WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Furniture Systems,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Generic Models,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Lighting Devices,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Lighting Fixtures,Type,True
-WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Materials,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Mechanical Equipment,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Medical Equipment,Type,True
 WARN_BLE_RAMP_SLOPE_PCT_RAMPS,Nurse Call Devices,Type,True
@@ -13817,7 +13792,6 @@ WARN_BLE_ROOF_SLOPE,Furniture Systems,Type,True
 WARN_BLE_ROOF_SLOPE,Generic Models,Type,True
 WARN_BLE_ROOF_SLOPE,Lighting Devices,Type,True
 WARN_BLE_ROOF_SLOPE,Lighting Fixtures,Type,True
-WARN_BLE_ROOF_SLOPE,Materials,Type,True
 WARN_BLE_ROOF_SLOPE,Mechanical Equipment,Type,True
 WARN_BLE_ROOF_SLOPE,Medical Equipment,Type,True
 WARN_BLE_ROOF_SLOPE,Nurse Call Devices,Type,True
@@ -13870,7 +13844,6 @@ WARN_BLE_SIGNAGE_HEIGHT_MM,Furniture Systems,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Generic Models,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Lighting Devices,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Lighting Fixtures,Type,True
-WARN_BLE_SIGNAGE_HEIGHT_MM,Materials,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Mechanical Equipment,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Medical Equipment,Type,True
 WARN_BLE_SIGNAGE_HEIGHT_MM,Nurse Call Devices,Type,True
@@ -13923,7 +13896,6 @@ WARN_BLE_STAIR_GOING,Furniture Systems,Type,True
 WARN_BLE_STAIR_GOING,Generic Models,Type,True
 WARN_BLE_STAIR_GOING,Lighting Devices,Type,True
 WARN_BLE_STAIR_GOING,Lighting Fixtures,Type,True
-WARN_BLE_STAIR_GOING,Materials,Type,True
 WARN_BLE_STAIR_GOING,Mechanical Equipment,Type,True
 WARN_BLE_STAIR_GOING,Medical Equipment,Type,True
 WARN_BLE_STAIR_GOING,Nurse Call Devices,Type,True
@@ -13976,7 +13948,6 @@ WARN_BLE_STAIR_HEADROOM_MM,Furniture Systems,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Generic Models,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Lighting Devices,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Lighting Fixtures,Type,True
-WARN_BLE_STAIR_HEADROOM_MM,Materials,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Mechanical Equipment,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Medical Equipment,Type,True
 WARN_BLE_STAIR_HEADROOM_MM,Nurse Call Devices,Type,True
@@ -14029,7 +14000,6 @@ WARN_BLE_STAIR_RISE,Furniture Systems,Type,True
 WARN_BLE_STAIR_RISE,Generic Models,Type,True
 WARN_BLE_STAIR_RISE,Lighting Devices,Type,True
 WARN_BLE_STAIR_RISE,Lighting Fixtures,Type,True
-WARN_BLE_STAIR_RISE,Materials,Type,True
 WARN_BLE_STAIR_RISE,Mechanical Equipment,Type,True
 WARN_BLE_STAIR_RISE,Medical Equipment,Type,True
 WARN_BLE_STAIR_RISE,Nurse Call Devices,Type,True
@@ -14082,7 +14052,6 @@ WARN_BLE_STAIR_WIDTH_MM,Furniture Systems,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Generic Models,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Lighting Devices,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Lighting Fixtures,Type,True
-WARN_BLE_STAIR_WIDTH_MM,Materials,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Mechanical Equipment,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Medical Equipment,Type,True
 WARN_BLE_STAIR_WIDTH_MM,Nurse Call Devices,Type,True
@@ -14135,7 +14104,6 @@ WARN_BLE_STRUCT_FDN_BEARING,Furniture Systems,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Generic Models,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Lighting Devices,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Lighting Fixtures,Type,True
-WARN_BLE_STRUCT_FDN_BEARING,Materials,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Mechanical Equipment,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Medical Equipment,Type,True
 WARN_BLE_STRUCT_FDN_BEARING,Nurse Call Devices,Type,True
@@ -14188,7 +14156,6 @@ WARN_BLE_STRUCT_LD_CAP,Furniture Systems,Type,True
 WARN_BLE_STRUCT_LD_CAP,Generic Models,Type,True
 WARN_BLE_STRUCT_LD_CAP,Lighting Devices,Type,True
 WARN_BLE_STRUCT_LD_CAP,Lighting Fixtures,Type,True
-WARN_BLE_STRUCT_LD_CAP,Materials,Type,True
 WARN_BLE_STRUCT_LD_CAP,Mechanical Equipment,Type,True
 WARN_BLE_STRUCT_LD_CAP,Medical Equipment,Type,True
 WARN_BLE_STRUCT_LD_CAP,Nurse Call Devices,Type,True
@@ -14241,7 +14208,6 @@ WARN_BLE_VERT_CIRC_LOAD,Furniture Systems,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Generic Models,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Lighting Devices,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Lighting Fixtures,Type,True
-WARN_BLE_VERT_CIRC_LOAD,Materials,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Mechanical Equipment,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Medical Equipment,Type,True
 WARN_BLE_VERT_CIRC_LOAD,Nurse Call Devices,Type,True
@@ -14294,7 +14260,6 @@ WARN_BLE_WALL_HEIGHT_RATIO,Furniture Systems,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Generic Models,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Lighting Devices,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Lighting Fixtures,Type,True
-WARN_BLE_WALL_HEIGHT_RATIO,Materials,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Mechanical Equipment,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Medical Equipment,Type,True
 WARN_BLE_WALL_HEIGHT_RATIO,Nurse Call Devices,Type,True
@@ -14347,7 +14312,6 @@ WARN_BLE_WINDOW_SHGC,Furniture Systems,Type,True
 WARN_BLE_WINDOW_SHGC,Generic Models,Type,True
 WARN_BLE_WINDOW_SHGC,Lighting Devices,Type,True
 WARN_BLE_WINDOW_SHGC,Lighting Fixtures,Type,True
-WARN_BLE_WINDOW_SHGC,Materials,Type,True
 WARN_BLE_WINDOW_SHGC,Mechanical Equipment,Type,True
 WARN_BLE_WINDOW_SHGC,Medical Equipment,Type,True
 WARN_BLE_WINDOW_SHGC,Nurse Call Devices,Type,True
@@ -14400,7 +14364,6 @@ WARN_BLE_WINDOW_U_VALUE,Furniture Systems,Type,True
 WARN_BLE_WINDOW_U_VALUE,Generic Models,Type,True
 WARN_BLE_WINDOW_U_VALUE,Lighting Devices,Type,True
 WARN_BLE_WINDOW_U_VALUE,Lighting Fixtures,Type,True
-WARN_BLE_WINDOW_U_VALUE,Materials,Type,True
 WARN_BLE_WINDOW_U_VALUE,Mechanical Equipment,Type,True
 WARN_BLE_WINDOW_U_VALUE,Medical Equipment,Type,True
 WARN_BLE_WINDOW_U_VALUE,Nurse Call Devices,Type,True
@@ -14458,7 +14421,6 @@ WARN_DOOR_FRR,Furniture Systems,Type,True
 WARN_DOOR_FRR,Generic Models,Type,True
 WARN_DOOR_FRR,Lighting Devices,Type,True
 WARN_DOOR_FRR,Lighting Fixtures,Type,True
-WARN_DOOR_FRR,Materials,Type,True
 WARN_DOOR_FRR,Mechanical Equipment,Type,True
 WARN_DOOR_FRR,Medical Equipment,Type,True
 WARN_DOOR_FRR,Nurse Call Devices,Type,True
@@ -14592,7 +14554,6 @@ WARN_FAB_HANGER_LOAD_KN,Furniture Systems,Type,True
 WARN_FAB_HANGER_LOAD_KN,Generic Models,Type,True
 WARN_FAB_HANGER_LOAD_KN,Lighting Devices,Type,True
 WARN_FAB_HANGER_LOAD_KN,Lighting Fixtures,Type,True
-WARN_FAB_HANGER_LOAD_KN,Materials,Type,True
 WARN_FAB_HANGER_LOAD_KN,Mechanical Equipment,Type,True
 WARN_FAB_HANGER_LOAD_KN,Medical Equipment,Type,True
 WARN_FAB_HANGER_LOAD_KN,Nurse Call Devices,Type,True
@@ -14798,7 +14759,6 @@ WARN_INS_THICKNESS_MM,Furniture Systems,Type,True
 WARN_INS_THICKNESS_MM,Generic Models,Type,True
 WARN_INS_THICKNESS_MM,Lighting Devices,Type,True
 WARN_INS_THICKNESS_MM,Lighting Fixtures,Type,True
-WARN_INS_THICKNESS_MM,Materials,Type,True
 WARN_INS_THICKNESS_MM,Mechanical Equipment,Type,True
 WARN_INS_THICKNESS_MM,Medical Equipment,Type,True
 WARN_INS_THICKNESS_MM,Nurse Call Devices,Type,True
@@ -14941,7 +14901,6 @@ WARN_MNT_ACCESS_CLEARANCE,Furniture Systems,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Generic Models,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Lighting Devices,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Lighting Fixtures,Type,True
-WARN_MNT_ACCESS_CLEARANCE,Materials,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Mechanical Equipment,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Medical Equipment,Type,True
 WARN_MNT_ACCESS_CLEARANCE,Nurse Call Devices,Type,True
@@ -14994,7 +14953,6 @@ WARN_MNT_SERVICE_SPACE,Furniture Systems,Type,True
 WARN_MNT_SERVICE_SPACE,Generic Models,Type,True
 WARN_MNT_SERVICE_SPACE,Lighting Devices,Type,True
 WARN_MNT_SERVICE_SPACE,Lighting Fixtures,Type,True
-WARN_MNT_SERVICE_SPACE,Materials,Type,True
 WARN_MNT_SERVICE_SPACE,Mechanical Equipment,Type,True
 WARN_MNT_SERVICE_SPACE,Medical Equipment,Type,True
 WARN_MNT_SERVICE_SPACE,Nurse Call Devices,Type,True
@@ -15047,7 +15005,6 @@ WARN_PER_ACOUSTIC_FLOOR_IIC,Furniture Systems,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Generic Models,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Lighting Devices,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Lighting Fixtures,Type,True
-WARN_PER_ACOUSTIC_FLOOR_IIC,Materials,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Mechanical Equipment,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Medical Equipment,Type,True
 WARN_PER_ACOUSTIC_FLOOR_IIC,Nurse Call Devices,Type,True
@@ -15100,7 +15057,6 @@ WARN_PER_ACOUSTIC_WALL_STC,Furniture Systems,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Generic Models,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Lighting Devices,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Lighting Fixtures,Type,True
-WARN_PER_ACOUSTIC_WALL_STC,Materials,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Mechanical Equipment,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Medical Equipment,Type,True
 WARN_PER_ACOUSTIC_WALL_STC,Nurse Call Devices,Type,True
@@ -15153,7 +15109,6 @@ WARN_PER_RECYCLABILITY_LOW,Furniture Systems,Type,True
 WARN_PER_RECYCLABILITY_LOW,Generic Models,Type,True
 WARN_PER_RECYCLABILITY_LOW,Lighting Devices,Type,True
 WARN_PER_RECYCLABILITY_LOW,Lighting Fixtures,Type,True
-WARN_PER_RECYCLABILITY_LOW,Materials,Type,True
 WARN_PER_RECYCLABILITY_LOW,Mechanical Equipment,Type,True
 WARN_PER_RECYCLABILITY_LOW,Medical Equipment,Type,True
 WARN_PER_RECYCLABILITY_LOW,Nurse Call Devices,Type,True
@@ -15206,7 +15161,6 @@ WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Furniture Systems,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Generic Models,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Lighting Devices,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Lighting Fixtures,Type,True
-WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Materials,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Mechanical Equipment,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Medical Equipment,Type,True
 WARN_PER_SUST_CARBON_FOOTPRINT_KG_WALLS__FLOORS__,Nurse Call Devices,Type,True
@@ -15259,7 +15213,6 @@ WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Furniture Systems,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Generic Models,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Lighting Devices,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Lighting Fixtures,Type,True
-WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Materials,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Mechanical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Medical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_FLOORS,Nurse Call Devices,Type,True
@@ -15312,7 +15265,6 @@ WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Furniture Systems,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Generic Models,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Lighting Devices,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Lighting Fixtures,Type,True
-WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Materials,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Mechanical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Medical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_ROOFS,Nurse Call Devices,Type,True
@@ -15365,7 +15317,6 @@ WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Furniture Systems,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Generic Models,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Lighting Devices,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Lighting Fixtures,Type,True
-WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Materials,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Mechanical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Medical Equipment,Type,True
 WARN_PER_THERM_U_VALUE_W_M2K_NR_WALLS,Nurse Call Devices,Type,True
@@ -15418,7 +15369,6 @@ WARN_PER_VOC_EMISSIONS,Furniture Systems,Type,True
 WARN_PER_VOC_EMISSIONS,Generic Models,Type,True
 WARN_PER_VOC_EMISSIONS,Lighting Devices,Type,True
 WARN_PER_VOC_EMISSIONS,Lighting Fixtures,Type,True
-WARN_PER_VOC_EMISSIONS,Materials,Type,True
 WARN_PER_VOC_EMISSIONS,Mechanical Equipment,Type,True
 WARN_PER_VOC_EMISSIONS,Medical Equipment,Type,True
 WARN_PER_VOC_EMISSIONS,Nurse Call Devices,Type,True
@@ -15541,7 +15491,6 @@ WARN_RGL_ACCESSIBLE_WC,Furniture Systems,Type,True
 WARN_RGL_ACCESSIBLE_WC,Generic Models,Type,True
 WARN_RGL_ACCESSIBLE_WC,Lighting Devices,Type,True
 WARN_RGL_ACCESSIBLE_WC,Lighting Fixtures,Type,True
-WARN_RGL_ACCESSIBLE_WC,Materials,Type,True
 WARN_RGL_ACCESSIBLE_WC,Mechanical Equipment,Type,True
 WARN_RGL_ACCESSIBLE_WC,Medical Equipment,Type,True
 WARN_RGL_ACCESSIBLE_WC,Nurse Call Devices,Type,True
@@ -15594,7 +15543,6 @@ WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Furniture Systems,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Generic Models,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Lighting Devices,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Lighting Fixtures,Type,True
-WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Materials,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Mechanical Equipment,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Medical Equipment,Type,True
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,Nurse Call Devices,Type,True
@@ -15647,7 +15595,6 @@ WARN_RGL_LIFT_CAR_SIZE,Furniture Systems,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Generic Models,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Lighting Devices,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Lighting Fixtures,Type,True
-WARN_RGL_LIFT_CAR_SIZE,Materials,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Mechanical Equipment,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Medical Equipment,Type,True
 WARN_RGL_LIFT_CAR_SIZE,Nurse Call Devices,Type,True
@@ -15700,7 +15647,6 @@ WARN_ROAD_GRADIENT_PCT,Furniture Systems,Type,True
 WARN_ROAD_GRADIENT_PCT,Generic Models,Type,True
 WARN_ROAD_GRADIENT_PCT,Lighting Devices,Type,True
 WARN_ROAD_GRADIENT_PCT,Lighting Fixtures,Type,True
-WARN_ROAD_GRADIENT_PCT,Materials,Type,True
 WARN_ROAD_GRADIENT_PCT,Mechanical Equipment,Type,True
 WARN_ROAD_GRADIENT_PCT,Medical Equipment,Type,True
 WARN_ROAD_GRADIENT_PCT,Nurse Call Devices,Type,True
@@ -15753,7 +15699,6 @@ WARN_SITE_BEARING_CAP_KPA,Furniture Systems,Type,True
 WARN_SITE_BEARING_CAP_KPA,Generic Models,Type,True
 WARN_SITE_BEARING_CAP_KPA,Lighting Devices,Type,True
 WARN_SITE_BEARING_CAP_KPA,Lighting Fixtures,Type,True
-WARN_SITE_BEARING_CAP_KPA,Materials,Type,True
 WARN_SITE_BEARING_CAP_KPA,Mechanical Equipment,Type,True
 WARN_SITE_BEARING_CAP_KPA,Medical Equipment,Type,True
 WARN_SITE_BEARING_CAP_KPA,Nurse Call Devices,Type,True

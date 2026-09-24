@@ -241,6 +241,20 @@ if mat_orphans:
         "Either give them a real category in resolve(), or add their prefix to "
         "IsMaterialRelevantParam in StingTools/Tags/LoadSharedParamsCommand.cs."
         % (len(mat_orphans), "\n  ".join(sorted(mat_orphans)[:20])))
+# The same lie in the INPUT. A "Materials" row in CATEGORY_BINDINGS.csv for a parameter
+# IsMaterialRelevantParam does not recognise is dropped at load (CleanMaterialBindings
+# removes Materials from every non-material parameter), so the row claims a binding that
+# never happens. 56 such rows sat there - mostly WARN_* parameters bound to a broad list
+# that happened to include Materials - and the check above missed them because those
+# parameters resolve to more than Materials. A material TAG reading one prints blank.
+stray_mat=sorted(n for n,cs in catb.items() if "Materials" in cs and not material_relevant(n))
+if stray_mat:
+    raise SystemExit(
+        "%d CATEGORY_BINDINGS.csv row(s) bind a non-material parameter to Materials, which "
+        "CleanMaterialBindings strips at load:\n  %s\n"
+        "Remove the Materials row, or add the prefix to IsMaterialRelevantParam in "
+        "StingTools/Tags/LoadSharedParamsCommand.cs if it really is a material property."
+        % (len(stray_mat), "\n  ".join(stray_mat[:20])))
 scoped=sum(1 for o in out if o[3] not in("","<ALL>")); univ=sum(1 for o in out if o[3]=="<ALL>"); unb=sum(1 for o in out if o[3]=="")
 gaps=[o for o in out if o[2].startswith("UNRESOLVED")]
 print("resolution source:")

@@ -74,6 +74,15 @@ SCHED = os.path.join(ROOT, 'StingTools', 'Data', 'SCHEDULE_SPEC_all_disciplines.
 LABELS_FOR_CATS = LABELS
 
 
+# <ALL> is not "every category" for one of them. LoadSharedParamsCommand.
+# CleanMaterialBindings removes Materials from every parameter IsMaterialRelevantParam
+# does not recognise, so an <ALL> parameter is NEVER on a material. Counting it as bound
+# there is how STING - Materials Tag shipped 68 label rows, not one of which could print,
+# while this gate reported zero dead rows. For Materials only an explicit Materials
+# binding counts.
+NOT_REACHED_BY_ALL = {'Materials'}
+
+
 def load_universal():
     """Parameters bound to every category. Only the <ALL> set is taken from here."""
     out = set()
@@ -133,7 +142,7 @@ def audit():
                 if not p:
                     continue
                 total_rows += 1
-                if p in universal:
+                if p in universal and cat not in NOT_REACHED_BY_ALL:
                     continue
                 cs = bound.get(p)
                 if cs is None:
@@ -207,7 +216,7 @@ def schedule_audit(universal, bound):
             elif isinstance(val, list):
                 cols.update(x for x in val if isinstance(x, str))
         for c in sorted(cols):
-            if not (c.isupper() and '_' in c) or c in universal:
+            if not (c.isupper() and '_' in c) or (c in universal and cat not in NOT_REACHED_BY_ALL):
                 continue
             if cat not in bound.get(c, set()):
                 dead.append((cat, c))
