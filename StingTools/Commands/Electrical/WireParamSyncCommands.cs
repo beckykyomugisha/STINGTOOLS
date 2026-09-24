@@ -6,7 +6,7 @@
 // Gap 1  — WireParamStampCommand:    stamp single conduit from connected circuit
 // Gap 2  — BatchWireParamPopulate:   batch stamp all conduits in view / selection
 // Gap 3  — WireVDSyncCommand:        run VoltageDropEngine + write ELC_WIRE_VD_PCT_NUM
-// Gap 4  — WireCableSizerSyncCommand: run CableSizerEngine + write CSA/Iz/method
+// Gap 4  — WireCableSizerSyncCommand: run CableSizerEngine + write CSA/VD/breaker (Iz not reported by the sizer)
 // Gap 8  — ConduitCircuitIndex:       session-cached connector-graph lookup
 // Gap 9  — WireHomeRunFullCommand:    BFS full conduit run; corrects panel-side end
 // Gap 11 — WireCpcSizerCommand:       BS 7671 Table 54.7 CPC / earth sizing
@@ -63,67 +63,53 @@ namespace StingTools.Commands.Electrical
     /// </summary>
     internal static class ConduitCircuitIndex
     {
-        private static Dictionary<string, ElementId> _map = new Dictionary<string, ElementId>();
+        // Only HITS are cached. A miss ("no circuit") is usually something the user
+        // is about to fix — connect the run, circuit the device — and a cached miss
+        // survived that fix for the whole session, so the re-run reported the same
+        // stale "no circuit". Commands also Invalidate() at the start of every run.
+        private static Dictionary<string, ElementId> _map =
+            new Dictionary<string, ElementId>();
         // Cache key: "documentTitle|documentPath" to handle unsaved docs and path changes
         private static string _docKey = null;
 
         public static void Invalidate() { _map.Clear(); _docKey = null; }
 
-        public static ElementId Resolve(Document doc, Element conduit)
+        public static ElementId Resolve(Document doc, Element conduit) => Resolve(doc, conduit, out _);
+
+        /// <summary>
+        /// ELEC-9 — the circuit a conduit carries, via the shared
+        /// <see cref="StingTools.Core.Electrical.ConduitCircuitResolver"/> (walks the
+        /// conduit/fitting graph to the devices and panels at the ends of the run).
+        /// The previous walk accepted only a connector owned by an ElectricalSystem,
+        /// which a conduit connector never is, so it could not find anything.
+        /// </summary>
+        public static ElementId Resolve(Document doc, Element conduit, out string reason)
         {
             // Reset cache when document changes (key on both path and title for unsaved docs)
             string docKey = $"{doc.Title}|{doc.PathName}";
             if (docKey != _docKey) { _map.Clear(); _docKey = docKey; }
 
-            if (_map.TryGetValue(conduit.UniqueId, out var cached)) return cached;
+            if (_map.TryGetValue(conduit.UniqueId, out var cached))
+            {
+                reason = "";
+                return cached;
+            }
 
-            var id = FindCircuitId(conduit);
-            _map[conduit.UniqueId] = id;
-            return id;
-        }
-
-        private static ElementId FindCircuitId(Element conduit)
-        {
+            ElementId id = ElementId.InvalidElementId;
+            reason = "";
             try
             {
-                var connMgr = (conduit as MEPCurve)?.ConnectorManager;
-                if (connMgr == null) return ElementId.InvalidElementId;
-
-                // BFS through connector graph up to depth 4 to find any ElectricalSystem.
-                // Key visited set on (ownerElementId, connectorId) — conn.Id is an int
-                // that is only unique within a single element's connector set, not globally.
-                var visited = new HashSet<(long, int)>();
-                var queue = new Queue<Connector>();
-                foreach (Connector c in connMgr.Connectors) queue.Enqueue(c);
-
-                int depth = 0;
-                while (queue.Count > 0 && depth < 4)
-                {
-                    int levelCount = queue.Count;
-                    depth++;
-                    for (int i = 0; i < levelCount; i++)
-                    {
-                        var conn = queue.Dequeue();
-                        if (conn == null) continue;
-                        var visitKey = (conn.Owner?.Id.Value ?? -1L, conn.Id);
-                        if (!visited.Add(visitKey)) continue;
-
-                        if (conn.IsConnected)
-                        {
-                            foreach (Connector ref_ in conn.AllRefs)
-                            {
-                                if (ref_.Owner is ElectricalSystem sys)
-                                    return sys.Id;
-                                var refKey = (ref_.Owner?.Id.Value ?? -1L, ref_.Id);
-                                if (!visited.Contains(refKey))
-                                    queue.Enqueue(ref_);
-                            }
-                        }
-                    }
-                }
+                var r = StingTools.Core.Electrical.ConduitCircuitResolver.ResolveWithReason(conduit);
+                if (r.Circuit != null) id = r.Circuit.Id;
+                else reason = r.Reason;
             }
-            catch { }
-            return ElementId.InvalidElementId;
+            catch (Exception ex)
+            {
+                reason = "circuit lookup failed: " + ex.Message;
+                StingLog.Warn($"ConduitCircuitIndex {conduit.Id}: {ex.Message}");
+            }
+            if (id != ElementId.InvalidElementId) _map[conduit.UniqueId] = id;
+            return id;
         }
     }
 
@@ -147,6 +133,43 @@ namespace StingTools.Commands.Electrical
         public bool   IsArmoured;
         public bool   IsShielded;
         public bool   Valid;
+        /// <summary>Why no circuit was found, when <see cref="Valid"/> is false.</summary>
+        public string NoCircuitReason;
+    }
+
+    /// <summary>
+    /// What a stamp actually did. A parameter that is not bound to the Conduits
+    /// category (ELC_PNL_NAME_TXT, for one) cannot be written, and counting it as
+    /// stamped is how the old command reported success while writing nothing.
+    /// </summary>
+    internal sealed class WireStampWriteReport
+    {
+        public int Written;
+        public readonly HashSet<string> Unbound  = new HashSet<string>(StringComparer.Ordinal);
+        public readonly HashSet<string> ReadOnly = new HashSet<string>(StringComparer.Ordinal);
+        public readonly List<string> Failed = new List<string>();
+
+        public void Merge(WireStampWriteReport o)
+        {
+            if (o == null) return;
+            Written += o.Written;
+            Unbound.UnionWith(o.Unbound);
+            ReadOnly.UnionWith(o.ReadOnly);
+            Failed.AddRange(o.Failed);
+        }
+
+        public string Describe()
+        {
+            var sb = new System.Text.StringBuilder();
+            if (Unbound.Count > 0)
+                sb.Append("\nNot bound to Conduits (nothing written — bind these shared parameters to the "
+                          + "Conduits category to stamp them):\n  " + string.Join(", ", Unbound.OrderBy(x => x)));
+            if (ReadOnly.Count > 0)
+                sb.Append("\nRead-only (not written): " + string.Join(", ", ReadOnly.OrderBy(x => x)));
+            if (Failed.Count > 0)
+                sb.Append($"\n{Failed.Count} write(s) failed — see the STING log.");
+            return sb.ToString();
+        }
     }
 
     internal static class WireStampHelper
@@ -168,7 +191,8 @@ namespace StingTools.Commands.Electrical
             // Primary source: connected ElectricalSystem
             try
             {
-                var sysId = ConduitCircuitIndex.Resolve(doc, conduit);
+                var sysId = ConduitCircuitIndex.Resolve(doc, conduit, out string why);
+                d.NoCircuitReason = why;
                 if (sysId != ElementId.InvalidElementId)
                 {
                     var sys = doc.GetElement(sysId) as ElectricalSystem;
@@ -184,21 +208,12 @@ namespace StingTools.Commands.Electrical
                         // available (not present in all Revit API versions); falls back to
                         // checking the DistributionSystemType parameter via a shared-parameter
                         // look-up which is cheaper than a full reflection walk.
+                        // ElectricalSystem.PolesNumber is the API property. The previous
+                        // reflection lookup asked for "NumberOfPoles", which does not
+                        // exist, so every circuit read as single-phase.
                         int numPoles = 1;
-                        try
-                        {
-                            var polesProp = sys.GetType().GetProperty("NumberOfPoles");
-                            if (polesProp != null)
-                                numPoles = (int)polesProp.GetValue(sys);
-                            else
-                            {
-                                // Fallback: read ELC_PHASE_COUNT_INT if set by the wire-param sync
-                                var phasePar = sys.LookupParameter("ELC_PHASE_COUNT_INT");
-                                if (phasePar != null && phasePar.StorageType == Autodesk.Revit.DB.StorageType.Integer)
-                                    numPoles = phasePar.AsInteger();
-                            }
-                        }
-                        catch { }
+                        try { numPoles = sys.PolesNumber; }
+                        catch (Exception ex) { StingLog.Warn($"WireStampHelper PolesNumber {sys.Id}: {ex.Message}"); }
                         bool isThreePhase = numPoles >= 3;
 
                         // SystemType string compared case-insensitively to handle API
@@ -235,12 +250,15 @@ namespace StingTools.Commands.Electrical
                         }
 
                         // Panel name from base equipment
-                        try
-                        {
-                            var panel = sys.BaseEquipment;
-                            d.PanelName = panel?.Name ?? "";
-                        }
+                        // ElectricalSystem.PanelName is the panel's Panel Name. The
+                        // BaseEquipment's .Name is its TYPE name, shared by every board of
+                        // that type, which is what used to be stamped.
+                        try { d.PanelName = sys.PanelName ?? ""; }
                         catch { d.PanelName = ""; }
+                        if (string.IsNullOrEmpty(d.PanelName))
+                        {
+                            try { d.PanelName = sys.BaseEquipment?.Name ?? ""; } catch { d.PanelName = ""; }
+                        }
 
                         d.Valid = true;
                     }
@@ -254,41 +272,90 @@ namespace StingTools.Commands.Electrical
             return d;
         }
 
-        /// <summary>Write WireStampData fields to conduit ELC_WIRE_* shared params.</summary>
-        public static void WriteToConduit(Element conduit, WireStampData d)
+        /// <summary>
+        /// Write WireStampData fields to conduit ELC_WIRE_* shared params, and say
+        /// what actually happened. A parameter the conduit does not carry (not bound
+        /// to Conduits — ELC_PNL_NAME_TXT, for one) is reported, never counted.
+        /// </summary>
+        public static WireStampWriteReport WriteToConduit(Element conduit, WireStampData d)
         {
+            var r = new WireStampWriteReport();
             if (!string.IsNullOrEmpty(d.Phase))
-                ParameterHelpers.SetString(conduit, "ELC_WIRE_PHASE_TXT", d.Phase, true);
+                WriteString(conduit, "ELC_WIRE_PHASE_TXT", d.Phase, true, r);
             if (d.CoreCount > 0)
-                SetInt(conduit, "ELC_WIRE_CORE_COUNT_INT", d.CoreCount);
+                WriteNumber(conduit, "ELC_WIRE_CORE_COUNT_INT", d.CoreCount, r);
             if (d.CsaMm2 > 0)
-                SetDouble(conduit, "ELC_WIRE_CSA_MM2_NUM", d.CsaMm2);
+                WriteNumber(conduit, "ELC_WIRE_CSA_MM2_NUM", d.CsaMm2, r);
             if (!string.IsNullOrEmpty(d.ConductorMat))
-                ParameterHelpers.SetString(conduit, "ELC_WIRE_COND_MAT_TXT", d.ConductorMat, false);
+                WriteString(conduit, "ELC_WIRE_COND_MAT_TXT", d.ConductorMat, false, r);
             if (!string.IsNullOrEmpty(d.CircuitNumber))
-                ParameterHelpers.SetString(conduit, "ELC_CKT_NR", d.CircuitNumber, true);
+                WriteString(conduit, "ELC_CKT_NR", d.CircuitNumber, true, r);
             if (!string.IsNullOrEmpty(d.PanelName))
-                ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", d.PanelName, false);
+                WriteString(conduit, "ELC_PNL_NAME_TXT", d.PanelName, false, r);
             if (!string.IsNullOrEmpty(d.CircuitType))
-                ParameterHelpers.SetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT", d.CircuitType, false);
+                WriteString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT", d.CircuitType, false, r);
             if (!string.IsNullOrEmpty(d.InstallMethod))
-                ParameterHelpers.SetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT", d.InstallMethod, false);
+                WriteString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT", d.InstallMethod, false, r);
             if (d.MaxDemandA > 0)
-                SetDouble(conduit, "ELC_WIRE_MAX_DEMAND_A", d.MaxDemandA);
+                WriteNumber(conduit, "ELC_WIRE_MAX_DEMAND_A", d.MaxDemandA, r);
             if (d.AmpacityA > 0)
-                SetDouble(conduit, "ELC_WIRE_AMPACITY_A", d.AmpacityA);
+                WriteNumber(conduit, "ELC_WIRE_AMPACITY_A", d.AmpacityA, r);
+            return r;
         }
 
-        private static void SetDouble(Element el, string name, double v)
+        /// <summary>Writes a string; with overwrite=false an existing value is kept
+        /// (neither an error nor a write).</summary>
+        internal static void WriteString(Element el, string name, string v, bool overwrite, WireStampWriteReport r)
         {
-            try { var p = el.LookupParameter(name); if (p != null && !p.IsReadOnly) p.Set(v); }
-            catch { }
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null) { r.Unbound.Add(name); return; }
+                if (p.IsReadOnly) { r.ReadOnly.Add(name); return; }
+                if (p.StorageType != StorageType.String)
+                {
+                    // ELC_CKT_NR is declared NUMBER in MR_PARAMETERS.txt, so it is a
+                    // Double, not text. Refusing every non-text parameter meant the
+                    // circuit number was never written and every stamp reported a
+                    // failed write. ParameterHelpers.SetString writes unitless
+                    // numbers / integers / yes-no and refuses anything it cannot
+                    // parse (a multi-pole "1,3,5", a measured quantity) — that
+                    // refusal is still reported as a failure here, not swallowed.
+                    if (!overwrite && p.HasValue) return;
+                    if (ParameterHelpers.SetString(el, name, v, true)) r.Written++;
+                    else
+                    {
+                        r.Failed.Add(name);
+                        StingLog.Warn($"WireStamp {el.Id}: {name} is {p.StorageType}; '{v}' could not be written as a number");
+                    }
+                    return;
+                }
+                if (!overwrite && !string.IsNullOrEmpty(p.AsString())) return;
+                if (p.Set(v)) r.Written++; else r.Failed.Add(name);
+            }
+            catch (Exception ex) { r.Failed.Add(name); StingLog.Warn($"WireStamp {el.Id} {name}: {ex.Message}"); }
         }
 
-        private static void SetInt(Element el, string name, int v)
+        /// <summary>Writes a number to a Double, Integer or text parameter.</summary>
+        internal static void WriteNumber(Element el, string name, double v, WireStampWriteReport r)
         {
-            try { var p = el.LookupParameter(name); if (p != null && !p.IsReadOnly) p.Set(v); }
-            catch { }
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null) { r.Unbound.Add(name); return; }
+                if (p.IsReadOnly) { r.ReadOnly.Add(name); return; }
+                bool ok;
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:  ok = p.Set(v); break;
+                    case StorageType.Integer: ok = p.Set((int)Math.Round(v)); break;
+                    case StorageType.String:
+                        ok = p.Set(v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)); break;
+                    default: ok = false; break;
+                }
+                if (ok) r.Written++; else r.Failed.Add(name);
+            }
+            catch (Exception ex) { r.Failed.Add(name); StingLog.Warn($"WireStamp {el.Id} {name}: {ex.Message}"); }
         }
     }
 
@@ -315,25 +382,34 @@ namespace StingTools.Commands.Electrical
             var conduit = doc.GetElement(picked.ElementId);
             if (conduit == null) { message = "Invalid element."; return Result.Failed; }
 
+            ConduitCircuitIndex.Invalidate(); // the model may have changed since the last run
             var wsd = WireStampHelper.FromConduit(doc, conduit);
             if (!wsd.Valid)
             {
-                TaskDialog.Show("Wire Stamp", "No connected ElectricalSystem found on this conduit. "
-                    + "Ensure it is routed and circuit-connected before stamping.");
+                TaskDialog.Show("Wire Stamp", "No circuit found for this conduit: "
+                    + (string.IsNullOrEmpty(wsd.NoCircuitReason) ? "reason unknown" : wsd.NoCircuitReason)
+                    + ".\n\nThe circuit is found by following the conduit run to the device or panel "
+                    + "at its ends. Make sure the run is connected and the device is on a circuit.");
                 return Result.Succeeded;
             }
 
-            using var tx = new Transaction(doc, "STING Stamp Wire Params");
-            tx.Start();
-            WireStampHelper.WriteToConduit(conduit, wsd);
-            tx.Commit();
+            WireStampWriteReport report;
+            using (var tx = new Transaction(doc, "STING Stamp Wire Params"))
+            {
+                tx.Start();
+                report = WireStampHelper.WriteToConduit(conduit, wsd);
+                tx.Commit();
+            }
 
             ConduitCircuitIndex.Invalidate(); // clear cache after write
+            StingLog.Info($"WireParamStamp: conduit {conduit.Id} → circuit {wsd.CircuitNumber}, {report.Written} parameter(s) written");
 
-            TaskDialog.Show("Wire Stamp", $"Stamped:\n"
-                + $"  Circuit: {wsd.CircuitNumber}  Panel: {wsd.PanelName}\n"
+            TaskDialog.Show("Wire Stamp",
+                  $"Circuit: {wsd.CircuitNumber}  Panel: {wsd.PanelName}\n"
                 + $"  Phase: {wsd.Phase}  Cores: {wsd.CoreCount}  Mat: {wsd.ConductorMat}\n"
-                + $"  Max demand: {wsd.MaxDemandA:0.0} A");
+                + $"  Max demand: {wsd.MaxDemandA:0.0} A\n\n"
+                + $"{report.Written} parameter(s) written."
+                + report.Describe());
             return Result.Succeeded;
         }
     }
@@ -381,18 +457,37 @@ namespace StingTools.Commands.Electrical
                 return Result.Succeeded;
             }
 
-            int stamped = 0, skipped = 0;
+            // "Stamped" means at least one parameter was actually written. A conduit
+            // whose circuit was found but whose parameters are all unbound is counted
+            // separately, not as stamped.
+            ConduitCircuitIndex.Invalidate(); // the model may have changed since the last run
+            int stamped = 0, nothingWritten = 0, skipped = 0;
+            var skipReasons = new Dictionary<string, int>(StringComparer.Ordinal);
+            var total = new WireStampWriteReport();
             var progress = StingProgressDialog.Show("Batch Wire Stamp", conduits.Count);
             try
             {
+                // Stamping writes parameters only — circuits and connectivity are
+                // unchanged — so circuit/endpoint reads are shared across the batch.
+                using var batch = StingTools.Core.Electrical.ConduitCircuitResolver.BeginBatch();
                 using var tx = new Transaction(doc, "STING Batch Stamp Wire Params");
                 tx.Start();
                 foreach (var conduit in conduits)
                 {
                     if (progress?.IsCancelled == true) break;
                     var wsd = WireStampHelper.FromConduit(doc, conduit);
-                    if (wsd.Valid) { WireStampHelper.WriteToConduit(conduit, wsd); stamped++; }
-                    else skipped++;
+                    if (wsd.Valid)
+                    {
+                        var r = WireStampHelper.WriteToConduit(conduit, wsd);
+                        total.Merge(r);
+                        if (r.Written > 0) stamped++; else nothingWritten++;
+                    }
+                    else
+                    {
+                        skipped++;
+                        string why = string.IsNullOrEmpty(wsd.NoCircuitReason) ? "reason unknown" : wsd.NoCircuitReason;
+                        skipReasons[why] = skipReasons.TryGetValue(why, out int n) ? n + 1 : 1;
+                    }
                     progress?.Increment(conduit.Name ?? "conduit");
                 }
                 tx.Commit();
@@ -400,8 +495,17 @@ namespace StingTools.Commands.Electrical
             finally { progress?.Close(); }
 
             ConduitCircuitIndex.Invalidate();
-            TaskDialog.Show("Batch Wire Stamp",
-                $"Stamped: {stamped} conduits\nSkipped (no circuit): {skipped} conduits");
+            StingLog.Info($"BatchWireParamPopulate: {stamped} stamped, {nothingWritten} nothing written, {skipped} no circuit");
+
+            var msg = new System.Text.StringBuilder();
+            msg.AppendLine($"Stamped: {stamped} conduit(s) ({total.Written} parameter value(s) written)");
+            if (nothingWritten > 0)
+                msg.AppendLine($"Circuit found but nothing written: {nothingWritten} conduit(s)");
+            msg.AppendLine($"Skipped (no circuit): {skipped} conduit(s)");
+            foreach (var kv in skipReasons.OrderByDescending(k => k.Value).Take(5))
+                msg.AppendLine($"  • {kv.Value} × {kv.Key}");
+            msg.Append(total.Describe());
+            TaskDialog.Show("Batch Wire Stamp", msg.ToString());
             return Result.Succeeded;
         }
     }
@@ -476,13 +580,18 @@ namespace StingTools.Commands.Electrical
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Gap 4 — Cable sizer write-back: run CableSizerEngine, stamp CSA/Iz/method
+    // Gap 4 — Cable sizer write-back: run CableSizerEngine, stamp CSA / VD / breaker
     // ─────────────────────────────────────────────────────────────────────────
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public sealed class WireCableSizerSyncCommand : IExternalCommand
     {
+        /// <summary>The method assumed when ELC_WIRE_INSTALL_METHOD_TXT is empty —
+        /// BS 7671 reference method C (clipped direct), the only Table 4D2A column
+        /// shipped in the sizing data.</summary>
+        internal const string DefaultInstallMethod = "C";
+
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(data);
@@ -506,7 +615,12 @@ namespace StingTools.Commands.Electrical
             // BS 7671 whatever the panel said.
             string activeStandard = StingTools.Standards.ElectricalStandardId.Normalise(
                 StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
-            int sized = 0, refused = 0;
+            int sized = 0, refused = 0, noParam = 0, methodAssumed = 0;
+            // Group refusals by the engine's own reason. The old dialog printed
+            // "<standard> conductor sizing is not implemented" for every refusal,
+            // including "no tabulated size satisfies the voltage-drop limit".
+            var refusalReasons = new Dictionary<string, int>(StringComparer.Ordinal);
+            var total = new WireStampWriteReport();
             using var tx = new Transaction(doc, "STING Cable Sizer Sync");
             tx.Start();
             foreach (var el in conduits)
@@ -537,7 +651,10 @@ namespace StingTools.Commands.Electrical
                         LoadKW         = kw,
                         VoltageV       = voltV,
                         LengthM        = lengthM,
-                        InstallMethod  = string.IsNullOrEmpty(method) ? "B2" : method,
+                        // Only BS 7671 Table 4D2A reference method C ships in the
+                        // sizing data, so the old "B2" default was refused on every
+                        // conduit with no method set. Assume C and say so.
+                        InstallMethod  = string.IsNullOrWhiteSpace(method) ? DefaultInstallMethod : method,
                         Material       = mat?.Contains("Al") == true ? "Al" : "Cu",
                         Phases         = phases,
                         AmbientTempC   = 30,
@@ -549,40 +666,68 @@ namespace StingTools.Commands.Electrical
 
                     var result = CableSizerEngine.Calculate(input);
                     if (result == null) continue;
+                    bool assumed = string.IsNullOrWhiteSpace(method);
                     // A refusal must not be written to the model as a zero CSA.
-                    if (!result.Sized) { refused++; continue; }
+                    if (!result.Sized)
+                    {
+                        refused++;
+                        string why = string.IsNullOrWhiteSpace(result.Warning)
+                            ? "the sizer returned no size and no reason" : result.Warning.Trim();
+                        refusalReasons[why] = refusalReasons.TryGetValue(why, out int n) ? n + 1 : 1;
+                        continue;
+                    }
 
-                    SetDouble(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2);
-                    SetDouble(el, "ELC_WIRE_AMPACITY_A",        result.DesignCurrentA);
-                    SetDouble(el, "ELC_WIRE_VD_PCT_NUM",        result.ActualVoltDropPct);
-                    SetDouble(el, "ELC_WIRE_CIRCUIT_BREAKER_A", result.ProposedBreakerA);
-                    sized++;
+                    // ELC_WIRE_AMPACITY_A holds the cable's current-carrying capacity
+                    // (Iz). CableSizeResult does not report Iz — DesignCurrentA is the
+                    // design current Ib, which the old code wrote here and labelled Iz.
+                    // Ib already lives in ELC_WIRE_MAX_DEMAND_A (it is this command's
+                    // input), so Iz is left alone until the sizer returns one.
+                    var r = new WireStampWriteReport();
+                    WireStampHelper.WriteNumber(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2, r);
+                    WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",        result.ActualVoltDropPct, r);
+                    if (result.ProposedBreakerA > 0)
+                        WireStampHelper.WriteNumber(el, "ELC_WIRE_CIRCUIT_BREAKER_A", result.ProposedBreakerA, r);
+                    total.Merge(r);
+                    // Sized only when the CSA itself landed — a missing CSA parameter
+                    // means nothing was sized on this conduit, whatever else wrote.
+                    if (!r.Unbound.Contains("ELC_WIRE_CSA_MM2_NUM")
+                        && !r.ReadOnly.Contains("ELC_WIRE_CSA_MM2_NUM")
+                        && !r.Failed.Contains("ELC_WIRE_CSA_MM2_NUM"))
+                    {
+                        sized++;
+                        if (assumed) methodAssumed++;
+                    }
+                    else
+                        noParam++;
                 }
                 catch (Exception ex) { StingLog.Warn($"CableSizerSync {el.Id}: {ex.Message}"); }
             }
             tx.Commit();
+            StingLog.Info($"WireCableSizerSync: {sized} sized, {refused} refused, {noParam} CSA not writable");
 
             // KUT-7 - a refusal is REPORTED, not folded into the "sized" count and not
-            // written to the model as a zero CSA. A conduit left unsized because the
-            // selected standard cannot be calculated is a fact the engineer needs to see.
-            string refusedLine = refused > 0
-                ? $"\n{refused} conduit(s) were NOT sized: {StingTools.Standards.ElectricalStandardId.Label(activeStandard)} "
-                  + "conductor sizing is not implemented, so their parameters were left untouched.\n"
-                : "";
-            TaskDialog.Show("Cable Sizer Sync", $"Cable-sized {sized} conduit(s).\n"
-                + refusedLine
-                + "Parameters CSA, Iz, VD, and breaker rating have been updated.\n"
-                + "Re-run 'W-Batch' to refresh annotations.");
+            // written to the model as a zero CSA — with the engine's own reason.
+            var msg = new System.Text.StringBuilder();
+            msg.AppendLine($"Cable-sized {sized} conduit(s) under "
+                + $"{StingTools.Standards.ElectricalStandardId.Label(activeStandard)}.");
+            if (sized > 0)
+                msg.AppendLine("Written: CSA, voltage drop %, proposed breaker rating. "
+                    + "Current-carrying capacity (Iz) is not written — the sizer does not report it.");
+            if (methodAssumed > 0)
+                msg.AppendLine($"Installation method {DefaultInstallMethod} assumed on {methodAssumed} of these "
+                    + "(ELC_WIRE_INSTALL_METHOD_TXT is empty) — set it where the cable is installed otherwise.");
+            if (refused > 0)
+            {
+                msg.AppendLine($"\n{refused} conduit(s) were NOT sized; their parameters were left untouched:");
+                foreach (var kv in refusalReasons.OrderByDescending(k => k.Value).Take(5))
+                    msg.AppendLine($"  • {kv.Value} × {kv.Key}");
+            }
+            if (noParam > 0)
+                msg.AppendLine($"\n{noParam} conduit(s) were sized but the CSA could not be written.");
+            msg.Append(total.Describe());
+            msg.Append("\n\nRe-run 'W-Batch' to refresh annotations.");
+            TaskDialog.Show("Cable Sizer Sync", msg.ToString());
             return Result.Succeeded;
-        }
-
-        private static void SetDouble(Element el, string name, double v)
-        {
-            var p = el.LookupParameter(name); if (p != null && !p.IsReadOnly) p.Set(v);
-        }
-        private static void SetString(Element el, string name, string v)
-        {
-            var p = el.LookupParameter(name); if (p != null && !p.IsReadOnly) p.Set(v);
         }
     }
 
@@ -947,39 +1092,51 @@ namespace StingTools.Commands.Electrical
                 return Result.Succeeded;
             }
 
-            // Load TCC database
+            // Load TCC database and run the band check over the SLD hierarchy. A panel is
+            // stamped 1 ONLY when every pair feeding it is proven selective by the generic
+            // IEC 60898 bands. Before ELEC-4 this passed any panel whose rating string
+            // existed in the database — string presence is not coordination.
             var tcc = Coordination.TccDatabaseLoader.Load(StingToolsApp.FindDataFile("STING_TCC_DATABASE.json"));
+            var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
+            var pairs = root != null
+                ? Coordination.SelectiveCoordEngine.Evaluate(root, tcc)
+                : new List<Coordination.CoordPairResult>();
 
-            int stamped = 0;
+            int passed = 0, unverified = 0, failed = 0;
+            var unverifiedNames = new List<string>();
             using var tx = new Transaction(doc, "STING Coord Stamp");
             tx.Start();
             foreach (var panel in panels)
             {
                 try
                 {
-                    // Resolve panel rating from parameter
-                    string rating = ParameterHelpers.GetString(panel, "ELC_PANEL_MAIN_BREAKER_TXT");
-                    if (string.IsNullOrEmpty(rating)) continue;
+                    var mine = pairs.Where(r =>
+                        (r.Downstream?.ElementId != null && r.Downstream.ElementId == panel.Id)
+                        || (r.Downstream?.ElementId == null
+                            && string.Equals(r.Downstream?.Label, panel.Name, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+                    bool ok = mine.Count > 0
+                        && mine.All(r => r.Result.Verdict == Coordination.SelectivityVerdict.Selective);
+                    if (ok) passed++;
+                    else if (mine.Any(r => r.Result.Verdict == Coordination.SelectivityVerdict.NotSelective)) failed++;
+                    else { unverified++; if (unverifiedNames.Count < 15) unverifiedNames.Add(panel.Name); }
 
-                    // Simple check: if entry exists in TCC database, mark as 'checked'
-                    // Full SLD-based check runs via SelectiveCoordEngine from BIM commands
-                    var entry = tcc.Resolve(rating);
-                    bool ok = entry != null;
                     var p = panel.LookupParameter("ELC_SEL_COORD_OK");
-                    if (p != null && !p.IsReadOnly)
-                    {
-                        p.Set(ok ? 1 : 0);
-                        stamped++;
-                    }
+                    if (p != null && !p.IsReadOnly) p.Set(ok ? 1 : 0);
+                    foreach (var r in mine.Where(r => r.Result.Verdict != Coordination.SelectivityVerdict.Selective))
+                        StingLog.Info($"CoordStamp {panel.Name}: {r.Result.Verdict} — {r.Result.Reason} [{r.FaultSource}]");
                 }
                 catch (Exception ex) { StingLog.Warn($"CoordStamp {panel.Id}: {ex.Message}"); }
             }
             tx.Commit();
 
             TaskDialog.Show("Coord Stamp",
-                $"Selective coordination result stamped on {stamped} panel(s).\n"
-                + "ELC_SEL_COORD_OK = 1 (pass) / 0 (fail or unchecked).\n"
-                + "Run 'Sel Coord' for full SLD-based analysis.");
+                $"ELC_SEL_COORD_OK = 1 (proven selective) on {passed} panel(s).\n"
+                + $"UNVERIFIED (not assured / no curve data / not assessed) on {unverified} panel(s) — stamped 0.\n"
+                + $"NOT SELECTIVE on {failed} panel(s) — stamped 0.\n"
+                + (unverifiedNames.Count > 0 ? $"Unverified: {string.Join(", ", unverifiedNames)}\n" : "")
+                + $"\nBasis: {Coordination.IecMcbBands.Basis}.\n"
+                + "0 means 'not verified', not 'checked and failed'. See the log for per-pair reasons.");
             return Result.Succeeded;
         }
     }

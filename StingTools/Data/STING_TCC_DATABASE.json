@@ -1,6 +1,6 @@
 {
-  "_comment": "Time-current curve data for selective coordination checks. Phase 179. Extend with manufacturer-specific data when project demands.",
-  "_standard": "Generic Type B/C/D MCB / MCCB / ACB clearing-time curves (BS EN 60898-1, BS EN 60947-2, IEC 60364)",
+  "_comment": "Protective-device list for selective coordination and arc-flash clearing time. MCB entries (type MCB-B / MCB-C / MCB-D) are modelled as the generic IEC 60898-1 band from deviceLabel (rating) + type (curve letter) -- the curve letters below are generic defaults, confirm per project. When a device label names no curve letter itself (e.g. '32A') and the letter is taken from an entry's type, every arc-flash / coordination result says '(curve assumed)'; add \"curveConfirmed\": true to an entry once its letter has been checked against the installed device. MCCB / ACB entries have NO generic characteristic and report no curve data. clearingMs_At_10xIn / minFaultKa are legacy and NOT used for selectivity; maxFaultKa is the breaking capacity, used only as the fault level when none is stamped. Optional curves[] may carry manufacturer points (faultKa, clearingMs) for plotting; a single curve is not a band and is never used to claim selectivity.",
+  "_standard": "IEC 60898-1 Table 7 type-test bands (1.13 / 1.45 / 2.55 In; instantaneous B 3-5, C 5-10, D 10-20 In) -- generic IEC 60898 bands, confirm with manufacturer selectivity tables",
   "defaultClearingMs": 100,
   "entries": [
     { "deviceLabel": "6A",   "type": "MCB-B", "clearingMs_At_10xIn": 10, "minFaultKa": 0.05, "maxFaultKa": 6 },

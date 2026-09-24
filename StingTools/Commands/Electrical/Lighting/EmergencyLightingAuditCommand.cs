@@ -24,8 +24,8 @@ namespace StingTools.Commands.Electrical.Lighting
     [Regeneration(RegenerationOption.Manual)]
     public class EmergencyLightingAuditCommand : IExternalCommand
     {
-        private static readonly string[] EmergPatterns =
-            { "emergency", "emerg", "exit", "em-", "e-", "maintained", "non-maintained" };
+        // Keywords: Data/STING_EMERGENCY_KEYWORDS.json (+ project override) via
+        // EmergencyKeywordRegistry; token rules in EmergencyNameMatcher (unit-tested).
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -46,6 +46,18 @@ namespace StingTools.Commands.Electrical.Lighting
                 .ToList();
 
             var occupancyMap = LoadOccupancyTypes();
+            // Resolve the keyword list ONCE per run. IsEmergency is called for
+            // every fixture of every room; resolving per call hit
+            // StingPaths.MetaFile (which creates folders) + File.Exists + a
+            // timestamp read each time.
+            var kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
+            var isEmerg = new Dictionary<long, bool>();
+            bool Emerg(FamilyInstance fi)
+            {
+                long key = fi.Id.Value;
+                if (!isEmerg.TryGetValue(key, out bool e)) isEmerg[key] = e = IsEmergency(fi, kw);
+                return e;
+            }
 
             var rows = new List<EmergAuditRow>();
             View view = doc.ActiveView;
@@ -58,8 +70,8 @@ namespace StingTools.Commands.Electrical.Lighting
                 foreach (var r in rooms)
                 {
                     var inRoom = fixtures.Where(fi => InRoom(fi, r)).ToList();
-                    var emerg = inRoom.Where(IsEmergency).ToList();
-                    var normal = inRoom.Where(fi => !IsEmergency(fi)).ToList();
+                    var emerg = inRoom.Where(Emerg).ToList();
+                    var normal = inRoom.Where(fi => !Emerg(fi)).ToList();
                     bool sameCircuit = AnySharedCircuit(emerg, normal);
                     string status =
                         emerg.Count == 0 ? "NONE" :
@@ -117,14 +129,30 @@ namespace StingTools.Commands.Electrical.Lighting
         }
 
         public static bool IsEmergency(FamilyInstance fi)
+            => fi != null && IsEmergency(fi,
+                   StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(fi.Document));
+
+        /// <summary>
+        /// As <see cref="IsEmergency(FamilyInstance)"/> with the keyword list
+        /// supplied by the caller — batch callers resolve it once per run
+        /// (Data/STING_EMERGENCY_KEYWORDS.json + project override).
+        /// </summary>
+        public static bool IsEmergency(FamilyInstance fi, StingTools.Core.Electrical.EmergencyKeywords kw)
         {
             if (fi == null) return false;
             try
             {
-                string fname = (fi.Symbol?.FamilyName ?? "").ToLowerInvariant();
-                if (EmergPatterns.Any(p => fname.Contains(p))) return true;
-                string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
-                if (tm.StartsWith("em")) return true;
+                kw ??= StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(fi.Document);
+                // Original casing: the matcher needs it to tell "EMBulkhead" from "System".
+                string fname = fi.Symbol?.FamilyName ?? "";
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fname, kw)) return true;
+                // Emergency variants are often a TYPE of an ordinary family
+                // ("Downlight : 3h EM"), so test the type name as well.
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fi.Symbol?.Name, kw)) return true;
+                // Type mark: same token rule - StartsWith("em") also caught
+                // marks like "EMX-1" / "EMBOSS".
+                string tm = fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "";
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(tm, kw)) return true;
                 // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
                 // is the project-wide fixture type discriminator (Phase 188 fix
                 // — earlier ELC_EMERG_TYPE literal had no canonical mapping).
@@ -132,8 +160,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 // "Self-contained EM", "Maintained EM") rather than any non-empty
                 // value, since the param now also carries non-emergency types.
                 string emergType = ParameterHelpers.GetString(fi, "LTG_FIX_TYPE_CLASSIFICATION_TXT");
-                if (!string.IsNullOrEmpty(emergType) &&
-                    emergType.IndexOf("emerg", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(emergType, kw)) return true;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return false;
@@ -231,6 +258,7 @@ namespace StingTools.Commands.Electrical.Lighting
             ogs.SetProjectionLineWeight(7);
 
             int marked = 0;
+            var kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
             using (var tx = new Transaction(doc, "STING Mark Emergency Fixtures"))
             {
                 tx.Start();
@@ -241,7 +269,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 {
                     try
                     {
-                        if (EmergencyLightingAuditCommand.IsEmergency(fi))
+                        if (EmergencyLightingAuditCommand.IsEmergency(fi, kw))
                         {
                             view.SetElementOverrides(fi.Id, ogs);
                             marked++;

@@ -439,7 +439,7 @@ namespace StingTools.Commands.Electrical
                         // Read the circuit's REAL nominal voltage so the VD recalc
                         // isn't pinned to the nominal UK LV pair (400/230). Falls
                         // back to that pair below only when this is unreadable.
-                        try { circuitVoltV = circuit.Voltage; } catch { }
+                        try { circuitVoltV = StingTools.Core.Electrical.ElecUnits.VoltsFromInternal(circuit.Voltage); } catch { }
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }
@@ -1082,9 +1082,10 @@ namespace StingTools.Commands.Electrical
 
             var visited  = new HashSet<long>();
             var frontier = new List<Connector> { startConn };
-            // Match GetConnectedCircuit's depth (12) so a home-run that passes
-            // through more than a few fittings before the board is still detected.
-            for (int depth = 0; depth < 12 && frontier.Count > 0; depth++)
+            // Same hop budget as GetConnectedCircuit (the shared resolver) so a
+            // home-run that the label engine can resolve is also detected here.
+            for (int depth = 0; depth < StingTools.Core.Electrical.ConduitCircuitResolver.MaxHops
+                                && frontier.Count > 0; depth++)
             {
                 var next = new List<Connector>();
                 foreach (var fc in frontier)
@@ -1398,72 +1399,16 @@ namespace StingTools.Commands.Electrical
             return null;
         }
 
+        /// <summary>
+        /// The circuit a conduit carries. Delegates to the shared
+        /// <see cref="StingTools.Core.Electrical.ConduitCircuitResolver"/> so the
+        /// label engine and the wire-parameter stamp cannot disagree. The old
+        /// in-place walk returned the first circuit of whatever device or panel it
+        /// reached first — on a run ending at a panel, an arbitrary one of its
+        /// circuits.
+        /// </summary>
         public static ElectricalSystem GetConnectedCircuit(Element conduit)
-        {
-            if (conduit == null) return null;
-            var cm = GetMepConnectorManager(conduit);
-            if (cm == null) return null;
-
-            var visited = new HashSet<long> { conduit.Id.Value };
-            var frontier = new List<Connector>();
-            try
-            {
-                foreach (Connector c in cm.Connectors)
-                    if (c.ConnectorType == ConnectorType.End) frontier.Add(c);
-            }
-            catch { return null; }
-
-            const int maxDepth = 12;
-            for (int depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
-            {
-                var next = new List<Connector>();
-                foreach (var fc in frontier)
-                {
-                    ConnectorSet refs;
-                    try { refs = fc.AllRefs; } catch { continue; }
-                    if (refs == null) continue;
-                    foreach (Connector other in refs)
-                    {
-                        var owner = other?.Owner;
-                        if (owner == null) continue;
-                        long oid = owner.Id.Value;
-                        if (!visited.Add(oid)) continue;
-
-                        if (IsElectricalDevice(owner))
-                        {
-                            try
-                            {
-                                var systems = ((FamilyInstance)owner).MEPModel.GetElectricalSystems();
-                                if (systems != null && systems.Count > 0)
-                                    return systems.FirstOrDefault();
-                            }
-                            catch { }
-                            continue;
-                        }
-
-                        var catId = owner.Category?.Id?.Value ?? 0;
-                        if (catId != (long)BuiltInCategory.OST_Conduit
-                         && catId != (long)BuiltInCategory.OST_ConduitFitting)
-                            continue;
-
-                        var ocm = GetMepConnectorManager(owner);
-                        if (ocm == null) continue;
-                        try
-                        {
-                            foreach (Connector pc in ocm.Connectors)
-                            {
-                                if (pc.ConnectorType != ConnectorType.End) continue;
-                                if (pc.Id == other.Id) continue;
-                                next.Add(pc);
-                            }
-                        }
-                        catch { }
-                    }
-                }
-                frontier = next;
-            }
-            return null;
-        }
+            => StingTools.Core.Electrical.ConduitCircuitResolver.Resolve(conduit);
 
         public class WirePathResult
         {
@@ -1853,6 +1798,9 @@ namespace StingTools.Commands.Electrical
                 bool cancelled = false;
 
                 var prog = StingProgressDialog.Show("STING Wire Annotation", conduits.Count);
+                // Placing annotations never changes circuits, so circuit/endpoint
+                // reads are shared across the batch instead of rebuilt per conduit.
+                using (StingTools.Core.Electrical.ConduitCircuitResolver.BeginBatch())
                 using (var tg = new TransactionGroup(doc, "STING Batch Wire Annotations"))
                 {
                     tg.Start();

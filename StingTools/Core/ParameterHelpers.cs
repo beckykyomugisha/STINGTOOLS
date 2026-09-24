@@ -459,7 +459,7 @@ namespace StingTools.Core
                 return false;
             }
             if (p.StorageType != StorageType.String)
-                return false;
+                return SetNumericFromString(el, p, paramName, value, overwrite);
 
             string existing = p.AsString() ?? string.Empty;
             if (existing.Length > 0 && !overwrite)
@@ -483,6 +483,80 @@ namespace StingTools.Core
                 StingLog.Warn($"SetString '{paramName}' on {el.Id} failed: {ex.Message}");
                 return false;
             }
+        }
+
+        private static int _numericFromStringRefusals;
+
+        /// <summary>
+        /// SetString on a NON-text parameter. Many callers format a number and
+        /// hand it to SetString; when the shared parameter is declared NUMBER,
+        /// INTEGER or YESNO that used to return false with nothing written, and
+        /// callers that ignored the result reported success. Unitless numbers,
+        /// integers and yes/no values are unambiguous, so write them. A measured
+        /// quantity (length, voltage, …) is refused: a bare number does not say
+        /// which unit it is in, and guessing would write a wrong value.
+        /// </summary>
+        private static bool SetNumericFromString(Element el, Parameter p, string paramName,
+            string value, bool overwrite)
+        {
+            string s = (value ?? string.Empty).Trim().TrimEnd('%').Trim();
+            if (s.Length == 0) return false;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            try
+            {
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int iv;
+                    bool isYesNo = false;
+                    try { isYesNo = p.Definition.GetDataType() == SpecTypeId.Boolean.YesNo; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (isYesNo)
+                    {
+                        string b = s.ToLowerInvariant();
+                        if (b == "true" || b == "yes" || b == "y" || b == "1" || b == "pass" || b == "ok") iv = 1;
+                        else if (b == "false" || b == "no" || b == "n" || b == "0" || b == "fail") iv = 0;
+                        else return RefuseNumeric(el, paramName, value, "not a yes/no value");
+                    }
+                    else if (!int.TryParse(s, System.Globalization.NumberStyles.Integer, inv, out iv))
+                        return RefuseNumeric(el, paramName, value, "not an integer");
+                    if (!overwrite && p.HasValue) return false;   // HasValue separates a recorded 0 / "No" from unset
+                    if (p.AsInteger() == iv && p.HasValue) return true;
+                    p.Set(iv);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Double)
+                {
+                    bool unitless = false;
+                    try { unitless = p.Definition.GetDataType() == SpecTypeId.Number; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (!unitless) return RefuseNumeric(el, paramName, value, "measured quantity — use SetDouble with a unit");
+                    // Invariant first; then the machine's culture, because callers
+                    // format with $"{x:0.00}", which gives "3,45" on a comma-decimal
+                    // Windows locale. Neither style allows thousands separators, so
+                    // "1,234" is never misread as 1234.
+                    if (!double.TryParse(s, System.Globalization.NumberStyles.Float, inv, out double dv)
+                        && !double.TryParse(s, System.Globalization.NumberStyles.Float,
+                               System.Globalization.CultureInfo.CurrentCulture, out dv))
+                        return RefuseNumeric(el, paramName, value, "not a number");
+                    if (!overwrite && p.HasValue) return false;   // a recorded 0 is a value, not empty
+                    p.Set(dv);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el.Id} (numeric) failed: {ex.Message}");
+                return false;
+            }
+            return false;
+        }
+
+        private static bool RefuseNumeric(Element el, string paramName, string value, string why)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _numericFromStringRefusals);
+            if (n <= 10 || n % 500 == 0)
+                StingLog.Warn($"SetString '{paramName}' on {el.Id}: '{value}' not written — {why} (#{n})");
+            return false;
         }
 
         /// <summary>
@@ -515,7 +589,7 @@ namespace StingTools.Core
                 if (p.IsReadOnly)
                     return "read-only on this element";
                 if (p.StorageType != StorageType.String)
-                    return $"storage type is {p.StorageType}, not String";
+                    return $"storage type is {p.StorageType}: the value was not a plain number/yes-no, the parameter is a measured quantity, or it already holds a value";
 
                 string existing = p.AsString() ?? string.Empty;
                 if (existing.Length > 0 && !overwrite)
@@ -4540,7 +4614,9 @@ namespace StingTools.Core
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
-                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
+                // RBS_LOSS_COEFFICIENT is a unitless K factor, not a pressure drop -
+                // it was mapped into HVC_PRESSURE_DROP_PA, which then read "0.3" Pa.
+                // Pressure drop comes from the calc engines, not from this mapper.
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
                 // Duct dimensions
                 written += MapBuiltIn(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, ParamRegistry.HVC_DUCT_WIDTH);
@@ -4712,9 +4788,78 @@ namespace StingTools.Core
                 double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
+
+                // Measured values are stored in internal units (feet, ft³/s, ft/s,
+                // and 1 V = 10.7639). A target with the SAME spec converts on write,
+                // so it takes the internal value. A TEXT or unitless-NUMBER target
+                // cannot, so give it the unit its name promises (UnitSuffix):
+                // HVC_AIRFLOW_LPS in L/s, HVC_DCT_WIDTH_MM in mm, ELC_CKT_PWR_KW in
+                // kilo-units. Previously each got the raw internal number.
+                if (p.StorageType == StorageType.Double)
+                {
+                    double? display = DisplayValueForTarget(p, writeTarget, targetParamName, out bool sameSpec);
+                    if (display.HasValue)
+                    {
+                        val = display.Value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+                        if (!sameSpec) raw = display.Value;
+                    }
+                }
                 return WriteMapped(writeTarget, targetParamName, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// The source value expressed in the unit the TARGET expects, or null to
+        /// leave the mapper's old behaviour alone (unitless source, unknown
+        /// suffix, incompatible unit). <paramref name="sameSpec"/> is true when
+        /// the target shares the source's spec and so takes internal units.
+        /// </summary>
+        private static double? DisplayValueForTarget(Parameter p, Element target, string targetName,
+            out bool sameSpec)
+        {
+            sameSpec = false;
+            ForgeTypeId spec;
+            try { spec = p.Definition.GetDataType(); }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn spec: {ex.Message}"); return null; }
+            if (spec == null || !UnitUtils.IsMeasurableSpec(spec)) return null;
+
+            try
+            {
+                Parameter tp = ParameterHelpers.CachedLookup(target, targetName);
+                sameSpec = tp != null && tp.Definition.GetDataType() == spec;
+            }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn target spec: {ex.Message}"); }
+
+            // Electrical: SI (V / VA / W / A), scaled to kilo for *_KW / *_KVA.
+            if (StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
+            {
+                double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                return UnitSuffix.IsKilo(UnitSuffix.Of(targetName)) ? si / 1000.0 : si;
+            }
+
+            ForgeTypeId unit;
+            switch (UnitSuffix.Of(targetName))
+            {
+                case "mm":  unit = UnitTypeId.Millimeters;        break;
+                case "m":   unit = UnitTypeId.Meters;             break;
+                case "m2":  unit = UnitTypeId.SquareMeters;       break;
+                case "m3":  unit = UnitTypeId.CubicMeters;        break;
+                case "lps": unit = UnitTypeId.LitersPerSecond;    break;
+                case "cfm": unit = UnitTypeId.CubicFeetPerMinute; break;
+                case "mps": unit = UnitTypeId.MetersPerSecond;    break;
+                case "pa":  unit = UnitTypeId.Pascals;            break;
+                case "kpa": unit = UnitTypeId.Kilopascals;        break;
+                default: return null;
+            }
+            try { return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), unit); }
+            catch (Exception ex)
+            {
+                // Suffix does not fit the source quantity (e.g. a length into *_LPS):
+                // keep the old behaviour rather than invent a conversion.
+                StingLog.Warn($"MapBuiltIn '{targetName}': unit does not fit source spec ({ex.Message})");
+                return null;
+            }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>

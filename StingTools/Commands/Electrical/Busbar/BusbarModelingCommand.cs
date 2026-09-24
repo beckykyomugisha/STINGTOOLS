@@ -100,18 +100,21 @@ namespace StingTools.Commands.Electrical.Busbar
             if (manifest?.Cables != null)
             {
                 double totalKW = 0;
+                CableCircuitResolver resolver = null;
                 foreach (var cable in manifest.Cables.Where(c =>
                     c.RouteTrayIds != null && c.RouteTrayIds.Contains(tray.Id.Value)))
                 {
                     try
                     {
-                        var sys = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>()
-                            .FirstOrDefault(s => string.Equals(
-                                s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? "",
-                                cable.CircuitId, StringComparison.OrdinalIgnoreCase));
+                        // ELC-7: shared identity rules — a bare circuit-number
+                        // match picked an arbitrary panel's circuit, and never
+                        // matched the "<source>-<destId>" ids AddCable writes.
+                        resolver ??= CableCircuitResolver.Build(doc);
+                        var match = resolver.Resolve(cable, out ElectricalSystem sys);
+                        if (!match.Found)
+                            StingLog.Info($"Busbar demand: cable {cable.CircuitId} not matched to a circuit ({match.Reason}).");
                         if (sys != null)
-                            totalKW += (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
+                            totalKW += StingTools.Core.Electrical.ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_APPARENT_LOAD) / 1000.0;
                     }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }

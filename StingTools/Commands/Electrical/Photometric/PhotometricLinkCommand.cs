@@ -83,7 +83,11 @@ namespace StingTools.Commands.Electrical.Photometric
                     if (luxByRoom.TryGetValue(key, out var v))
                     {
                         try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_LUX, $"{v.lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, $"{v.ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        // A missing UGR in the IFC parses as 0 — do not write it as a result.
+                        if (v.ugr > 0)
+                        {
+                            try { ParameterHelpers.SetString(r, ParamRegistry.ELC_PHOTO_UGR, $"{v.ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        }
                         matched++;
                     }
                 }
@@ -102,8 +106,11 @@ namespace StingTools.Commands.Electrical.Photometric
                 .WhereElementIsNotElementType().OfType<SpatialElement>()
                 .Where(r => (r.get_Parameter(BuiltInParameter.ROOM_AREA)?.AsDouble() ?? 0) > 0)
                 .ToList();
-            int written = 0;
+            int written = 0, fromWatts = 0, noData = 0;
             const double UF = 0.65, MF = 0.80;
+            var allFixtures = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_LightingFixtures)
+                .WhereElementIsNotElementType().OfType<FamilyInstance>().ToList();
             using (var tx = new Transaction(doc, "STING Photometric Estimate"))
             {
                 tx.Start();
@@ -113,12 +120,14 @@ namespace StingTools.Commands.Electrical.Photometric
                     {
                         double areaM2 = (room.get_Parameter(BuiltInParameter.ROOM_AREA)?.AsDouble() ?? 0) * 0.0929;
                         if (areaM2 < 0.01) continue;
-                        double totalLumens = SumLumensInRoom(doc, room);
+                        if (!(room is Autodesk.Revit.DB.Architecture.Room rm)) continue;
+                        double totalLumens = SumLumensInRoom(rm, allFixtures, ref fromWatts, ref noData);
                         if (totalLumens < 1) continue;
                         double lux = totalLumens * UF * MF / areaM2;
-                        double ugr = EstimateUGR(totalLumens, areaM2);
                         try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_LUX, $"{lux:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        try { ParameterHelpers.SetString(room, ParamRegistry.ELC_PHOTO_UGR, $"{ugr:0.0}", overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                        // UGR is NOT written here. It depends on luminaire luminance,
+                        // position and the observer's view — a lumen total cannot give it.
+                        // Only a photometric calculation (DIALux import, option 1) writes UGR.
                         written++;
                     }
                     catch (Exception ex) { StingLog.Warn($"PhotoEstimate room: {ex.Message}"); }
@@ -128,7 +137,10 @@ namespace StingTools.Commands.Electrical.Photometric
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Photometric Estimate",
                 $"Lux estimates written for {written} room(s).\n" +
-                "Values use UF=0.65 / MF=0.80 per CIBSE LG7. For accurate results use DIALux evo or ElumTools.");
+                "Values use UF=0.65 / MF=0.80 per CIBSE LG7. For accurate results use DIALux evo or ElumTools.\n\n" +
+                "UGR was NOT written — it requires a photometric calculation (use option 1, Import DIALux IFC).\n" +
+                (fromWatts > 0 ? $"⚠ {fromWatts} fixture(s) had no lumen data: lumens ASSUMED from wattage × 80 lm/W.\n" : "") +
+                (noData > 0 ? $"⚠ {noData} fixture(s) had neither lumens nor wattage and were left out of the estimate.\n" : ""));
             return Result.Succeeded;
         }
 
@@ -193,47 +205,46 @@ namespace StingTools.Commands.Electrical.Photometric
         private static string Normalise(string s)
             => Regex.Replace(s?.ToUpperInvariant() ?? "", @"\s+", "");
 
-        private static double SumLumensInRoom(Document doc, SpatialElement room)
+        /// <summary>
+        /// Lumens of the fixtures whose location point is inside the room
+        /// (Room.IsPointInRoom — a bounding-box test also counts neighbours).
+        /// </summary>
+        private static double SumLumensInRoom(Autodesk.Revit.DB.Architecture.Room room,
+            List<FamilyInstance> fixtures, ref int fromWatts, ref int noData)
         {
             double total = 0;
-            try
+            foreach (var fi in fixtures)
             {
-                var bb = room.get_BoundingBox(null);
-                if (bb == null) return 0;
-                var outline = new Outline(bb.Min, bb.Max);
-                var bbf = new BoundingBoxIntersectsFilter(outline);
-                var fixtures = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_LightingFixtures)
-                    .WherePasses(bbf).WhereElementIsNotElementType()
-                    .OfType<FamilyInstance>().ToList();
-                foreach (var fi in fixtures)
+                try
                 {
+                    bool inRoom = false;
+                    try { inRoom = fi.Room?.Id == room.Id; } catch { }
+                    if (!inRoom)
+                    {
+                        var pt = (fi.Location as LocationPoint)?.Point;
+                        inRoom = pt != null && room.IsPointInRoom(pt);
+                    }
+                    if (!inRoom) continue;
+
                     double lumens = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_LUMENS));
+                    if (lumens < 1) lumens = LuminaireDataReader.Lumens(fi, out _);
                     if (lumens < 1)
                     {
-                        double watts = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_WATTAGE));
+                        double watts = LuminaireDataReader.Watts(fi, out _);
                         if (watts < 1)
-                        {
-                            try { watts = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        }
-                        lumens = watts * 80.0;
+                            watts = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
+                        if (watts < 1) { noData++; continue; }
+                        lumens = watts * 80.0; // assumed LED efficacy — counted and reported
+                        fromWatts++;
                     }
                     total += lumens;
                 }
+                catch (Exception ex) { StingLog.Warn($"SumLumensInRoom fixture {fi.Id}: {ex.Message}"); }
             }
-            catch (Exception ex) { StingLog.Warn($"SumLumensInRoom: {ex.Message}"); }
             return total;
         }
 
-        private static double EstimateUGR(double lumens, double areaM2)
-        {
-            double lpd = lumens / Math.Max(areaM2, 1.0);
-            if (lpd < 200) return 16;
-            if (lpd < 400) return 19;
-            if (lpd < 700) return 22;
-            return 25;
-        }
-
-        private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        private static double ParseDouble(string s) => double.TryParse(s, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
     }
 }

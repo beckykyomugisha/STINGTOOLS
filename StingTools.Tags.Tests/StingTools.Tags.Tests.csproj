@@ -76,6 +76,38 @@
     <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
+    <!-- ELEC-15/16: one slot-count rule (never an invented 42/24), the multi-pole
+         slot step from the schedule's numbering, and panel compaction. -->
+    <Compile Include="..\StingTools\Core\Electrical\PanelSlotRules.cs" Link="Core\Electrical\PanelSlotRules.cs" />
+    <!-- ELEC-9: which circuit a conduit run carries, decided from its endpoints.
+         The Revit graph walk (ConduitCircuitResolver.cs) is not linked. -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitEndpointChooser.cs" Link="Core\Electrical\CircuitEndpointChooser.cs" />
+    <!-- ELEC-10: SLD annotation text per kind and format, and the stamp round trip. -->
+    <Compile Include="..\StingTools\Core\SLD\SldAnnotText.cs" Link="Core\SLD\SldAnnotText.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
+    <!-- Dual-source check: only root emergency panels are summed (no double count). -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyLoadRoots.cs" Link="Core\Electrical\EmergencyLoadRoots.cs" />
+    <!-- ELEC-3/5: BS 7671 Appendix 4 cable sizing, device selection and the wire-size
+         parser, plus the resistive voltage-drop engine. Both Revit-free; the sizing
+         tests run against the SHIPPED STING_WIRE_TABLES.json so a data edit fails here. -->
+    <Compile Include="..\StingTools\Core\Electrical\Bs7671CableSizing.cs" Link="Core\Electrical\Bs7671CableSizing.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" Link="Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\FaultCurrent\WireTableSet.cs" Link="Commands\Electrical\FaultCurrent\WireTableSet.cs" />
+    <!-- ELEC-2 / -5 / -6 / -14: the Revit-free electrical arithmetic, each held to a
+         hand-worked example. FaultCurrentEngine, LoadDemandEngine and
+         BS7671ComplianceEngine delegate here so the plugin runs the tested copy. -->
+    <Compile Include="..\StingTools\Core\Electrical\Iec60909Lv.cs" Link="Core\Electrical\Iec60909Lv.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\PowerFactorCorrection.cs" Link="Core\Electrical\PowerFactorCorrection.cs" />
+    <Compile Include="..\StingTools\Core\Calc\VoltageDropSolver.cs" Link="Core\Calc\VoltageDropSolver.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Compliance\BS7671Thresholds.cs" Link="Commands\Electrical\Compliance\BS7671Thresholds.cs" />
+    <!-- ELEC-17: the one emergency keyword list the matcher reads. The shipped JSON is
+         asserted equal to the built-in fallback so the two cannot drift. -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyKeywords.cs" Link="Core\Electrical\EmergencyKeywords.cs" />
+    <None Include="..\StingTools\Data\STING_EMERGENCY_KEYWORDS.json" Link="Data\STING_EMERGENCY_KEYWORDS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
     <Compile Include="..\StingTools\Core\HvacDirectionFromName.cs" Link="Core\HvacDirectionFromName.cs" />
@@ -110,6 +142,10 @@
     <!-- KUT-5: the Revit-free phase classification the Division 02 rule keys on. -->
     <Compile Include="..\StingTools\Core\Classification\ElementPhaseState.cs" Link="Core\Classification\ElementPhaseState.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
+    <!-- ELEC-1 / ELEC-4: IEEE 1584-2002 arc-flash math and the IEC 60898-1 band
+         selectivity model. Both Revit-free by design; the commands that call them are not. -->
+    <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\ArcFlashEngine.cs" Link="Commands\Electrical\ArcFlash\ArcFlashEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
@@ -209,6 +245,16 @@
          document into two rows) is provable without a Revit host. -->
     <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <!-- ELEC-11: photometric parsers + zonal-lumen integration, and the IFC-results
+         room matcher. All Revit-free, so absolute (LED) photometry, EULUMDAT symmetry
+         and cd/klm scaling, and duplicate/ambiguous room matches are provable here. -->
+    <Compile Include="..\StingTools\Photometrics\PhotometricFile.cs" Link="Photometrics\PhotometricFile.cs" />
+    <Compile Include="..\StingTools\Photometrics\PhotometricIntegrator.cs" Link="Photometrics\PhotometricIntegrator.cs" />
+    <Compile Include="..\StingTools\Photometrics\IesParser.cs" Link="Photometrics\IesParser.cs" />
+    <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
+    <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
+    <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
+    <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
   </ItemGroup>
 
 </Project>

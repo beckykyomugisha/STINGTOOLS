@@ -106,7 +106,7 @@ namespace StingTools.Commands.MepDesign
         {
             try { var p = el?.get_Parameter(bip);
                   if (p == null) return 0;
-                  if (p.StorageType == StorageType.Double) return p.AsDouble();
+                  if (p.StorageType == StorageType.Double) return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                   if (p.StorageType == StorageType.Integer) return p.AsInteger();
                   if (p.StorageType == StorageType.String &&
                       double.TryParse(p.AsString(),
@@ -124,7 +124,7 @@ namespace StingTools.Commands.MepDesign
             {
                 try { var p = el.LookupParameter(n);
                       if (p == null) continue;
-                      if (p.StorageType == StorageType.Double) return p.AsDouble();
+                      if (p.StorageType == StorageType.Double) return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                       if (p.StorageType == StorageType.Integer) return p.AsInteger();
                       if (p.StorageType == StorageType.String &&
                           double.TryParse(p.AsString(),
@@ -394,7 +394,9 @@ namespace StingTools.Commands.MepDesign
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_PipeCurves).WhereElementIsNotElementType())
                 {
-                    double lps = ReadBip(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
+                    // Same unit as the ducts above: Revit stores flow in ft³/s internally,
+                    // so the raw value mixed ~28x-too-small pipe flows into the balancer.
+                    double lps = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
                     if (lps <= 0) continue;
                     branches.Add(($"P{el.Id}", lps, 0.2, el.Id, false));
                 }
@@ -450,7 +452,11 @@ namespace StingTools.Commands.MepDesign
                             else
                             {
                                 var p = el.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
-                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(outcome.ActualFlowLs); written++; }
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    p.Set(UnitUtils.ConvertToInternalUnits(outcome.ActualFlowLs, UnitTypeId.LitersPerSecond));
+                                    written++;
+                                }
                                 else skipped++;
                             }
                         }

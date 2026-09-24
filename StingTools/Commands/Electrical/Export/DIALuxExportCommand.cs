@@ -75,10 +75,16 @@ namespace StingTools.Commands.Electrical.Export
 
             // ── IfcProject ───────────────────────────────────────────────
             string projectName = doc.ProjectInformation?.Name ?? "STING Project";
+            // SI units — every quantity below is written in m / m² / m³. Without an
+            // IfcUnitAssignment the receiving tool has to guess.
+            int uLen  = w.Entity("IFCSIUNIT", "*", ".LENGTHUNIT.", "$", ".METRE.");
+            int uArea = w.Entity("IFCSIUNIT", "*", ".AREAUNIT.",   "$", ".SQUARE_METRE.");
+            int uVol  = w.Entity("IFCSIUNIT", "*", ".VOLUMEUNIT.", "$", ".CUBIC_METRE.");
+            int units = w.Entity("IFCUNITASSIGNMENT", $"(#{uLen},#{uArea},#{uVol})");
             int projId = w.Entity("IFCPROJECT",
                 $"'{IfcGuid(projectName)}'", "$",
                 $"'{EscIfc(projectName)}'",
-                "$", "$", "$", "$", "$", "$");
+                "$", "$", "$", "$", "$", $"#{units}");
 
             // ── IfcSite ──────────────────────────────────────────────────
             int siteId = w.Entity("IFCSITE",
@@ -97,7 +103,7 @@ namespace StingTools.Commands.Electrical.Export
                 $"'{IfcGuid(projectName + ":building")}'", "$",
                 $"'{EscIfc(projectName)} Building'",
                 "$", "$", "$", "$", "$",
-                ".ELEMENT.", "$", "$");
+                ".ELEMENT.", "$", "$", "$");   // CompositionType, ElevationOfRefHeight, ElevationOfTerrain, BuildingAddress
 
             w.RelAggregates(
                 IfcGuid(projectName + ":relSiteBuilding"),
@@ -107,30 +113,39 @@ namespace StingTools.Commands.Electrical.Export
             // ── IfcSpace entities (rooms) ────────────────────────────────
             var spaceIds = new List<int>(rooms.Count);
 
+            int noHeight = 0;
             foreach (var room in rooms)
             {
+                // IFC convention (and Revit's own exporter): Name = room NUMBER,
+                // LongName = room NAME. Room.Name concatenates both.
+                string number = room.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+                string rName  = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? room.Name ?? "";
                 int spaceId = w.Entity("IFCSPACE",
                     $"'{ToIfcGuid(room.UniqueId, room.Id.Value)}'", "$",
-                    $"'{EscIfc(room.Name)}'",
-                    "$", "$", "$", "$", "$",
-                    ".ELEMENT.", ".NOTDEFINED.");
+                    $"'{EscIfc(string.IsNullOrEmpty(number) ? rName : number)}'",
+                    "$", "$", "$", "$",
+                    $"'{EscIfc(rName)}'",
+                    ".ELEMENT.", ".NOTDEFINED.", "$");
 
                 spaceIds.Add(spaceId);
 
                 EmitStingResultsPSet(w, spaceId, room);
-                EmitSpaceQuantities(w, spaceId, room);
+                if (!EmitSpaceQuantities(w, spaceId, room)) noHeight++;
             }
 
-            // Link all spaces to the building via IfcRelContainedInSpatialStructure
+            // IfcSpace is a spatial structure element: it is AGGREGATED into the
+            // building (IFC4 IfcRelContainedInSpatialStructure WR31 forbids spatial
+            // elements as RelatedElements).
             if (spaceIds.Count > 0)
             {
-                w.RelContainedInSpatialStructure(
+                w.RelAggregates(
                     IfcGuid(projectName + ":relSpacesInBuilding"),
-                    spaceIds,
-                    buildingId);
+                    buildingId,
+                    spaceIds);
             }
 
             // ── IfcLightFixture entities ─────────────────────────────────
+            int noLumens = 0;
             foreach (var fix in fixtures)
             {
                 int fixId = w.Entity("IFCLIGHTFIXTURE",
@@ -139,7 +154,7 @@ namespace StingTools.Commands.Electrical.Export
                     "$", "$", "$", "$", "$",
                     ".NOTDEFINED.");
 
-                EmitStingLuminairePSet(w, fixId, fix, doc);
+                if (!EmitStingLuminairePSet(w, fixId, fix, doc)) noLumens++;
             }
 
             w.Lines.Add("ENDSEC;");
@@ -156,11 +171,16 @@ namespace StingTools.Commands.Electrical.Export
             catch (Exception ex) { StingLog.Warn($"LogRoundTrip: {ex.Message}"); }
 
             TaskDialog.Show("STING DIALux Export",
-                $"IFC 4 file exported for DIALux evo:\n{outPath}\n\n" +
+                $"IFC 4 DATA HAND-OFF DRAFT written:\n{outPath}\n\n" +
                 $"{fixtures.Count} luminaire(s) · {rooms.Count} room(s)\n" +
-                "Pset_StingLightingResults stamped on every IfcSpace; Pset_StingLuminaireData on every IfcLightFixture.\n\n" +
-                "In DIALux evo: File → Import → IFC. After calculation, export an IFC and run\n" +
-                "STING → Photometrics → Import IFC Results to map values back by Revit GUID.");
+                "Contains spaces (number, name, area, height, volume in SI units), luminaire records and the " +
+                "Pset_StingLightingResults / Pset_StingLuminaireData property sets.\n\n" +
+                "⚠ It carries NO geometry and NO placement — rooms and luminaires will not appear " +
+                "positioned in DIALux. For a calculation model use Revit's own IFC export (or the DIALux " +
+                "Revit plug-in); use this file for the data round-trip. Review before use.\n" +
+                (noHeight > 0 ? $"\n⚠ {noHeight} room(s) have no height — height/volume omitted, not guessed." : "") +
+                (noLumens > 0 ? $"\n⚠ {noLumens} luminaire(s) have no lumen data — LuminousFlux omitted, not estimated." : "") +
+                "\n\nAfter calculation, run STING → Photometrics → Import IFC Results to map values back.");
             return Result.Succeeded;
         }
 
@@ -175,17 +195,23 @@ namespace StingTools.Commands.Electrical.Export
             string lastEngine = ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LAST_ENGINE);
             string lastDate   = ParameterHelpers.GetString(room, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE);
 
-            int luxId  = w.PropSingleValue(StingLightingPSet.IlluminanceLux,  $"IFCREAL({Fmt(lux)})");
-            int avgId  = w.PropSingleValue(StingLightingPSet.AverageLux,      $"IFCREAL({Fmt(lux)})");
-            int uoId   = w.PropSingleValue(StingLightingPSet.UniformityRatio, $"IFCREAL({Fmt(uniformity)})");
-            int ugrId  = w.PropSingleValue(StingLightingPSet.UGR,             $"IFCREAL({Fmt(ugr)})");
-            int dateId = w.PropSingleValue(StingLightingPSet.CalculationDate, $"IFCLABEL('{EscIfc(lastDate)}')");
-            int engId  = w.PropSingleValue(StingLightingPSet.EngineUsed,      $"IFCLABEL('{EscIfc(lastEngine)}')");
+            // Absent values are omitted rather than written as 0 — a 0 lx / 0 UGR
+            // property reads as a calculated result on the other side.
+            var props = new List<int>();
+            if (lux > 0)
+            {
+                props.Add(w.PropSingleValue(StingLightingPSet.IlluminanceLux, $"IFCREAL({Fmt(lux)})"));
+                props.Add(w.PropSingleValue(StingLightingPSet.AverageLux,     $"IFCREAL({Fmt(lux)})"));
+            }
+            if (uniformity > 0) props.Add(w.PropSingleValue(StingLightingPSet.UniformityRatio, $"IFCREAL({Fmt(uniformity)})"));
+            if (ugr > 0)        props.Add(w.PropSingleValue(StingLightingPSet.UGR,             $"IFCREAL({Fmt(ugr)})"));
+            props.Add(w.PropSingleValue(StingLightingPSet.CalculationDate, $"IFCLABEL('{EscIfc(lastDate)}')"));
+            props.Add(w.PropSingleValue(StingLightingPSet.EngineUsed,      $"IFCLABEL('{EscIfc(lastEngine)}')"));
 
             int psetId = w.PropertySet(
                 IfcGuid(room.UniqueId + ":lightingResults"),
                 StingLightingPSet.PSetName,
-                new[] { luxId, avgId, uoId, ugrId, dateId, engId });
+                props);
 
             w.RelDefinesByProperties(
                 IfcGuid(room.UniqueId + ":relLR"),
@@ -193,7 +219,8 @@ namespace StingTools.Commands.Electrical.Export
                 psetId);
         }
 
-        private static void EmitStingLuminairePSet(IfcWriter w, int relatedEntityId,
+        /// <returns>false when the luminaire has no lumen data (LuminousFlux omitted).</returns>
+        private static bool EmitStingLuminairePSet(IfcWriter w, int relatedEntityId,
             FamilyInstance fix, Document doc)
         {
             var symbol = doc.GetElement(fix.GetTypeId());
@@ -201,11 +228,12 @@ namespace StingTools.Commands.Electrical.Export
             double watts = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_WATTS));
             if (watts <= 0) watts = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_WATTAGE));
             if (watts <= 0)
-                try { watts = fix.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { watts = StingTools.Core.Electrical.ElecUnits.Read(fix, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             double lumens = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_LUMENS));
             if (lumens <= 0) lumens = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_LUMENS));
-            if (lumens <= 0) lumens = watts * 80.0;
+            // No lumen data → no LuminousFlux / Efficacy. Never estimate it here: the
+            // receiving tool would treat an invented flux as manufacturer data.
 
             double cct     = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_CCT));
             double cri     = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_CRI));
@@ -213,57 +241,76 @@ namespace StingTools.Commands.Electrical.Export
             string sym     = ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_SYMMETRY);
             string iesPath = ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_FILE_PATH);
 
-            int p1 = w.PropSingleValue("LuminousFlux",    $"IFCREAL({Fmt(lumens)})");
-            int p2 = w.PropSingleValue("InstalledPower",  $"IFCREAL({Fmt(watts)})");
-            int p3 = w.PropSingleValue("Efficacy",        $"IFCREAL({Fmt(watts > 0 ? lumens / watts : 0)})");
-            int p4 = w.PropSingleValue("CCT",             $"IFCREAL({Fmt(cct)})");
-            int p5 = w.PropSingleValue("CRI",             $"IFCREAL({Fmt(cri)})");
-            int p6 = w.PropSingleValue("BeamAngleDeg",    $"IFCREAL({Fmt(beam)})");
-            int p7 = w.PropSingleValue("Symmetry",        $"IFCLABEL('{EscIfc(sym)}')");
-            int p8 = w.PropSingleValue("PhotometricFile", $"IFCLABEL('{EscIfc(iesPath)}')");
+            var props = new List<int>();
+            if (lumens > 0) props.Add(w.PropSingleValue("LuminousFlux", $"IFCREAL({Fmt(lumens)})"));
+            if (watts > 0)  props.Add(w.PropSingleValue("InstalledPower", $"IFCREAL({Fmt(watts)})"));
+            if (lumens > 0 && watts > 0)
+                props.Add(w.PropSingleValue("Efficacy", $"IFCREAL({Fmt(lumens / watts)})"));
+            if (cct > 0)  props.Add(w.PropSingleValue("CCT",          $"IFCREAL({Fmt(cct)})"));
+            if (cri > 0)  props.Add(w.PropSingleValue("CRI",          $"IFCREAL({Fmt(cri)})"));
+            if (beam > 0) props.Add(w.PropSingleValue("BeamAngleDeg", $"IFCREAL({Fmt(beam)})"));
+            props.Add(w.PropSingleValue("Symmetry",        $"IFCLABEL('{EscIfc(sym)}')"));
+            props.Add(w.PropSingleValue("PhotometricFile", $"IFCLABEL('{EscIfc(iesPath)}')"));
 
             int psetId = w.PropertySet(
                 IfcGuid(fix.UniqueId + ":luminaireData"),
                 "Pset_StingLuminaireData",
-                new[] { p1, p2, p3, p4, p5, p6, p7, p8 });
+                props);
 
             w.RelDefinesByProperties(
                 IfcGuid(fix.UniqueId + ":relLD"),
                 new[] { relatedEntityId },
                 psetId);
+            return lumens > 0;
         }
 
         /// <summary>
         /// Writes Qto_SpaceBaseQuantities (IfcElementQuantity) for a room and
         /// links it back to the IfcSpace via IfcRelDefinesByProperties.
-        /// Areas converted ft² → m² (× 0.0929); heights ft → m (× 0.3048).
+        /// Revit internal ft² / ft converted with UnitUtils to m² / m.
         /// </summary>
-        private static void EmitSpaceQuantities(IfcWriter w, int spaceId, SpatialElement room)
+        /// <returns>false when the room has no height (height + volume omitted).</returns>
+        private static bool EmitSpaceQuantities(IfcWriter w, int spaceId, SpatialElement room)
         {
             double areaFt2  = room.get_Parameter(BuiltInParameter.ROOM_AREA)?.AsDouble() ?? 0;
             double heightFt = room.get_Parameter(BuiltInParameter.ROOM_HEIGHT)?.AsDouble() ?? 0;
+            // ROOM_UPPER_OFFSET is the offset above the UPPER LIMIT level, not a
+            // height. It equals the room height only when the upper limit is the
+            // room's own level; otherwise height + volume are omitted rather than
+            // exported as a wrong dimension.
+            if (heightFt <= 0)
+            {
+                ElementId upperLevel = ElementId.InvalidElementId;
+                try { upperLevel = room.get_Parameter(BuiltInParameter.ROOM_UPPER_LEVEL)?.AsElementId() ?? ElementId.InvalidElementId; }
+                catch (Exception ex) { StingLog.Warn($"DIALux room {room.Id} upper level: {ex.Message}"); }
+                if (upperLevel != ElementId.InvalidElementId && upperLevel == room.LevelId)
+                    heightFt = room.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET)?.AsDouble() ?? 0;
+            }
 
-            double areaM2   = areaFt2 * 0.0929;
-            double heightM  = heightFt > 0 ? heightFt * 0.3048 : 3.0;  // default 3 m
-            double volumeM3 = areaM2 * heightM;
+            double areaM2  = UnitUtils.ConvertFromInternalUnits(areaFt2, UnitTypeId.SquareMeters);
+            double heightM = heightFt > 0 ? UnitUtils.ConvertFromInternalUnits(heightFt, UnitTypeId.Meters) : 0;
 
-            // IFCQUANTITYAREA for floor area, IFCQUANTITYLENGTH for height,
-            // IFCQUANTITYVOLUME for gross volume — one entity each.
-            int qArea      = w.QuantityArea("BaseArea", areaM2);
-            int qHeightLen = w.Entity("IFCQUANTITYLENGTH",
-                "'Height'", "$", "$",
-                heightM.ToString("0.0####", CultureInfo.InvariantCulture), "$");
-            int qVol       = w.QuantityVolume("GrossVolume", volumeM3);
+            // Floor area always; height + gross volume only when the room has a height.
+            // A default height would be an invented dimension handed to a calc tool.
+            var qs = new List<int> { w.QuantityArea("NetFloorArea", areaM2) };
+            if (heightM > 0)
+            {
+                qs.Add(w.Entity("IFCQUANTITYLENGTH",
+                    "'Height'", "$", "$",
+                    heightM.ToString("0.0####", CultureInfo.InvariantCulture), "$"));
+                qs.Add(w.QuantityVolume("GrossVolume", areaM2 * heightM));
+            }
 
             int qsetId = w.ElementQuantity(
                 IfcGuid(room.UniqueId + ":qto"),
                 "Qto_SpaceBaseQuantities",
-                new[] { qArea, qHeightLen, qVol });
+                qs);
 
             w.RelDefinesByQuantities(
                 IfcGuid(room.UniqueId + ":relQto"),
                 new[] { spaceId },
                 qsetId);
+            return heightM > 0;
         }
 
         // ── round-trip log ──────────────────────────────────────────────
@@ -322,7 +369,7 @@ namespace StingTools.Commands.Electrical.Export
         // ── helpers ─────────────────────────────────────────────────────
 
         private static string EscIfc(string s)    => (s ?? "").Replace("'", "''");
-        private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        private static double ParseDouble(string s) => double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0;
         private static string Fmt(double v)        => v.ToString("0.0####", CultureInfo.InvariantCulture);
 
         /// <summary>

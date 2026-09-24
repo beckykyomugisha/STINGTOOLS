@@ -145,7 +145,7 @@ namespace StingTools.Commands.Electrical.Lighting
         {
             try
             {
-                double w = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
+                double w = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                 if (w > 0) return w;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

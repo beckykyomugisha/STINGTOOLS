@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using StingTools.Core.SLD;
 
@@ -11,142 +12,111 @@ namespace StingTools.Commands.Electrical.Coordination
         public string DownstreamDevice { get; set; } = "";
         public double FaultKa          { get; set; }
         public string Reason           { get; set; } = "";
-        /// <summary>
-        /// True when Zone-Selective Interlocking is active and both devices are
-        /// electronic-trip (MCCB / ACB) types. The violation is still recorded
-        /// but should be treated as informational rather than a hard fail.
-        /// </summary>
+        /// <summary>Verdict for the pair: NotAssured, NotSelective or NoCurveData.</summary>
+        public SelectivityVerdict Verdict { get; set; }
+        /// <summary>Retained for compatibility. Always false: ZSI needs manufacturer data
+        /// for MCCB / ACB, which this engine does not have.</summary>
         public bool IsZsiMitigated { get; set; }
     }
 
+    /// <summary>One assessed upstream / downstream pair.</summary>
+    public sealed class CoordPairResult
+    {
+        public SLDNode Upstream   { get; set; }
+        public SLDNode Downstream { get; set; }
+        public DeviceBand UpstreamBand   { get; set; }
+        public DeviceBand DownstreamBand { get; set; }
+        public SelectivityResult Result  { get; set; }
+        /// <summary>Where the prospective fault current came from (node value or assumption).</summary>
+        public string FaultSource { get; set; } = "";
+    }
+
     /// <summary>
-    /// Selective-coordination checker. Walks the SLD hierarchy and asserts
-    /// that, at every fault level the downstream device might see, the
-    /// upstream device clears SLOWER by at least the coordination margin
-    /// factor. ALL violations at every sample point are recorded (not just
-    /// the first per pair). Log-log interpolation is used when TCC curve
-    /// data is available; otherwise the linear-ramp fallback is used.
+    /// Selective-coordination checker. Walks the SLD hierarchy and, for every
+    /// parent/child pair of protective devices, runs the IEC 60898-1 band check in
+    /// <see cref="IecMcbBands.Check"/> up to the prospective fault current.
+    ///
+    /// A pair is only ever reported Selective when the generic bands PROVE it. MCCB /
+    /// ACB (no generic band) → NoCurveData. Fault currents reaching the upstream
+    /// instantaneous band → NotAssured ("manufacturer selectivity table required").
+    /// Every result carries <see cref="IecMcbBands.Basis"/>.
+    ///
+    /// Replaces the previous check, which compared single synthetic linear ramps
+    /// (ROADMAP ELEC-4) and so could "pass" pairs no real data supported.
     /// </summary>
     public static class SelectiveCoordEngine
     {
-        /// <summary>
-        /// Check selective coordination across the entire SLD tree.
-        /// </summary>
-        /// <param name="root">Root node of the single-line diagram.</param>
-        /// <param name="tcc">TCC database to resolve device curves.</param>
-        /// <param name="maxFaultKaFallback">
-        ///     Upper fault-level bound used when neither device specifies a
-        ///     rated maximum (kA). Default 10 kA.
-        /// </param>
-        /// <param name="sampleCount">
-        ///     Number of evenly-spaced fault-level samples across the range.
-        ///     Default 20.
-        /// </param>
-        /// <param name="coordMarginFactor">
-        ///     The upstream device must clear at least
-        ///     <c>upMs * coordMarginFactor</c> milliseconds above the downstream
-        ///     device. Values &lt; 1.0 are clamped to 1.0. Default 1.1 (10 %
-        ///     margin).
-        /// </param>
-        /// <param name="zsiEnabled">
-        ///     When true, violations where both devices are electronic-trip
-        ///     types (MCCB / ACB) are flagged with a ZSI note and
-        ///     <see cref="CoordViolation.IsZsiMitigated"/> = true instead of
-        ///     being recorded as hard failures.
-        /// </param>
-        public static List<CoordViolation> Check(
-            SLDNode root,
-            TccDatabase tcc,
-            double maxFaultKaFallback = 10.0,
-            int    sampleCount        = 20,
-            double coordMarginFactor  = 1.1,
-            bool   zsiEnabled         = false)
+        /// <summary>Assess every parent/child pair whose ratings are known.</summary>
+        public static List<CoordPairResult> Evaluate(SLDNode root, TccDatabase tcc)
         {
-            var violations = new List<CoordViolation>();
-            if (root == null || tcc == null) return violations;
-
-            // Clamp margin to at least 1.0 (upstream must be at least as slow)
-            double margin = Math.Max(1.0, coordMarginFactor);
-
-            CheckNode(root, null, tcc, maxFaultKaFallback, sampleCount, margin, zsiEnabled, violations);
-            return violations;
+            var results = new List<CoordPairResult>();
+            if (root == null || tcc == null) return results;
+            Walk(root, null, tcc, results);
+            return results;
         }
 
-        // ── Electronic-trip device types that are eligible for ZSI ──────────
-        private static readonly HashSet<string> ZsiEligibleTypes =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MCCB", "ACB" };
+        /// <summary>
+        /// Every pair that is NOT proven selective (NotAssured, NotSelective, NoCurveData).
+        /// </summary>
+        public static List<CoordViolation> Check(SLDNode root, TccDatabase tcc)
+            => ToViolations(Evaluate(root, tcc));
 
-        private static bool IsZsiEligible(TccEntry entry)
-            => entry != null && ZsiEligibleTypes.Contains(entry.Type ?? "");
-
-        private static void CheckNode(
-            SLDNode node,
-            SLDNode parent,
-            TccDatabase tcc,
-            double maxFaultKaFallback,
-            int    sampleCount,
-            double margin,
-            bool   zsiEnabled,
-            List<CoordViolation> violations)
-        {
-            if (parent != null && node != null)
-            {
-                var upDev   = tcc.Resolve(parent.Rating);
-                var downDev = tcc.Resolve(node.Rating);
-
-                if (upDev != null && downDev != null)
+        public static List<CoordViolation> ToViolations(IEnumerable<CoordPairResult> pairs)
+            => (pairs ?? Enumerable.Empty<CoordPairResult>())
+                .Where(p => p.Result.Verdict != SelectivityVerdict.Selective)
+                .Select(p => new CoordViolation
                 {
-                    // Resolve log-log curves (null when not in database)
-                    TccCurve upCurve   = tcc.ResolveCurve(parent.Rating);
-                    TccCurve downCurve = tcc.ResolveCurve(node.Rating);
+                    UpstreamDevice   = p.Upstream?.Label ?? "(unnamed)",
+                    DownstreamDevice = p.Downstream?.Label ?? "(unnamed)",
+                    FaultKa          = Math.Round(p.Result.ProspectiveFaultKa, 3),
+                    Verdict          = p.Result.Verdict,
+                    Reason           = $"{p.Result.Verdict}: {p.Result.Reason} [{p.FaultSource}] — {IecMcbBands.Basis}"
+                })
+                .ToList();
 
-                    // Whether ZSI could mitigate a violation for this pair
-                    bool pairZsiEligible = zsiEnabled
-                        && IsZsiEligible(upDev)
-                        && IsZsiEligible(downDev);
-
-                    double maxFaultKa = Math.Min(upDev.MaxFaultKa, downDev.MaxFaultKa);
-                    if (maxFaultKa <= 0) maxFaultKa = maxFaultKaFallback;
-
-                    double step = maxFaultKa / Math.Max(1, sampleCount);
-
-                    for (double f = step; f <= maxFaultKa + step * 0.001; f += step)
-                    {
-                        // Clamp to the declared maximum so floating-point drift
-                        // does not produce a sample that exceeds the range.
-                        double fSample = Math.Min(f, maxFaultKa);
-
-                        double upMs   = upDev.ClearingTimeMs(fSample, upCurve);
-                        double downMs = downDev.ClearingTimeMs(fSample, downCurve);
-
-                        // Violation: upstream does NOT clear at least (margin × downstream)
-                        // i.e. upMs * margin <= downMs  →  upstream trips as fast as (or
-                        // faster than) downstream within the required margin.
-                        if (upMs > 0 && upMs * margin <= downMs)
-                        {
-                            bool zsiMitigated = pairZsiEligible;
-
-                            string reason = zsiMitigated
-                                ? $"Upstream {upMs:0.#}ms × {margin:0.##} = {upMs * margin:0.#}ms ≤ downstream {downMs:0.#}ms at {fSample:0.00} kA " +
-                                  "(ZSI active — upstream instantaneous may be suppressed)"
-                                : $"Upstream {upMs:0.#}ms × {margin:0.##} = {upMs * margin:0.#}ms ≤ downstream {downMs:0.#}ms at {fSample:0.00} kA";
-
-                            violations.Add(new CoordViolation
-                            {
-                                UpstreamDevice   = parent.Label ?? "(unnamed)",
-                                DownstreamDevice = node.Label   ?? "(unnamed)",
-                                FaultKa          = Math.Round(fSample, 3),
-                                Reason           = reason,
-                                IsZsiMitigated   = zsiMitigated
-                            });
-                            // No break — record ALL violations across the full sample range.
-                        }
-                    }
-                }
+        private static void Walk(SLDNode node, SLDNode parent, TccDatabase tcc, List<CoordPairResult> results)
+        {
+            if (node == null) return;
+            if (parent != null && !string.IsNullOrWhiteSpace(parent.Rating) && !string.IsNullOrWhiteSpace(node.Rating))
+            {
+                var up = tcc.ResolveBand(parent.Rating);
+                var dn = tcc.ResolveBand(node.Rating);
+                double psc = ProspectiveFaultKa(node, parent, tcc, out string src);
+                results.Add(new CoordPairResult
+                {
+                    Upstream = parent, Downstream = node,
+                    UpstreamBand = up, DownstreamBand = dn,
+                    Result = IecMcbBands.Check(up, dn, psc),
+                    FaultSource = src
+                });
             }
+            foreach (var child in node.Children ?? Enumerable.Empty<SLDNode>())
+                Walk(child, node, tcc, results);
+        }
 
-            foreach (var child in node?.Children ?? Enumerable.Empty<SLDNode>())
-                CheckNode(child, node, tcc, maxFaultKaFallback, sampleCount, margin, zsiEnabled, violations);
+        /// <summary>
+        /// Prospective fault at the downstream device: the node's own stamped fault level,
+        /// else its parent's (a higher, conservative value), else the downstream device's
+        /// rated breaking capacity from the database (the highest current it can be asked
+        /// to see). 0 when none is known.
+        /// </summary>
+        private static double ProspectiveFaultKa(SLDNode node, SLDNode parent, TccDatabase tcc, out string source)
+        {
+            double v = ParseKa(node.FaultKa);
+            if (v > 0) { source = "fault level at downstream node"; return v; }
+            v = ParseKa(parent?.FaultKa);
+            if (v > 0) { source = "fault level at upstream node (conservative)"; return v; }
+            var e = tcc.Resolve(node.Rating?.Trim());
+            if (e != null && e.MaxFaultKa > 0) { source = "no fault level — downstream breaking capacity assumed"; return e.MaxFaultKa; }
+            source = "no fault level";
+            return 0;
+        }
+
+        private static double ParseKa(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return 0;
+            string digits = new string(s.Trim().TakeWhile(c => char.IsDigit(c) || c == '.').ToArray());
+            return double.TryParse(digits, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0;
         }
     }
 }

@@ -129,6 +129,7 @@ namespace StingTools.UI
                 CurrentBreakerOptions = _panel.ReadBreakerOptions();
                 CurrentBalanceOptions = _panel.ReadBalanceOptions();
                 CurrentConduitFill = _panel.ReadConduitFillInputs();
+                CurrentFeederSettings = _panel.ReadFeederSettings();
             });
         }
 
@@ -449,10 +450,20 @@ namespace StingTools.UI
                 case "SldAnnotate_Reference":    RunCommand<StingTools.Commands.Symbols.SldAnnotateReferenceCommand>(app); break;
                 case "SldAnnotate_Impedance":    RunCommand<StingTools.Commands.Symbols.SldAnnotateImpedanceCommand>(app); break;
                 case "SldAnnotate_Diversity":    RunCommand<StingTools.Commands.Symbols.SldAnnotateDiversityCommand>(app); break;
+                // ELEC-10 — each format button applies its own format; only the plain
+                // tag asks. Before, all four opened the same chooser.
                 case "SldAnnotate_Format":
+                    StingTools.Commands.Symbols.SldAnnotationFormatCommand.PendingFormat = null;
+                    RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
                 case "SldAnnotate_Format_Compact":
+                    StingTools.Commands.Symbols.SldAnnotationFormatCommand.PendingFormat = StingTools.Core.SLD.SldAnnotFormat.Compact;
+                    RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
                 case "SldAnnotate_Format_Full":
-                case "SldAnnotate_Format_Reference": RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                    StingTools.Commands.Symbols.SldAnnotationFormatCommand.PendingFormat = StingTools.Core.SLD.SldAnnotFormat.Full;
+                    RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
+                case "SldAnnotate_Format_Reference":
+                    StingTools.Commands.Symbols.SldAnnotationFormatCommand.PendingFormat = StingTools.Core.SLD.SldAnnotFormat.Reference;
+                    RunCommand<StingTools.Commands.Symbols.SldAnnotationFormatCommand>(app); break;
                 case "SldAnnotate_UpdateCalcs":  RunCommand<StingTools.Commands.Symbols.SldUpdateFromCalcsCommand>(app); break;
                 case "SldAnnotate_Toggle":       RunCommand<StingTools.Commands.Symbols.SldAnnotationToggleCommand>(app); break;
                 case "SldAnnotate_Clear":        RunCommand<StingTools.Commands.Symbols.SldAnnotationClearCommand>(app); break;
@@ -793,6 +804,14 @@ namespace StingTools.UI
             if (doc == null) return;
             var view = app?.ActiveUIDocument?.ActiveView;
             if (view == null || view.IsTemplate) return;
+            // Resets EVERY element override in the view, including ones the user
+            // set by hand - so ask first.
+            var confirm = TaskDialog.Show("STING Electrical - Clear overrides",
+                $"Reset ALL graphic overrides on every element in '{view.Name}'?\n\n" +
+                "This also removes overrides you applied by hand, not only STING colouring. " +
+                "Undo (Ctrl+Z) reverses it.",
+                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No, TaskDialogResult.No);
+            if (confirm != TaskDialogResult.Yes) return;
             try
             {
                 using var tx = new Transaction(doc, "STING Clear Electrical Overrides");
@@ -819,8 +838,8 @@ namespace StingTools.UI
                 var rows = StingTools.Commands.Electrical.ElectricalSnapshotBuilder
                     .BuildWireRefRows(panel.GetWireRefMaterial(),
                                       panel.GetWireRefInsulation(),
-                                      panel.GetWireRefMethod());
-                panel.RefreshFromData(new ElectricalPanelSnapshot { WireRefRows = rows });
+                                      panel.GetWireRefMethod(), out string basis);
+                panel.RefreshFromData(new ElectricalPanelSnapshot { WireRefRows = rows, WireRefBasis = basis });
             }
             catch (Exception ex) { StingLog.Warn($"RefreshWireRefTable: {ex.Message}"); }
         }

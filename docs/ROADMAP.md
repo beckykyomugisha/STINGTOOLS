@@ -2,6 +2,42 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Electrical calculations — deep review (2026-09-24, updated after the fix round)
+
+A static review of the electrical module ahead of an MEP presentation, followed by a fix
+round on `claude/electrical-mep-presentation-review-30b524` (PR #976; see CHANGELOG).
+**Nothing below has been exercised in Revit.** Every "closed" item is closed in code and
+unit tests, not in a live model — run `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` before
+relying on any of it.
+
+| ID | Status | What changed · what is still open |
+|---|---|---|
+| ELEC-1 | ~~Arc flash fabricated~~ **Replaced, indicative** | Now IEEE 1584-2002 (worked example matches hand calc < 0.01 %), three-phase boards only, labelled "superseded by 2018 — indicative". **Open:** IEEE 1584-2018 needs the standard's coefficient tables; MV (> 1 kV) refused; MCCB/ACB clearing times need manufacturer curves. Not for PPE without a licensed study. |
+| ELEC-2 | ~~Fault current not IEC 60909~~ **Closed (LV)** | IEC 60909-0 style: c = 1.10/0.95, source R = 0.1X (assumption, labelled), cable R at 20 °C (BS EN 60228) + assumed X 0.08 mΩ/m. **Open:** no transformer, motor, zero-sequence or ip model. |
+| ELEC-3 | ~~Cable sizer not App 4~~ **Closed for one table** | BS 7671 Appendix 4 method with Ca/Cg/Ci/Cf and Ib ≤ In ≤ Iz. **Open:** only Table 4D2A method C (70 °C PVC Cu multicore) ships — XLPE (4E2A/4E4A), armoured, aluminium and methods A/B/E/F are refused until transcribed from the printed standard; rows ≥ 25 mm² are flagged VERIFY; no grouping/Ci/fuse inputs on the panel yet. |
+| ELEC-4 | ~~TCC synthetic~~ **Closed for MCBs** | Generic IEC 60898-1 B/C/D bands; selectivity reported as Selective / Not assured / Not selective / No curve data. **Open:** manufacturer selectivity tables; MCCB/ACB curves; curve letters for bare ratings are assumed. |
+| ELEC-5 | ~~VD engine~~ **Closed** | BS EN 60228 20 °C resistance, BS 7671 App 12 limits, robust wire-size parser, 3-ph factor √3/2. **Open:** reactance ignored above 25 mm² in the resistive engine; upstream drop not added per circuit. |
+| ELEC-6 | ~~PFC table wrong~~ **Closed** | kVAR = P(tan φ1 − tan φ2); IET On-Site Guide citation; kVA labels. |
+| ELEC-7 | **Partly closed** | Cable↔circuit identity fixed, computed diameter applied, #597 route defect fixed, honest method text. **Open:** A* routing deliberately not wired in (one conduit per grid cell, endpoints can sit in obstacles); consolidator groups by panel+source only. |
+| ELEC-8 | **Relabelled, not fixed** | ETAP/EasyPower/DIALux outputs are named and labelled data hand-off drafts; ETAP IDs unique, `rdf:RDF` root; DIALux IFC gains units and correct space containment. **Open:** native import formats need the vendors' specs. |
+| ELEC-9 | ~~Wire stamp never finds a circuit~~ **Closed** | One shared conduit→circuit resolver walking the connector graph to devices/panels. |
+| ELEC-10 | ~~SLD annotate dead~~ **Closed** | Extensible Storage stamps; works on the generated SLD view via the source equipment; values fall back to Revit natives. |
+| ELEC-11 | ~~Lighting fallbacks silent~~ **Closed** | Assumed lumens/watts flagged per room; no invented UGR; IES absolute photometry integrated; LDT parser rewritten to EULUMDAT; IFC results matched by GlobalId → number → name. |
+| ELEC-12 | ~~Renumber/Sort/Balance false success~~ **Closed** | Renumber moves slots via `PanelScheduleView.MoveSlotTo`; Sort/Balance report only real changes. |
+| ELEC-13 | **Open** | `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` has never been run in Revit. **This is now the single biggest risk on this module.** |
+| ELEC-14 | ~~Ze corporate-only~~ **Closed** | `cMin` in JSON; project override `_BIM_COORD/bs7671_disconnection.json` (timestamp-cached). |
+| ELEC-15 | ~~Three slot-count sources~~ **Closed** | `PanelSlotReader`/`PanelSlotRules`; unknown slot count is reported, never assumed. |
+| ELEC-16 | ~~Step always 2~~ **Closed** | Step read from the panel schedule configuration. **Open:** the door diagram still draws two columns. |
+| ELEC-17 | ~~English-only, duplicated keywords~~ **Closed** | `Data/STING_EMERGENCY_KEYWORDS.json` + project override, used by all callers. |
+| ELEC-18 | ~~Flow units~~ **Closed** | HVAC panel, BOQ and MEP-design flows converted via `UnitUtils`. |
+| ELEC-19 | **Open (design)** | `MapBuiltIn` still takes the target unit from the parameter-name suffix; explicit per-mapping units would be sturdier. |
+| ELEC-20 | ~~Small items~~ **Closed** | IPS check rewritten (10 kVA IT transformer + LIM; leakage deferred to commissioning test); dual-source reports missing parameters instead of failing; kVA labels. |
+
+Cross-check round (three independent reviewers over the merged branch) found and fixed:
+a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths), arc flash
+fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
+audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
+
 ## Drawing-type tag families (2026-09-24)
 
 43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve

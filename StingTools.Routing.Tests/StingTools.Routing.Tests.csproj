@@ -33,6 +33,10 @@
              Link="Routing\VoxelGrid.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\Routing\ConduitRouteEngine.cs"
              Link="Routing\ConduitRouteEngine.cs" />
+    <!-- Revit-free manifest-cable → circuit identity rules (ELC-7). The
+         Revit-bound adapter, CableCircuitResolver, is deliberately NOT linked. -->
+    <Compile Include="..\StingTools\Core\Electrical\CableCircuitIdentity.cs"
+             Link="Electrical\CableCircuitIdentity.cs" />
 
     <!-- StingCable lives in Core.Electrical and is referenced by
          ConduitRouteEngine.SelectConduitDiameterMm. The full

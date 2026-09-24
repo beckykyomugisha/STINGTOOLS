@@ -399,7 +399,7 @@ namespace StingTools.Mcp
             {
                 InstallMethod  = a["installMethod"]?.Value<string>() ?? "C",
                 Material       = a["material"]?.Value<string>() ?? "Cu",
-                Insulation     = a["insulation"]?.Value<string>() ?? "XLPE90",
+                Insulation     = a["insulation"]?.Value<string>() ?? "PVC70",
                 VDLimitPct     = a["vdLimitPct"]?.Value<double?>() ?? 3.0,
                 Standard       = a["standard"]?.Value<string>() ?? "BS7671",
                 AmbientTempC   = a["ambientTempC"]?.Value<double?>() ?? 30.0,

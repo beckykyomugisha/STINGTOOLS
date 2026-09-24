@@ -539,10 +539,10 @@
                                         <ColumnDefinition Width="80"/>
                                         <ColumnDefinition Width="60"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Branch (%)" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox Grid.Column="1" x:Name="txtVDBranch" Text="3" FontSize="10" Margin="2"/>
-                                    <TextBlock Grid.Column="2" Text="Feeder (%)" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox Grid.Column="3" x:Name="txtVDFeeder" Text="2" FontSize="10" Margin="2"/>
+                                    <TextBlock Grid.Column="0" Text="Lighting (%)" Style="{StaticResource ElecLabel}" ToolTip="BS 7671 Appendix 12 Table 4Ab: 3 % for lighting circuits, from the origin of the installation"/>
+                                    <TextBox Grid.Column="1" x:Name="txtVDLighting" Text="3" FontSize="10" Margin="2"/>
+                                    <TextBlock Grid.Column="2" Text="Other (%)" Style="{StaticResource ElecLabel}" ToolTip="BS 7671 Appendix 12 Table 4Ab: 5 % for other uses. NEC: 210.19(A) Informational Note 4 recommends 3 % per branch — set both to 3."/>
+                                    <TextBox Grid.Column="3" x:Name="txtVDOther" Text="5" FontSize="10" Margin="2"/>
                                 </Grid>
                                 <TextBlock Text="Wire temp" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox x:Name="cmbWireTemp" FontSize="10">
@@ -580,7 +580,7 @@
                                             ToolTip="Reset any colour / halftone overrides applied by Flag Exceedances, Arc Flash, Emergency Audit or LPD checks on the active view."/>
                                     <Button Content="▶ Load + Demand Audit" Style="{StaticResource ElecActionBtn}"
                                             Tag="Calc_LoadDemandAudit" Click="Cmd_Click"
-                                            ToolTip="Phase 185 — applies BS 7671 App 1 / IEE OSG diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
+                                            ToolTip="Phase 185 — applies IET On-Site Guide Appendix A diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -593,7 +593,7 @@
                                     <ComboBoxItem Content="BS EN 60947-2 (UK MCCB)" Tag="BS_MCCB"/>
                                     <ComboBoxItem Content="NEC OCPD" Tag="NEC"/>
                                 </ComboBox>
-                                <CheckBox x:Name="chkContinuous" Content="125% factor for continuous loads"
+                                <CheckBox x:Name="chkContinuous" Content="125% factor for continuous loads (NEC only)"
                                           IsChecked="True" Margin="0,4"/>
                                 <DataGrid x:Name="BreakerGrid" AutoGenerateColumns="False" CanUserAddRows="False"
                                           IsReadOnly="True" HeadersVisibility="Column" Height="150"
@@ -626,18 +626,18 @@
                                     <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
                                     <ComboBoxItem Content="E — Free air" Tag="E"/>
                                 </ComboBox>
-                                <TextBlock Text="Diversity mode" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox x:Name="FeederDiversityMode" FontSize="10"
-                                          SelectionChanged="FeederDiversityMode_Changed">
-                                    <ComboBoxItem Content="None" IsSelected="True" Tag="None"/>
-                                    <ComboBoxItem Content="BS 7671 App 1 (domestic)" Tag="BS"/>
-                                    <ComboBoxItem Content="NEC 220.83 (existing)" Tag="NEC"/>
-                                    <ComboBoxItem Content="User-defined %" Tag="User"/>
-                                </ComboBox>
+                                <!-- The former "Diversity mode" combo (None / BS 7671 App 1 / NEC 220.83 /
+                                     User) was never read: only the % box reached the sizer, and it was
+                                     disabled for every mode but User. One honest control remains. -->
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60"
-                                             FontSize="10" IsEnabled="False"/>
+                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"
+                                               ToolTip="Applied to each feeder's supply-circuit apparent load. 100 = no diversity. For category diversity (IET On-Site Guide App A) use Load Demand."/>
+                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60" FontSize="10"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="VD limit %" Style="{StaticResource ElecLabel}"
+                                               ToolTip="Blank = the BS 7671 Appendix 12 'Other (%)' limit set under VOLTAGE DROP (5 % by default). Enter a value to override for feeders only."/>
+                                    <TextBox x:Name="FeederVDLimit" Text="" Width="60" FontSize="10"/>
                                 </StackPanel>
                                 <Button Content="▶ Size All Feeders" Margin="0,4"
                                         Style="{StaticResource ElecPrimaryBtn}"
@@ -796,9 +796,9 @@
                                 </ComboBox>
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">
-                                    <ComboBoxItem Content="PVC (70°C)" Tag="PVC70"/>
-                                    <ComboBoxItem Content="XLPE (90°C)" IsSelected="True" Tag="XLPE90"/>
-                                    <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90"/>
+                                    <ComboBoxItem Content="PVC (70°C)" IsSelected="True" Tag="PVC70"/>
+                                    <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90" ToolTip="BS 7671 Table 4E2A is not shipped in STING_WIRE_TABLES.json — the BS 7671 sizer refuses until it is added"/>
+                                    <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90" ToolTip="LSOH is a sheath, not an insulation: a 90 °C LSOH cable is sized from the thermosetting Table 4E tables, which are not shipped in STING_WIRE_TABLES.json — the BS 7671 sizer refuses until they are added"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="7" Grid.Column="0" Text="VD limit (%)" Style="{StaticResource ElecLabel}"/>
                                 <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtCblVDLimit" Text="3" Margin="2" FontSize="10"/>
@@ -897,21 +897,21 @@
                                     <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbWireRefMaterial" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
                                         <ComboBoxItem Content="Copper" IsSelected="True" Tag="Cu"/>
-                                        <ComboBoxItem Content="Aluminium" Tag="Al"/>
+                                        <ComboBoxItem Content="Aluminium (no table shipped)" Tag="Al"/>
                                     </ComboBox>
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbWireRefInsulation" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
-                                        <ComboBoxItem Content="XLPE 90°C" IsSelected="True" Tag="XLPE90"/>
-                                        <ComboBoxItem Content="PVC 70°C" Tag="PVC70"/>
+                                        <ComboBoxItem Content="PVC 70°C (Table 4D2A)" IsSelected="True" Tag="PVC70"/>
+                                        <ComboBoxItem Content="XLPE 90°C (no table shipped)" Tag="XLPE90"/>
                                     </ComboBox>
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Method" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbWireRefMethod" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
                                         <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
-                                        <ComboBoxItem Content="A1" Tag="A1"/>
-                                        <ComboBoxItem Content="B1" Tag="B1"/>
-                                        <ComboBoxItem Content="E" Tag="E"/>
+                                        <ComboBoxItem Content="A1 (no table shipped)" Tag="A1"/>
+                                        <ComboBoxItem Content="B1 (no table shipped)" Tag="B1"/>
+                                        <ComboBoxItem Content="E (no table shipped)" Tag="E"/>
                                     </ComboBox>
                                 </Grid>
                                 <DataGrid x:Name="WireRefGrid" AutoGenerateColumns="False" CanUserAddRows="False"
@@ -919,11 +919,14 @@
                                           FontSize="10" Margin="0,4">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="70"/>
-                                        <DataGridTextColumn Header="1Ph Imax" Binding="{Binding Imax1Ph}" Width="80"/>
-                                        <DataGridTextColumn Header="3Ph Imax" Binding="{Binding Imax3Ph}" Width="80"/>
-                                        <DataGridTextColumn Header="mΩ/m" Binding="{Binding MohmPerM}" Width="*"/>
+                                        <DataGridTextColumn Header="It 1Ph (A)" Binding="{Binding Imax1Ph}" Width="70"/>
+                                        <DataGridTextColumn Header="It 3Ph (A)" Binding="{Binding Imax3Ph}" Width="70"/>
+                                        <DataGridTextColumn Header="mV/A/m 1Ph" Binding="{Binding Mv1Ph}" Width="75"/>
+                                        <DataGridTextColumn Header="mV/A/m 3Ph" Binding="{Binding Mv3Ph}" Width="*"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
+                                <TextBlock x:Name="txtWireRefBasis" TextWrapping="Wrap" FontSize="9" Opacity="0.8" Margin="0,2"
+                                           Text="BS 7671 Appendix 4 Table 4D2A (It) / 4D2B (mV/A/m), copper PVC 70 °C, method C."/>
                             </StackPanel>
                         </Expander>
 
@@ -1521,15 +1524,15 @@
 
                         <Expander Header="EXTERNAL TOOL INTEGRATION" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="🔌 Export to EasyPower (XML)" Style="{StaticResource ElecActionBtn}"
+                                <Button Content="🔌 EasyPower data hand-off (draft XML)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportEasyPower" Click="Cmd_Click"
-                                        ToolTip="Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real EasyPower import format is licensed; this is a documented approximation."/>
-                                <Button Content="💡 Export to DIALux evo (IFC 4)" Style="{StaticResource ElecActionBtn}"
+                                        ToolTip="Data hand-off DRAFT: buses, branches, cables, feeders and arc-flash rows in a STING-defined XML layout. NOT a native EasyPower import file (its format is not public) — map and review before use."/>
+                                <Button Content="💡 DIALux data hand-off (IFC 4 draft)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportDIALux" Click="Cmd_Click"
-                                        ToolTip="IFC 4 STEP file with IfcLightFixture + IfcSpace entities. DIALux 12+ accepts this."/>
-                                <Button Content="⚙ Export to ETAP (CIM XML)" Style="{StaticResource ElecActionBtn}"
+                                        ToolTip="Data hand-off DRAFT: IfcSpace (number, name, SI quantities) + IfcLightFixture records with STING property sets. No geometry or placement — use Revit IFC export / the DIALux plug-in for a calculation model."/>
+                                <Button Content="⚙ ETAP data hand-off (CIM-shaped draft)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportEtap" Click="Cmd_Click"
-                                        ToolTip="IEC 61968 / 61970 CIM XML — substations + energy consumers for ETAP load-flow."/>
+                                        ToolTip="Data hand-off DRAFT: CIM-shaped RDF/XML (panels, loads, feeders with unique IDs). NOT a validated CIM profile nor a native ETAP import file — map and review before use."/>
                                 <Button Content="▶ Export to SKM PowerTools 🔒" Style="{StaticResource ElecActionBtn}"
                                         IsEnabled="False"
                                         ToolTip="Planned for Phase 180 — SKM PowerTools requires a licensed import format."/>

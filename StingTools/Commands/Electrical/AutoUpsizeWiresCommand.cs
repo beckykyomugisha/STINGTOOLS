@@ -29,12 +29,12 @@ namespace StingTools.Commands.Electrical
             var doc = ctx.Doc;
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot { BranchLimitPct = 3.0, FeederLimitPct = 2.0,
+                       ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                                                   Material = "Cu", OperatingTempC = 70.0,
                                                   Standard = "BS7671" };
 
             var vdResults = VoltageDropCommand.Calculate(doc, opts.Standard,
-                opts.BranchLimitPct, opts.FeederLimitPct, opts.Material, opts.OperatingTempC);
+                opts.LightingLimitPct, opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
             var failing = vdResults.Where(r => r.ExceedsThreshold).ToList();
             if (failing.Count == 0)
             {
@@ -49,11 +49,14 @@ namespace StingTools.Commands.Electrical
                 if (sys == null) continue;
                 int phases = SafePoles(sys) >= 3 ? 3 : 1;
                 double v = SafeVoltage(sys);
-                if (v <= 0) v = phases == 3 ? 415.0 : 240.0;
+                // UK nominal 400 V / 230 V (BS 7671, as WireAnnotation uses) — the old
+                // 415 / 240 understated the drop %; flagged "assumed" in the preview.
+                bool assumedV = v <= 0;
+                if (assumedV) v = phases == 3 ? 400.0 : 230.0;
                 double currentCsa = ParseCsa(vd.WireSize);
                 double? minCsa = VoltageDropEngine.MinimumCsaForVDLimit(
                     vd.CurrentA, vd.LengthM, opts.Material, v, phases,
-                    phases == 3 ? opts.FeederLimitPct : opts.BranchLimitPct,
+                    vd.LimitPct > 0 ? vd.LimitPct : VoltageDropEngine.LimitFor(vd.IsLighting, opts.LightingLimitPct, opts.OtherLimitPct),
                     opts.OperatingTempC);
                 if (minCsa == null || minCsa <= currentCsa) continue;
                 double newVd = VoltageDropEngine.CalculateVoltDropPercent(
@@ -66,7 +69,9 @@ namespace StingTools.Commands.Electrical
                     LoadName     = vd.LoadName,
                     OldCsaMm2    = currentCsa,
                     NewCsaMm2    = minCsa.Value,
-                    NewVDPct     = newVd
+                    NewVDPct     = newVd,
+                    VoltageV     = v,
+                    VoltageAssumed = assumedV,
                 });
             }
             if (preview.Count == 0)
@@ -81,9 +86,13 @@ namespace StingTools.Commands.Electrical
             for (int i = 0; i < top; i++)
             {
                 var p = preview[i];
-                sb.AppendLine($"  {p.PanelName}-{p.CircuitNumber}: {p.OldCsaMm2:0.#}mm² → {p.NewCsaMm2:0.#}mm² (new VD {p.NewVDPct:0.0}%)");
+                sb.AppendLine($"  {p.PanelName}-{p.CircuitNumber}: {p.OldCsaMm2:0.#}mm² → {p.NewCsaMm2:0.#}mm² (new VD {p.NewVDPct:0.0}%" +
+                              (p.VoltageAssumed ? $" at {p.VoltageV:0} V assumed)" : ")"));
             }
             if (preview.Count > top) sb.AppendLine($"  …and {preview.Count - top} more");
+            int assumedCount = preview.Count(p => p.VoltageAssumed);
+            if (assumedCount > 0)
+                sb.AppendLine($"\n{assumedCount} circuit(s) carry no voltage — 400 V (3-ph) / 230 V (1-ph) was ASSUMED.");
 
             var dlg = new TaskDialog("STING Auto-Upsize Conductors")
             {
@@ -130,23 +139,15 @@ namespace StingTools.Commands.Electrical
         {
             public ElementId CircuitId;
             public string PanelName, CircuitNumber, LoadName;
-            public double OldCsaMm2, NewCsaMm2, NewVDPct;
+            public double OldCsaMm2, NewCsaMm2, NewVDPct, VoltageV;
+            public bool VoltageAssumed;
         }
 
         private static int SafePoles(ElectricalSystem s)
         { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
         private static double SafeVoltage(ElectricalSystem s)
-        { try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
-        private static double ParseCsa(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return 0;
-            string digits = "";
-            foreach (char ch in s)
-            {
-                if (char.IsDigit(ch) || ch == '.') digits += ch;
-                else if (digits.Length > 0) break;
-            }
-            return double.TryParse(digits, out double v) ? v : 0;
-        }
+        { try { return StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_VOLTAGE); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
+        // ELEC-5: was a first-number parser ("2 x 2.5mm²" → 2). One parser for every VD caller.
+        private static double ParseCsa(string s) => StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(s);
     }
 }

@@ -34,6 +34,57 @@ namespace StingTools.Routing.Tests
             Assert.Equal(end, segs[segs.Count - 1].End);
         }
 
+        // #597 — the route must actually reach the goal. When the last L/Z
+        // leg was shorter than the 0.01 ft tolerance it was dropped and the
+        // run stopped ~1.5 mm short of the panel, by VALUE, not just by
+        // reference. These compare coordinates so they cannot pass on
+        // object identity alone.
+        [Fact]
+        public void ComputeRoute_SubToleranceTailLeg_StillEndsAtGoal()
+        {
+            var start = new XYZ(0, 0, 0);
+            var end   = new XYZ(10, 0.005, 0);   // Y offset below the 0.01 ft leg tolerance
+            var segs  = ConduitRouteEngine.ComputeRoute(start, end, 25, "C-1");
+            Assert.NotEmpty(segs);
+            var last = segs[segs.Count - 1].End;
+            Assert.Equal(0.0, last.DistanceTo(end), 9);
+            Assert.Equal(0.0, segs[0].Start.DistanceTo(start), 9);
+        }
+
+        [Fact]
+        public void ComputeRoute_SubToleranceHeadLeg_StillStartsAtStart()
+        {
+            var start = new XYZ(0, 0, 0);
+            var end   = new XYZ(0.005, 0, 8);    // X offset below tolerance, then a real drop
+            var segs  = ConduitRouteEngine.ComputeRoute(start, end, 25, "C-1");
+            Assert.NotEmpty(segs);
+            Assert.Equal(0.0, segs[0].Start.DistanceTo(start), 9);
+            Assert.Equal(0.0, segs[segs.Count - 1].End.DistanceTo(end), 9);
+        }
+
+        [Theory]
+        [InlineData(10, 5, 8)]
+        [InlineData(10, 0.005, 0)]
+        [InlineData(0.005, 0, 8)]
+        [InlineData(-3, 7, -2)]
+        public void ComputeRoute_SegmentsAreContiguousAndNonDegenerate(double x, double y, double z)
+        {
+            var segs = ConduitRouteEngine.ComputeRoute(new XYZ(0, 0, 0), new XYZ(x, y, z), 25, "");
+            for (int i = 0; i < segs.Count; i++)
+            {
+                Assert.True(segs[i].Start.DistanceTo(segs[i].End) > ConduitRouteEngine.MinLegFt,
+                    $"segment {i} is shorter than the leg tolerance");
+                if (i > 0)
+                    Assert.Equal(0.0, segs[i - 1].End.DistanceTo(segs[i].Start), 12);
+            }
+        }
+
+        [Fact]
+        public void ComputeRoute_CoincidentEndpoints_ReturnsEmpty()
+        {
+            Assert.Empty(ConduitRouteEngine.ComputeRoute(new XYZ(1, 1, 1), new XYZ(1.001, 1, 1), 25, ""));
+        }
+
         [Fact]
         public void ComputeRoute_NullEndpoints_ReturnsEmpty()
         {
