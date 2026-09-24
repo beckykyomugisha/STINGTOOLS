@@ -726,7 +726,7 @@ namespace StingTools.Core.Drawing
             // Annotation pass --------------------------------------------
             // Phase 137 — explicit AnnotationRunOptions plumbing so callers
             // (SyncStyles, batch producers) can skip individual passes.
-            if (dt.Annotation != null)
+            if (dt.Annotation != null || options?.AnnotationOptions?.PackOverride != null)
             {
                 try
                 {

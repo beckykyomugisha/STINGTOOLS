@@ -72,6 +72,12 @@ namespace StingTools.Core.Drawing
         public bool SkipSpots      { get; set; } = false;
         /// <summary>View scale hint (1:N) supplied by the caller for density checks.</summary>
         public int  ViewScale      { get; set; } = 0;
+        /// <summary>
+        /// The pack to run instead of the drawing type's own — already composed
+        /// by <see cref="AnnotationPackLayering.Compose"/> from the production
+        /// rule and preset overrides. Null = the drawing type's pack.
+        /// </summary>
+        public AnnotationRulePack PackOverride { get; set; }
     }
 
     public static class AnnotationRunner
@@ -98,8 +104,8 @@ namespace StingTools.Core.Drawing
             Document doc, View view, DrawingType drawingType, AnnotationRunOptions options = null)
         {
             var stats = new AnnotationRunStats();
-            if (doc == null || view == null || drawingType?.Annotation == null) return stats;
-            var pack = drawingType.Annotation;
+            var pack = options?.PackOverride ?? drawingType?.Annotation;
+            if (doc == null || view == null || drawingType == null || pack == null) return stats;
 
             // A-2: the comments here and in AnnotationRulePack said the legacy
             // per-category bools (autoTagRooms, autoDimGrids, ...) "fold into

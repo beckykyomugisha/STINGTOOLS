@@ -347,7 +347,7 @@ namespace StingTools.Core.Drawing
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
                     AnnotationOptions = opts.RunAnnotation
-                        ? new AnnotationRunOptions { ViewScale = view.Scale }
+                        ? new AnnotationRunOptions { ViewScale = view.Scale, PackOverride = ComposeAnnotation(dt, rule, opts) }
                         : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
                     SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
                     ContextScopeBox = ctx?.ScopeBox
@@ -371,6 +371,27 @@ namespace StingTools.Core.Drawing
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
                 return ElementId.InvalidElementId;
             }
+        }
+
+        /// <summary>
+        /// The annotation pack for this view: the drawing type's, overlaid by the
+        /// production rule's annotationOverride, then the preset's "*" and
+        /// drawing-type entries (what the Production Config dialog saves). Null
+        /// when no override exists, so the runner uses the drawing type's pack
+        /// untouched. See AnnotationPackLayering for why these layer rather than
+        /// replace.
+        /// </summary>
+        private static AnnotationRulePack ComposeAnnotation(DrawingType dt, ProductionRule rule, ProduceOptions opts)
+        {
+            AnnotationRulePack presetAll = null, presetDt = null;
+            var po = opts?.Preset?.AnnotationOverrides;
+            if (po != null)
+            {
+                po.TryGetValue("*", out presetAll);
+                if (!string.IsNullOrEmpty(dt?.Id)) po.TryGetValue(dt.Id, out presetDt);
+            }
+            if (rule?.AnnotationOverride == null && presetAll == null && presetDt == null) return null;
+            return AnnotationPackLayering.Compose(dt?.Annotation, rule?.AnnotationOverride, presetAll, presetDt);
         }
 
         private static ViewFamilyType ResolveViewFamilyType(Document doc, ProductionRule rule, ProduceResult result)
@@ -970,19 +991,29 @@ namespace StingTools.Core.Drawing
                 try { StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); }
                 catch (Exception ex) { StingLog.Warn($"AutoPlaced stamp: {ex.Message}"); }
 
-                // SLOT-1: per-slot viewport type override.
-                if (!string.IsNullOrWhiteSpace(sp?.Slot?.ViewportType))
+                // SLOT-1: the slot's viewport type wins; otherwise the drawing
+                // type's own viewportTypeName. All 93 corporate types declare one
+                // ("STING - Standard Viewport") and nothing on this path read it,
+                // so every produced viewport kept Revit's default type while the
+                // catalogue said otherwise.
+                var vpTypeName = !string.IsNullOrWhiteSpace(sp?.Slot?.ViewportType)
+                    ? sp.Slot.ViewportType
+                    : dt?.ViewportTypeName;
+                if (!string.IsNullOrWhiteSpace(vpTypeName))
                 {
-                    var vpTypeId = SheetPlacementBridge.ResolveViewportTypeId(doc, sp.Slot.ViewportType);
+                    var vpTypeId = SheetPlacementBridge.ResolveViewportTypeId(doc, vpTypeName);
                     if (vpTypeId != null && vpTypeId != ElementId.InvalidElementId)
                     {
-                        try { vp.ChangeTypeId(vpTypeId); }
-                        catch (Exception ex) { result.Warnings.Add($"Viewport type '{sp.Slot.ViewportType}': {ex.Message}"); }
+                        if (vp.GetTypeId() != vpTypeId)
+                        {
+                            try { vp.ChangeTypeId(vpTypeId); }
+                            catch (Exception ex) { result.Warnings.Add($"Viewport type '{vpTypeName}': {ex.Message}"); }
+                        }
                     }
                     else
                     {
                         result.Warnings.Add(
-                            $"Viewport type '{sp.Slot.ViewportType}' not found — slot '{sp.Slot.Label}' uses the default.");
+                            $"Viewport type '{vpTypeName}' not found — viewport for slot '{sp?.Slot?.Label}' uses the default.");
                     }
                 }
                 return vp.Id;
