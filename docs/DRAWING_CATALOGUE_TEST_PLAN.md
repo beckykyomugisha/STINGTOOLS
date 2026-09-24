@@ -156,6 +156,54 @@ Everything here creates real Revit geometry. **None of it has been executed.** T
 a named warning rather than an exception, but "fails safely" is not "produces the right drawing" —
 and a count of placed elements is not evidence that they landed correctly.
 
+### 2.A Automated — in-Revit smoke harness (built, NOT YET RUN)
+
+Most of §2.1–2.6 is now automated by `StingTools.Revit.SmokeTests/`, which runs NUnit tests
+**inside desktop Revit** through [ricaun.RevitTest](https://github.com/ricaun-io/ricaun.RevitTest)
+(MIT; `dotnet test` opens Revit on the local licence, runs the tests on the API thread, closes it).
+It builds its own model from the running version's `Default-Multi-Discipline_Metric.rte`
+(`Fixtures/SmokeModelBuilder.cs` — no `.rvt` is checked in) and calls the engines directly
+(`InternalsVisibleTo` in `StingTools/Properties/AssemblyInfo.cs`). Every test runs in a
+rolled-back `TransactionGroup`, so tests are order-independent.
+
+```powershell
+# Close Revit first — the script refuses to run while any Revit process exists.
+powershell -ExecutionPolicy Bypass -File tools\run_revit_smoke.ps1                  # Revit 2025
+powershell -ExecutionPolicy Bypass -File tools\run_revit_smoke.ps1 -RevitVersion 2026
+```
+
+Results: `TestResults\revit-smoke\<stamp>\{smoke.trx, smoke.log, summary.txt}`; the log carries every
+engine warning. **Read `HarnessIntegrityTests` first**: it fails the run if Revit resolved a
+different `StingTools.dll` (the deployed add-in) from the one built beside the tests. If it fails,
+move `%APPDATA%\Autodesk\Revit\Addins\<ver>\StingTools.addin` aside for the run.
+
+The project name deliberately does **not** match the CI glob `StingTools.*.Tests/` — GitHub
+runners have no Revit. It is local-only until a self-hosted licensed runner exists.
+
+| Test | Covers | Asserts (outcomes, not counts) |
+|---|---|---|
+| `WallLength_…` | §2.1 #1 #3 #4 | exactly one dim per straight wall, single segment, parallel to the wall, `Value` = `CURVE_ELEM_LENGTH` ±1 mm; arc wall gets no dim and a warning naming its id; stacked wall dimensioned or named (never silent); re-run adds no element |
+| `Openings_…` | §2.2 #1–3 #6 | one chain on the host wall; `NumberOfSegments` = openings + 1; segment values equal the fixture's cap→opening→cap stations ±1 mm, in order (either direction); origins monotonic; no chain on walls without openings; re-run adds nothing |
+| `ColumnToGrid_…` | §2.3 #1–4 | each off-grid column has one dim, to its nearest grid, dim line **perpendicular** to that grid, value = the known 450 / 400 mm offset; on-grid column gets none; re-run adds nothing |
+| `SpotSlope_EveryPlacedSpotIsASlope_…` | §2.4 #1 #3 #5, DRAW-3 | every spot left in the view has `StyleType == SpotSlope` (no elevation survives); engine tally = spots present; exactly one on the 1:80 drain, none on the level pipe; level run reported; re-run adds nothing. If Revit refuses the re-type the test is **Inconclusive** with the BLOCKED warning — the guard held, but nothing is placed |
+| `SpotSlope_WithNoSlopeType_Blocks_…` | §2.4 #2, DRAW-3 | slope types deleted ⇒ zero elements added to the view, `SpotsPlaced` 0, a `BLOCKED` warning |
+| `FlowArrow_…` | §2.5 #2 #3 #5 #6 | authors `STING_ANNO_FLOW_ARROW` via `BuildFlowArrowFamilyCommand.Author`; one arrow per unconnected run, within 1 ft of the run midpoint, aligned with the pipe; if the engine does *not* warn that direction is unknown, the drain's arrow must point downhill; re-run adds nothing |
+| `Invert_PlanView_…` | §2.6 | 2 IL notes + one `1:80` on the drain only (cold-water pipe gets none); IL text = centreline Z + survey-point datum (fixture sets +45.250 m) − **internal** radius, at `IlReportingOptions.Default.Decimals`; no NOMINAL fallback; re-run keeps the same note ids and texts; after moving the pipe 2 m the run reports exactly 3 orphans and writes 3 correct new notes |
+| `Invert_SectionAlongTheRun_…` | §2.6 | the same IL / gradient values in a section cut along the drain; re-run adds nothing |
+
+**Predicted from reading the code, before any run:** `ColumnToGrid_…` is expected to **fail**.
+`RunColumnToGrid` builds its witness line along `gridDir` (parallel to the grid), and
+`BestAlignedReference` prefers the column plane whose normal is *parallel* to the grid direction;
+and an on-grid column is filtered only for the grids it sits on (`D > 1e-6`), so it is then
+dimensioned to the next-nearest grid. If the run confirms this, it is the §2.3 failure predicted
+above, now reproducible.
+
+**Still manual** (not asserted by the harness): visual placement quality — offsets, overlap, text
+legibility (§2.1 #2, §2.2 #4); the flow-arrow **glyph** and its direction on a connected duct run
+with a real AHU (§2.5 #4); the `Roofs` slope rule (§2.4 #4); `minSizeMm` (§2.1 #5); an opening
+without a `CenterLeftRight` reference (§2.2 #5); a fitting mid-run; anything involving a Revit
+link (§2.7) and everything in §2.7–2.9.
+
 ### 2.0 Test model
 
 One model, reused across every case below. Build it once:
