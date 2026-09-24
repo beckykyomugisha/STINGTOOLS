@@ -78,6 +78,13 @@
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
+    <!-- ELEC-2 / -5 / -6 / -14: the Revit-free electrical arithmetic, each held to a
+         hand-worked example. FaultCurrentEngine, LoadDemandEngine and
+         BS7671ComplianceEngine delegate here so the plugin runs the tested copy. -->
+    <Compile Include="..\StingTools\Core\Electrical\Iec60909Lv.cs" Link="Core\Electrical\Iec60909Lv.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\PowerFactorCorrection.cs" Link="Core\Electrical\PowerFactorCorrection.cs" />
+    <Compile Include="..\StingTools\Core\Calc\VoltageDropSolver.cs" Link="Core\Calc\VoltageDropSolver.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Compliance\BS7671Thresholds.cs" Link="Commands\Electrical\Compliance\BS7671Thresholds.cs" />
     <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
