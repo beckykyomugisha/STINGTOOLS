@@ -539,10 +539,10 @@
                                         <ColumnDefinition Width="80"/>
                                         <ColumnDefinition Width="60"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Branch (%)" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox Grid.Column="1" x:Name="txtVDBranch" Text="3" FontSize="10" Margin="2"/>
-                                    <TextBlock Grid.Column="2" Text="Feeder (%)" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox Grid.Column="3" x:Name="txtVDFeeder" Text="2" FontSize="10" Margin="2"/>
+                                    <TextBlock Grid.Column="0" Text="Lighting (%)" Style="{StaticResource ElecLabel}" ToolTip="BS 7671 Appendix 12 Table 4Ab: 3 % for lighting circuits, from the origin of the installation"/>
+                                    <TextBox Grid.Column="1" x:Name="txtVDLighting" Text="3" FontSize="10" Margin="2"/>
+                                    <TextBlock Grid.Column="2" Text="Other (%)" Style="{StaticResource ElecLabel}" ToolTip="BS 7671 Appendix 12 Table 4Ab: 5 % for other uses. NEC: 210.19(A) Informational Note 4 recommends 3 % per branch — set both to 3."/>
+                                    <TextBox Grid.Column="3" x:Name="txtVDOther" Text="5" FontSize="10" Margin="2"/>
                                 </Grid>
                                 <TextBlock Text="Wire temp" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox x:Name="cmbWireTemp" FontSize="10">
@@ -593,7 +593,7 @@
                                     <ComboBoxItem Content="BS EN 60947-2 (UK MCCB)" Tag="BS_MCCB"/>
                                     <ComboBoxItem Content="NEC OCPD" Tag="NEC"/>
                                 </ComboBox>
-                                <CheckBox x:Name="chkContinuous" Content="125% factor for continuous loads"
+                                <CheckBox x:Name="chkContinuous" Content="125% factor for continuous loads (NEC only)"
                                           IsChecked="True" Margin="0,4"/>
                                 <DataGrid x:Name="BreakerGrid" AutoGenerateColumns="False" CanUserAddRows="False"
                                           IsReadOnly="True" HeadersVisibility="Column" Height="150"
@@ -796,8 +796,8 @@
                                 </ComboBox>
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">
-                                    <ComboBoxItem Content="PVC (70°C)" Tag="PVC70"/>
-                                    <ComboBoxItem Content="XLPE (90°C)" IsSelected="True" Tag="XLPE90"/>
+                                    <ComboBoxItem Content="PVC (70°C)" IsSelected="True" Tag="PVC70"/>
+                                    <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90" ToolTip="BS 7671 Table 4E2A is not shipped in STING_WIRE_TABLES.json — the BS 7671 sizer refuses until it is added"/>
                                     <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="7" Grid.Column="0" Text="VD limit (%)" Style="{StaticResource ElecLabel}"/>

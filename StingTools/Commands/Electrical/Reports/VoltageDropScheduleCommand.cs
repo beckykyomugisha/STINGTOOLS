@@ -27,11 +27,11 @@ namespace StingTools.Commands.Electrical.Reports
             var doc = ctx.Doc;
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot { BranchLimitPct = 3.0, FeederLimitPct = 2.0,
+                       ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                                                   Material = "Cu", OperatingTempC = 70.0,
                                                   Standard = "BS7671" };
             var results = VoltageDropCommand.Calculate(doc, opts.Standard,
-                opts.BranchLimitPct, opts.FeederLimitPct, opts.Material, opts.OperatingTempC);
+                opts.LightingLimitPct, opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
 
             int written = 0;
             ViewSchedule view = null;

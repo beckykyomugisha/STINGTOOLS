@@ -393,7 +393,7 @@ namespace StingTools.UI
                 double vd   = ParseDouble(txtCblVDLimit?.Text, 3.0);
                 string method = ((cmbCblMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
                 string mat    = ((cmbCblMaterial?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu";
-                string ins    = ((cmbCblInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "XLPE90";
+                string ins    = ((cmbCblInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
                 string std    = ((cmbCblStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "BS7671";
                 string vTag   = ((cmbCblVoltage?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "240,1";
                 var parts = vTag.Split(',');
@@ -453,8 +453,8 @@ namespace StingTools.UI
         {
             return new VDOptionsSnapshot
             {
-                BranchLimitPct = ParseDouble(txtVDBranch?.Text, 3.0),
-                FeederLimitPct = ParseDouble(txtVDFeeder?.Text, 2.0),
+                LightingLimitPct = ParseDouble(txtVDLighting?.Text, 3.0),
+                OtherLimitPct = ParseDouble(txtVDOther?.Text, 5.0),
                 Material = ((cmbConductor?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu",
                 OperatingTempC = ParseDouble(((cmbWireTemp?.SelectedItem as ComboBoxItem)?.Tag as string), 70.0),
                 Standard = CalcStandard
@@ -963,7 +963,9 @@ namespace StingTools.UI
 
     public class VDOptionsSnapshot
     {
-        public double BranchLimitPct, FeederLimitPct, OperatingTempC;
+        /// <summary>BS 7671 Appendix 12 (Table 4Ab): 3 % lighting, 5 % other uses, from the origin.
+        /// These replace a branch 3 % / feeder 2 % split keyed on pole count (ELEC-5).</summary>
+        public double LightingLimitPct, OtherLimitPct, OperatingTempC;
         public string Material, Standard;
     }
 
