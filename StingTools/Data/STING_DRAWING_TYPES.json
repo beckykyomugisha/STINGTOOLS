@@ -380,7 +380,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "a339c960d1dc8121cdf0f12df2334ca4439a1f44a9dabc73b5b2987664538219",
+      "checksum": "23d3bbdddd3e775d3f0c195ccd6448be58d7e02ff3b8adac4f02feffb12e0153",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -477,26 +477,6 @@
             "enabled": true
           },
           {
-            "category": "Areas",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Walls",
-            "ruleType": "AutoDimWallLength",
-            "enabled": true
-          },
-          {
-            "category": "Doors",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Windows",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
             "category": "Walls",
             "ruleType": "MaterialTagLayers",
             "enabled": true
@@ -548,7 +528,7 @@
       "id": "arch-elev-A1-1to100",
       "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "b9896e58263687fa5fc6edeb2882d7e8712dc91d62325a1efb4982744a738ba0",
+      "checksum": "7700bd5dcf01a7527e5df8d35deb8916161c9aa16cca748920b4eb075874768d",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -642,11 +622,6 @@
             "enabled": true
           },
           {
-            "category": "Rooms",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
             "category": "Doors",
             "ruleType": "AutoTag",
             "enabled": true
@@ -664,46 +639,6 @@
           {
             "category": "Railings",
             "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Furniture",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Casework",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Areas",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Walls",
-            "ruleType": "AutoDimWallLength",
-            "enabled": true
-          },
-          {
-            "category": "Doors",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Windows",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomName",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomNumber",
             "enabled": true
           },
           {
@@ -748,7 +683,7 @@
       "id": "arch-detail-A3-1to20",
       "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "0a608631daad96faf3f161530079190948b16bbfa327c75752191040b264b972",
+      "checksum": "fe8973138cb482d54ffce3a3d1ce457a5dcb82108ea3a38f7556950e658626ae",
       "purpose": "Detail",
       "discipline": "A",
       "paperSize": "A3",
@@ -833,21 +768,11 @@
         },
         "rules": [
           {
-            "category": "Grids",
-            "ruleType": "AutoDim",
-            "enabled": true
-          },
-          {
             "category": "Levels",
             "ruleType": "AutoDim",
             "enabled": true
           },
           {
-            "category": "Rooms",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
             "category": "Doors",
             "ruleType": "AutoTag",
             "enabled": true
@@ -855,56 +780,6 @@
           {
             "category": "Windows",
             "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Stairs",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Railings",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Furniture",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Casework",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Areas",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Walls",
-            "ruleType": "AutoDimWallLength",
-            "enabled": true
-          },
-          {
-            "category": "Doors",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Windows",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomName",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomNumber",
             "enabled": true
           },
           {
@@ -2926,7 +2801,7 @@
       "id": "arch-interior-elev-A1-1to50",
       "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "808577ed0de1b4729e60dbfc7d30a6189e1d3813f2efd7efed2609dc96cc9c62",
+      "checksum": "e31dc6e3933c7377002ca6ec6ab1d8156019999dd85e4520b287131b9805a1e4",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -3010,18 +2885,8 @@
         },
         "rules": [
           {
-            "category": "Grids",
-            "ruleType": "AutoDim",
-            "enabled": true
-          },
-          {
             "category": "Levels",
             "ruleType": "AutoDim",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTag",
             "enabled": true
           },
           {
@@ -3031,16 +2896,6 @@
           },
           {
             "category": "Windows",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Stairs",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Railings",
             "ruleType": "AutoTag",
             "enabled": true
           },
@@ -3052,36 +2907,6 @@
           {
             "category": "Casework",
             "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Areas",
-            "ruleType": "AutoTag",
-            "enabled": true
-          },
-          {
-            "category": "Walls",
-            "ruleType": "AutoDimWallLength",
-            "enabled": true
-          },
-          {
-            "category": "Doors",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Windows",
-            "ruleType": "AutoDimOpenings",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomName",
-            "enabled": true
-          },
-          {
-            "category": "Rooms",
-            "ruleType": "AutoTagRoomNumber",
             "enabled": true
           },
           {

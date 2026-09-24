@@ -451,6 +451,17 @@ namespace StingTools.Core.Drawing
             // LightingFixtures, …) went unnoticed.
             ValidateTagFamilyKeys(dt, r);
 
+            // DT-139-PURPOSE: a plan-only rule on an elevation / section / detail.
+            foreach (var rule in dt.Annotation?.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (rule == null || !rule.Enabled) continue;
+                var why = AnnotationRuleKinds.NotForPurpose(rule.RuleType, rule.Category, dt.Purpose);
+                if (why != null)
+                    r.Add(ValidationSeverity.Warning, "DT-139-PURPOSE",
+                        $"Rule {rule.RuleType} on '{rule.Category}': {why}",
+                        "Remove the rule from this drawing type — it was most likely copied from a floor plan.");
+            }
+
             // DT-139-TAG: a tag rule on a category Revit cannot tag.
             // IndependentTag.Create requires a taggable MODEL category, so a
             // rule on an annotation or datum category throws once per element

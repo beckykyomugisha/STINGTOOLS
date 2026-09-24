@@ -2,6 +2,26 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — elevations, sections and details no longer carry the floor plan's rules)
+
+- **Four drawing types had the plan's rule list copied in** — `arch-elev-A1-1to100`,
+  `arch-interior-elev-A1-1to50`, `arch-section-A1-1to50`, `arch-detail-A3-1to20` (the same
+  defect the RCP had): area tags where no area can appear, room tags on elevations and details,
+  and the wall-length / opening chains, which dimension walls from their PLAN geometry — on an
+  elevation that is every wall's plan length, walls seen end-on included. 25 such rules removed.
+  Also removed, as judgement rather than rule: furniture and casework tags on the exterior
+  elevation, the grid chain / stair / railing tags on the single-room interior elevation, and
+  grids / stairs / railings / furniture / casework on the 1:20 detail. Now: exterior elevation =
+  grids, levels, doors, windows, stairs, railings, material callouts; interior elevation = levels,
+  doors, windows, furniture, casework, material callouts; section = grids, levels, doors, windows,
+  stairs, railings, casework, build-up callouts; detail = levels, doors, windows, build-up callouts.
+- **Held by one rule, two readers.** `AnnotationRuleKinds.NotForPurpose` says which rule kinds
+  mean nothing on an Elevation / Section / Detail purpose (plan-geometry dimensions, area tags,
+  room tags on elevations and details — room tags in sections stay allowed). The validator reports
+  it as **DT-139-PURPOSE** (so a project's own drawing types are checked too), and
+  `DrawingTypePurposeRuleTests` sweeps the shipped catalogue — RED on the 25 rules before the fix,
+  and silent on the other 89 types. Checksums re-stamped for the 4 types. Not run in Revit.
+
 #### Completed (Phase 296 — STING - Materials Tag rebuilt in place as the material callout)
 
 - **Decision: rebuild, not retire.** `STING - Materials Tag` carried the universal label — 68
