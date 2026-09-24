@@ -44,20 +44,8 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             double csaMm2, string material, double lengthM,
             double operatingTempC = 70.0,
             string insulation = null)
-        {
-            if (wireTables == null || csaMm2 <= 0 || lengthM <= 0) return 0;
-            double r = wireTables.GetMohmPerMetre(csaMm2, material);
-            if (r <= 0) return 0;
-            // Resolve operating temperature: caller-supplied insulation wins
-            // (e.g. XLPE → 90 °C); falls back to the explicit operatingTempC.
-            double tempC = !string.IsNullOrEmpty(insulation)
-                ? StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.OperatingTempForInsulation(insulation)
-                : operatingTempC;
-            // Linear copper temperature coefficient α = 0.00393/K; aluminium 0.00403/K.
-            double alpha = string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? 0.00403 : 0.00393;
-            double rT = r * (1.0 + alpha * (tempC - 20.0));
-            return rT * lengthM;
-        }
+            // Pure arithmetic lives in WireTableSet.cs (CableResistance) so it is testable.
+            => CableResistance.RunMohm(wireTables, csaMm2, material, lengthM, operatingTempC, insulation);
 
         /// <summary>
         /// Fault level at the downstream end of a feeder, kA, IEC 60909-0 cmax.
@@ -246,17 +234,14 @@ namespace StingTools.Commands.Electrical.FaultCurrent
     }
 
     /// <summary>
-    /// Loader for STING_WIRE_TABLES.json. Held by FaultCurrentEngine /
-    /// FeederSizerEngine. Aluminium = copper × 1.61 if no Al table is shipped.
+    /// Loader half of <see cref="WireTableSet"/> (file lookup). The table itself —
+    /// parsing and interpolation — is Revit-free in WireTableSet.cs so it can be
+    /// tested against the shipped data file.
     /// </summary>
-    public class WireTableSet
+    public partial class WireTableSet
     {
-        private readonly List<(double csaMm2, double mohmPerM)> _copper = new();
-        private const double AluminiumFactor = 1.61;
-
         public static WireTableSet Load(string dataPath)
         {
-            var ws = new WireTableSet();
             try
             {
                 string path = string.IsNullOrEmpty(dataPath)
@@ -267,44 +252,14 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     path = StingTools.Core.StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
                 }
                 if (string.IsNullOrEmpty(path) || !File.Exists(path))
-                    return ws;
-                var root = JObject.Parse(File.ReadAllText(path));
-                var table = (root["copperTables"] as JArray)?.OfType<JObject>().FirstOrDefault();
-                if (table == null) return ws;
-                foreach (var sz in table["sizes"] as JArray ?? new JArray())
-                {
-                    double csa = sz["csaMm2"]?.Value<double>() ?? 0;
-                    double r   = sz["mohm_per_m"]?.Value<double>() ?? 0;
-                    if (csa > 0 && r > 0) ws._copper.Add((csa, r));
-                }
-                ws._copper.Sort((a, b) => a.csaMm2.CompareTo(b.csaMm2));
+                    return new WireTableSet();
+                return FromJson(JObject.Parse(File.ReadAllText(path)));
             }
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"WireTableSet.Load: {ex.Message}");
+                return new WireTableSet();
             }
-            return ws;
-        }
-
-        /// <summary>
-        /// Return mΩ/m for the nominal CSA (closest tabulated size, or
-        /// linearly interpolated when between two entries).
-        /// </summary>
-        public double GetMohmPerMetre(double csaMm2, string material)
-        {
-            if (csaMm2 <= 0 || _copper.Count == 0) return 0;
-            double r;
-            if (csaMm2 <= _copper[0].csaMm2) r = _copper[0].mohmPerM;
-            else if (csaMm2 >= _copper[^1].csaMm2) r = _copper[^1].mohmPerM;
-            else
-            {
-                int idx = _copper.FindLastIndex(p => p.csaMm2 <= csaMm2);
-                var lo = _copper[idx];
-                var hi = _copper[idx + 1];
-                double t = (csaMm2 - lo.csaMm2) / (hi.csaMm2 - lo.csaMm2);
-                r = lo.mohmPerM + t * (hi.mohmPerM - lo.mohmPerM);
-            }
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? r * AluminiumFactor : r;
         }
     }
 }
