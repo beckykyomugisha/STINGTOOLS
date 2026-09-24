@@ -169,6 +169,32 @@ namespace StingTools.Tags.Tests
                 IecMcbBands.Check(Mcb(DeviceCurve.C, 63), Mcb(DeviceCurve.C, 6), 0).Verdict);
 
         [Fact]
+        public void Curve_letter_from_a_database_default_is_flagged_assumed()
+        {
+            // "32A" names no curve; the letter C comes from the database entry type.
+            var b = IecMcbBands.FromDatabaseEntry("32A", "MCB-C", entryConfirmed: false);
+            Assert.True(b.HasBand);
+            Assert.Equal(DeviceCurve.C, b.Curve);
+            Assert.True(b.CurveAssumed);
+            Assert.Contains("(curve assumed)", b.ToString());
+        }
+
+        [Theory]
+        [InlineData("C32", "MCB-C", false)]   // the device label carries its own letter
+        [InlineData("32A", "MCB-C", true)]    // project confirmed the entry
+        public void Curve_from_the_device_or_a_confirmed_entry_is_not_assumed(string label, string type, bool confirmed)
+        {
+            var b = IecMcbBands.FromDatabaseEntry(label, type, confirmed);
+            Assert.True(b.HasBand);
+            Assert.False(b.CurveAssumed);
+            Assert.DoesNotContain("assumed", b.ToString());
+        }
+
+        [Fact]
+        public void Mccb_entry_has_no_band_and_nothing_to_assume()
+            => Assert.False(IecMcbBands.FromDatabaseEntry("100A", "MCCB", false).CurveAssumed);
+
+        [Fact]
         public void Basis_wording_is_explicit()
             => Assert.Equal("generic IEC 60898 bands — confirm with manufacturer selectivity tables", IecMcbBands.Basis);
     }

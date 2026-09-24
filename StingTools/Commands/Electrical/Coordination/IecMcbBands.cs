@@ -43,6 +43,13 @@ namespace StingTools.Commands.Electrical.Coordination
         public double RatingA { get; set; }
         public DeviceCurve Curve { get; set; }
 
+        /// <summary>
+        /// True when the curve letter did NOT come from the device itself (its label)
+        /// but from a database default type (STING_TCC_DATABASE.json entries' "type"
+        /// are generic defaults). Every result built on such a band must say so.
+        /// </summary>
+        public bool CurveAssumed { get; set; }
+
         /// <summary>True only for IEC 60898-1 B / C / D devices with a known rating.</summary>
         public bool HasBand =>
             RatingA > 0 && (Curve == DeviceCurve.B || Curve == DeviceCurve.C || Curve == DeviceCurve.D);
@@ -105,7 +112,7 @@ namespace StingTools.Commands.Electrical.Coordination
         private double Multiple(double currentA) => Math.Round(currentA / RatingA, 9);
 
         public override string ToString() =>
-            HasBand ? $"{Curve}{RatingA:0.#}" : $"{Label} ({Curve})";
+            HasBand ? $"{Curve}{RatingA:0.#}{(CurveAssumed ? " (curve assumed)" : "")}" : $"{Label} ({Curve})";
     }
 
     /// <summary>Outcome of a band-based selectivity check for one upstream/downstream pair.</summary>
@@ -181,6 +188,23 @@ namespace StingTools.Commands.Electrical.Coordination
                 "D" => DeviceCurve.D,
                 _   => DeviceCurve.Unknown
             };
+            return band;
+        }
+
+        /// <summary>
+        /// Band for a device label matched to a database entry of type
+        /// <paramref name="entryType"/>. When the label itself names no curve letter
+        /// ("32A") the letter comes from the entry's type — a generic default — so
+        /// the band is marked <see cref="DeviceBand.CurveAssumed"/> unless the project
+        /// has confirmed that entry (<paramref name="entryConfirmed"/>).
+        /// </summary>
+        public static DeviceBand FromDatabaseEntry(string label, string entryType, bool entryConfirmed)
+        {
+            var band = Parse(label, entryType);
+            var fromLabel = Parse(label);
+            bool letterFromDevice = fromLabel.Curve == DeviceCurve.B || fromLabel.Curve == DeviceCurve.C
+                                 || fromLabel.Curve == DeviceCurve.D;
+            band.CurveAssumed = band.HasBand && !letterFromDevice && !entryConfirmed;
             return band;
         }
 
