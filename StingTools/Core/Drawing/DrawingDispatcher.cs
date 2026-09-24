@@ -82,20 +82,15 @@ namespace StingTools.Core.Drawing
             return null;
         }
 
+        // Field and regex matching live in DrawingRoutingMatcher (Revit-free,
+        // gated by StingTools.Tags.Tests over the shipped routing table).
+        // Regex predicates there are case-insensitive, like the literal
+        // fields — see DrawingRoutingMatcher.PredicateOptions for why.
         private static bool MatchesField(string exact, string regexPattern, string actual)
-        {
-            // Regex predicate beats the exact-match field when both are
-            // set. Unset predicate falls through to wildcard match.
-            if (!string.IsNullOrEmpty(regexPattern)) return RegexMatches(regexPattern, actual);
-            return MatchesWildcard(exact, actual);
-        }
+            => DrawingRoutingMatcher.MatchesField(exact, regexPattern, actual);
 
         private static bool RegexMatches(string pattern, string actual)
-        {
-            if (string.IsNullOrEmpty(actual)) return false;
-            try { return System.Text.RegularExpressions.Regex.IsMatch(actual, pattern); }
-            catch { return false; }
-        }
+            => DrawingRoutingMatcher.RegexMatches(pattern, actual);
 
         private static string ReadProjectCode(Document doc)
         {
@@ -126,11 +121,7 @@ namespace StingTools.Core.Drawing
         }
 
         private static bool MatchesWildcard(string ruleValue, string actual)
-        {
-            if (string.IsNullOrEmpty(ruleValue) || ruleValue == "*") return true;
-            if (string.IsNullOrEmpty(actual)) return false;
-            return string.Equals(ruleValue, actual, StringComparison.OrdinalIgnoreCase);
-        }
+            => DrawingRoutingMatcher.MatchesWildcard(ruleValue, actual);
 
         /// <summary>
         /// Resolve the (familyName, symbolName) title-block pair for a profile.

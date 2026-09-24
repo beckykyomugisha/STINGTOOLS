@@ -98,6 +98,20 @@ namespace StingTools.Core.Drawing
         public const string Schematic    = "Schematic";
         /// <summary>Client clarification / RFI sketch.</summary>
         public const string Clarification = "Clarification";
+
+        /// <summary>
+        /// The canonical purpose set — every constant above, once. Pickers
+        /// (<c>Iso19650Vocabulary.DrawingPurposes</c>, the Excel
+        /// round-trip dropdown) and <c>DrawingPurposeViewKind</c> are
+        /// derived from or tested against this list, so a new purpose added
+        /// here cannot be missing from a picker or fall through to a default
+        /// view kind unnoticed.
+        /// </summary>
+        public static readonly string[] All =
+        {
+            Plan, Rcp, Section, Elevation, Detail, Schedule, Spool,
+            Coordination, Legend, ThreeD, Schematic, Clarification,
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────

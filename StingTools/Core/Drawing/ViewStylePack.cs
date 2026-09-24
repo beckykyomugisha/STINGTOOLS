@@ -167,8 +167,11 @@ namespace StingTools.Core.Drawing
         public Dictionary<string, string> CategoryTagStyles { get; set; }
             = new Dictionary<string, string>();
 
-        [JsonProperty("checksum", NullValueHandling = NullValueHandling.Ignore)]
-        public string Checksum { get; set; }
+        // DRAW-5: no "checksum". Packs are deliberately NOT drift-locked (see
+        // CLAUDE.md, Drawing Template Manager) — a pack decides appearance, and
+        // an unnoticed edit shows the moment a drawing opens. The property was
+        // declared here but never computed or verified, and zero packs carried
+        // it, so it read as a lock that was not one. Removed rather than left.
 
         // ── Phase 137 — managed template mode ───────────────────────
 
@@ -482,7 +485,7 @@ namespace StingTools.Core.Drawing
         // see DrawingTypeEditorDialog.ViewStylePackDoc) key the array under
         // "stylePacks", not "viewStylePacks". Without this alias the loader
         // binds nothing and ViewStylePackRegistry falls back to the 3 hard
-        // -coded BuildDefaults() packs — i.e. the 31-pack corporate catalogue
+        // -coded BuildDefaults() packs — i.e. the corporate catalogue (36 packs, measured 2026-09-24)
         // was runtime-dead. Additive write-only alias; the canonical Packs
         // list still serialises under "viewStylePacks".
         [JsonProperty("stylePacks", NullValueHandling = NullValueHandling.Ignore)]

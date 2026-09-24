@@ -169,7 +169,7 @@ namespace StingTools.Core.Drawing
                 r.Add(ValidationSeverity.Info, "DT-050",
                     "DrawingType has no slots defined — generation will place views at sheet origin.");
             else
-                foreach (var s in dt.Slots) ValidateSlot(s, r);
+                ValidateSlotGeometry(dt, r);
 
             // Pattern sanity ---------------------------------------------
             if (string.IsNullOrWhiteSpace(dt.SheetNumberPattern))
@@ -1030,6 +1030,34 @@ namespace StingTools.Core.Drawing
             }
             catch { /* validator never throws */ }
 
+            // DT-104 / DT-105 — the general form of DT-103, from the same
+            // Revit-free audit the shipped catalogue is gated by in CI
+            // (DrawingRoutingMatcher.Audit): any rule an earlier rule fully
+            // covers can never fire, and a predicate regex that does not
+            // compile never matches. Dangling ids stay DT-100 above.
+            try
+            {
+                var audit = DrawingRoutingMatcher.Audit(
+                    DrawingTypeRegistry.ListRouting(doc).ToList(), DrawingTypeRegistry.ListAll(doc));
+                foreach (var s in audit.Shadowed)
+                {
+                    var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                    r.Add(ValidationSeverity.Warning, "DT-104",
+                        $"Routing rule {s}; first-match-wins means it can never fire.",
+                        "Delete the later rule, or narrow / reorder the earlier one. Project rules are prepended, so a broad project rule shadows corporate rules.");
+                    reports.Add(r);
+                }
+                foreach (var s in audit.InvalidRegex)
+                {
+                    var r = new ValidationReport { DrawingTypeId = "(routing)" };
+                    r.Add(ValidationSeverity.Error, "DT-105",
+                        $"Routing rule predicate regex does not compile: {s}. The rule can never match.",
+                        "Fix the pattern (patterns are .NET regex, unanchored, case-insensitive).");
+                    reports.Add(r);
+                }
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Routing audit (DT-104/105): {ex.Message}"); }
+
             return reports;
         }
 
@@ -1130,14 +1158,18 @@ namespace StingTools.Core.Drawing
                 || string.Equals(purpose, DrawingPurpose.Detail,    StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void ValidateSlot(DrawingSlot s, ValidationReport r)
+        // DT-055 / DT-056 — per-slot geometry. The rules live in the
+        // Revit-free DrawingSlotGeometry so the CI gate over the shipped
+        // catalogue (StingTools.Tags.Tests) runs the same check.
+        private static void ValidateSlotGeometry(DrawingType dt, ValidationReport r)
         {
-            if (s.NormX < 0 || s.NormY < 0 || s.NormW <= 0 || s.NormH <= 0)
-                r.Add(ValidationSeverity.Error, "DT-055",
-                    $"Slot '{s.Label}' has invalid geometry (normX={s.NormX} normY={s.NormY} normW={s.NormW} normH={s.NormH}).");
-            if (s.NormX + s.NormW > 1.0001 || s.NormY + s.NormH > 1.0001)
-                r.Add(ValidationSeverity.Warning, "DT-056",
-                    $"Slot '{s.Label}' extends beyond the drawable zone (normX+W={s.NormX + s.NormW:F2} normY+H={s.NormY + s.NormH:F2}).");
+            foreach (var issue in DrawingSlotGeometry.Check(dt.Slots))
+            {
+                if (issue.Kind == DrawingSlotGeometry.IssueKind.InvalidGeometry)
+                    r.Add(ValidationSeverity.Error, issue.Code, issue.Message);
+                else if (issue.Kind == DrawingSlotGeometry.IssueKind.OutOfBounds)
+                    r.Add(ValidationSeverity.Warning, issue.Code, issue.Message);
+            }
         }
 
         // GAP-K: profile.Purpose says "Plan" but a slot.ViewType is "Section",
@@ -1250,30 +1282,17 @@ namespace StingTools.Core.Drawing
             if (dt?.Slots == null || dt.Slots.Count < 2) return;
             try
             {
-                for (int i = 0; i < dt.Slots.Count; i++)
+                // AABB overlap via the shared Revit-free helper (see
+                // ValidateSlotGeometry). Edges shared within
+                // DrawingSlotGeometry.Tolerance are not an overlap.
+                foreach (var issue in DrawingSlotGeometry.Check(dt.Slots))
                 {
-                    for (int j = i + 1; j < dt.Slots.Count; j++)
-                    {
-                        var a = dt.Slots[i];
-                        var b = dt.Slots[j];
-                        if (a == null || b == null) continue;
-                        // AABB overlap test
-                        bool overlapX = a.NormX < b.NormX + b.NormW && a.NormX + a.NormW > b.NormX;
-                        bool overlapY = a.NormY < b.NormY + b.NormH && a.NormY + a.NormH > b.NormY;
-                        if (overlapX && overlapY)
-                        {
-                            // Compute overlap area as a fraction of page
-                            double ox = Math.Min(a.NormX + a.NormW, b.NormX + b.NormW) - Math.Max(a.NormX, b.NormX);
-                            double oy = Math.Min(a.NormY + a.NormH, b.NormY + b.NormH) - Math.Max(a.NormY, b.NormY);
-                            double area = Math.Round(ox * oy * 100, 1);
-                            r.Add(ValidationSeverity.Warning, "DT-SLT-03",
-                                $"Slots [{i}] '{a.Label ?? $"slot{i}"}' and [{j}] '{b.Label ?? $"slot{j}"}' overlap by {area}% of sheet area.",
-                                "Adjust normX/normY/normW/normH to eliminate overlap, or confirm intentional side-by-side layout (e.g. BOM strip adjacent to ISO view).");
-                        }
-                    }
+                    if (issue.Kind != DrawingSlotGeometry.IssueKind.Overlap) continue;
+                    r.Add(ValidationSeverity.Warning, issue.Code, issue.Message,
+                        "Adjust normX/normY/normW/normH to eliminate overlap, or confirm intentional side-by-side layout (e.g. BOM strip adjacent to ISO view).");
                 }
             }
-            catch { /* validator must never throw */ }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ValidateSlotOverlaps('{dt.Id}'): {ex.Message}"); }
         }
     }
 }

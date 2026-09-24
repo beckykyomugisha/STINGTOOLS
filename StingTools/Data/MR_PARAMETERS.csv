@@ -1,4 +1,4 @@
-# v6.8 | 3617 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3618 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -2532,6 +2532,7 @@ Generic Models,PRJ_ORG_PHASE_TXT,d187fdbd-f701-5334-90da-1ab6694c5034,TEXT,PRJ_I
 Generic Models,PRJ_ORG_PROJECT_CODE_TXT,d72513d3-2aed-5048-a949-b262fcd51a39,TEXT,PRJ_INFORMATION,Type,Project identifier code (alphanumeric) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_SIGNATURE_PROVIDER_TXT,e669eea3-d1fa-51b7-b820-83fa21d40877,TEXT,PRJ_INFORMATION,Type,Signature provider id (empty = signatures disabled) [template engine v1.1],False,,,MULTI,1,0
 Generic Models,PRJ_ORG_WORKFLOW_PROFILE_TXT,48a26ee9-211d-5525-8fbb-9f8eb1f38878,TEXT,PRJ_INFORMATION,Type,"Workflow profile key (default ""default"") [template engine v1.1]",False,,,MULTI,1,0
+Generic Models,PRJ_ORG_SHEET_NUMBER_POLICY_TXT,89828bdc-25ad-5245-bce8-3274203c34b2,TEXT,PRJ_INFORMATION,Type,Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy],False,,,MULTI,1,0
 Generic Models,PRJ_TB_DELIVERABLE_CDE_TXT,0d917e49-c6f6-5951-b2b7-7a00bdb3b0df,TEXT,PRJ_INFORMATION,Type,CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018],False,,,MULTI,0,0
 Generic Models,PRJ_TB_DELIVERABLE_DATADROP_TXT,d63919e8-7cf5-5202-bd59-1dc03554fee4,TEXT,PRJ_INFORMATION,Type,ISO 19650 data drop identifier this deliverable belongs to [ISO 19650-2:2018],False,,,MULTI,0,0
 Generic Models,PRJ_TB_DELIVERABLE_DUE_TXT,525f8b24-26eb-52ae-8760-c6aa1621815a,TEXT,PRJ_INFORMATION,Type,Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018],False,,,MULTI,0,0

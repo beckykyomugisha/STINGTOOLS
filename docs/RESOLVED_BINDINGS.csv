@@ -2138,6 +2138,7 @@ PRJ_ORG_PROJECT_NUMBER_TXT,13,project-level,Project Information,Project number /
 PRJ_ORG_REGION_TXT,13,project-level,Project Information,Project regional context (Kampala / Mbarara / Fort Portal / Gulu / Mbale / Jinja / Lira / Kasese / Kabale / Custom) — drives Uganda NBC + East African Rift seismic + EC1 climate defaults [Phase 189]
 PRJ_ORG_RIBA_STAGE_TXT,13,project-level,Project Information,RIBA work stage (0-7) shown on the title block [STING Phase 171]
 PRJ_ORG_SECURITY_CLASS_TXT,13,project-level,Project Information,"Information security classification, e.g. ""OFFICIAL"" / ""OFFICIAL-SENSITIVE"" / ""SECRET"" / ""PUBLIC"" -- drives PDF watermarks + CDE access controls [ISO 27001:2022, NPSA / CPNI guidance]"
+PRJ_ORG_SHEET_NUMBER_POLICY_TXT,13,project-level,Project Information,Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]
 PRJ_ORG_SIGNATURE_PROVIDER_TXT,13,project-level,Project Information,Signature provider id (empty = signatures disabled) [template engine v1.1]
 PRJ_ORG_UNICLASS_CO_TXT,13,project-level,Project Information,"Project Uniclass 2015 Complex (Co_) classification, e.g. ""Co_25_30 Office buildings"" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]"
 PRJ_ORG_WORKFLOW_PROFILE_TXT,13,project-level,Project Information,"Workflow profile key (default ""default"") [template engine v1.1]"

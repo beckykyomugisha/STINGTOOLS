@@ -18939,6 +18939,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_ORG_SHEET_NUMBER_POLICY_TXT",
+      "guid": "89828bdc-25ad-5245-bce8-3274203c34b2",
+      "description": "Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_ORG_SIGNATURE_PROVIDER_TXT",
       "guid": "e669eea3-d1fa-51b7-b820-83fa21d40877",
       "description": "Signature provider id (empty = signatures disabled) [template engine v1.1]",
