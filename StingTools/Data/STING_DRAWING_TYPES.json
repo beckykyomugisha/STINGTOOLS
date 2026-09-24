@@ -7414,7 +7414,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "d65a2ea50a2976a768251344927e4445e61db156617549c5057425a40ba6dbc8",
+      "checksum": "d34912576b19175d2ce75520a255193e6576f220661e5ad898fd4e265d54a8c3",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7461,14 +7461,14 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Medical Gas Terminal Unit Tag",
-            "familyMatch": "(med(ical)? ?gas|terminal unit|\\bTU\\b|oxygen|\\bO2\\b|medical air|entonox|nitrous)"
+            "familyMatch": "^(?!.*(alarm|AVSU|zone valve|manifold|\\bVIE\\b)).*(med(ical)? ?gas|terminal unit|\\bTU\\b|oxygen|\\bO2\\b|medical air|entonox|nitrous)"
           },
           {
             "category": "Plumbing Fixtures",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Area Alarm Panel Tag",
-            "familyMatch": "(area alarm|\\bAAP\\b)"
+            "familyMatch": "(area alarm|alarm[ _]?panel[ _]?area|\\bAAP\\b)"
           },
           {
             "category": "Plumbing Fixtures",
@@ -7533,7 +7533,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "117fa135a96993a765ed2f307ee1de6c26d168bab7f993adcd4edc487639968f",
+      "checksum": "d4875f5b2c7a4de671385dbb4fc64ded323797e62b2c9cffc2d17d4974c5135d",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -7614,7 +7614,7 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Area Alarm Panel Tag",
-            "familyMatch": "(area alarm|\\bAAP\\b)"
+            "familyMatch": "(area alarm|alarm[ _]?panel[ _]?area|\\bAAP\\b)"
           },
           {
             "category": "Plumbing Fixtures",

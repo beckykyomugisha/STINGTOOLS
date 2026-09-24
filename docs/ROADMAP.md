@@ -137,6 +137,24 @@ builds Specialty Equipment. `health-medgas-pln` therefore tags seeded outlets wi
 Specialty Equipment tag. Fix one side: add a Specialty Equipment variant of the TU tag, or move the
 seed to Plumbing Fixtures (check manufacturer families first — both categories occur in practice).
 
+*Closed 2026-09-24 — the seed moved to Plumbing Fixtures.* The deciding evidence was that the
+seed was the only part of the MGPS stack that disagreed: `MgasNetwork` and `MgasFlowValidator`
+collect terminal units and alarm panels from `OST_PlumbingFixtures`, and the Area / Master Alarm
+Panel tags are Plumbing Fixtures tags too, so seeded outlets were invisible to the network and the
+flow validator as well as untaggable. The 8 terminal-unit types now carry `MGS_GAS_TYPE_TXT`
+(O2 / N2O / MA4 / MA7 / VAC / CO2 / N2 / HE — the network's vocabulary, and the field the TU tag
+prints). The TU rule's pattern excludes alarm / AVSU / zone valve / manifold / VIE, because the
+seed family's name matches it for every type; the Area Alarm Panel pattern also accepts the seed's
+`ALARM_PANEL_AREA`. `MedGasSeedTaggingTests` pins the category, the gas codes and which rule
+catches each seed type. The Specialty Equipment rule stays for manufacturer outlets built in that
+category. Left open, one family / one category being the limit:
+- `AVSU_BOX_5GAS` and `VIE_MANIFOLD` are now Plumbing Fixtures, where no MGPS tag or network role
+  fits them (ZVB is Pipe Accessories, VIE is Mechanical Equipment). They were no better placed as
+  Specialty Equipment; splitting them into their own seeds is the real fix.
+- Seven of the seed's `"shared": true` parameters (`MGS_TU_TYPE_TXT`, `MGS_GASES_TXT`,
+  `MGS_SOCKET_STD_TXT`, `MGS_OPERATING_KPA`, `MGS_CERT_TXT`, `MGS_HOSPITAL_AREA_TXT`,
+  `MGS_AVSU_ZONE_TXT`) are not in `MR_PARAMETERS.txt`. That predates this change.
+
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step
 completes without a dialog blocking the chain (`TitleBlock_CreateAll` has never run unattended
