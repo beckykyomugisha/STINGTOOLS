@@ -223,6 +223,12 @@
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
+    <!-- Scope-box planner: grammar, sizing, seed choice, tiling, saved plan and colours.
+         ScopeBoxPlannerDialog and the ScopeBox_* commands call these same files. -->
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxNames.cs" Link="Core\Drawing\ScopeBoxNames.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxSizing.cs" Link="Core\Drawing\ScopeBoxSizing.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxPlanner.cs" Link="Core\Drawing\ScopeBoxPlanner.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxStyle.cs" Link="Core\Drawing\ScopeBoxStyle.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
