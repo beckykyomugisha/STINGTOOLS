@@ -575,6 +575,13 @@ namespace StingTools.Core.Drawing
         /// still possible. Failing that way round is deliberate: the alternative
         /// silently refuses to dimension views that merely contain odd geometry.
         /// </summary>
+        /// <summary>True when this view already holds a chain that
+        /// <paramref name="producer"/> stamped — exact, whatever Revit can still
+        /// read of its references.</summary>
+        private static bool ViewHasStampedChain(Document doc, View view, string producer)
+            => Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(Dimension), producer)
+                .Keys.Any(k => AnnotationProvenance.HostOf(k) == view.UniqueId);
+
         private static bool ViewHasDimensionReferencing(Document doc, View view, BuiltInCategory targetCat)
         {
             try
@@ -611,7 +618,10 @@ namespace StingTools.Core.Drawing
 
         private static void DimGrids(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
+            // Stamped chain first (exact); the reference test covers chains placed
+            // before stamping and dimensions a person drew to the grids.
+            if (ViewHasStampedChain(doc, view, AnnotationProvenance.DimGridChain)
+                || ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
             {
                 stats.Skipped++;
                 return;
@@ -748,7 +758,12 @@ namespace StingTools.Core.Drawing
                 var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
                     ? doc.Create.NewDimension(view, dimLine, refs)
                     : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
-                if (dim != null) stats.DimsCreated++;
+                if (dim != null)
+                {
+                    stats.DimsCreated++;
+                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
+                        AnnotationProvenance.Key(view.UniqueId, label));
+                }
             }
             catch (Exception ex) { stats.Warnings.Add($"Grid dim ({label}): {ex.Message}"); }
         }
@@ -784,7 +799,8 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static void DimLevels(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
+            if (ViewHasStampedChain(doc, view, AnnotationProvenance.DimLevelChain)
+                || ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
             {
                 stats.Skipped++;
                 return;
@@ -831,7 +847,12 @@ namespace StingTools.Core.Drawing
             try
             {
                 var dim = doc.Create.NewDimension(view, dimLine, refs);
-                if (dim != null) stats.DimsCreated++;
+                if (dim != null)
+                {
+                    stats.DimsCreated++;
+                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimLevelChain,
+                        AnnotationProvenance.Key(view.UniqueId));
+                }
             }
             catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
         }

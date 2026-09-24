@@ -17,6 +17,7 @@ using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core.Drawing;
 using StingTools.Core;
 using StingTools.Core.Plumbing;
+using StingTools.Core.Storage;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {
@@ -112,9 +113,11 @@ namespace StingTools.Core.Drawing.Dimensioning
         //
         // Text is not parametric, so a re-run UPDATES the notes it finds at the
         // same anchors instead of adding new ones — the values follow the model
-        // every time the drawing is produced. A pipe that has moved since leaves
-        // its old notes behind; they are recognisable ("IL …" / "1:…") and the
-        // run says how many it could not match.
+        // every time the drawing is produced. Each note is stamped with its pipe
+        // and end (AnnotationProvenance), so a moved pipe's notes MOVE with it and
+        // a deleted pipe's notes are removed. Notes placed before stamping existed
+        // are matched by text and position, adopted when they match, and only
+        // reported when they do not — they cannot be proven ours.
 
         private static void PlaceInvertNotes(Document doc, View view, List<Pipe> pipes, AnnotationResult result)
         {
@@ -128,27 +131,37 @@ namespace StingTools.Core.Drawing.Dimensioning
 
             double paperFt = Math.Max(1, view.Scale) / 304.8;       // 1 mm on paper, in model feet
             double offset = 3.0 * paperFt;                            // label clear of the pipe
-            double tol = 1.5 * paperFt;                               // "same anchor" on a re-run
+            double tol = 1.5 * paperFt;                               // "same anchor" for unstamped notes
             var n = view.ViewDirection;
             var o = view.Origin;
             var up = view.UpDirection;
 
-            var existing = new List<TextNote>();
+            // Our notes, two ways. STAMPED ones are found by key (pipe + end),
+            // wherever they are. UNSTAMPED ones (placed before stamping existed)
+            // can only be matched by text shape and proximity, and are adopted —
+            // stamped — the first time they match.
+            var stamped = StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.DrainageIl);
+            var stampedIds = new HashSet<ElementId>(stamped.Values.SelectMany(l => l).Select(e => e.Id));
+            var legacy = new List<TextNote>();
             try
             {
                 foreach (var tn in new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)).Cast<TextNote>())
-                    if (InvertMath.IsOurNote(tn.Text)) existing.Add(tn);
+                    if (!stampedIds.Contains(tn.Id) && InvertMath.IsOurNote(tn.Text)) legacy.Add(tn);
             }
             catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert: could not read existing notes ({ex.Message}); duplicates possible."); }
-            var claimed = new HashSet<ElementId>();
 
-            int placed = 0, updated = 0, nominal = 0, levelPipes = 0, crossChecks = 0;
+            var claimed = new HashSet<ElementId>();
+            var writtenKeys = new HashSet<string>(StringComparer.Ordinal);
+            var processedPipes = new HashSet<string>(StringComparer.Ordinal);
+
+            int placed = 0, updated = 0, moved = 0, nominal = 0, levelPipes = 0, crossChecks = 0;
             foreach (var p in pipes)
             {
                 try
                 {
                     var r = PipeInvert.Compute(doc, p, opts, out var why);
                     if (r == null) { result.Warnings.Add($"AutoSpotInvert {p.Id}: no invert — {why}."); continue; }
+                    processedPipes.Add(p.UniqueId);
                     if (r.Source == InvertSource.NominalFallback) nominal++;
                     if (r.IsLevel) levelPipes++;
                     if (r.CrossCheckNote != null && crossChecks++ < 3)
@@ -156,20 +169,32 @@ namespace StingTools.Core.Drawing.Dimensioning
 
                     XYZ Anchor(XYZ pt) => Project(pt, o, n) + up * offset;
 
-                    Upsert(Anchor(r.UpPoint), InvertMath.FormatIl(r.UpInvertM, opts.Decimals));
+                    Upsert(AnnotationProvenance.Key(p.UniqueId, "US"), Anchor(r.UpPoint), InvertMath.FormatIl(r.UpInvertM, opts.Decimals));
                     if (!r.IsLevel)
-                        Upsert(Anchor(r.DownPoint), InvertMath.FormatIl(r.DownInvertM, opts.Decimals));
+                        Upsert(AnnotationProvenance.Key(p.UniqueId, "DS"), Anchor(r.DownPoint), InvertMath.FormatIl(r.DownInvertM, opts.Decimals));
                     if (r.Gradient != null)
-                        Upsert(Anchor((r.UpPoint + r.DownPoint) * 0.5), r.Gradient);
+                        Upsert(AnnotationProvenance.Key(p.UniqueId, "GRAD"), Anchor((r.UpPoint + r.DownPoint) * 0.5), r.Gradient);
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert {p.Id}: {ex.Message}"); }
             }
 
-            void Upsert(XYZ at, string text)
+            void Upsert(string key, XYZ at, string text)
             {
+                writtenKeys.Add(key);
+                // 1. Our own note for exactly this pipe end.
+                if (stamped.TryGetValue(key, out var mine) && mine.Count > 0)
+                {
+                    var tn = (TextNote)mine[0];
+                    claimed.Add(tn.Id);
+                    if (!string.Equals(tn.Text?.Trim(), text, StringComparison.Ordinal)) { tn.Text = text; updated++; }
+                    if (tn.Coord.DistanceTo(at) > tol) { tn.Coord = at; moved++; }
+                    foreach (var extra in mine.Skip(1)) { claimed.Add(extra.Id); DeleteQuietly(doc, extra.Id); }
+                    return;
+                }
+                // 2. An unstamped note at this spot — adopt it.
                 TextNote hit = null;
                 double best = tol;
-                foreach (var tn in existing)
+                foreach (var tn in legacy)
                 {
                     if (claimed.Contains(tn.Id)) continue;
                     double d = tn.Coord.DistanceTo(at);
@@ -179,25 +204,55 @@ namespace StingTools.Core.Drawing.Dimensioning
                 {
                     claimed.Add(hit.Id);
                     if (!string.Equals(hit.Text?.Trim(), text, StringComparison.Ordinal)) { hit.Text = text; updated++; }
+                    StingAnnotationProvenanceSchema.Stamp(hit, AnnotationProvenance.DrainageIl, key);
                     return;
                 }
+                // 3. New.
                 var created = TextNote.Create(doc, view.Id, at, text, noteType);
-                if (created != null) { claimed.Add(created.Id); placed++; result.SpotsPlaced++; }
+                if (created != null)
+                {
+                    claimed.Add(created.Id);
+                    StingAnnotationProvenanceSchema.Stamp(created, AnnotationProvenance.DrainageIl, key);
+                    placed++;
+                    result.SpotsPlaced++;
+                }
             }
 
-            if (updated > 0)
-                result.Warnings.Add($"AutoSpotInvert: {updated} existing invert/gradient note(s) updated to the current model.");
-            int orphans = existing.Count(tn => !claimed.Contains(tn.Id));
+            // Stamped notes this run did not write are provably ours, so they can
+            // be cleaned up exactly: the pipe is gone, or it no longer has that end
+            // (a pipe now level has no downstream IL and no gradient). A pipe that
+            // simply was not in this run (filtered out, no invert) is left alone.
+            int removed = 0;
+            foreach (var kv in stamped)
+            {
+                if (writtenKeys.Contains(kv.Key)) continue;
+                var pipeUid = AnnotationProvenance.HostOf(kv.Key);
+                bool pipeGone = doc.GetElement(pipeUid) == null;
+                if (!pipeGone && !processedPipes.Contains(pipeUid)) continue;
+                foreach (var el in kv.Value) { if (DeleteQuietly(doc, el.Id)) removed++; }
+            }
+
+            if (updated > 0 || moved > 0)
+                result.Warnings.Add($"AutoSpotInvert: {updated} invert/gradient note(s) updated and {moved} moved to follow the model.");
+            if (removed > 0)
+                result.Warnings.Add($"AutoSpotInvert: {removed} note(s) removed whose pipe, or pipe end, no longer exists.");
+            int orphans = legacy.Count(tn => !claimed.Contains(tn.Id));
             if (orphans > 0)
-                result.Warnings.Add($"AutoSpotInvert: {orphans} older IL/gradient note(s) in '{view.Name}' no longer sit on a pipe end " +
-                                    "(the pipe moved or was deleted). They were left in place — review and delete.");
+                result.Warnings.Add($"AutoSpotInvert: {orphans} older, unstamped IL/gradient note(s) in '{view.Name}' no longer sit on a pipe end. " +
+                                    "They predate provenance stamping, so they cannot be proven ours and were left in place — review and delete.");
             if (nominal > 0)
                 result.Warnings.Add($"AutoSpotInvert: {nominal} pipe(s) carry no internal diameter; their ILs use the NOMINAL size " +
                                     "and may be a few mm out. Set the pipe type's segment sizes.");
             if (levelPipes > 0)
                 result.Warnings.Add($"AutoSpotInvert: {levelPipes} drainage pipe(s) are LEVEL — no gradient, one IL each. A level drain will not self-cleanse.");
-            if (placed + updated > 0)
-                StingLog.Info($"AutoSpotInvert '{view.Name}': {placed} placed, {updated} updated; datum {opts.DatumLabel}, {opts.Decimals} dp.");
+            if (placed + updated + moved > 0)
+                StingLog.Info($"AutoSpotInvert '{view.Name}': {placed} placed, {updated} updated, {moved} moved, {removed} removed; datum {opts.DatumLabel}, {opts.Decimals} dp.");
+        }
+
+        private static bool DeleteQuietly(Document doc, ElementId id)
+        {
+            try { doc.Delete(id); return true; }
+            catch (Exception ex) { StingLog.Warn($"AutoSpotInvert: could not remove note {id}: {ex.Message}"); return false; }
         }
 
         private static XYZ Project(XYZ p, XYZ origin, XYZ normal)

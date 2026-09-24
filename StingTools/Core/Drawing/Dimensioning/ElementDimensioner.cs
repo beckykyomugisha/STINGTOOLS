@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
+using StingTools.Core.Storage;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {
@@ -66,7 +67,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var dimType = ResolveDimType(doc, pack);
-            var already = DimensionedHostIndex(doc, view, result);
+            var already = DimensionedHostIndex(doc, view, result, AnnotationProvenance.DimWallLength);
 
             foreach (var wall in walls)
             {
@@ -99,7 +100,8 @@ namespace StingTools.Core.Drawing.Dimensioning
                     // origin is the wall start, not its midpoint — a midpoint
                     // origin overshoots the wall by half its length.
                     var line = DimensionStrategy.BuildWitnessLine(start, dir, WallDimOffsetMm, lengthFt);
-                    if (Emit(doc, view, line, refs, dimType, result, $"wall {wall.Id}"))
+                    if (Emit(doc, view, line, refs, dimType, result, $"wall {wall.Id}",
+                            AnnotationProvenance.DimWallLength, wall))
                         already.Add(wall.Id);
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoDimWallLength wall {wall.Id}: {ex.Message}"); }
@@ -161,15 +163,19 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var dimType = ResolveDimType(doc, pack);
-            var already = DimensionedHostIndex(doc, view, result);
+            var already = DimensionedHostIndex(doc, view, result, null);
+            // Exact: walls whose opening chain STING stamped. The reference test
+            // below stays for chains placed before stamping existed.
+            var stampedChains = StampedHosts(doc, view, AnnotationProvenance.DimOpeningChain);
 
             foreach (var kv in byHost)
             {
                 try
                 {
                     if (!(doc.GetElement(kv.Key) is Wall wall)) continue;
-                    if (rule?.SkipIfTagged != false && already.Contains(wall.Id)
-                        && kv.Value.All(o => already.Contains(o.Id)))
+                    if (rule?.SkipIfTagged != false
+                        && (stampedChains.Contains(wall.Id)
+                            || (already.Contains(wall.Id) && kv.Value.All(o => already.Contains(o.Id)))))
                     { result.Skipped++; continue; }
 
                     if (!TryWallAxis(wall, out var start, out var end, out var dir)) continue;
@@ -207,7 +213,8 @@ namespace StingTools.Core.Drawing.Dimensioning
 
                     double lengthFt = (end - start).GetLength();
                     var line = DimensionStrategy.BuildWitnessLine(start, dir, OpeningDimOffsetMm, lengthFt);
-                    if (Emit(doc, view, line, refs, dimType, result, $"openings in wall {wall.Id}"))
+                    if (Emit(doc, view, line, refs, dimType, result, $"openings in wall {wall.Id}",
+                            AnnotationProvenance.DimOpeningChain, wall))
                     {
                         already.Add(wall.Id);
                         foreach (var t in ordered) already.Add(t.Inst.Id);
@@ -264,7 +271,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var dimType = ResolveDimType(doc, pack);
-            var already = DimensionedHostIndex(doc, view, result);
+            var already = DimensionedHostIndex(doc, view, result, AnnotationProvenance.DimColumnGrid);
 
             foreach (var col in columns)
             {
@@ -300,7 +307,8 @@ namespace StingTools.Core.Drawing.Dimensioning
                     refs.Append(colRef);
 
                     var line = DimensionStrategy.BuildWitnessLine(origin, gridDir, ColumnGridOffsetMm, 1.0);
-                    if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → grid {nearest.G.Name}"))
+                    if (Emit(doc, view, line, refs, dimType, result, $"column {col.Id} → grid {nearest.G.Name}",
+                            AnnotationProvenance.DimColumnGrid, col))
                         already.Add(col.Id);
                 }
                 catch (Exception ex) { result.Warnings.Add($"AutoDimColumnGrid column {col.Id}: {ex.Message}"); }
@@ -331,14 +339,23 @@ namespace StingTools.Core.Drawing.Dimensioning
         }
 
         private static bool Emit(Document doc, View view, Line line, ReferenceArray refs,
-            DimensionType dimType, AnnotationResult result, string label)
+            DimensionType dimType, AnnotationResult result, string label,
+            string producer = null, Element host = null)
         {
             try
             {
                 var dim = dimType != null
                     ? doc.Create.NewDimension(view, line, refs, dimType)
                     : doc.Create.NewDimension(view, line, refs);
-                if (dim != null) { result.DimsPlaced++; return true; }
+                if (dim != null)
+                {
+                    result.DimsPlaced++;
+                    // Provenance: the next run finds this dimension by what it is FOR,
+                    // even when Revit can no longer read its references.
+                    if (producer != null && host != null)
+                        StingAnnotationProvenanceSchema.Stamp(dim, producer, AnnotationProvenance.Key(host.UniqueId));
+                    return true;
+                }
                 result.Warnings.Add($"NewDimension returned null for {label}.");
             }
             catch (Exception ex) { result.Warnings.Add($"NewDimension {label}: {ex.Message}"); }
@@ -543,9 +560,11 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// set ⇒ place everything) with a warning, so an index failure never
         /// silently withholds requested dimensions.
         /// </summary>
-        private static HashSet<ElementId> DimensionedHostIndex(Document doc, View view, AnnotationResult result)
+        private static HashSet<ElementId> DimensionedHostIndex(Document doc, View view, AnnotationResult result,
+            string producer)
         {
-            var set = new HashSet<ElementId>();
+            // Stamped hosts first: exact, and immune to unreadable references.
+            var set = producer != null ? StampedHosts(doc, view, producer) : new HashSet<ElementId>();
             try
             {
                 foreach (var el in new FilteredElementCollector(doc, view.Id)
@@ -569,6 +588,18 @@ namespace StingTools.Core.Drawing.Dimensioning
             catch (Exception ex)
             {
                 result?.Warnings.Add($"Could not index existing dimensions in '{view?.Name}' ({ex.Message}); duplicate dimensions are possible on this view.");
+            }
+            return set;
+        }
+
+        /// <summary>Hosts of every dimension in the view that <paramref name="producer"/> stamped.</summary>
+        private static HashSet<ElementId> StampedHosts(Document doc, View view, string producer)
+        {
+            var set = new HashSet<ElementId>();
+            foreach (var key in StingAnnotationProvenanceSchema.Index(doc, view, typeof(Dimension), producer).Keys)
+            {
+                var host = doc.GetElement(AnnotationProvenance.HostOf(key));
+                if (host != null) set.Add(host.Id);
             }
             return set;
         }
