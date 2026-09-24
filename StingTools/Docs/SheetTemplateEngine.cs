@@ -320,15 +320,15 @@ namespace StingTools.Docs
                     // Set viewport type if specified
                     if (!string.IsNullOrEmpty(slot.ViewportTypeName))
                     {
-                        var vpType = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ElementType))
-                            .Cast<ElementType>()
-                            .FirstOrDefault(t => t.FamilyName == "Viewport" &&
-                                t.Name.Equals(slot.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
-                        if (vpType != null)
+                        // Shared resolver: canonical STING names, legacy
+                        // aliases, on-demand creation; a miss is logged
+                        // instead of silently keeping the default type.
+                        var vpTypeId = StingTools.Core.Drawing.ViewportTypeResolver.Resolve(
+                            doc, slot.ViewportTypeName, createIfMissing: true);
+                        if (vpTypeId != ElementId.InvalidElementId)
                         {
-                            try { vp.ChangeTypeId(vpType.Id); }
-                            catch (Exception ex2) { StingLog.Warn($"Type not available: {ex2.Message}"); }
+                            try { vp.ChangeTypeId(vpTypeId); }
+                            catch (Exception ex2) { StingLog.Warn($"Viewport type '{slot.ViewportTypeName}' not applied: {ex2.Message}"); }
                         }
                     }
                 }

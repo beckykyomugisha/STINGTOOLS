@@ -1560,6 +1560,18 @@ namespace StingTools.Core
                 case "MatchLine_Generate":             return new Commands.Drawing.MatchLineGenerateCommand();
                 case "MatchLine_Sync":                 return new Commands.Drawing.MatchLineSyncCommand();
                 case "MatchLine_Validate":             return new Commands.Drawing.MatchLineValidateCommand();
+                case "DrawingTypes_BuildFlowArrow":    return new Commands.Drawing.BuildFlowArrowFamilyCommand();
+                // Drawing-production setup (WORKFLOW_DrawingProductionSetup.json).
+                // These had buttons but no workflow route, so setup could only be
+                // done one click at a time, in an order nobody wrote down.
+                case "TitleBlock_CreateAll":           return new Commands.Drawing.TitleBlockCreateAllCommand();
+                case "LoadTagFamilies":                return new Tags.LoadTagFamiliesCommand();
+                case "AecFilters_Create":              return new Commands.Drawing.AecFiltersCreateCommand();
+                case "DrawingTypes_EnsureViewTypes":   return new Commands.Drawing.EnsureViewTypesCommand();
+                case "DrawingTypes_PresentationSetup": return new Commands.Drawing.PresentationStyleSetupCommand();
+                case "DrawingTypes_RegenerateTemplates": return new Commands.Drawing.RegeneratePackTemplatesCommand();
+                case "DrawingTypes_Doctor":            return new Commands.Drawing.DrawingDoctorCommand();
+                case "DrawingTypes_SetupProduction":   return new Commands.Drawing.DrawingProductionSetupCommand();
                 case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
                 case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();

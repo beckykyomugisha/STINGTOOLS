@@ -91,7 +91,7 @@ PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	PRJ_SHEET_TYPE_TXT	TEXT		5	1	ISO 1965
 PARAM	498273b7-a814-57e4-8316-8359609a8bdd	PRJ_SHEET_VOLUME_TXT	TEXT		5	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1	0
 PARAM	7d12b6b6-9c62-515e-a611-92ab4e74e93f	PRJ_DWG_SUITABILITY_DESC_TXT	TEXT		5	1	Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for "S2" the description is "Shared, Non-contractual" [BS EN ISO 19650-2:2018 _5.6 Annex A]	1	0
 PARAM	0293f487-2ca9-5514-9b18-ac98b1a20b27	ASS_BOM_REV_TXT	TEXT		6	1	Bill of materials revision code (e.g. P01, C01)	1	0
-PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		6	1	Fabrication location (SHOP / FIELD / VENDOR)	1	0
+PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		6	1	Fabrication location (WORKSHOP / SITE)	1	0
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		6	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1	0
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		6	1	Spool or bundle number assigned by AssemblyBuilder	1	0
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		6	1	Assembly total weight in kilograms (sum of member volume x material density)	1	0

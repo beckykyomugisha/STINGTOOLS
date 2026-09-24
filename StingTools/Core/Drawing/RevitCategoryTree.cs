@@ -352,6 +352,46 @@ namespace StingTools.Core.Drawing
             list.Add(new RevitCategory { Bic = "OST_CLines", DisplayName = "Reference Planes",
                 HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
 
+            // ── Datum + annotation categories ────────────────────────────
+            // Added because the corporate style packs override them and this
+            // table did not list them: RevitVgEditor builds its VG tree from
+            // RevitCategoryTree.All, so eight overrides corp-base ships were
+            // invisible and un-editable in the Drawing Type Editor, and the
+            // display-name resolver used by the dimension engines returned null
+            // for them. All IsTaggable = false, so TaggableCategories (and the
+            // synthesised-rule set AnnotationRunner derives from it) is
+            // unchanged by their arrival.
+
+            list.Add(new RevitCategory { Bic = "OST_Levels", DisplayName = "Levels",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_VolumeOfInterest", DisplayName = "Scope Boxes",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_ReferenceLines", DisplayName = "Reference Lines",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_Matchline", DisplayName = "Matchline",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_SectionBox", DisplayName = "Section Boxes",
+                HasCutLines = false, HasHalftone = false, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_Dimensions", DisplayName = "Dimensions",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,
+                SubCategories = Subs("OST_Dimensions", false, "Automatic Sketch Dimensions", "Diameter Dimensions", "Linear Dimensions", "Radial Dimensions", "Spot Coordinates", "Spot Elevations", "Spot Slopes") });
+
+            list.Add(new RevitCategory { Bic = "OST_TextNotes", DisplayName = "Text Notes",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            list.Add(new RevitCategory { Bic = "OST_GenericAnnotation", DisplayName = "Generic Annotations",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false });
+
+            // Medical Equipment — a real model category since Revit 2021, and
+            // the one corp-healthcare-clinical colour-codes.
+            list.Add(new RevitCategory { Bic = "OST_MedicalEquipment", DisplayName = "Medical Equipment",
+                HasCutLines = false, HasHalftone = true, HasDetailLevel = true, IsTaggable = true });
+
             // Roads
             list.Add(new RevitCategory { Bic = "OST_Roads", DisplayName = "Roads",
                 HasCutLines = false, HasHalftone = true, HasDetailLevel = false, IsTaggable = false,

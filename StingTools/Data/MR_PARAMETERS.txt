@@ -479,6 +479,10 @@ PARAM	40b3a419-f8e1-5dd8-84ea-268e43f59a88	PLM_DRN_FITTING_INLET_COUNT_NR	TEXT		
 PARAM	67f44a1a-3864-4d00-b8cf-8b2380ebb8ef	TS_FONT_SIZE_NR	NUMBER		11	1	Font size in mm [ISO 19650-1:2018]	1
 PARAM	3efc7b1a-5be1-533b-af3e-99cbd8c04af5	ELC_PNL_CKT_SOURCE_NAME_TXT	TEXT		4	1	Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]	1
 PARAM	ceb5c41a-60ee-57f5-a2c0-fea148f0862d	PLM_DRN_PPE_LENGTH_M	TEXT		6	1	Plm Drn Ppe Length M [ISO 19650-1:2018]	1
+PARAM	e8b25343-14ee-57f3-9189-040f37a8b5fc	PLM_DRN_INV_US_M	TEXT		6	1	Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	bc8ddf77-76cf-5ef4-8421-52ab6e7016f7	PLM_DRN_INV_DS_M	TEXT		6	1	Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	d273038b-4055-506d-a005-d7237e32c4da	PLM_DRN_COVER_US_M	TEXT		6	1	Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
+PARAM	2c7ae32a-fd45-5b6c-af34-cc780830e87e	PLM_DRN_COVER_DS_M	TEXT		6	1	Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
 PARAM	7866511b-90b5-421a-80e7-2b6dd258c608	VT_SILHOUETTES_BOOL	YESNO		11	1	Silhouettes enabled [ISO 19650-1:2018]	1
 PARAM	c687911b-13b2-54c6-be89-3db4e44282ff	BLE_MAT_L1_THK_MM	TEXT		2	1	Ble Mat L1 Thk Mm [ISO 19650-1:2018]	1
 PARAM	1545e81b-0197-59e2-a346-ae418f64b5ad	PROP_TENS_STRENGTH_MPA	TEXT		14	1	Prop Tens Strength Mpa [ISO 19650-1:2018]	1
@@ -1837,6 +1841,9 @@ PARAM	0ffc672b-ae54-51b6-a57b-d165521acfc3	BLE_DOOR_ACOUSTIC_STC_NR	TEXT		10	1	B
 PARAM	affb9e38-e1db-5a54-ab28-0dc494c3776a	BLE_DOOR_CLOSER_TXT	TEXT		10	1	Ble Door Closer [ISO 19650]	1
 PARAM	acbffcf6-2553-519d-91d9-3bc9264c8304	BLE_DOOR_GLAZING_BOOL	YESNO		10	1	Ble Door Glazing [ISO 19650]	1
 PARAM	4bb218e5-fa70-5af6-90c6-000a98b16a75	BLE_DOOR_GLAZING_TXT	TEXT		10	1	BLE_DOOR_GLAZING_BOOL display mirror [auto-generated]	1
+PARAM	bf649bd0-8803-5b07-89f4-8daf10d8f0f6	BLE_DOOR_OPENING_FORCE_N	TEXT		10	1	Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	2c404fa6-b02f-5f05-a1cf-4f6f599f942d	BLE_DOOR_LEADING_EDGE_CLEAR_MM	TEXT		10	1	Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a	BLE_DOOR_VISION_PANEL_ZONE_BOOL	YESNO		10	1	Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]	1
 PARAM	da0a0762-c687-5c51-997b-a4138428383c	BLE_FLOOR_LOAD_KN_M2	NUMBER		10	1	Ble Floor Load Kn M2 [ISO 19650]	1
 PARAM	e2feb9ec-bd57-503c-9741-951f1711241c	BLE_FLOOR_LOAD_TXT	TEXT		10	1	BLE_FLOOR_LOAD_KN_M2 display mirror [auto-generated]	1
 PARAM	bc4a861d-6534-5931-a6a0-b5f3b54c6e56	BLE_FLOOR_SLIP_RESISTANCE_TXT	TEXT		10	1	Ble Floor Slip Resistance [ISO 19650]	1
@@ -2640,6 +2647,7 @@ PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT	
 PARAM	5fea853a-6ed7-505e-a677-50fb83f435b0	PRJ_TB_DELIVERABLE_STATUS_TXT	TEXT		13	1	Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]	0
 PARAM	525f8b24-26eb-52ae-8760-c6aa1621815a	PRJ_TB_DELIVERABLE_DUE_TXT	TEXT		13	1	Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]	0
 PARAM	0d917e49-c6f6-5951-b2b7-7a00bdb3b0df	PRJ_TB_DELIVERABLE_CDE_TXT	TEXT		13	1	CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]	0
+PARAM	4f2b28ee-4444-5a79-ac09-97c6d3c23d74	PRJ_TB_CDE_STATE_INT	INTEGER		13	1	CDE state as a number, derived from PRJ_DWG_SUITABILITY_COD_TXT and driving the title-block status band: 0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED, 4 ARCHIVED. Written by the plugin; do not edit by hand [ISO 19650-1:2018]	0
 PARAM	f30f7a36-8d82-5385-a215-ae1eec90df2b	PRJ_TB_CDE_REF_TXT	TEXT		13	1	CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]	1
 PARAM	5f2c9a71-4b63-53d8-9e07-1c8a4f62db35	PRJ_TB_CDE_REF_FORMAT_TXT	TEXT		13	1	How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. "SHARED/A/DR"), SUFFIX (suitability + revision, e.g. "S4-P01") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]	1
 PARAM	8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48	PRJ_TB_SHEET_NUMBER_PATTERN_TXT	TEXT		13	1	Pattern Auto-Number Sheets builds a sheet number from. Tokens: {disc} discipline code, {lvl} level code, {seq} or {seq:D2}/{seq:D3}/{seq:D4} zero-padded sequence, {proj} project code, {orig} originator code. Default "{disc}-{seq:D3}" gives A-001. An empty token leaves no stray separator [ISO 19650-2:2018]	1
@@ -2687,7 +2695,7 @@ PARAM	d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158	STING_NOGGIN_REQUIRED	YESNO		1	1	Phas
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
-PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (SHOP / FIELD / VENDOR)	1
+PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (WORKSHOP / SITE)	1
 PARAM	5fc70bc2-9955-583c-9d96-5b54c8f34f53	ASS_FAB_SEQ_NR	INTEGER		1	1	Fabrication sequence number within the fabrication package	1
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1
 PARAM	c2fc8e62-b793-517c-94c6-d2d7ae7584fe	ASS_SHIP_DATE_TXT	TEXT		1	1	ISO 8601 date when assembly was shipped to site	1
@@ -2793,6 +2801,7 @@ PARAM	a4c8ef52-5bb2-579f-9308-8a6c2177bf52	PRJ_ORG_PARTICIPANTS_TXT	TEXT		13	1	S
 PARAM	d187fdbd-f701-5334-90da-1ab6694c5034	PRJ_ORG_PHASE_TXT	TEXT		13	1	ISO 19650 project phase code (default DE) [template engine v1.1]	1
 PARAM	cef45220-b201-5c44-baed-275a0fd556a7	PRJ_ORG_CLASS_TXT	TEXT		13	1	ISO 19650 information class level (default 2) [template engine v1.1]	1
 PARAM	48a26ee9-211d-5525-8fbb-9f8eb1f38878	PRJ_ORG_WORKFLOW_PROFILE_TXT	TEXT		13	1	Workflow profile key (default "default") [template engine v1.1]	1
+PARAM	89828bdc-25ad-5245-bce8-3274203c34b2	PRJ_ORG_SHEET_NUMBER_POLICY_TXT	TEXT		13	1	Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]	1
 PARAM	e669eea3-d1fa-51b7-b820-83fa21d40877	PRJ_ORG_SIGNATURE_PROVIDER_TXT	TEXT		13	1	Signature provider id (empty = signatures disabled) [template engine v1.1]	1
 PARAM	a7c93ee1-9df2-5531-b873-1df826526e82	PRJ_ORG_AI_EXTRACT_ENABLED_BOOL	YESNO		13	1	Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]	1
 PARAM	c6796da5-3755-5074-b19f-493318188ac8	PRJ_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker -- "BIM" or "NONBIM" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1
@@ -3049,6 +3058,7 @@ PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel
 PARAM	c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006	PLM_FLUSH_LOG_REF_TXT	TEXT		6	1	Flushing-log document reference	1
 PARAM	c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007	PLM_RO_LOOP_BOOL	YESNO		6	1	Belongs to dialysis Reverse Osmosis loop	1
 PARAM	c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001	FLS_COMPARTMENT_ID_TXT	TEXT		8	1	Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]	1
+PARAM	483d4398-65df-5c70-8e10-e65097f48d61	FLS_COMPARTMENT_FR_MINS_TXT	TEXT		8	1	Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]	1
 PARAM	c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001	MNT_CAL_LAST_DT	TEXT		25	1	Last calibration date (ISO 8601) -- distinct from service date	1
 PARAM	c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002	MNT_CAL_NEXT_DT	TEXT		25	1	Next calibration due (ISO 8601)	1
 PARAM	c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001	PRJ_ORG_HEALTH_FACILITY_TYPE_TXT	TEXT		13	1	Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM	1

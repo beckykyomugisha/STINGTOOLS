@@ -1,26 +1,29 @@
 # STING v4 MVP — Title block parameter stub for STING_TB_ASSEMBLY_HANGER.rfa
-# Author the actual .rfa in Revit Family Editor. Required parameters
-# below must exist as Title Block instance parameters bound to the
-# shared parameters in StingTools.Core.Fabrication.AssyParams.
+# Author the actual .rfa in Revit Family Editor. Every name below is a
+# shared parameter in StingTools/Data/MR_PARAMETERS.txt or
+# StingTools/Data/Parameters/*.txt (take its GUID from there — see README)
+# unless marked "local:", which means a family-local parameter.
+# Checked by StingTools.Tags.Tests/AssemblyTitleBlockStubTests.
+#
+# Hanger assemblies are supports, not pressure pipework: the pipe-only
+# cells (ASS_TEST_PRESSURE_BAR, ASS_WELD_COUNT_NR, ASS_FLANGE_COUNT_NR,
+# ASS_INSULATION_AREA_M2) were copied in from the PIPE stub and are not
+# part of this family.
 
 REQUIRED PARAMETERS
-ASS_SPOOL_NR_TXT       (Text, Instance) — Auto-populated by ShopDrawingComposer
-ASS_WEIGHT_KG          (Number / Mass, Instance)
-ASS_TEST_PRESSURE_BAR  (Number / Pressure, Instance)
-ASS_FAB_LOC_TXT        (Text, Instance) — WORKSHOP / SITE
+ASS_SPOOL_NR_TXT       (Text, Instance) — written by ShopDrawingComposer
+ASS_WEIGHT_KG          (Number / Mass, Instance) — written by ShopDrawingComposer
+ASS_FAB_LOC_TXT        (Text, Instance) — WORKSHOP / SITE (AssemblyBuilder.ResolveFabLocation); written by ShopDrawingComposer
 ASS_FAB_SEQ_NR         (Integer, Instance)
-ASS_FAB_STATUS_TXT     (Text, Instance) — DRAFT / IFC / IFA / IFR
-ASS_BOM_REV_TXT        (Text, Instance) — P01 / P02 / C01...
+ASS_FAB_STATUS_TXT     (Text, Instance) — DRAFT / IFC / IFA / IFR; written by ShopDrawingComposer
+ASS_BOM_REV_TXT        (Text, Instance) — P01 / P02 / C01...; written by ShopDrawingComposer
 ASS_QC_INSPECTOR_TXT   (Text, Instance)
-ASS_WELD_COUNT_NR      (Integer, Instance)
 ASS_BOLT_COUNT_NR      (Integer, Instance)
-ASS_FLANGE_COUNT_NR    (Integer, Instance)
 ASS_FITTING_COUNT_NR   (Integer, Instance)
 ASS_LENGTH_TOTAL_MM    (Length, Instance)
-ASS_INSULATION_AREA_M2 (Area, Instance)
 ASS_SUPPORT_COUNT_NR   (Integer, Instance)
 ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
-DISCIPLINE             (Text, Instance) — Pipe / Duct / Electrical / Hanger
+PRJ_TB_DISCIPLINE_TXT (Text, Instance) — Pipe / Duct / Electrical / Hanger; ShopDrawingComposer writes it (and the legacy DISCIPLINE name for older families)
 
 LAYOUT NOTES
 - A1 landscape (841mm x 594mm)

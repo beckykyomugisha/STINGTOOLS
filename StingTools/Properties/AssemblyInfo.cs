@@ -20,3 +20,10 @@ using System;
 // Planscape.PluginSync (SyncScheduler, OfflineQueue) and System.Drawing etc
 // don't need per-method [SupportedOSPlatform] annotations.
 [assembly: SupportedOSPlatform("windows")]
+
+// The in-Revit smoke tests (StingTools.Revit.SmokeTests, ROADMAP DRAW-1) drive the
+// drawing annotation engines directly — ElementDimensioner, MepAnnotator and
+// DrainageInvertDimensioner are internal static. Going through the public commands
+// instead would put TaskDialogs in the path and hide the AnnotationResult the tests
+// assert on. The smoke assembly ships nowhere; this grants nothing to a user.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("StingTools.Revit.SmokeTests")]

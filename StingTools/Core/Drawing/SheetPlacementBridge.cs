@@ -586,19 +586,34 @@ namespace StingTools.Core.Drawing
         internal static ElementId ResolveViewportTypeId(Document doc, string typeName)
             => FindViewportTypeId(doc, typeName);
 
+        // Viewport naming: one resolver (ViewportTypeResolver) that knows the
+        // canonical STING names, their legacy aliases, and mints a missing
+        // canonical STING type by duplication. Callers are inside the
+        // placement transaction. Non-STING names are looked up, never minted.
         private static ElementId FindViewportTypeId(Document doc, string typeName)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(ElementType))
-                .Cast<ElementType>()
-                .FirstOrDefault(t => t.Category?.Id?.Value == (long)BuiltInCategory.OST_Viewports
-                                  && string.Equals(t.Name, typeName, StringComparison.OrdinalIgnoreCase))
-                ?.Id;
-        }
+            => ViewportTypeResolver.Resolve(doc, typeName, createIfMissing: true);
 
         // SLOT-3 helper — returns true when the view's ViewType is compatible
         // with the slot's declared ViewType string. Unknown slot types pass
         // through as compatible (returns true) to avoid false positives.
+        /// <summary>
+        /// The slot viewType terms <see cref="IsViewTypeCompatible"/> actually
+        /// discriminates on. Anything else reaches the permissive default arm
+        /// and matches every view, which is how "Drafting" and "Coordination"
+        /// went unnoticed. DrawingTypeValidator (DT-137-SLOTVT) and
+        /// DrawingSlotVocabularyTests read this list so there is one copy.
+        /// </summary>
+        public static readonly string[] KnownSlotViewTypes =
+        {
+            "Plan", "RCP", "Section", "Elevation", "Detail", "3D",
+            "Schedule", "Legend", "ISO", "Schematic", "Drafting", "Coordination",
+        };
+
+        /// <summary>True when the term is one the compatibility switch discriminates on.</summary>
+        public static bool IsKnownSlotViewType(string slotViewType)
+            => !string.IsNullOrWhiteSpace(slotViewType)
+            && KnownSlotViewTypes.Any(k => string.Equals(k, slotViewType.Trim(), StringComparison.OrdinalIgnoreCase));
+
         private static bool IsViewTypeCompatible(View view, string slotViewType)
         {
             if (view == null || string.IsNullOrWhiteSpace(slotViewType)) return true;
@@ -614,7 +629,15 @@ namespace StingTools.Core.Drawing
                 "LEGEND"    => view.ViewType == ViewType.Legend,
                 "ISO"       => view.ViewType == ViewType.ThreeD,
                 "SCHEMATIC" => view.ViewType == ViewType.DraftingView || view.ViewType == ViewType.Elevation,
-                _           => true  // unknown slot type — allow
+                // DRAFTING and COORDINATION were both used by shipped profiles
+                // and neither was listed, so both fell through to the
+                // permissive default and matched ANY view. Declared now, so the
+                // slot means what it says.
+                "DRAFTING"  => view.ViewType == ViewType.DraftingView,
+                "COORDINATION" => view.ViewType == ViewType.FloorPlan
+                              || view.ViewType == ViewType.EngineeringPlan
+                              || view.ViewType == ViewType.ThreeD,
+                _           => true  // unknown slot type — allow (DT-137-SLOTVT reports it)
             };
         }
     }

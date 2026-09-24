@@ -54,6 +54,14 @@ namespace StingTools.Tags.Tests
             // group is running; without it the LPS master reads as
             // universal and skips its own nine targets.
             ("STING_LPS_Tag_Universal", "LPS"),
+            // Hand-built specialist tags (docs/SPECIALIST_TAG_BUILD_SHEET.md).
+            // Each is a group of ONE, not a shared "specialist" group: a shared
+            // group would make whichever of them is run as a master overwrite
+            // the other three with its own bespoke label.
+            ("STING - Fire Door Tag", "FireDoor"),
+            ("STING - Accessible Door Tag", "AccessibleDoor"),
+            ("STING - Room Finish Tag", "RoomFinish"),
+            ("STING - Fire Compartment Tag", "FireCompartment"),
         };
 
         private static DirectoryInfo RepoRoot()
@@ -288,6 +296,9 @@ namespace StingTools.Tags.Tests
 
             var strays = ExpectedGroups
                 .Where(e => e.Family != "STING_LPS_Tag_Universal")
+                // The LPS family set, by what this list EXPECTS - the config is
+                // then checked against the master's actual group below.
+                .Where(e => string.Equals(e.Group, "LPS", StringComparison.Ordinal))
                 .Where(e => !string.Equals(groups[TagCategoryNameForms.NormaliseKey(e.Family)],
                                            master, StringComparison.OrdinalIgnoreCase))
                 .Select(e => e.Family)

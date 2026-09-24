@@ -407,14 +407,17 @@ BLE_DOOR_HARDWARE_SPECIFICATION_TXT,Doors
 BLE_DOOR_HEAD_HEIGHT_MM,Doors
 BLE_DOOR_HEIGHT_MM,Doors
 BLE_DOOR_HEIGHT_TXT,Doors
+BLE_DOOR_LEADING_EDGE_CLEAR_MM,Doors
 BLE_DOOR_MATERIAL_FINISH_TXT,Doors
 BLE_DOOR_MAT_TXT,Doors
+BLE_DOOR_OPENING_FORCE_N,Doors
 BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,Doors
 BLE_DOOR_OPERATION_TYPE_TXT,Doors
 BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,Doors
 BLE_DOOR_SECURITY_RATING_GRADE_TXT,Doors
 BLE_DOOR_THRESHOLD_TXT,Doors
 BLE_DOOR_TYPE_TXT,Doors
+BLE_DOOR_VISION_PANEL_ZONE_BOOL,Doors
 BLE_DOOR_WIDTH_MM,Doors
 BLE_DOOR_WIDTH_TXT,Doors
 BLE_ELE_AREA_SQ_M,<ALL>
@@ -1328,7 +1331,8 @@ FIN_TAG_1_TXT,<ALL>
 FIN_WALL_TAG_TXT,Curtain Panels|Generic Models|Walls
 FLS_ALARM_CIRCUIT_COUNT_NR,Sprinklers|Fire Alarm Devices
 FLS_ALARM_CIRCUIT_COUNT_TXT,Sprinklers|Fire Alarm Devices
-FLS_COMPARTMENT_ID_TXT,Sprinklers|Fire Alarm Devices
+FLS_COMPARTMENT_FR_MINS_TXT,Fire Alarm Devices|Rooms|Sprinklers
+FLS_COMPARTMENT_ID_TXT,Fire Alarm Devices|Rooms|Sprinklers
 FLS_DETECTION_COST_TXT,Sprinklers|Fire Alarm Devices
 FLS_DETECTION_COST_UGX,Sprinklers|Fire Alarm Devices
 FLS_DETECTOR_COUNT_NR,Sprinklers|Fire Alarm Devices
@@ -1904,6 +1908,8 @@ PLM_DRN_ACCESS_POINTS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe I
 PLM_DRN_BKWTR_VALVE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_BODY_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_CLEANOUT_LOCS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_DRN_COVER_DS_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_DRN_COVER_US_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FILL_RATIO_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FITTING_ACCESS_PROVISION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_FITTING_CONNECTION_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -1912,6 +1918,8 @@ PLM_DRN_FITTING_INST_DETAIL_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|P
 PLM_DRN_FLW_RATE_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_GRT_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_GRT_TYPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_DRN_INV_DS_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_DRN_INV_US_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_PPE_LENGTH_M,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_PPE_SLOPE_PCT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_DRN_SPARE_01_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2136,6 +2144,7 @@ PRJ_ORG_PROJECT_NUMBER_TXT,Project Information
 PRJ_ORG_REGION_TXT,Project Information
 PRJ_ORG_RIBA_STAGE_TXT,Project Information
 PRJ_ORG_SECURITY_CLASS_TXT,Project Information
+PRJ_ORG_SHEET_NUMBER_POLICY_TXT,Project Information
 PRJ_ORG_SIGNATURE_PROVIDER_TXT,Project Information
 PRJ_ORG_UNICLASS_CO_TXT,Project Information
 PRJ_ORG_WORKFLOW_PROFILE_TXT,Project Information
@@ -2165,6 +2174,7 @@ PRJ_TB_AUTHORISED_BY_TXT,Sheets
 PRJ_TB_AUTHORISED_DATE_TXT,Sheets
 PRJ_TB_CDE_REF_FORMAT_TXT,Sheets
 PRJ_TB_CDE_REF_TXT,Sheets
+PRJ_TB_CDE_STATE_INT,Sheets
 PRJ_TB_CHECKED_BY_TXT,Sheets
 PRJ_TB_CLIENT_ADDRESS_TXT,Sheets
 PRJ_TB_CLIENT_NAME_TXT,Sheets

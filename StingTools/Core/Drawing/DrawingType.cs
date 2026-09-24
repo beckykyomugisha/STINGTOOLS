@@ -98,6 +98,20 @@ namespace StingTools.Core.Drawing
         public const string Schematic    = "Schematic";
         /// <summary>Client clarification / RFI sketch.</summary>
         public const string Clarification = "Clarification";
+
+        /// <summary>
+        /// The canonical purpose set — every constant above, once. Pickers
+        /// (<c>Iso19650Vocabulary.DrawingPurposes</c>, the Excel
+        /// round-trip dropdown) and <c>DrawingPurposeViewKind</c> are
+        /// derived from or tested against this list, so a new purpose added
+        /// here cannot be missing from a picker or fall through to a default
+        /// view kind unnoticed.
+        /// </summary>
+        public static readonly string[] All =
+        {
+            Plan, Rcp, Section, Elevation, Detail, Schedule, Spool,
+            Coordination, Legend, ThreeD, Schematic, Clarification,
+        };
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -211,6 +225,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("detailLevel")]      public string DetailLevel { get; set; } = "Medium"; // Coarse | Medium | Fine
         [JsonProperty("viewTemplateName")] public string ViewTemplateName { get; set; }
         [JsonProperty("viewportTypeName")] public string ViewportTypeName { get; set; }
+        /// <summary>
+        /// The Revit view type (ViewFamilyType) views of this drawing are created with —
+        /// "STING - Section", "STING - Elevation" … — instead of the first one of that
+        /// family. See ViewFamilyTypeChoice. Omitted from JSON when null, so drawing
+        /// types that do not set it keep their checksums.
+        /// </summary>
+        [JsonProperty("viewFamilyTypeName", NullValueHandling = NullValueHandling.Ignore)]
+        public string ViewFamilyTypeName { get; set; }
 
         /// <summary>
         /// References a <see cref="ViewStylePack"/> by id. The pack
@@ -724,6 +746,28 @@ namespace StingTools.Core.Drawing
         [JsonProperty("phase")]         public string Phase { get; set; } = "*";
         [JsonProperty("docType")]       public string DocType { get; set; } = "*"; // matches DrawingPurpose values or user codes
         [JsonProperty("drawingTypeId")] public string DrawingTypeId { get; set; }
+
+        /// <summary>
+        /// "corporate" (shipped baseline) or "project" (added by this
+        /// project's override). Stamped by DrawingTypeRegistry on load, and
+        /// read by the editor's save so only PROJECT rules are written back.
+        ///
+        /// The editor used to persist DrawingTypeRegistry.ListRouting(doc) —
+        /// the fully MERGED table — into the project override. The signature
+        /// de-dup in Merge stopped that from doubling at runtime, but it froze
+        /// all 113 corporate rules into the project file, where they are
+        /// prepended and therefore win: a later corporate change to an
+        /// existing (discipline, phase, docType) key could never reach that
+        /// project again. Origin makes "which rules are mine" answerable, so
+        /// the save can be correct.
+        /// </summary>
+        [JsonProperty("origin", NullValueHandling = NullValueHandling.Ignore)]
+        public string Origin { get; set; }
+
+        /// <summary>True when this rule came from the project override, not the corporate baseline.</summary>
+        [JsonIgnore]
+        public bool IsProjectRule =>
+            string.Equals(Origin, "project", StringComparison.OrdinalIgnoreCase);
 
         // Week 6 — predicate extensions. Each optional field narrows
         // the match further. When null the field does not participate

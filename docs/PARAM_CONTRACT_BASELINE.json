@@ -1087,11 +1087,6 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
-    "PRJ_SHEET_LEVEL_TXT": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Written by Title Block Populate and consumed by a LABEL in the title-block family (STING_TB_*), which this scan cannot see. Derived from SHT_TAG_1_TXT, never authored here."
-    },
     "PRJ_SHEET_OF_TOTAL_TXT": {
       "state": "write_only",
       "role": "reference",

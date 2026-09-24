@@ -40,7 +40,7 @@ def code_single(p):
 # ---- category sets ----
 S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts",
 "HVAC_TERM":"Air Terminals","PLUMB":"Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures",
-"FIRE":"Sprinklers|Fire Alarm Devices","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
+"FIRE":"Sprinklers|Fire Alarm Devices","FIRE_COMPARTMENT":"Fire Alarm Devices|Rooms|Sprinklers","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
 "ELEC_EQUIP":"Electrical Equipment|Electrical Circuits",
 "ELEC_FIXTURE":"Electrical Fixtures",
@@ -113,6 +113,11 @@ def resolve(n,desc,depth=0):
     if pre in("FOHLIO","PROJECT","MOUNTING","USAGE","INS"): return "UNIVERSAL","misc-meta"
     if pre=="WARN" and len(p)>1 and depth<3:
         return resolve("_".join(p[1:]),desc,depth+1)[0],"warn-mirror"
+    # A fire compartment is a property of the SPACE first. FLS_ alone binds to
+    # sprinklers and detectors, so FLS_COMPARTMENT_ID_TXT reached every device in a
+    # compartment and no room in it -- while the fls-compartment-id filter (OST_Rooms),
+    # the RDS validator and the Fire Compartment Tag all read it from Rooms.
+    if n.startswith("FLS_COMPARTMENT_") and depth==0: return "FIRE_COMPARTMENT","fls-compartment"
     if pre in SAFE:
         if pre=="HVC" and sub=="TERMINAL": return "HVAC_TERM","prefix+sub"
         if pre=="ELC" and sub in ELC: return ELC[sub],"elc-sub"

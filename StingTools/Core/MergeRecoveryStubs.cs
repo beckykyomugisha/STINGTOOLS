@@ -75,13 +75,13 @@ namespace StingTools.Commands.Plumbing
     public sealed class DrainageSlopeRow      { public string Name { get; set; } public string Status { get; set; } public bool Apply { get; set; } public string Pipe { get; set; } public double DElevMm { get; set; } }
     public sealed class DrainageSizingRow     { public string Name { get; set; } public string Status { get; set; } public string Pipe { get; set; } public double SigmaDu { get; set; } public int Dn { get; set; } public double VelocityMps { get; set; } public double HdRatio { get; set; } }
     public sealed class DrainageVentRow       { public string Name { get; set; } public string Status { get; set; } public string Drain { get; set; } public double Du { get; set; } public int VentDn { get; set; } public double MaxLenM { get; set; } public string Flag { get; set; } }
-    public sealed class DrainageInvertRow     { public string Name { get; set; } public string Status { get; set; } public string Pipe { get; set; } public double UsInvM { get; set; } public double DsInvM { get; set; } public double CoverM { get; set; } }
+    public sealed class DrainageInvertRow     { public string Name { get; set; } public string Status { get; set; } public string Pipe { get; set; } public double UsInvM { get; set; } public double DsInvM { get; set; } public double? CoverM { get; set; } }
     public sealed class DrainageDuScanRow     { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public int Count { get; set; } public double DuEach { get; set; } public double SigmaDu { get; set; } }
     public sealed class SupplyTmvRow          { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public string Type { get; set; } public bool Pass { get; set; } }
     public sealed class SupplySizingRow       { public string Name { get; set; } public string Status { get; set; } public string Section { get; set; } public double SigmaLu { get; set; } public int Dn { get; set; } public double VelocityMps { get; set; } }
     public sealed class SupplyFixtureScanRow  { public string Name { get; set; } public string Status { get; set; } public string Fixture { get; set; } public int Count { get; set; } public double LuCw { get; set; } public double LuHw { get; set; } }
     public sealed class SpecialtyCrossConnRow { public string Name { get; set; } public string Status { get; set; } public string SystemA { get; set; } public string SystemB { get; set; } public string Separation { get; set; } public string Risk { get; set; } }
-    public sealed class DocsManholeRow        { public string Name { get; set; } public string Status { get; set; } public string Ref { get; set; } public double InvInM { get; set; } public double InvOutM { get; set; } public double CoverM { get; set; } public double DepthM { get; set; } }
+    public sealed class DocsManholeRow        { public string Name { get; set; } public string Status { get; set; } public string Ref { get; set; } public double? InvInM { get; set; } public double? InvOutM { get; set; } public double? CoverM { get; set; } public double? DepthM { get; set; } }
     public sealed class DocsBoqRow            { public string Name { get; set; } public string Status { get; set; } public string Item { get; set; } public string Description { get; set; } public double Qty { get; set; } public string Unit { get; set; } }
     public sealed class DocsPipeScheduleRow   { public string Name { get; set; } public string Status { get; set; } public string System { get; set; } public int Dn { get; set; } public string Material { get; set; } public double LengthM { get; set; } }
     public sealed class AuditIssueRow         { public string Code { get; set; } public string Detail { get; set; } public string Severity { get; set; } = "Info"; public string Element { get; set; } public string Issue { get; set; } }
@@ -250,9 +250,24 @@ namespace StingTools.Core.Drawing
         // FarClipMm / AnnotationCrop / ViewRange are already declared on the
         // runtime class — those are bool?/double?/PackViewRange. Only the
         // missing surface is declared here.
+        /// <summary>APPLIED — used as the view-template name when the DrawingType names none.</summary>
         public string ViewTemplate     { get; set; }
+        /// <summary>APPLIED — detail level when the DrawingType leaves it blank.</summary>
         public string DetailLevel      { get; set; }
+        /// <summary>APPLIED — parsed scale used when the DrawingType's scale is not applicable.</summary>
         public string ScaleHint        { get; set; }
+        /// <summary>
+        /// DECLARATIVE — the pack's intended colour treatment ("Monochrome",
+        /// "Discipline", "PresentationRich"). 24 shipped packs declare it and
+        /// NOTHING reads it; the per-view colour work is done by the pack's
+        /// vgOverrides and filter rules, which is where a colour belongs.
+        ///
+        /// Kept as the stated intent behind those overrides, and as the hook an
+        /// export preset would key on. Do not treat its presence as evidence
+        /// that a colour scheme is being applied — see
+        /// <see cref="ViewStylePack.TextStyle"/> for the same reasoning.
+        /// The per-TAG analogue, TagColorScheme, IS applied (TokenProfileApplier).
+        /// </summary>
         public string ColorScheme      { get; set; }
         public PackAppearanceDto Appearance { get; set; }
         public string PhaseName        { get; set; }
@@ -399,7 +414,14 @@ namespace StingTools.UI.PlacementCenter
         private void RaiseRevitToFront()
         {
             // Best-effort Revit-window foreground hint. Real impl uses Win32 SetForegroundWindow.
-            try { this.Activate(); } catch { /* may not be on UI thread */ }
+            try { this.Activate(); }
+            catch (Exception ex)
+            {
+                // V-10: harmless when off the UI thread, but say so rather than
+                // leave "the window never came forward" unexplained.
+                StingTools.Core.StingLog.WarnRateLimited("PlacementCenter.Activate",
+                    $"StingPlacementCenter.RaiseRevitToFront: Activate failed: {ex.Message}");
+            }
         }
     }
 }
@@ -415,8 +437,10 @@ namespace StingTools.Core.Drawing
         // file only adds the *Cached variants the merged code expects.
         internal static ElementId ResolveCategoryIdCached(Document doc, string key)
         {
-            try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
-            catch { }
+            // V-10: Enum.TryParse + new ElementId(bic) cannot throw for a parsed
+            // value; the try/catch{} around it only hid a fast path that never failed.
+            if (!string.IsNullOrWhiteSpace(key) && Enum.TryParse<BuiltInCategory>(key, out var bic))
+                return new ElementId(bic);
             // The corporate/project packs key vgOverrides by localised category
             // name ("Walls", "Ducts") and by custom subcategory ("STING-LargeTree",
             // "STING_TagStatus" — the universal-tag status-badge subcategory). The
@@ -428,7 +452,11 @@ namespace StingTools.Core.Drawing
                 var byName = ResolveCategoryId(doc, key);
                 if (byName != null && byName != ElementId.InvalidElementId) return byName;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveCategoryIdCached",
+                    $"ResolveCategoryIdCached('{key}'): {ex.Message} -- reported as not found");
+            }
             return ElementId.InvalidElementId;
         }
         // V-4: these are the "Cached" resolvers that never cached. Each ran a
@@ -518,7 +546,14 @@ namespace StingTools.Core.Drawing
             if (tb == null || keys == null) return false;
             foreach (var k in keys)
             {
-                try { if (tb.LookupParameter(k) != null) return true; } catch { }
+                try { if (tb.LookupParameter(k) != null) return true; }
+                catch (Exception ex)
+                {
+                    // V-10: a throw reads as "title block has none of these keys",
+                    // which skips the title-block fill. Log it (rate-limited).
+                    StingTools.Core.StingLog.WarnRateLimited("TitleBlockHasAnyKey",
+                        $"TitleBlockHasAnyKey({tb.Id}, '{k}'): {ex.Message}");
+                }
             }
             return false;
         }

@@ -141,7 +141,7 @@ namespace StingTools.Commands.Panels
             double it = table != null && csa > 0 ? Bs7671Data.TabulatedIt(table, csa, poles >= 3 ? 3 : 1) : 0;
             row.Iz = it > 0 ? it : (double?)null;
 
-            var vdp = sys.LookupParameter("ELC_VLT_DROP_PCT");
+            var vdp = sys.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
             if (vdp != null && vdp.HasValue && vdp.StorageType == StorageType.Double) row.Vd = vdp.AsDouble();
             bool lighting = false;
             try { lighting = VoltageDropCommand.IsLightingCircuit(sys); } catch (Exception ex) { StingLog.Info($"Check lighting: {ex.Message}"); }
@@ -149,7 +149,7 @@ namespace StingTools.Commands.Panels
 
             if (sys.BaseEquipment is FamilyInstance board)
             {
-                var psc = board.LookupParameter("ELC_PNL_SHORT_CIRCUIT_RATING_KA");
+                var psc = board.LookupParameter(ParamRegistry.ELC_PNL_FAULT_KA);
                 if (psc != null && psc.HasValue && psc.StorageType == StorageType.Double && psc.AsDouble() > 0)
                     row.Psc = psc.AsDouble();
                 row.Icn = ReadKa(board.get_Parameter(BuiltInParameter.RBS_ELEC_SHORT_CIRCUIT_RATING));

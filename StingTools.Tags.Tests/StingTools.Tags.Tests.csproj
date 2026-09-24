@@ -174,6 +174,58 @@
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SuitabilityPresentation.cs" Link="Core\Drawing\SuitabilityPresentation.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewFamilyTypeChoice.cs" Link="Core\Drawing\ViewFamilyTypeChoice.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\FaceChoice.cs" Link="Core\Drawing\FaceChoice.cs" />
+    <!-- T-5/T-6/T-7: title-block template grammar, title-block family
+         resolution, and master-seed remap. Revit-free cores of
+         TitleBlockParamApplier / TitleBlockResolver / TitleBlockFactory. -->
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockTemplate.cs" Link="Core\Drawing\TitleBlockTemplate.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockFamilyNaming.cs" Link="Core\Drawing\TitleBlockFamilyNaming.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockSeedRemap.cs" Link="Core\Drawing\TitleBlockSeedRemap.cs" />
+    <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
+         style-pack routing predicate. All three are Revit-free on purpose, so
+         the gates that keep the shipped JSON and the runner in agreement can
+         run on a plain test host. See DrawingAnnotationVocabularyTests and
+         SheetNumberPolicyTests for what each one prevents. -->
+    <!-- DrawingType / ViewStylePack / AnnotationRulePack are Revit-free POCOs
+         (verified: zero Autodesk references), so the catalogue gates can bind the
+         SHIPPED models rather than a test-local copy that could disagree. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingType.cs" Link="Core\Drawing\DrawingType.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
+    <!-- V-11: the pack-intent-before-document-capability decision. -->
+    <Compile Include="..\StingTools\Core\Drawing\WorksetVisibilityPlan.cs" Link="Core\Drawing\WorksetVisibilityPlan.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
+    <!-- The one list of STING viewport type names + legacy aliases. -->
+    <Compile Include="..\StingTools\Core\Drawing\StingViewportTypes.cs" Link="Core\Drawing\StingViewportTypes.cs" />
+    <!-- A-2: minSizeMm gate, tag leader parse, tag-depth layering. -->
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleResolution.cs" Link="Core\Drawing\AnnotationRuleResolution.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationPackLayering.cs" Link="Core\Drawing\AnnotationPackLayering.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RuleFamilyFilter.cs" Link="Core\Drawing\RuleFamilyFilter.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Utf8Mojibake.cs" Link="Core\Drawing\Utf8Mojibake.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\InvertMath.cs" Link="Core\Plumbing\InvertMath.cs" />
+    <!-- D-7: the purpose -> view-kind table. DrawingProducer and
+         GenerateFromScopeBoxesCommand call this same file, so
+         DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingPurposeViewKind.cs" Link="Core\Drawing\DrawingPurposeViewKind.cs" />
+    <!-- D-4 / D-5: routing matcher + audit, and slot geometry. DrawingDispatcher
+         and DrawingTypeValidator call these same files, so
+         DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
+    <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_VIEW_STYLE_PACKS.json" Link="Data\STING_VIEW_STYLE_PACKS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value
          entered as CFM, stored as l/s and redisplayed - is provable without a host. -->
     <Compile Include="..\StingTools\Core\Units\FlowDisplayUnits.cs" Link="Core\Units\FlowDisplayUnits.cs" />

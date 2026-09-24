@@ -323,17 +323,21 @@ namespace StingTools.Commands.Plumbing
                 })
                 .ToList();
 
+            var opts = IlReportingOptions.Default;
+            double datumM = PipeInvert.DatumOffsetM(ctx.Doc, opts.Datum);
             var rows = manholes.Select(el =>
             {
-                double invIn = 0, invOut = 0, cover = 0, depth = 0;
+                // Null = unknown. A zero here used to mean "missing", but an invert
+                // below the datum is a real negative number and was thrown away.
+                double? invIn = null, invOut = null, cover = null, depth = null;
                 try
                 {
                     // Stamped invert params win when present — they're the
-                    // authoritative QS-checked values.
-                    var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
-                    var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
-                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;
-                    if (pOut != null) invOut = pOut.Value * 0.3048;
+                    // authoritative QS-checked values. TEXT, metres, on the
+                    // reporting datum (see InvertMath.ToParamText); the old
+                    // AsDouble()*0.3048 read a text parameter as feet.
+                    invIn  = InvertMath.ParseMetres(el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsString());
+                    invOut = InvertMath.ParseMetres(el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsString());
 
                     // When the stamps are missing (typical before
                     // Plumb_InvertLevels has been run), derive directly from
@@ -342,29 +346,23 @@ namespace StingTools.Commands.Plumbing
                     // the chamber face — highest is US, lowest is DS. This
                     // means the schedule still produces meaningful Cover /
                     // Depth even on a brand-new model.
-                    if (invIn <= 0 && invOut <= 0)
+                    if (!invIn.HasValue && !invOut.HasValue)
                     {
-                        var (cIn, cOut) = ResolveInvertsFromConnectors(el);
-                        if (invIn  <= 0) invIn  = cIn;
-                        if (invOut <= 0) invOut = cOut;
+                        var (cIn, cOut) = ResolveInvertsFromConnectors(el, datumM);
+                        invIn  = cIn;
+                        invOut = cOut;
                     }
 
-                    // Cover = chamber's host-level elevation (project zero).
-                    // Depth = Cover − lowest invert. Both internally consistent
-                    // even when the project elevation isn't mAOD-aligned.
-                    if (el.LevelId != null && el.LevelId.Value > 0)
-                    {
-                        var lvl = ctx.Doc.GetElement(el.LevelId) as Level;
-                        if (lvl != null) cover = lvl.Elevation * 0.3048;
-                    }
-                    double lowestInv = (invIn > 0 || invOut > 0)
-                        ? Math.Min(invIn  > 0 ? invIn  : double.MaxValue,
-                                   invOut > 0 ? invOut : double.MaxValue)
-                        : 0;
-                    if (cover > 0 && lowestInv > 0 && lowestInv != double.MaxValue)
-                        depth = cover - lowestInv;
+                    // Cover level = the top of the chamber family, on the same datum
+                    // as the inverts. It used to be the HOST LEVEL's elevation, which
+                    // is where the chamber is hosted, not where its cover is.
+                    var bb = el.get_BoundingBox(null);
+                    if (bb != null) cover = bb.Max.Z * 0.3048 + datumM;
+
+                    var lowest = new[] { invIn, invOut }.Where(v => v.HasValue).Select(v => v.Value).DefaultIfEmpty(double.NaN).Min();
+                    if (cover.HasValue && !double.IsNaN(lowest)) depth = cover.Value - lowest;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Manhole schedule {el.Id}: {ex.Message}"); }
                 return new DocsManholeRow
                 {
                     Ref     = $"{el.Id.Value} {el.Name}",
@@ -393,7 +391,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     string lvl = el.LevelId == ElementId.InvalidElementId ? "" : ctx.Doc.GetElement(el.LevelId)?.Name ?? "";
                     string inv = "";
-                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     panel.Text($"{el.Id.Value} · {el.Name} · level {lvl} · invert {inv}");
                 }
             }
@@ -424,22 +422,27 @@ namespace StingTools.Commands.Plumbing
         //
         // NOTE: Connector.Flow is a double (flow rate). Connector.Direction
         // is the FlowDirectionType enum we want here.
-        private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
+        private static (double? invInM, double? invOutM) ResolveInvertsFromConnectors(Element el, double datumM)
         {
             try
             {
                 var fi = el as FamilyInstance;
                 var mgr = fi?.MEPModel?.ConnectorManager;
-                if (mgr == null) return (0, 0);
+                if (mgr == null) return (null, null);
                 var inAll = new List<double>();
                 var outAll = new List<double>();
                 var anyAll = new List<double>();
                 foreach (Connector c in mgr.Connectors)
                 {
                     if (c?.Domain != Domain.DomainPiping) continue;
-                    double radiusM = 0;
-                    try { radiusM = c.Radius * 0.3048; } catch { }
-                    double invertM = c.Origin.Z * 0.3048 - radiusM;
+                    // Bore invert at the chamber face: the CONNECTED PIPE's internal
+                    // diameter, not the connector radius (which is nominal).
+                    double? idM = ConnectedPipeInnerDiameterM(c);
+                    double? nomM = null;
+                    try { nomM = c.Radius * 2 * 0.3048; } catch (Exception ex) { StingLog.Warn($"Connector radius: {ex.Message}"); }
+                    var inv = InvertMath.Invert(c.Origin.Z * 0.3048 + datumM, idM, nomM, out _);
+                    if (!inv.HasValue) continue;
+                    double invertM = inv.Value;
                     anyAll.Add(invertM);
 
                     var dir = SafeDirection(c);
@@ -451,13 +454,32 @@ namespace StingTools.Commands.Plumbing
                     if (inferred == FlowDirectionType.In)  inAll.Add(invertM);
                     else if (inferred == FlowDirectionType.Out) outAll.Add(invertM);
                 }
-                if (anyAll.Count == 0) return (0, 0);
+                if (anyAll.Count == 0) return (null, null);
 
                 double us = inAll.Count  > 0 ? inAll.Max()  : anyAll.Max();
                 double ds = outAll.Count > 0 ? outAll.Min() : anyAll.Min();
                 return (us, ds);
             }
-            catch { return (0, 0); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Manhole connector inverts {el?.Id}: {ex.Message}");
+                return (null, null);
+            }
+        }
+
+        private static double? ConnectedPipeInnerDiameterM(Connector c)
+        {
+            try
+            {
+                foreach (Connector other in c.AllRefs)
+                {
+                    if (!(other?.Owner is Autodesk.Revit.DB.Plumbing.Pipe pipe)) continue;
+                    var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_INNER_DIAM_PARAM);
+                    if (p != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * 0.3048;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Connected pipe inner diameter: {ex.Message}"); }
+            return null;
         }
 
         private static FlowDirectionType SafeDirection(Connector c)

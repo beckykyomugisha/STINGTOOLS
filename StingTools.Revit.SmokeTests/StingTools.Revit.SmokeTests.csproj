@@ -1,0 +1,135 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    In-Revit smoke tests for the drawing annotation engines (ROADMAP DRAW-1 / DRAW-3).
+
+    These tests run INSIDE desktop Revit, via ricaun.RevitTest: `dotnet test` hands the
+    assembly to ricaun's console, which opens Revit (local licence), runs the NUnit tests
+    on Revit's API thread and reports the results back. Nothing here can run on a machine
+    without Revit.
+
+    DO NOT RENAME TO StingTools.*.Tests. .github/workflows/stingtools-unit-tests.yml builds
+    every `StingTools.*.Tests/*.csproj` on ubuntu-latest; this project would fail there
+    (no Revit API, no Windows), and a red build for a reason nobody can act on teaches
+    people to ignore that gate. "StingTools.Revit.SmokeTests" does not match that glob.
+
+    Run it with tools/run_revit_smoke.ps1, which refuses to start while Revit is open and
+    stamps which StingTools.dll was under test into the results.
+
+    NO NUnit3TestAdapter. ricaun.RevitTest.TestAdapter IS the adapter; adding NUnit's own
+    would make `dotnet test` run these tests in-process, outside Revit, where every
+    Revit API call throws.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>StingTools.Revit.SmokeTests</AssemblyName>
+    <RootNamespace>StingTools.Revit.SmokeTests</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+    <!-- Same benign ClosedXML framework-version noise the plugin already demotes. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <!--
+    Which Revit RUNS the tests is RevitVersion, read by ricaun from the NUnit.Version
+    assembly metadata below:
+
+      dotnet test StingTools.Revit.SmokeTests -p:RevitVersion=2026
+
+    Which Revit API the tests COMPILE against is deliberately NOT tied to it. The plugin
+    ships as one DLL built against the 2025 API and loaded by 2025/2026/2027, and it does
+    not compile against the 2026 API (removed BuiltInParameter members, a changed
+    GetCenterlineCurves signature — measured 2026-09-24). So the smoke tests exercise
+    that same binary: RevitApiPath resolves exactly as StingTools.csproj resolves it
+    (2025 → 2026 → 2027), and running under 2026/2027 tests the shipped forward-
+    compatibility, which is the thing users actually get.
+  -->
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2025</RevitVersion>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2025</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2026\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2026</RevitApiPath>
+    <RevitApiPath Condition="'$(RevitApiPath)' == '' And Exists('C:\Program Files\Autodesk\Revit 2027\RevitAPI.dll')">C:\Program Files\Autodesk\Revit 2027</RevitApiPath>
+    <UseRevitNuget Condition="'$(UseRevitNuget)' == '' And '$(RevitApiPath)' != '' And Exists('$(RevitApiPath)\RevitAPI.dll')">false</UseRevitNuget>
+    <UseRevitNuget Condition="'$(UseRevitNuget)' == ''">true</UseRevitNuget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>NUnit.Version</_Parameter1>
+      <_Parameter2>$(RevitVersion)</_Parameter2>
+    </AssemblyAttribute>
+    <!-- Open a fresh Revit for the run and close it afterwards. The run script refuses
+         to start while Revit is already open, so this never drives a user's session. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>NUnit.Open</_Parameter1>
+      <_Parameter2>true</_Parameter2>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>NUnit.Close</_Parameter1>
+      <_Parameter2>true</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Local Revit install: real DLLs by HintPath, never copied (Revit supplies its own). -->
+  <ItemGroup Condition="'$(UseRevitNuget)' != 'true'">
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitApiPath)\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitApiPath)\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Private=false keeps RevitAPI.dll itself out of the output, but not its closure:
+    StingTools.dll is copy-local and depends on RevitAPI/RevitAPIUI, so MSBuild resolves
+    and copies everything THEY depend on from the Revit folder (~150 files — APIDBAPI,
+    AdWindows, CefSharp …). Inside Revit those would shadow or conflict with the copies
+    Revit has already loaded. Strip anything resolved out of the Revit install folder.
+  -->
+  <Target Name="DropRevitClosureFromOutput" AfterTargets="ResolveAssemblyReferences" Condition="'$(UseRevitNuget)' != 'true'">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+        Condition="$([System.String]::new('%(FullPath)').ToLowerInvariant().StartsWith($([System.String]::new('$(RevitApiPath)\').ToLowerInvariant())))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- No local Revit: compile against the same NuGet reference assemblies the plugin
+       uses. The project then BUILDS anywhere, but it can only RUN where Revit is. -->
+  <ItemGroup Condition="'$(UseRevitNuget)' == 'true'">
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="2025.4.50">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="2025.4.50">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="ricaun.RevitTest.TestAdapter" Version="1.11.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+  </ItemGroup>
+
+  <!--
+    The plugin under test. Private=true: the built StingTools.dll (and its data/ folder)
+    must sit beside this assembly, because that is the build the tests are about.
+    HarnessIntegrityTests fails the run if Revit resolved a DIFFERENT StingTools.dll —
+    typically the deployed add-in — so a green result can never describe another build.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\StingTools\StingTools.csproj" Private="true" />
+  </ItemGroup>
+
+</Project>

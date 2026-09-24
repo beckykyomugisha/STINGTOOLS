@@ -305,12 +305,7 @@ namespace StingTools.Core.Drawing
 
             try
             {
-                var effectiveTokens = tokens ?? DrawingTokenContext.Build(
-                    doc:        doc,
-                    dt:         dt,
-                    discCode:   dt.Discipline,
-                    discipline: dt.Discipline,
-                    seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(sheet.SheetNumber));
+                var effectiveTokens = tokens ?? DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
                 var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
                 r.Warnings.AddRange(tbResult.Warnings);
             }
@@ -451,11 +446,28 @@ namespace StingTools.Core.Drawing
             // packs still mint their own template after this block, so the
             // managed-mode override below takes precedence over the external
             // fallback.
+            // Resolve through ViewStylePackRegistry.ResolveForDrawingType so a
+            // profile that names no pack still picks one up from the library's
+            // routing table. Before this, the four structural profiles, the
+            // three schedule profiles and pres-narrative-A1 — 8 of 93 — got no
+            // VG overrides and no filters whatsoever, silently, because
+            // fallbackPack stayed null and every downstream step is guarded on
+            // it. A routed pack is logged, because "where did this styling come
+            // from" should never need inferring.
             ViewStylePack fallbackPack = null;
-            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            string packSource = "none";
+            try
             {
-                fallbackPack = ResolvePackCached(doc, dt.ViewStylePackId);
+                fallbackPack = ViewStylePackRegistry.ResolveForDrawingType(doc, dt, out packSource);
+                if (fallbackPack != null && !string.Equals(packSource, "profile", StringComparison.OrdinalIgnoreCase))
+                    StingTools.Core.StingLog.Info(
+                        $"DrawingType '{dt.Id}' names no view style pack; resolved '{fallbackPack.Id}' via {packSource}.");
+                else if (fallbackPack == null)
+                    r.Warnings.Add(
+                        $"DrawingType '{dt.Id}' resolves to no view style pack (no viewStylePackId and no matching routing rule) — "
+                        + "no category overrides or filters will be applied to this view.");
             }
+            catch (Exception ex) { r.Warnings.Add($"ViewStylePack resolve: {ex.Message}"); }
             int effectiveScale = dt.Scale;
             string effectiveDetailLevel = dt.DetailLevel;
             string effectiveTemplateName = dt.ViewTemplateName;
@@ -567,15 +579,18 @@ namespace StingTools.Core.Drawing
             // which mints (or updates) a "STING:{packId}:{ViewType}"
             // template and assigns it to the view; non-managed packs apply
             // their VG / filter / etc. payload directly to the view.
+            // Gate on the RESOLVED pack, not on dt.ViewStylePackId. Gating on
+            // the id meant a pack that arrived from the routing table was
+            // resolved up-front and then never applied.
             ViewStylePack resolvedPack = fallbackPack;
-            if (!string.IsNullOrWhiteSpace(dt.ViewStylePackId))
+            if (resolvedPack != null || !string.IsNullOrWhiteSpace(dt.ViewStylePackId))
             {
                 try
                 {
                     // C-2: cached lookup so batch producers resolve a given
                     // pack only once per session. Reuses the fallback resolution
                     // performed up-front when it succeeded.
-                    if (resolvedPack == null)
+                    if (resolvedPack == null && !string.IsNullOrWhiteSpace(dt.ViewStylePackId))
                         resolvedPack = ResolvePackCached(doc, dt.ViewStylePackId);
                     if (resolvedPack == null)
                     {
@@ -608,14 +623,21 @@ namespace StingTools.Core.Drawing
                         else
                         {
                             r.Warnings.Add($"ViewStylePack '{dt.ViewStylePackId}' is managed but no template could be minted — falling back to external apply.");
-                            var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
+                            var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack,
+                                DrawingPrintApplier.EffectiveLineWeightScale(resolvedPack, dt));
+                            DrawingPrintApplier.ApplyHalftoneLinks(doc, view, dt, packStats);
                             r.PackApplied = true;
                             r.Warnings.AddRange(packStats.Warnings);
                         }
                     }
                     else
                     {
-                        var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack);
+                        // print.lineWeightScale folds into the pack scale, and
+                        // print.halftoneLinks finally acts. Both were declared on
+                        // 90 profiles and read by nothing but the Excel round-trip.
+                        var packStats = ViewStylePackApplier.Apply(doc, view, resolvedPack,
+                            DrawingPrintApplier.EffectiveLineWeightScale(resolvedPack, dt));
+                        DrawingPrintApplier.ApplyHalftoneLinks(doc, view, dt, packStats);
                         r.PackApplied = true;
                         r.Warnings.AddRange(packStats.Warnings);
                     }
@@ -704,7 +726,7 @@ namespace StingTools.Core.Drawing
             // Annotation pass --------------------------------------------
             // Phase 137 — explicit AnnotationRunOptions plumbing so callers
             // (SyncStyles, batch producers) can skip individual passes.
-            if (dt.Annotation != null)
+            if (dt.Annotation != null || options?.AnnotationOptions?.PackOverride != null)
             {
                 try
                 {

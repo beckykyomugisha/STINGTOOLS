@@ -84,6 +84,16 @@ CODE_BOUND = {
     #  with a file:line justification.)
 }
 
+# Literals that match the parameter-name SHAPE but name something else (a
+# family, a type). The shape test cannot tell "STING_ANNO_FLOW_ARROW" the family
+# from a parameter, and raising the ceiling for it would hide the next real
+# violation. Each entry must say what the name IS and where it is defined.
+NOT_PARAMETERS = {
+    "STING_ANNO_FLOW_ARROW":
+        "generic-annotation FAMILY name — MepAnnotator.FlowArrowFamily, authored by "
+        "BuildFlowArrowFamilyCommand (DRAW-2)",
+}
+
 # Directories that are not plugin consumer code.
 SKIP_DIRS = {"obj", "bin", ".git", "Data", "_template_sources", "_workflow_sources"}
 
@@ -181,7 +191,7 @@ def analyse(root=PLUGIN, declared=None, bound=None):
 
     undeclared, unbound = {}, {}
     for name, sites in hits.items():
-        if name in CODE_BOUND:
+        if name in CODE_BOUND or name in NOT_PARAMETERS:
             continue
         if name not in declared:
             undeclared[name] = sites

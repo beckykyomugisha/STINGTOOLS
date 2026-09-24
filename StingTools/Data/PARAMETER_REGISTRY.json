@@ -4772,6 +4772,54 @@
       "curated": true
     },
     {
+      "param_name": "PLM_DRN_INV_US_M",
+      "guid": "e8b25343-14ee-57f3-9189-040f37a8b5fc",
+      "description": "Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_INV_DS_M",
+      "guid": "bc8ddf77-76cf-5ef4-8421-52ab6e7016f7",
+      "description": "Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_COVER_US_M",
+      "guid": "d273038b-4055-506d-a005-d7237e32c4da",
+      "description": "Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_DRN_COVER_DS_M",
+      "guid": "2c7ae32a-fd45-5b6c-af34-cc780830e87e",
+      "description": "Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",
+      "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
       "param_name": "VT_SILHOUETTES_BOOL",
       "guid": "7866511b-90b5-421a-80e7-2b6dd258c608",
       "description": "Silhouettes enabled [ISO 19650-1:2018]",
@@ -15327,6 +15375,42 @@
       "curated": true
     },
     {
+      "param_name": "BLE_DOOR_OPENING_FORCE_N",
+      "guid": "bf649bd0-8803-5b07-89f4-8daf10d8f0f6",
+      "description": "Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
+      "param_name": "BLE_DOOR_LEADING_EDGE_CLEAR_MM",
+      "guid": "2c404fa6-b02f-5f05-a1cf-4f6f599f942d",
+      "description": "Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
+      "param_name": "BLE_DOOR_VISION_PANEL_ZONE_BOOL",
+      "guid": "6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a",
+      "description": "Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "YESNO",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
       "param_name": "BLE_FLOOR_LOAD_KN_M2",
       "guid": "da0a0762-c687-5c51-997b-a4138428383c",
       "description": "Ble Floor Load Kn M2 [ISO 19650]",
@@ -17835,6 +17919,18 @@
       "curated": true
     },
     {
+      "param_name": "PRJ_TB_CDE_STATE_INT",
+      "guid": "4f2b28ee-4444-5a79-ac09-97c6d3c23d74",
+      "description": "CDE state as a number, derived from PRJ_DWG_SUITABILITY_COD_TXT and driving the title-block status band: 0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED, 4 ARCHIVED. Written by the plugin; do not edit by hand [ISO 19650-1:2018]",
+      "datatype": "INTEGER",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_TB_LAST_TRANSMITTAL_TXT",
       "guid": "953d56bb-e854-5817-9fa0-90ed013f276c",
       "description": "Transmittal number of the last issue that included this sheet [ISO 19650-2:2018]",
@@ -18293,7 +18389,7 @@
     {
       "param_name": "ASS_FAB_LOC_TXT",
       "guid": "e420804b-d43f-593c-91b1-fd00a18aa584",
-      "description": "Fabrication location (SHOP / FIELD / VENDOR)",
+      "description": "Fabrication location (WORKSHOP / SITE)",
       "datatype": "TEXT",
       "group_id": 1,
       "group_name": "ASS_MNG",
@@ -18930,6 +19026,18 @@
       "param_name": "PRJ_ORG_WORKFLOW_PROFILE_TXT",
       "guid": "48a26ee9-211d-5525-8fbb-9f8eb1f38878",
       "description": "Workflow profile key (default \"default\") [template engine v1.1]",
+      "datatype": "TEXT",
+      "group_id": 13,
+      "group_name": "PRJ_INFORMATION",
+      "binding": "project",
+      "required": false,
+      "discipline": "Project",
+      "curated": true
+    },
+    {
+      "param_name": "PRJ_ORG_SHEET_NUMBER_POLICY_TXT",
+      "guid": "89828bdc-25ad-5245-bce8-3274203c34b2",
+      "description": "Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]",
       "datatype": "TEXT",
       "group_id": 13,
       "group_name": "PRJ_INFORMATION",
@@ -21078,6 +21186,18 @@
       "param_name": "FLS_COMPARTMENT_ID_TXT",
       "guid": "c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001",
       "description": "Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]",
+      "datatype": "TEXT",
+      "group_id": 8,
+      "group_name": "FLS_LIFE_SFTY",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Fire & Life Safety",
+      "curated": true
+    },
+    {
+      "param_name": "FLS_COMPARTMENT_FR_MINS_TXT",
+      "guid": "483d4398-65df-5c70-8e10-e65097f48d61",
+      "description": "Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]",
       "datatype": "TEXT",
       "group_id": 8,
       "group_name": "FLS_LIFE_SFTY",
@@ -32074,7 +32194,7 @@
         "key": "ASS_FAB_LOC",
         "param_name": "ASS_FAB_LOC_TXT",
         "guid": "e420804b-d43f-593c-91b1-fd00a18aa584",
-        "description": "Fabrication location (SHOP / FIELD / VENDOR)",
+        "description": "Fabrication location (WORKSHOP / SITE)",
         "categories": [
           "ALL"
         ],

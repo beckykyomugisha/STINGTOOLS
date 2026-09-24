@@ -72,6 +72,12 @@ namespace StingTools.Core.Drawing
         public bool SkipSpots      { get; set; } = false;
         /// <summary>View scale hint (1:N) supplied by the caller for density checks.</summary>
         public int  ViewScale      { get; set; } = 0;
+        /// <summary>
+        /// The pack to run instead of the drawing type's own — already composed
+        /// by <see cref="AnnotationPackLayering.Compose"/> from the production
+        /// rule and preset overrides. Null = the drawing type's pack.
+        /// </summary>
+        public AnnotationRulePack PackOverride { get; set; }
     }
 
     public static class AnnotationRunner
@@ -98,8 +104,26 @@ namespace StingTools.Core.Drawing
             Document doc, View view, DrawingType drawingType, AnnotationRunOptions options = null)
         {
             var stats = new AnnotationRunStats();
-            if (doc == null || view == null || drawingType?.Annotation == null) return stats;
-            var pack = drawingType.Annotation;
+            var pack = options?.PackOverride ?? drawingType?.Annotation;
+            if (doc == null || view == null || drawingType == null || pack == null) return stats;
+
+            // A-2: the comments here and in AnnotationRulePack said the legacy
+            // per-category bools (autoTagRooms, autoDimGrids, ...) "fold into
+            // rules via MigrateFromLegacy at load" - but MigrateFromLegacy had
+            // no caller, so a profile still using them annotated nothing. Fold
+            // them now, and only when one is set, so a modern pack is not
+            // touched (the registry checksums packs at load, before this).
+            if (pack.HasLegacyFlags())
+            {
+                pack.MigrateFromLegacy();
+                stats.Warnings.Add($"Drawing type '{drawingType.Id}' uses legacy autoTag*/autoDim* flags; " +
+                                   "they were folded into rules for this run — re-save the type to persist rules.");
+            }
+
+            // Surface unimplemented ruleTypes before any pass runs, so a
+            // typo or an un-migrated name reads as a warning rather than as
+            // a quietly empty drawing.
+            ReportUnknownRuleTypes(pack, stats);
 
             // Scale-aware density — at scales coarser than DenseUntilScale,
             // skip per-element tagging. View.Scale is 1:N so a larger
@@ -118,7 +142,7 @@ namespace StingTools.Core.Drawing
             {
                 if (dense)
                 {
-                    try { TagByRules(doc, view, pack, stats); }
+                    try { TagByRules(doc, view, pack, stats, drawingType); }
                     catch (Exception ex) { stats.Warnings.Add("TagByRules: " + ex.Message); }
                 }
                 else
@@ -128,11 +152,27 @@ namespace StingTools.Core.Drawing
                 }
             }
 
-            // ── Dimensioning — AutoDim + AutoDim/GridDim/LevelAnnotation rules.
+            // ── Dimensioning — every dim kind in AnnotationRuleKinds.
             if (options?.SkipDims != true)
             {
                 try { DimByRules(doc, view, pack, stats); }
                 catch (Exception ex) { stats.Warnings.Add("DimByRules: " + ex.Message); }
+            }
+
+            // ── Spot + symbol rules carried in pack.Rules. These share the
+            // Spots / Decorative opt-outs with the array-driven passes below
+            // because they produce the same kinds of element; what is new is
+            // that a rule row naming AutoSpotInvert / AutoAnnotateSlope /
+            // AutoAnnotateFlowArrow now reaches an engine at all.
+            if (options?.SkipSpots != true)
+            {
+                try { SpotByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("SpotByRules: " + ex.Message); }
+            }
+            if (options?.SkipDecorative != true)
+            {
+                try { SymbolByRules(doc, view, pack, stats); }
+                catch (Exception ex) { stats.Warnings.Add("SymbolByRules: " + ex.Message); }
             }
 
             // ── Decorative (north arrow / scale bar / key plan / matchlines)
@@ -163,9 +203,39 @@ namespace StingTools.Core.Drawing
 
         // ─── Rules-based drivers (wire pack.Rules into the proven helpers) ──
 
-        private static readonly HashSet<string> _tagRuleKinds =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "AutoTag", "RoomTag", "SpaceTag", "AreaTag", "MaterialTag", "KeynoteTag", "MultiCategoryTag" };
+        // The rule-type vocabulary lives in AnnotationRuleKinds — ONE
+        // declared registry the runner dispatches from, DrawingTypeValidator
+        // validates against (DT-139) and DrawingTypeExcelCommands offers as
+        // enum options. It replaced a private HashSet here plus a chain of
+        // string.Equals in DimByRules, which between them let any
+        // unrecognised ruleType fall through BOTH passes in silence: 56 of
+        // the 334 rules in the shipped catalogue were in that state.
+        //
+        // ReportUnknownRuleTypes below is the other half of the fix. A name
+        // the registry does not know is now a WARNING naming the rule and
+        // listing the valid vocabulary, so "declared but unimplemented" can
+        // never again look identical to "ran and placed nothing".
+
+        /// <summary>
+        /// Warn once per unrecognised ruleType in the pack. Called at the top
+        /// of the run so the report lands even when every pass then declines
+        /// the rule.
+        /// </summary>
+        private static void ReportUnknownRuleTypes(AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                var rt = r.RuleType;
+                if (AnnotationRuleKinds.IsKnown(rt)) continue;
+                if (!seen.Add(rt ?? "<null>")) continue;
+                stats.Warnings.Add(
+                    $"Unknown annotation ruleType '{rt}' (category '{r.Category}') — no pass claims it, so nothing was placed. "
+                    + $"Valid values: {string.Join(", ", AnnotationRuleKinds.AllRuleTypes)}.");
+            }
+        }
 
         /// <summary>
         /// Phase 137 Rules-based tagging. Walks pack.Rules (which, post-
@@ -176,10 +246,11 @@ namespace StingTools.Core.Drawing
         /// category is tagged at most once via the proven TagCategory helper;
         /// custom (non-built-in) categories are skipped.
         /// </summary>
-        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        private static void TagByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats,
+            DrawingType drawingType = null)
         {
             if (pack.Rules != null && pack.Rules.Any(r => r != null && r.Enabled &&
-                    string.Equals(r.RuleType, "Auto3DTag", StringComparison.OrdinalIgnoreCase)))
+                    AnnotationRuleKinds.IsThreeDKind(r.RuleType)))
             {
                 try
                 {
@@ -203,7 +274,7 @@ namespace StingTools.Core.Drawing
             List<AutoAnnotationRule> effective;
             if (pack.Rules != null && pack.Rules.Count > 0)
                 effective = pack.Rules
-                    .Where(r => r != null && r.Enabled && _tagRuleKinds.Contains(r.RuleType ?? "AutoTag"))
+                    .Where(r => r != null && r.Enabled && AnnotationRuleKinds.IsTagKind(r.RuleType))
                     .ToList();
             else if (pack.AutoTag == true)
                 effective = SharedParamGuids.AllCategoryEnums
@@ -218,9 +289,16 @@ namespace StingTools.Core.Drawing
             // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
             // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
             // .Apply doubled every tag on the view.
-            var taggedIndex = new Lazy<HashSet<ElementId>>(() => BuildTaggedElementIndex(doc, view, stats));
+            var taggedIndex = new Lazy<Dictionary<ElementId, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
 
-            var doneCats = new HashSet<long>(); // tag each category at most once
+            // One pass per (category, rule tag family, familyMatch) — not per
+            // category, which silently dropped the second of two rules on one
+            // category (room tag + pressure-regime tag). See TagRuleIdentity.
+            var doneRules = new HashSet<string>(StringComparer.Ordinal);
+            var specialistFamilies = TagRuleIdentity.SpecialistFamilies(effective.Select(r => r?.TagFamily));
+            // Primary rules first, so a specialist tag placed earlier in the run
+            // can never be what a later primary rule reads as "already tagged".
+            effective = effective.OrderBy(r => string.IsNullOrWhiteSpace(r?.TagFamily) ? 0 : 1).ToList();
             foreach (var rule in effective)
             {
                 if (rule == null) continue;
@@ -241,54 +319,242 @@ namespace StingTools.Core.Drawing
                         }
                     }
 
-                    var catId = ResolveCategoryId(doc, rule.Category);
-                    if (catId == ElementId.InvalidElementId) continue;
+                    // The kind's forced category wins over the row's own, so
+                    // RoomTag / AutoTagRoomName / AutoTagRoomNumber /
+                    // SpaceTag / AutoAnnotateSpaceNumber / AreaTag always act
+                    // on the category they name, never on whatever the row
+                    // happened to carry. A row with no resolvable category is
+                    // reported, not skipped in silence.
+                    var effCat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
+                    var catId = ResolveCategoryId(doc, effCat);
+                    if (catId == ElementId.InvalidElementId)
+                    {
+                        stats.Warnings.Add($"Tag rule '{rule.RuleType}': category '{effCat}' not found in this document — skipped.");
+                        continue;
+                    }
                     long cv = catId.Value;
-                    if (!doneCats.Add(cv)) continue;
+                    if (!doneRules.Add(TagRuleIdentity.DedupKey(cv, rule.TagFamily, rule.FamilyMatch))) continue;
                     // BuiltInCategory's underlying type is long (Revit 2024+), so
                     // handing Enum.IsDefined an int threw "Enum underlying type
                     // and the object must be same type" for EVERY rule — the
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
-                    TagCategory(doc, view, pack, (BuiltInCategory)cv, rule.Category, stats, rule, taggedIndex.Value);
+                    TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType,
+                        specialistFamilies);
                 }
                 catch (Exception ex) { stats.Warnings.Add($"Tag rule '{rule.Category}': {ex.Message}"); }
             }
         }
 
         /// <summary>
-        /// Phase 137 Rules-based dimensioning. Honours AutoDim / GridDim /
-        /// LevelAnnotation rules — placing one grid chain and/or one level
-        /// chain — plus the general AutoDim bool fallback, via the proven
-        /// DimGrids / DimLevels helpers. Each chain is placed at most once.
+        /// Rules-based dimensioning, dispatched from AnnotationRuleKinds.
+        ///
+        /// Grid and level chains are placed at most once per view however
+        /// many rules ask for them (they are whole-view chains, so a second
+        /// is always a duplicate). The element and MEP kinds are per-rule,
+        /// because each carries its own category / minSizeMm narrowing, and
+        /// each engine holds its own idempotency index.
+        ///
+        /// Every dim kind the registry declares reaches a handler here; the
+        /// default arm is unreachable while registry and switch agree, and
+        /// says so loudly rather than dropping the rule — which is exactly
+        /// what the old three-string.Equals form did for AutoDimWallLength,
+        /// AutoDimOpenings, AutoDimColumnGrid, AutoDimMEPRun and
+        /// AutoDimMEPToGrid.
         /// </summary>
         private static void DimByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
             bool didGrids = false, didLevels = false;
+
+            // dimensionStrategy "None" means the profile wants no automatic
+            // dimensioning. Honoured once here rather than in each engine.
+            if (DimensionStrategy.Suppresses(pack?.DimensionStrategy))
+            {
+                int asked = pack?.Rules?.Count(x => x != null && x.Enabled && AnnotationRuleKinds.IsDimKind(x.RuleType)) ?? 0;
+                if (asked > 0)
+                {
+                    stats.Skipped += asked;
+                    stats.Warnings.Add(
+                        $"dimensionStrategy is \"None\" — {asked} dimension rule(s) deliberately skipped. "
+                        + "Set Linear / Chain / Ordinate to enable them.");
+                }
+                return;
+            }
+
             if (pack.Rules != null)
             {
                 foreach (var r in pack.Rules)
                 {
                     if (r == null || !r.Enabled) continue;
-                    var rt = r.RuleType ?? "";
-                    bool isDim = string.Equals(rt, "AutoDim", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(rt, "GridDim", StringComparison.OrdinalIgnoreCase)
-                              || string.Equals(rt, "LevelAnnotation", StringComparison.OrdinalIgnoreCase);
-                    if (!isDim) continue;
-                    bool isLevels = (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!AnnotationRuleKinds.IsDimKind(r.RuleType)) continue;
+                    if (!RuleConditionPasses(doc, view, r, "Dim", stats)) continue;
+
+                    var aux = new AnnotationResult();
                     try
                     {
-                        if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } }
-                        else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids = true; } }
+                        switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                        {
+                            case AnnotationRuleKinds.AutoDim:
+                            case AnnotationRuleKinds.GridDim:
+                            case AnnotationRuleKinds.LevelAnnotation:
+                            {
+                                // AutoDim is polymorphic on the row's category —
+                                // the catalogue writes {Grids, AutoDim} and
+                                // {Levels, AutoDim} — whereas GridDim and
+                                // LevelAnnotation name their target outright.
+                                bool isLevels =
+                                    string.Equals(r.RuleType, AnnotationRuleKinds.LevelAnnotation, StringComparison.OrdinalIgnoreCase)
+                                    || (!string.Equals(r.RuleType, AnnotationRuleKinds.GridDim, StringComparison.OrdinalIgnoreCase)
+                                        && (r.Category ?? "").IndexOf("Level", StringComparison.OrdinalIgnoreCase) >= 0);
+                                if (isLevels) { if (!didLevels) { DimLevels(doc, view, pack, stats); didLevels = true; } else stats.Skipped++; }
+                                else          { if (!didGrids)  { DimGrids(doc, view, pack, stats);  didGrids  = true; } else stats.Skipped++; }
+                                break;
+                            }
+
+                            case AnnotationRuleKinds.AutoDimWallLength:
+                                ElementDimensioner.RunWallLength(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimOpenings:
+                                ElementDimensioner.RunOpenings(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimColumnGrid:
+                                ElementDimensioner.RunColumnToGrid(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimMEPRun:
+                                MEPDimensioner.RunChain(doc, view, pack, r, aux);
+                                break;
+
+                            case AnnotationRuleKinds.AutoDimMEPToGrid:
+                                MEPDimensioner.RunGridDrop(doc, view, pack, r, aux);
+                                break;
+
+                            default:
+                                stats.Warnings.Add(
+                                    $"Dim ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                    + "AnnotationRunner.DimByRules — nothing placed. This is a wiring bug, not a data error.");
+                                break;
+                        }
                     }
-                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.Category}': {ex.Message}"); }
+                    catch (Exception ex) { stats.Warnings.Add($"Dim rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                    stats.DimsCreated += aux.DimsPlaced;
+                    stats.Skipped     += aux.Skipped;
+                    stats.Warnings.AddRange(aux.Warnings);
                 }
             }
+
             if (pack.AutoDim == true && !didGrids)
             {
                 try { DimGrids(doc, view, pack, stats); }
                 catch (Exception ex) { stats.Warnings.Add("AutoDim grids: " + ex.Message); }
+            }
+        }
+
+        /// <summary>
+        /// Evaluate a rule's optional <c>condition</c>. Fail-open — an
+        /// unparseable condition runs the rule rather than silently dropping
+        /// requested annotation — and shared by the dim / spot / symbol
+        /// passes so all four honour the field the tag pass already did.
+        /// </summary>
+        private static bool RuleConditionPasses(Document doc, View view, AutoAnnotationRule r,
+            string passLabel, AnnotationRunStats stats)
+        {
+            if (string.IsNullOrWhiteSpace(r?.Condition)) return true;
+            try
+            {
+                var cctx = ConditionContext.FromView(doc, view, r.Category);
+                if (AnnotationConditionEvaluator.Evaluate(r.Condition, cctx)) return true;
+                stats.Skipped++;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                stats.Warnings.Add($"{passLabel} rule condition '{r.Condition}': {ex.Message} — rule run anyway (fail-open).");
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Spot-annotation rules carried in pack.Rules — AutoSpotInvert
+        /// (drainage invert levels) and AutoAnnotateSlope (spot slopes).
+        /// Distinct from ProcessSpotRules, which serves the separate
+        /// spotElevationRules / spotCoordinateRules arrays; these two arrive
+        /// as ordinary rows in pack.Rules and so had no route at all —
+        /// DrainageInvertDimensioner had zero call sites anywhere in the tree.
+        /// </summary>
+        private static void SpotByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                if (!AnnotationRuleKinds.IsSpotKind(r.RuleType)) continue;
+                if (!RuleConditionPasses(doc, view, r, "Spot", stats)) continue;
+
+                var aux = new AnnotationResult();
+                try
+                {
+                    switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                    {
+                        case AnnotationRuleKinds.AutoSpotInvert:
+                            DrainageInvertDimensioner.Run(doc, view, pack, r, aux);
+                            break;
+                        case AnnotationRuleKinds.AutoAnnotateSlope:
+                            MepAnnotator.RunSlope(doc, view, pack, r, aux);
+                            break;
+                        default:
+                            stats.Warnings.Add(
+                                $"Spot ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                + "AnnotationRunner.SpotByRules — nothing placed. This is a wiring bug, not a data error.");
+                            break;
+                    }
+                }
+                catch (Exception ex) { stats.Warnings.Add($"Spot rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                stats.DecorativePlaced += aux.SpotsPlaced;
+                stats.Skipped          += aux.Skipped;
+                stats.Warnings.AddRange(aux.Warnings);
+            }
+        }
+
+        /// <summary>
+        /// Annotation-symbol rules carried in pack.Rules — currently
+        /// AutoAnnotateFlowArrow. Its own pass because a symbol is neither a
+        /// tag (no host element) nor a dimension (no references).
+        /// </summary>
+        private static void SymbolByRules(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
+        {
+            if (pack?.Rules == null) return;
+            foreach (var r in pack.Rules)
+            {
+                if (r == null || !r.Enabled) continue;
+                if (!AnnotationRuleKinds.IsSymbolKind(r.RuleType)) continue;
+                if (!RuleConditionPasses(doc, view, r, "Symbol", stats)) continue;
+
+                var aux = new AnnotationResult();
+                try
+                {
+                    switch (AnnotationRuleKinds.Resolve(r.RuleType).Name)
+                    {
+                        case AnnotationRuleKinds.AutoAnnotateFlowArrow:
+                            MepAnnotator.RunFlowArrow(doc, view, pack, r, aux);
+                            break;
+                        default:
+                            stats.Warnings.Add(
+                                $"Symbol ruleType '{r.RuleType}' is declared in AnnotationRuleKinds but has no handler in "
+                                + "AnnotationRunner.SymbolByRules — nothing placed. This is a wiring bug, not a data error.");
+                            break;
+                    }
+                }
+                catch (Exception ex) { stats.Warnings.Add($"Symbol rule '{r.RuleType}/{r.Category}': {ex.Message}"); }
+
+                stats.DecorativePlaced += aux.DecorativePlaced;
+                stats.Skipped          += aux.Skipped;
+                stats.Warnings.AddRange(aux.Warnings);
             }
         }
 
@@ -318,6 +584,13 @@ namespace StingTools.Core.Drawing
         /// still possible. Failing that way round is deliberate: the alternative
         /// silently refuses to dimension views that merely contain odd geometry.
         /// </summary>
+        /// <summary>True when this view already holds a chain that
+        /// <paramref name="producer"/> stamped — exact, whatever Revit can still
+        /// read of its references.</summary>
+        private static bool ViewHasStampedChain(Document doc, View view, string producer)
+            => Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(Dimension), producer)
+                .Keys.Any(k => AnnotationProvenance.HostOf(k) == view.UniqueId);
+
         private static bool ViewHasDimensionReferencing(Document doc, View view, BuiltInCategory targetCat)
         {
             try
@@ -354,7 +627,10 @@ namespace StingTools.Core.Drawing
 
         private static void DimGrids(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
+            // Stamped chain first (exact); the reference test covers chains placed
+            // before stamping and dimensions a person drew to the grids.
+            if (ViewHasStampedChain(doc, view, AnnotationProvenance.DimGridChain)
+                || ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Grids))
             {
                 stats.Skipped++;
                 return;
@@ -491,7 +767,12 @@ namespace StingTools.Core.Drawing
                 var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
                     ? doc.Create.NewDimension(view, dimLine, refs)
                     : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
-                if (dim != null) stats.DimsCreated++;
+                if (dim != null)
+                {
+                    stats.DimsCreated++;
+                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
+                        AnnotationProvenance.Key(view.UniqueId, label));
+                }
             }
             catch (Exception ex) { stats.Warnings.Add($"Grid dim ({label}): {ex.Message}"); }
         }
@@ -527,7 +808,8 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static void DimLevels(Document doc, View view, AnnotationRulePack pack, AnnotationRunStats stats)
         {
-            if (ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
+            if (ViewHasStampedChain(doc, view, AnnotationProvenance.DimLevelChain)
+                || ViewHasDimensionReferencing(doc, view, BuiltInCategory.OST_Levels))
             {
                 stats.Skipped++;
                 return;
@@ -574,28 +856,31 @@ namespace StingTools.Core.Drawing
             try
             {
                 var dim = doc.Create.NewDimension(view, dimLine, refs);
-                if (dim != null) stats.DimsCreated++;
+                if (dim != null)
+                {
+                    stats.DimsCreated++;
+                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimLevelChain,
+                        AnnotationProvenance.Key(view.UniqueId));
+                }
             }
             catch (Exception ex) { stats.Warnings.Add("Level dim: " + ex.Message); }
         }
 
         // ─── Tagging ─────────────────────────────────────────────────────
 
+        // TagCategory walks every element of a category visible in the view
+        // and drops an IndependentTag at its centre (tag family: rule, then
+        // pack TagFamilies, then first loaded). Depth is NOT written here -- see
+        // TagDepthLayering / TokenProfileApplier.WriteCategoryDepths.
+
         /// <summary>
-        /// Walk every element of the given category visible in the view
-        /// and drop an IndependentTag at the element's centre. The tag
-        /// family is resolved from AnnotationRulePack.TagFamilies[catKey]
-        /// if present, otherwise the first loaded tag family for the
-        /// category. After placing each tag, applies CategoryDepths from
-        /// the active ViewStylePack if declared.
+        /// Element ids already carrying an IndependentTag in this view, each with
+        /// the families of those tags ("" when the family cannot be read — still a
+        /// tag). Built once per view and shared across every tag rule.
         /// </summary>
-        /// <summary>
-        /// Element ids already carrying an IndependentTag in this view.
-        /// Built once per view and shared across every tag rule.
-        /// </summary>
-        private static HashSet<ElementId> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        private static Dictionary<ElementId, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
         {
-            var set = new HashSet<ElementId>();
+            var set = new Dictionary<ElementId, List<string>>();
             try
             {
                 foreach (var el in new FilteredElementCollector(doc, view.Id)
@@ -605,8 +890,13 @@ namespace StingTools.Core.Drawing
                     if (!(el is IndependentTag tag)) continue;
                     try
                     {
+                        string fam = (doc.GetElement(tag.GetTypeId()) as FamilySymbol)?.FamilyName ?? "";
                         foreach (var id in tag.GetTaggedLocalElementIds())
-                            if (id != null && id != ElementId.InvalidElementId) set.Add(id);
+                        {
+                            if (id == null || id == ElementId.InvalidElementId) continue;
+                            if (!set.TryGetValue(id, out var fams)) set[id] = fams = new List<string>();
+                            fams.Add(fam);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -623,6 +913,73 @@ namespace StingTools.Core.Drawing
                                    "duplicate tags are possible on this view.");
             }
             return set;
+        }
+
+        /// <summary>
+        /// A face of <paramref name="el"/> a material tag can reference, and a point on it
+        /// for the tag head. Hosts use their finish faces (a wall's exterior and interior
+        /// sides, a floor/roof/ceiling's top and bottom) — the faces a material callout is
+        /// about. Anything else falls back to the planar faces of its own solids. Family
+        /// instances (whose faces live in symbol geometry) are not handled yet and return
+        /// null, which the caller counts and reports. The face that best faces the viewer
+        /// wins (FaceChoice). NOT VERIFIED IN REVIT.
+        /// </summary>
+        private static Reference FaceReferenceFor(Element el, View view, out XYZ point)
+        {
+            point = null;
+            var refs = new List<Reference>();
+            try
+            {
+                if (el is Wall wall)
+                {
+                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Exterior));
+                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior));
+                }
+                else if (el is HostObject host)
+                {
+                    refs.AddRange(HostObjectUtils.GetTopFaces(host));
+                    refs.AddRange(HostObjectUtils.GetBottomFaces(host));
+                }
+                else
+                {
+                    var opts = new Options { ComputeReferences = true, View = view };
+                    var ge = el.get_Geometry(opts);
+                    if (ge != null)
+                        foreach (var go in ge)
+                            if (go is Solid s && s.Faces.Size > 0)
+                                foreach (Face f in s.Faces)
+                                    if (f.Reference != null) refs.Add(f.Reference);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FaceReferenceFor {el.Id}: {ex.Message}");
+                return null;
+            }
+
+            var dots = new List<double>();
+            var areas = new List<double>();
+            var points = new List<XYZ>();
+            var kept = new List<Reference>();
+            var toViewer = view.ViewDirection;
+            foreach (var r in refs)
+            {
+                try
+                {
+                    if (!(el.GetGeometryObjectFromReference(r) is Face f)) continue;
+                    var bb = f.GetBoundingBox();
+                    var mid = (bb.Min + bb.Max) * 0.5;
+                    dots.Add(f.ComputeNormal(mid).DotProduct(toViewer));
+                    areas.Add(f.Area);
+                    points.Add(f.Evaluate(mid));
+                    kept.Add(r);
+                }
+                catch (Exception ex) { StingLog.Warn($"FaceReferenceFor {el.Id} face: {ex.Message}"); }
+            }
+            int best = FaceChoice.Best(dots, areas);
+            if (best < 0) return null;
+            point = points[best];
+            return kept[best];
         }
 
         /// <summary>
@@ -655,7 +1012,8 @@ namespace StingTools.Core.Drawing
 
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
-            AutoAnnotationRule rule = null, HashSet<ElementId> alreadyTagged = null)
+            AutoAnnotationRule rule = null, Dictionary<ElementId, List<string>> alreadyTagged = null,
+            DrawingType drawingType = null, ISet<string> specialistFamilies = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
@@ -681,6 +1039,20 @@ namespace StingTools.Core.Drawing
                 stats.Warnings.Add($"No tag family available for {catKey} — skipped.");
                 return;
             }
+            // Tag text size for this drawing (1:50 → 2.5 mm …). Inert until size
+            // variants of the chosen family are loaded — see TagSizeVariant.
+            if (drawingType != null)
+                tagTypeId = ApplyTagSizeVariant(doc, tagTypeId, drawingType, catKey, stats);
+
+            // The family this rule actually places — what "already tagged" is
+            // measured against (TagRuleIdentity.ShouldSkip).
+            var placedSymbol = doc.GetElement(tagTypeId) as FamilySymbol;
+            string placedFamily = placedSymbol?.FamilyName ?? "";
+            bool isSpecialistRule = !string.IsNullOrWhiteSpace(rule?.TagFamily);
+            // A material tag labels a FACE's material and cannot tag a whole
+            // element — handing it new Reference(el) failed once per element.
+            bool tagsFaces = placedSymbol?.Category?.Id.Value == (long)BuiltInCategory.OST_MaterialTags;
+            int noFace = 0;
 
             // Paragraph depth is NOT resolved or written here any more.
             //
@@ -711,14 +1083,57 @@ namespace StingTools.Core.Drawing
             // config dialog ever read this field before.
             bool skipIfTagged = rule?.SkipIfTagged ?? true;
 
+            // A-2: leaderStyle on a TAG rule. Create() took a hard-coded
+            // addLeader:false, so Attached / Free were ignored.
+            var leader = TagLeader.Parse(rule?.LeaderStyle);
+            if (leader == TagLeaderMode.Unrecognised)
+            {
+                stats.Warnings.Add($"Rule leaderStyle '{rule.LeaderStyle}' for {catKey} is not one of " +
+                                   "NoLeader / Attached / Free — tagging without a leader.");
+                leader = TagLeaderMode.None;
+            }
+            bool addLeader = leader == TagLeaderMode.Attached || leader == TagLeaderMode.Free;
+
+            // A-2: minSizeMm on a TAG rule. Only the dimensioners read it, so a
+            // rule saying "nothing under 50 mm" tagged every stub. Size is
+            // ElementSize.MeasureFt: MEP section, else curve length, else plan
+            // bbox extent. Unmeasurable elements are kept and counted.
+            double? minSizeMm = rule?.MinSizeMm;
+            int belowMin = 0, unmeasured = 0;
+
+            // DRAW-8: familyMatch narrows the rule inside its category. An
+            // invalid pattern skips the rule rather than tagging the category.
+            var familyRx = RuleFamilyFilter.Compile(rule?.FamilyMatch, out var familyRxError);
+            if (familyRxError != null) { stats.Warnings.Add($"{catKey}: {familyRxError}"); return; }
+            int outsideFamily = 0;
+
             foreach (var el in elements)
             {
                 try
                 {
-                    if (skipIfTagged && alreadyTagged != null && alreadyTagged.Contains(el.Id))
+                    if (skipIfTagged && alreadyTagged != null
+                        && alreadyTagged.TryGetValue(el.Id, out var onElement)
+                        && TagRuleIdentity.ShouldSkip(onElement, isSpecialistRule, placedFamily, specialistFamilies))
                     {
                         stats.Skipped++;
                         continue;
+                    }
+
+                    if (familyRx != null)
+                    {
+                        var et = doc.GetElement(el.GetTypeId()) as ElementType;
+                        if (!RuleFamilyFilter.Matches(familyRx, et?.FamilyName, et?.Name))
+                        {
+                            outsideFamily++;   // out of scope, not a skip: nothing to tag
+                            continue;
+                        }
+                    }
+
+                    if (minSizeMm.HasValue)
+                    {
+                        bool keep = ElementSize.Keeps(el, view, minSizeMm, out bool noSize);
+                        if (noSize) unmeasured++;
+                        if (!keep) { belowMin++; stats.Skipped++; continue; }
                     }
 
                     var pt = GetElementCentre(el);
@@ -742,14 +1157,37 @@ namespace StingTools.Core.Drawing
                     // renamed the Create parameters. The surrounding try/catch
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
+                    Reference hostRef;
+                    if (tagsFaces)
+                    {
+                        hostRef = FaceReferenceFor(el, view, out var facePt);
+                        if (hostRef == null) { noFace++; stats.Skipped++; continue; }
+                        if (facePt != null) pt = facePt;
+                    }
+                    else hostRef = new Reference(el);
+
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), false, orientation, pt);
+                        hostRef, addLeader, orientation, pt);
+                    if (tag != null && leader == TagLeaderMode.Free)
+                    {
+                        try { tag.LeaderEndCondition = LeaderEndCondition.Free; }
+                        catch (Exception exL)
+                        {
+                            StingLog.WarnRateLimited("AnnotationRunner.FreeLeader",
+                                $"Free leader on tag {tag.Id} for {catKey}: {exL.Message} — left attached");
+                        }
+                    }
                     if (tag != null)
                     {
                         stats.TagsPlaced++;
                         // Keep the index current so a later rule covering the
                         // same element in this run doesn't tag it twice.
-                        alreadyTagged?.Add(el.Id);
+                        if (alreadyTagged != null)
+                        {
+                            if (!alreadyTagged.TryGetValue(el.Id, out var fams))
+                                alreadyTagged[el.Id] = fams = new List<string>();
+                            fams.Add(placedFamily);
+                        }
                     }
 
                     // CategoryDepths are applied by TokenProfileApplier.WriteCategoryDepths
@@ -758,6 +1196,19 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
+
+            if (belowMin > 0)
+                stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");
+            if (noFace > 0)
+                stats.Warnings.Add($"{catKey}: {noFace} element(s) had no face a material tag could reference — not tagged. " +
+                                   "Hosts (walls, floors, roofs, ceilings) and plain solids are supported; family instances are not yet.");
+            // An empty result under a family filter is the case worth hearing
+            // about: the pattern may not match this project's family names.
+            if (familyRx != null && outsideFamily > 0 && outsideFamily == elements.Count())
+                stats.Warnings.Add($"{catKey}: no element in view matched familyMatch '{rule.FamilyMatch}' " +
+                                   $"({outsideFamily} checked) — nothing tagged. Adjust the pattern if this project names them differently.");
+            if (unmeasured > 0)
+                stats.Warnings.Add($"{catKey}: {unmeasured} element(s) could not be measured for minSizeMm and were tagged anyway.");
         }
 
         private static BuiltInCategory TagCategoryFor(BuiltInCategory host)
@@ -818,6 +1269,59 @@ namespace StingTools.Core.Drawing
         }
 
         // ─── Resolution helpers ──────────────────────────────────────────
+
+        /// <summary>
+        /// Swap the chosen tag for its size variant for this drawing, when one is
+        /// loaded: a family "&lt;base&gt; &lt;n&gt;mm", else a type "&lt;n&gt;mm" in the base
+        /// family, nearest available size to DrawingType.EffectiveTagTextSizeMm.
+        /// Returns the base unchanged when no variant exists.
+        /// </summary>
+        private static ElementId ApplyTagSizeVariant(Document doc, ElementId baseTypeId, DrawingType dt,
+            string catKey, AnnotationRunStats stats)
+        {
+            try
+            {
+                if (!(doc.GetElement(baseTypeId) is FamilySymbol baseSym)) return baseTypeId;
+                string baseFam = baseSym.FamilyName;
+                var sameCat = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                    .Where(fs => fs.Category != null && baseSym.Category != null && fs.Category.Id == baseSym.Category.Id)
+                    .ToList();
+
+                var famVariants = sameCat
+                    .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
+                    .Where(x => x.size.HasValue).ToList();
+                var typeVariants = sameCat
+                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase))
+                    .Select(fs => (fs, size: TagSizeVariant.ParseToken(fs.Name)))
+                    .Where(x => x.size.HasValue).ToList();
+
+                var choice = TagSizeVariant.Choose(dt,
+                    famVariants.Select(x => x.size.Value), typeVariants.Select(x => x.size.Value));
+                if (choice.Kind == TagSizeVariant.Kind.None) return baseTypeId;
+
+                FamilySymbol pick;
+                if (choice.Kind == TagSizeVariant.Kind.Family)
+                {
+                    var inFamily = famVariants.Where(x => Math.Abs(x.size.Value - choice.SizeMm) < 1e-6).Select(x => x.fs).ToList();
+                    // Keep the base's type (e.g. "Standard") if the variant family has it.
+                    pick = inFamily.FirstOrDefault(fs => string.Equals(fs.Name, baseSym.Name, StringComparison.OrdinalIgnoreCase))
+                        ?? inFamily.FirstOrDefault();
+                }
+                else
+                    pick = typeVariants.Where(x => Math.Abs(x.size.Value - choice.SizeMm) < 1e-6).Select(x => x.fs).FirstOrDefault();
+
+                if (pick == null) return baseTypeId;
+                if (Math.Abs(choice.SizeMm - dt.EffectiveTagTextSizeMm()) > 1e-6)
+                    stats.Warnings.Add($"{catKey}: no {DrawingType.TagSizeToken(dt.EffectiveTagTextSizeMm())} variant of " +
+                                       $"'{baseFam}' is loaded; used the nearest, {DrawingType.TagSizeToken(choice.SizeMm)}.");
+                return pick.Id;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ApplyTagSizeVariant {catKey}: {ex.Message}");
+                return baseTypeId;
+            }
+        }
 
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
             string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)

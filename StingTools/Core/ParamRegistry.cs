@@ -506,6 +506,8 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        public const string TB_DISCIPLINE          = "PRJ_TB_DISCIPLINE_TXT";
+        public const string TB_DISCIPLINE_GUID     = "edbf1392-5aea-505b-8b05-7a6432b0c3e1";
         // P4 — MEP system/service code shown on the title block SYSTEM cell.
         // Instance param on OST_TitleBlocks; filled from DrawingType.System via
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
@@ -589,6 +591,10 @@ namespace StingTools.Core
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
         public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+        /// <summary>CDE state as a number (0 unknown … 4 archived) — drives the
+        /// title-block status band. Name owned by SuitabilityPresentation.</summary>
+        public const string TB_CDE_STATE_INT             = Drawing.SuitabilityPresentation.StateParameter;
+        public const string TB_CDE_STATE_INT_GUID        = "4f2b28ee-4444-5a79-ac09-97c6d3c23d74";
 
         /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
         ///
@@ -737,6 +743,16 @@ namespace StingTools.Core
         public const string ORG_SIGNATURE_PROVIDER_GUID = "e669eea3-d1fa-51b7-b820-83fa21d40877";
         public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
         public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
+
+        // DRAW-6 — project sheet-number policy (short / profile / iso), read by
+        // DrawingProducer through SheetNumberPolicy. Referenced since the policy
+        // landed but registered in no data file, so LookupParameter returned
+        // null on every model and the "iso" opt-in could not be set. The name
+        // is SheetNumberPolicy's constant so the two cannot drift; the GUID is
+        // UUIDv5(Planscape docs namespace, name), the scheme every PRJ_ORG_*
+        // sibling uses. Not in AllOrganisationParams (template-engine seed set).
+        public const string ORG_SHEET_NUMBER_POLICY      = StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName;
+        public const string ORG_SHEET_NUMBER_POLICY_GUID = "89828bdc-25ad-5245-bce8-3274203c34b2";
 
         /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
         public static readonly string[] AllOrganisationParams = new[]

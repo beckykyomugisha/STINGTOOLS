@@ -74,7 +74,9 @@ namespace StingTools.BIMManager
         [JsonProperty("discipline",    NullValueHandling = NullValueHandling.Ignore)]      public string Discipline { get; set; }
         [JsonProperty("visualStyle",   NullValueHandling = NullValueHandling.Ignore)]      public string VisualStyle { get; set; }
         [JsonProperty("phaseFilter",   NullValueHandling = NullValueHandling.Ignore)]      public string PhaseFilter { get; set; }
-        [JsonProperty("checksum",      NullValueHandling = NullValueHandling.Ignore)]      public string Checksum { get; set; }
+        // No "checksum": view style packs are deliberately unlocked (DRAW-5).
+        // The field was mirrored here from ViewStylePack, always empty, and
+        // exported as a locked "checksum" column that implied a lock.
     }
 
     internal sealed class StylePackAppearance
@@ -152,9 +154,10 @@ namespace StingTools.BIMManager
     internal static class DrawingTypeExcelEngine
     {
         // ── Enum dropdown lists ──
-        internal static readonly string[] PurposeOptions = {
-            "Plan","RCP","Section","Elevation","Detail","Schedule","Spool","Coordination","Legend","3D"
-        };
+        // Derived, not listed: the hand-written copy lacked Schematic and
+        // Clarification, so exporting the shipped catalogue and importing it
+        // back failed validation on all ten of those rows.
+        internal static readonly string[] PurposeOptions = DrawingPurpose.All;
         internal static readonly string[] PaperSizeOptions  = { "A0","A1","A2","A3","A4" };
         internal static readonly string[] OrientationOptions= { "Landscape","Portrait" };
         internal static readonly string[] DetailLevelOptions= { "Coarse","Medium","Fine" };
@@ -303,7 +306,7 @@ namespace StingTools.BIMManager
             string[] headers = {
                 "id","name","description","origin","extends","lineWeightScale",
                 "textStyle","dimensionStyle","hatchPalette","tagColorScheme",
-                "defaultTagStyle","templateMode","discipline","visualStyle","phaseFilter","checksum"
+                "defaultTagStyle","templateMode","discipline","visualStyle","phaseFilter"
             };
             WriteHeader(ws, headers);
 
@@ -325,7 +328,6 @@ namespace StingTools.BIMManager
                 ws.Cell(row,13).Value = p.Discipline ?? "";
                 ws.Cell(row,14).Value = p.VisualStyle ?? "";
                 ws.Cell(row,15).Value = p.PhaseFilter ?? "";
-                ws.Cell(row,16).Value = p.Checksum ?? "";
 
                 if (row % 2 == 0) ws.Range(row, 1, row, headers.Length).Style.Fill.BackgroundColor = RowAltFill;
                 row++;
@@ -333,7 +335,6 @@ namespace StingTools.BIMManager
 
             LockColumn(ws, 1, row);
             LockColumn(ws, 4, row);
-            LockColumn(ws, 16, row);
 
             int last = Math.Max(row - 1, 2);
             AddListValidation(ws, "L2:L" + last, TemplateModeOpts);
@@ -1138,7 +1139,8 @@ namespace StingTools.BIMManager
                 Set("StylePack", id, "discipline",      p.Discipline,      ws.Cell(r,13).GetString(), v => p.Discipline = v, changes);
                 Set("StylePack", id, "visualStyle",     p.VisualStyle,     ws.Cell(r,14).GetString(), v => p.VisualStyle = v, changes);
                 Set("StylePack", id, "phaseFilter",     p.PhaseFilter,     ws.Cell(r,15).GetString(), v => p.PhaseFilter = v, changes);
-                // checksum (16) locked
+                // Column 16 ("checksum") was removed with DRAW-5; an older
+                // workbook that still carries it is ignored — it was never read.
             }
         }
 
@@ -1343,7 +1345,6 @@ namespace StingTools.BIMManager
                     && modifiedIds.Contains(p.Id))
                 {
                     p.Origin = "project";
-                    p.Checksum = null;
                     changes.Add(new ChangeRecord { EntityType = "StylePack", Id = p.Id, Field = "origin",
                         OldValue = "corporate", NewValue = "project" });
                 }

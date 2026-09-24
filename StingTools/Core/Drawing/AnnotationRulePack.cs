@@ -64,6 +64,13 @@ namespace StingTools.Core.Drawing
         [JsonProperty("tagFamilies")] public Dictionary<string, string> TagFamilies { get; set; }
             = new Dictionary<string, string>();
 
+        /// <summary>
+        /// Per-category TAG7 paragraph depth (1..10) for THIS drawing type,
+        /// keyed like <see cref="TagFamilies"/>. Layered by
+        /// TagDepthLayering between the token profile's categoryDepths
+        /// (wins) and the style pack's categoryDepths (loses); written to
+        /// element types by TokenProfileApplier.WriteCategoryDepths.
+        /// </summary>
         [JsonProperty("tagDepths", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, int> TagDepths { get; set; }
             = new Dictionary<string, int>();
@@ -87,6 +94,18 @@ namespace StingTools.Core.Drawing
         [JsonProperty("spotElevationRules",  NullValueHandling = NullValueHandling.Ignore)] public List<SpotAnnotationRule> SpotElevationRules { get; set; }
         [JsonProperty("spotCoordinateRules", NullValueHandling = NullValueHandling.Ignore)] public List<SpotAnnotationRule> SpotCoordinateRules { get; set; }
 
+        /// <summary>True when any legacy per-category flag is set. A METHOD, not a
+        /// property, so it is never serialised (and never changes a checksum).</summary>
+        public bool HasLegacyFlags()
+        {
+#pragma warning disable CS0618
+            return AutoDimGrids || AutoDimLevels || AutoTagRooms || AutoTagDoors || AutoTagWindows
+                || AutoTagEquipment || AutoTagWelds || AutoTagSupports || AutoTagBends;
+#pragma warning restore CS0618
+        }
+
+        /// <summary>Fold the legacy flags into <see cref="Rules"/>. Called by
+        /// AnnotationRunner.Apply when <see cref="HasLegacyFlags"/> is true.</summary>
         public void MigrateFromLegacy()
         {
             if (Rules == null) Rules = new List<AutoAnnotationRule>();
@@ -130,17 +149,35 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("category")] public string Category { get; set; }
 
+        // A-2: every field below has an engine reader. tag7Depth, addTickMarks
+        // and batchScope were declared with none (tag7Depth only bound to a
+        // grid column) and were removed; AnnotationRulePackConsumerTests fails
+        // if a new field arrives without a reader.
         [JsonProperty("tagFamily",   NullValueHandling = NullValueHandling.Ignore)] public string TagFamily { get; set; }
-        [JsonProperty("tag7Depth",   NullValueHandling = NullValueHandling.Ignore)] public int?   Tag7Depth { get; set; }
-        [JsonProperty("leaderStyle", NullValueHandling = NullValueHandling.Ignore)] public string LeaderStyle { get; set; }   // NoLeader / Attached / Free
+        /// <summary>TAG rules: NoLeader / Attached / Free (AnnotationRunner.TagCategory).</summary>
+        [JsonProperty("leaderStyle", NullValueHandling = NullValueHandling.Ignore)] public string LeaderStyle { get; set; }
         [JsonProperty("orientation", NullValueHandling = NullValueHandling.Ignore)] public string Orientation { get; set; }   // Horizontal / Vertical / Model
         [JsonProperty("skipIfTagged")] public bool SkipIfTagged { get; set; } = true;
+        /// <summary>
+        /// Skip elements smaller than this. Measured by ElementSize: MEP curve
+        /// section size, else curve length, else plan bounding-box extent.
+        /// Read by AutoTag and by every dimension / MEP-annotation kind.
+        /// </summary>
         [JsonProperty("minSizeMm",   NullValueHandling = NullValueHandling.Ignore)] public double? MinSizeMm { get; set; }
         [JsonProperty("condition",   NullValueHandling = NullValueHandling.Ignore)] public string Condition { get; set; }
+        /// <summary>
+        /// Case-insensitive regex on "Family : Type" narrowing the rule within its
+        /// category (e.g. rainwater outlets among Plumbing Fixtures). See
+        /// RuleFamilyFilter; an invalid pattern disables the rule, loudly.
+        /// </summary>
+        [JsonProperty("familyMatch", NullValueHandling = NullValueHandling.Ignore)] public string FamilyMatch { get; set; }
         [JsonProperty("enabled")] public bool Enabled { get; set; } = true;
+        /// <summary>
+        /// TAG rules: TAG7 paragraph depth (1..10) for this rule's category.
+        /// Folded into the drawing type's depth layer by TagDepthLayering;
+        /// it beats <see cref="AnnotationRulePack.TagDepths"/> for the same key.
+        /// </summary>
         [JsonProperty("depth", NullValueHandling = NullValueHandling.Ignore)] public int? Depth { get; set; }
-        [JsonProperty("addTickMarks")] public bool AddTickMarks { get; set; } = true;
-        [JsonProperty("batchScope", NullValueHandling = NullValueHandling.Ignore)] public string BatchScope { get; set; } // "View" | "ActiveView" | "Selection" — defaults to "ActiveView"
     }
 
     public sealed class SpotAnnotationRule
@@ -148,6 +185,6 @@ namespace StingTools.Core.Drawing
         [JsonProperty("category")]     public string Category { get; set; }
         [JsonProperty("symbolFamily",  NullValueHandling = NullValueHandling.Ignore)] public string SymbolFamily { get; set; }
         [JsonProperty("leaderStyle",   NullValueHandling = NullValueHandling.Ignore)] public string LeaderStyle { get; set; }
-        [JsonProperty("slopeArrow")]   public bool SlopeArrow { get; set; } = false;
+        // A-2: slopeArrow was declared and read by nothing; removed.
     }
 }

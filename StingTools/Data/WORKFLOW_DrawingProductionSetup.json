@@ -1,0 +1,58 @@
+{
+  "name": "DrawingProductionSetup",
+  "description": "Everything drawing production needs before the first Produce: shared parameters, STING title blocks, tag families, text and dimension styles, view templates, the AEC filter library, the named view types, presentation fills, the flow-arrow family and managed pack templates — then the catalogue pre-flight. Run once per project, and again after a template or catalogue update; every step skips what already exists. Set PRJ_ORG_SHEET_NUMBER_POLICY_TXT on Project Information first if the project numbers sheets the ISO 19650 way.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "LoadParams",
+      "label": "Bind STING shared parameters (title-block, drawing-type and tag parameters)"
+    },
+    {
+      "commandTag": "TitleBlock_CreateAll",
+      "label": "Create the STING_TB_* title block families the drawing types name"
+    },
+    {
+      "commandTag": "LoadTagFamilies",
+      "label": "Load the STING tag families (generic + healthcare specialist tags)"
+    },
+    {
+      "commandTag": "CreateTextStyles",
+      "label": "Create STING text styles"
+    },
+    {
+      "commandTag": "CreateDimStyles",
+      "label": "Create STING dimension styles (STING - Linear, Ordinate, Chain …)"
+    },
+    {
+      "commandTag": "ViewTemplates",
+      "label": "Create STING view templates"
+    },
+    {
+      "commandTag": "AecFilters_Create",
+      "label": "Create the AEC view filter library the style packs apply"
+    },
+    {
+      "commandTag": "DrawingTypes_EnsureViewTypes",
+      "label": "Create the named view types (STING - Section / Elevation / Interior Elevation / Callout)"
+    },
+    {
+      "commandTag": "DrawingTypes_PresentationSetup",
+      "label": "Presentation fill patterns and materials for client-facing drawing types",
+      "optional": true
+    },
+    {
+      "commandTag": "DrawingTypes_BuildFlowArrow",
+      "label": "Author the MEP flow-arrow annotation family",
+      "optional": true
+    },
+    {
+      "commandTag": "DrawingTypes_RegenerateTemplates",
+      "label": "Regenerate view templates for managed style packs",
+      "optional": true
+    },
+    {
+      "commandTag": "DrawingTypes_Inspect",
+      "label": "Pre-flight: validate every drawing type against this project (missing title blocks, templates, view types, tag families)"
+    }
+  ]
+}
