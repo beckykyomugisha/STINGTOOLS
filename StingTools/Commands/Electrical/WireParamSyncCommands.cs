@@ -63,8 +63,12 @@ namespace StingTools.Commands.Electrical
     /// </summary>
     internal static class ConduitCircuitIndex
     {
-        private static Dictionary<string, (ElementId Id, string Reason)> _map =
-            new Dictionary<string, (ElementId, string)>();
+        // Only HITS are cached. A miss ("no circuit") is usually something the user
+        // is about to fix — connect the run, circuit the device — and a cached miss
+        // survived that fix for the whole session, so the re-run reported the same
+        // stale "no circuit". Commands also Invalidate() at the start of every run.
+        private static Dictionary<string, ElementId> _map =
+            new Dictionary<string, ElementId>();
         // Cache key: "documentTitle|documentPath" to handle unsaved docs and path changes
         private static string _docKey = null;
 
@@ -87,8 +91,8 @@ namespace StingTools.Commands.Electrical
 
             if (_map.TryGetValue(conduit.UniqueId, out var cached))
             {
-                reason = cached.Reason;
-                return cached.Id;
+                reason = "";
+                return cached;
             }
 
             ElementId id = ElementId.InvalidElementId;
@@ -104,7 +108,7 @@ namespace StingTools.Commands.Electrical
                 reason = "circuit lookup failed: " + ex.Message;
                 StingLog.Warn($"ConduitCircuitIndex {conduit.Id}: {ex.Message}");
             }
-            _map[conduit.UniqueId] = (id, reason);
+            if (id != ElementId.InvalidElementId) _map[conduit.UniqueId] = id;
             return id;
         }
     }
@@ -310,8 +314,20 @@ namespace StingTools.Commands.Electrical
                 if (p.IsReadOnly) { r.ReadOnly.Add(name); return; }
                 if (p.StorageType != StorageType.String)
                 {
-                    r.Failed.Add(name);
-                    StingLog.Warn($"WireStamp {el.Id}: {name} is {p.StorageType}, not text");
+                    // ELC_CKT_NR is declared NUMBER in MR_PARAMETERS.txt, so it is a
+                    // Double, not text. Refusing every non-text parameter meant the
+                    // circuit number was never written and every stamp reported a
+                    // failed write. ParameterHelpers.SetString writes unitless
+                    // numbers / integers / yes-no and refuses anything it cannot
+                    // parse (a multi-pole "1,3,5", a measured quantity) — that
+                    // refusal is still reported as a failure here, not swallowed.
+                    if (!overwrite && p.HasValue) return;
+                    if (ParameterHelpers.SetString(el, name, v, true)) r.Written++;
+                    else
+                    {
+                        r.Failed.Add(name);
+                        StingLog.Warn($"WireStamp {el.Id}: {name} is {p.StorageType}; '{v}' could not be written as a number");
+                    }
                     return;
                 }
                 if (!overwrite && !string.IsNullOrEmpty(p.AsString())) return;
@@ -366,6 +382,7 @@ namespace StingTools.Commands.Electrical
             var conduit = doc.GetElement(picked.ElementId);
             if (conduit == null) { message = "Invalid element."; return Result.Failed; }
 
+            ConduitCircuitIndex.Invalidate(); // the model may have changed since the last run
             var wsd = WireStampHelper.FromConduit(doc, conduit);
             if (!wsd.Valid)
             {
@@ -443,6 +460,7 @@ namespace StingTools.Commands.Electrical
             // "Stamped" means at least one parameter was actually written. A conduit
             // whose circuit was found but whose parameters are all unbound is counted
             // separately, not as stamped.
+            ConduitCircuitIndex.Invalidate(); // the model may have changed since the last run
             int stamped = 0, nothingWritten = 0, skipped = 0;
             var skipReasons = new Dictionary<string, int>(StringComparer.Ordinal);
             var total = new WireStampWriteReport();
@@ -566,6 +584,11 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public sealed class WireCableSizerSyncCommand : IExternalCommand
     {
+        /// <summary>The method assumed when ELC_WIRE_INSTALL_METHOD_TXT is empty —
+        /// BS 7671 reference method C (clipped direct), the only Table 4D2A column
+        /// shipped in the sizing data.</summary>
+        internal const string DefaultInstallMethod = "C";
+
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(data);
@@ -589,7 +612,7 @@ namespace StingTools.Commands.Electrical
             // BS 7671 whatever the panel said.
             string activeStandard = StingTools.Standards.ElectricalStandardId.Normalise(
                 StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
-            int sized = 0, refused = 0, noParam = 0;
+            int sized = 0, refused = 0, noParam = 0, methodAssumed = 0;
             // Group refusals by the engine's own reason. The old dialog printed
             // "<standard> conductor sizing is not implemented" for every refusal,
             // including "no tabulated size satisfies the voltage-drop limit".
@@ -625,7 +648,10 @@ namespace StingTools.Commands.Electrical
                         LoadKW         = kw,
                         VoltageV       = voltV,
                         LengthM        = lengthM,
-                        InstallMethod  = string.IsNullOrEmpty(method) ? "B2" : method,
+                        // Only BS 7671 Table 4D2A reference method C ships in the
+                        // sizing data, so the old "B2" default was refused on every
+                        // conduit with no method set. Assume C and say so.
+                        InstallMethod  = string.IsNullOrWhiteSpace(method) ? DefaultInstallMethod : method,
                         Material       = mat?.Contains("Al") == true ? "Al" : "Cu",
                         Phases         = phases,
                         AmbientTempC   = 30,
@@ -637,6 +663,7 @@ namespace StingTools.Commands.Electrical
 
                     var result = CableSizerEngine.Calculate(input);
                     if (result == null) continue;
+                    bool assumed = string.IsNullOrWhiteSpace(method);
                     // A refusal must not be written to the model as a zero CSA.
                     if (!result.Sized)
                     {
@@ -663,7 +690,10 @@ namespace StingTools.Commands.Electrical
                     if (!r.Unbound.Contains("ELC_WIRE_CSA_MM2_NUM")
                         && !r.ReadOnly.Contains("ELC_WIRE_CSA_MM2_NUM")
                         && !r.Failed.Contains("ELC_WIRE_CSA_MM2_NUM"))
+                    {
                         sized++;
+                        if (assumed) methodAssumed++;
+                    }
                     else
                         noParam++;
                 }
@@ -680,6 +710,9 @@ namespace StingTools.Commands.Electrical
             if (sized > 0)
                 msg.AppendLine("Written: CSA, voltage drop %, proposed breaker rating. "
                     + "Current-carrying capacity (Iz) is not written — the sizer does not report it.");
+            if (methodAssumed > 0)
+                msg.AppendLine($"Installation method {DefaultInstallMethod} assumed on {methodAssumed} of these "
+                    + "(ELC_WIRE_INSTALL_METHOD_TXT is empty) — set it where the cable is installed otherwise.");
             if (refused > 0)
             {
                 msg.AppendLine($"\n{refused} conduit(s) were NOT sized; their parameters were left untouched:");
