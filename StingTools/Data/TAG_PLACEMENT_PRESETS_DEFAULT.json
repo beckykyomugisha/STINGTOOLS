@@ -594,6 +594,33 @@
       "leaderThreshold": 1.5,
       "note": "BS 9999 / Approved Document B — fire door leaf; tag above like standard door mark."
     },
+    "STING - Accessible Door Tag": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 1.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 1.5,
+      "note": "Approved Document M Vol 2 / BS 8300-2 - accessible door leaf; tag above like standard door mark."
+    },
+    "STING - Room Finish Tag": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Room finish schedule codes; centred in the room like the standard room tag."
+    },
+    "STING - Fire Compartment Tag": {
+      "preferredSide": 0,
+      "addLeader": false,
+      "offsetX": 0.0,
+      "offsetY": 0.0,
+      "orientation": "Horizontal",
+      "leaderThreshold": 3.0,
+      "note": "Approved Document B / BS 9999 - compartment ID and fire resistance; centred in the room like the standard room tag."
+    },
     "STING - Tie-In Point Tag": {
       "preferredSide": 0,
       "addLeader": true,

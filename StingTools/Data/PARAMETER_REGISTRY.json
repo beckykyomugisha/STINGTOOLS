@@ -15375,6 +15375,42 @@
       "curated": true
     },
     {
+      "param_name": "BLE_DOOR_OPENING_FORCE_N",
+      "guid": "bf649bd0-8803-5b07-89f4-8daf10d8f0f6",
+      "description": "Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
+      "param_name": "BLE_DOOR_LEADING_EDGE_CLEAR_MM",
+      "guid": "2c404fa6-b02f-5f05-a1cf-4f6f599f942d",
+      "description": "Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "TEXT",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
+      "param_name": "BLE_DOOR_VISION_PANEL_ZONE_BOOL",
+      "guid": "6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a",
+      "description": "Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]",
+      "datatype": "YESNO",
+      "group_id": 10,
+      "group_name": "BLE_ELES",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Building Elements",
+      "curated": true
+    },
+    {
       "param_name": "BLE_FLOOR_LOAD_KN_M2",
       "guid": "da0a0762-c687-5c51-997b-a4138428383c",
       "description": "Ble Floor Load Kn M2 [ISO 19650]",
@@ -21150,6 +21186,18 @@
       "param_name": "FLS_COMPARTMENT_ID_TXT",
       "guid": "c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001",
       "description": "Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]",
+      "datatype": "TEXT",
+      "group_id": 8,
+      "group_name": "FLS_LIFE_SFTY",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Fire & Life Safety",
+      "curated": true
+    },
+    {
+      "param_name": "FLS_COMPARTMENT_FR_MINS_TXT",
+      "guid": "483d4398-65df-5c70-8e10-e65097f48d61",
+      "description": "Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]",
       "datatype": "TEXT",
       "group_id": 8,
       "group_name": "FLS_LIFE_SFTY",

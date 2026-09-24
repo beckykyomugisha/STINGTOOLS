@@ -1841,6 +1841,9 @@ PARAM	0ffc672b-ae54-51b6-a57b-d165521acfc3	BLE_DOOR_ACOUSTIC_STC_NR	TEXT		10	1	B
 PARAM	affb9e38-e1db-5a54-ab28-0dc494c3776a	BLE_DOOR_CLOSER_TXT	TEXT		10	1	Ble Door Closer [ISO 19650]	1
 PARAM	acbffcf6-2553-519d-91d9-3bc9264c8304	BLE_DOOR_GLAZING_BOOL	YESNO		10	1	Ble Door Glazing [ISO 19650]	1
 PARAM	4bb218e5-fa70-5af6-90c6-000a98b16a75	BLE_DOOR_GLAZING_TXT	TEXT		10	1	BLE_DOOR_GLAZING_BOOL display mirror [auto-generated]	1
+PARAM	bf649bd0-8803-5b07-89f4-8daf10d8f0f6	BLE_DOOR_OPENING_FORCE_N	TEXT		10	1	Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	2c404fa6-b02f-5f05-a1cf-4f6f599f942d	BLE_DOOR_LEADING_EDGE_CLEAR_MM	TEXT		10	1	Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a	BLE_DOOR_VISION_PANEL_ZONE_BOOL	YESNO		10	1	Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]	1
 PARAM	da0a0762-c687-5c51-997b-a4138428383c	BLE_FLOOR_LOAD_KN_M2	NUMBER		10	1	Ble Floor Load Kn M2 [ISO 19650]	1
 PARAM	e2feb9ec-bd57-503c-9741-951f1711241c	BLE_FLOOR_LOAD_TXT	TEXT		10	1	BLE_FLOOR_LOAD_KN_M2 display mirror [auto-generated]	1
 PARAM	bc4a861d-6534-5931-a6a0-b5f3b54c6e56	BLE_FLOOR_SLIP_RESISTANCE_TXT	TEXT		10	1	Ble Floor Slip Resistance [ISO 19650]	1
@@ -3055,6 +3058,7 @@ PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel
 PARAM	c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006	PLM_FLUSH_LOG_REF_TXT	TEXT		6	1	Flushing-log document reference	1
 PARAM	c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007	PLM_RO_LOOP_BOOL	YESNO		6	1	Belongs to dialysis Reverse Osmosis loop	1
 PARAM	c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001	FLS_COMPARTMENT_ID_TXT	TEXT		8	1	Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]	1
+PARAM	483d4398-65df-5c70-8e10-e65097f48d61	FLS_COMPARTMENT_FR_MINS_TXT	TEXT		8	1	Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]	1
 PARAM	c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001	MNT_CAL_LAST_DT	TEXT		25	1	Last calibration date (ISO 8601) -- distinct from service date	1
 PARAM	c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002	MNT_CAL_NEXT_DT	TEXT		25	1	Next calibration due (ISO 8601)	1
 PARAM	c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001	PRJ_ORG_HEALTH_FACILITY_TYPE_TXT	TEXT		13	1	Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM	1
