@@ -69,7 +69,7 @@ Ribbon → **STING Tools** → **STING Panels** → **STING Electrical** opens t
 | # | Check | Expect | If not |
 |---|---|---|---|
 | 1 | Revit loads the plugin | STING Tools ribbon present | Run in Git Bash: `grep -h "<Assembly>" "$APPDATA/Autodesk/Revit/Addins"/*/StingTools.addin` — must point at the stoic-goldstine `CompiledPlugin` |
-| 2 | **CALCS → ▶ Recalculate All** (voltage drop) | Voltages read **~230 / 400 V**, VD % in single digits | If VD is ~0.x % everywhere, the unit fix is not live — stop and report |
+| 2 | Pick your longest lighting circuit (e.g. ~25 m of 1.5 mm² at ~6 A). Hand-check: 29 mV/A/m × 6 A × 25 m = 4.4 V = **1.9 %** of 230 V. Then **CALCS → ▶ Recalculate All** | STING's VD % for that circuit is within ~20 % of your hand figure | If it is ~10× smaller (≈0.2 %), the unit fix is not live — stop and report |
 | 3 | **PNLS → ⚡ Batch Create Schedules** | Result panel lists a schedule per board | "No PanelScheduleTemplate" → add a template (§2) |
 | 4 | **SLD → ▶ Generate SLD Drafting View** | Readable diagram, **Symbols placed > 0** | "Symbols placed: 0" → load the SLD families (§2) |
 
@@ -146,20 +146,24 @@ Each step: **Say** (one or two sentences) → **Click** → **Expect** → **If 
 
 ## 6. Do NOT click during the talk
 
+The calculation engines below were **rebuilt this week** (PR #976) and pass their unit tests
+against hand calculations, but **none has run in Revit yet**. Keep them out of the live demo
+unless you have run them on the demo model, checked one result by hand, and done so 24 h
+before the talk.
+
 | Button | Why |
 |---|---|
-| CALCS **⚡ Arc Flash Calc** and its label / schedule / boundary | Being replaced; never show PPE numbers |
-| CALCS **▶ Calculate Fault Levels**, **Stamp to Panels**, fault schedule | Method being upgraded; not verified in Revit |
-| CABLE **▶ Calculate** / **Apply to Circuit**, **Cable size** sync, feeder sizing | Sizing method being reworked to BS 7671 App 4 |
-| CALCS **📈 TCC Curve Plot**, **Selective Coordination Viewer** | Generic curves, not manufacturer data |
-| CABLE **🗺 Auto-Route Conduit** | Draws simple L-runs; not presentation quality |
-| RPRT **EasyPower / DIALux / ETAP** exports | Data hand-off drafts, not native imports |
-| CIRCTS **🗑** ("Delete") | Removes spares/spaces in every schedule (it now asks — answer **No**) |
-| CALCS **✕ Clear Overrides** | Resets every override in the view (it now asks — answer **No**) |
-| CIRCTS **🔢 Renumber**, **⬇ Sort**, **⚖ Balance** | Revit locks circuit numbers/phases; they report 0 changes |
-| SLD **Annotate …** buttons, **SLD sync** | Don't work on the generated SLD view yet |
-
----
+| CALCS **⚡ Arc Flash Calc** and its label / schedule / boundary | Now IEEE 1584-**2002** (indicative, three-phase only). **Never show PPE numbers in a talk.** |
+| CALCS **▶ Calculate Fault Levels**, **Stamp to Panels**, fault schedule | New IEC 60909-style method, not yet verified in a live model |
+| CABLE **▶ Calculate** / **Apply to Circuit**, **Cable size** sync, feeder sizing | New BS 7671 App 4 method, but **only PVC 70 °C Cu, method C** ships; anything else is refused |
+| CALCS **📈 TCC Curve Plot**, **Selective Coordination Viewer** | Generic IEC 60898 bands; most real pairs report "Not assured" (correct, but confusing live) |
+| CABLE **🗺 Auto-Route Conduit** | Rectilinear L/Z runs, no obstacle avoidance; not presentation quality |
+| RPRT **EasyPower / DIALux / ETAP** exports | Data hand-off drafts (`*_DRAFT_*`), not native imports |
+| CIRCTS **🗑** ("Delete") | Removes spares/spaces in every schedule (it asks — answer **No**) |
+| CALCS **✕ Clear Overrides** | Resets every override in the view (it asks — answer **No**) |
+| CIRCTS **🔢 Renumber** | Now really moves circuits between slots via Revit's panel-schedule API: **changes the model**, unrehearsed |
+| CIRCTS **⬇ Sort**, **⚖ Balance** | Revit derives numbers/phases from slots; they correctly report few or no changes, which looks like a failure on stage |
+| SLD **Annotate …** buttons, **SLD sync** | Annotate was fixed this week but is unverified; SLD sync stays off |
 
 ## 7. Q&A — likely questions, honest answers
 
@@ -167,9 +171,10 @@ Each step: **Say** (one or two sentences) → **Click** → **Expect** → **If 
 limits, adiabatic k-values) and produces the Appendix 6 certificate template. Compliance is
 signed by the engineer and the inspector; STING provides the evidence and does the checking."
 
-**"Can it do arc flash / fault levels?"** "Both are in the product and being upgraded to the
-full standards (IEEE 1584 and IEC 60909). I won't show numbers until they're independently
-validated. For safety calculations we'd rather be late than wrong."
+**"Can it do arc flash / fault levels?"** "Fault levels follow the IEC 60909 method for LV
+networks, with every assumption listed per board. Arc flash currently uses IEEE 1584-2002 and
+is labelled indicative. The 2018 edition is next. I won't show PPE numbers until they've been
+independently validated: for safety calculations we'd rather be late than wrong."
 
 **"Does it work with ETAP / DIALux?"** "It exports the model data those tools need. The native
 import formats are on the roadmap. Today it's a structured data hand-off."
@@ -179,8 +184,9 @@ approach: sizing, schedules, compliance checks. Today I'm focusing on electrical
 them if you have rehearsed them.)*
 
 **"Uganda / local standards?"** "There are regional defaults for Uganda: wind, seismic, rainfall
-and live load." *(Only add "and the project can declare its own earthing values, e.g. UMEME Ze"
-if the Ze project-override fix has merged and you have tried it.)*
+and live load. The project can declare its own supply earthing values, e.g. UMEME's Ze, which
+override the UK defaults." *(The override file is `_BIM_COORD/bs7671_disconnection.json`. Try
+it once before saying this.)*
 
 **"Revit versions?"** "Revit 2025 and 2026." *(2027 is installed but not verified. Don't claim it.)*
 
@@ -221,9 +227,14 @@ If you don't know: "Good question. I'll confirm and follow up by email." Write i
 
 ---
 
-## 10. After more fixes land
+## 10. What changed in the build you are rehearsing
 
-The fixes in progress (fault current, cable sizing, arc flash, wiring annotation, lighting,
-routing) will arrive as further commits on PR #976. **Nothing on the §6 list moves into the demo
-unless it passes §3-style first-light checks on the demo model at least 24 hours before the talk.**
-If a new build is deployed, repeat §3 in full.
+PR #976 now also contains the calculation rebuild (fault current, cable sizing, voltage drop,
+arc flash, coordination, lighting, wiring annotation, routing). The demo path in §5 does
+**not** depend on any of it except breaker sizing (④), which now also checks the breaker
+against the cable (In ≤ Iz) and blocks an oversize breaker instead of applying it. If ④
+shows "blocked" rows, that is the new safety check working. Say so.
+
+**Nothing on the §6 list moves into the demo unless it passes a §3-style first-light check
+on the demo model at least 24 hours before the talk.** If a new build is deployed, repeat §3
+in full.

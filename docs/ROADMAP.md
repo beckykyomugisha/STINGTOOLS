@@ -2,36 +2,41 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
-## Electrical calculations — deep review (2026-09-24)
+## Electrical calculations — deep review (2026-09-24, updated after the fix round)
 
-A static review of the electrical module ahead of an MEP presentation. The units, Ze,
-SLD, door-diagram, VD-schedule, SetString and Batch Assign defects were fixed on
-`claude/electrical-mep-presentation-review-30b524` (see CHANGELOG). **What follows was
-deliberately NOT fixed** — each needs engineering work, not a patch. None of the engines
-below has a unit test. **Do not present their numbers as design values until closed.**
+A static review of the electrical module ahead of an MEP presentation, followed by a fix
+round on `claude/electrical-mep-presentation-review-30b524` (PR #976; see CHANGELOG).
+**Nothing below has been exercised in Revit.** Every "closed" item is closed in code and
+unit tests, not in a live model — run `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` before
+relying on any of it.
 
-| ID | Gap | Evidence |
+| ID | Status | What changed · what is still open |
 |---|---|---|
-| ELEC-1 | **Arc flash is not IEEE 1584-2018** despite printing that label. The ≤600 V "regression" ignores voltage and gap, and its K3 term makes incident energy FALL as fault current rises (25 kA → ~0.94, 50 kA → ~0.25). It writes PPE category and label text onto panels. **Safety issue** — consider disabling the buttons until replaced. | `ArcFlash/ArcFlashEngine.cs:181-195` |
-| ELEC-2 | **Fault current is not IEC 60909**: resistance-only, no c-factor, no X/R, no transformer model; 240 V (`FaultCurrentCommand.cs:47`) and 5 m feeder (`FaultCurrentEngine.cs:100`) hard-coded; `DownstreamFaultKa` mixes phase-neutral voltage into a √3 formula. Understates fault level (non-conservative for breaking capacity). | `FaultCurrent/*` |
-| ELEC-3 | **Cable sizer is not the BS 7671 Appendix 4 method**: capacity is an uncited threshold ladder (2.5 mm² = 17 A vs ~27 A tabulated); `STING_WIRE_TABLES.json` capacities are never read; no grouping factor, PVC ambient applied to XLPE, no In ≤ Iz / 1.45·In check, no adiabatic check. Feeder sizer never applies its derate and fixes length at 10 m. The NEC path (Table 310.16) is structurally sound. | `CableSizer/CableSizerEngine.cs:111-137, 258, 414` |
-| ELEC-4 | **Selective coordination / TCC plots are synthetic**: `STING_TCC_DATABASE.json` has `"curves": []`, so every device is a linear ramp. `WireCoordStamp` "passes" when a rating string exists. | `TccDatabaseLoader.cs:246` |
-| ELEC-5 | **Voltage-drop engine**: resistance table high for small CSAs (2.5 mm² 8.71 vs 7.41 mΩ/m at 20 °C) then temperature-corrected again; limits 3 %/2 % by pole count, not BS 7671 App 12 (3 % lighting / 5 % other); CSA parsed as the first number in the wire-size string. `Core/Calc/VoltageDropSolver` multiplies 1-ph mV/A/m by √3 for 3-ph (should be ≈0.87×). | `VoltageDrop/*`, `Core/Calc/VoltageDropSolver.cs:92` |
-| ELEC-6 | **PFC kVAR table wrong** (`kvarPerKwAtPf` 0.85→0.31, true tan φ 0.620); diversity factors cited as "BS 7671 App 1" (they are IET OSG App A). | `LoadDemand/LoadDemandEngine.cs` |
-| ELEC-7 | **Conduit auto-route**: CLAUDE.md claims "A* + ACO"; the live path is a fixed L/Z with no fittings (`ConduitRouteEngine.cs:45`). `ComputeRouteAdvanced` and `AcoRefiner` have no callers. It matches circuits by number only while AddCable writes `<Type>-<Id>` ids, so it routes nothing. | `Routing/*` |
-| ELEC-8 | **Exports are not importable**: ETAP XML has root `Network` (not `rdf:RDF`) and duplicate IDs; EasyPower schema self-described as "best-effort"; DIALux IFC has no placement/geometry/units. Present as data hand-off drafts only. | `Export/*` |
-| ELEC-9 | **Wire-param stamp never finds a circuit**: `ConduitCircuitIndex` only accepts a connector owned by an `ElectricalSystem`, which conduit connectors never are, so Stamp/Batch Stamp report "no connected circuit" and wire annotations read "? Wire". | `WireParamSyncCommands.cs:85-127` |
-| ELEC-10 | **SLD annotate family is dead on the SLD view**: `ELC_CIR_*` bind only to Electrical Equipment (the SLD view holds annotation symbols), and the `STING_SLD_ANNOT_*` stamp parameters are defined in no data file, so Update/Toggle/Clear/Audit always find 0. | `Symbols/SldAnnotationCommands.cs:354-381` |
-| ELEC-11 | **Lighting**: missing lumens silently become 4000 lm (and 36 W) in Quick Lux and the calc sheets; UGR from Photometric Link is a 4-step lookup written as if calculated; IES absolute photometry (LED) yields 0 lm; LDT parser multiplies flux by lamp count. | `Lighting/*`, `Photometric/*`, `Photometrics/*` |
-| ELEC-12 | **Renumber / Sort / Phase Balance** write parameters Revit makes read-only once circuited, then report "applied". `WireElementAnnotate` null-refs on circuits with no length (`WireElementAnnotationCommands.cs:228-234, 355`). | `ElectricalPanelCommands.cs:222`, `CircuitCrudCommands.cs:296`, `PhaseBalanceCommand.cs:107` |
-| ELEC-13 | `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` has never been run (every box unticked); the GOLD path was corrected on this branch. Electrical commands do not log on success, so the plugin log cannot show whether they ran. | — |
-| ELEC-14 | **Ze is corporate-only and UK-valued.** No project override and no declared/measured Ze input; UK DNO maxima are not UMEME's. `Cmin = 0.95` is a C# constant while `NominalUo` comes from JSON. | `STING_BS7671_DISCONNECTION.json`, `BS7671ComplianceEngine.cs` |
-| ELEC-15 | **Three sources for panel slot count**: Batch Assign (`RBS_ELEC_MAX_POLE_BREAKERS` → "Number Of Circuits" → 42), door diagram (`RBS_ELEC_NUMBER_OF_CIRCUITS` → 24). The 42 fallback invents data. Want one `PanelSlotCount(fi)` helper that skips-with-warning when unknown. | `BatchAssignCircuitsCommand.cs`, `PanelDoorDiagramCommand.cs` |
-| ELEC-16 | **`CircuitSlotParser.FromStartSlot` steps by 2** (two-column panelboard). Single-column panels / switchboards take n, n+1, n+2. Step should come from the panel schedule template. | `Core/Electrical/CircuitSlotParser.cs` |
-| ELEC-17 | **Emergency keywords are English-only and duplicated** in `EmergencyNameMatcher`, `CircuitWizardEngine.cs:146`, `Core/Routing/SeparationChecker.cs:162` and `STING_ELECTRICAL_ASSIGNMENT.json`. One data-driven list with project override (secours / Notbeleuchtung / emergencia). | — |
-| ELEC-18 | **HVAC/plumbing flow shown in wrong units outside the mapper**: `UI/StingHvacPanel.xaml.cs:232` multiplies ft³/s by 0.4719 (a CFM→L/s factor; should be 28.3168), :240 unconverted; `BOQ/BOQTemplateLibraryExtensions.cs:372`, `BOQ/BOQParagraphEnhancer.cs:187/850` print ft³/s as "l/s"; `MepDesignCommands.cs:397` mixes converted duct flow with raw pipe flow. | as listed |
-| ELEC-19 | **`MapBuiltIn` unit comes from the target NAME suffix** (`UnitSuffix`). Explicit per-mapping units (or units read from `PARAMETER_REGISTRY.json`) would be sturdier; `ELC_CKT_PWR_KW` is filled from apparent load, so it holds kVA under a kW name. | `Core/ParameterHelpers.cs` `DisplayValueForTarget` |
-| ELEC-20 | Smaller: `IPSValidationCommand.cs:103` `maxVaPerBranch` is dimensionally odd; `DualSourceValidationCommand` reads `ELC_GENERATOR_KVA` / `ELC_UPS_KVA`, which are not in `MR_PARAMETERS.txt` (always "not set"); `LoadDemandAuditCommand.cs:40` labels kVA as kW. | as listed |
+| ELEC-1 | ~~Arc flash fabricated~~ **Replaced, indicative** | Now IEEE 1584-2002 (worked example matches hand calc < 0.01 %), three-phase boards only, labelled "superseded by 2018 — indicative". **Open:** IEEE 1584-2018 needs the standard's coefficient tables; MV (> 1 kV) refused; MCCB/ACB clearing times need manufacturer curves. Not for PPE without a licensed study. |
+| ELEC-2 | ~~Fault current not IEC 60909~~ **Closed (LV)** | IEC 60909-0 style: c = 1.10/0.95, source R = 0.1X (assumption, labelled), cable R at 20 °C (BS EN 60228) + assumed X 0.08 mΩ/m. **Open:** no transformer, motor, zero-sequence or ip model. |
+| ELEC-3 | ~~Cable sizer not App 4~~ **Closed for one table** | BS 7671 Appendix 4 method with Ca/Cg/Ci/Cf and Ib ≤ In ≤ Iz. **Open:** only Table 4D2A method C (70 °C PVC Cu multicore) ships — XLPE (4E2A/4E4A), armoured, aluminium and methods A/B/E/F are refused until transcribed from the printed standard; rows ≥ 25 mm² are flagged VERIFY; no grouping/Ci/fuse inputs on the panel yet. |
+| ELEC-4 | ~~TCC synthetic~~ **Closed for MCBs** | Generic IEC 60898-1 B/C/D bands; selectivity reported as Selective / Not assured / Not selective / No curve data. **Open:** manufacturer selectivity tables; MCCB/ACB curves; curve letters for bare ratings are assumed. |
+| ELEC-5 | ~~VD engine~~ **Closed** | BS EN 60228 20 °C resistance, BS 7671 App 12 limits, robust wire-size parser, 3-ph factor √3/2. **Open:** reactance ignored above 25 mm² in the resistive engine; upstream drop not added per circuit. |
+| ELEC-6 | ~~PFC table wrong~~ **Closed** | kVAR = P(tan φ1 − tan φ2); IET On-Site Guide citation; kVA labels. |
+| ELEC-7 | **Partly closed** | Cable↔circuit identity fixed, computed diameter applied, #597 route defect fixed, honest method text. **Open:** A* routing deliberately not wired in (one conduit per grid cell, endpoints can sit in obstacles); consolidator groups by panel+source only. |
+| ELEC-8 | **Relabelled, not fixed** | ETAP/EasyPower/DIALux outputs are named and labelled data hand-off drafts; ETAP IDs unique, `rdf:RDF` root; DIALux IFC gains units and correct space containment. **Open:** native import formats need the vendors' specs. |
+| ELEC-9 | ~~Wire stamp never finds a circuit~~ **Closed** | One shared conduit→circuit resolver walking the connector graph to devices/panels. |
+| ELEC-10 | ~~SLD annotate dead~~ **Closed** | Extensible Storage stamps; works on the generated SLD view via the source equipment; values fall back to Revit natives. |
+| ELEC-11 | ~~Lighting fallbacks silent~~ **Closed** | Assumed lumens/watts flagged per room; no invented UGR; IES absolute photometry integrated; LDT parser rewritten to EULUMDAT; IFC results matched by GlobalId → number → name. |
+| ELEC-12 | ~~Renumber/Sort/Balance false success~~ **Closed** | Renumber moves slots via `PanelScheduleView.MoveSlotTo`; Sort/Balance report only real changes. |
+| ELEC-13 | **Open** | `docs/ELECTRICAL_SMOKETEST_CHECKLIST.md` has never been run in Revit. **This is now the single biggest risk on this module.** |
+| ELEC-14 | ~~Ze corporate-only~~ **Closed** | `cMin` in JSON; project override `_BIM_COORD/bs7671_disconnection.json` (timestamp-cached). |
+| ELEC-15 | ~~Three slot-count sources~~ **Closed** | `PanelSlotReader`/`PanelSlotRules`; unknown slot count is reported, never assumed. |
+| ELEC-16 | ~~Step always 2~~ **Closed** | Step read from the panel schedule configuration. **Open:** the door diagram still draws two columns. |
+| ELEC-17 | ~~English-only, duplicated keywords~~ **Closed** | `Data/STING_EMERGENCY_KEYWORDS.json` + project override, used by all callers. |
+| ELEC-18 | ~~Flow units~~ **Closed** | HVAC panel, BOQ and MEP-design flows converted via `UnitUtils`. |
+| ELEC-19 | **Open (design)** | `MapBuiltIn` still takes the target unit from the parameter-name suffix; explicit per-mapping units would be sturdier. |
+| ELEC-20 | ~~Small items~~ **Closed** | IPS check rewritten (10 kVA IT transformer + LIM; leakage deferred to commissioning test); dual-source reports missing parameters instead of failing; kVA labels. |
+
+Cross-check round (three independent reviewers over the merged branch) found and fixed:
+a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths), arc flash
+fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
+audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
 
 ## Drawing-type tag families (2026-09-24)
 
