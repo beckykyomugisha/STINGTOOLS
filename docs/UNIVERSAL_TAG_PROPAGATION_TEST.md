@@ -20,7 +20,7 @@ remaining point.
 | The master's shared parameters can load into a project | **PROVEN** | `21:01:02 SharedParamPreflight: 'STING_Tag_Universal' offers 210 shared parameters; project holds 312` — zero conflicts, against a non-empty project side |
 | Revit refuses a reload that changes a loaded family's category | **PROVEN** | Three runs recategorising → refused with no message (19:58, 21:02, 21:23). Category corrected by hand → `22:16:38 succeeded=1` |
 | `Propagate_UniversalTag` can complete at all | **PROVEN, once** | `22:16:38 master=STING_Tag_Universal, succeeded=1, failed=0, params=139, types=14` |
-| **Recategorising preserves the label rows** | **STILL UNPROVEN** | The premise the whole conveyor rests on. Every 2026-09-23 experiment ran on `STING_Tag_Universal` — the MASTER itself, which the air terminal uses. No propagated family has yet been made to draw a tier row. **This is V2, and it is still why you are running this test.** |
+| **Recategorising preserves the label rows** | ✅ **PROVEN, 2026-09-24** | Two duct tags drawn by `STING - Tie-In Point Tag (Duct — HVAC) Tag` — a PROPAGATED family, not the master — rendered their T6 carbon rows and their TAG7F row once the gate was bound to Ducts and ticked. The rows came through propagation intact. **The conveyor's founding premise now has evidence.** |
 | The 206 tag families have no label rows of their own | **CONFIRMED in Revit, 2026-09-21** | They are empty shells. Every row comes from the master, through propagation — so V2 can only be answered on a family that has been PROPAGATED to, never on one that has only had its category corrected |
 | Flipping a tier gate changes what the tag draws | **PROVEN, 2026-09-23** | Ticking `TAG_PARA_STATE_6_BOOL` on an air terminal's TYPE made the T6 rows draw; unticking it removed them. Same element, same tag |
 | **Which copy of the gate the label reads** | **ANSWERED, 2026-09-23** | The **tagged element's type**. The tag type's copy was ON throughout and drew nothing. See [`…_FAMILY_PARAM_HYGIENE.md`](UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md) §4 |
@@ -185,22 +185,35 @@ Open the propagated `STING - Duct Tag` via **Edit Family**.
 ### V1 · Category
 Family category is **Duct Tags**. Proves the recategorise step ran and stuck.
 
-### V2 · ⭐ The label rows survived — THE ONE THAT MATTERS
+### V2 · ⭐ The label rows survived — ✅ PROVEN 2026-09-24
 
 **Only meaningful on a family that has been propagated to.** The tag families carry no
 label rows of their own (confirmed in Revit, 2026-09-21): they are empty shells, and every
 row arrives from the master through this command. Opening one that has only had its
 category corrected shows an empty label and proves nothing either way.
 
-**Edit Label. Count the rows.**
+**The evidence.** With `TAG_PARA_STATE_6_BOOL` bound to **Ducts** (Type) and ticked on the
+duct type, two tags drawn by `STING - Tie-In Point Tag (Duct — HVAC) Tag` — a **propagated**
+family, not the master — rendered three lines each:
 
-- **65 rows**, formulas, prefixes, suffixes and breaks intact.
-- Spot-check: row **1** `ASS_DISPLAY_TXT` (Spaces 0), row **22** `ASS_CST_STALE_TXT`,
-  row **50** `ASS_CRITICALITY_RATING_TXT`, row **65** Break ticked.
+```
+M-BLD1-Z01-L01-HVAC-SUP-DU-006
+A1-A3:0kgCO2e A4:0kgCO2e B6:0kgCO2e/yr          <- the three T6 carbon rows
+ISO 19650 tag M-BLD1-Z01-L01-HVAC-SUP-DU-0006   <- the T6 TAG7F row
+```
 
-**This is the whole premise.** If recategorising does not preserve this label, it does not
-preserve it for any of the 206 and nothing downstream is worth doing. Record the number you
-actually see, not the number you expected.
+Rows that only exist in the master were drawn by a family the master was cloned into. The
+premise holds.
+
+**Why the earlier runs did not settle this.** Every 2026-09-23 experiment ran on
+`STING_Tag_Universal` — the master itself, which the air terminal happens to use. Adjacent
+things working is not evidence for this one, and the row stayed UNPROVEN until a propagated
+family drew a gated row.
+
+**If you want the row count as well**, Edit Label on the propagated family and count: 71
+rows, formulas, prefixes, suffixes and breaks intact. Spot-check row **1**
+`ASS_DISPLAY_TXT`, row **22** `ASS_CST_STALE_TXT`, row **50** `ASS_CRITICALITY_RATING_TXT`.
+Revit exposes no API for this, so it is an eyeball check or nothing.
 
 ### V3 · Which copy of a gate drives the label — ✅ ANSWERED 2026-09-23
 
@@ -340,4 +353,5 @@ Fill this in. An empty row is honest; a missing row is not.
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-17 | 22:16 deploy | — | not checked | — | — | 14 types (`_T3` era) | — | — | — | `succeeded=1, params=139, types=14`. First successful run; verification not performed |
 | 2026-09-23 | 21:08 deploy | — | **still not checked** — every run used the MASTER family, not a propagated one | ✅ **tagged element's type** | ❌ all ten gates on at depth 2 | placed type is `STING_Tag_Universal`, not a catalogue variant | ✅ renders | — | — | Gate must be BOUND to the tagged category first (§1.7) — four rounds lost to that. Master holds 71 label rows, all present |
+| 2026-09-24 | tier-gate-scope | — | ✅ **PROVEN** — a propagated duct family drew its T6 rows | ✅ tagged element's type | ❌ (fix in flight) | not checked | ✅ renders | not checked | not checked | Gate bound to Ducts + ticked. Carbon rows read 0 — real parameters, no data |
 | | | | | | | | | | | |
