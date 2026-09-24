@@ -243,6 +243,14 @@ namespace StingTools.Core.Drawing
                 ? dt.ProductionRules.OrderBy(r => r.Idx).ToList()
                 : new List<ProductionRule> { SynthesizeSingleRule(dt, result) };
 
+            // D-7 follow-up: a purpose with no producible view (Legend — the API
+            // cannot create one — or an unknown purpose) synthesises no rule.
+            // Minting the sheet anyway left an empty, correctly-numbered sheet in
+            // the set that consumed a sequence number and read as "produced". The
+            // warning from SynthesizeSingleRule already says why; stop here.
+            if (rules.All(r => r == null))
+                return result;
+
             if (opts.CreateSheet)
                 result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
 

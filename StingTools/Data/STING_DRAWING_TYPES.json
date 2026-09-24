@@ -2403,7 +2403,7 @@
       "id": "arch-roof-A1-1to100",
       "name": "Architectural Roof Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "75f19e368370eeb43600a6cca965e66b2bd2cda85421a6f60a0e504b1e1ca8be",
+      "checksum": "41c6d909f7ae5f326e2d21f1558cfb48bb165f76e0d963105891373d313001e6",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2454,7 +2454,10 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
-        "tagFamilies": {},
+        "tagFamilies": {
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Windows": "STING - Window Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -2474,6 +2477,18 @@
           {
             "category": "Roofs",
             "ruleType": "AutoAnnotateSlope",
+            "enabled": true
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "familyMatch": "rain ?water|roof ?(drain|outlet)|\\bRWO\\b|siphonic",
+            "enabled": true
+          },
+          {
+            "category": "Windows",
+            "ruleType": "AutoTag",
+            "familyMatch": "roof ?light|sky ?light|roof ?window",
             "enabled": true
           }
         ]

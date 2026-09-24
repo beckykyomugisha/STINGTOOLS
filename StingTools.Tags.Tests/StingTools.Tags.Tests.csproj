@@ -159,6 +159,7 @@
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationPackLayering.cs" Link="Core\Drawing\AnnotationPackLayering.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RuleFamilyFilter.cs" Link="Core\Drawing\RuleFamilyFilter.cs" />
     <!-- D-7: the purpose -> view-kind table. DrawingProducer and
          GenerateFromScopeBoxesCommand call this same file, so
          DrawingPurposeViewKindTests exercises the code that runs in Revit. -->

@@ -983,6 +983,12 @@ namespace StingTools.Core.Drawing
             double? minSizeMm = rule?.MinSizeMm;
             int belowMin = 0, unmeasured = 0;
 
+            // DRAW-8: familyMatch narrows the rule inside its category. An
+            // invalid pattern skips the rule rather than tagging the category.
+            var familyRx = RuleFamilyFilter.Compile(rule?.FamilyMatch, out var familyRxError);
+            if (familyRxError != null) { stats.Warnings.Add($"{catKey}: {familyRxError}"); return; }
+            int outsideFamily = 0;
+
             foreach (var el in elements)
             {
                 try
@@ -991,6 +997,16 @@ namespace StingTools.Core.Drawing
                     {
                         stats.Skipped++;
                         continue;
+                    }
+
+                    if (familyRx != null)
+                    {
+                        var et = doc.GetElement(el.GetTypeId()) as ElementType;
+                        if (!RuleFamilyFilter.Matches(familyRx, et?.FamilyName, et?.Name))
+                        {
+                            outsideFamily++;   // out of scope, not a skip: nothing to tag
+                            continue;
+                        }
                     }
 
                     if (minSizeMm.HasValue)
@@ -1049,6 +1065,11 @@ namespace StingTools.Core.Drawing
 
             if (belowMin > 0)
                 stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");
+            // An empty result under a family filter is the case worth hearing
+            // about: the pattern may not match this project's family names.
+            if (familyRx != null && outsideFamily > 0 && outsideFamily == elements.Count())
+                stats.Warnings.Add($"{catKey}: no element in view matched familyMatch '{rule.FamilyMatch}' " +
+                                   $"({outsideFamily} checked) — nothing tagged. Adjust the pattern if this project names them differently.");
             if (unmeasured > 0)
                 stats.Warnings.Add($"{catKey}: {unmeasured} element(s) could not be measured for minSizeMm and were tagged anyway.");
         }

@@ -165,6 +165,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         [JsonProperty("minSizeMm",   NullValueHandling = NullValueHandling.Ignore)] public double? MinSizeMm { get; set; }
         [JsonProperty("condition",   NullValueHandling = NullValueHandling.Ignore)] public string Condition { get; set; }
+        /// <summary>
+        /// Case-insensitive regex on "Family : Type" narrowing the rule within its
+        /// category (e.g. rainwater outlets among Plumbing Fixtures). See
+        /// RuleFamilyFilter; an invalid pattern disables the rule, loudly.
+        /// </summary>
+        [JsonProperty("familyMatch", NullValueHandling = NullValueHandling.Ignore)] public string FamilyMatch { get; set; }
         [JsonProperty("enabled")] public bool Enabled { get; set; } = true;
         /// <summary>
         /// TAG rules: TAG7 paragraph depth (1..10) for this rule's category.
