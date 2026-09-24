@@ -1398,72 +1398,16 @@ namespace StingTools.Commands.Electrical
             return null;
         }
 
+        /// <summary>
+        /// The circuit a conduit carries. Delegates to the shared
+        /// <see cref="StingTools.Core.Electrical.ConduitCircuitResolver"/> so the
+        /// label engine and the wire-parameter stamp cannot disagree. The old
+        /// in-place walk returned the first circuit of whatever device or panel it
+        /// reached first — on a run ending at a panel, an arbitrary one of its
+        /// circuits.
+        /// </summary>
         public static ElectricalSystem GetConnectedCircuit(Element conduit)
-        {
-            if (conduit == null) return null;
-            var cm = GetMepConnectorManager(conduit);
-            if (cm == null) return null;
-
-            var visited = new HashSet<long> { conduit.Id.Value };
-            var frontier = new List<Connector>();
-            try
-            {
-                foreach (Connector c in cm.Connectors)
-                    if (c.ConnectorType == ConnectorType.End) frontier.Add(c);
-            }
-            catch { return null; }
-
-            const int maxDepth = 12;
-            for (int depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
-            {
-                var next = new List<Connector>();
-                foreach (var fc in frontier)
-                {
-                    ConnectorSet refs;
-                    try { refs = fc.AllRefs; } catch { continue; }
-                    if (refs == null) continue;
-                    foreach (Connector other in refs)
-                    {
-                        var owner = other?.Owner;
-                        if (owner == null) continue;
-                        long oid = owner.Id.Value;
-                        if (!visited.Add(oid)) continue;
-
-                        if (IsElectricalDevice(owner))
-                        {
-                            try
-                            {
-                                var systems = ((FamilyInstance)owner).MEPModel.GetElectricalSystems();
-                                if (systems != null && systems.Count > 0)
-                                    return systems.FirstOrDefault();
-                            }
-                            catch { }
-                            continue;
-                        }
-
-                        var catId = owner.Category?.Id?.Value ?? 0;
-                        if (catId != (long)BuiltInCategory.OST_Conduit
-                         && catId != (long)BuiltInCategory.OST_ConduitFitting)
-                            continue;
-
-                        var ocm = GetMepConnectorManager(owner);
-                        if (ocm == null) continue;
-                        try
-                        {
-                            foreach (Connector pc in ocm.Connectors)
-                            {
-                                if (pc.ConnectorType != ConnectorType.End) continue;
-                                if (pc.Id == other.Id) continue;
-                                next.Add(pc);
-                            }
-                        }
-                        catch { }
-                    }
-                }
-                frontier = next;
-            }
-            return null;
-        }
+            => StingTools.Core.Electrical.ConduitCircuitResolver.Resolve(conduit);
 
         public class WirePathResult
         {
