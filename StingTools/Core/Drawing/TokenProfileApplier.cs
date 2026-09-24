@@ -121,6 +121,11 @@ namespace StingTools.Core.Drawing
                     var ids = new FilteredElementCollector(doc, view.Id)
                         .WhereElementIsNotElementType()
                         .ToElementIds();
+                    // V-10: element-level write failures were swallowed, so a
+                    // profile whose mask/mode never landed reported success.
+                    // Count them and report ONCE per kind after the pass.
+                    int dispModeFailed = 0, segMaskFailed = 0;
+                    string dispModeFirstErr = null, segMaskFirstErr = null;
                     foreach (var id in ids)
                     {
                         var el = doc.GetElement(id);
@@ -136,7 +141,10 @@ namespace StingTools.Core.Drawing
                                     p.Set(dispMode.Value); r.ElementWrites++;
                                 }
                             }
-                            catch { /* element-level failure — keep going */ }
+                            catch (Exception exDm)
+                            {
+                                if (dispModeFailed++ == 0) dispModeFirstErr = $"{el.Id}: {exDm.Message}";
+                            }
                         }
                         if (needSegMask)
                         {
@@ -147,7 +155,10 @@ namespace StingTools.Core.Drawing
                                 if (ParameterHelpers.SetString(el, ParamRegistry.TAG_SEG_MASK, segMask, overwrite: true))
                                     r.ElementWrites++;
                             }
-                            catch { /* element-level failure — keep going */ }
+                            catch (Exception exSm)
+                            {
+                                if (segMaskFailed++ == 0) segMaskFirstErr = $"{el.Id}: {exSm.Message}";
+                            }
                         }
                         if (needSectVis && canonicalSectVis != null)
                         {
@@ -160,6 +171,8 @@ namespace StingTools.Core.Drawing
                             }
                         }
                     }
+                    ReportElementWriteFailures(r, view, ParamRegistry.DISPLAY_MODE, dispModeFailed, dispModeFirstErr);
+                    ReportElementWriteFailures(r, view, ParamRegistry.TAG_SEG_MASK, segMaskFailed, segMaskFirstErr);
                 }
 
                 // ── Step G. Presentation-mode preset (global tier set) ─
@@ -498,8 +511,25 @@ namespace StingTools.Core.Drawing
                     }
                 }
             }
-            catch { /* defensive — fall through */ }
+            catch (Exception ex)
+            {
+                // V-10: a throw here drops the type from the tag-style pass,
+                // which reads exactly like "not a tag type". Log it.
+                StingLog.WarnRateLimited("TokenProfileApplier.IsTagFamilyType",
+                    $"IsTagFamilyType({el?.Id}): {ex.Message} -- treated as not a tag type");
+            }
             return false;
+        }
+
+        /// <summary>V-10: one warning per parameter per apply, with the count,
+        /// instead of one silent catch per element.</summary>
+        private static void ReportElementWriteFailures(ApplyResult r, View view,
+            string paramName, int failed, string firstErr)
+        {
+            if (failed <= 0) return;
+            string msg = $"{paramName}: {failed} element write(s) failed in view '{view?.Name}' (first: {firstErr}).";
+            r.Warnings.Add(msg);
+            StingLog.Warn("TokenProfileApplier: " + msg);
         }
 
         private static int ApplyCategoryTagStyles(Document doc, View view, Dictionary<string, string> map)
