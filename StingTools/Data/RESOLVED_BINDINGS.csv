@@ -698,19 +698,19 @@ CBN_REFRIGERANT_GWP_KG_CO2E,<ALL>
 CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,<ALL>
 CBN_RUNTIME_HRS_YR_NR,<ALL>
 CBN_RUNTIME_HRS_YR_NR_DISP_TXT,<ALL>
-CEQ_CATEGORY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_CLINICAL_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_DECON_METHOD_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_ENDO_AER_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CEQ_CATEGORY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_CLINICAL_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_DECON_METHOD_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_ENDO_AER_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_EQP_TAG,<ALL>
-CEQ_GMDN_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CEQ_SFG20_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CEQ_GMDN_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_SFG20_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_TAG_7_PARA_TXT,<ALL>
-CEQ_UMDNS_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CEQ_UMDNS_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLASH_COUNT_INT,<ALL>
 CLASH_LIVE_FLAG,<ALL>
 CLASH_RESOLUTION_ACTION_TXT,<ALL>
@@ -720,52 +720,52 @@ CLASH_TRIAGE_SCORE,<ALL>
 CLASH_TRIAGE_SEVERITY_NR,<ALL>
 CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,<ALL>
 CLASH_TRIAGE_SEVERITY_TXT,<ALL>
-CLN_ADB_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_ANTERM_LINKED_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_BARI_DESIGN_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_BARI_DESIGN_KG_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DEFLECTION_LIMIT_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_ACH_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_ACH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_PRESSURE_DELTA_PA_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_RH_PCT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_RH_PCT_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_TEMP_C_DBL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_DESIGN_TEMP_C_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_ADB_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_ANTERM_LINKED_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_BARI_DESIGN_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_BARI_DESIGN_KG_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DEFLECTION_LIMIT_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_ACH_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_ACH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_PRESSURE_DELTA_PA_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_PRESSURE_DELTA_PA_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_RH_PCT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_RH_PCT_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_TEMP_C_DBL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_DESIGN_TEMP_C_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_EQP_TAG,<ALL>
-CLN_EQUIP_WEIGHT_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_FGI_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_FLOOR_LOAD_KN_M2_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_HBN_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_HOIST_TRACK_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_HOIST_TRACK_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_HTM_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_INFECT_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_LIGATURE_RES_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_LIG_RISK_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_MRI_ZONE_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_MRI_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_NOISE_NR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_NOISE_NR_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_NURSECALL_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_OCC_VISITOR_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_PRESS_DELTA_DESIGN_PA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_PRESS_REGIME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_PRIVACY_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_RF_SHIELD_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_EQUIP_WEIGHT_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_FGI_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_FLOOR_LOAD_KN_M2_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_HBN_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_HOIST_TRACK_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_HOIST_TRACK_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_HTM_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_INFECT_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_LIGATURE_RES_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_LIG_RISK_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_MRI_ZONE_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_MRI_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_NOISE_NR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_NOISE_NR_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_NURSECALL_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_OCC_VISITOR_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_PRESS_DELTA_DESIGN_PA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_PRESS_REGIME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_PRIVACY_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_RF_SHIELD_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_ROOM_TAG,<ALL>
-CLN_RT60_TARGET_S_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_STRUCT_SIGN_OFF_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_STRUCT_SIGN_OFF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_RT60_TARGET_S_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_STRUCT_SIGN_OFF_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_STRUCT_SIGN_OFF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_TAG_7_PARA_TXT,<ALL>
-CLN_TRANSPORT_PATH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_VIB_VM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_WASTE_BIN_BIM_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_WASTE_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-CLN_WASTE_ROUTE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+CLN_TRANSPORT_PATH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_VIB_VM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_WASTE_BIN_BIM_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_WASTE_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_WASTE_ROUTE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLS_CSI_MASTERFORMAT_TXT,<ALL>
 CLS_EDITION_TXT,<ALL>
 CLS_ETIM_CLASS_TXT,<ALL>
@@ -1701,23 +1701,23 @@ MEP_TIE_POINT_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct
 MEP_TYPE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_UPSTREAM_ELEMENT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_WORKING_PRESSURE_PA,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
-MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_EQP_TAG,<ALL>
-MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_TAG_7_PARA_TXT,<ALL>
-MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_VERIFY_BY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_VERIFY_CERT_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_VERIFY_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_WORKING_PRESSURE_KPA,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_VERIFY_BY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_VERIFY_CERT_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_VERIFY_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_WORKING_PRESSURE_KPA,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MNT_ACCESS_REQUIREMENTS_TXT,<ALL>
 MNT_CAL_LAST_DT,<ALL>
 MNT_CAL_NEXT_DT,<ALL>
@@ -2275,17 +2275,17 @@ Pset_StingCost.ProvisionalSum,<ALL>
 Pset_StingCost.RateSource,<ALL>
 Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>
-RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 RAD_EQP_TAG,<ALL>
-RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_LEAD_MM_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_OCC_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_QE_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_QE_NAME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_LEAD_MM_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_OCC_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_QE_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_QE_NAME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 RAD_TAG_7_PARA_TXT,<ALL>
-RAD_USE_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-RAD_WORKLOAD_MAWK_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+RAD_USE_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_WORKLOAD_MAWK_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 RGL_ACCESSIBILITY_COMPLIANT_TXT,<ALL>
 RGL_ACCESSIBILITY_GRADE_TXT,<ALL>
 RGL_ACCESSIBILITY_STATUS_TXT,<ALL>
@@ -2884,40 +2884,40 @@ WARN_BLE_WALL_TYPE_WALL_SWEEPS,Walls|Curtain Panels|Curtain Wall Mullions
 WARN_BLE_WINDOW_SAFETY_GLASS_WINDOWS,Windows
 WARN_BLE_WINDOW_SHGC,Windows
 WARN_BLE_WINDOW_U_VALUE,Windows
-WARN_CEQ_CATEGORY_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CEQ_DECON_METHOD_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CEQ_ENDO_REPRO_OVERDUE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CEQ_GMDN_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CEQ_IMAGING_STRUCT_LOAD,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CEQ_SFG20_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_ACOUSTIC_STC_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_ANTERM_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_FLOOR_LOAD_INSUFFICIENT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_HBN_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_HEPA_GRADE_INVALID,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_INFECT_CLASS_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_IOT_STALE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_LIGATURE_REQUIRED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_MRI_ZONE_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_MRI_ZONE_UNASSIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_NOISE_EXCEEDS_TARGET,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_NURSECALL_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_OR_LOW_ACH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_OR_ULTRA_LOW_ACH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_PE_NOT_POSITIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_PRESS_DELTA_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_PRESS_REGIME_INVALID,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_PRESS_REGIME_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RAD_NO_SHIELDING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RDS_INCOMPLETE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RF_SHIELD_NO_ZONE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RF_SHIELD_UNSPECIFIED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_ROOM_CLASS_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RT60_OUT_OF_RANGE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_RTLS_NO_COVERAGE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_STRUCT_NOT_SIGNED_OFF,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_CLN_WASTE_ROUTE_UNRESOLVED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+WARN_CEQ_CATEGORY_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CEQ_DECON_METHOD_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CEQ_ENDO_REPRO_OVERDUE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CEQ_GMDN_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CEQ_IMAGING_STRUCT_LOAD,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CEQ_SFG20_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_ACOUSTIC_STC_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_ANTERM_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_FLOOR_LOAD_INSUFFICIENT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_HBN_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_HEPA_GRADE_INVALID,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_INFECT_CLASS_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_IOT_STALE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_LIGATURE_REQUIRED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_MRI_ZONE_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_MRI_ZONE_UNASSIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_NOISE_EXCEEDS_TARGET,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_NURSECALL_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_OR_LOW_ACH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_OR_ULTRA_LOW_ACH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_PE_NOT_POSITIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_PRESS_DELTA_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_PRESS_REGIME_INVALID,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_PRESS_REGIME_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RAD_NO_SHIELDING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RDS_INCOMPLETE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RF_SHIELD_NO_ZONE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RF_SHIELD_UNSPECIFIED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_ROOM_CLASS_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RT60_OUT_OF_RANGE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_RTLS_NO_COVERAGE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_STRUCT_NOT_SIGNED_OFF,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_WASTE_ROUTE_UNRESOLVED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_COM_C_COVERAGE_COMM_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_COM_C_DATA_RATE_COMM_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
 WARN_COM_C_POWER_SUPPLY_COMM_DEVICES,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices
@@ -3099,21 +3099,21 @@ WARN_MEC_SET_REDUNDANCY_EQUIP_SETS,<ALL>
 WARN_MEP_DUCT_ACC_PRESSURE_DROP,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 WARN_MEP_DUCT_FITTING_LOSS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 WARN_MEP_SPC_LIGHTING,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
-WARN_MGS_AAP_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_DIVERSITY_HIGH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_FLOW_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_FLOW_RATE_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_GAS_TYPE_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_NOT_BRAZED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_PIPE_NOT_BRAZED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_PRESSURE_BELOW_CODE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_PRESSURE_DROP_HIGH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_TU_NOT_BS5682,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_TU_NOT_INDEXED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_VERIFY_FAILED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_VERIFY_OVERDUE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_ZVB_NO_REF,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_MGS_ZVB_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+WARN_MGS_AAP_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_DIVERSITY_HIGH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_FLOW_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_FLOW_RATE_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_GAS_TYPE_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_NOT_BRAZED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_PIPE_NOT_BRAZED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_PRESSURE_BELOW_CODE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_PRESSURE_DROP_HIGH,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_TU_NOT_BS5682,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_TU_NOT_INDEXED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_VERIFY_FAILED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_VERIFY_OVERDUE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_ZVB_NO_REF,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_MGS_ZVB_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_MNT_ACCESS_CLEARANCE,<ALL>
 WARN_MNT_SERVICE_SPACE,<ALL>
 WARN_PER_ACOUSTIC_FLOOR_IIC,<ALL>
@@ -3199,11 +3199,11 @@ WARN_PRJ_CODE_MISSING,<ALL>
 WARN_PRJ_HEALTH_FACILITY_TYPE_MISSING,<ALL>
 WARN_PRJ_HEALTH_QE_MISSING,<ALL>
 WARN_PRJ_ORIGINATOR_MISSING,<ALL>
-WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_RAD_DOOR_NO_INTERLOCKS,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_RAD_DOSIMETRY_POST_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_RAD_LEAD_INSUFFICIENT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
-WARN_RAD_QE_NOT_SIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
+WARN_RAD_CONTROLLED_AREA_NOT_SIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_RAD_DOOR_NO_INTERLOCKS,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_RAD_DOSIMETRY_POST_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_RAD_LEAD_INSUFFICIENT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_RAD_QE_NOT_SIGNED,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_RGL_ACCESSIBLE_WC,<ALL>
 WARN_RGL_ACCESS_CLEAR_WIDTH_MM_DOORS__RAMPS__C,<ALL>
 WARN_RGL_LIFT_CAR_SIZE,<ALL>

@@ -54,7 +54,7 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
 "ROOF":"Roofs","STAIR":"Stairs|Railings","RAMP":"Ramps","RAILING":"Railings","CASEWORK":"Casework","FURN":"Furniture|Furniture Systems",
 "PARK":"Parking","COLUMN":"Columns|Structural Columns","ROOM":"Rooms","FINISH":"Walls|Floors|Ceilings|Roofs|Rooms",
-"MATERIAL":"Materials","SHEET":"Sheets","TITLEBLOCK":"Title Blocks","PROJECT_INFO":"Project Information","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
+"MATERIAL":"Materials","SHEET":"Sheets","TITLEBLOCK":"Title Blocks","PROJECT_INFO":"Project Information","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment","MGS_PIPEWORK":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
 SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"DATA","MGS":"HEALTH","CLN":"HEALTH","CEQ":"HEALTH","RAD":"HEALTH","FLS":"FIRE"}
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
@@ -64,6 +64,7 @@ for row in csv.reader(open("StingTools/Data/CATEGORY_BINDINGS.csv",encoding="utf
 ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","RECEPT":"ELEC_FIXTURE","IT":"ELEC_FIXTURE","SOCKET":"ELEC_FIXTURE","OUTLET":"ELEC_FIXTURE","SPUR":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS"}
 LTG={"CTRL":"LIGHT_DEV","CONTROLS":"LIGHT_DEV","CKT":"ELEC_CIRCUIT"}
 CST_MATERIAL=set("ADHESIVE AGGREGATE BLOCK BLOCKS CEMENT GROUT PAINT PRIMER SAND SHEET STEEL TILE FASTENER PLASTER PUTTY MORTAR WATER RIDGE DPC BRICK CONC CONCRETE SCREED RENDER REBAR TIMBER PLYWOOD WATERPROOF NAILS HARDCORE".split())
+MGS_PIPEWORK={"MGS_GAS_TYPE_TXT","MGS_ZVB_REF_TXT","MGS_NOM_PRESS_KPA_NR","MGS_DESIGN_FLOW_LPM_NR","MGS_PIPE_BRAZED_BOOL"}
 def resolve(n,desc,depth=0):
     p=n.split("_"); pre=p[0]; sub=p[1] if len(p)>1 else ""
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
@@ -118,6 +119,12 @@ def resolve(n,desc,depth=0):
     # compartment and no room in it -- while the fls-compartment-id filter (OST_Rooms),
     # the RDS validator and the Fire Compartment Tag all read it from Rooms.
     if n.startswith("FLS_COMPARTMENT_") and depth==0: return "FIRE_COMPARTMENT","fls-compartment"
+    # Medical gas travels in pipes. MgasNetwork builds each gas's network from
+    # pipes, fittings and accessories keyed on MGS_GAS_TYPE_TXT (and finds zone
+    # valve boxes by MGS_ZVB_REF_TXT on an accessory); MgasFlowValidator checks
+    # pressure and flow on the same elements. Under the HEALTH set none of them
+    # reached a pipe, so every network was terminal units with nothing between.
+    if n in MGS_PIPEWORK: return "MGS_PIPEWORK","mgs-pipework"
     if pre in SAFE:
         if pre=="HVC" and sub=="TERMINAL": return "HVAC_TERM","prefix+sub"
         if pre=="ELC" and sub in ELC: return ELC[sub],"elc-sub"
