@@ -1,4 +1,4 @@
-// ══════════════════════════════════════════════════════════════════════════
+﻿// ══════════════════════════════════════════════════════════════════════════
 //  MaterialProdOverrideRules.cs — the Revit-free half of the material-driven
 //  PROD suffix: parse the rule table, and answer a suffix for a MATERIAL NAME.
 //
@@ -41,6 +41,23 @@ namespace StingTools.Core
 
         /// <summary>Appended to the base PROD with a "-" separator.</summary>
         public string Suffix = "";
+
+        /// <summary>
+        /// Optional 4th column. When this matches the material name the rule does
+        /// NOT apply and matching continues to later rules.
+        ///
+        /// <para>WHY A COLUMN AND NOT A SPECIAL CASE. "Lead-Free Solder" took the
+        /// lead code: the word IS "lead", correctly bounded, so no amount of
+        /// boundary work fixes it. It is a NEGATION, and the table had no way to
+        /// say one. A <c>(?!-free)</c> hard-coded into the lead row would have
+        /// invited tin-free, chrome-free and every other one after it as more
+        /// hard-coding; expressing it as data means the next one is an edit to a
+        /// CSV.</para>
+        /// </summary>
+        public Regex Exclude;
+
+        /// <summary>The raw exclusion cell, kept for diagnostics and the data gate.</summary>
+        public string ExcludeText = "";
     }
 
     public static class MaterialProdOverrideRules
@@ -68,22 +85,47 @@ namespace StingTools.Core
                 // Category,MaterialPattern,Suffix — the pattern may itself contain
                 // no commas by construction (alternation uses '|'), so a plain
                 // 3-way split is faithful and keeps this Revit-free.
-                var cols = line.Split(new[] { ',' }, 3);
+                // 4-way now: the optional ExcludePattern is the last column. A
+                // 3-column row still parses exactly as before, so every existing
+                // row is unchanged.
+                var cols = line.Split(new[] { ',' }, 4);
                 if (cols.Length < 3) continue;
 
                 string cat = cols[0].Trim();
                 string pat = cols[1].Trim();
                 string suf = cols[2].Trim();
+                string exc = cols.Length > 3 ? cols[3].Trim() : "";
                 if (pat.Length == 0 || suf.Length == 0) continue;
 
                 try
                 {
+                    Regex excRx = null;
+                    if (exc.Length > 0)
+                    {
+                        // A malformed EXCLUSION must not silently widen the rule
+                        // back to matching everything it was meant to exclude, so
+                        // the row is dropped whole and named - the same policy the
+                        // pattern column already has, for the same reason.
+                        try
+                        {
+                            excRx = new Regex(exc, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                        }
+                        catch (Exception exEx)
+                        {
+                            warnings?.Add($"bad exclusion regex '{exc}' on rule '{pat}': {exEx.Message}"
+                                          + " - rule dropped rather than applied without its exclusion");
+                            continue;
+                        }
+                    }
+
                     rules.Add(new MaterialProdRule
                     {
                         Category = cat.Length == 0 ? "*" : cat,
                         Pattern = new Regex(pat, RegexOptions.IgnoreCase | RegexOptions.Compiled),
                         PatternText = pat,
                         Suffix = suf,
+                        Exclude = excRx,
+                        ExcludeText = exc,
                     });
                 }
                 catch (Exception ex)
@@ -110,7 +152,15 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(r.Category) && r.Category != "*" &&
                     !string.Equals(r.Category, categoryName, StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (r.Pattern.IsMatch(materialName)) return r.Suffix;
+                if (!r.Pattern.IsMatch(materialName)) continue;
+
+                // Excluded: this rule does not apply, and matching CONTINUES.
+                // Returning null here instead would stop a later rule that
+                // legitimately matches - "Lead-Free Solder" must be free to be
+                // caught by a solder rule if one is ever added.
+                if (r.Exclude != null && r.Exclude.IsMatch(materialName)) continue;
+
+                return r.Suffix;
             }
             return null;
         }

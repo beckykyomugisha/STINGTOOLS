@@ -19686,3 +19686,23 @@ STR_REBAR_BEND_RADIUS_MM,Structural Fabric Reinforcement,Instance,Yes
 STR_REBAR_BEND_RADIUS_MM,Structural Rebar Couplers,Instance,Yes
 BI_ACCENT_COLOR_TXT,Generic Models,Instance,Yes
 BI_THEME_NAME_TXT,Generic Models,Instance,Yes
+CST_S_REI_WEIGHT_KG,Brace / Truss,Instance,True
+STR_BRACE_LENGTH_MM,Brace / Truss,Instance,True
+BLE_CBL_TRAY_DEPTH_MM_DISP_TXT,Tie-In Point Tag (Cable Tray — Electrical),Instance,True
+BLE_CBL_TRAY_WIDTH_MM_DISP_TXT,Tie-In Point Tag (Cable Tray — Electrical),Instance,True
+ELC_CTR_FILL_PCT,Tie-In Point Tag (Cable Tray — Electrical),Instance,True
+ELC_CDT_CBL_FILL_PCT,Tie-In Point Tag (Conduit — Electrical LV/ELV),Instance,True
+HVC_DCT_FLW_CFM,Tie-In Point Tag (Duct — HVAC),Instance,True
+HVC_DCT_INSULATION_THK_MM_DISP_TXT,Tie-In Point Tag (Duct — HVAC),Instance,True
+HVC_VEL_MPS,Tie-In Point Tag (Duct — HVAC),Instance,True
+PLM_PPE_FLW_LPS,Tie-In Point Tag (Fire Protection — Sprinkler / Suppression),Instance,True
+PLM_PPE_PSR_RATING_BAR,Tie-In Point Tag (Fire Protection — Sprinkler / Suppression),Instance,True
+PLM_PSR_KPA,Tie-In Point Tag (Fire Protection — Sprinkler / Suppression),Instance,True
+PLM_SYS_TXT,Tie-In Point Tag (Fire Protection — Sprinkler / Suppression),Instance,True
+PLM_PPE_PSR_RATING_BAR,Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas),Instance,True
+PLM_PSR_KPA,Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas),Instance,True
+PLM_SYS_TXT,Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas),Instance,True
+PLM_PPE_FLW_LPS,Tie-In Point Tag (Pipe — Plumbing & Hydraulic),Instance,True
+PLM_PPE_PSR_RATING_BAR,Tie-In Point Tag (Pipe — Plumbing & Hydraulic),Instance,True
+PLM_PSR_KPA,Tie-In Point Tag (Pipe — Plumbing & Hydraulic),Instance,True
+PLM_SYS_TXT,Tie-In Point Tag (Pipe — Plumbing & Hydraulic),Instance,True
