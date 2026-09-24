@@ -414,7 +414,14 @@ namespace StingTools.UI.PlacementCenter
         private void RaiseRevitToFront()
         {
             // Best-effort Revit-window foreground hint. Real impl uses Win32 SetForegroundWindow.
-            try { this.Activate(); } catch { /* may not be on UI thread */ }
+            try { this.Activate(); }
+            catch (Exception ex)
+            {
+                // V-10: harmless when off the UI thread, but say so rather than
+                // leave "the window never came forward" unexplained.
+                StingTools.Core.StingLog.WarnRateLimited("PlacementCenter.Activate",
+                    $"StingPlacementCenter.RaiseRevitToFront: Activate failed: {ex.Message}");
+            }
         }
     }
 }
@@ -430,8 +437,10 @@ namespace StingTools.Core.Drawing
         // file only adds the *Cached variants the merged code expects.
         internal static ElementId ResolveCategoryIdCached(Document doc, string key)
         {
-            try { if (Enum.TryParse<BuiltInCategory>(key, out var bic)) return new ElementId(bic); }
-            catch { }
+            // V-10: Enum.TryParse + new ElementId(bic) cannot throw for a parsed
+            // value; the try/catch{} around it only hid a fast path that never failed.
+            if (!string.IsNullOrWhiteSpace(key) && Enum.TryParse<BuiltInCategory>(key, out var bic))
+                return new ElementId(bic);
             // The corporate/project packs key vgOverrides by localised category
             // name ("Walls", "Ducts") and by custom subcategory ("STING-LargeTree",
             // "STING_TagStatus" — the universal-tag status-badge subcategory). The
@@ -443,7 +452,11 @@ namespace StingTools.Core.Drawing
                 var byName = ResolveCategoryId(doc, key);
                 if (byName != null && byName != ElementId.InvalidElementId) return byName;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveCategoryIdCached",
+                    $"ResolveCategoryIdCached('{key}'): {ex.Message} -- reported as not found");
+            }
             return ElementId.InvalidElementId;
         }
         // V-4: these are the "Cached" resolvers that never cached. Each ran a
@@ -533,7 +546,14 @@ namespace StingTools.Core.Drawing
             if (tb == null || keys == null) return false;
             foreach (var k in keys)
             {
-                try { if (tb.LookupParameter(k) != null) return true; } catch { }
+                try { if (tb.LookupParameter(k) != null) return true; }
+                catch (Exception ex)
+                {
+                    // V-10: a throw reads as "title block has none of these keys",
+                    // which skips the title-block fill. Log it (rate-limited).
+                    StingTools.Core.StingLog.WarnRateLimited("TitleBlockHasAnyKey",
+                        $"TitleBlockHasAnyKey({tb.Id}, '{k}'): {ex.Message}");
+                }
             }
             return false;
         }

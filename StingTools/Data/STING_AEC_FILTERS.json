@@ -807,7 +807,7 @@
         "OST_Windows"
       ],
       "rule": {
-        "param": "ANALYTICAL_U_VALUE",
+        "param": "ANALYTICAL_HEAT_TRANSFER_COEFFICIENT",
         "op": "lessOrEqual",
         "value": "1.4",
         "type": "double"
@@ -4562,7 +4562,7 @@
         "OST_SpecialityEquipment"
       ],
       "rule": {
-        "param": "AssetCriticality",
+        "param": "MNT_CRITICALITY_RATING_TXT",
         "kind": "shared",
         "op": "equals",
         "value": "Critical"
@@ -4590,7 +4590,7 @@
         "OST_LightingFixtures"
       ],
       "rule": {
-        "param": "AssetCriticality",
+        "param": "MNT_CRITICALITY_RATING_TXT",
         "kind": "shared",
         "op": "equals",
         "value": "High"
@@ -4616,7 +4616,7 @@
         "OST_SpecialityEquipment"
       ],
       "rule": {
-        "param": "WarrantyEnd",
+        "param": "MNT_WARRANTY_EXPIRY_TXT",
         "kind": "shared",
         "op": "hasValue"
       },
@@ -4944,7 +4944,7 @@
         "OST_Rebar"
       ],
       "rule": {
-        "param": "REBAR_BAR_TYPE",
+        "param": "ALL_MODEL_TYPE_NAME",
         "op": "contains",
         "value": "H"
       },
@@ -5084,7 +5084,7 @@
         "OST_Walls"
       ],
       "rule": {
-        "param": "Classification.Uniclass.Ss.Number",
+        "param": "UNICLASS_SS_TXT",
         "kind": "shared",
         "op": "beginsWith",
         "value": "Ss_25"
@@ -5106,7 +5106,7 @@
         "OST_Roofs"
       ],
       "rule": {
-        "param": "Classification.Uniclass.Ss.Number",
+        "param": "UNICLASS_SS_TXT",
         "kind": "shared",
         "op": "beginsWith",
         "value": "Ss_30"
@@ -7616,10 +7616,11 @@
         "OST_PipeFitting"
       ],
       "rule": {
-        "param": "PLM_DEAD_LEG_BOOL",
+        "param": "PLM_DEAD_LEG_M_NR",
         "kind": "shared",
-        "op": "equals",
-        "value": "1"
+        "op": "greater",
+        "value": "1",
+        "type": "double"
       },
       "override": {
         "visible": true,

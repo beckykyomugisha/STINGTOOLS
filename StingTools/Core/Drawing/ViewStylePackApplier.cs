@@ -444,7 +444,11 @@ namespace StingTools.Core.Drawing
                     if (!string.IsNullOrEmpty(dlStr) &&
                         Enum.TryParse<ViewDetailLevel>(dlStr, true, out var dl))
                     {
-                        try { ogs.SetDetailLevel(dl); } catch { /* < 2023 */ }
+                        // V-10: was a silent catch "for < 2023"; the plugin targets
+                        // 2025+, so a throw here is a real failure to honour the
+                        // pack's detail level and must reach the result.
+                        SafeWrite.Try(() => ogs.SetDetailLevel(dl), "ViewStylePack.Filter",
+                            $"detail level '{dlStr}' on filter '{rule.FilterName}'", r?.Warnings);
                     }
 
                     view.SetFilterOverrides(filterId, ogs);
@@ -488,7 +492,8 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// Applies workset visibility settings from <paramref name="pack"/> to
-        /// <paramref name="view"/>. Silently skips when the document is not workshared.
+        /// <paramref name="view"/>. A pack that states no mode is skipped silently; one that states a mode on a
+        /// non-workshared document warns (see <see cref="WorksetVisibilityPlan"/>).
         /// The pack's WorksetVisibility string is a mode keyword: "ShowAll" / "HideAll" / null (skip).
         /// </summary>
         public static void ApplyWorksetVisibility(Document doc, View view, ViewStylePack pack, PackApplyResult r)
@@ -496,11 +501,19 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null || r == null) return;
             try
             {
-                if (!doc.IsWorkshared)
-                { r.Warnings.Add("ApplyWorksetVisibility: document is not workshared — skipped."); return; }
-                var mode = (pack.WorksetVisibility ?? "").Trim();
-                if (string.IsNullOrEmpty(mode)) return;
-                var visibility = string.Equals(mode, "HideAll", StringComparison.OrdinalIgnoreCase)
+                // V-11: the pack's intent decides first. The workshare check
+                // used to run before this, so every apply on every
+                // non-workshared project warned "skipped" although no shipped
+                // pack sets worksetVisibility -- noise that trains users to
+                // ignore the warnings list.
+                switch (WorksetVisibilityPlan.Decide(pack.WorksetVisibility, doc.IsWorkshared))
+                {
+                    case WorksetVisibilityAction.None: return;
+                    case WorksetVisibilityAction.WarnNotWorkshared:
+                        r.Warnings.Add(WorksetVisibilityPlan.NotWorksharedWarning(pack.Id, pack.WorksetVisibility));
+                        return;
+                }
+                var visibility = WorksetVisibilityPlan.Hides(pack.WorksetVisibility)
                     ? WorksetVisibility.Hidden
                     : WorksetVisibility.Visible;
                 // CA2021: Workset is not an Element, use GetWorksets() instead
@@ -719,28 +732,14 @@ namespace StingTools.Core.Drawing
                         if (string.Equals(sub.Name, trimmed, StringComparison.OrdinalIgnoreCase))
                             return sub.Id;
             }
-            catch { }
-            return ElementId.InvalidElementId;
-        }
-
-        private static ElementId ResolveSubCategoryId(Document doc, string categoryName, string subCatName)
-        {
-            if (string.IsNullOrWhiteSpace(categoryName) || string.IsNullOrWhiteSpace(subCatName))
-                return ElementId.InvalidElementId;
-            try
+            catch (Exception ex)
             {
-                var parent = ResolveCategoryId(doc, categoryName);
-                if (parent == ElementId.InvalidElementId) return ElementId.InvalidElementId;
-                var trimmed = subCatName.Trim('<', '>', ' ');
-                foreach (Category c in doc.Settings.Categories)
-                {
-                    if (c.Id != parent) continue;
-                    foreach (Category sub in c.SubCategories)
-                        if (string.Equals(sub.Name.Trim('<', '>', ' '), trimmed, StringComparison.OrdinalIgnoreCase))
-                            return sub.Id;
-                }
+                // V-10: callers turn InvalidElementId into "category not found",
+                // which is wrong when the lookup THREW. Log the real cause
+                // (rate-limited: this runs per pack key per view).
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveCategoryId",
+                    $"ViewStylePackApplier: category lookup for '{key}' threw -- reported as not found: {ex.Message}");
             }
-            catch { }
             return ElementId.InvalidElementId;
         }
 
@@ -834,7 +833,14 @@ namespace StingTools.Core.Drawing
                         if (svo.Halftone != null || svo.ProjectionLineWeight != null || svo.Transparency != null)
                             result[cat.Name ?? cat.Id.ToString()] = svo;
                     }
-                    catch { /* skip inaccessible categories */ }
+                    catch (Exception exCat)
+                    {
+                        // V-10: an inaccessible category is skipped, but a snapshot
+                        // that silently drops categories reads as "no override" --
+                        // say which (rate-limited: one line per category at most).
+                        StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ReadCategoryOverrides",
+                            $"ReadCategoryOverrides: category '{cat?.Name}' skipped -- not in snapshot: {exCat.Message}");
+                    }
                 }
             }
             catch (Exception ex)

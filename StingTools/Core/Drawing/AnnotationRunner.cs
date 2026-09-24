@@ -101,6 +101,19 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || drawingType?.Annotation == null) return stats;
             var pack = drawingType.Annotation;
 
+            // A-2: the comments here and in AnnotationRulePack said the legacy
+            // per-category bools (autoTagRooms, autoDimGrids, ...) "fold into
+            // rules via MigrateFromLegacy at load" - but MigrateFromLegacy had
+            // no caller, so a profile still using them annotated nothing. Fold
+            // them now, and only when one is set, so a modern pack is not
+            // touched (the registry checksums packs at load, before this).
+            if (pack.HasLegacyFlags())
+            {
+                pack.MigrateFromLegacy();
+                stats.Warnings.Add($"Drawing type '{drawingType.Id}' uses legacy autoTag*/autoDim* flags; " +
+                                   "they were folded into rules for this run — re-save the type to persist rules.");
+            }
+
             // Surface unimplemented ruleTypes before any pass runs, so a
             // typo or an un-migrated name reads as a warning rather than as
             // a quietly empty drawing.
@@ -819,14 +832,11 @@ namespace StingTools.Core.Drawing
 
         // ─── Tagging ─────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Walk every element of the given category visible in the view
-        /// and drop an IndependentTag at the element's centre. The tag
-        /// family is resolved from AnnotationRulePack.TagFamilies[catKey]
-        /// if present, otherwise the first loaded tag family for the
-        /// category. After placing each tag, applies CategoryDepths from
-        /// the active ViewStylePack if declared.
-        /// </summary>
+        // TagCategory walks every element of a category visible in the view
+        // and drops an IndependentTag at its centre (tag family: rule, then
+        // pack TagFamilies, then first loaded). Depth is NOT written here -- see
+        // TagDepthLayering / TokenProfileApplier.WriteCategoryDepths.
+
         /// <summary>
         /// Element ids already carrying an IndependentTag in this view.
         /// Built once per view and shared across every tag rule.
@@ -949,6 +959,24 @@ namespace StingTools.Core.Drawing
             // config dialog ever read this field before.
             bool skipIfTagged = rule?.SkipIfTagged ?? true;
 
+            // A-2: leaderStyle on a TAG rule. Create() took a hard-coded
+            // addLeader:false, so Attached / Free were ignored.
+            var leader = TagLeader.Parse(rule?.LeaderStyle);
+            if (leader == TagLeaderMode.Unrecognised)
+            {
+                stats.Warnings.Add($"Rule leaderStyle '{rule.LeaderStyle}' for {catKey} is not one of " +
+                                   "NoLeader / Attached / Free — tagging without a leader.");
+                leader = TagLeaderMode.None;
+            }
+            bool addLeader = leader == TagLeaderMode.Attached || leader == TagLeaderMode.Free;
+
+            // A-2: minSizeMm on a TAG rule. Only the dimensioners read it, so a
+            // rule saying "nothing under 50 mm" tagged every stub. Size is
+            // ElementSize.MeasureFt: MEP section, else curve length, else plan
+            // bbox extent. Unmeasurable elements are kept and counted.
+            double? minSizeMm = rule?.MinSizeMm;
+            int belowMin = 0, unmeasured = 0;
+
             foreach (var el in elements)
             {
                 try
@@ -957,6 +985,13 @@ namespace StingTools.Core.Drawing
                     {
                         stats.Skipped++;
                         continue;
+                    }
+
+                    if (minSizeMm.HasValue)
+                    {
+                        bool keep = ElementSize.Keeps(el, view, minSizeMm, out bool noSize);
+                        if (noSize) unmeasured++;
+                        if (!keep) { belowMin++; stats.Skipped++; continue; }
                     }
 
                     var pt = GetElementCentre(el);
@@ -981,7 +1016,16 @@ namespace StingTools.Core.Drawing
                     // turns any "can't tag this host" failure into a Skipped
                     // count + warning row, replacing the dropped pre-check.
                     var tag = IndependentTag.Create(doc, tagTypeId, view.Id,
-                        new Reference(el), false, orientation, pt);
+                        new Reference(el), addLeader, orientation, pt);
+                    if (tag != null && leader == TagLeaderMode.Free)
+                    {
+                        try { tag.LeaderEndCondition = LeaderEndCondition.Free; }
+                        catch (Exception exL)
+                        {
+                            StingLog.WarnRateLimited("AnnotationRunner.FreeLeader",
+                                $"Free leader on tag {tag.Id} for {catKey}: {exL.Message} — left attached");
+                        }
+                    }
                     if (tag != null)
                     {
                         stats.TagsPlaced++;
@@ -996,6 +1040,11 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
+
+            if (belowMin > 0)
+                stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");
+            if (unmeasured > 0)
+                stats.Warnings.Add($"{catKey}: {unmeasured} element(s) could not be measured for minSizeMm and were tagged anyway.");
         }
 
         private static BuiltInCategory TagCategoryFor(BuiltInCategory host)

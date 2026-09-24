@@ -329,7 +329,12 @@ namespace StingTools.Core.Drawing
                         if (sp != null) return sp.Id;
                     }
                 }
-                catch { /* registry not loaded — fall through */ }
+                catch (Exception ex)
+                {
+                    // Falls through to the by-name scan, which may still find it.
+                    StingLog.WarnRateLimited("AecFilterFactory.RegistryGuid",
+                        $"AecFilterFactory: registry GUID lookup for '{paramName}' threw ({ex.Message}) — falling back to a name scan");
+                }
 
                 // Last resort — scan project shared parameters by name.
                 var byName = new FilteredElementCollector(doc)
@@ -338,7 +343,16 @@ namespace StingTools.Core.Drawing
                     .FirstOrDefault(s => string.Equals(s.Name, paramName, StringComparison.OrdinalIgnoreCase));
                 if (byName != null) return byName.Id;
 
-                warnings?.Add($"Shared parameter '{paramName}' not bound — filter skipped.");
+                // V-12b: say WHICH kind of miss this is. A STING parameter that is
+                // not bound is fixed by Load Shared Parameters; a third-party name
+                // (COBie.*, BIM_LOD, AssetOwner, ...) only resolves in a project
+                // that defines a parameter spelled exactly that way.
+                bool isSting = false;
+                try { isSting = StingTools.Core.ParamRegistry.AllParamGuids?.ContainsKey(paramName) == true; }
+                catch (Exception ex) { StingLog.Warn($"AecFilterFactory: registry lookup for '{paramName}': {ex.Message}"); }
+                warnings?.Add(isSting
+                    ? $"Shared parameter '{paramName}' is a STING parameter but is not bound in this project — run Load Shared Parameters; filter skipped."
+                    : $"Shared parameter '{paramName}' is not a STING parameter and no project parameter of that name exists — filter skipped (external name: define it in the project to enable this filter).");
                 return ElementId.InvalidElementId;
             }
 

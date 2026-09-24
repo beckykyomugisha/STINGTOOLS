@@ -237,9 +237,13 @@ namespace StingTools.Core.Drawing
             {
                 if (_resolvedCache.ContainsKey(docKey)) _resolvedCache.Remove(docKey);
             }
-            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); } catch { }
-            try { DrawingTypePresentation.InvalidatePackCache(doc); }       catch { }
-            try { DrawingDriftDetector.InvalidateCache(doc); }              catch { }
+            // A failed invalidation leaves a stale cache serving the old
+            // profile, so it must be heard. (The drift detector has no cache
+            // since E-11 -- it re-reads stamps on every Scan.)
+            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.InvalidateResolvedCache: view-template cache not cleared -- stale template lookups possible: {ex.Message}"); }
+            try { DrawingTypePresentation.InvalidatePackCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.InvalidateResolvedCache: pack cache not cleared -- stale pack resolution possible: {ex.Message}"); }
         }
 
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)

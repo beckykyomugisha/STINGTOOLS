@@ -59,10 +59,9 @@ namespace StingTools.Core.Drawing
                 var current = p.AsString();
                 if (string.Equals(current, drawingTypeId, StringComparison.Ordinal)) return true;
                 p.Set(drawingTypeId);
-                // FIX-2: a freshly-stamped view changes the set of views the
-                // drift detector should scan. Invalidate the per-doc reverse
-                // index so the next Scan() includes this view.
-                try { DrawingDriftDetector.InvalidateCache(el.Document); } catch { }
+                // E-11: DrawingDriftDetector.Scan re-reads stamps every call,
+                // so there is no index to invalidate here (and stamps written
+                // outside this method are seen too).
                 return true;
             }
             catch (Exception ex)

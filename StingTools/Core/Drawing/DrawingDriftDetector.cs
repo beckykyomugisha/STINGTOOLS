@@ -62,38 +62,17 @@ namespace StingTools.Core.Drawing
 
     public static class DrawingDriftDetector
     {
-        // PERF-06: reverse index of (stamped DrawingTypeId → list of view ids).
-        // The Scan() pass walked every View in the document and called
-        // DrawingTypeStamper.Read on each, even though most projects only have
-        // a few stamped views. Cache the index per-document so repeated scans
-        // (which happen on every SyncStyles / Inspect press) skip the
-        // FilteredElementCollector + per-element stamp read.
-        private sealed class ScanCache
-        {
-            public Dictionary<long, string> StampByViewId
-                = new Dictionary<long, string>();
-            public bool Valid;
-        }
-
-        private static readonly object _cacheLock = new object();
-        private static readonly Dictionary<string, ScanCache> _cache
-            = new Dictionary<string, ScanCache>(StringComparer.OrdinalIgnoreCase);
-
-        private static string DocKey(Document doc)
-        {
-            if (doc == null) return "__null__";
-            try { return string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName; }
-            catch { return "__unknown__"; }
-        }
-
-        public static void InvalidateCache(Document doc)
-        {
-            string k = DocKey(doc);
-            lock (_cacheLock)
-            {
-                if (_cache.TryGetValue(k, out var sc)) sc.Valid = false;
-            }
-        }
+        // E-11: there is deliberately NO cross-call cache of "which views are
+        // stamped". A PERF-06 reverse index used to live here, invalidated only
+        // when STING itself stamped a view (DrawingTypeStamper.Stamp) or the
+        // registry reloaded. A view stamped any other way -- Properties palette,
+        // copy/paste of a stamped view, Dynamo, Transfer Project Standards, an
+        // undo -- stayed invisible to every Scan for the rest of the session,
+        // and nothing told the user. Rebuilding per Scan costs one view
+        // collector plus one parameter read per view, which is small next to
+        // the per-stamped-view drift work below (template, crop, VG, filter
+        // probes), and it cannot go stale. Subscribing to DocumentChanged to
+        // keep a cache honest would be more moving parts than the cache saved.
 
         public static List<DriftReport> Scan(Document doc)
         {
@@ -113,26 +92,14 @@ namespace StingTools.Core.Drawing
                 if (resolved != null) resolvedById[raw.Id] = resolved;
             }
 
-            // PERF-06: build / refresh the reverse index once per Scan call;
-            // the inner loop reads stamp values out of the dictionary instead
-            // of probing every element.
-            ScanCache cache;
-            lock (_cacheLock)
+            // E-11: rebuilt on every Scan (see the note above Scan).
+            var stampByViewId = new Dictionary<long, string>();
+            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
             {
-                if (!_cache.TryGetValue(DocKey(doc), out cache))
-                    _cache[DocKey(doc)] = cache = new ScanCache();
-            }
-            if (!cache.Valid)
-            {
-                cache.StampByViewId.Clear();
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
-                {
-                    if (!(el is View vv) || vv.IsTemplate) continue;
-                    var s = DrawingTypeStamper.Read(vv);
-                    if (string.IsNullOrWhiteSpace(s)) continue;
-                    cache.StampByViewId[vv.Id.Value] = s;
-                }
-                cache.Valid = true;
+                if (!(el is View vv) || vv.IsTemplate) continue;
+                var s = DrawingTypeStamper.Read(vv);
+                if (string.IsNullOrWhiteSpace(s)) continue;
+                stampByViewId[vv.Id.Value] = s;
             }
 
             // PERF: build the (filter name → ParameterFilterElement) index at
@@ -150,11 +117,16 @@ namespace StingTools.Core.Drawing
                         if (!string.IsNullOrEmpty(f.Name) && !map.ContainsKey(f.Name))
                             map[f.Name] = f; // first-wins on duplicate names
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    // An empty index reports every pack filter as "not attached";
+                    // say why rather than let that read as real drift.
+                    StingTools.Core.StingLog.Warn($"DrawingDriftDetector: filter index build failed -- FILTER drift for this scan is unreliable: {ex.Message}");
+                }
                 return map;
             });
 
-            foreach (var kv in cache.StampByViewId)
+            foreach (var kv in stampByViewId)
             {
                 if (!(doc.GetElement(new ElementId(kv.Key)) is View v) || v.IsTemplate) continue;
                 var dtId = kv.Value;
