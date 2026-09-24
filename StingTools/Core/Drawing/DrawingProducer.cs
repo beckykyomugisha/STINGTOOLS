@@ -241,7 +241,7 @@ namespace StingTools.Core.Drawing
 
             var rules = (dt.ProductionRules != null && dt.ProductionRules.Count > 0)
                 ? dt.ProductionRules.OrderBy(r => r.Idx).ToList()
-                : new List<ProductionRule> { SynthesizeSingleRule(dt) };
+                : new List<ProductionRule> { SynthesizeSingleRule(dt, result) };
 
             if (opts.CreateSheet)
                 result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
@@ -277,19 +277,19 @@ namespace StingTools.Core.Drawing
             return result;
         }
 
-        private static ProductionRule SynthesizeSingleRule(DrawingType dt)
+        // D-7: the purpose -> view-kind decision lives in DrawingPurposeViewKind
+        // (Revit-free, tested). The old switch defaulted every unlisted purpose
+        // — Schematic, Clarification, Legend, Spool, Coordination — to
+        // "FloorPlan", so a riser schematic was silently produced as a plan.
+        // Unknown or unproducible purposes now yield no rule and a warning.
+        private static ProductionRule SynthesizeSingleRule(DrawingType dt, ProduceResult result)
         {
-            string vt;
-            switch ((dt.Purpose ?? "").Trim())
+            var vt = DrawingPurposeViewKind.ResolveForProduction(dt.Id, dt.Purpose, out var problem);
+            if (vt == null)
             {
-                case DrawingPurpose.Plan:         vt = "FloorPlan"; break;
-                case DrawingPurpose.Rcp:          vt = "RCP"; break;
-                case DrawingPurpose.Section:      vt = "Section"; break;
-                case DrawingPurpose.Elevation:    vt = "Elevation"; break;
-                case DrawingPurpose.Detail:       vt = "Detail"; break;
-                case DrawingPurpose.ThreeD:       vt = "ThreeD"; break;
-                case DrawingPurpose.Schedule:     vt = "Schedule"; break;
-                default:                          vt = "FloorPlan"; break;
+                StingLog.Warn($"DrawingProducer: {problem}");
+                result.Warnings.Add(problem);
+                return null;
             }
             return new ProductionRule { Idx = 0, ViewType = vt, Required = true, SlotIndex = 0 };
         }

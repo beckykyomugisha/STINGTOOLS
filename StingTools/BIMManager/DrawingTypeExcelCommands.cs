@@ -152,9 +152,10 @@ namespace StingTools.BIMManager
     internal static class DrawingTypeExcelEngine
     {
         // ── Enum dropdown lists ──
-        internal static readonly string[] PurposeOptions = {
-            "Plan","RCP","Section","Elevation","Detail","Schedule","Spool","Coordination","Legend","3D"
-        };
+        // Derived, not listed: the hand-written copy lacked Schematic and
+        // Clarification, so exporting the shipped catalogue and importing it
+        // back failed validation on all ten of those rows.
+        internal static readonly string[] PurposeOptions = DrawingPurpose.All;
         internal static readonly string[] PaperSizeOptions  = { "A0","A1","A2","A3","A4" };
         internal static readonly string[] OrientationOptions= { "Landscape","Portrait" };
         internal static readonly string[] DetailLevelOptions= { "Coarse","Medium","Fine" };
