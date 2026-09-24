@@ -177,6 +177,25 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Semi_enclosed_fuse_picks_In_from_the_BS3036_ratings()
+        {
+            // Ib 22 A on a BS 3036 fuse: ratings 5/15/20/30/45/60/100 → In 30 A (an MCB list
+            // would give 25 A, which is not a BS 3036 rating).
+            // It ≥ 30 / 0.725 = 41.38 A → 4 mm² (36) ✗ → 6 mm² (46) ✓.
+            var i = Pvc(22, 5, 5.0);
+            i.SemiEnclosedFuse = true;
+            i.DeviceRatingsA = ProtectiveDeviceSelection.Bs3036SemiEnclosedFuseRatingsA;
+            i.DeviceLabel = ProtectiveDeviceSelection.Bs3036Label;
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(30, r.DeviceRatingA);
+            Assert.Equal(41.38, r.RequiredItA, 2);
+            Assert.Equal(6.0, r.CsaMm2);
+            Assert.Contains("BS 3036 semi-enclosed fuse", r.Basis);
+            Assert.DoesNotContain("MCB", r.Basis);
+        }
+
+        [Fact]
         public void Ambient_uses_Table_4B1_and_the_hotter_row()
         {
             // 37 °C → read at the 40 °C row, PVC Ca = 0.87. Ib 25 → In 25 → It ≥ 28.7 A → 4 mm².

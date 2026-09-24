@@ -367,6 +367,13 @@ namespace StingTools.Core.Electrical
     /// </summary>
     public static class ProtectiveDeviceSelection
     {
+        /// <summary>BS 3036 semi-enclosed (rewirable) fuse ratings, A. A circuit on a
+        /// BS 3036 fuse must choose In from THESE — not from the MCB series — or the
+        /// result names a device that does not exist in that form (e.g. a 32 A rewirable).</summary>
+        public static readonly int[] Bs3036SemiEnclosedFuseRatingsA = { 5, 15, 20, 30, 45, 60, 100 };
+
+        public const string Bs3036Label = "BS 3036 semi-enclosed fuse";
+
         public sealed class Selection
         {
             public int ProposedA { get; set; }
