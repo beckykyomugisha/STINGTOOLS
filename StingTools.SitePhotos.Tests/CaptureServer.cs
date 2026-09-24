@@ -59,16 +59,38 @@ public sealed class CaptureServer : IDisposable
 
     public int RequestCount { get { lock (_lock) return _requests.Count; } }
 
-    /// <summary>Paths seen since a marker count — the basis of "no call was made".</summary>
+    /// <summary>
+    /// Paths seen since a marker count — the basis of "no call was made" and of
+    /// "the call was attempted".
+    ///
+    /// Excludes the realtime hub (<c>/hubs/…</c>). A successful LoginAsync whose
+    /// token carries a tenant and user id (FakeJwt below always does) starts
+    /// PlanscapeRealtimeClient on a fire-and-forget Task.Run, which POSTs
+    /// <c>/hubs/notifications/negotiate</c> at some unspecified moment AFTER login
+    /// returns — often after a test has taken its marker. Counted, that stray
+    /// negotiate made the "refused before any request" assertions fail
+    /// intermittently (the 200-photo PDF cap test) and, worse, could
+    /// make the "was attempted" assertions pass when the guard had in fact refused
+    /// locally. No guard under test ever routes through the hub, so excluding it
+    /// removes background noise without hiding a request a guard could have made.
+    /// </summary>
     public IReadOnlyList<string> PathsSince(int marker)
     {
         lock (_lock)
         {
             var outp = new List<string>();
-            for (int i = marker; i < _requests.Count; i++) outp.Add(_requests[i].Path);
+            for (int i = marker; i < _requests.Count; i++)
+            {
+                var path = _requests[i].Path;
+                if (IsBackgroundRealtime(path)) continue;
+                outp.Add(path);
+            }
             return outp;
         }
     }
+
+    private static bool IsBackgroundRealtime(string path) =>
+        path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Stop accepting connections — used to simulate the API going down mid-session.</summary>
     public void Kill()
