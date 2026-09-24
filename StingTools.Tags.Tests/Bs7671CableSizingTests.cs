@@ -69,7 +69,12 @@ namespace StingTools.Tags.Tests
         public void Rows_not_yet_checked_against_the_print_are_flagged_not_verified()
         {
             var table = Data().FindTable("Cu", "PVC70", "C");
-            Assert.All(table.Rows.Where(r => r.CsaMm2 >= 25), r => Assert.False(r.Verified));
+            Assert.NotNull(table);
+            // Assert.All over an empty sequence passes, so pin the row count first:
+            // 25, 35, 50, 70, 95, 120, 150, 185, 240 mm² = 9 rows.
+            var large = table.Rows.Where(r => r.CsaMm2 >= 25).ToList();
+            Assert.Equal(9, large.Count);
+            Assert.All(large, r => Assert.False(r.Verified));
         }
 
         // ── the worked example ───────────────────────────────────────────────
@@ -291,6 +296,14 @@ namespace StingTools.Tags.Tests
         {
             Assert.Equal(expected, WireSizeParser.ParseCsaMm2(text), 2);
         }
+
+        [Theory]
+        // ExternalExportEngine took the FIRST digit run ("2 x 2.5mm²" → 2);
+        // WireProfile joined EVERY digit ("2x2.5mm2" → 22.52). Both now delegate here.
+        [InlineData("2 x 2.5mm²", 2.5)]
+        [InlineData("2x2.5mm2", 2.5)]
+        public void Former_duplicate_parser_failure_strings_read_the_csa(string text, double expected)
+            => Assert.Equal(expected, WireSizeParser.ParseCsaMm2(text), 3);
 
         // ── voltage-drop engine (ELEC-5) ────────────────────────────────────
 

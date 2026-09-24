@@ -377,17 +377,10 @@ namespace StingTools.Commands.Electrical.Export
         { try { return e.get_Parameter(bip)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ""; } }
         private static T TrySafe<T>(Func<T> f, T fallback = default) { try { return f(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fallback; } }
         private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        // One wire-size parser for the whole plugin. The local one took the FIRST
+        // digit run, so "2 x 2.5mm²" exported a 2 mm² cable to ETAP/EasyPower.
         private static double ParseCsa(string wireSize)
-        {
-            if (string.IsNullOrEmpty(wireSize)) return 0;
-            string digits = "";
-            foreach (char ch in wireSize)
-            {
-                if (char.IsDigit(ch) || ch == '.') digits += ch;
-                else if (digits.Length > 0) break;
-            }
-            return ParseDouble(digits);
-        }
+            => StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(wireSize);
         private static string ReadPhase(ElectricalSystem sys)
         {
             try
