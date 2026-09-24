@@ -212,6 +212,14 @@
          document into two rows) is provable without a Revit host. -->
     <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <!-- ELEC-11: photometric parsers + zonal-lumen integration, and the IFC-results
+         room matcher. All Revit-free, so absolute (LED) photometry, EULUMDAT symmetry
+         and cd/klm scaling, and duplicate/ambiguous room matches are provable here. -->
+    <Compile Include="..\StingTools\Photometrics\PhotometricFile.cs" Link="Photometrics\PhotometricFile.cs" />
+    <Compile Include="..\StingTools\Photometrics\PhotometricIntegrator.cs" Link="Photometrics\PhotometricIntegrator.cs" />
+    <Compile Include="..\StingTools\Photometrics\IesParser.cs" Link="Photometrics\IesParser.cs" />
+    <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
+    <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
   </ItemGroup>
 
 </Project>
