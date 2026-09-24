@@ -129,6 +129,7 @@ namespace StingTools.UI
                 CurrentBreakerOptions = _panel.ReadBreakerOptions();
                 CurrentBalanceOptions = _panel.ReadBalanceOptions();
                 CurrentConduitFill = _panel.ReadConduitFillInputs();
+                CurrentFeederSettings = _panel.ReadFeederSettings();
             });
         }
 
@@ -837,8 +838,8 @@ namespace StingTools.UI
                 var rows = StingTools.Commands.Electrical.ElectricalSnapshotBuilder
                     .BuildWireRefRows(panel.GetWireRefMaterial(),
                                       panel.GetWireRefInsulation(),
-                                      panel.GetWireRefMethod());
-                panel.RefreshFromData(new ElectricalPanelSnapshot { WireRefRows = rows });
+                                      panel.GetWireRefMethod(), out string basis);
+                panel.RefreshFromData(new ElectricalPanelSnapshot { WireRefRows = rows, WireRefBasis = basis });
             }
             catch (Exception ex) { StingLog.Warn($"RefreshWireRefTable: {ex.Message}"); }
         }

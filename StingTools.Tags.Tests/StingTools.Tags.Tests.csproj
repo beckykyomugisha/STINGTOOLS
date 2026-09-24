@@ -93,6 +93,7 @@
          tests run against the SHIPPED STING_WIRE_TABLES.json so a data edit fails here. -->
     <Compile Include="..\StingTools\Core\Electrical\Bs7671CableSizing.cs" Link="Core\Electrical\Bs7671CableSizing.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" Link="Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\FaultCurrent\WireTableSet.cs" Link="Commands\Electrical\FaultCurrent\WireTableSet.cs" />
     <!-- ELEC-2 / -5 / -6 / -14: the Revit-free electrical arithmetic, each held to a
          hand-worked example. FaultCurrentEngine, LoadDemandEngine and
          BS7671ComplianceEngine delegate here so the plugin runs the tested copy. -->

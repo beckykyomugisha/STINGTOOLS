@@ -6,13 +6,16 @@
 //
 // Commands (all inline — no secondary windows):
 //   SldAnnotate_All         — every annotatable element: cable / voltage / fault / load
-//   SldAnnotate_Voltage     — voltage (ELC_CIR_VOLTAGE_TXT)
-//   SldAnnotate_Current     — design current (ELC_CIR_DESIGN_CURRENT_TXT)
-//   SldAnnotate_Fault       — fault level (ELC_CIR_FAULT_LEVEL_TXT)
-//   SldAnnotate_Cable       — cable CSA + Ib + breaker
+//   SldAnnotate_Voltage     — voltage (ELC_CIR_VOLTAGE_TXT, else Revit RBS_ELEC_VOLTAGE)
+//   SldAnnotate_Current     — design current (ELC_CIR_DESIGN_CURRENT_TXT, else circuit apparent current)
+//   SldAnnotate_Fault       — fault level (ELC_CIR_FAULT_LEVEL_TXT, else ELC_PNL_SHORT_CIRCUIT_RATING_KA)
+//   SldAnnotate_Cable       — cable CSA + Ib + breaker (else ELC_CABLE_CSA_MM2_TXT / Revit wire size, rating)
 //   SldAnnotate_Phase       — L1/L2/L3/N/PE from the voltage
-//   SldAnnotate_Load        — design load (ELC_CIR_DESIGN_LOAD_TXT)
-//   SldAnnotate_Reference   — panel name + circuit ref
+//   SldAnnotate_Load        — design load (ELC_CIR_DESIGN_LOAD_TXT, else circuit apparent load in kVA)
+//   SldAnnotate_Reference   — panel name + circuit ref (else supply circuit's panel + number)
+//
+// The ELC_CIR_* text keys are written by nothing in the plugin; the fallbacks
+// (SldAnnotText.Fallbacks) are where the values really live.
 //   SldAnnotate_Impedance   — Zs
 //   SldAnnotate_Diversity   — diversity factor
 //   SldAnnotate_Format[_Compact|_Full|_Reference] — set the format and re-render
@@ -102,22 +105,85 @@ namespace StingTools.Commands.Symbols
             return list;
         }
 
-        /// <summary>The first non-empty value of <paramref name="paramName"/> across the sources.</summary>
+        /// <summary>The first non-empty value of <paramref name="paramName"/> across the
+        /// sources. Display text, so a NUMBER parameter (ELC_PNL_SHORT_CIRCUIT_RATING_KA)
+        /// reads as well as a TEXT one. Keys starting "@" are Revit native values
+        /// (see <see cref="SldAnnotText.Fallbacks"/>).</summary>
         public static string Get(IReadOnlyList<Element> sources, string paramName)
         {
+            if (paramName != null && paramName.StartsWith("@")) return Native(sources, paramName);
             foreach (var s in sources)
             {
-                string v = ParameterHelpers.GetString(s, paramName);
+                string v = ParameterHelpers.GetDisplayText(s, paramName);
                 if (!string.IsNullOrWhiteSpace(v)) return v;
             }
             return "";
         }
 
-        public static string BuildAnnotText(Element el, SldAnnotKind kind, SldAnnotFormat fmt)
+        /// <summary>The value getter the builders use: STING keys first, then the
+        /// real sources those keys stand in for.</summary>
+        public static Func<string, string> Getter(IReadOnlyList<Element> sources)
+            => SldAnnotText.WithFallbacks(p => Get(sources, p));
+
+        /// <summary>
+        /// Revit-native value for an "@" key, as an invariant SI number (volts, amps,
+        /// VA) or text. Voltage / power go through ElecUnits — a raw AsDouble() is
+        /// in internal units (1 V = 10.7639).
+        /// </summary>
+        private static string Native(IReadOnlyList<Element> sources, string key)
         {
-            var sources = DataSources(el);
-            return SldAnnotText.Build(kind, fmt, p => Get(sources, p));
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (var s in sources)
+            {
+                try
+                {
+                    switch (key)
+                    {
+                        case SldAnnotText.N_VOLTAGE_V:
+                        {
+                            double v = StingTools.Core.Electrical.ElecUnits.Volts(s);
+                            if (v > 0) return v.ToString("0.###", ci);
+                            break;
+                        }
+                        case SldAnnotText.N_CURRENT_A:
+                        {
+                            double a = StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM);
+                            if (a > 0) return a.ToString("0.###", ci);
+                            break;
+                        }
+                        case SldAnnotText.N_LOAD_VA:
+                        {
+                            double va = StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(s);
+                            if (va > 0) return va.ToString("0.###", ci);
+                            break;
+                        }
+                        case SldAnnotText.N_RATING_A:
+                        {
+                            double r = StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
+                            if (r > 0) return r.ToString("0.###", ci);
+                            break;
+                        }
+                        case SldAnnotText.N_WIRE_SIZE:
+                        {
+                            string w = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString();
+                            if (!string.IsNullOrWhiteSpace(w)) return w;
+                            break;
+                        }
+                        case SldAnnotText.N_PANEL:
+                            if (s is ElectricalSystem es1 && !string.IsNullOrWhiteSpace(es1.PanelName)) return es1.PanelName;
+                            break;
+                        case SldAnnotText.N_CIRCUIT_NO:
+                            if (s is ElectricalSystem es2 && !string.IsNullOrWhiteSpace(es2.CircuitNumber)) return es2.CircuitNumber;
+                            break;
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"SldAnnotation native {key} on {s?.Id}: {ex.Message}"); }
+            }
+            return "";
         }
+
+        public static string BuildAnnotText(Element el, SldAnnotKind kind, SldAnnotFormat fmt)
+            => SldAnnotText.Build(kind, fmt, Getter(DataSources(el)));
 
         // ── Element collection ────────────────────────────────────────────────
 
@@ -137,14 +203,16 @@ namespace StingTools.Commands.Symbols
                     scanned++;
                     var sources = DataSources(el);
                     if (sources.Count > 1 && el.LookupParameter(SLD_SOURCE_PARAM) != null) symbols++;
-                    if (SldAnnotText.DataParams.Any(p => !string.IsNullOrWhiteSpace(Get(sources, p))))
+                    var get = Getter(sources);
+                    if (SldAnnotText.DataParams.Any(p => !string.IsNullOrWhiteSpace(get(p))))
                         result.Add(el);
                 }
                 if (result.Count == 0 && scanned > 0)
                     StingLog.Warn($"SldAnnotationEngine.Collect: scanned {scanned} element(s) ({symbols} SLD symbol(s) " +
                         $"linked to source equipment) in '{view.Name}'; none carry any of " +
-                        $"[{string.Join(", ", SldAnnotText.DataParams)}] on themselves, their source equipment " +
-                        "or its supply circuit.");
+                        $"[{string.Join(", ", SldAnnotText.DataParams)}] or their fallbacks (Revit circuit " +
+                        "voltage / apparent current / wire size / panel + circuit number, ELC_CABLE_CSA_MM2_TXT) " +
+                        "on themselves, their source equipment or its supply circuit.");
             }
             catch (Exception ex) { StingLog.Warn($"SldAnnotationEngine.Collect: {ex.Message}"); }
             return result;
@@ -304,15 +372,22 @@ namespace StingTools.Commands.Symbols
             return (changed, orphaned, empty);
         }
 
-        /// <summary>Halftones (hide) or clears the override on (show) every STING SLD note.</summary>
+        /// <summary>Halftones (hide) or un-halftones (show) every STING SLD note. Only
+        /// the halftone flag changes — any other override on the note (colour, line
+        /// weight, pattern) is read back and kept. "Show" used to apply an empty
+        /// OverrideGraphicSettings, which wiped them.</summary>
         public static int ToggleAnnotationVisibility(Document doc, View view, bool show)
         {
             int n = 0;
-            var ogs = new OverrideGraphicSettings();
-            if (!show) ogs.SetHalftone(true);
             foreach (var a in CollectExistingAnnotations(doc, view))
             {
-                try { view.SetElementOverrides(a.Note.Id, ogs); n++; }
+                try
+                {
+                    var ogs = view.GetElementOverrides(a.Note.Id) ?? new OverrideGraphicSettings();
+                    ogs.SetHalftone(!show);
+                    view.SetElementOverrides(a.Note.Id, ogs);
+                    n++;
+                }
                 catch (Exception ex) { StingLog.Warn($"SldAnnotationEngine.Toggle {a.Note.Id}: {ex.Message}"); }
             }
             return n;
@@ -348,7 +423,11 @@ namespace StingTools.Commands.Symbols
                     "No elements with electrical values (voltage, current, cable CSA, circuit reference) " +
                     "found in this view — on the elements, on the equipment an SLD symbol represents, " +
                     "or on that equipment's supply circuit.\n\n" +
-                    "Populate ELC_CIR_* / ELC_CABLE_CSA_TXT first via the PANELS or CIRCTS workflows.");
+                    "Values come from Revit's own circuit data (voltage, apparent current / load, " +
+                    "rating, wire size, panel + circuit number), the Fault Current study " +
+                    "(ELC_PNL_SHORT_CIRCUIT_RATING_KA) and imported cable sizes (ELC_CABLE_CSA_MM2_TXT). " +
+                    "Check that the equipment is connected to a circuit, and that an SLD drafting view " +
+                    "was produced by SLD Generate (its symbols carry STING_SLD_ELEMENT_ID).");
                 return Result.Succeeded;
             }
 

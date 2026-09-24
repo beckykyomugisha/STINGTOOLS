@@ -166,6 +166,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
                                 return double.IsInfinity(t) ? double.NaN : t;
                             });
                         }
+                        // DeviceBand.ToString appends "(curve assumed)" when the curve letter
+                        // came from the TCC database's generic default rather than the
+                        // breaker label — so it reaches tSource and the stamped label.
                         tSource = $"{band} max-clear, {IecMcbBands.Basis}";
                     }
 

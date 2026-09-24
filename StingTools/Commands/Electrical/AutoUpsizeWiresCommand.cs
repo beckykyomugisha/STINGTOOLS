@@ -49,7 +49,10 @@ namespace StingTools.Commands.Electrical
                 if (sys == null) continue;
                 int phases = SafePoles(sys) >= 3 ? 3 : 1;
                 double v = SafeVoltage(sys);
-                if (v <= 0) v = phases == 3 ? 415.0 : 240.0;
+                // UK nominal 400 V / 230 V (BS 7671, as WireAnnotation uses) — the old
+                // 415 / 240 understated the drop %; flagged "assumed" in the preview.
+                bool assumedV = v <= 0;
+                if (assumedV) v = phases == 3 ? 400.0 : 230.0;
                 double currentCsa = ParseCsa(vd.WireSize);
                 double? minCsa = VoltageDropEngine.MinimumCsaForVDLimit(
                     vd.CurrentA, vd.LengthM, opts.Material, v, phases,
@@ -66,7 +69,9 @@ namespace StingTools.Commands.Electrical
                     LoadName     = vd.LoadName,
                     OldCsaMm2    = currentCsa,
                     NewCsaMm2    = minCsa.Value,
-                    NewVDPct     = newVd
+                    NewVDPct     = newVd,
+                    VoltageV     = v,
+                    VoltageAssumed = assumedV,
                 });
             }
             if (preview.Count == 0)
@@ -81,9 +86,13 @@ namespace StingTools.Commands.Electrical
             for (int i = 0; i < top; i++)
             {
                 var p = preview[i];
-                sb.AppendLine($"  {p.PanelName}-{p.CircuitNumber}: {p.OldCsaMm2:0.#}mm² → {p.NewCsaMm2:0.#}mm² (new VD {p.NewVDPct:0.0}%)");
+                sb.AppendLine($"  {p.PanelName}-{p.CircuitNumber}: {p.OldCsaMm2:0.#}mm² → {p.NewCsaMm2:0.#}mm² (new VD {p.NewVDPct:0.0}%" +
+                              (p.VoltageAssumed ? $" at {p.VoltageV:0} V assumed)" : ")"));
             }
             if (preview.Count > top) sb.AppendLine($"  …and {preview.Count - top} more");
+            int assumedCount = preview.Count(p => p.VoltageAssumed);
+            if (assumedCount > 0)
+                sb.AppendLine($"\n{assumedCount} circuit(s) carry no voltage — 400 V (3-ph) / 230 V (1-ph) was ASSUMED.");
 
             var dlg = new TaskDialog("STING Auto-Upsize Conductors")
             {
@@ -130,7 +139,8 @@ namespace StingTools.Commands.Electrical
         {
             public ElementId CircuitId;
             public string PanelName, CircuitNumber, LoadName;
-            public double OldCsaMm2, NewCsaMm2, NewVDPct;
+            public double OldCsaMm2, NewCsaMm2, NewVDPct, VoltageV;
+            public bool VoltageAssumed;
         }
 
         private static int SafePoles(ElectricalSystem s)

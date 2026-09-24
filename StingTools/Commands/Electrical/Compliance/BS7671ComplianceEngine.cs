@@ -92,17 +92,9 @@ namespace StingTools.Commands.Electrical.Compliance
         public static double ComputeZs(double zeOhm, double phaseCsaMm2, double cpcCsaMm2,
             double lengthM, string material = "Cu", string insulation = "PVC",
             WireTableSet wireTables = null)
-        {
-            if (lengthM <= 0 || phaseCsaMm2 <= 0) return zeOhm;
-            // Use existing FaultCurrentEngine for cable impedance with insulation-aware temp.
-            double r1Mohm = FaultCurrentEngine.CableImpedanceMohm(wireTables, phaseCsaMm2, material, lengthM,
-                insulation: insulation);
-            double r2Mohm = cpcCsaMm2 > 0
-                ? FaultCurrentEngine.CableImpedanceMohm(wireTables, cpcCsaMm2, material, lengthM,
-                    insulation: insulation)
-                : r1Mohm;  // assume CPC = phase if not declared
-            return zeOhm + (r1Mohm + r2Mohm) / 1000.0;
-        }
+            // Pure arithmetic (insulation-aware temperature correction, CPC = line when
+            // undeclared) lives in FaultCurrent/WireTableSet.cs so it is testable.
+            => CableResistance.ZsOhm(zeOhm, phaseCsaMm2, cpcCsaMm2, lengthM, material, insulation, wireTables);
 
         /// <summary>
         /// Verify Zs × Ia ≤ Uo × Cmin (BS 7671 Reg 411.4.4). Returns the result

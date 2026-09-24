@@ -46,12 +46,16 @@ namespace StingTools.Commands.Electrical.Coordination
         /// <summary>
         /// Band for a device label. Uses the database entry's type when the label is
         /// listed, otherwise parses the label itself ("C16", "16A C", "250A MCCB").
+        /// A curve letter taken from the entry's (generic default) type rather than the
+        /// label is flagged <see cref="DeviceBand.CurveAssumed"/>.
         /// </summary>
         public DeviceBand ResolveBand(string deviceLabel)
         {
             if (string.IsNullOrWhiteSpace(deviceLabel)) return null;
             var e = Resolve(deviceLabel.Trim());
-            return e != null ? e.ToBand() : IecMcbBands.Parse(deviceLabel);
+            return e != null
+                ? IecMcbBands.FromDatabaseEntry(e.DeviceLabel, e.Type, e.CurveConfirmed)
+                : IecMcbBands.Parse(deviceLabel);
         }
 
         /// <summary>Convenience alias — returns null when no curve is registered for the label.</summary>
@@ -94,9 +98,13 @@ namespace StingTools.Commands.Electrical.Coordination
         [JsonProperty("clearingMs_At_10xIn")]public double ClearingMs_At_10xIn{ get; set; }
         [JsonProperty("minFaultKa")]         public double MinFaultKa         { get; set; }
         [JsonProperty("maxFaultKa")]         public double MaxFaultKa         { get; set; }
+        /// <summary>Set true in a project copy once the entry's curve letter has been
+        /// checked against the installed device; until then it is a generic default and
+        /// results say "(curve assumed)".</summary>
+        [JsonProperty("curveConfirmed")]     public bool   CurveConfirmed     { get; set; }
 
         /// <summary>IEC 60898-1 band for this entry (see <see cref="IecMcbBands"/>).</summary>
-        public DeviceBand ToBand() => IecMcbBands.Parse(DeviceLabel, Type);
+        public DeviceBand ToBand() => IecMcbBands.FromDatabaseEntry(DeviceLabel, Type, CurveConfirmed);
 
         /// <summary>
         /// Maximum clearing time (ms) at the given fault level, for display and

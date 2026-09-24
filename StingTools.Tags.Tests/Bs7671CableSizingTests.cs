@@ -69,7 +69,12 @@ namespace StingTools.Tags.Tests
         public void Rows_not_yet_checked_against_the_print_are_flagged_not_verified()
         {
             var table = Data().FindTable("Cu", "PVC70", "C");
-            Assert.All(table.Rows.Where(r => r.CsaMm2 >= 25), r => Assert.False(r.Verified));
+            Assert.NotNull(table);
+            // Assert.All over an empty sequence passes, so pin the row count first:
+            // 25, 35, 50, 70, 95, 120, 150, 185, 240 mm² = 9 rows.
+            var large = table.Rows.Where(r => r.CsaMm2 >= 25).ToList();
+            Assert.Equal(9, large.Count);
+            Assert.All(large, r => Assert.False(r.Verified));
         }
 
         // ── the worked example ───────────────────────────────────────────────
@@ -169,6 +174,25 @@ namespace StingTools.Tags.Tests
             Assert.Equal(0.725, r.Cf, 3);
             Assert.Equal(27.59, r.RequiredItA, 2);
             Assert.Equal(4.0, r.CsaMm2);
+        }
+
+        [Fact]
+        public void Semi_enclosed_fuse_picks_In_from_the_BS3036_ratings()
+        {
+            // Ib 22 A on a BS 3036 fuse: ratings 5/15/20/30/45/60/100 → In 30 A (an MCB list
+            // would give 25 A, which is not a BS 3036 rating).
+            // It ≥ 30 / 0.725 = 41.38 A → 4 mm² (36) ✗ → 6 mm² (46) ✓.
+            var i = Pvc(22, 5, 5.0);
+            i.SemiEnclosedFuse = true;
+            i.DeviceRatingsA = ProtectiveDeviceSelection.Bs3036SemiEnclosedFuseRatingsA;
+            i.DeviceLabel = ProtectiveDeviceSelection.Bs3036Label;
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(30, r.DeviceRatingA);
+            Assert.Equal(41.38, r.RequiredItA, 2);
+            Assert.Equal(6.0, r.CsaMm2);
+            Assert.Contains("BS 3036 semi-enclosed fuse", r.Basis);
+            Assert.DoesNotContain("MCB", r.Basis);
         }
 
         [Fact]
@@ -291,6 +315,14 @@ namespace StingTools.Tags.Tests
         {
             Assert.Equal(expected, WireSizeParser.ParseCsaMm2(text), 2);
         }
+
+        [Theory]
+        // ExternalExportEngine took the FIRST digit run ("2 x 2.5mm²" → 2);
+        // WireProfile joined EVERY digit ("2x2.5mm2" → 22.52). Both now delegate here.
+        [InlineData("2 x 2.5mm²", 2.5)]
+        [InlineData("2x2.5mm2", 2.5)]
+        public void Former_duplicate_parser_failure_strings_read_the_csa(string text, double expected)
+            => Assert.Equal(expected, WireSizeParser.ParseCsaMm2(text), 3);
 
         // ── voltage-drop engine (ELEC-5) ────────────────────────────────────
 

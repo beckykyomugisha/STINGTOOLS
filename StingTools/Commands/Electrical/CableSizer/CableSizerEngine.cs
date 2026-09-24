@@ -58,6 +58,8 @@ namespace StingTools.Commands.Electrical.CableSizer
         public double ActualVoltDropPct { get; set; }
         public bool VDCompliant { get; set; }
         public int ProposedBreakerA { get; set; }
+        /// <summary>What ProposedBreakerA rates — "BS EN 60898 MCB", "BS 3036 semi-enclosed fuse", ….</summary>
+        public string ProtectiveDevice { get; set; } = "";
         public string Warning { get; set; } = "";
         public string DerivationNote { get; set; } = "";
 
@@ -222,6 +224,14 @@ namespace StingTools.Commands.Electrical.CableSizer
             double iB, Bs7671Data data)
         {
             bool mccb = iB > VoltageDropEngine.BreakerSizesBSMCB[VoltageDropEngine.BreakerSizesBSMCB.Length - 1];
+            // A semi-enclosed fuse circuit picks In from the BS 3036 ratings and is labelled
+            // as one. It used to take In from the MCB list and call it an MCB while still
+            // applying the BS 3036 Cf = 0.725 — a device that is neither.
+            bool semi = input.SemiEnclosedFuse;
+            int[] ratings = semi ? ProtectiveDeviceSelection.Bs3036SemiEnclosedFuseRatingsA
+                          : mccb ? VoltageDropEngine.BreakerSizesBSMCCB : VoltageDropEngine.BreakerSizesBSMCB;
+            string deviceLabel = semi ? ProtectiveDeviceSelection.Bs3036Label
+                               : mccb ? "BS EN 60947-2 MCCB" : "BS EN 60898 MCB";
             var bs = Bs7671CableSizer.Size(new Bs7671SizingInput
             {
                 DesignCurrentA = iB,
@@ -238,8 +248,8 @@ namespace StingTools.Commands.Electrical.CableSizer
                 ExtraDerate = input.ExtraDerateFactor,
                 SemiEnclosedFuse = input.SemiEnclosedFuse,
                 VdLimitPct = input.VDLimitPct > 0 ? input.VDLimitPct : 3.0,
-                DeviceRatingsA = mccb ? VoltageDropEngine.BreakerSizesBSMCCB : VoltageDropEngine.BreakerSizesBSMCB,
-                DeviceLabel = mccb ? "BS EN 60947-2 MCCB" : "BS EN 60898 MCB",
+                DeviceRatingsA = ratings,
+                DeviceLabel = deviceLabel,
             }, data);
 
             string contNote = input.ContinuousLoad
@@ -263,6 +273,7 @@ namespace StingTools.Commands.Electrical.CableSizer
             result.ActualVoltDropPct = bs.VoltDropPct;
             result.VDCompliant = true;   // the size was chosen to meet the limit
             result.ProposedBreakerA = bs.DeviceRatingA;
+            result.ProtectiveDevice = deviceLabel;
             result.TabulatedCapacityA = bs.TabulatedItA;
             result.EffectiveCapacityIzA = bs.IzA;
             result.Sized = true;

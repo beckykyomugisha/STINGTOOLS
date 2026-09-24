@@ -95,7 +95,9 @@ namespace StingTools.Commands.Electrical
                 NominalVoltageV = inputs.Volts,
                 ThreePhase = inputs.ThreePhase,
                 Material = cable.ConductorMaterial,
-            });
+            },
+            // The same Appendix 4 table the BS 7671 cable sizer reads.
+            StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables()?.FindTable("Cu", "PVC70", "C"));
             cable.VoltageDropPct = vd.VoltDropPct;
 
             manifest.Save(doc);
@@ -107,9 +109,10 @@ namespace StingTools.Commands.Electrical
                  .Metric("CSA",          cable.CsaMm2.ToString("F1") + " mm²")
                  .Metric("Cores",        cable.CoreCount.ToString())
                  .Metric("Length",       cable.TotalLengthM.ToString("F1") + " m")
-                 .Metric("VoltDrop %",   cable.VoltageDropPct.ToString("F2"))
-                 .Metric("VD lighting",  vd.LightingPass ? "OK" : "FAIL (>3%)")
-                 .Metric("VD power",     vd.PowerPass ? "OK" : "FAIL (>5%)")
+                 .Metric("VoltDrop %",   vd.Computed ? cable.VoltageDropPct.ToString("F2") : "not computed — " + vd.Refusal)
+                 .Metric("VD basis",     vd.Basis)
+                 .Metric("VD lighting",  !vd.Computed ? "—" : vd.LightingPass ? "OK" : "FAIL (>3%)")
+                 .Metric("VD power",     !vd.Computed ? "—" : vd.PowerPass ? "OK" : "FAIL (>5%)")
                  .Metric("Trays",        route.TrayIds.Count.ToString());
             panel.AddSection("CIRCUIT")
                  .Metric("Circuit", match.Found && sys != null

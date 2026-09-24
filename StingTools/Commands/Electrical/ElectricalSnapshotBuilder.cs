@@ -34,7 +34,10 @@ namespace StingTools.Commands.Electrical
                 snap.TemplateRules = BuildTemplateRules(doc);
                 snap.LightingRows = BuildLighting(doc);
                 snap.RoomTargets = BuildRoomTargets(doc);
-                snap.WireRefRows = BuildWireRefRows("Cu", "XLPE90", "C");
+                // Matches the grid's default selection (copper / PVC 70 °C / method C =
+                // Table 4D2A, the one shipped Appendix 4 table).
+                snap.WireRefRows = BuildWireRefRows("Cu", "PVC70", "C", out string wireRefBasis);
+                snap.WireRefBasis = wireRefBasis;
                 snap.ComplianceItems = BuildCompliance(doc);
                 // KUT-7 — canonical id, so the snapshot carries the same token the
                 // engines route on. The panel emits "NEC2023"; the engine used to test
@@ -259,44 +262,63 @@ namespace StingTools.Commands.Electrical
         private static string LuxTargetFor(string roomName)
             => StingTools.Photometrics.LuxTargetTable.Load().TargetFor(roomName).ToString("0");
 
+        /// <summary>
+        /// The wire-reference grid, driven by the SAME Appendix 4 data the BS 7671
+        /// cable sizer uses (STING_WIRE_TABLES.json → bs7671Appendix4: Table 4D2A
+        /// It, Table 4D2B mV/A/m). A combination with no shipped table (XLPE,
+        /// aluminium, other reference methods) gets a "no table shipped" row —
+        /// never numbers scaled from another table.
+        ///
+        /// Before: the grid defaulted to the legacy copperTables "XLPE90" entry
+        /// (mislabelled — its currents are 70 °C thermoplastic 4D2A values), showed a
+        /// "PVC70" legacy table that does not match 4D2A, and derated aluminium by an
+        /// unsourced ×0.78.
+        /// </summary>
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method)
+            => BuildWireRefRows(material, insulation, method, out _);
+
+        public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method, out string basis)
         {
             var rows = new List<WireRefRow>();
+            basis = "";
             try
             {
-                string path = StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
-                if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rows;
-                var root = JObject.Parse(File.ReadAllText(path));
-                JArray tables = root["copperTables"] as JArray ?? new JArray();
-                JObject match = null;
-                foreach (var t in tables.OfType<JObject>())
+                var data = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
+                var table = data?.FindTable(material, insulation, method);
+                if (table == null)
                 {
-                    if (string.Equals(t["insulation"]?.ToString(), insulation, StringComparison.OrdinalIgnoreCase)
-                        && string.Equals(t["installMethod"]?.ToString(), method, StringComparison.OrdinalIgnoreCase))
-                    { match = t; break; }
+                    string have = data == null || data.Tables.Count == 0
+                        ? "none (STING_WIRE_TABLES.json bs7671Appendix4 not found)"
+                        : string.Join(", ", data.Tables.Select(t => $"{t.Conductor} {t.Insulation} method {t.InstallMethod} (Table {t.Id})"));
+                    basis = $"No BS 7671 Appendix 4 table shipped for {material} / {insulation} / method {method}. " +
+                            $"Shipped: {have}. Values are not approximated from another table.";
+                    rows.Add(new WireRefRow { Size = "—", Imax1Ph = "no table shipped", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
+                    return rows;
                 }
-                if (match == null && tables.Count > 0) match = tables[0] as JObject;
-                if (match == null) return rows;
 
-                double matFactor = string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? 0.78 : 1.0;
-                foreach (var size in match["sizes"] as JArray ?? new JArray())
+                int unverified = 0;
+                foreach (var r in table.Rows)
                 {
-                    double csa = size["csaMm2"]?.Value<double>() ?? 0;
-                    double i1 = (size["currentA_1ph"]?.Value<double>() ?? 0) * matFactor;
-                    double i3 = (size["currentA_3ph"]?.Value<double>() ?? 0) * matFactor;
-                    double r = size["mohm_per_m"]?.Value<double>() ?? 0;
-                    double rAdj = r * (string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase)
-                        ? VoltageDropEngine.AluminiumResistanceFactor : 1.0);
+                    if (!r.Verified) unverified++;
+                    string flag = r.Verified ? "" : " *";
                     rows.Add(new WireRefRow
                     {
-                        Size = csa < 10 ? $"{csa:0.0}mm²" : $"{(int)csa}mm²",
-                        Imax1Ph = $"{i1:0.0}",
-                        Imax3Ph = $"{i3:0.0}",
-                        MohmPerM = $"{rAdj:0.000}"
+                        Size = (r.CsaMm2 < 10 ? $"{r.CsaMm2:0.0}mm²" : $"{r.CsaMm2:0}mm²") + flag,
+                        Imax1Ph = $"{r.It1ph:0.#}",
+                        Imax3Ph = $"{r.It3ph:0.#}",
+                        Mv1Ph = $"{r.MvAm1ph:0.###}",
+                        Mv3Ph = $"{r.MvAm3ph:0.###}",
                     });
                 }
+                basis = $"BS 7671 Appendix 4 Table {table.Id} (It, A — {table.Description}, method {table.InstallMethod}, " +
+                        $"30 °C, ungrouped) and Table {table.VoltDropTable} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
+                        (unverified > 0 ? $" * {unverified} row(s) not yet checked against the printed table — verify before use." : "");
             }
-            catch (Exception ex) { StingLog.Warn($"BuildWireRefRows: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildWireRefRows: {ex.Message}");
+                basis = "Wire reference table could not be loaded — see the STING log.";
+            }
             return rows;
         }
 
