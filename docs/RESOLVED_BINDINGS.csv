@@ -1097,6 +1097,7 @@ ELC_CIR_ZS_TXT,4,elc-sub,Electrical Circuits,Earth-fault loop impedance Zs for S
 ELC_CKT_BRK_RATING_A,4,elc-sub,Electrical Circuits|Electrical Connectors|Electrical Equipment|Electrical Fixtures,Elc Ckt Brk Rating A [ISO 19650-1:2018]
 ELC_CKT_CBL_SZ_MM,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Sz Mm [ISO 19650-1:2018]
 ELC_CKT_CBL_TYPE_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Type Txt [ISO 19650-1:2018]
+ELC_CKT_CHECK_TXT,4,elc-sub,Electrical Circuits,"Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable."
 ELC_CKT_CUR_A,4,elc-sub,Electrical Circuits|Electrical Equipment,Elc Ckt Cur A [ISO 19650-1:2018]
 ELC_CKT_CUR_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_CUR_A display mirror [auto-generated]
 ELC_CKT_FINAL_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Final Txt [ISO 19650-1:2018]
