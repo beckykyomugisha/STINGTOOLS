@@ -11,17 +11,34 @@ namespace StingTools.Commands.Electrical.VoltageDrop
     /// </summary>
     public static class VoltageDropEngine
     {
-        // mΩ/m at 20°C for copper conductors, indexed by nominal mm² CSA.
-        // Values from BS 7671 Appendix 4 Table 4D5B (XLPE single-phase loop).
+        // mΩ/m at 20 °C for plain annealed copper, class 1/2 conductors, indexed by
+        // nominal mm² CSA — BS EN 60228:2005 Table 1/2 maximum DC resistance (Ω/km ≡ mΩ/m).
+        // ELEC-5: this table previously carried 8.71 for 2.5 mm² (and 13.3 / 5.09 / 3.39
+        // for 1.5 / 4 / 6), ~18 % high, and then temperature-corrected it AGAIN in
+        // CalculateVoltDropPercent. It is now the 20 °C value with exactly one correction.
+        // Cross-check: 2.5 mm² at 70 °C = 7.41 × (1 + 0.00393 × 50) = 8.87 mΩ/m, × 2 (go
+        // and return) = 17.7 mV/A/m against 18 mV/A/m in BS 7671 Table 4D2B.
         private static readonly Dictionary<double, double> CopperResistanceMohmPerM = new()
         {
-            { 1.0,   20.0   }, { 1.5,   13.3   }, { 2.5,   8.71   },
-            { 4.0,   5.09   }, { 6.0,   3.39   }, { 10.0,  1.83   },
+            { 1.0,   18.1   }, { 1.5,   12.1   }, { 2.5,   7.41   },
+            { 4.0,   4.61   }, { 6.0,   3.08   }, { 10.0,  1.83   },
             { 16.0,  1.15   }, { 25.0,  0.727  }, { 35.0,  0.524  },
             { 50.0,  0.387  }, { 70.0,  0.268  }, { 95.0,  0.193  },
-            { 120.0, 0.153  }, { 150.0, 0.124  }, { 185.0, 0.101  },
-            { 240.0, 0.0778 }, { 300.0, 0.0641 }, { 400.0, 0.0515 }
+            { 120.0, 0.153  }, { 150.0, 0.124  }, { 185.0, 0.0991 },
+            { 240.0, 0.0754 }, { 300.0, 0.0601 }, { 400.0, 0.0470 }
         };
+
+        /// <summary>BS 7671 Appendix 12 (Table 4Ab) voltage-drop limits from the origin of
+        /// a low-voltage installation supplied from a public distribution network.</summary>
+        public const double Bs7671LightingLimitPct = 3.0;
+        public const double Bs7671OtherUsesLimitPct = 5.0;
+
+        /// <summary>Pick the limit for a circuit: lighting vs other uses (BS 7671 App 12).
+        /// Replaces a 3 % / 2 % split keyed on pole count, which is not a BS 7671 rule.</summary>
+        public static double LimitFor(bool isLighting, double lightingLimitPct, double otherLimitPct)
+            => isLighting
+                ? (lightingLimitPct > 0 ? lightingLimitPct : Bs7671LightingLimitPct)
+                : (otherLimitPct > 0 ? otherLimitPct : Bs7671OtherUsesLimitPct);
 
         /// <summary>
         /// Standard mm² CSA sizes used across BS 7671 / IEC 60364.
@@ -94,6 +111,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
 
         /// <summary>
         /// Calculate voltage drop as a percentage of nominal system voltage.
+        /// Resistive only (BS EN 60228 R at 20 °C, corrected ONCE to the operating
+        /// temperature); reactance is neglected, which understates the drop on large
+        /// conductors (≳ 25 mm², where Table 4D2B tabulates x separately).
         /// 1-phase: VD = 2 × I × L × R / 1000 / V
         /// 3-phase: VD = √3 × I × L × R / 1000 / V (line-to-line)
         /// L is one-way length in metres; R is mΩ/m at operating temperature.
@@ -132,8 +152,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         }
 
         /// <summary>
-        /// Round up to the next BS EN 60898 MCB rating. Pass continuous=true to
-        /// pre-multiply by 1.25 (BS 7671 §433.1.1 / NEC 210.20(A) continuous-load rule).
+        /// Round up to the next BS EN 60898 MCB rating (In ≥ Ib, BS 7671 Reg 433.1.1(i)).
+        /// <paramref name="continuous"/> pre-multiplies by 1.25; that is an NEC rule
+        /// (210.20(A)) with no BS 7671 counterpart, so BS callers should leave it false —
+        /// BreakerSizerCommand no longer passes it on the BS path.
         /// </summary>
         public static int NextStandardBreakerSizeBS(double minimumA, bool continuous = false, bool useMCCB = false)
         {

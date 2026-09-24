@@ -29,12 +29,12 @@ namespace StingTools.Commands.Electrical
             var doc = ctx.Doc;
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot { BranchLimitPct = 3.0, FeederLimitPct = 2.0,
+                       ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                                                   Material = "Cu", OperatingTempC = 70.0,
                                                   Standard = "BS7671" };
 
             var vdResults = VoltageDropCommand.Calculate(doc, opts.Standard,
-                opts.BranchLimitPct, opts.FeederLimitPct, opts.Material, opts.OperatingTempC);
+                opts.LightingLimitPct, opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
             var failing = vdResults.Where(r => r.ExceedsThreshold).ToList();
             if (failing.Count == 0)
             {
@@ -53,7 +53,7 @@ namespace StingTools.Commands.Electrical
                 double currentCsa = ParseCsa(vd.WireSize);
                 double? minCsa = VoltageDropEngine.MinimumCsaForVDLimit(
                     vd.CurrentA, vd.LengthM, opts.Material, v, phases,
-                    phases == 3 ? opts.FeederLimitPct : opts.BranchLimitPct,
+                    vd.LimitPct > 0 ? vd.LimitPct : VoltageDropEngine.LimitFor(vd.IsLighting, opts.LightingLimitPct, opts.OtherLimitPct),
                     opts.OperatingTempC);
                 if (minCsa == null || minCsa <= currentCsa) continue;
                 double newVd = VoltageDropEngine.CalculateVoltDropPercent(
@@ -137,16 +137,7 @@ namespace StingTools.Commands.Electrical
         { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
         private static double SafeVoltage(ElectricalSystem s)
         { try { return StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_VOLTAGE); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
-        private static double ParseCsa(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return 0;
-            string digits = "";
-            foreach (char ch in s)
-            {
-                if (char.IsDigit(ch) || ch == '.') digits += ch;
-                else if (digits.Length > 0) break;
-            }
-            return double.TryParse(digits, out double v) ? v : 0;
-        }
+        // ELEC-5: was a first-number parser ("2 x 2.5mm²" → 2). One parser for every VD caller.
+        private static double ParseCsa(string s) => StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(s);
     }
 }

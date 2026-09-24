@@ -7,6 +7,7 @@
       "insulation": "XLPE90",
       "installMethod": "C",
       "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D5A)",
+      "_review_2026_09_24": "NOT USED BY THE CABLE SIZER. Mislabelled: the current columns up to 16 mm2 are BS 7671 Table 4D2A (70 C thermoplastic multicore) method C values, not 4D5A or any 90 C XLPE table; mohm_per_m for 1.5-6 mm2 exceed BS EN 60228 (2.5 mm2: 8.71 vs 7.41 at 20 C). Kept only because FaultCurrentEngine and the wire-reference grid still read it. Sizing reads bs7671Appendix4.",
       "sizes": [
         { "csaMm2": 1.5,  "currentA_1ph": 19.5, "currentA_3ph": 17.5, "mohm_per_m": 14.48 },
         { "csaMm2": 2.5,  "currentA_1ph": 27.0, "currentA_3ph": 24.0, "mohm_per_m": 8.71  },
@@ -30,6 +31,7 @@
       "insulation": "PVC70",
       "installMethod": "C",
       "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D2A)",
+      "_review_2026_09_24": "NOT USED BY THE CABLE SIZER. Does not match Table 4D2A method C (2.5 mm2 here 24/21 A; the table gives 27/24 A). Sizing reads bs7671Appendix4.",
       "sizes": [
         { "csaMm2": 1.5,  "currentA_1ph": 17.5, "currentA_3ph": 15.5, "mohm_per_m": 14.48 },
         { "csaMm2": 2.5,  "currentA_1ph": 24.0, "currentA_3ph": 21.0, "mohm_per_m": 8.71  },
@@ -73,6 +75,50 @@
       ]
     }
   ],
+  "bs7671Appendix4": {
+    "_about": "BS 7671:2018+A2 Appendix 4 data read by CableSizerEngine (BS 7671 path). Only tables transcribed here are sized; any other insulation / cable type / reference method is REFUSED rather than approximated. Rows with verified=false were transcribed from memory of the printed table and have not yet been checked against the print; the sizer flags any result that lands on such a row.",
+    "capacityTables": [
+      {
+        "id": "4D2A",
+        "voltDropTable": "4D2B",
+        "description": "Multicore 70 C thermoplastic (PVC) insulated, non-armoured, copper",
+        "conductor": "Cu",
+        "insulation": "PVC70",
+        "maxConductorTempC": 70,
+        "installMethod": "C",
+        "columns": "It_1ph = one two-core cable, single-phase a.c.; It_3ph = one three- or four-core cable, three-phase a.c.; mVAm_1ph = two-core single-phase a.c.; mVAm_3ph = three/four-core three-phase a.c. (z where r/x/z are tabulated).",
+        "sizes": [
+          { "csaMm2": 1.0,   "It_1ph": 15.0,  "It_3ph": 13.5,  "mVAm_1ph": 44.0,  "mVAm_3ph": 38.0,  "verified": true },
+          { "csaMm2": 1.5,   "It_1ph": 19.5,  "It_3ph": 17.5,  "mVAm_1ph": 29.0,  "mVAm_3ph": 25.0,  "verified": true },
+          { "csaMm2": 2.5,   "It_1ph": 27.0,  "It_3ph": 24.0,  "mVAm_1ph": 18.0,  "mVAm_3ph": 15.0,  "verified": true },
+          { "csaMm2": 4.0,   "It_1ph": 36.0,  "It_3ph": 32.0,  "mVAm_1ph": 11.0,  "mVAm_3ph": 9.5,   "verified": true },
+          { "csaMm2": 6.0,   "It_1ph": 46.0,  "It_3ph": 41.0,  "mVAm_1ph": 7.3,   "mVAm_3ph": 6.4,   "verified": true },
+          { "csaMm2": 10.0,  "It_1ph": 63.0,  "It_3ph": 57.0,  "mVAm_1ph": 4.4,   "mVAm_3ph": 3.8,   "verified": true },
+          { "csaMm2": 16.0,  "It_1ph": 85.0,  "It_3ph": 76.0,  "mVAm_1ph": 2.8,   "mVAm_3ph": 2.4,   "verified": true },
+          { "csaMm2": 25.0,  "It_1ph": 112.0, "It_3ph": 96.0,  "mVAm_1ph": 1.75,  "mVAm_3ph": 1.50,  "verified": false },
+          { "csaMm2": 35.0,  "It_1ph": 138.0, "It_3ph": 119.0, "mVAm_1ph": 1.25,  "mVAm_3ph": 1.10,  "verified": false },
+          { "csaMm2": 50.0,  "It_1ph": 168.0, "It_3ph": 144.0, "mVAm_1ph": 0.94,  "mVAm_3ph": 0.81,  "verified": false },
+          { "csaMm2": 70.0,  "It_1ph": 213.0, "It_3ph": 184.0, "mVAm_1ph": 0.65,  "mVAm_3ph": 0.57,  "verified": false },
+          { "csaMm2": 95.0,  "It_1ph": 258.0, "It_3ph": 223.0, "mVAm_1ph": 0.49,  "mVAm_3ph": 0.42,  "verified": false },
+          { "csaMm2": 120.0, "It_1ph": 299.0, "It_3ph": 259.0, "mVAm_1ph": 0.39,  "mVAm_3ph": 0.35,  "verified": false },
+          { "csaMm2": 150.0, "It_1ph": 344.0, "It_3ph": 299.0, "mVAm_1ph": 0.33,  "mVAm_3ph": 0.29,  "verified": false },
+          { "csaMm2": 185.0, "It_1ph": 392.0, "It_3ph": 341.0, "mVAm_1ph": 0.28,  "mVAm_3ph": 0.25,  "verified": false },
+          { "csaMm2": 240.0, "It_1ph": 461.0, "It_3ph": 403.0, "mVAm_1ph": 0.23,  "mVAm_3ph": 0.21,  "verified": false }
+        ]
+      }
+    ],
+    "ambientTemperatureFactors": {
+      "_table": "4B1 (Ca, ambient air, cables not buried). Only the 30 C reference and above are carried: below 30 C the sizer takes Ca = 1.00 (no uplift) instead of guessing the sub-30 C column. A temperature between two rows uses the HOTTER row.",
+      "PVC70":  { "30": 1.00, "35": 0.94, "40": 0.87, "45": 0.79, "50": 0.71, "55": 0.61, "60": 0.50 },
+      "XLPE90": { "30": 1.00, "35": 0.96, "40": 0.91, "45": 0.87, "50": 0.82, "55": 0.76, "60": 0.71, "65": 0.65, "70": 0.58, "75": 0.50, "80": 0.41 }
+    },
+    "groupingFactors": {
+      "_table": "4C1 (Cg). A circuit count between two rows uses the LARGER count (lower factor). Bunched = row 1 (bunched in air, on a surface, embedded or enclosed). SingleLayerWall = row 2 (single layer on a wall or floor, touching); no further reduction beyond 9.",
+      "Bunched":         { "1": 1.00, "2": 0.80, "3": 0.70, "4": 0.65, "5": 0.60, "6": 0.57, "7": 0.54, "8": 0.52, "9": 0.50, "12": 0.45, "16": 0.41, "20": 0.38 },
+      "SingleLayerWall": { "1": 1.00, "2": 0.85, "3": 0.79, "4": 0.75, "5": 0.73, "6": 0.72, "7": 0.72, "8": 0.71, "9": 0.70 }
+    },
+    "semiEnclosedFuseFactorCf": 0.725
+  },
   "correctionFactors": {
     "installMethods": {
       "A1": 0.77,
@@ -111,6 +157,7 @@
       "45": 0.79,
       "50": 0.71
     },
+    "_review_groupingCableTrayCu": "Mislabelled: these are BS 7671 Table 4C1 row 2 (single layer on a wall or floor, touching), not cable tray. Not read by the sizer; see bs7671Appendix4.groupingFactors.",
     "groupingCableTrayCu": {
       "1": 1.00,
       "2": 0.85,

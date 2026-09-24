@@ -247,11 +247,17 @@ namespace StingTools.Core.Electrical
                 LengthM = lengthM,
                 InstallMethod = string.IsNullOrEmpty(a.InstallMethod) ? "C" : a.InstallMethod,
                 Material = string.IsNullOrEmpty(a.Material) ? "Cu" : a.Material,
-                Insulation = string.IsNullOrEmpty(a.Insulation) ? "XLPE90" : a.Insulation,
+                Insulation = string.IsNullOrEmpty(a.Insulation) ? "PVC70" : a.Insulation,
                 VDLimitPct = a.VDLimitPct > 0 ? a.VDLimitPct : 3.0,
                 Standard = string.IsNullOrEmpty(a.Standard) ? "BS7671" : a.Standard,
                 AmbientTempC = a.AmbientTempC > 0 ? a.AmbientTempC : 30.0,
                 ContinuousLoad = a.ContinuousLoad,
+                // BS 7671 Appendix 4 correction inputs are design assumptions too.
+                GroupedCircuits = a.GroupedCircuits,
+                GroupingArrangement = a.GroupingArrangement,
+                ThermalInsulationFactorCi = a.ThermalInsulationFactorCi,
+                SemiEnclosedFuse = a.SemiEnclosedFuse,
+                ExtraDerateFactor = a.ExtraDerateFactor,
             };
         }
 

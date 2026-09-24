@@ -21,6 +21,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         public string WireSize { get; set; }
         public double VoltDropPct { get; set; }
         public bool ExceedsThreshold { get; set; }
+        /// <summary>True when the circuit feeds lighting (BS 7671 App 12: 3 % limit, else 5 %).</summary>
+        public bool IsLighting { get; set; }
+        /// <summary>The limit this circuit was judged against, %.</summary>
+        public double LimitPct { get; set; }
     }
 
     /// <summary>
@@ -44,10 +48,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             var doc = ctx.Doc;
             var opts = StingElectricalCommandHandler.CurrentVDOptions
                        ?? new VDOptionsSnapshot
-                       { BranchLimitPct = 3.0, FeederLimitPct = 2.0,
+                       { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                          Material = "Cu", OperatingTempC = 70.0, Standard = "BS7671" };
 
-            var results = Calculate(doc, opts.Standard, opts.BranchLimitPct, opts.FeederLimitPct,
+            var results = Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                     opts.Material, opts.OperatingTempC);
             int exceed = results.Count(r => r.ExceedsThreshold);
 
@@ -79,8 +83,13 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             return Result.Succeeded;
         }
 
+        /// <param name="lightingLimitPct">Limit for circuits feeding lighting (BS 7671 App 12: 3 %).</param>
+        /// <param name="otherLimitPct">Limit for every other circuit (BS 7671 App 12: 5 %).</param>
+        /// <remarks>The App 12 limits apply from the ORIGIN of the installation; this compares
+        /// each final circuit's own drop against them and does not add the drop in the
+        /// upstream distribution — leave headroom for it.</remarks>
         public static List<VDResult> Calculate(Document doc, string standard,
-            double branchLimitPct, double feederLimitPct,
+            double lightingLimitPct, double otherLimitPct,
             string material = "Cu", double operatingTempC = 70.0)
         {
             var results = new List<VDResult>();
@@ -115,8 +124,8 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                         }
                         double vd = VoltageDropEngine.CalculateVoltDropPercent(
                             currentA, lengthM, csa, material, voltageV, phases, operatingTempC);
-                        bool isFeeder = SafePoles(sys) >= 3;
-                        double limit = isFeeder ? feederLimitPct : branchLimitPct;
+                        bool isLighting = IsLightingCircuit(sys);
+                        double limit = VoltageDropEngine.LimitFor(isLighting, lightingLimitPct, otherLimitPct);
                         results.Add(new VDResult
                         {
                             CircuitId = sys.Id,
@@ -127,7 +136,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                             LengthM = lengthM,
                             WireSize = SafeWireSize(sys),
                             VoltDropPct = vd,
-                            ExceedsThreshold = vd > limit
+                            ExceedsThreshold = vd > limit,
+                            IsLighting = isLighting,
+                            LimitPct = limit
                         });
                     }
                     catch (Exception ex)
@@ -171,16 +182,28 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsString() ?? ""; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return ""; }
         }
-        private static double ParseCsa(string wireSize)
+        /// <summary>CSA from Revit's wire-size string. ELEC-5: this took the FIRST number,
+        /// so "2 x 2.5mm²" was read as 2 mm² (the conductor count). Now delegates to
+        /// <see cref="StingTools.Core.Electrical.WireSizeParser"/>.</summary>
+        internal static double ParseCsa(string wireSize)
+            => StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(wireSize);
+
+        /// <summary>True when any element on the circuit is a lighting fixture or lighting
+        /// device — the BS 7671 Appendix 12 "lighting" class.</summary>
+        internal static bool IsLightingCircuit(ElectricalSystem s)
         {
-            if (string.IsNullOrEmpty(wireSize)) return 0;
-            string digits = "";
-            foreach (char ch in wireSize)
+            try
             {
-                if (char.IsDigit(ch) || ch == '.') digits += ch;
-                else if (digits.Length > 0) break;
+                if (s?.Elements == null) return false;
+                foreach (Element el in s.Elements)
+                {
+                    long cat = el?.Category?.Id?.Value ?? 0;
+                    if (cat == (long)BuiltInCategory.OST_LightingFixtures
+                        || cat == (long)BuiltInCategory.OST_LightingDevices) return true;
+                }
             }
-            return double.TryParse(digits, out double v) ? v : 0;
+            catch (Exception ex) { StingLog.Warn($"VD lighting class {s?.Id}: {ex.Message}"); }
+            return false;
         }
     }
 
@@ -201,10 +224,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             if (view == null) { TaskDialog.Show("STING Voltage Drop", "Activate a graphical view first."); return Result.Cancelled; }
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot { BranchLimitPct = 3.0, FeederLimitPct = 2.0,
+                       ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                                                   Material = "Cu", OperatingTempC = 70.0 };
-            var results = VoltageDropCommand.Calculate(doc, opts.Standard, opts.BranchLimitPct,
-                                                       opts.FeederLimitPct, opts.Material, opts.OperatingTempC);
+            var results = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct,
+                                                       opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
 
             var ogs = new OverrideGraphicSettings();
             ogs.SetProjectionLineColor(new Color(244, 67, 54));
