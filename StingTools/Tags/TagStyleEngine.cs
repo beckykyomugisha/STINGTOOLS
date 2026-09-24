@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // TagStyleEngine.cs — Tag Style Control Engine for STING Tools
 //
 // Controls tag appearance by manipulating the {SIZE}{STYLE}_{COLOR}_BOOL
@@ -793,6 +793,14 @@ namespace StingTools.Tags
 
             foreach (Element typeEl in allTypes)
             {
+                // Same rule as Set depth and Presentation mode: a global sweep
+                // owns MODEL types; ANNOTATION types belong to the variant
+                // catalogue. See Core/TierGateScope.
+                if (!TierGateScope.MaySweep(
+                        typeEl.Category != null &&
+                        typeEl.Category.CategoryType == CategoryType.Annotation))
+                    continue;
+
                 bool any = false;
                 for (int i = 0; i < states.Length; i++)
                 {

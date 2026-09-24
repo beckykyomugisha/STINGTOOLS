@@ -2,6 +2,39 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Drawing-type tag families (2026-09-24)
+
+43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve
+them — see the commit. Three things it could NOT repair, recorded so the intent is not lost:
+
+**DT-1 · Two categories have no tag family at all.** `STING_TAG_RFL` (RoofLights) and
+`STING_TAG_RWO` (RainwaterOutlets) name families that do not exist in
+`StingTools/Data/TagFamilies`, and nothing in the 206-family library covers either concept.
+Left named rather than deleted so the requirement stays visible. Either author the two
+families or drop the entries — but do not point them at a generic tag, which is the mistake
+this whole pass was undoing. `DrawingTypeTagFamilyTests.KnownAbsent` lists them; remove from
+there when the families land.
+
+**DT-2 · Six drawing types asked for a SPECIALISED tag and now get a generic one.** The names
+`STING_TAG_DDA`, `STING_TAG_FIRE_DOOR`, `STING_TAG_FINISH`, `STING_TAG_FIRE_COMPT`,
+`STING_TAG_MAT_CALLOUT` and `STING_TAG_SITE_CALLOUT` describe real, distinct deliverables — an
+accessibility tag is not a door tag, a fire-compartment tag is not a room tag. None exists, so
+each was pointed at the generic family for its category.
+
+That is strictly better than before, where they resolved to nothing and the runner fell back to
+whichever tag of that category happened to load first — arbitrary instead of merely generic.
+But the specialisation is now silently lost rather than loudly missing, which is the trade
+being recorded here.
+
+**DT-3 · 30 `tagFamilies` entries name a category no `AutoTag` rule asks for**, 22 of them
+`OST_GenericModel`. The family is never consulted, so these are inert config. Left in place:
+they carry intent, and removing them is a judgement about what those drawing types were meant
+to annotate, which is not a judgement to make from a data file. The near-miss case — a key that
+differs from a real rule only in spelling — IS now a test failure, because that one looks
+connected and is not.
+
+---
+
 ## Tag token policy (2026-09-15, Phase 286)
 
 `STING_TAG_TOKEN_POLICY.json` is **read** as of Phase 285 — see `CHANGELOG.md`. What it

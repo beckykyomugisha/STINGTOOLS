@@ -20,9 +20,11 @@ remaining point.
 | The master's shared parameters can load into a project | **PROVEN** | `21:01:02 SharedParamPreflight: 'STING_Tag_Universal' offers 210 shared parameters; project holds 312` — zero conflicts, against a non-empty project side |
 | Revit refuses a reload that changes a loaded family's category | **PROVEN** | Three runs recategorising → refused with no message (19:58, 21:02, 21:23). Category corrected by hand → `22:16:38 succeeded=1` |
 | `Propagate_UniversalTag` can complete at all | **PROVEN, once** | `22:16:38 master=STING_Tag_Universal, succeeded=1, failed=0, params=139, types=14` |
-| **Recategorising preserves the 65 label rows** | **UNPROVEN** | The premise the whole conveyor rests on. No run has yet been followed by a row count. **This is V2, and it is why you are running this test.** |
+| **Recategorising preserves the label rows** | ✅ **PROVEN, 2026-09-24** | Two duct tags drawn by `STING - Tie-In Point Tag (Duct — HVAC) Tag` — a PROPAGATED family, not the master — rendered their T6 carbon rows and their TAG7F row once the gate was bound to Ducts and ticked. The rows came through propagation intact. **The conveyor's founding premise now has evidence.** |
 | The 206 tag families have no label rows of their own | **CONFIRMED in Revit, 2026-09-21** | They are empty shells. Every row comes from the master, through propagation — so V2 can only be answered on a family that has been PROPAGATED to, never on one that has only had its category corrected |
-| Flipping a tier gate changes what the tag draws | **UNPROVEN** | Both the tag type and the tagged element carry the gates. §4 V3 decides which one wins |
+| Flipping a tier gate changes what the tag draws | **PROVEN, 2026-09-23** | Ticking `TAG_PARA_STATE_6_BOOL` on an air terminal's TYPE made the T6 rows draw; unticking it removed them. Same element, same tag |
+| **Which copy of the gate the label reads** | **ANSWERED, 2026-09-23** | The **tagged element's type**. The tag type's copy was ON throughout and drew nothing. See [`…_FAMILY_PARAM_HYGIENE.md`](UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md) §4 |
+| A gate must be BOUND to the tagged category before any of this works | **PROVEN, 2026-09-23** | `TAG_PARA_STATE_*` is bound to no model category by default. Unbound, the condition can never be true and every gated row returns `""` — see §1.7 |
 | The result survives to disk and to git | **UNPROVEN** | §6 |
 
 Everything in §1 that the plugin now does for you was a manual pre-condition in the old
@@ -80,6 +82,24 @@ master** and **`STING - Duct Tag`**.
 Revit will not load a family while a document for it is open, and it refuses by returning a
 bare `false`. The command now checks this and aborts in a second, naming the file — but it is
 faster to close the tab.
+
+### 1.7 — Bind the tier gate to the tagged category  ⚠ NEW, and nothing works without it
+
+`TAG_PARA_STATE_*_BOOL` ships bound to **no model category**. A label row gates on the
+TAGGED ELEMENT's copy, so until the parameter exists there the condition can never be
+true and every gated row returns `""` — one line on the drawing, whatever is ticked on
+the tag type.
+
+Cost 2026-09-23 four rounds of "nothing happened" before it was found. For the test, bind
+one tier and no more:
+
+1. **Manage → Shared Parameters → Browse** → `<CompiledPlugin>\data\MR_PARAMETERS.txt`
+2. **Manage → Project Parameters → Add → Shared parameter → Select** → group
+   `STINGTags_ISO19650` → `TAG_PARA_STATE_6_BOOL`
+3. **Type**, not Instance. Categories: the one you are tagging.
+4. On the element's **Edit Type**, tick it, **Apply**.
+5. **Run Tag Doctor and confirm `gate@hostType` reads `ON`** before reading the drawing.
+   A tick that did not hold and a tick nobody made look identical afterwards.
 
 ### What you no longer need to do by hand
 
@@ -165,41 +185,109 @@ Open the propagated `STING - Duct Tag` via **Edit Family**.
 ### V1 · Category
 Family category is **Duct Tags**. Proves the recategorise step ran and stuck.
 
-### V2 · ⭐ The label rows survived — THE ONE THAT MATTERS
+### V2 · ⭐ The label rows survived — ✅ PROVEN 2026-09-24
 
 **Only meaningful on a family that has been propagated to.** The tag families carry no
 label rows of their own (confirmed in Revit, 2026-09-21): they are empty shells, and every
 row arrives from the master through this command. Opening one that has only had its
 category corrected shows an empty label and proves nothing either way.
 
-**Edit Label. Count the rows.**
+**The evidence.** With `TAG_PARA_STATE_6_BOOL` bound to **Ducts** (Type) and ticked on the
+duct type, two tags drawn by `STING - Tie-In Point Tag (Duct — HVAC) Tag` — a **propagated**
+family, not the master — rendered three lines each:
 
-- **65 rows**, formulas, prefixes, suffixes and breaks intact.
-- Spot-check: row **1** `ASS_DISPLAY_TXT` (Spaces 0), row **22** `ASS_CST_STALE_TXT`,
-  row **50** `ASS_CRITICALITY_RATING_TXT`, row **65** Break ticked.
+```
+M-BLD1-Z01-L01-HVAC-SUP-DU-006
+A1-A3:0kgCO2e A4:0kgCO2e B6:0kgCO2e/yr          <- the three T6 carbon rows
+ISO 19650 tag M-BLD1-Z01-L01-HVAC-SUP-DU-0006   <- the T6 TAG7F row
+```
 
-**This is the whole premise.** If recategorising does not preserve this label, it does not
-preserve it for any of the 206 and nothing downstream is worth doing. Record the number you
-actually see, not the number you expected.
+Rows that only exist in the master were drawn by a family the master was cloned into. The
+premise holds.
 
-### V3 · Which copy of a gate drives the label — the open question
-Both the tag type and the tagged element carry `TAG_PARA_STATE_*`. Nobody has established
-which one the label reads, and it changes what `Set depth` is for.
+**Why the earlier runs did not settle this.** Every 2026-09-23 experiment ran on
+`STING_Tag_Universal` — the master itself, which the air terminal happens to use. Adjacent
+things working is not evidence for this one, and the row stayed UNPROVEN until a propagated
+family drew a gated row.
 
-1. Place the duct tag on a real duct. Note which tier rows are drawn.
-2. Flip `TAG_PARA_STATE_7_BOOL` **on the tag type**. Do the T7 rows vanish?
-3. Flip it back. Flip it **on the duct type** instead. Do they vanish now?
+**If you want the row count as well**, Edit Label on the propagated family and count: 71
+rows, formulas, prefixes, suffixes and breaks intact. Spot-check row **1**
+`ASS_DISPLAY_TXT`, row **22** `ASS_CST_STALE_TXT`, row **50** `ASS_CRITICALITY_RATING_TXT`.
+Revit exposes no API for this, so it is an eyeball check or nothing.
 
-**Record the answer in [`UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md`](UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md) §4.**
-Either outcome is information; only leaving it unanswered is a problem.
+### V3 · Which copy of a gate drives the label — ✅ ANSWERED 2026-09-23
 
-### V4 · Gates are Type-scoped and only `_1`/`_2` are on
+**The tagged element's type.** Nothing to run.
+
+| `TAG_PARA_STATE_6_BOOL` on the air terminal's TYPE | The tag |
+|---|---|
+| unticked | one line |
+| **ticked** | one line **+ the three T6 carbon rows** |
+
+The tag type's copy read `ON` throughout and drew nothing, so it is inert for rendering.
+Recorded in [`…_FAMILY_PARAM_HYGIENE.md`](UNIVERSAL_TAG_FAMILY_PARAM_HYGIENE.md) §4.
+
+**The steps this section used to give would have failed**, and not for the reason they were
+testing: flipping the gate "on the duct type" assumes the parameter is there, and it is bound
+to no model category until you do §1.7.
+
+**Consequence worth knowing:** depth is a property of the ELEMENT, not of the tag. A duct
+cannot carry a T2 tag on the coordination sheet and a T10 tag on handover. The `_T1`/`_T2`
+type variants are real types, but their gate values never reach the label.
+
+### V4 · Gates are Type-scoped and only `_1`/`_2` are on — ⚠ CURRENTLY FAILS
 In Family Types, the gate rows should read:
 
 - `TAG_PARA_STATE_1_BOOL` ✓ · `_2_BOOL` ✓ · `_4`…`_10` clear · `TAG_WARN_VISIBLE_BOOL` ✓
 - **no `TAG_PARA_STATE_3_BOOL` row at all**
 - **no `(default)` suffix on any of them** — that suffix means Instance, and `Set depth`
   writes to types
+
+**Measured 2026-09-23 on `STING_Tag_Universal`: all ten gates read `1 (on)` while
+`TAG_DEPTH_TIER_INT` read `2`.** A state that should not be expressible.
+
+The cause is two writers over one set of flags. `TagTypeVariantWriter` sets
+`1..DepthTier` per variant — the design. `Set depth` then sets every carrier type to the
+GLOBAL depth, overwriting it. Running Set depth at 10 turns every variant into a T10.
+
+The T3 half of this passes: Tag Doctor confirms the gate is absent from the family.
+
+This is what the single-integer migration removes — one value cannot disagree with itself.
+See [`UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md`](UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md).
+
+### V4b · The depth INTEGER drives the label — ✅ PROVEN 2026-09-24, both directions
+
+After migrating the 70 formulas to `if(TAG_DEPTH_TIER_INT > N-1, …, "")` and binding the
+parameter Type-scoped, one air terminal type was walked through five values:
+
+| `TAG_DEPTH_TIER_INT` | What the tag drew |
+|---|---|
+| **1** | the ISO tag, one line |
+| **2** | + mark, status, and the T2 narrative |
+| **3** | identical to 2 — see below |
+| **5** | + cost, payment, performance, carbon rows |
+| **6** | + the T6 OmniClass / TAG7F line |
+
+**Both directions were checked.** Raising the value added rows and lowering it removed them.
+That matters: a row that always draws is as wrong as one that never does, and only the
+downward half catches it. Most of this feature's history is failures that looked like
+successes because nobody ran the test the other way.
+
+**Depth 2 and 3 are identical, and that is correct.** T3 owns **zero** label rows — counted
+from the generated migration sheet, not assumed:
+
+```
+T1  >0    0 rows      (row 1 is an ungated plain parameter)
+T2  >1    9 rows
+T3  >2    0 rows      <- nothing to draw
+T4  >3    7 rows
+T5  >4   22 rows
+T6  >5    7 rows      T7..T10  6,6,6,7 rows
+```
+
+T3 was dropped from the master, so `depth_tiers` still accepting 1-10 is `Set depth`'s
+vocabulary, not a promise that every value looks different. Already listed in §7. To make
+depth 3 distinct: label rows first, then the variants.
 
 ### V5 · Type variants
 Family Types should list the **12** catalogue variants, named `_T1` or `_T2` only:
@@ -298,4 +386,6 @@ Fill this in. An empty row is honest; a missing row is not.
 | Date | Build | V1 | V2 (row count) | V3 (which copy) | V4 | V5 | V6 | V7 | V8 | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-17 | 22:16 deploy | — | not checked | — | — | 14 types (`_T3` era) | — | — | — | `succeeded=1, params=139, types=14`. First successful run; verification not performed |
+| 2026-09-23 | 21:08 deploy | — | **still not checked** — every run used the MASTER family, not a propagated one | ✅ **tagged element's type** | ❌ all ten gates on at depth 2 | placed type is `STING_Tag_Universal`, not a catalogue variant | ✅ renders | — | — | Gate must be BOUND to the tagged category first (§1.7) — four rounds lost to that. Master holds 71 label rows, all present |
+| 2026-09-24 | tier-gate-scope | — | ✅ **PROVEN** — a propagated duct family drew its T6 rows | ✅ tagged element's type | ❌ (fix in flight) | not checked | ✅ renders | not checked | not checked | Gate bound to Ducts + ticked. Carbon rows read 0 — real parameters, no data |
 | | | | | | | | | | | |
