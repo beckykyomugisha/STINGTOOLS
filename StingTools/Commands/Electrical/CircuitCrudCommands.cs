@@ -265,17 +265,6 @@ namespace StingTools.Commands.Electrical
             if (ctx == null) { msg = "No document open."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var td = new TaskDialog("STING Sort Circuits")
-            {
-                MainInstruction = "Sort circuit numbers within each panel",
-                CommonButtons = TaskDialogCommonButtons.Cancel
-            };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "By load (largest first)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "By load name (A → Z)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Compact gaps (re-sequence in current order)");
-            var choice = td.Show();
-            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
-
             var circuits = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>()
                 .Where(s =>
@@ -286,6 +275,39 @@ namespace StingTools.Commands.Electrical
                 .ToList();
             if (circuits.Count == 0)
             { TaskDialog.Show("STING Sort Circuits", "No panel circuits found."); return Result.Cancelled; }
+
+            // ELEC-12 — a circuit on a panel takes its number from its slot, and
+            // Revit makes RBS_ELEC_CIRCUIT_NUMBER read-only. Say so BEFORE offering
+            // a sort that cannot happen, instead of reporting "re-sequenced" after.
+            int writable = circuits.Count(c =>
+            {
+                try { var p = c.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER); return p != null && !p.IsReadOnly; }
+                catch { return false; }
+            });
+            if (writable == 0)
+            {
+                TaskDialog.Show("STING Sort Circuits",
+                    $"Nothing can be sorted: all {circuits.Count} panel circuit number(s) are read-only.\n\n" +
+                    "Revit derives a panelled circuit's number from the slot it occupies. To reorder circuits, " +
+                    "move them between slots in the panel schedule (drag, or Move Up / Move Down), or use " +
+                    "'Renumber' in an open panel schedule to close up gaps.");
+                return Result.Cancelled;
+            }
+
+            var td = new TaskDialog("STING Sort Circuits")
+            {
+                MainInstruction = "Sort circuit numbers within each panel",
+                MainContent = writable < circuits.Count
+                    ? $"Only {writable} of {circuits.Count} circuit number(s) are writable; the rest take their number " +
+                      "from their panel slot and will not change."
+                    : "",
+                CommonButtons = TaskDialogCommonButtons.Cancel
+            };
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "By load (largest first)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "By load name (A → Z)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Compact gaps (re-sequence in current order)");
+            var choice = td.Show();
+            if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
 
             var byPanel = circuits.GroupBy(c =>
                 {
@@ -310,8 +332,12 @@ namespace StingTools.Commands.Electrical
                             var p = sorted[i].get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER);
                             if (p == null) continue;
                             if (p.IsReadOnly) { readOnly++; continue; }
-                            p.Set((i + 1).ToString());
-                            updated++;
+                            string before = p.AsString() ?? "";
+                            string want = (i + 1).ToString();
+                            if (before == want) continue;
+                            // Count only a change that reads back — Set can return true
+                            // while Revit keeps the slot-derived number.
+                            if (p.Set(want) && (p.AsString() ?? "") != before) updated++;
                         }
                         catch (Exception ex) { StingLog.Info($"CircuitSort {sorted[i].Id?.Value}: {ex.Message}"); }
                     }
@@ -319,8 +345,11 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch { }
+            StingLog.Info($"CircuitSort: {updated} changed, {readOnly} read-only");
             TaskDialog.Show("STING Sort Circuits",
-                $"Re-sequenced {updated} circuit number(s) across {byPanel.Count} panel(s).\n" +
+                (updated == 0
+                    ? "No circuit number changed.\n"
+                    : $"Changed {updated} circuit number(s) across {byPanel.Count} panel(s).\n") +
                 (readOnly == 0 ? ""
                   : $"{readOnly} circuit(s) had a read-only RBS_ELEC_CIRCUIT_NUMBER (Revit auto-managed) and were skipped.\n"));
             return Result.Succeeded;

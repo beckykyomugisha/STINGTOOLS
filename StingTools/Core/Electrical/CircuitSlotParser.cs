@@ -51,15 +51,20 @@ namespace StingTools.Core.Electrical
 
         /// <summary>
         /// Slots from ElectricalSystem.StartSlot and pole count, for naming
-        /// schemes whose text cannot be parsed. On a two-column panelboard a
-        /// multi-pole breaker occupies every other slot: 1, 3, 5.
+        /// schemes whose text cannot be parsed. <paramref name="step"/> is the
+        /// distance between the slots of one multi-pole breaker: 2 on a two-column
+        /// panelboard numbered across (odd left, even right: 1, 3, 5), 1 on a
+        /// single-column schedule, a switchboard, or a two-column schedule
+        /// numbered down (n, n+1, n+2). Use <see cref="PanelSlotRules.StepFor"/>.
+        /// A step below 1 is treated as 1.
         /// </summary>
-        public static List<int> FromStartSlot(int startSlot, int poles)
+        public static List<int> FromStartSlot(int startSlot, int poles, int step)
         {
             var slots = new List<int>();
             if (startSlot <= 0) return slots;
             int n = poles < 1 ? 1 : poles;
-            for (int i = 0; i < n; i++) slots.Add(startSlot + 2 * i);
+            int d = step < 1 ? 1 : step;
+            for (int i = 0; i < n; i++) slots.Add(startSlot + d * i);
             return slots;
         }
     }

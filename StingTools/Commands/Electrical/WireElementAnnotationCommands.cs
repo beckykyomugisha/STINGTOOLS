@@ -65,6 +65,8 @@ namespace StingTools.Commands.Electrical
             public bool HasCircuit;
             public bool HasLength;   // circuit length available → VD computed
             public bool HasCurrent;  // apparent current available → CSA computed
+            /// <summary>Why <see cref="Data"/> is null. Empty when Data is set.</summary>
+            public string Reason = "";
         }
 
         // ── Circuit resolution ───────────────────────────────────────────────
@@ -109,6 +111,7 @@ namespace StingTools.Commands.Electrical
             if (circuit == null)
             {
                 result.HasCircuit = false;
+                result.Reason = "the wire is not assigned to a circuit";
                 return result;
             }
             result.HasCircuit = true;
@@ -184,9 +187,19 @@ namespace StingTools.Commands.Electrical
                     // KUT-7 — a refused size is 0, and 0 in a CSA annotation reads as
                     // "not sized yet" rather than "we declined". Leave it blank and say
                     // why in the log instead of annotating a zero.
+                    //
+                    // ELEC-12 — returning here left Data null, and both commands then
+                    // passed that null to Place() and dereferenced it. The refusal is
+                    // now carried as Reason and the callers report it. The commonest
+                    // refusal is a circuit with no length: the sizer picks the first
+                    // size whose voltage drop is > 0 and within the limit, and a zero
+                    // length gives zero drop, so nothing qualifies.
                     if (!res.Sized)
                     {
-                        StingLog.Warn($"WireElement sizing skipped: {res.Warning}");
+                        result.Reason = "the cable sizer did not size it: "
+                            + (string.IsNullOrWhiteSpace(res.Warning) ? "no reason given" : res.Warning.Trim())
+                            + (result.HasLength ? "" : " (the circuit has no length)");
+                        StingLog.Warn($"WireElement sizing skipped: {result.Reason}");
                         return result;
                     }
                     csa = res.RecommendedCsaMm2;
@@ -194,7 +207,12 @@ namespace StingTools.Commands.Electrical
                     // length to compute it from (otherwise CSA is ampacity-only).
                     vd  = result.HasLength ? res.ActualVoltDropPct : 0.0;
                 }
-                catch (Exception ex) { StingLog.Warn($"WireElement sizing: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    result.Reason = "cable sizing failed: " + ex.Message;
+                    StingLog.Warn($"WireElement sizing: {ex.Message}");
+                    return result;
+                }
             }
 
             result.Data = new WireAnnotationData(
@@ -327,6 +345,7 @@ namespace StingTools.Commands.Electrical
         internal static ElementId Place(Document doc, View view, Wire wire,
             WireAnnotationData data, WireAnnotationStyle style)
         {
+            if (data == null || style == null) return ElementId.InvalidElementId;
             var (a, b) = LongestSegment(wire);
             if (a == null || b == null) return ElementId.InvalidElementId;
 
@@ -516,6 +535,13 @@ namespace StingTools.Commands.Electrical
                         "Assign the wire to an electrical system first.");
                     return Result.Cancelled;
                 }
+                if (compute.Data == null)
+                {
+                    TaskDialog.Show("STING Wire Element Annotation",
+                        "Nothing was annotated: " + compute.Reason + ".\n\n" +
+                        "A label with no conductor size would read \"? Wire\", so none was placed.");
+                    return Result.Cancelled;
+                }
 
                 if (WireElementAnnotationEngine.HasAnnotation(doc, view, wire))
                 {
@@ -616,7 +642,8 @@ namespace StingTools.Commands.Electrical
                 WireElementAnnotationEngine.ClearBoxes(doc, view.Id);
                 var baseStyle = WireAnnotationStyleStore.Load(doc);
 
-                int placed = 0, failed = 0, skipped = 0, noCircuit = 0, noLength = 0;
+                int placed = 0, failed = 0, skipped = 0, noCircuit = 0, noLength = 0, notSized = 0;
+                var notSizedReasons = new Dictionary<string, int>(StringComparer.Ordinal);
                 bool cancelled = false, loggedLengthWarn = false;
 
                 var prog = StingProgressDialog.Show("STING Wire Element Annotation", wires.Count);
@@ -632,6 +659,13 @@ namespace StingTools.Commands.Electrical
 
                         var compute = WireElementAnnotationEngine.Compute(wire);
                         if (!compute.HasCircuit) { noCircuit++; continue; }
+                        if (compute.Data == null)
+                        {
+                            notSized++;
+                            string why = string.IsNullOrEmpty(compute.Reason) ? "reason unknown" : compute.Reason;
+                            notSizedReasons[why] = notSizedReasons.TryGetValue(why, out int n) ? n + 1 : 1;
+                            continue;
+                        }
                         if (!compute.HasLength)
                         {
                             noLength++;
@@ -668,6 +702,13 @@ namespace StingTools.Commands.Electrical
                 if (skipped   > 0) suffix += $" {skipped} already annotated (skipped).";
                 if (noCircuit > 0) suffix += $" {noCircuit} not on a circuit (skipped).";
                 if (noLength  > 0) suffix += $" {noLength} placed without VD (no circuit length).";
+                if (notSized  > 0)
+                {
+                    suffix += $" {notSized} not annotated (conductor could not be sized):";
+                    foreach (var kv in notSizedReasons.OrderByDescending(k => k.Value).Take(3))
+                        suffix += $"\n  • {kv.Value} × {kv.Key}";
+                    suffix += "\n";
+                }
                 if (failed    > 0) suffix += $" {failed} failed.";
                 if (cancelled)     suffix += " Cancelled by user.";
                 TaskDialog.Show("STING Wire Element Annotation", $"Annotated {placed} wire(s).{suffix}");
