@@ -109,9 +109,14 @@ namespace StingTools.Commands.Electrical.Compliance
             return zeOhm + (r1Mohm + r2Mohm) / 1000.0;
         }
 
+        /// <summary>BS 7671 minimum voltage factor (Reg 411.4.4, Appendix 3).</summary>
+        public const double Cmin = 0.95;
+
         /// <summary>
-        /// Verify Zs × Ia ≤ Uo. Returns the result with the maximum permitted
-        /// Zs for that OCPD type/rating, the actual Zs, and pass/fail.
+        /// Verify Zs × Ia ≤ Uo × Cmin (BS 7671 Reg 411.4.4). Returns the result
+        /// with the maximum permitted Zs for that OCPD type/rating, the actual
+        /// Zs, and pass/fail. Cmin = 0.95 is the minimum voltage factor that
+        /// Table 41.3 already includes (B32: 0.95 × 230 / 160 = 1.37 ohm).
         /// </summary>
         public static ZsCheckResult VerifyZs(double computedZsOhm, string ocpdType, double ratingA,
             double uoV = 230)
@@ -120,7 +125,7 @@ namespace StingTools.Commands.Electrical.Compliance
             double iaMult = th.IaMultiplier.TryGetValue(ocpdType?.ToUpperInvariant() ?? "", out double m)
                 ? m : 5.0;
             double ia = iaMult * Math.Max(ratingA, 1);
-            double zsMax = uoV / Math.Max(ia, 1);
+            double zsMax = Cmin * uoV / Math.Max(ia, 1);
             return new ZsCheckResult
             {
                 OcpdType         = ocpdType,
@@ -290,7 +295,8 @@ namespace StingTools.Commands.Electrical.Compliance
         public void SeedDefaults()
         {
             NominalUo = 230;
-            Ze["TN-S"] = 0.35; Ze["TN-C-S"] = 0.80; Ze["TT"] = 21.0; Ze["IT"] = 100.0;
+            // UK DNO maximum declared Ze: TN-C-S (PME) 0.35 ohm, TN-S 0.8 ohm.
+            Ze["TN-S"] = 0.80; Ze["TN-C-S"] = 0.35; Ze["TT"] = 21.0; Ze["IT"] = 100.0;
             IaMultiplier["MCB_B"] = 5; IaMultiplier["MCB_C"] = 10; IaMultiplier["MCB_D"] = 20;
             IaMultiplier["RCBO_B"] = 5; IaMultiplier["RCBO_C"] = 10;
             IaMultiplier["MCCB"] = 10; IaMultiplier["ACB"] = 8;

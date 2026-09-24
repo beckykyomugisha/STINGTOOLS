@@ -4,8 +4,8 @@
   "version": "1.0",
 
   "earthingSystems": {
-    "TN-S":      { "ZeOhm": 0.35, "description": "Separate earth conductor from utility" },
-    "TN-C-S":    { "ZeOhm": 0.80, "description": "Combined neutral-earth at utility, split at consumer (PME)" },
+    "TN-S":      { "ZeOhm": 0.80, "description": "Separate earth conductor from utility (DNO maximum 0.8 ohm)" },
+    "TN-C-S":    { "ZeOhm": 0.35, "description": "Combined neutral-earth at utility, split at consumer (PME, DNO maximum 0.35 ohm)" },
     "TT":        { "ZeOhm": 21.0, "description": "Local earth electrode" },
     "IT":        { "ZeOhm": 100.0, "description": "Isolated/floating earth (specialist)" }
   },
