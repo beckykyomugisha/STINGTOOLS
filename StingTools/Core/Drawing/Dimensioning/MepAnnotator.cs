@@ -65,6 +65,10 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var slopeTypeId = ResolveSlopeTypeId(doc, rule?.TagFamily, result);
+            // DRAW-3: without a spot-SLOPE type every placement would be a spot
+            // ELEVATION — a plausible number, and the wrong one, on a drainage
+            // drawing. ResolveSlopeTypeId has already said why; place nothing.
+            if (slopeTypeId == ElementId.InvalidElementId) return;
 
             // A slope rule on a non-MEP category is real: the catalogue carries
             // one on "Roofs", and a roof pitch is exactly what a spot slope is
@@ -106,19 +110,10 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var end  = mid + new XYZ(2.0, 1.0, 0);
                     var cref = lc.Curve.Reference ?? new Reference(mc);
 
-                    var sd = doc.Create.NewSpotElevation(view, cref, mid, bend, end, mid, hasLeader: true);
-                    if (sd == null)
-                    {
-                        result.Warnings.Add($"AutoAnnotateSlope: NewSpotElevation returned null for {mc.Id}.");
-                        continue;
-                    }
-                    if (slopeTypeId != ElementId.InvalidElementId)
-                    {
-                        SafeWrite.Try(() => sd.ChangeTypeId(slopeTypeId),
-                            "MepAnnotator.Slope",
-                            $"spot-slope type on {mc.Category?.Name} {mc.Id}",
-                            result?.Warnings);
-                    }
+                    var verdict = TryPlaceSpotSlope(doc, view, cref, mid, bend, end, slopeTypeId,
+                        $"{mc.Category?.Name} {mc.Id}", result);
+                    if (verdict == SlopePlacement.Blocked) return;   // same answer for every run in the view
+                    if (verdict != SlopePlacement.Placed) continue;
                     result.SpotsPlaced++;
                     already.Add(mc.Id);
                 }
@@ -394,6 +389,91 @@ namespace StingTools.Core.Drawing.Dimensioning
         /// spot-elevation type standing in for a slope type prints the wrong
         /// value, so that substitution must be visible.
         /// </summary>
+        private enum SlopePlacement { Placed, Skipped, Blocked }
+
+        /// <summary>
+        /// DRAW-3. The API has no NewSpotSlope: the only route is a spot
+        /// ELEVATION re-typed to a spot-slope type. Spot elevations and spot
+        /// slopes are different categories, so Revit may refuse the re-type —
+        /// and the old code swallowed that refusal, counted the ELEVATION as a
+        /// slope, and (because the idempotency index only looks at
+        /// OST_SpotSlopes) added another elevation on every re-run.
+        ///
+        /// Now a spot is counted only when it demonstrably ends up carrying the
+        /// slope type. Anything else is deleted on the spot and reported; a type
+        /// the spot cannot take at all blocks the run, because it will be the
+        /// same answer for every element in the view.
+        /// </summary>
+        private static SlopePlacement TryPlaceSpotSlope(Document doc, View view, Reference reference,
+            XYZ origin, XYZ bend, XYZ end, ElementId slopeTypeId, string what, AnnotationResult result)
+        {
+            SpotDimension sd;
+            try
+            {
+                sd = doc.Create.NewSpotElevation(view, reference, origin, bend, end, origin, hasLeader: true);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"AutoAnnotateSlope: could not place a spot on {what}: {ex.Message}");
+                return SlopePlacement.Skipped;
+            }
+            if (sd == null)
+            {
+                result.Warnings.Add($"AutoAnnotateSlope: NewSpotElevation returned null for {what}.");
+                return SlopePlacement.Skipped;
+            }
+
+            bool valid;
+            try { valid = sd.IsValidType(slopeTypeId); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MepAnnotator IsValidType({slopeTypeId}) on {what}: {ex.Message}");
+                valid = false;
+            }
+            if (!valid)
+            {
+                DeleteQuietly(doc, sd.Id, what);
+                result.Warnings.Add(
+                    "AutoAnnotateSlope BLOCKED: this project's spot-slope type cannot be applied to a spot placed by "
+                    + "the API, so every annotation would print an ELEVATION, not a slope. Nothing was placed. "
+                    + "Load a Spot Slope type from the Revit default template and re-run.");
+                return SlopePlacement.Blocked;
+            }
+
+            try { sd.ChangeTypeId(slopeTypeId); }
+            catch (Exception ex)
+            {
+                DeleteQuietly(doc, sd.Id, what);
+                result.Warnings.Add($"AutoAnnotateSlope: spot-slope type rejected on {what} ({ex.Message}); removed, not counted.");
+                return SlopePlacement.Skipped;
+            }
+            if (sd.GetTypeId() != slopeTypeId)
+            {
+                DeleteQuietly(doc, sd.Id, what);
+                result.Warnings.Add($"AutoAnnotateSlope: spot on {what} did not keep the slope type; removed, not counted.");
+                return SlopePlacement.Skipped;
+            }
+            return SlopePlacement.Placed;
+        }
+
+        private static void DeleteQuietly(Document doc, ElementId id, string what)
+        {
+            try { doc.Delete(id); }
+            catch (Exception ex)
+            {
+                // Left behind is a stray elevation; say so rather than pretend it is gone.
+                StingLog.Warn($"MepAnnotator: could not remove rejected spot on {what}: {ex.Message}");
+            }
+        }
+
+        /// <summary>A spot-SLOPE type, recognised by what it is (StyleType) rather
+        /// than by category or name — a type called "Slope" can be an elevation.</summary>
+        private static bool IsSpotSlopeType(SpotDimensionType t)
+        {
+            try { return t.StyleType == DimensionStyleType.SpotSlope; }
+            catch { return false; }
+        }
+
         private static ElementId ResolveSlopeTypeId(Document doc, string preferred, AnnotationResult result)
         {
             try
@@ -402,30 +482,26 @@ namespace StingTools.Core.Drawing.Dimensioning
                     .OfClass(typeof(SpotDimensionType)).Cast<SpotDimensionType>().ToList();
                 if (all.Count == 0)
                 {
-                    result.Warnings.Add("AutoAnnotateSlope: project has no SpotDimensionType — Revit's default is used.");
+                    result.Warnings.Add("AutoAnnotateSlope BLOCKED: project has no SpotDimensionType at all — nothing placed.");
                     return ElementId.InvalidElementId;
                 }
 
                 if (!string.IsNullOrWhiteSpace(preferred))
                 {
                     var named = all.FirstOrDefault(t => string.Equals(t.Name, preferred, StringComparison.OrdinalIgnoreCase));
-                    if (named != null) return named.Id;
-                    result.Warnings.Add($"AutoAnnotateSlope: spot type '{preferred}' not found; falling back to a slope-category type.");
+                    if (named != null && IsSpotSlopeType(named)) return named.Id;
+                    result.Warnings.Add(named != null
+                        ? $"AutoAnnotateSlope: spot type '{preferred}' is not a spot-SLOPE type; using the project's slope type instead."
+                        : $"AutoAnnotateSlope: spot type '{preferred}' not found; using the project's slope type instead.");
                 }
 
-                var slope = all.FirstOrDefault(t =>
-                {
-                    try { return t.Category?.Id.Value == (long)BuiltInCategory.OST_SpotSlopes; }
-                    catch { return false; }
-                });
+                var slope = all.FirstOrDefault(IsSpotSlopeType);
                 if (slope != null) return slope.Id;
 
-                var byName = all.FirstOrDefault(t => (t.Name ?? "").IndexOf("slope", StringComparison.OrdinalIgnoreCase) >= 0);
-                if (byName != null) return byName.Id;
-
                 result.Warnings.Add(
-                    "AutoAnnotateSlope: no spot-SLOPE type in this project — the annotation will print an ELEVATION, "
-                    + "not a slope. Load or create a Spot Slope type and re-run.");
+                    "AutoAnnotateSlope BLOCKED: no spot-SLOPE type in this project, so every annotation would print an "
+                    + "ELEVATION, not a slope. Nothing was placed. Load a Spot Slope type (Revit's default template "
+                    + "has one) and re-run.");
                 return ElementId.InvalidElementId;
             }
             catch (Exception ex)
@@ -552,11 +628,10 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var bend = origin + new XYZ(1.0, 1.0, 0);
                     var end  = origin + new XYZ(2.0, 1.0, 0);
 
-                    var sd = doc.Create.NewSpotElevation(view, new Reference(el), origin, bend, end, origin, hasLeader: true);
-                    if (sd == null) continue;
-                    if (slopeTypeId != ElementId.InvalidElementId)
-                        SafeWrite.Try(() => sd.ChangeTypeId(slopeTypeId),
-                            "MepAnnotator.Slope", $"spot-slope type on {el.Category?.Name} {el.Id}", result?.Warnings);
+                    var verdict = TryPlaceSpotSlope(doc, view, new Reference(el), origin, bend, end, slopeTypeId,
+                        $"{el.Category?.Name} {el.Id}", result);
+                    if (verdict == SlopePlacement.Blocked) return;
+                    if (verdict != SlopePlacement.Placed) continue;
                     result.SpotsPlaced++;
                     already.Add(el.Id);
                     placed++;
