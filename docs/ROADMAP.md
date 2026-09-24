@@ -844,7 +844,7 @@ with the fix reverted.
 | P-11 | ✅ closed | One deterministic, always-reported uniquifier (`SheetNumberEngine.MakeUnique`) for producer and composer; the random suffix is gone. |
 | P-13 | ✅ closed (measured) | Slots are fractions of the title-block frame; unmatched scope-box level warns; one scope-box parser. |
 | — (found) | ✅ closed | Sequence read-back took the last digit run — on ISO numbers the REVISION (`-0003-S2-P01` → 1). Now reads by template. |
-| DRAW-6 | ✅ closed | `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` registered (MR_PARAMETERS, registry, bindings, `ParamRegistry`); an unbound parameter now warns. |
+| — (see DRAW-6) | ✅ closed | `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` registered (MR_PARAMETERS, registry, bindings, `ParamRegistry`); an unbound parameter now warns. |
 | T-5 | ✅ closed | Migrate passed no tokens, so `{lvl}`/`{seq:D3}` were stamped literally. **Bigger than reported:** all 645 `${…}` title-block references used names without `_TXT` and resolved to nothing, blanking client / project / originator on every sheet. `TitleBlockTemplate` resolves both; an unresolvable cell is left alone and reported. |
 | T-6 | ✅ closed | Presentation keeps paper size (falls back loudly — only A1 exists); blank paper no longer silently A1; A2 resolves; one `TitleBlockLoadOptions`. |
 | T-7 | 🟡 partly | Text tiers by paper class (A2 kept A1 text). Arc / arc-bounded region rebuild written, **not run in Revit**; splines/ellipses counted and warned, not rescaled. |
