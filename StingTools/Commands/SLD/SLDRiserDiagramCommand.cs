@@ -94,10 +94,13 @@ namespace StingTools.Commands.SLD
                 loop.Append(Line.CreateBound(p3, p4));
                 loop.Append(Line.CreateBound(p4, p1));
 
-                var frt = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().FirstOrDefault();
-                if (frt != null)
-                    FilledRegion.Create(doc, frt.Id, view.Id, new List<CurveLoop> { loop });
+                // Outline only. A filled region used whichever FilledRegionType
+                // happened to be first — often "Solid Black", hiding the label.
+                foreach (Curve edge in loop)
+                {
+                    try { doc.Create.NewDetailCurve(view, edge); }
+                    catch (Exception exEdge) { StingLog.Warn($"Riser box edge: {exEdge.Message}"); }
+                }
 
                 var ts = new FilteredElementCollector(doc)
                     .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault();
@@ -209,13 +212,27 @@ namespace StingTools.Commands.SLD
                     .OfClass(typeof(ViewDrafting)).Cast<ViewDrafting>()
                     .FirstOrDefault(v => string.Equals(v.Name, name,
                         StringComparison.OrdinalIgnoreCase));
-                if (existing != null) return existing;
+                if (existing != null)
+                {
+                    // Reuse, but clear it: returning it as-is drew a second copy
+                    // of the riser on top of the first.
+                    var old = new FilteredElementCollector(doc, existing.Id).ToElementIds().ToList();
+                    if (old.Count > 0)
+                    {
+                        try { doc.Delete(old); }
+                        catch (Exception exDel) { StingLog.Warn($"Riser clear: {exDel.Message}"); }
+                    }
+                    try { existing.Scale = 1; } catch (Exception exS) { StingLog.Warn($"Riser scale: {exS.Message}"); }
+                    return existing;
+                }
                 var vft = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                     .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
                 if (vft == null) return null;
                 var v = ViewDrafting.Create(doc, vft.Id);
                 try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                // 1:1 — box sizes are true millimetres, text is paper-sized.
+                try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"Riser scale: {ex.Message}"); }
                 return v;
             }
             catch (Exception ex) { StingLog.Warn($"CreateOrReplaceView: {ex.Message}"); return null; }
@@ -272,6 +289,7 @@ namespace StingTools.Commands.SLD
                     try { doc.Delete(viewElems); }
                     catch (Exception ex) { StingLog.Warn($"Riser purge: {ex.Message}"); }
                 }
+                try { view.Scale = 1; } catch (Exception ex) { StingLog.Warn($"Riser scale: {ex.Message}"); }
                 SLDRiserEngine.DrawRiser(doc, view, root,
                     StingElectricalCommandHandler.CurrentRiserOptions);
                 tx.Commit();
