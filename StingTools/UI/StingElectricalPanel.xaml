@@ -580,7 +580,7 @@
                                             ToolTip="Reset any colour / halftone overrides applied by Flag Exceedances, Arc Flash, Emergency Audit or LPD checks on the active view."/>
                                     <Button Content="▶ Load + Demand Audit" Style="{StaticResource ElecActionBtn}"
                                             Tag="Calc_LoadDemandAudit" Click="Cmd_Click"
-                                            ToolTip="Phase 185 — applies BS 7671 App 1 / IEE OSG diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
+                                            ToolTip="Phase 185 — applies IET On-Site Guide Appendix A diversity factors per circuit category (lighting 90%, small power 75%, HVAC 100%, etc.), reports per-panel spare capacity (target 25% commercial, 30% industrial, 35% healthcare), recommends harmonics-aware neutral CSA, sizes a project-wide PFC capacitor bank with payback estimate."/>
                                 </WrapPanel>
                             </StackPanel>
                         </Expander>
@@ -626,18 +626,18 @@
                                     <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
                                     <ComboBoxItem Content="E — Free air" Tag="E"/>
                                 </ComboBox>
-                                <TextBlock Text="Diversity mode" Style="{StaticResource ElecLabel}"/>
-                                <ComboBox x:Name="FeederDiversityMode" FontSize="10"
-                                          SelectionChanged="FeederDiversityMode_Changed">
-                                    <ComboBoxItem Content="None" IsSelected="True" Tag="None"/>
-                                    <ComboBoxItem Content="BS 7671 App 1 (domestic)" Tag="BS"/>
-                                    <ComboBoxItem Content="NEC 220.83 (existing)" Tag="NEC"/>
-                                    <ComboBoxItem Content="User-defined %" Tag="User"/>
-                                </ComboBox>
+                                <!-- The former "Diversity mode" combo (None / BS 7671 App 1 / NEC 220.83 /
+                                     User) was never read: only the % box reached the sizer, and it was
+                                     disabled for every mode but User. One honest control remains. -->
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"/>
-                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60"
-                                             FontSize="10" IsEnabled="False"/>
+                                    <TextBlock Text="Diversity %" Style="{StaticResource ElecLabel}"
+                                               ToolTip="Applied to each feeder's supply-circuit apparent load. 100 = no diversity. For category diversity (IET On-Site Guide App A) use Load Demand."/>
+                                    <TextBox x:Name="FeederDiversityPct" Text="100" Width="60" FontSize="10"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="VD limit %" Style="{StaticResource ElecLabel}"
+                                               ToolTip="Blank = the BS 7671 Appendix 12 'Other (%)' limit set under VOLTAGE DROP (5 % by default). Enter a value to override for feeders only."/>
+                                    <TextBox x:Name="FeederVDLimit" Text="" Width="60" FontSize="10"/>
                                 </StackPanel>
                                 <Button Content="▶ Size All Feeders" Margin="0,4"
                                         Style="{StaticResource ElecPrimaryBtn}"
@@ -798,7 +798,7 @@
                                 <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">
                                     <ComboBoxItem Content="PVC (70°C)" IsSelected="True" Tag="PVC70"/>
                                     <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90" ToolTip="BS 7671 Table 4E2A is not shipped in STING_WIRE_TABLES.json — the BS 7671 sizer refuses until it is added"/>
-                                    <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90"/>
+                                    <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90" ToolTip="LSOH is a sheath, not an insulation: a 90 °C LSOH cable is sized from the thermosetting Table 4E tables, which are not shipped in STING_WIRE_TABLES.json — the BS 7671 sizer refuses until they are added"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="7" Grid.Column="0" Text="VD limit (%)" Style="{StaticResource ElecLabel}"/>
                                 <TextBox Grid.Row="7" Grid.Column="1" x:Name="txtCblVDLimit" Text="3" Margin="2" FontSize="10"/>

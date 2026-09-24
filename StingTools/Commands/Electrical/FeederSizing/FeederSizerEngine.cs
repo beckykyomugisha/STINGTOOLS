@@ -28,7 +28,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
         /// XLPE / SWA feeders (Tables 4E2A / 4E4A) are refused until those tables are added.</summary>
         public string Insulation      { get; set; } = "PVC70";
         public double FeederLengthM   { get; set; } = 10.0;
-        public double VDLimitPct      { get; set; } = 2.0;
+        /// <summary>BS 7671 Appendix 12 "other uses" limit; was 2 %, which no standard sets.</summary>
+        public double VDLimitPct      { get; set; } = 5.0;
         public string Standard        { get; set; } = "BS7671";
         public bool   ContinuousLoad  { get; set; } = false;
 

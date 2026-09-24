@@ -15,10 +15,17 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSettingsSnapshot
     {
         public double DerateFactor;
-        public string DiversityMode;
+        /// <summary>Applied to the supply-circuit apparent load; 100 = none.</summary>
         public double DiversityPct;
         public string InstallMethod;
-        public double VDLimitPct;
+        /// <summary>Feeder VD limit. Defaults to the BS 7671 Appendix 12 'other' limit
+        /// (5 %); was hard-coded 2 %, which upsized every feeder against a limit no
+        /// standard sets.</summary>
+        public double VDLimitPct = DefaultVdLimitPct;
+        public bool VDLimitUserSet;
+
+        /// <summary>BS 7671 Appendix 12 Table 4Ab, other uses (public supply).</summary>
+        public const double DefaultVdLimitPct = 5.0;
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -35,8 +42,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
 
             var settings = StingElectricalCommandHandler.CurrentFeederSettings
                 ?? new FeederSettingsSnapshot
-                { DerateFactor = 0.8, DiversityMode = "None", DiversityPct = 100,
-                  InstallMethod = "C", VDLimitPct = 2.0 };
+                { DerateFactor = 0.8, DiversityPct = 100,
+                  InstallMethod = "C", VDLimitPct = FeederSettingsSnapshot.DefaultVdLimitPct };
 
             var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
             if (root == null)
@@ -91,6 +98,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
                           $"on defaults {onDefaults}, VD fails {vdFails}.");
             TaskDialog.Show("STING Feeders",
                 $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                $"VD limit: {settings.VDLimitPct:0.##} % " +
+                (settings.VDLimitUserSet ? "(user-set for feeders)" : "(BS 7671 Appendix 12 'other' limit)") +
+                $". Diversity: {(settings.DiversityPct > 0 ? settings.DiversityPct : 100):0.#} %.\n" +
                 (notSized > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
                 (onDefaults > 0
                     ? $"\n{onDefaults} feeder(s) used DEFAULT inputs (not model data) — check before issue:\n" +
@@ -135,7 +145,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     InstallMethod   = s.InstallMethod ?? "C",
                     Material        = "Cu",
                     Insulation      = "PVC70",
-                    VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : 2.0,
+                    VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : FeederSettingsSnapshot.DefaultVdLimitPct,
                     Standard        = "BS7671"
                 };
                 // Cable type is a stated assumption (PVC70 multicore, Table 4D2A — the only

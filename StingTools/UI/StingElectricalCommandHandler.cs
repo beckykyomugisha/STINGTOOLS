@@ -129,6 +129,7 @@ namespace StingTools.UI
                 CurrentBreakerOptions = _panel.ReadBreakerOptions();
                 CurrentBalanceOptions = _panel.ReadBalanceOptions();
                 CurrentConduitFill = _panel.ReadConduitFillInputs();
+                CurrentFeederSettings = _panel.ReadFeederSettings();
             });
         }
 
