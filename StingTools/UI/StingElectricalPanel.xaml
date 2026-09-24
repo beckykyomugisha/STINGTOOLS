@@ -1521,15 +1521,15 @@
 
                         <Expander Header="EXTERNAL TOOL INTEGRATION" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
-                                <Button Content="🔌 Export to EasyPower (XML)" Style="{StaticResource ElecActionBtn}"
+                                <Button Content="🔌 EasyPower data hand-off (draft XML)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportEasyPower" Click="Cmd_Click"
-                                        ToolTip="Best-effort EasyPower-compatible XML (buses + branches + arc flash). Real EasyPower import format is licensed; this is a documented approximation."/>
-                                <Button Content="💡 Export to DIALux evo (IFC 4)" Style="{StaticResource ElecActionBtn}"
+                                        ToolTip="Data hand-off DRAFT: buses, branches, cables, feeders and arc-flash rows in a STING-defined XML layout. NOT a native EasyPower import file (its format is not public) — map and review before use."/>
+                                <Button Content="💡 DIALux data hand-off (IFC 4 draft)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportDIALux" Click="Cmd_Click"
-                                        ToolTip="IFC 4 STEP file with IfcLightFixture + IfcSpace entities. DIALux 12+ accepts this."/>
-                                <Button Content="⚙ Export to ETAP (CIM XML)" Style="{StaticResource ElecActionBtn}"
+                                        ToolTip="Data hand-off DRAFT: IfcSpace (number, name, SI quantities) + IfcLightFixture records with STING property sets. No geometry or placement — use Revit IFC export / the DIALux plug-in for a calculation model."/>
+                                <Button Content="⚙ ETAP data hand-off (CIM-shaped draft)" Style="{StaticResource ElecActionBtn}"
                                         Tag="Elec_ExportEtap" Click="Cmd_Click"
-                                        ToolTip="IEC 61968 / 61970 CIM XML — substations + energy consumers for ETAP load-flow."/>
+                                        ToolTip="Data hand-off DRAFT: CIM-shaped RDF/XML (panels, loads, feeders with unique IDs). NOT a validated CIM profile nor a native ETAP import file — map and review before use."/>
                                 <Button Content="▶ Export to SKM PowerTools 🔒" Style="{StaticResource ElecActionBtn}"
                                         IsEnabled="False"
                                         ToolTip="Planned for Phase 180 — SKM PowerTools requires a licensed import format."/>

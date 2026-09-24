@@ -9,10 +9,10 @@ using StingTools.Core;
 namespace StingTools.Commands.Electrical.Export
 {
     /// <summary>
-    /// Best-effort EasyPower XML export. Maps STING data to a buses /
-    /// branches / arc-flash schema; the real EasyPower import format is
-    /// licensed and not publicly documented in full, so this is a
-    /// reasonable approximation that EasyPower can be coerced to read.
+    /// DATA HAND-OFF DRAFT for EasyPower: buses / branches / cables / feeders /
+    /// arc-flash rows in a STING-defined XML layout. EasyPower's import format
+    /// is not publicly specified, so this is NOT a native EasyPower import file;
+    /// it is a structured data sheet to map from, and must be reviewed.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -27,10 +27,11 @@ namespace StingTools.Commands.Electrical.Export
             var model = ExternalExportEngine.Build(doc);
             string outDir = OutputLocationHelper.GetOutputDirectory(doc);
             try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            string outPath = Path.Combine(outDir, $"STING_EasyPower_{DateTime.Now:yyyyMMdd-HHmm}.xml");
+            string outPath = Path.Combine(outDir, $"STING_EasyPower_DRAFT_{DateTime.Now:yyyyMMdd-HHmm}.xml");
 
             var sb = new StringBuilder();
             sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+            sb.AppendLine("<!-- STING data hand-off draft: STING-defined layout, NOT a native EasyPower import file. Review before use. -->");
             sb.AppendLine("<EasyPowerProject>");
             sb.AppendLine($"  <ProjectInfo name=\"{Esc(model.ProjectName)}\" " +
                           $"number=\"{Esc(model.ProjectNumber)}\" " +
@@ -47,7 +48,8 @@ namespace StingTools.Commands.Electrical.Export
             sb.AppendLine("  <Branches>");
             foreach (var c in model.Circuits)
             {
-                sb.AppendLine($"    <Branch id=\"{Esc(c.CircuitId)}\" " +
+                // Circuit numbers repeat on every panel — scope the id by panel.
+                sb.AppendLine($"    <Branch id=\"{Esc($"{c.PanelName}/{c.CircuitId}")}\" " +
                               $"fromBus=\"{Esc(c.PanelName)}\" " +
                               $"loadKW=\"{c.LoadKW:0.000}\" " +
                               $"loadKVAR=\"{c.LoadKVAR:0.000}\" " +
@@ -113,11 +115,12 @@ namespace StingTools.Commands.Electrical.Export
 
             StingLog.Info($"EasyPowerExport: {outPath}");
             TaskDialog.Show("STING EasyPower Export",
-                $"EasyPower XML exported (best-effort schema):\n{outPath}\n\n" +
+                $"DATA HAND-OFF DRAFT written:\n{outPath}\n\n" +
                 $"{model.Panels.Count} bus(es) · {model.Circuits.Count} branch(es) · " +
                 $"{model.Cables.Count} cable(s) · {model.Feeders.Count} feeder(s) · " +
                 $"{model.ArcFlashResults.Count} arc-flash row(s).\n\n" +
-                "Note: EasyPower's real import format is licensed; this is a documented approximation.");
+                "This is a STING-defined XML data sheet, NOT a native EasyPower import file — EasyPower's " +
+                "import format is not publicly specified. Map it into EasyPower and review every value before use.");
             return Result.Succeeded;
         }
 
