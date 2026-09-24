@@ -56,7 +56,17 @@ namespace StingTools.Commands.Electrical.Compliance
         /// </summary>
         public static BS7671Thresholds Thresholds(string projectOverridePath)
         {
-            string key = projectOverridePath ?? "";
+            // Keyed on the override file's last-write time as well as its path, so
+            // editing the project Ze takes effect on the next run, not the next
+            // Revit session.
+            string stamp = "";
+            try
+            {
+                if (!string.IsNullOrEmpty(projectOverridePath) && File.Exists(projectOverridePath))
+                    stamp = File.GetLastWriteTimeUtc(projectOverridePath).Ticks.ToString();
+            }
+            catch (Exception ex) { StingLog.Warn($"BS7671 override stamp: {ex.Message}"); }
+            string key = (projectOverridePath ?? "") + "|" + stamp;
             lock (_lock)
             {
                 if (_cache.TryGetValue(key, out var hit)) return hit;
@@ -231,24 +241,36 @@ namespace StingTools.Commands.Electrical.Compliance
             // Resolve OCPD clearing time at the *prospective fault current*
             // for the circuit (computed from Zs and Uo).
             double pscA = th.NominalUo / Math.Max(zs, 1e-6);
-            var tcc = TccDatabaseLoader.Resolve(
-                inp.OcpdType + "_" + inp.RatingA.ToString("0"),  // optional label form
-                pscA / 1000.0)
-                ?? new TccEntry { ClearingMs_At_10xIn = 100, MinFaultKa = 0.05, MaxFaultKa = 6 };
-            double clearingSec = tcc.ClearingTimeMs(pscA / 1000.0) / 1000.0;
+
+            // Clearing time at the prospective fault current from the IEC 60898-1
+            // band of the protective device: the band's MAXIMUM clearing edge, the
+            // worst case for §434.5.2. It used to come from a label lookup that never
+            // matched ("MCB_C_32") and so fell back to an invented 100-300 ms ramp.
+            // MCCB / ACB / unknown curve have no generic band: the adiabatic check is
+            // then NOT CHECKED — never a pass on an invented time.
+            string letter = (inp.OcpdType ?? "").Split('_').LastOrDefault() ?? "";
+            var band = IecMcbBands.Parse($"{letter}{inp.RatingA:0}", inp.OcpdType);
+            double clearingSec = band.HasBand ? band.MaxClearTimeS(pscA) : double.NaN;
+            bool adiabaticChecked = !double.IsNaN(clearingSec) && !double.IsInfinity(clearingSec);
 
             var ad = VerifyAdiabatic(inp.PhaseCsaMm2, inp.Material, inp.Insulation,
-                pscA, clearingSec, th);
+                pscA, adiabaticChecked ? clearingSec : 0, th);
+            if (!adiabaticChecked) ad.Passes = false;
 
             var rcd = RecommendRcd(inp.Context, inp.EarthingSystem, th);
 
-            // Final verdict — fail any single check, escalate to overall fail.
-            string verdict = (zsCheck.Passes && ad.Passes) ? "PASS"
-                           : (!zsCheck.Passes && rcd.RecommendedMA > 0) ? "PASS_VIA_RCD"
-                           : "FAIL";
+            // Final verdict — fail any single check, escalate to overall fail. An
+            // unchecked adiabatic test cannot produce a PASS: it is UNVERIFIED.
+            string verdict = !zsCheck.Passes
+                                ? (rcd.RecommendedMA > 0 ? "PASS_VIA_RCD" : "FAIL")
+                           : !adiabaticChecked ? "UNVERIFIED"
+                           : ad.Passes ? "PASS" : "FAIL";
 
             return new CircuitAuditResult
             {
+                OcpdType        = inp.OcpdType,
+                RatingA         = inp.RatingA,
+                Assumptions     = new List<string>(inp.Assumptions ?? new List<string>()),
                 CircuitTag      = inp.CircuitTag,
                 PanelName       = inp.PanelName,
                 LoadName        = inp.LoadName,
@@ -261,7 +283,7 @@ namespace StingTools.Commands.Electrical.Compliance
                 ZsMarginPct     = zsCheck.MarginPercent,
                 ZsPasses        = zsCheck.Passes,
                 ProspectivePscA = pscA,
-                ClearingTimeMs  = clearingSec * 1000.0,
+                ClearingTimeMs  = adiabaticChecked ? clearingSec * 1000.0 : double.NaN,
                 AdiabaticPasses = ad.Passes,
                 AdiabaticMinCsa = ad.MinCsaMm2,
                 K               = ad.K,
@@ -299,6 +321,8 @@ namespace StingTools.Commands.Electrical.Compliance
         public string CircuitTag, PanelName, LoadName, EarthingSystem, OcpdType, Material, Insulation, Context;
         public double RatingA, LengthM, PhaseCsaMm2, CpcCsaMm2;
         public WireTableSet WireTables;
+        /// <summary>Inputs the caller defaulted because the model did not hold them.</summary>
+        public List<string> Assumptions = new List<string>();
         /// <summary>Corporate + project thresholds; null = corporate only.</summary>
         public BS7671Thresholds Thresholds;
     }
@@ -306,6 +330,10 @@ namespace StingTools.Commands.Electrical.Compliance
     public class CircuitAuditResult
     {
         public string CircuitTag, PanelName, LoadName, EarthingSystem, RcdRegulation, Verdict, ZeSource;
+        public string OcpdType;
+        public double RatingA;
+        /// <summary>Inputs that were defaulted - the verdict rests on them.</summary>
+        public List<string> Assumptions = new List<string>();
         public double Cmin;
         public double ZeOhm, ZsActualOhm, ZsMaxOhm, ZsMarginPct, ProspectivePscA, ClearingTimeMs, AdiabaticMinCsa, K;
         public bool ZsPasses, AdiabaticPasses;

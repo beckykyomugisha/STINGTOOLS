@@ -7,12 +7,12 @@
       "insulation": "XLPE90",
       "installMethod": "C",
       "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D5A)",
-      "_review_2026_09_24": "NOT USED BY THE CABLE SIZER. Mislabelled: the current columns up to 16 mm2 are BS 7671 Table 4D2A (70 C thermoplastic multicore) method C values, not 4D5A or any 90 C XLPE table; mohm_per_m for 1.5-6 mm2 exceed BS EN 60228 (2.5 mm2: 8.71 vs 7.41 at 20 C). Kept only because FaultCurrentEngine and the wire-reference grid still read it. Sizing reads bs7671Appendix4.",
+      "_review_2026_09_24": "NOT USED BY THE CABLE SIZER. Mislabelled: the current columns up to 16 mm2 are BS 7671 Table 4D2A (70 C thermoplastic multicore) method C values, not 4D5A or any 90 C XLPE table; mohm_per_m corrected 2026-09-24 to BS EN 60228 class 2 copper at 20 C (1.5-6 mm2 and 185/240 mm2 were hot or rounded values; FaultCurrentEngine needs 20 C for maximum fault, BS7671ComplianceEngine applies its own temperature correction). Kept only because FaultCurrentEngine and the wire-reference grid still read it. Sizing reads bs7671Appendix4.",
       "sizes": [
-        { "csaMm2": 1.5,  "currentA_1ph": 19.5, "currentA_3ph": 17.5, "mohm_per_m": 14.48 },
-        { "csaMm2": 2.5,  "currentA_1ph": 27.0, "currentA_3ph": 24.0, "mohm_per_m": 8.71  },
-        { "csaMm2": 4.0,  "currentA_1ph": 36.0, "currentA_3ph": 32.0, "mohm_per_m": 5.09  },
-        { "csaMm2": 6.0,  "currentA_1ph": 46.0, "currentA_3ph": 41.0, "mohm_per_m": 3.39  },
+        { "csaMm2": 1.5,  "currentA_1ph": 19.5, "currentA_3ph": 17.5, "mohm_per_m": 12.1 },
+        { "csaMm2": 2.5,  "currentA_1ph": 27.0, "currentA_3ph": 24.0, "mohm_per_m": 7.41  },
+        { "csaMm2": 4.0,  "currentA_1ph": 36.0, "currentA_3ph": 32.0, "mohm_per_m": 4.61  },
+        { "csaMm2": 6.0,  "currentA_1ph": 46.0, "currentA_3ph": 41.0, "mohm_per_m": 3.08  },
         { "csaMm2": 10.0, "currentA_1ph": 63.0, "currentA_3ph": 57.0, "mohm_per_m": 1.83  },
         { "csaMm2": 16.0, "currentA_1ph": 85.0, "currentA_3ph": 76.0, "mohm_per_m": 1.15  },
         { "csaMm2": 25.0, "currentA_1ph": 112.0,"currentA_3ph": 99.0, "mohm_per_m": 0.727 },
@@ -22,8 +22,8 @@
         { "csaMm2": 95.0, "currentA_1ph": 258.0,"currentA_3ph": 229.0,"mohm_per_m": 0.193 },
         { "csaMm2": 120.0,"currentA_1ph": 299.0,"currentA_3ph": 264.0,"mohm_per_m": 0.153 },
         { "csaMm2": 150.0,"currentA_1ph": 344.0,"currentA_3ph": 305.0,"mohm_per_m": 0.124 },
-        { "csaMm2": 185.0,"currentA_1ph": 392.0,"currentA_3ph": 349.0,"mohm_per_m": 0.101 },
-        { "csaMm2": 240.0,"currentA_1ph": 461.0,"currentA_3ph": 409.0,"mohm_per_m": 0.0778}
+        { "csaMm2": 185.0,"currentA_1ph": 392.0,"currentA_3ph": 349.0,"mohm_per_m": 0.0991 },
+        { "csaMm2": 240.0,"currentA_1ph": 461.0,"currentA_3ph": 409.0,"mohm_per_m": 0.0754}
       ]
     },
     {
@@ -33,10 +33,10 @@
       "methodDescription": "Clipped direct (BS 7671 Method C, Table 4D2A)",
       "_review_2026_09_24": "NOT USED BY THE CABLE SIZER. Does not match Table 4D2A method C (2.5 mm2 here 24/21 A; the table gives 27/24 A). Sizing reads bs7671Appendix4.",
       "sizes": [
-        { "csaMm2": 1.5,  "currentA_1ph": 17.5, "currentA_3ph": 15.5, "mohm_per_m": 14.48 },
-        { "csaMm2": 2.5,  "currentA_1ph": 24.0, "currentA_3ph": 21.0, "mohm_per_m": 8.71  },
-        { "csaMm2": 4.0,  "currentA_1ph": 32.0, "currentA_3ph": 28.0, "mohm_per_m": 5.09  },
-        { "csaMm2": 6.0,  "currentA_1ph": 41.0, "currentA_3ph": 36.0, "mohm_per_m": 3.39  },
+        { "csaMm2": 1.5,  "currentA_1ph": 17.5, "currentA_3ph": 15.5, "mohm_per_m": 12.1 },
+        { "csaMm2": 2.5,  "currentA_1ph": 24.0, "currentA_3ph": 21.0, "mohm_per_m": 7.41  },
+        { "csaMm2": 4.0,  "currentA_1ph": 32.0, "currentA_3ph": 28.0, "mohm_per_m": 4.61  },
+        { "csaMm2": 6.0,  "currentA_1ph": 41.0, "currentA_3ph": 36.0, "mohm_per_m": 3.08  },
         { "csaMm2": 10.0, "currentA_1ph": 57.0, "currentA_3ph": 50.0, "mohm_per_m": 1.83  },
         { "csaMm2": 16.0, "currentA_1ph": 76.0, "currentA_3ph": 68.0, "mohm_per_m": 1.15  },
         { "csaMm2": 25.0, "currentA_1ph": 101.0,"currentA_3ph": 89.0, "mohm_per_m": 0.727 },
@@ -46,8 +46,8 @@
         { "csaMm2": 95.0, "currentA_1ph": 232.0,"currentA_3ph": 207.0,"mohm_per_m": 0.193 },
         { "csaMm2": 120.0,"currentA_1ph": 269.0,"currentA_3ph": 239.0,"mohm_per_m": 0.153 },
         { "csaMm2": 150.0,"currentA_1ph": 309.0,"currentA_3ph": 275.0,"mohm_per_m": 0.124 },
-        { "csaMm2": 185.0,"currentA_1ph": 353.0,"currentA_3ph": 314.0,"mohm_per_m": 0.101 },
-        { "csaMm2": 240.0,"currentA_1ph": 415.0,"currentA_3ph": 369.0,"mohm_per_m": 0.0778}
+        { "csaMm2": 185.0,"currentA_1ph": 353.0,"currentA_3ph": 314.0,"mohm_per_m": 0.0991 },
+        { "csaMm2": 240.0,"currentA_1ph": 415.0,"currentA_3ph": 369.0,"mohm_per_m": 0.0754}
       ]
     },
     {

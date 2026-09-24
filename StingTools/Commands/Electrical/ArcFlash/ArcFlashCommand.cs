@@ -108,7 +108,23 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         continue;
                     }
 
-                    double voltageV = PanelVoltageV(doc, panel, out string vSource);
+                    // IEEE 1584-2002 models three-phase arcs only. The fault study now
+                    // returns the line-to-neutral Ik1 for single-phase boards; feeding
+                    // that in as a 3-phase bolted fault understates the energy.
+                    if (fr.Phases != 3)
+                    {
+                        reason = fr.Phases == 1
+                            ? "single-phase board — IEEE 1584-2002 models three-phase arcs only"
+                            : "phase count unknown — cannot confirm a three-phase arc";
+                        StampNotCalculated(panel, reason, notCalculated);
+                        continue;
+                    }
+
+                    // Line-to-line voltage from the fault study (the same voltage its Ik
+                    // was computed at); the equipment parameter can hold L-N (230 V).
+                    string vSource = "fault study L-L";
+                    double voltageV = LeadingNumber(fr.Voltage);
+                    if (voltageV <= 0) voltageV = PanelVoltageV(doc, panel, out vSource);
                     var cls = ClassifyEquipment(panel);
 
                     double overrideMm = ReadWorkingDistanceOverride(panel);
@@ -199,9 +215,10 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 (notCalculated.Count > 0
                     ? "Not calculated (first 10):\n  " + string.Join("\n  ", notCalculated.Take(10)) + "\n\n"
                     : "") +
-                "Fault levels come from the STING fault engine, which is not IEC 60909 " +
-                "(ROADMAP ELEC-2) — these energies are indicative and must not be used to " +
-                "specify PPE without a licensed study.\n\n" +
+                "Fault levels come from the STING IEC 60909-style LV fault engine, which carries " +
+                "labelled assumptions (source X/R, cable reactance, feeder lengths) and has not " +
+                "been verified in a live model — these energies are indicative and must not be " +
+                "used to specify PPE without a licensed study.\n\n" +
                 "Run 'Arc Flash Labels' to generate the label drafting view.");
             return Result.Succeeded;
         }
@@ -227,6 +244,16 @@ namespace StingTools.Commands.Electrical.ArcFlash
         /// internal value, never a hard-coded default). RBS_ELEC_VOLTAGE first, then the
         /// panel's distribution system line-to-line voltage. 0 when unknown.
         /// </summary>
+        /// <summary>Leading number of a string like "400V 3ph"; 0 when none.</summary>
+        private static double LeadingNumber(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return 0;
+            var m = System.Text.RegularExpressions.Regex.Match(s, @"^\s*(\d+(?:\.\d+)?)");
+            return m.Success && double.TryParse(m.Groups[1].Value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
+        }
+
         private static double PanelVoltageV(Document doc, FamilyInstance panel, out string source)
         {
             double v = ElecUnits.Volts(panel);
