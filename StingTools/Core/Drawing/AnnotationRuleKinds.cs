@@ -120,6 +120,34 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public const string MaterialTagFamilyKey = "Materials";
 
+        /// <summary>
+        /// Why <paramref name="ruleType"/> on <paramref name="category"/> means nothing on a
+        /// drawing of <paramref name="purpose"/>, or null when it can apply. Four drawing types
+        /// (two elevations, a section, a detail) shipped with the floor plan's rules copied in:
+        /// area tags in views that can never show an area, room tags on elevations, and the
+        /// plan-geometry wall-length / opening chains, which dimension each wall's PLAN length —
+        /// walls seen end-on included.
+        /// </summary>
+        public static string NotForPurpose(string ruleType, string category, string purpose)
+        {
+            string p = (purpose ?? "").Trim();
+            bool elevation = p.Equals("Elevation", StringComparison.OrdinalIgnoreCase);
+            bool section = p.Equals("Section", StringComparison.OrdinalIgnoreCase);
+            bool detail = p.Equals("Detail", StringComparison.OrdinalIgnoreCase);
+            if (!elevation && !section && !detail) return null;
+
+            string kind = Resolve(ruleType)?.Name;
+            string cat = EffectiveCategory(kind ?? ruleType, category) ?? "";
+
+            if (kind == AutoDimWallLength || kind == AutoDimOpenings)
+                return $"{kind} dimensions walls from their plan geometry — on this {p.ToLowerInvariant()} drawing that is each wall's plan length, walls seen end-on included.";
+            if (cat.Equals("Areas", StringComparison.OrdinalIgnoreCase) && IsTagKind(kind))
+                return $"Areas exist only in area plans — this {p.ToLowerInvariant()} drawing never shows one to tag.";
+            if ((elevation || detail) && cat.Equals("Rooms", StringComparison.OrdinalIgnoreCase) && IsTagKind(kind))
+                return $"Room tags are a plan convention — this {p.ToLowerInvariant()} drawing labels elements, not rooms.";
+            return null;
+        }
+
         /// <summary>True for the two rule kinds that place material callouts.</summary>
         public static bool IsMaterialCalloutKind(string ruleType)
         {
