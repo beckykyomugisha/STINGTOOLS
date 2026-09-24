@@ -46,6 +46,18 @@ namespace StingTools.Commands.Electrical.Lighting
                 .ToList();
 
             var occupancyMap = LoadOccupancyTypes();
+            // Resolve the keyword list ONCE per run. IsEmergency is called for
+            // every fixture of every room; resolving per call hit
+            // StingPaths.MetaFile (which creates folders) + File.Exists + a
+            // timestamp read each time.
+            var kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
+            var isEmerg = new Dictionary<long, bool>();
+            bool Emerg(FamilyInstance fi)
+            {
+                long key = fi.Id.Value;
+                if (!isEmerg.TryGetValue(key, out bool e)) isEmerg[key] = e = IsEmergency(fi, kw);
+                return e;
+            }
 
             var rows = new List<EmergAuditRow>();
             View view = doc.ActiveView;
@@ -58,8 +70,8 @@ namespace StingTools.Commands.Electrical.Lighting
                 foreach (var r in rooms)
                 {
                     var inRoom = fixtures.Where(fi => InRoom(fi, r)).ToList();
-                    var emerg = inRoom.Where(IsEmergency).ToList();
-                    var normal = inRoom.Where(fi => !IsEmergency(fi)).ToList();
+                    var emerg = inRoom.Where(Emerg).ToList();
+                    var normal = inRoom.Where(fi => !Emerg(fi)).ToList();
                     bool sameCircuit = AnySharedCircuit(emerg, normal);
                     string status =
                         emerg.Count == 0 ? "NONE" :
@@ -117,13 +129,20 @@ namespace StingTools.Commands.Electrical.Lighting
         }
 
         public static bool IsEmergency(FamilyInstance fi)
+            => fi != null && IsEmergency(fi,
+                   StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(fi.Document));
+
+        /// <summary>
+        /// As <see cref="IsEmergency(FamilyInstance)"/> with the keyword list
+        /// supplied by the caller — batch callers resolve it once per run
+        /// (Data/STING_EMERGENCY_KEYWORDS.json + project override).
+        /// </summary>
+        public static bool IsEmergency(FamilyInstance fi, StingTools.Core.Electrical.EmergencyKeywords kw)
         {
             if (fi == null) return false;
             try
             {
-                // One data-driven keyword list (Data/STING_EMERGENCY_KEYWORDS.json +
-                // project override), cached per document by the registry.
-                var kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(fi.Document);
+                kw ??= StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(fi.Document);
                 // Original casing: the matcher needs it to tell "EMBulkhead" from "System".
                 string fname = fi.Symbol?.FamilyName ?? "";
                 if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fname, kw)) return true;
@@ -239,6 +258,7 @@ namespace StingTools.Commands.Electrical.Lighting
             ogs.SetProjectionLineWeight(7);
 
             int marked = 0;
+            var kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
             using (var tx = new Transaction(doc, "STING Mark Emergency Fixtures"))
             {
                 tx.Start();
@@ -249,7 +269,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 {
                     try
                     {
-                        if (EmergencyLightingAuditCommand.IsEmergency(fi))
+                        if (EmergencyLightingAuditCommand.IsEmergency(fi, kw))
                         {
                             view.SetElementOverrides(fi.Id, ogs);
                             marked++;

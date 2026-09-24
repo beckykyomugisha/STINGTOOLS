@@ -60,14 +60,16 @@ namespace StingTools.Core.Routing
             XYZ from,
             XYZ to,
             string sourceService,
-            double searchRadiusMm = 1500.0)
+            double searchRadiusMm = 1500.0,
+            StingTools.Core.Electrical.EmergencyKeywords emergencyKw = null)
         {
             var findings = new List<SeparationViolation>();
             if (doc == null || from == null || to == null) return findings;
 
             var dropCurve = Line.CreateBound(from, to);
             var searchRadiusFt = searchRadiusMm * MmToFt;
-            var emergencyKw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
+            // Batch callers (DropEngineBase) pass the list resolved once per run.
+            emergencyKw ??= StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
 
             var scope = new List<Element>();
             foreach (var cat in CategoryServiceMap.Keys)
