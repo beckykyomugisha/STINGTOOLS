@@ -318,7 +318,7 @@ namespace StingTools.Commands.Electrical
         }
 
         private static double SafeApparentLoad(ElectricalSystem s)
-        { try { return s.ApparentLoad; } catch { return 0; } }
+        { try { return StingTools.Core.Electrical.ElecUnits.VAFromInternal(s.ApparentLoad); } catch { return 0; } }
 
         private static string SafeLoadName(ElectricalSystem s)
         { try { return s.LoadName ?? ""; } catch { return ""; } }

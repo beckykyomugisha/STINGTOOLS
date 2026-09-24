@@ -439,7 +439,7 @@ namespace StingTools.Commands.Electrical
                         // Read the circuit's REAL nominal voltage so the VD recalc
                         // isn't pinned to the nominal UK LV pair (400/230). Falls
                         // back to that pair below only when this is unreadable.
-                        try { circuitVoltV = circuit.Voltage; } catch { }
+                        try { circuitVoltV = StingTools.Core.Electrical.ElecUnits.VoltsFromInternal(circuit.Voltage); } catch { }
                     }
                 }
                 catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }

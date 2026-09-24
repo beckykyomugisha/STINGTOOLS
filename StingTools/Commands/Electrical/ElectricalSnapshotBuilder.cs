@@ -131,7 +131,7 @@ namespace StingTools.Commands.Electrical
                         Description = TrySafe(() => sys.LoadName) ?? sys.Name,
                         Phase = ReadCircuitPhase(sys),
                         CurrentA = SafeDouble(sys, BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM),
-                        LoadKW = TrySafe(() => sys.ApparentLoad / 1000.0),
+                        LoadKW = TrySafe(() => StingTools.Core.Electrical.ElecUnits.VAFromInternal(sys.ApparentLoad) / 1000.0),
                         VoltDropPct = 0,
                         WireSize = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM),
                         LengthM = TrySafe(() => sys.Length * 0.3048),

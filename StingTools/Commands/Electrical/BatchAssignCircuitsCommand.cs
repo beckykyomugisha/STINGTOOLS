@@ -363,15 +363,57 @@ namespace StingTools.Commands.Electrical
 
             public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
+                // This body was reduced to a few locals by a 2026-05 merge fix and
+                // assigned none of the properties: every panel had 0 remaining
+                // slots, so the command could never assign a circuit.
+                _fi = fi;
+                Id = fi.Id;
+                Name = SafeName(fi);
+                try { LevelId = fi.LevelId; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); LevelId = ElementId.InvalidElementId; }
+
                 circuitsByPanel.TryGetValue(fi.Id.Value, out var owned);
-                int used = owned?.Count ?? 0;
+                int usedPoles = 0;
                 double sum = 0;
-                if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
+                if (owned != null)
+                    foreach (var s in owned)
+                    {
+                        sum += SafeApparentVA(s);
+                        usedPoles += Math.Max(1, SafePoles(s));
+                    }
+
+                TotalSlots = SafeSlotCount(fi);
+                RemainingSlots = Math.Max(0, TotalSlots - usedPoles);
+                ConnectedVa = sum;
+                NominalVoltage = SafePanelVoltage(fi);
                 try { Location = (fi.Location as LocationPoint)?.Point; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Pre-existing group tag from a prior run lets a re-run remain
                 // stable: panels already accumulating a group keep getting that
                 // group's circuits rather than scattering on each invocation.
+                try
+                {
+                    string prior = fi.LookupParameter("ELC_PNL_CIRCUIT_GROUP_TXT")?.AsString();
+                    if (!string.IsNullOrEmpty(prior)) GroupTag = prior;
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            }
+
+            /// <summary>
+            /// Pole positions on the panel: Revit's "Max #1 Pole Breakers" when
+            /// the family reports it, else a "Number Of Circuits" family
+            /// parameter, else 42 (a common panelboard size).
+            /// </summary>
+            private static int SafeSlotCount(FamilyInstance fi)
+            {
+                try
+                {
+                    var p = fi.get_Parameter(BuiltInParameter.RBS_ELEC_MAX_POLE_BREAKERS);
+                    if (p != null && p.HasValue && p.StorageType == StorageType.Integer && p.AsInteger() > 0)
+                        return p.AsInteger();
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                int n = SafeReadInt(fi, "Number Of Circuits", 0);
+                return n > 0 ? n : 42;
             }
 
             public void PrimeRoomLevel(Document doc)
@@ -404,7 +446,15 @@ namespace StingTools.Commands.Electrical
 
             private static string SafeName(FamilyInstance fi)
             {
-                try { return fi.Name ?? fi.Id.ToString(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fi.Id.ToString(); }
+                // Panel Name, not fi.Name - fi.Name is the TYPE name, shared by
+                // every board of that type, which made the plan unreadable.
+                try
+                {
+                    string pn = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(pn)) return pn;
+                    return fi.Name ?? fi.Id.ToString();
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fi.Id.ToString(); }
             }
 
             private static int SafeReadInt(Element el, string param, int fallback)
@@ -423,16 +473,11 @@ namespace StingTools.Commands.Electrical
             {
                 try
                 {
-                    var p = el.LookupParameter("Panel Voltage");
-                    if (p != null && p.StorageType == StorageType.Double)
-                    {
-                        double v = p.AsDouble();
-                        // Revit stores volts as volts in newer versions but
-                        // historically as feet-of-equivalent. Anything above
-                        // 1000 is suspect — return as-is and let the band
-                        // matcher decide.
-                        return v;
-                    }
+                    // Revit stores volts in internal units (1 V = 10.7639); convert.
+                    // 0 means unknown, which VoltageCompatible lets through.
+                    var p = el.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
+                            ?? el.LookupParameter("Panel Voltage");
+                    return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return 0;
@@ -448,7 +493,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeApparentVA(ElectricalSystem s)
         {
-            try { return s?.ApparentLoad ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            try { return s == null ? 0 : StingTools.Core.Electrical.ElecUnits.VAFromInternal(s.ApparentLoad); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int SafePoles(ElectricalSystem s)
@@ -458,7 +503,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeCircuitVoltage(ElectricalSystem s)
         {
-            try { return s?.Voltage ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            try { return s == null ? 0 : StingTools.Core.Electrical.ElecUnits.VoltsFromInternal(s.Voltage); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static bool VoltageCompatible(double a, double b, AssignmentConfig cfg = null)

@@ -222,7 +222,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeLoadKW(ElectricalSystem s)
         {
-            try { return s.ApparentLoad / 1000.0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
+            try { return StingTools.Core.Electrical.ElecUnits.VAFromInternal(s.ApparentLoad) / 1000.0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
         }
 
         /// <summary>

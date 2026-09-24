@@ -47,7 +47,7 @@ namespace StingTools.Commands.Electrical.Reports
                     if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
                     string panel = sys.PanelName ?? "";
                     string cls   = ClassifySystem(sys);
-                    double va    = sys.ApparentLoad;
+                    double va    = StingTools.Core.Electrical.ElecUnits.VAFromInternal(sys.ApparentLoad);
                     if (!byPanel.TryGetValue(panel, out var bucket))
                         byPanel[panel] = bucket = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
                     if (!bucket.ContainsKey(cls)) bucket[cls] = 0;

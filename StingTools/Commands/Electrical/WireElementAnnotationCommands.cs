@@ -133,7 +133,7 @@ namespace StingTools.Commands.Electrical
             result.HasCurrent = currentA > 0;
 
             double voltV = 0;
-            try { voltV = circuit.Voltage; } catch (Exception ex) { StingLog.Warn($"Voltage: {ex.Message}"); }
+            try { voltV = StingTools.Core.Electrical.ElecUnits.VoltsFromInternal(circuit.Voltage); } catch (Exception ex) { StingLog.Warn($"Voltage: {ex.Message}"); }
             if (voltV < 50 || voltV > 1000) voltV = phases == 3 ? 400.0 : 230.0;
 
             double lengthM = 0;

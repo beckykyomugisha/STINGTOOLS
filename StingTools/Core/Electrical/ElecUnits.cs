@@ -50,6 +50,20 @@ namespace StingTools.Core.Electrical
         public static double ApparentLoadVA(Element el) => Read(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
 
         /// <summary>
+        /// Volts from a raw internal value, for API PROPERTIES that return
+        /// internal units (ElectricalSystem.Voltage). Parameters: use ToSi.
+        /// </summary>
+        public static double VoltsFromInternal(double internalValue)
+            => UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.Volts);
+
+        /// <summary>
+        /// VA from a raw internal value, for API PROPERTIES that return
+        /// internal units (ElectricalSystem.ApparentLoad). Parameters: use ToSi.
+        /// </summary>
+        public static double VAFromInternal(double internalValue)
+            => UnitUtils.ConvertFromInternalUnits(internalValue, UnitTypeId.VoltAmperes);
+
+        /// <summary>
         /// The SI unit a Double parameter should be read in, or null when the
         /// spec is not an electrical quantity that needs converting.
         /// </summary>
