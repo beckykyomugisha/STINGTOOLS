@@ -27,7 +27,7 @@ PARAM	f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2	PLM_SLOPE_PCT	TEXT		6	1	Drainage pipe
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	MASS		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
-PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (SHOP / FIELD / VENDOR)	1
+PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (WORKSHOP / SITE)	1
 PARAM	5fc70bc2-9955-583c-9d96-5b54c8f34f53	ASS_FAB_SEQ_NR	INTEGER		1	1	Fabrication sequence number within the fabrication package	1
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1
 PARAM	c2fc8e62-b793-517c-94c6-d2d7ae7584fe	ASS_SHIP_DATE_TXT	TEXT		1	1	ISO 8601 date when assembly was shipped to site	1

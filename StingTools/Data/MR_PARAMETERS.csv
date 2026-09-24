@@ -2411,7 +2411,7 @@ Generic Models,ASS_BOM_REV_TXT,0293f487-2ca9-5514-9b18-ac98b1a20b27,TEXT,ASS_MNG
 Generic Models,ASS_BOQ_LINE_REF,eb8aa554-1c95-4d89-9170-0e83e0a3d6d7,TEXT,ASS_MNG,Type,BOQ line reference e.g. 14.3.2 — Excel roundtrip join key [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_BOQ_SECTION_NAME,f96d1f95-0bd4-4177-90d1-d3647e48b5ec,TEXT,ASS_MNG,Type,BOQ section name this element belongs to [ISO 19650-3:2020],False,,,MULTI,1,0
 Generic Models,ASS_CUT_COUNT_NR,16e7224e-cab9-5233-b155-3fbe194a3d56,INTEGER,ASS_MNG,Type,Number of cut operations required to fabricate the assembly,False,,,MULTI,1,0
-Generic Models,ASS_FAB_LOC_TXT,e420804b-d43f-593c-91b1-fd00a18aa584,TEXT,ASS_MNG,Type,Fabrication location (SHOP / FIELD / VENDOR),False,,,MULTI,1,0
+Generic Models,ASS_FAB_LOC_TXT,e420804b-d43f-593c-91b1-fd00a18aa584,TEXT,ASS_MNG,Type,Fabrication location (WORKSHOP / SITE),False,,,MULTI,1,0
 Generic Models,ASS_FAB_NOTES_TXT,9107dff2-054c-5371-b3ae-6d329aa12542,TEXT,ASS_MNG,Type,Free-text fabrication notes consumed by ShopDrawingComposer,False,,,MULTI,1,0
 Generic Models,ASS_FAB_SEQ_NR,5fc70bc2-9955-583c-9d96-5b54c8f34f53,INTEGER,ASS_MNG,Type,Fabrication sequence number within the fabrication package,False,,,MULTI,1,0
 Generic Models,ASS_FAB_STATUS_TXT,29ba93ba-238e-5aad-930a-a621b0f43b5b,TEXT,ASS_MNG,Type,Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED),False,,,MULTI,1,0
