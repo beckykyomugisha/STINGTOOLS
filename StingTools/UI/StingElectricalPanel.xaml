@@ -897,21 +897,21 @@
                                     <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbWireRefMaterial" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
                                         <ComboBoxItem Content="Copper" IsSelected="True" Tag="Cu"/>
-                                        <ComboBoxItem Content="Aluminium" Tag="Al"/>
+                                        <ComboBoxItem Content="Aluminium (no table shipped)" Tag="Al"/>
                                     </ComboBox>
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbWireRefInsulation" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
-                                        <ComboBoxItem Content="XLPE 90°C" IsSelected="True" Tag="XLPE90"/>
-                                        <ComboBoxItem Content="PVC 70°C" Tag="PVC70"/>
+                                        <ComboBoxItem Content="PVC 70°C (Table 4D2A)" IsSelected="True" Tag="PVC70"/>
+                                        <ComboBoxItem Content="XLPE 90°C (no table shipped)" Tag="XLPE90"/>
                                     </ComboBox>
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Method" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbWireRefMethod" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
                                         <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
-                                        <ComboBoxItem Content="A1" Tag="A1"/>
-                                        <ComboBoxItem Content="B1" Tag="B1"/>
-                                        <ComboBoxItem Content="E" Tag="E"/>
+                                        <ComboBoxItem Content="A1 (no table shipped)" Tag="A1"/>
+                                        <ComboBoxItem Content="B1 (no table shipped)" Tag="B1"/>
+                                        <ComboBoxItem Content="E (no table shipped)" Tag="E"/>
                                     </ComboBox>
                                 </Grid>
                                 <DataGrid x:Name="WireRefGrid" AutoGenerateColumns="False" CanUserAddRows="False"
@@ -919,11 +919,14 @@
                                           FontSize="10" Margin="0,4">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Size" Binding="{Binding Size}" Width="70"/>
-                                        <DataGridTextColumn Header="1Ph Imax" Binding="{Binding Imax1Ph}" Width="80"/>
-                                        <DataGridTextColumn Header="3Ph Imax" Binding="{Binding Imax3Ph}" Width="80"/>
-                                        <DataGridTextColumn Header="mΩ/m" Binding="{Binding MohmPerM}" Width="*"/>
+                                        <DataGridTextColumn Header="It 1Ph (A)" Binding="{Binding Imax1Ph}" Width="70"/>
+                                        <DataGridTextColumn Header="It 3Ph (A)" Binding="{Binding Imax3Ph}" Width="70"/>
+                                        <DataGridTextColumn Header="mV/A/m 1Ph" Binding="{Binding Mv1Ph}" Width="75"/>
+                                        <DataGridTextColumn Header="mV/A/m 3Ph" Binding="{Binding Mv3Ph}" Width="*"/>
                                     </DataGrid.Columns>
                                 </DataGrid>
+                                <TextBlock x:Name="txtWireRefBasis" TextWrapping="Wrap" FontSize="9" Opacity="0.8" Margin="0,2"
+                                           Text="BS 7671 Appendix 4 Table 4D2A (It) / 4D2B (mV/A/m), copper PVC 70 °C, method C."/>
                             </StackPanel>
                         </Expander>
 

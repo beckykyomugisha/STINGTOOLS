@@ -320,6 +320,7 @@ namespace StingTools.UI
                     if (snapshot.LightingRows != null) PopulateLighting(snapshot.LightingRows);
                     if (snapshot.RoomTargets != null) PopulateRoomTargets(snapshot.RoomTargets);
                     if (snapshot.WireRefRows != null) PopulateWireRef(snapshot.WireRefRows);
+                    if (snapshot.WireRefBasis != null && txtWireRefBasis != null) txtWireRefBasis.Text = snapshot.WireRefBasis;
                     if (snapshot.ComplianceItems != null) PopulateCompliance(snapshot.ComplianceItems);
                     // Phase 178 grids
                     if (snapshot.Feeders != null) { Feeders.Clear(); foreach (var r in snapshot.Feeders) Feeders.Add(r); }
@@ -631,7 +632,7 @@ namespace StingTools.UI
                 WireRefRows.Add(new WireRefRowViewModel
                 {
                     Size = r.Size, Imax1Ph = r.Imax1Ph,
-                    Imax3Ph = r.Imax3Ph, MohmPerM = r.MohmPerM
+                    Imax3Ph = r.Imax3Ph, Mv1Ph = r.Mv1Ph, Mv3Ph = r.Mv3Ph
                 });
         }
 
@@ -653,7 +654,7 @@ namespace StingTools.UI
         public string GetWireRefMaterial() =>
             ((cmbWireRefMaterial?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu";
         public string GetWireRefInsulation() =>
-            ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "XLPE90";
+            ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
         public string GetWireRefMethod() =>
             ((cmbWireRefMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
     }
@@ -792,7 +793,8 @@ namespace StingTools.UI
         public string Size { get; set; }
         public string Imax1Ph { get; set; }
         public string Imax3Ph { get; set; }
-        public string MohmPerM { get; set; }
+        public string Mv1Ph { get; set; }
+        public string Mv3Ph { get; set; }
     }
 
     public class ConduitWireRowViewModel : NotifyBase
@@ -849,7 +851,8 @@ namespace StingTools.UI
         public string Circuit; public double LmPerW;
     }
     public class RoomTargetRow { public string Room, TargetLx, EstimatedLx, Delta; }
-    public class WireRefRow    { public string Size, Imax1Ph, Imax3Ph, MohmPerM; }
+    /// <summary>One Appendix 4 row: It (A) 1-ph / 3-ph (Table 4D2A) and mV/A/m 1-ph / 3-ph (Table 4D2B).</summary>
+    public class WireRefRow    { public string Size, Imax1Ph, Imax3Ph, Mv1Ph, Mv3Ph; }
 
     public class ElectricalPanelSnapshot
     {
@@ -861,6 +864,7 @@ namespace StingTools.UI
         public List<LightingRow>          LightingRows;
         public List<RoomTargetRow>        RoomTargets;
         public List<WireRefRow>           WireRefRows;
+        public string                     WireRefBasis;
         public List<ComplianceItemViewModel> ComplianceItems;
         public string                     PhaseSummary;
         public string                     ImbalanceText;
