@@ -1217,6 +1217,7 @@ ELC_PHOTO_UNIFORMITY_NR,Lighting Fixtures|Lighting Devices
 ELC_PHOTO_WATTS_NR,Lighting Fixtures|Lighting Devices
 ELC_PNL_AIC_RATING_KA,Electrical Equipment|Electrical Circuits
 ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Circuits
+ELC_CKT_CHECK_TXT,Electrical Circuits
 ELC_PNL_CKT_SOURCE_NAME_02_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_CKT_SOURCE_NAME_03_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Equipment|Electrical Circuits

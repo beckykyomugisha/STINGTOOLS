@@ -21759,6 +21759,18 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CKT_CHECK_TXT",
+      "guid": "8a86218a-bf3b-5d85-b989-35bd860c2888",
+      "description": "Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable.",
+      "datatype": "TEXT",
+      "group_id": 4,
+      "group_name": "ELC_PWR",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
       "param_name": "STING_WALL_ROUTING_FLAG",
       "guid": "d4e5f607-2f80-af2f-e1a0-d020909fc056",
       "description": "When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB.",

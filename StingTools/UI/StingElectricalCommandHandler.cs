@@ -176,6 +176,10 @@ namespace StingTools.UI
                     RunCommand<StingTools.Commands.Electrical.ElecPanelWriteParamsCommand>(app); break;
                 case "Panel_EditTemplateRules":
                     OpenTemplateRulesFile(doc); break;
+                case "Panel_ComplianceCheck":
+                    RunCommand<StingTools.Commands.Panels.PanelComplianceCheckCommand>(app); break;
+                case "Panel_BalanceApply":
+                    RunCommand<StingTools.Commands.Panels.PanelBalanceApplyCommand>(app); break;
                 case "Panel_TemplatesCreate":
                     RunCommand<StingTools.Commands.Panels.PanelTemplatesCreateCommand>(app); break;
                 case "Panel_TemplateInspect":

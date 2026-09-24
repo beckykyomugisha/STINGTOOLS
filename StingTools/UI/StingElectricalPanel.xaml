@@ -179,6 +179,8 @@
                                     ToolTip="Create / update STING standard panel schedule templates (ISO 19650 + BS 7671)" Click="Cmd_Click"/>
                             <Button Content="⚡" Style="{StaticResource ElecToolBtn}" Tag="Panel_BatchSchedules"
                                     ToolTip="Batch Create Schedules" Click="Cmd_Click"/>
+                            <Button Content="✅" Style="{StaticResource ElecToolBtn}" Tag="Panel_ComplianceCheck"
+                                    ToolTip="Circuit compliance check (BS 7671): Ib ≤ In ≤ Iz, VD, breaking capacity → BS 7671 check column, red devices, colour workbook" Click="Cmd_Click"/>
                             <Button Content="🔍" Style="{StaticResource ElecToolBtn}" Tag="Panel_Audit"
                                     ToolTip="Audit All Panels" Click="Cmd_Click"/>
                             <Button Content="🔄" Style="{StaticResource ElecToolBtn}" Tag="Panel_SyncParams"
@@ -343,7 +345,7 @@
                             <Button Content="↔" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Move"
                                     ToolTip="Move circuit between slots" Click="Cmd_Click"/>
                             <Button Content="⚖" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Balance"
-                                    ToolTip="Balance phases" Click="Cmd_Click"/>
+                                    ToolTip="Phase balance report (plan only — ▶ Apply Balance moves circuits)" Click="Cmd_Click"/>
                             <Button Content="🔢" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Renumber"
                                     ToolTip="Renumber circuits" Click="Cmd_Click"/>
                             <Button Content="➕" Style="{StaticResource ElecToolBtn}" Tag="Circuit_Create"
@@ -469,7 +471,8 @@
                                            Text="After:  A 0 kW │ B 0 kW │ C 0 kW  Δ=0 kW"/>
                                 <Button Content="▶ Apply Balance" Margin="0,4,0,0"
                                         Style="{StaticResource ElecPrimaryBtn}"
-                                        Tag="Circuit_Balance" Click="Cmd_Click"/>
+                                        ToolTip="Moves single-pole, unlocked circuits into empty slots on the lighter phase (preview first). Lock a slot to keep a way fixed."
+                                        Tag="Panel_BalanceApply" Click="Cmd_Click"/>
                                 <Separator Margin="0,8,0,4"/>
                                 <Button Content="🤖 Auto-assign Unassigned Circuits" Margin="0,4,0,0"
                                         Style="{StaticResource ElecActionBtn}"

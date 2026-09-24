@@ -114,6 +114,12 @@ Each step: **Say** (one or two sentences) → **Click** → **Expect** → **If 
 - **Expect:** the preview grid, then updated ratings on the circuits / schedule.
 - **Frame it:** "The software proposes; the engineer approves."
 
+### ④b Optional — "red to green" and live phase balance (2 min, only if rehearsed on the demo model)
+- **Say:** "Every way is checked against BS 7671: design current within the breaker, breaker within the cable, voltage drop, and breaking capacity against the fault level."
+- **Click:** **CALCS → ▶ Recalculate All** (VD) first, then **PNLS → ✅**. Show the result panel, the red devices on the plan and the **BS 7671 check** column in the schedule. Fix one failing breaker (④), re-run ✅, and it turns OK.
+- **Then:** **CIRCTS → ▶ Apply Balance** → the preview shows each board's imbalance before → after → **Yes** → circuits move slots. Say: "locked ways never move".
+- **Caveat to say out loud if asked:** "Iz here is the tabulated best case; the full sizing applies the derating factors."
+
 ### ⑤ Single-line diagram (3 min)
 - **Say:** "The single-line diagram is drawn from the actual circuit hierarchy in the model, not redrawn in CAD. If the model changes, you regenerate it."
 - **Click:** **SLD** → **▶ Generate SLD Drafting View**.

@@ -2,7 +2,7 @@
   "version": "1.0",
   "_comment": "STING standard panel schedule templates (ISO 19650 identification + BS 7671 circuit data). 'Panel templates → Create / update' builds one Revit PanelScheduleTemplate per entry with PanelScheduleTemplate.Create and SetTableData, and rebuilds it in place on re-run. Template NAMES must match the templateName values in STING_PANEL_SCHEDULE_TEMPLATES.json so the board→template rules resolve to them. A project can override or add templates (merged by name) in <project>/_BIM_COORD/panel_schedule_specs.json.",
   "_paramSyntax": "'bip:NAME' = Revit BuiltInParameter; anything else = a STING shared parameter (must be bound — run Load Params). Header and footer cells read Electrical Equipment (the board); body cells read Electrical Circuits. 'category': 'ProjectInformation' asks for a project parameter — Revit may refuse it in a panel schedule, in which case the build reports it.",
-  "_columnsNote": "Only parameters that something actually writes are used. Zs, CPC size and the BS 7671 adiabatic result are NOT columns: no command writes them onto circuits yet, and an always-empty column misleads more than a missing one.",
+  "_columnsNote": "Only parameters that something actually writes are used. 'BS 7671 check' is written by PNLS > Circuit compliance check (ELC_CKT_CHECK_TXT). Zs, CPC size and the BS 7671 adiabatic result are NOT columns: no command writes them onto circuits yet, and an always-empty column misleads more than a missing one.",
   "templates": [
     {
       "name": "STING - 3-Phase Distribution Board",
@@ -37,7 +37,8 @@
         { "heading": "L2 (VA)",           "param": "bip:RBS_ELEC_APPARENT_LOAD_PHASEB",  "widthMm": 16 },
         { "heading": "L3 (VA)",           "param": "bip:RBS_ELEC_APPARENT_LOAD_PHASEC",  "widthMm": 16 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 }
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
         { "label": "Connected load",      "param": "bip:RBS_ELEC_PANEL_TOTALLOAD_PARAM" },
@@ -76,7 +77,8 @@
         { "heading": "Length",            "param": "bip:RBS_ELEC_CIRCUIT_LENGTH_PARAM",  "widthMm": 16 },
         { "heading": "Load (VA)",         "param": "bip:RBS_ELEC_APPARENT_LOAD",         "widthMm": 18 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 }
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
         { "label": "Connected load",      "param": "bip:RBS_ELEC_PANEL_TOTALLOAD_PARAM" },
@@ -117,7 +119,8 @@
         { "heading": "Length",            "param": "bip:RBS_ELEC_CIRCUIT_LENGTH_PARAM",  "widthMm": 16 },
         { "heading": "Load (VA)",         "param": "bip:RBS_ELEC_APPARENT_LOAD",         "widthMm": 18 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 }
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
         { "label": "Connected load",      "param": "bip:RBS_ELEC_PANEL_TOTALLOAD_PARAM" },

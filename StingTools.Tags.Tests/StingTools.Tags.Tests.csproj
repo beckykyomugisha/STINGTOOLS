@@ -112,6 +112,9 @@
          held against the shipped STING_PANEL_SCHEDULE_SPECS.json and rules. -->
     <Compile Include="..\StingTools\Core\Panels\PanelTemplateSpec.cs" Link="Core\Panels\PanelTemplateSpec.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelBoardProfile.cs" Link="Core\Panels\PanelBoardProfile.cs" />
+    <!-- PNL-2 per-circuit BS 7671 check + PNL-5 applied phase balancing (Revit-free halves). -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitComplianceRule.cs" Link="Core\Electrical\CircuitComplianceRule.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\PhaseBalancer.cs" Link="Core\Electrical\PhaseBalancer.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
     <Compile Include="..\StingTools\Core\HvacDirectionFromName.cs" Link="Core\HvacDirectionFromName.cs" />

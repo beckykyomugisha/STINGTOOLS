@@ -14,10 +14,10 @@ its own voltage-drop calculation** (STING's is now the only one inside Revit 202
 | ID | Pri | Enhancement | Who has it | API |
 |---|---|---|---|---|
 | PNL-1 | P1 | Auto-size breaker + cable into the schedule (In ≥ Ib, In ≤ Iz), with a lock-to-override flag | Design Master, Panels Manager | circuit Rating + shared params |
-| PNL-2 | P1 | Compliance flags per way (Ib ≤ In ≤ Iz, VD, breaking capacity vs PSC) as a schedule column + coloured Excel | Panels Manager | `STING_*_STATUS` text param; ClosedXML |
+| PNL-2 | ~~P1~~ **Done 2026-09-24** | Compliance flags per way (Ib ≤ In ≤ Iz, VD, breaking capacity vs PSC) as a schedule column + coloured Excel | Panels Manager | `STING_*_STATUS` text param; ClosedXML |
 | PNL-3 | P1 | One export → formatted issue sheet AND round-trip sheet (DiRoots forces a choice) | DiRoots, Ideate | `GetTableData` / `GetCircuitByCell` |
 | PNL-4 | P1 | Load-classification summary with demand factors (IET OSG App A) | Design Master, ETAP | `GetLoadClassification*`; demand-factor creation API to confirm |
-| PNL-5 | P1 | Auto phase balance APPLIED via slot moves, respecting locked ways | Design Master | `CanMoveSlotTo`/`MoveSlotTo`/`SwitchPhases`, `IsSlotLocked` |
+| PNL-5 | ~~P1~~ **Done 2026-09-24** | Auto phase balance APPLIED via slot moves, respecting locked ways | Design Master | `CanMoveSlotTo`/`MoveSlotTo`/`SwitchPhases`, `IsSlotLocked` |
 | PNL-6 | P1 | Create one circuit per selected element on a chosen board | Naviate | `ElectricalSystem.Create` + `SelectPanel` |
 | PNL-7 | P1 | Move / merge circuits between boards | RushForth, Naviate | `SelectPanel`, `AddToCircuit`/`RemoveFromCircuit` |
 | PNL-8 | P1 | Spare-way rules (≥ N % spare, rating/name from rule) | RushForth; Revit 2026 | `AddSpare`, `SetSpareLoadValue` |

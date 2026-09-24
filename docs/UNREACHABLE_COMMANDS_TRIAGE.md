@@ -21,13 +21,16 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-24
 
-- **Total IExternalCommand classes**: **1746**
-- **Reached by a dispatch layer**: **1721**
+- **Total IExternalCommand classes**: **1748**
+- **Reached by a dispatch layer**: **1723**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1746; the script fails if they stop adding up.
+The four buckets partition all 1748; the script fails if they stop adding up.
+
+**+2 more on 2026-09-24**, both reached: `Panel_ComplianceCheck` (per-circuit BS 7671 check) and
+`Panel_BalanceApply` (applied phase balancing via slot moves).
 
 **+2 on 2026-09-24**, both reached: `Panel_TemplatesCreate` (builds the STING standard panel
 schedule templates from STING_PANEL_SCHEDULE_SPECS.json) and `Panel_TemplateInspect` (dumps a

@@ -22491,3 +22491,28 @@ template named by a rule, every board role has a rule and a spec, every shared p
 defined and bound to the category its cell reads; sabotage (misspelt parameter, renamed
 template) RED 3/17, GREEN 17/17. **Not exercised in Revit**: the builder adapts to the
 template's actual layout and reports; the first run's report is the verification.
+
+#### Completed (PNL-2 circuit compliance flags + PNL-5 applied phase balancing, same branch)
+
+From the panel-schedule competitor review (ROADMAP PNL-1…18), the two strongest demo items.
+
+- **PNL-2 — `Panel_ComplianceCheck` (PNLS ✅).** Every power circuit: Ib ≤ In (Reg 433.1.1),
+  In ≤ Iz (Iz = Table 4D2A method C tabulated, best case), VD ≤ App 12 limit (lighting/other,
+  from the panel), prospective fault ≤ board breaking capacity (434.5.1). A rule whose inputs
+  are missing is **NOT CHECKED**, never a pass; "OK" is shown only when every rule ran, else
+  "OK (not checked: …)". Written to new shared parameter **`ELC_CKT_CHECK_TXT`** (registered
+  in MR_PARAMETERS.txt/.csv, PARAMETER_REGISTRY, CATEGORY/RESOLVED_BINDINGS; GUID uuid5 of the
+  name) and shown as a **"BS 7671 check" column** in the three electrical STING templates;
+  failing circuits' devices go red in the active view; a colour-coded workbook is exported.
+  Revit-free rule: `CircuitComplianceRule`.
+- **PNL-5 — `Panel_BalanceApply` (CIRCTS ▶ Apply Balance, which previously only reported).**
+  `PhaseBalancer` greedily picks the move that cuts the phase spread most; only single-pole,
+  unlocked circuits move, only into EMPTY slots, each at most once, stop below 50 VA gain.
+  Slot phases are learned from the board's own circuits (row → phase, calibrated; any
+  disagreement skips the board). Preview → Yes → `MoveSlotTo`, then the actual imbalance is
+  re-read and reported. Switchboards and non-three-phase boards are skipped with a reason.
+- Wiring: handler, `WorkflowEngine.ResolveCommand`, NLP ("circuit check", "apply balance").
+
+Tests: `PanelComplianceAndBalanceTests` (9) with hand-worked cases (e.g. 3000/1000/2000 VA
+→ one 1000 VA move → 2000/2000/2000, 50 % → 0 %). Tags 2242/2242; build 0/0; all repo gates
+and CI's CSV/GUID checks pass locally. **Not exercised in Revit.**
