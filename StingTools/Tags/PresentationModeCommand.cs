@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -94,7 +94,7 @@ namespace StingTools.Tags
                 .WhereElementIsElementType()
                 .ToList();
 
-            int updated = 0;
+            int updated = 0, annotationSkipped = 0;
             ResetBoolDiagnostics();
             using (Transaction tx = new Transaction(doc, $"STING Set Mode: {modeName}"))
             {
@@ -102,6 +102,14 @@ namespace StingTools.Tags
 
                 foreach (Element typeEl in allTypes)
                 {
+                    // Tag types carry these gates as the type-variant catalogue's
+                    // own state; a global sweep overwriting them turns every
+                    // variant into the same depth. See Core/TierGateScope.
+                    if (!TierGateScope.MaySweep(
+                            typeEl.Category != null &&
+                            typeEl.Category.CategoryType == CategoryType.Annotation))
+                    { annotationSkipped++; continue; }
+
                     bool any = false;
                     any |= SetBool(typeEl, ParamRegistry.PARA_STATE_1, s1);
                     any |= SetBool(typeEl, ParamRegistry.PARA_STATE_2, s2);
