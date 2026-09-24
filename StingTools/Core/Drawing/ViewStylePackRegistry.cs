@@ -145,6 +145,9 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
                     var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
+                    // V-12a: the schema gate the AEC filters had and the packs did not.
+                    var gate = ViewStylePackLibrary.SchemaGateWarning(lib?.SchemaVersion, "STING_VIEW_STYLE_PACKS.json");
+                    if (gate != null) StingTools.Core.StingLog.Warn("ViewStylePackRegistry: " + gate);
                     if (lib?.Packs != null && lib.Packs.Count > 0)
                     {
                         foreach (var p in lib.Packs)
@@ -173,6 +176,8 @@ namespace StingTools.Core.Drawing
                 var path = Path.Combine(dir, "view_style_packs.json");
                 if (!File.Exists(path)) return null;
                 var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path));
+                var gate = ViewStylePackLibrary.SchemaGateWarning(lib?.SchemaVersion, "project view_style_packs.json");
+                if (gate != null) StingTools.Core.StingLog.Warn("ViewStylePackRegistry: " + gate);
                 if (lib?.Packs != null)
                     foreach (var p in lib.Packs)
                     {
@@ -210,6 +215,7 @@ namespace StingTools.Core.Drawing
             var merged = new ViewStylePackLibrary
             {
                 Version = Math.Max(baseLib?.Version ?? 1, over.Version),
+                SchemaVersion = baseLib?.SchemaVersion ?? over.SchemaVersion,
                 Packs = new List<ViewStylePack>(baseLib?.Packs ?? new List<ViewStylePack>()),
                 // Project routing rules are PREPENDED, matching
                 // DrawingTypeRegistry.Merge, so a project can redirect a

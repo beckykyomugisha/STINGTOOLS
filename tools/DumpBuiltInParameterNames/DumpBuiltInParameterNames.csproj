@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Writes every Autodesk.Revit.DB.BuiltInParameter member name, one per line,
+    sorted, to StingTools.Tags.Tests/Fixtures/BuiltInParameterNames.txt.
+
+    The AEC filter gate (AecFilterParameterResolutionTests) checks every filter
+    rule's "param" against this list, so a name that is not a real Revit enum
+    member (ANALYTICAL_U_VALUE, REBAR_BAR_TYPE were two) fails the test suite
+    instead of becoming a filter the factory silently skips.
+
+    Reads RevitAPI.dll METADATA only (System.Reflection.Metadata) - it never
+    loads the mixed-mode assembly, so it runs in a plain net8.0 process.
+
+    Run from the repository root (usual double-dash separator before the args):
+        dotnet run project tools/DumpBuiltInParameterNames  [path-to-RevitAPI.dll]
+    Default path: C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll - the
+    oldest version the plugin supports, so a name valid there is valid in all.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

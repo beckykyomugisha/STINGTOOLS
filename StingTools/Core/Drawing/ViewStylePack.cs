@@ -426,7 +426,45 @@ namespace StingTools.Core.Drawing
 
     public sealed class ViewStylePackLibrary
     {
+        /// <summary>
+        /// Legacy integer version. The shipped file has never carried a
+        /// "version" key -- it declares <see cref="SchemaVersion"/> -- so this
+        /// was always the default 1 and gated nothing (V-12a). Kept bound for
+        /// project override files that may still carry it.
+        /// </summary>
         [JsonProperty("version")] public int Version { get; set; } = 1;
+
+        /// <summary>
+        /// The schema the file was written against ("1.3"). The shipped file
+        /// has declared it since v1.3 and nothing bound it, so a pack file from
+        /// a newer plugin loaded here with its unknown fields dropped in
+        /// silence. <see cref="SchemaGateWarning"/> is the gate.
+        /// </summary>
+        [JsonProperty("schemaVersion", NullValueHandling = NullValueHandling.Ignore)]
+        public string SchemaVersion { get; set; }
+
+        /// <summary>The newest pack-file schema this plugin understands. Bump it
+        /// together with the shipped file's "schemaVersion" when a field is added.</summary>
+        public const string SupportedSchemaVersion = "1.3";
+
+        /// <summary>
+        /// Revit-free gate. Null when the file is loadable as-is; otherwise the
+        /// warning to log. A file with no schemaVersion is accepted (project
+        /// overrides predate the field); an unparseable one or one NEWER than
+        /// <see cref="SupportedSchemaVersion"/> warns, because Newtonsoft will
+        /// drop every field this build does not declare without a word.
+        /// </summary>
+        public static string SchemaGateWarning(string declared, string source)
+        {
+            if (string.IsNullOrWhiteSpace(declared)) return null;
+            if (!System.Version.TryParse(declared.Trim(), out var v))
+                return $"{source}: schemaVersion '{declared}' is not a version number -- loaded anyway, but it cannot be gated.";
+            var supported = System.Version.Parse(SupportedSchemaVersion);
+            if (v > supported)
+                return $"{source}: schemaVersion {declared} is newer than this plugin supports ({SupportedSchemaVersion}). "
+                     + "Fields added after that are IGNORED -- update StingTools before relying on this file.";
+            return null;
+        }
 
         /// <summary>
         /// (purpose, discipline, phase) → pack id, first match wins. See
