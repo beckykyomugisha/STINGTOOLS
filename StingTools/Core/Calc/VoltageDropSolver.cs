@@ -2,12 +2,21 @@
 //
 // For a cable carrying current I_b over length L, voltage drop is
 //
-//    mV_drop = mV_per_A_per_m × I_b × L / 1000                (single phase)
-//    V_drop  = mV_per_A_per_m × I_b × L × √3 / 1000           (three phase)
+//    V_drop  = (mV/A/m)_1ph × I_b × L / 1000                  (single phase, V)
+//    V_drop  = (mV/A/m)_1ph × (√3/2) × I_b × L / 1000          (three phase, line-to-line V)
 //    V_drop_percent = V_drop / V_nominal × 100
 //
-// BS 7671 Appendix 4 Table 4D1A (70 °C thermoplastic two-core cable,
-// 30 °C ambient, enclosed installation) tabulates mV/A/m per CSA.
+// The single-phase mV/A/m covers the whole loop (two conductors). The
+// three-phase line-to-line drop is √3 × the drop in ONE conductor, i.e.
+// √3/2 of the loop figure - which is why BS 7671 Appendix 4 tabulates the
+// 3-/4-core three-phase column at ~0.866 × the 2-core single-phase column
+// (e.g. 16 mm²: 2.8 → 2.4 mV/A/m). Until 2026-09 this solver multiplied by
+// √3 instead, overstating three-phase drop by a factor of 2 (ROADMAP ELEC-5).
+// NominalVoltageV must therefore be L-N (230) for single phase and L-L
+// (400) for three phase.
+//
+// The tabulated values are the BS 7671 Appendix 4 two-core, 70 °C
+// thermoplastic copper voltage-drop column (Table 4D2B).
 // Phase J ships the 70 °C Cu column — full matrix (Cu/Al × 70/90 °C
 // × insulation) is a data-file drop in Phase J.2.
 //
@@ -43,7 +52,7 @@ namespace StingTools.Core.Calc
 
     public static class VoltageDropSolver
     {
-        // BS 7671 Appendix 4 Table 4D1A column "Two-core flat cable"
+        // BS 7671 Appendix 4 Table 4D2B two-core (single-phase) column
         // (mV/A/m). Values valid for 70 °C thermoplastic copper cable
         // at full rated operating temperature. Aluminium ≈ 1.64×.
         private static readonly Dictionary<double, double> Cu70C = new Dictionary<double, double>
@@ -63,6 +72,12 @@ namespace StingTools.Core.Calc
             { 120.0, 0.36 },
             { 150.0, 0.29 },
         };
+
+        /// <summary>
+        /// Three-phase mV/A/m as a fraction of single-phase: √3/2 ≈ 0.866
+        /// (line-to-line drop = √3 × one conductor; the 1-ph figure is two conductors).
+        /// </summary>
+        public const double ThreePhaseFactor = 0.8660254037844386;
 
         public static VoltageDropResult Solve(VoltageDropQuery q)
         {
@@ -89,13 +104,13 @@ namespace StingTools.Core.Calc
             if (aluminium) mv *= 1.64;
 
             r.MvPerAPerM = mv;
-            double factor = q.ThreePhase ? Math.Sqrt(3.0) : 1.0;
+            double factor = q.ThreePhase ? ThreePhaseFactor : 1.0;
             r.VoltDropV   = mv * q.LoadAmps * q.LengthM * factor / 1000.0;
             r.VoltDropPct = r.VoltDropV / q.NominalVoltageV * 100.0;
             r.LightingPass = r.VoltDropPct <= 3.0;
             r.PowerPass    = r.VoltDropPct <= 5.0;
-            r.Basis = $"BS 7671 Appendix 4 Table 4D1A ({(aluminium ? "Al" : "Cu")} 70 °C, " +
-                      $"{(q.ThreePhase ? "3ph" : "1ph")})";
+            r.Basis = $"BS 7671 Appendix 4 Table 4D2B ({(aluminium ? "Al" : "Cu")} 70 °C, " +
+                      $"{(q.ThreePhase ? "3ph = 1ph × √3/2" : "1ph")})";
             return r;
         }
     }
