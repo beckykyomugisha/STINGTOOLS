@@ -80,7 +80,7 @@ namespace StingTools.Core.Drawing
         public AnnotationRulePack PackOverride { get; set; }
     }
 
-    public static class AnnotationRunner
+    public static partial class AnnotationRunner
     {
         // ─── Public entry points ─────────────────────────────────────────
 
@@ -325,6 +325,17 @@ namespace StingTools.Core.Drawing
                     // on the category they name, never on whatever the row
                     // happened to carry. A row with no resolvable category is
                     // reported, not skipped in silence.
+                    // Material callouts tag FACES of hosts and resolve a Material Tags
+                    // family, never the host's own tag category — their own path.
+                    var kind = AnnotationRuleKinds.Resolve(rule.RuleType)?.Name;
+                    if (kind == AnnotationRuleKinds.MaterialTag || kind == AnnotationRuleKinds.MaterialTagLayers)
+                    {
+                        if (doneRules.Add(kind + "|" + (rule.Category ?? "") + "|" + (rule.FamilyMatch ?? "")))
+                            RunMaterialCallouts(doc, view, pack, rule, kind == AnnotationRuleKinds.MaterialTagLayers,
+                                stats, drawingType);
+                        continue;
+                    }
+
                     var effCat = AnnotationRuleKinds.EffectiveCategory(rule.RuleType, rule.Category);
                     var catId = ResolveCategoryId(doc, effCat);
                     if (catId == ElementId.InvalidElementId)
@@ -916,70 +927,21 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
-        /// A face of <paramref name="el"/> a material tag can reference, and a point on it
-        /// for the tag head. Hosts use their finish faces (a wall's exterior and interior
-        /// sides, a floor/roof/ceiling's top and bottom) — the faces a material callout is
-        /// about. Anything else falls back to the planar faces of its own solids. Family
-        /// instances (whose faces live in symbol geometry) are not handled yet and return
-        /// null, which the caller counts and reports. The face that best faces the viewer
-        /// wins (FaceChoice). NOT VERIFIED IN REVIT.
+        /// A face of <paramref name="el"/> a material tag can reference, and a point on it for
+        /// the tag head — for an AutoTag rule that names a Material Tag family. Same face logic
+        /// as the MaterialTag rule kind (FaceCandidates): host finish faces, else the element's
+        /// own geometry; a painted face towards the viewer first, else the one facing the
+        /// viewer (FaceChoice). NOT VERIFIED IN REVIT.
         /// </summary>
         private static Reference FaceReferenceFor(Element el, View view, out XYZ point)
         {
             point = null;
-            var refs = new List<Reference>();
-            try
-            {
-                if (el is Wall wall)
-                {
-                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Exterior));
-                    refs.AddRange(HostObjectUtils.GetSideFaces(wall, ShellLayerType.Interior));
-                }
-                else if (el is HostObject host)
-                {
-                    refs.AddRange(HostObjectUtils.GetTopFaces(host));
-                    refs.AddRange(HostObjectUtils.GetBottomFaces(host));
-                }
-                else
-                {
-                    var opts = new Options { ComputeReferences = true, View = view };
-                    var ge = el.get_Geometry(opts);
-                    if (ge != null)
-                        foreach (var go in ge)
-                            if (go is Solid s && s.Faces.Size > 0)
-                                foreach (Face f in s.Faces)
-                                    if (f.Reference != null) refs.Add(f.Reference);
-                }
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"FaceReferenceFor {el.Id}: {ex.Message}");
-                return null;
-            }
-
-            var dots = new List<double>();
-            var areas = new List<double>();
-            var points = new List<XYZ>();
-            var kept = new List<Reference>();
-            var toViewer = view.ViewDirection;
-            foreach (var r in refs)
-            {
-                try
-                {
-                    if (!(el.GetGeometryObjectFromReference(r) is Face f)) continue;
-                    var bb = f.GetBoundingBox();
-                    var mid = (bb.Min + bb.Max) * 0.5;
-                    dots.Add(f.ComputeNormal(mid).DotProduct(toViewer));
-                    areas.Add(f.Area);
-                    points.Add(f.Evaluate(mid));
-                    kept.Add(r);
-                }
-                catch (Exception ex) { StingLog.Warn($"FaceReferenceFor {el.Id} face: {ex.Message}"); }
-            }
-            int best = FaceChoice.Best(dots, areas);
+            var faces = FaceCandidates(el.Document, el, view);
+            int best = FaceChoice.Best(faces.Select(f => f.Dot).ToList(), faces.Select(f => f.Area).ToList(),
+                                       faces.Select(f => f.Painted).ToList());
             if (best < 0) return null;
-            point = points[best];
-            return kept[best];
+            point = faces[best].Point;
+            return faces[best].Ref;
         }
 
         /// <summary>
@@ -1290,9 +1252,14 @@ namespace StingTools.Core.Drawing
                 var famVariants = sameCat
                     .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
                     .Where(x => x.size.HasValue).ToList();
+                // Types of the base family that differ from the base type in SIZE ONLY:
+                // "2mm" beside "2.5mm", or "2_BOLD_RED_Open30_T2" beside
+                // "2.5_BOLD_RED_Open30_T2" — never a type of another style or colour.
+                string baseStyle = TagSizeVariant.StyleOfTypeName(baseSym.Name);
                 var typeVariants = sameCat
-                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase))
-                    .Select(fs => (fs, size: TagSizeVariant.ParseToken(fs.Name)))
+                    .Where(fs => string.Equals(fs.FamilyName, baseFam, StringComparison.OrdinalIgnoreCase)
+                              && string.Equals(TagSizeVariant.StyleOfTypeName(fs.Name), baseStyle, StringComparison.OrdinalIgnoreCase))
+                    .Select(fs => (fs, size: TagSizeVariant.SizeOfTypeName(fs.Name)))
                     .Where(x => x.size.HasValue).ToList();
 
                 var choice = TagSizeVariant.Choose(dt,

@@ -380,7 +380,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "ace4e48a02f4655982fe2dfbe03d2c3a3a0aeda0a6be140daca0b3f51b011f91",
+      "checksum": "a339c960d1dc8121cdf0f12df2334ca4439a1f44a9dabc73b5b2987664538219",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -437,6 +437,9 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "denseUntilScale": 100,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -492,6 +495,21 @@
             "category": "Windows",
             "ruleType": "AutoDimOpenings",
             "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
           }
         ]
       },
@@ -530,7 +548,7 @@
       "id": "arch-elev-A1-1to100",
       "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "de97633264ae6f097b91b3f3baf873d1b264fc3bec6e6fbeabe084f31c9d0a63",
+      "checksum": "b9896e58263687fa5fc6edeb2882d7e8712dc91d62325a1efb4982744a738ba0",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -609,6 +627,9 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -684,6 +705,11 @@
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
             "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
+            "enabled": true
           }
         ]
       },
@@ -722,7 +748,7 @@
       "id": "arch-detail-A3-1to20",
       "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "a24f73b2c6d971ca8bbd8b742ee1592a4d2a98cdd943afdc9a53ee35339513d8",
+      "checksum": "0a608631daad96faf3f161530079190948b16bbfa327c75752191040b264b972",
       "purpose": "Detail",
       "discipline": "A",
       "paperSize": "A3",
@@ -802,6 +828,9 @@
       "annotation": {
         "dimensionStrategy": "Chain",
         "denseUntilScale": 50,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -876,6 +905,21 @@
           {
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTagLayers",
             "enabled": true
           }
         ]
@@ -2882,7 +2926,7 @@
       "id": "arch-interior-elev-A1-1to50",
       "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "2cdb05414b9b309941bcf804a24a1935afa94b3d9cdd0c10c50ab55f367295d3",
+      "checksum": "808577ed0de1b4729e60dbfc7d30a6189e1d3813f2efd7efed2609dc96cc9c62",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -2961,6 +3005,9 @@
       ],
       "annotation": {
         "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
             "category": "Grids",
@@ -3035,6 +3082,11 @@
           {
             "category": "Rooms",
             "ruleType": "AutoTagRoomNumber",
+            "enabled": true
+          },
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
             "enabled": true
           }
         ]
@@ -4774,7 +4826,7 @@
       "id": "pres-exterior-elev-A1",
       "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
-      "checksum": "ee12a397556005463d73ee8fae664b84279e0010b5a6ccdfd25329655c20f57f",
+      "checksum": "fe5391020e444cd4327e8a3e509542a7aab4ad123148c54e65eb147867782abf",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -4839,9 +4891,21 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "tagFamilies": {
-          "Walls": "STING - Wall Tag"
+          "Walls": "STING - Wall Tag",
+          "Materials": "STING - Materials Tag"
         },
-        "rules": []
+        "rules": [
+          {
+            "category": "Walls",
+            "ruleType": "MaterialTag",
+            "enabled": true
+          },
+          {
+            "category": "Roofs",
+            "ruleType": "MaterialTag",
+            "enabled": true
+          }
+        ]
       },
       "print": {
         "colourScheme": "PresentationMono",
@@ -5893,7 +5957,7 @@
       "name": "Floor Build-Up Detail — A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
-      "checksum": "3d9c16562e3429aab929f3fe5ae0cf36adb31998b9cbe668344126cefb46dab4",
+      "checksum": "f6090a49a28c84a1890aeffbe613151ce5ea1916dba312fc0bf229546a23e2a4",
       "purpose": "Detail",
       "discipline": "A",
       "phase": "*",
@@ -5946,10 +6010,13 @@
       "annotation": {
         "dimensionStrategy": "Linear",
         "autoTag": false,
+        "tagFamilies": {
+          "Materials": "STING - Materials Tag"
+        },
         "rules": [
           {
-            "category": "*",
-            "ruleType": "MaterialTag",
+            "category": "Floors",
+            "ruleType": "MaterialTagLayers",
             "enabled": true
           }
         ]

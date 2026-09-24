@@ -828,6 +828,7 @@ namespace StingTools.UI
                     // Writes MAT_CODE where a material has none, from the register row of
                     // the same MAT_NAME. MAT_CODE is what RateProviders Pass C keys on.
                     case "Materials_StampCodes": RunCommand<Commands.Materials.StampMaterialCodesCommand>(app); break;
+                    case "Materials_SyncIdentity": RunCommand<Commands.Materials.SyncMaterialIdentityCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 

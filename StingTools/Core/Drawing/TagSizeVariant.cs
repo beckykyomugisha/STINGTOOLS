@@ -44,6 +44,39 @@ namespace StingTools.Core.Drawing
                 ? v : (double?)null;
         }
 
+        /// <summary>
+        /// Size a TYPE name carries, in either naming the library uses: "2.5mm", or the tag
+        /// style catalogue's "{size}_{style}_{colour}_{arrow}_T{tier}" ("2.5_NOM_BLACK_Open30_T2",
+        /// TagStyleCatalogue.CanonicalTypeName). Null when the name carries no size. The
+        /// catalogue form was not recognised at first, so families built to the catalogue
+        /// convention (the specialist tag build sheet) never had their size chosen.
+        /// </summary>
+        public static double? SizeOfTypeName(string typeName)
+        {
+            var direct = ParseToken(typeName);
+            if (direct.HasValue) return direct;
+            var t = (typeName ?? "").Trim();
+            int us = t.IndexOf('_');
+            if (us <= 0) return null;
+            return double.TryParse(t.Substring(0, us), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
+                ? v : (double?)null;
+        }
+
+        /// <summary>
+        /// Everything in a type name except its size: "2.5_BOLD_RED_Open30_T2" → "BOLD_RED_Open30_T2";
+        /// "2.5mm" and names with no size → "". Two types are size variants of each other only
+        /// when this matches — switching a bold red tag to "the 2 mm type" must not make it
+        /// normal black.
+        /// </summary>
+        public static string StyleOfTypeName(string typeName)
+        {
+            var t = (typeName ?? "").Trim();
+            if (ParseToken(t).HasValue) return "";
+            int us = t.IndexOf('_');
+            if (us > 0 && SizeOfTypeName(t).HasValue) return t.Substring(us + 1);
+            return "";
+        }
+
         /// <summary>Size of a family named "<paramref name="baseFamily"/> &lt;n&gt;mm", or null.</summary>
         public static double? SizeOfFamilyVariant(string familyName, string baseFamily)
         {

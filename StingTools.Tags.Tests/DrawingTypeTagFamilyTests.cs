@@ -158,7 +158,10 @@ namespace StingTools.Tags.Tests
             {
                 if (!lib.Contains(r.Family))
                     bad.Add($"{r.TypeId}: {r.Category} -> '{r.Family}' is not in the library");
+                // A material tag labels a FACE of any host (AnnotationRunner.FaceReferenceFor),
+                // so a Walls or Roofs rule naming a Materials-declared tag is right, not a mismatch.
                 else if (declared.TryGetValue(r.Family, out var cat)
+                         && !string.Equals(cat, "Materials", StringComparison.OrdinalIgnoreCase)
                          && !string.Equals(cat, r.Category, StringComparison.OrdinalIgnoreCase))
                     bad.Add($"{r.TypeId}: '{r.Family}' is a {cat} tag, the rule tags {r.Category}");
             }

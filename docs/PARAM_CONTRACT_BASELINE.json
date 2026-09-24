@@ -932,16 +932,6 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "MAT_NAME": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
-    "MAT_SPECIFICATIONS": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Consumed by 7 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Doors Windows - Material Takeoff\". A schedule is a real reader; this scan only sees C#."
-    },
     "MAT_STANDARD": {
       "state": "write_only",
       "role": "reference",

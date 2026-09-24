@@ -111,6 +111,21 @@ namespace StingTools.Core.Drawing
         public const string SpaceTag            = "SpaceTag";
         public const string AreaTag             = "AreaTag";
         public const string MaterialTag         = "MaterialTag";
+        public const string MaterialTagLayers   = "MaterialTagLayers";
+
+        /// <summary>
+        /// The tagFamilies key MaterialTag / MaterialTagLayers read their family from. Not a
+        /// host category — a material tag tags a face of any host — so it is exempt from the
+        /// "key must be a Revit category" checks (DT-139-FAM, DrawingCategoryNameTests).
+        /// </summary>
+        public const string MaterialTagFamilyKey = "Materials";
+
+        /// <summary>True for the two rule kinds that place material callouts.</summary>
+        public static bool IsMaterialCalloutKind(string ruleType)
+        {
+            var n = Resolve(ruleType)?.Name;
+            return n == MaterialTag || n == MaterialTagLayers;
+        }
         public const string KeynoteTag          = "KeynoteTag";
         public const string MultiCategoryTag    = "MultiCategoryTag";
         public const string AutoTagRoomName     = "AutoTagRoomName";
@@ -152,7 +167,11 @@ namespace StingTools.Core.Drawing
             new AnnotationRuleKind(AreaTag, AnnotationPass.Tag,
                 "Area tag.", forcedCategory: "Areas"),
             new AnnotationRuleKind(MaterialTag, AnnotationPass.Tag,
-                "Material tag."),
+                "Material callout on the face you see: category = the hosts to tag (\"*\" = walls, " +
+                "floors, roofs, ceilings), one callout per material per spacing, painted faces first."),
+            new AnnotationRuleKind(MaterialTagLayers, AnnotationPass.Tag,
+                "Build-up callouts in a section or detail: one per material of each cut host, " +
+                "stacked in a column beside it."),
             new AnnotationRuleKind(KeynoteTag, AnnotationPass.Tag,
                 "Keynote tag."),
             new AnnotationRuleKind(MultiCategoryTag, AnnotationPass.Tag,

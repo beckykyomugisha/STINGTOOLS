@@ -62,6 +62,10 @@ namespace StingTools.Tags.Tests
             ("STING - Accessible Door Tag", "AccessibleDoor"),
             ("STING - Room Finish Tag", "RoomFinish"),
             ("STING - Fire Compartment Tag", "FireCompartment"),
+            // Rebuilt in place 2026-09-24 as the material callout. A material tag reads
+            // the MATERIAL, so the universal label printed blank on every material;
+            // opting out keeps propagation from putting it back (MaterialTagLabelTests).
+            ("STING - Materials Tag", "MaterialsTag"),
         };
 
         private static DirectoryInfo RepoRoot()

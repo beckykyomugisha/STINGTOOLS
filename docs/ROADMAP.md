@@ -68,6 +68,21 @@ a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths)
 fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
 audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
 
+## Material callouts (2026-09-24)
+
+Reviewed end to end; the design and the build steps are in
+[`SPECIALIST_TAG_BUILD_SHEET.md`](SPECIALIST_TAG_BUILD_SHEET.md) §5. Shared parameters DO bind
+to Materials (116 added in a 2026-09-21 run) — the comments in `LoadSharedParamsCommand.cs`,
+`SharedParamGuids.cs` and `ParamRegistry.cs` saying otherwise are stale.
+
+| ID | Status | Detail |
+|---|---|---|
+| MATTAG-1 | **OPEN — manual** | Rebuild the `.rfa` of `STING - Materials Tag` from build sheet §5 (strip the universal label and tier gates; 9 types `{size}_{CODE/CODENAME/FULL}`; rows `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` (`MAT_STANDARD`)) and save it over the library file under the same name. Everything else is in place. |
+| MATTAG-2 | ✅ **CLOSED 2026-09-24 (code) — needs Revit** | `Materials_SyncIdentity` (SETUP → Model Baseline): Mark / Keynote ← code, Description ← short name, STING's paragraph → `MAT_SPECIFICATIONS`, `MAT_CODE` from the register; never replaces a typed value unless Overwrite; plan CSV first. `MaterialIdentityPlanner` tested against the whole shipped register. `KeynoteSync` writes one row per material — and every existing row was fixed (`key<TAB><TAB>name` put the name in the PARENT column, so every keynote printed blank). |
+| MATTAG-3 | ✅ **CLOSED 2026-09-24 (code) — needs Revit** | `MaterialTag` resolves a Material Tags family (rule `tagFamily` → `tagFamilies["Materials"]` → first loaded), `category` = hosts (`*` = walls/floors/roofs/ceilings). New `MaterialTagLayers` for sections/details. Rules added to 3 elevation and 3 section/detail types; the dead `*` rule on the screed build-up replaced. |
+| MATTAG-4 | ✅ **CLOSED 2026-09-24 (code) — needs Revit** | One callout per material within 80 mm on paper, existing callouts counted (re-run adds nothing); painted faces first (paint material reported); curtain walls → panels, stacked walls → members, family instances via instance then symbol geometry; build-up callouts on cut faces stacked in a column; no-code callouts placed, counted and named. None of the Revit-side geometry has run — see build sheet §5.9. |
+| MATTAG-5 | ✅ **CLOSED 2026-09-24 (spec) — `.rfa` is MATTAG-1** | Decision: rebuild `STING - Materials Tag` in place rather than add a second family — the engine fallback, loader and manifest find it by name, and reloading it fixes existing projects. Its spec (`LABEL_DEFINITIONS.json` `category_labels.Materials` + the four v5.0 config blocks) now carries 4 material-readable rows instead of 68 unreadable ones, no tier gates, no warning rows; declared `LabelMaster: MaterialsTag` so Propagate Universal cannot restore the universal label; the six material drawing types name it in `tagFamilies["Materials"]`. `MaterialTagLabelTests` is now strict (no baseline). `Materials_SyncIdentity` fills `MAT_NAME`, the tag's second row. |
+
 ## Drawing-type tag families (2026-09-24)
 
 43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve

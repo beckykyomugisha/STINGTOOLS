@@ -2,6 +2,93 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — STING - Materials Tag rebuilt in place as the material callout)
+
+- **Decision: rebuild, not retire.** `STING - Materials Tag` carried the universal label — 68
+  fields, none of which can appear on a material. Retiring it would have left the broken family
+  in every project that has it and left the engine's "first material tag loaded" fallback
+  pointing at it; a second family name would have done the same. Rebuilt in place, it keeps the
+  name the loader, the manifest and the fallback use, and reloading it fixes existing projects.
+- **Spec rebuilt.** `LABEL_DEFINITIONS.json` `category_labels.Materials` and the Materials Tag
+  blocks of `STING_TAG_CONFIG_v5_0_GEN` / `_MEP` (and their `_DesignConstruction` twins) now
+  carry `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` / `MAT_STANDARD` — all bound to Materials —
+  in tier 1 only, with no tier gates and no warning rows (neither can resolve on a material,
+  which has no type). The family is declared `LabelMaster: MaterialsTag` in all four configs, so
+  Propagate Universal skips it (`UniversalOptOutTests` lists it; its consistency check caught the
+  MEP configs missing the declaration).
+- **`MaterialTagLabelTests` is now strict** — the 68-row baseline is deleted, and a new test pins
+  the four callout rows.
+- **`Materials_SyncIdentity` fills `MAT_NAME`** when empty (never overwrites): only
+  `CreateBLE/MEPMaterials` ever wrote it, so most materials' tags would have printed a code
+  with nothing under it.
+- The six material drawing types name `tagFamilies["Materials"] = "STING - Materials Tag"`;
+  checksums re-stamped. The build sheet §5 is rewritten for the in-place rebuild; the `.rfa`
+  itself is the one manual step left (ROADMAP MATTAG-1). Not run in Revit.
+
+#### Completed (Phase 296 — parameter audit for the recent work; material tag labels measured)
+
+- **Parameters and bindings re-verified.** Regenerating the binding spec and the parameter CSV
+  (`param_binding_resolver.py`, `sync_csv_from_txt.py`) changes nothing; the name-target, tag-row
+  and duplicate-GUID gates pass. 30 parameters the recent work depends on were checked one by
+  one — defined in `MR_PARAMETERS.txt`, same GUID in `PARAMETER_REGISTRY.json`, bound to the
+  category that reads them. Findings: `PRJ_TB_CDE_STATE_INT` binds to Sheets only, which is the
+  convention for all 57 `PRJ_TB_*` (the title block reads it as a family parameter);
+  `TAG_DEPTH_TIER_INT` is bound to nothing, so tier-2 rows on the specialist tags stay blank (the
+  build sheet already keeps their deliverable rows in tier 1); 356 parameters are in
+  `MR_PARAMETERS.txt` but not the registry — harmless at runtime (`ParamRegistry` supplements
+  GUIDs from the TXT) and long-standing, so not mass-filled.
+- **`PARAM_CONTRACT_BASELINE.json`**: `MAT_SPECIFICATIONS` is no longer write-only now that
+  `Materials_SyncIdentity` reads it, so `check_param_contract.py --check` failed until the
+  baseline was regenerated with `--write` (one entry removed).
+- **`MaterialTagLabelTests`** — a material tag reads only the MATERIAL's parameters. Every
+  parameter a Materials tag spec in `LABEL_DEFINITIONS.json` names (rows and formulas) must be a
+  Material built-in or bound to Materials in `RESOLVED_BINDINGS.csv`. The legacy
+  `STING - Materials Tag` spec fails on all 68 of its parameters; it is held to a ratchet
+  (`tools/material_tag_label_baseline.txt`) so it can only improve, and any new material tag
+  spec must be clean. RED both ways: a new dead row, and a fixed row still baselined.
+
+#### Completed (Phase 296 — material callouts built: identity sync, working rule kinds, thinning, build-ups)
+
+- **`Materials_SyncIdentity`.** A material callout reads the material's Mark / Description /
+  Keynote, and those disagreed: Mark = code only on materials STING created, Description held
+  the multi-hundred-character "enriched" paragraph, Keynote held `MAT_ISO_19650_ID` (in no
+  keynote table). The command plans (Revit-free `MaterialIdentityPlanner`, measured against the
+  whole shipped register) Mark / Keynote ← code, Description ← short name, paragraph →
+  `MAT_SPECIFICATIONS`, `MAT_CODE` from the register where empty; a value someone typed is
+  reported and left unless the user picks Overwrite. Plan CSV first.
+- **Keynote Sync wrote every row wrong.** Rows were `key<TAB><TAB>name` — key, EMPTY text, name
+  in the PARENT column — so every keynote it produced printed blank. Now `key<TAB>text` via
+  `KeynoteTableFormat`, and one row per material code under a `MAT` heading.
+- **`MaterialTag` works; `MaterialTagLayers` added.** The kind resolved the host's own tag
+  category and its only catalogue rule (category `*`) could not resolve, so it placed nothing.
+  It now resolves a Material Tags family (rule → `tagFamilies["Materials"]` → first loaded) and
+  tags host faces: one callout per material within 80 mm on paper (existing callouts count, so a
+  re-run adds nothing), painted faces first, curtain walls through panels, stacked walls through
+  members, family instances through their geometry, no-code callouts placed and counted.
+  `MaterialTagLayers` puts build-up callouts on the cut faces of hosts in sections / details,
+  heads stacked in a column. Rules on `pres-exterior-elev-A1`, `arch-elev-A1-1to100`,
+  `arch-interior-elev-A1-1to50`, `arch-section-A1-1to50`, `arch-detail-A3-1to20`,
+  `arch-screed-buildup-A3-1to10` (its dead `*` rule replaced). `FaceReferenceFor` now shares the
+  same face logic. 18 tests; 7 fail when the old behaviours are put back. Not run in Revit.
+- Noticed, not changed: `arch-elev`, `arch-interior-elev` and `arch-detail` carry the floor
+  plan's copied rules (room, furniture and area tags on an elevation) — the same defect fixed on
+  the RCP.
+
+#### Completed (Phase 296 — material callouts reviewed; tag size read from the style catalogue's type names)
+
+- **Tag size switching ignored the tag-style catalogue's type names.** `TagSizeVariant` only
+  recognised types named `2.5mm`, but the catalogue (`TagStyleCatalogue.CanonicalTypeName`) and
+  the specialist tag build sheet name them `2.5_NOM_BLACK_Open30_T2`, so those families would
+  have kept their default size on every drawing. It now reads both, and only switches between
+  types whose non-size part matches — a bold red 2.5 mm tag becomes a bold red 2 mm tag, never
+  a black one. 8 new cases; 5 fail against the old parsing.
+- **Material callout reviewed and specified** (`SPECIALIST_TAG_BUILD_SHEET.md` §5, ROADMAP
+  MATTAG-1..5). What exists, what Revit allows, why the library's `STING - Materials Tag` cannot
+  serve as a callout, the data contract, the family (Material Tags, content × size types, no
+  tiers), how to wire it with today's engine, and the ordered engine work that would make it
+  robust. `DrawingTypeTagFamilyTests` now accepts a Materials-declared tag family on a host rule
+  (a material tag tags a face of any host), so wiring the family later is a data-only change.
+
 #### Completed (Phase 296 — closing the drawings-production review, measured before touched)
 
 The 2026-07-20 drawings-production review still listed ~33 findings as open. Every one was

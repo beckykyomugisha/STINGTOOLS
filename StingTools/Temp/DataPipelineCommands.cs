@@ -3240,7 +3240,7 @@ namespace StingTools.Temp
 
             foreach (var disc in discCodes)
             {
-                sb.AppendLine($"{disc.Key}\t\t{disc.Value}");
+                sb.AppendLine(KeynoteTableFormat.Row(disc.Key, disc.Value));
             }
             sb.AppendLine();
 
@@ -3249,7 +3249,7 @@ namespace StingTools.Temp
             {
                 string sysCode = sysEntry.Key;
                 string funcCode = TagConfig.GetFuncCode(sysCode);
-                sb.AppendLine($"{sysCode}\t\t{sysCode} System ({funcCode})");
+                sb.AppendLine(KeynoteTableFormat.Row(sysCode, $"{sysCode} System ({funcCode})"));
             }
             sb.AppendLine();
 
@@ -3258,7 +3258,7 @@ namespace StingTools.Temp
             {
                 string catName = prodEntry.Key;
                 string prodCode = prodEntry.Value;
-                sb.AppendLine($"{prodCode}\t\t{catName}");
+                sb.AppendLine(KeynoteTableFormat.Row(prodCode, catName));
             }
 
             // CSI MasterFormat sections present in the model (Phase G — CSI ↔ keynote
@@ -3281,7 +3281,34 @@ namespace StingTools.Temp
                 sb.AppendLine();
                 sb.AppendLine("# CSI MasterFormat sections (from model — CSI_Assign)");
                 foreach (var kv in csiSections.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-                    sb.AppendLine($"{kv.Key}\t\t{kv.Value}");
+                    sb.AppendLine(KeynoteTableFormat.Row(kv.Key, kv.Value));
+            }
+
+            // Materials, keyed by their code, so a Keynote-by-Material tag prints the same
+            // code a Material Tag does (Materials_SyncIdentity sets Keynote = code).
+            var matRows = new System.Collections.Generic.SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material)))
+                {
+                    string code = ParameterHelpers.GetString(m, "MAT_CODE");
+                    if (string.IsNullOrWhiteSpace(code))
+                        code = m.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                    if (string.IsNullOrWhiteSpace(code) || matRows.ContainsKey(code.Trim())) continue;
+                    string desc = m.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "";
+                    bool shortDesc = desc.Trim().Length > 0
+                        && desc.Length <= StingTools.Core.Materials.MaterialIdentityPlanner.CalloutNameMaxLength
+                        && !StingTools.Core.Materials.MaterialIdentityPlanner.IsStingEnrichedDescription(desc);
+                    matRows[code.Trim()] = shortDesc ? desc.Trim() : m.Name;
+                }
+            }
+            catch (Exception mx) { StingLog.Warn($"Keynote material scan: {mx.Message}"); }
+            if (matRows.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(KeynoteTableFormat.Row("MAT", "Materials"));
+                foreach (var kv in matRows)
+                    sb.AppendLine(KeynoteTableFormat.Row(kv.Key, kv.Value, "MAT"));
             }
 
             try
@@ -3295,7 +3322,7 @@ namespace StingTools.Temp
             }
 
             // Keynote file generated — user loads via Annotate > Keynoting Settings
-            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count + csiSections.Count;
+            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count + csiSections.Count + matRows.Count;
             try
             {
                 StingLog.Info($"Keynote file generated at {knoPath} with {entries} entries");
@@ -3311,6 +3338,7 @@ namespace StingTools.Temp
                 $"  System codes: {TagConfig.SysMap.Count}\n" +
                 $"  Product codes: {TagConfig.ProdMap.Count}\n" +
                 $"  CSI sections (model): {csiSections.Count}\n" +
+                $"  Materials (model, by code): {matRows.Count}\n" +
                 $"  Total entries: {entries}\n\n" +
                 $"File: {knoPath}");
 

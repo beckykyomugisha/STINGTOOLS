@@ -1,9 +1,10 @@
 # Specialist tag families — hand-authoring sheet
 
-Four tag families that the drawing types need and that the Revit API cannot build:
+Five tag families that the drawing types need and that the Revit API cannot build:
 it cannot author label rows. A person builds each one in the Family Editor from this
-sheet; everything around them is already in place (2026-09-24, branch
-`claude/specialist-tag-params`).
+sheet; everything around the first four is already in place (2026-09-24, merged in
+#974). The fifth — `STING - Materials Tag`, rebuilt in place as the material callout —
+follows different rules and has its own section (§5): read it before building it.
 
 | Family | Tags | For drawing type |
 |---|---|---|
@@ -11,6 +12,7 @@ sheet; everything around them is already in place (2026-09-24, branch
 | `STING - Accessible Door Tag` | Doors | `arch-accessibility-A1-1to100` |
 | `STING - Room Finish Tag` | Rooms | `arch-floor-finishes-A1-1to100` |
 | `STING - Fire Compartment Tag` | Rooms | `arch-fire-strategy-A1-1to100` |
+| `STING - Materials Tag` (rebuilt in place) | **Material Tags** (a face of any host) | `pres-exterior-elev-A1`, `arch-elev-A1-1to100`; sections later (§5.7) |
 
 **Already done, so do not redo it:**
 
@@ -73,6 +75,13 @@ architectural default NOM / BLACK / Arrow Open 30 / T2):
 | `2_NOM_BLACK_Open30_T2` | 2.0 mm | 1:50 and denser plans |
 | `2.5_NOM_BLACK_Open30_T2` | 2.5 mm | **default** — the 1:100 drawing types above |
 | `3.5_NOM_BLACK_Open30_T2` | 3.5 mm | presentation / 1:200 |
+
+The drawing engine picks the size type for each drawing's scale (`TagSizeVariant`) and
+reads **this** naming — the size is everything before the first `_`, and it only
+switches between types whose remainder matches, so a bold red 2.5 mm tag becomes a
+bold red 2 mm tag, never a black one. (Until 2026-09-24 it only recognised types named
+`2.5mm`, so families built to this sheet would have kept their default size.) Keep the
+remainder identical across the three types.
 
 Label text size is a property of the **label's** type, not the family type, so make
 three copies of the label (one per text size: *Edit Type → Duplicate → Text Size*) at
@@ -176,6 +185,185 @@ Prints e.g. `G.04` / `Comp FC-03` / `FR 60 min` / `Esc 120 pers`.
   `BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT` → Rooms. Re-run **Load Shared Params** on an
   existing project to pick up the Rooms binding — the loader adds categories, it
   never removes them.
+
+---
+
+## 5. `STING - Materials Tag` (Material Tags) — rebuilt in place
+
+Prints e.g. `CLG-001` / `Gypsum board standard 12.5 mm` with a leader to the face it
+describes — the callout on an elevation, and the build-up note in a section (§5.7).
+
+**Rebuilt in place, not replaced (2026-09-24).** The library already ships
+`STING - Materials Tag.rfa`; it carried the universal label, and **none of its 68 fields can
+appear on a material** (§5.1). It keeps its name: the engine's fallback, the tag-family
+loader and the content manifest all find it by that name, and reloading the rebuilt family
+into an existing project replaces the broken label there too. A second family would have
+left the broken one behind in every project that has it. Its spec in the repo is already
+rebuilt — `LABEL_DEFINITIONS.json` (`category_labels.Materials`) and the four v5.0 config
+blocks now carry the four rows below — and it is declared `LabelMaster: MaterialsTag`, so
+Propagate Universal never puts the universal label back. What is left is the `.rfa`.
+
+**This one is different from §1–4 in three ways, and each one decides how it is built:**
+
+1. **A material tag reads the MATERIAL, never the element.** Its label can show only the
+   material's own parameters — built-in identity data and shared parameters bound to the
+   **Materials** category. Nothing on the wall (`ASS_TAG_1_TXT`, type marks, the `ASS_*`
+   family) is visible to it, and `<ALL>` bindings never reach a material.
+   `MaterialTagLabelTests` fails the build on a row that breaks this.
+2. **It tags a FACE.** Revit places a material tag on a face reference, and the tag reports
+   that face's material — on a compound wall's exterior face, the outer layer only. The
+   drawing engine does this (§5.1).
+3. **No tiers.** The `TAG_PARA_STATE_n_BOOL` gates are read from the tagged element's
+   *type* (`Core/TierGateScope.cs`); a Material has no type. **Strip every tier row and every
+   tier gate out of the existing family.** Variants are family **types** (§5.3).
+
+### 5.1 What exists today
+
+| Thing | State | Evidence |
+|---|---|---|
+| Shared parameters **on Materials** | ✅ Works. `CleanMaterialBindings` adds the Materials category to every `MAT_*` / `PROP_*` / `BLE_MAT_*` / `COMP_MAT_*` / `STING_MAT_*` parameter; a 2026-09-21 run logged 116 added, 0 failed. The comments in `LoadSharedParamsCommand.cs`, `SharedParamGuids.cs` and `ParamRegistry.cs` that say Materials cannot take bound parameters are **stale**. | `Tags/LoadSharedParamsCommand.cs` `CleanMaterialBindings` |
+| Parameters bound `<ALL>` | ❌ Never reach a Material (`ASS_TAG_1_TXT`, the cost / carbon / tier parameters). | `RESOLVED_BINDINGS.csv` |
+| Material identity | ✅ `Materials_SyncIdentity` (§5.2) makes Mark, Keynote, Description, `MAT_CODE` and `MAT_NAME` agree. Before it, only materials STING created carried any of them. | `Commands/Materials/SyncMaterialIdentityCommand.cs` |
+| The spec of `STING - Materials Tag` | ✅ Rebuilt: `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` / `MAT_STANDARD`, all bound to Materials, no tiers, no warning rows, own `LabelMaster` group. The universal label it had (68 fields, 0 readable on a material) is gone from `LABEL_DEFINITIONS.json` and from the four v5.0 config blocks. | `MaterialTagLabelTests`, `UniversalOptOutTests` |
+| The `.rfa` of `STING - Materials Tag` | ❌ **Still the universal label** until someone rebuilds it from this section. | `StingTools/Data/TagFamilies/STING - Materials Tag.rfa` |
+| Engine: tag a face | ✅ (2026-09-24) Hosts through their finish faces; curtain walls through their **panels**, stacked walls through their **members**, family instances through their own geometry (instance, else symbol). A **painted** face towards the viewer wins and reports the paint material. | `AnnotationRunner.MaterialCallouts.cs` `FaceCandidates` |
+| Engine: the `MaterialTag` rule kind | ✅ (2026-09-24) Resolves a **Material Tags** family — the rule's `tagFamily`, else `tagFamilies["Materials"]`, else the first loaded — with `category` as the hosts to tag (`"*"` = walls, floors, roofs, ceilings). **One callout per material** within 80 mm on paper; callouts already on the view count, so a re-run adds nothing. Callouts on materials with no code are placed, counted and warned about. | `AnnotationRunner.MaterialCallouts.cs`, `MaterialCalloutPlan` |
+| Engine: `MaterialTagLayers` | ✅ (2026-09-24) Sections and details only: each cut host's cut faces grouped by material, one callout per material, heads stacked in a column beside the element. A host already carrying a material tag in the view is skipped. | same |
+| Drawing types | ✅ `MaterialTag` on walls: `pres-exterior-elev-A1` (and roofs), `arch-elev-A1-1to100`, `arch-interior-elev-A1-1to50`. `MaterialTagLayers` on walls / floors / roofs: `arch-section-A1-1to50`, `arch-detail-A3-1to20`; floors: `arch-screed-buildup-A3-1to10`. All six name `tagFamilies["Materials"] = "STING - Materials Tag"`. | `STING_DRAWING_TYPES.json` |
+
+### 5.2 Data contract — do this on the project first
+
+The label prints shared parameters bound to Materials, so run **Load Shared Parameters**
+(it binds `MAT_*` to Materials), then **`Materials_SyncIdentity`** (SETUP → Model Baseline,
+"Sync material identity"). For every coded material it fills:
+
+| Field | Gets | Why |
+|---|---|---|
+| `MAT_CODE` (shared) | the register code, where empty | row 1 of the tag |
+| `MAT_NAME` (shared) | the short register name, where empty | row 2 of the tag |
+| Mark, Keynote (built-in) | the code | Keynote-by-Material tags and schedules read the same code |
+| Description (built-in) | the short name; STING's long paragraph moves to `MAT_SPECIFICATIONS` | readable in the Material Browser and schedules |
+
+It writes the plan to CSV first and never replaces a value someone typed unless you pick
+*Overwrite*. Then run **Keynote Sync**: the keynote table carries one `code → name` row
+per material under a `MAT` heading. `MAT_MANUFACTURER` / `MAT_STANDARD` come from the
+register when STING creates the material; type them for materials it did not.
+
+### 5.3 Template, category, types
+
+- **Start from the existing `STING - Materials Tag.rfa`** (category Material Tags is
+  already right). Delete every label row, every calculated value, and the
+  `TAG_PARA_STATE_*` / `TAG_WARN_VISIBLE_BOOL` / `TAG_DEPTH_TIER_INT` family parameters —
+  none of them can resolve on a material. Or start clean from `Material Tag.rft` and save
+  over it under the **same name**.
+- **Types — content × size, named to the tag-style convention** so the engine switches
+  size and keeps content (`{size}_{CONTENT}`):
+
+  | Type | Rows | Use |
+  |---|---|---|
+  | `2_CODE` · `2.5_CODE` · `3.5_CODE` | `MAT_CODE` | Dense elevations and sections with a Materials Key beside them |
+  | `2_CODENAME` · **`2.5_CODENAME`** · `3.5_CODENAME` | `MAT_CODE` / `MAT_NAME` | **Default.** Elevations, build-ups, presentation |
+  | `2_FULL` · `2.5_FULL` · `3.5_FULL` | `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` (`MAT_STANDARD`) | Specification elevations, sample boards |
+
+  Nine types. The engine reads the size from the text before the first `_` and matches
+  the rest, so a drawing that wants 2 mm turns `2.5_CODENAME` into `2_CODENAME`.
+- **Labels:** nine label copies at the same point — one per type — each at its text size,
+  each with *Visible* tied to its own family Yes/No parameter (`V_2_CODE` … `V_3_5_FULL`),
+  exactly one ticked per type. Build and check the 2.5 mm CODENAME label first, then copy.
+
+### 5.4 Label rows
+
+| Content | Row | Parameter (bound to Materials) | GUID | Prefix / suffix | Spaces / Break |
+|---|---|---|---|---|---|
+| CODE | 1 | `MAT_CODE` | 758ba3d0-ea41-51fc-8dbf-3bb444174385 | — | — |
+| CODENAME | 1 | `MAT_CODE` | 〃 | — | Break |
+| CODENAME | 2 | `MAT_NAME` | 819a8cc6-a552-5649-921f-3b6e494c49d7 | — | — |
+| FULL | 1 | `MAT_CODE` | 〃 | — | Break |
+| FULL | 2 | `MAT_NAME` | 〃 | — | Break |
+| FULL | 3 | `MAT_MANUFACTURER` | 66307eed-372a-5804-9c95-6866cceb503a | — | Spaces 1 |
+| FULL | 4 | `MAT_STANDARD` | f7b7a311-f04b-5859-998e-e88295f4badc | `(` / `)` | — |
+
+Add them through *Edit Label → Add Parameter → Select…* with `MR_PARAMETERS.txt` as the
+shared parameter file. A row whose parameter is empty prints nothing, so an uncoded
+material shows a leader with no code — visible on the drawing, which is the intent (the
+engine also counts it and names the material in its warning).
+
+**If the shared parameters are not in a project** (it never ran Load Shared Parameters),
+the equivalent built-ins are `Mark` / `Description` / `Manufacturer` / `Model` —
+`Materials_SyncIdentity` fills Mark and Description with the same values. Do not mix the
+two in one family: pick the shared rows, which is what the spec and the test hold.
+
+### 5.5 Graphics
+
+- **Leader: always.** Callouts point at the face they describe; the drawing engine places
+  the head beside the face and a leader is what makes that readable. Leader Arrowhead
+  **Dot Filled 1mm** (or Arrow Open 30, to match the other STING tags).
+- **No box.** Text only; the Materials Key legend (§5.7) carries the full list.
+- Family origin at the label's left-middle, so leaders land on the text.
+
+### 5.6 Wiring it in (after the `.rfa` is rebuilt)
+
+1. Save over `StingTools/Data/TagFamilies/STING - Materials Tag.rfa` — **same name**.
+2. Nothing else in the repo: the spec, the `LabelMaster` declaration and the six drawing
+   types' `tagFamilies["Materials"]` are already in place.
+3. In each project: reload the family (Insert → Load Family, **Overwrite the existing
+   version and its parameter values**), then Load Shared Parameters and
+   `Materials_SyncIdentity` if not done (§5.2).
+4. Produce one elevation and one section on a model with coded materials and check §5.9.
+
+### 5.7 Sections and build-ups
+
+`MaterialTagLayers` does the classic build-up note: in a section or detail it takes each
+host's **cut** faces, keeps one per material (the largest), and places one callout per
+material with its head in a column to the right of the element, ordered across the
+element so the column reads outside-in. It needs the same family; the `CODE` types are the
+ones to use at 1:20 and denser with the Materials Key legend (the detail and screed
+build-up types already have "Materials Key" / "Materials Strip" slots). A host that
+already carries a material tag in the view is skipped, so re-running adds nothing — to
+redo one, delete its callouts first.
+
+### 5.8 What is built, and what is still open
+
+**Built (2026-09-24):**
+
+1. **`Materials_SyncIdentity`** — Mark / Keynote ← code, Description ← short name,
+   paragraph → `MAT_SPECIFICATIONS`, `MAT_CODE` from the register; `MaterialIdentityPlanner`
+   is Revit-free and measured against the whole shipped register. **Keynote Sync** writes one
+   row per material — and its existing rows were fixed: every one was `key<TAB><TAB>name`,
+   which puts the name in the PARENT column and leaves the text blank.
+2. **`MaterialTag` rule kind** — resolves a Material Tags family; `category` is the hosts.
+3. **One callout per material** within 80 mm on paper (`MaterialCalloutPlan.Thin`).
+4. **Paint first; curtain panels, stacked members, family instances.**
+5. **No-code QA** — placed, counted, named in the warning, pointing at SyncIdentity.
+6. **`MaterialTagLayers`** — build-up callouts on cut faces.
+
+**Still open:** a data test that every label parameter of a material tag family is a
+built-in or bound to Materials (it would have caught `STING - Materials Tag`); retiring or
+rebuilding that universal-label family; and the Revit run in §5.9 — every Revit-side piece
+above is unverified (face references on panels and instances, cut-face references, paint
+read-back, head placement).
+
+Alternatives considered: a **Material Keynote** is the right second route for offices that
+keynote (needs item 1 and a loaded keynote table); a **wall or multi-category tag reading a
+mirrored parameter** is rejected — one value per element not per face, goes stale, blind
+to paint.
+
+### 5.9 Check in Revit before relying on it
+
+1. The exact names in Edit Label → Category Parameters for a Material Tag (`Mark`,
+   `Description`, `Manufacturer`, `Model` — and is it `Name` or `Material: Name`?), and
+   whether the STING shared parameters bound to Materials appear there.
+2. That `IndependentTag.Create` accepts the wall side-face references the engine passes,
+   including curtain and stacked walls.
+3. That a tag on a painted face reports the paint material.
+4. What an existing `STING - Materials Tag` row gated on `TAG_PARA_STATE_*` draws — blank
+   or everything. It settles whether that family has any use left.
+5. `MaterialTagLayers` in a wall section: one callout per layer, leaders landing on the
+   right layer, heads in a tidy column; re-run adds nothing.
+6. An elevation: one callout per material (not per wall), a re-run adds nothing, and a
+   material with no code shows a blank callout plus the warning naming it.
+7. `Materials_SyncIdentity` on an existing project: the CSV before, then Mark / Keynote /
+   Description after; a hand-typed Mark left alone.
 
 ---
 

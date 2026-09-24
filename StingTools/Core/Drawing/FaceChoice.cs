@@ -21,6 +21,14 @@ namespace StingTools.Core.Drawing
         /// <param name="areas">Per face: area (any unit, the same for all).</param>
         /// <returns>Index of the face to tag, or -1 when there is none.</returns>
         public static int Best(IList<double> facingDots, IList<double> areas)
+            => Best(facingDots, areas, null);
+
+        /// <summary>
+        /// As above, but a PAINTED face that faces the viewer beats any unpainted one: paint
+        /// is the finish you see, and a callout on the substrate under it would name the
+        /// wrong material. A painted face turned away from the viewer gets no preference.
+        /// </summary>
+        public static int Best(IList<double> facingDots, IList<double> areas, IList<bool> painted)
         {
             int n = Math.Min(facingDots?.Count ?? 0, areas?.Count ?? 0);
             int best = -1;
@@ -30,6 +38,8 @@ namespace StingTools.Core.Drawing
                 double a = areas[i];
                 if (!(a > 0)) continue;
                 double score = a * (0.05 + Math.Max(0.0, facingDots[i]));
+                if (painted != null && i < painted.Count && painted[i] && facingDots[i] > 0.1)
+                    score += 1e12;   // any painted visible face outranks every unpainted one
                 if (score > bestScore) { bestScore = score; best = i; }
             }
             return best;
