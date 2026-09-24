@@ -80,34 +80,26 @@ jobs:
 
       # ── Gate 2: run them ───────────────────────────────────────────────────
       #
-      # KNOWN-FAILING BASELINE
-      # ----------------------
-      # One test fails for a reason established and filed, NOT silenced. It is
-      # excluded BY NAME with its issue number, so the exclusion is greppable and
-      # any OTHER failure in the same project still turns this job red.
+      # KNOWN-FAILING BASELINE: none.
+      # ------------------------------
+      # #596 (DuplicateLiveClashUpdater_FileIsRemoved) and #597
+      # (ComputeRoute_StraightHorizontal_ProducesOneSegment) were excluded here by
+      # name. Both were real product defects — a resurrected duplicate command file,
+      # and a route engine that dropped short legs so a straight run ended short of
+      # its goal — and both are fixed, so every test runs.
       #
-      # (#596 DuplicateLiveClashUpdater_FileIsRemoved was excluded here until the
-      # resurrected StingTools/Clash/ClashDetectionCommands.cs was deleted again;
-      # it now runs.)
-      #
-      #   #597  ComputeRoute_StraightHorizontal_ProducesOneSegment
-      #         Test defect: asserts reference equality on a stub XYZ that has no
-      #         Equals override. Measured to have NEVER passed — test file, stub
-      #         and ComputeRoute body are all byte-identical to the authoring
-      #         commit 41ee9d591.
-      #
-      # Do NOT add to this list to make a build green. Fix the test or file the
-      # defect, the way this one was.
+      # If a test must ever be excluded again, exclude it BY NAME with its issue
+      # number (--filter "FullyQualifiedName!~<name>") so the exclusion is greppable
+      # and any OTHER failure still turns this job red. Never to make a build green.
       - name: Run every Revit-free test project
         run: |
           set -uo pipefail
-          EXCLUDE='FullyQualifiedName!~ComputeRoute_StraightHorizontal_ProducesOneSegment'
           FAIL=0
           for proj in StingTools.*.Tests/*.csproj; do
             name=$(basename "$proj" .csproj)
             [ "$name" = "StingTools.SitePhotos.Tests" ] && continue
             echo "::group::test $name"
-            if dotnet test "$proj" -c Debug --nologo --no-build --filter "$EXCLUDE"; then
+            if dotnet test "$proj" -c Debug --nologo --no-build; then
               echo "OK    $name"
             else
               echo "::error title=Test failure::$name"
