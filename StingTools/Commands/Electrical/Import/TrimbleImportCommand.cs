@@ -170,18 +170,29 @@ namespace StingTools.Commands.Electrical.Import
         private static void StampCircuit(ElectricalSystem sys, TrimbleRecord r, List<string> w)
         {
             if (!string.IsNullOrEmpty(r.CsaMm2))   Set(sys, "ELC_CABLE_CSA_MM2_TXT", r.CsaMm2, w);
-            if (r.FaultKa.HasValue)                  Set(sys, "ELC_FAULT_LEVEL_KA",   r.FaultKa.Value.ToString("F2"), w);
-            if (r.VoltageDrop.HasValue)              Set(sys, "SLD_VD_PCT",            r.VoltageDrop.Value.ToString("F1"), w);
+            // ELC_FAULT_LEVEL_KA / SLD_VD_PCT were never defined in MR_PARAMETERS.txt;
+            // a circuit's fault level lives in ELC_CIR_FAULT_LEVEL_TXT (the SLD fault
+            // label's first choice) and its voltage drop in ELC_VLT_DROP_PCT.
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (r.FaultKa.HasValue)                  Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", r.FaultKa.Value.ToString("F2", inv), w);
+            if (r.VoltageDrop.HasValue)              Set(sys, "ELC_VLT_DROP_PCT",        r.VoltageDrop.Value.ToString("F1", inv), w);
             if (!string.IsNullOrEmpty(r.Rating))    Set(sys, "ELC_CIRCUIT_RATING_TXT", r.Rating, w);
         }
 
+        /// <summary>Writes through ParameterHelpers.SetString, which also writes a
+        /// unitless NUMBER parameter from its text; a failure is reported, not
+        /// swallowed.</summary>
         private static void Set(Element el, string p, string v, List<string> w)
         {
             if (string.IsNullOrEmpty(v)) return;
             var param = el.LookupParameter(p);
-            if (param == null || param.IsReadOnly) return;
-            try { param.Set(v); }
-            catch (Exception ex) { if (w.Count < 20) w.Add($"{p}: {ex.Message}"); }
+            if (param == null)
+            {
+                if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
+                return;
+            }
+            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
+                w.Add($"{p}: '{v}' was not written");
         }
 
         private static string MakeKey(string panel, string circuit) =>

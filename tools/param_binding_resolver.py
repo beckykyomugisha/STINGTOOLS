@@ -1,4 +1,4 @@
-import io,os,re,csv,collections
+import io,os,re,csv,json,collections
 # csv.writer's default lineterminator is CRLF whatever open(newline="") does, so
 # the terminator has to be set on the WRITER. All three outputs are pinned to LF
 # and to `text eol=lf` in .gitattributes: the drift gate regenerates on Linux and
@@ -59,9 +59,26 @@ SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
 catb=collections.defaultdict(set)
+# Rows whose Is_Shared column reads "Yes" are HAND-AUTHORED statements of where a
+# parameter lives (LPS Wave 1, the Uganda regional defaults, the room/space result
+# stamps). The generated bulk of the file says "True". The derivation below never
+# looked at a curated row for a parameter a prefix rule could place, so every one
+# of these was dropped: the LPS class, mesh size, rolling-sphere radius and Kc that
+# LpsClassSetup writes to ProjectInformation went to Electrical Equipment and
+# Generic Models only, and the write found no parameter on ProjectInformation.
+# "<ALL>" cannot carry them either -- it is the 143 element categories, which hold
+# neither Project Information, Rooms' results nor Views.
+#
+# The rest of the curated file is NOT honoured wholesale: it is polluted (hundreds
+# of BLE_*/CST_* rows on Plumbing Equipment, Medical Equipment, Flex Pipes...),
+# which is why the derivation exists. The Yes marker is the line between the two.
+explicit=collections.defaultdict(set)
 for row in csv.reader(open("StingTools/Data/CATEGORY_BINDINGS.csv",encoding="utf-8",errors="replace")):
-    if row and not row[0].startswith("#") and row[0]!="Parameter_Name" and len(row)>=2: catb[row[0]].add(row[1])
-ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","RECEPT":"ELEC_FIXTURE","IT":"ELEC_FIXTURE","SOCKET":"ELEC_FIXTURE","OUTLET":"ELEC_FIXTURE","SPUR":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS"}
+    if row: row[0]=row[0].lstrip(chr(0xFEFF))
+    if row and not row[0].startswith("#") and row[0]!="Parameter_Name" and len(row)>=2:
+        catb[row[0]].add(row[1])
+        if len(row)>=4 and row[3].strip()=="Yes": explicit[row[0]].add(row[1])
+ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","RECEPT":"ELEC_FIXTURE","IT":"ELEC_FIXTURE","SOCKET":"ELEC_FIXTURE","OUTLET":"ELEC_FIXTURE","SPUR":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS","CONDUIT":"ELEC_CONDUIT","CABLE":"ELEC_CABLE"}
 LTG={"CTRL":"LIGHT_DEV","CONTROLS":"LIGHT_DEV","CKT":"ELEC_CIRCUIT"}
 CST_MATERIAL=set("ADHESIVE AGGREGATE BLOCK BLOCKS CEMENT GROUT PAINT PRIMER SAND SHEET STEEL TILE FASTENER PLASTER PUTTY MORTAR WATER RIDGE DPC BRICK CONC CONCRETE SCREED RENDER REBAR TIMBER PLYWOOD WATERPROOF NAILS HARDCORE".split())
 def resolve(n,desc,depth=0):
@@ -118,6 +135,12 @@ def resolve(n,desc,depth=0):
     # compartment and no room in it -- while the fls-compartment-id filter (OST_Rooms),
     # the RDS validator and the Fire Compartment Tag all read it from Rooms.
     if n.startswith("FLS_COMPARTMENT_") and depth==0: return "FIRE_COMPARTMENT","fls-compartment"
+    # The installation's earthing arrangement and MET location are facts about the
+    # whole supply, read off ProjectInformation by the earthing diagram. Named
+    # exactly, and ahead of the ELC_ prefix rule: a sub-token rule (EARTHING ->
+    # project) would also move the WARN_ELC_EARTHING_* mirrors, which describe
+    # equipment.
+    if n in ("ELC_EARTHING_SYSTEM_TXT","ELC_MET_LOCATION_TXT"): return "PROJECT_INFO","project-level"
     if pre in SAFE:
         if pre=="HVC" and sub=="TERMINAL": return "HVAC_TERM","prefix+sub"
         if pre=="ELC" and sub in ELC: return ELC[sub],"elc-sub"
@@ -226,10 +249,39 @@ MAT_PREFIXES, MAT_EXACT = material_prefixes()
 def material_relevant(name):
     return any(name.startswith(px) for px in MAT_PREFIXES) or name in MAT_EXACT
 
-out=[]; src=collections.Counter()
+# Every explicit category must be one the plugin can resolve. SharedParamGuids
+# drops a name missing from category_enum_map without a word, so a typo here would
+# look bound in the spec and bind nowhere -- the exact failure the marker exists to
+# end. Materials is exempt: it is bound by name prefix, and checked further down.
+_enum_map = json.load(open("StingTools/Data/PARAMETER_REGISTRY.json", encoding="utf-8-sig"))["category_enum_map"]
+_bad_explicit = sorted("%s -> %s" % (n, c) for n, cs in explicit.items() for c in cs
+                       if c != "Materials" and c not in _enum_map)
+if _bad_explicit:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS rows name categories that "
+                     "PARAMETER_REGISTRY.json category_enum_map does not know, so they "
+                     "would bind nowhere:\n  " + "\n  ".join(_bad_explicit[:20]))
+_orphan_explicit = sorted(n for n in explicit if n not in params)
+if _orphan_explicit:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS rows name parameters that are not "
+                     "defined in MR_PARAMETERS.txt:\n  " + "\n  ".join(_orphan_explicit[:20]))
+
+out=[]; src=collections.Counter(); _explicit_added=0
 for n,(g,d) in params.items():
     dom,s=resolve(n,d)
     cats = "|".join(sorted(catb[n])) if dom is None else S[dom]
+    ex = explicit.get(n)
+    if ex:
+        if cats == "<ALL>":
+            # An explicit home beats a blanket prefix rule: <ALL> cannot be
+            # combined with a category outside the universal set (the loader reads
+            # the cell as one token), and a parameter someone placed by hand on
+            # Views or Project Information has no business on 143 element categories.
+            cats = "|".join(sorted(ex)); s = "explicit"
+        else:
+            have = [c for c in cats.split("|") if c]
+            extra = sorted(ex - set(have))
+            if extra:
+                cats = "|".join(have + extra); _explicit_added += len(extra)
     out.append((n,g,s,cats,d)); src[s]+=1
 # FAIL rather than write a row that claims a binding nothing delivers.
 mat_orphans=[o[0] for o in out if o[3]=="Materials" and not material_relevant(o[0])]
@@ -285,6 +337,13 @@ for _i, _o in enumerate(out):
     _was = _prev.get(_n)
     if not _was or _was == _cats:
         continue
+    if set(_cats.split("|")) <= set(_was.split("|")):
+        # Nothing new, possibly in a different order: keep the committed
+        # spelling, so a change to HOW a set is derived does not show up as a
+        # binding diff when the binding itself has not moved.
+        if set(_cats.split("|")) != set(_was.split("|")): _widened += 1
+        out[_i] = (_n, _g, _srcx, _was, _d)
+        continue
     if _was == "<ALL>" or _cats == "<ALL>":
         # <ALL> is the widest there is; never trade it for a list.
         if _was == "<ALL>" and _cats != "<ALL>":
@@ -297,6 +356,17 @@ for _i, _o in enumerate(out):
         _widened += 1
 
 print("kept wider committed bindings on %d parameter(s)" % _widened)
+
+# Regression gate for the Yes marker: every hand-authored home must be in the
+# row that ships. This is what went missing for the LPS / regional project-level
+# parameters, and nothing reported it, because "absent" reads as "unbound on
+# purpose". A later rule that drops one fails here instead.
+_final = {o[0]: o[3] for o in out}
+_lost = sorted("%s -> %s" % (n, c) for n, cs in explicit.items() for c in cs
+               if c != "Materials" and c not in _final.get(n, "").split("|"))
+if _lost:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS homes missing from the generated "
+                     "spec:\n  " + "\n  ".join(_lost[:20]))
 
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
@@ -311,4 +381,5 @@ print("material rows cross-checked against IsMaterialRelevantParam: "
       % (len(MAT_PREFIXES), len(MAT_EXACT),
          sum(1 for o in out if o[3]=="Materials")))
 print("code-usage recovered:",src["code-usage"])
+print("explicit (Yes) categories added on top of the derivation:",_explicit_added)
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")

@@ -1,4 +1,4 @@
-# v6.8 | 3628 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3637 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -172,7 +172,7 @@ Generic Models,ELC_CBL_LENGTH_M,da71ae59-9744-5fe4-ad20-4b0687404e58,TEXT,ELC_PW
 Generic Models,ELC_CBL_SZ_MM,d08c2c5d-577f-5861-b615-b1b427d573a7,TEXT,ELC_PWR,Type,Elc Cbl Sz Mm [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,CBL_TYPE_TXT,b796eeed-e108-53b5-9bf7-deb0842cdea3,TEXT,ELC_PWR,Type,Elc Cbl Type Txt [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CKT_CUR_A,35d7f2c9-39b3-5cf3-867b-020dd1edb24d,NUMBER,ELC_PWR,Type,Elc Ckt Cur A [ISO 19650-1:2018],False,,,MULTI,1,0
-Generic Models,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,NUMBER,ELC_PWR,Type,Elc Ckt Nr [ISO 19650-1:2018],False,,,MULTI,1,0
+Generic Models,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,ELC_PWR,Type,Elc Ckt Nr [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CONN_TYPE_TXT,5f76851e-27eb-43b4-b026-d3cd7c408814,TEXT,ELC_PWR,Type,Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_CTR_SZ_TXT,e07efc49-554a-48c1-ba03-ffd28b8abca6,TEXT,ELC_PWR,Type,Cable tray size designation [ISO 19650-1:2018],False,,,MULTI,1,0
 Generic Models,ELC_DIV_FCT_NR,f7aed743-08cc-5147-ae86-f7049c7b7f39,TEXT,ELC_PWR,Type,Elc Div Fct Nr [ISO 19650-1:2018],False,,,MULTI,1,0
@@ -3637,3 +3637,12 @@ Generic Models,BLE_DOOR_LEADING_EDGE_CLEAR_MM,2c404fa6-b02f-5f05-a1cf-4f6f599f94
 Generic Models,BLE_DOOR_VISION_PANEL_ZONE_BOOL,6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a,YESNO,BLE_ELES,Instance,Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018],False,,,MULTI,1,0
 Generic Models,FLS_COMPARTMENT_FR_MINS_TXT,483d4398-65df-5c70-8e10-e65097f48d61,TEXT,FLS_LIFE_SFTY,Instance,"Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]",False,,,MULTI,1,0
 Generic Models,ELC_CKT_CHECK_TXT,8a86218a-bf3b-5d85-b989-35bd860c2888,TEXT,ELC_PWR,Instance,"Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable.",False,,,MULTI,1,0
+Generic Models,ELC_CONDUIT_HOME_RUN_BOOL,a4c24cde-c13c-542e-9466-5a5c46beb012,YESNO,ELC_PWR,Instance,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.,False,,,MULTI,1,0
+Generic Models,ELC_CONDUIT_HOME_RUN_END_TXT,c23051bf-7a76-5efd-af42-ff63591b8876,TEXT,ELC_PWR,Instance,Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.,False,,,MULTI,1,0
+Generic Models,ELC_EARTHING_SYSTEM_TXT,b6736d72-348c-5d2c-ba37-cb24318e8bb9,TEXT,ELC_PWR,Instance,Project earthing arrangement per BS 7671 Part 3 (TN-S / TN-C-S / TT / IT); read by the earthing diagram generator.,False,,,MULTI,1,0
+Generic Models,ELC_MET_LOCATION_TXT,a5779e7d-b5f0-5834-8b67-44e2dc3fa772,TEXT,ELC_PWR,Instance,"Location of the main earthing terminal (MET), shown on the earthing diagram.",False,,,MULTI,1,0
+Generic Models,ELC_CABLE_CSA_MM2_TXT,8ee0c7be-eac8-5988-b414-5f80590fecbf,TEXT,ELC_PWR,Instance,Circuit cable conductor CSA in mm2 as imported from Amtech / Trimble; read by SLD cable annotation and the calc-seed export.,False,,,MULTI,1,0
+Generic Models,ELC_CIRCUIT_PHASE_TXT,05d4605b-fdc0-5f96-b092-cd07ea5c6662,TEXT,ELC_PWR,Instance,Phase letter(s) of this circuit (L1 / L2 / L3 or A / B / C); drives the circuit-by-phase view filter.,False,,,MULTI,1,0
+Generic Models,ELC_CIRCUIT_DESC_TXT,5fdceb0b-7953-544f-beb5-7d8f12f31334,TEXT,ELC_PWR,Instance,Circuit description shown on the panel door diagram and exported by the calc-seed export.,False,,,MULTI,1,0
+Generic Models,ELC_CBL_TOTAL_AREA_MM2,22ee1ae1-d559-5f7c-924f-b4eaefe77077,NUMBER,ELC_PWR,Instance,Sum of the overall cross-sectional areas (mm2) of every cable in this conduit or tray; input to live fill % and conduit auto-size.,False,,,MULTI,1,0
+Generic Models,STING_BUS_VOLTAGE_TIER,139d87fd-60d1-57e8-959e-d7e4e966339c,TEXT,STING_DRAWING,Instance,Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.,False,,,MULTI,1,0

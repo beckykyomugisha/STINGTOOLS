@@ -95,8 +95,11 @@ namespace StingTools.Commands.Hvac
                                     $"{z.PeakSensibleW:F0}", overwrite: true)) stamped++;
                                 ParameterHelpers.SetString(el, "HVC_PEAK_LAT_W",
                                     $"{z.PeakLatentW:F0}", overwrite: true);
+                                // HVC_PEAK_HOUR is a NUMBER parameter: "14:00" does not
+                                // parse as one, so the hour was refused on every run.
                                 ParameterHelpers.SetString(el, "HVC_PEAK_HOUR",
-                                    $"{z.PeakHour:D2}:00", overwrite: true);
+                                    z.PeakHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                    overwrite: true);
                                 ParameterHelpers.SetString(el, "HVC_OA_LS",
                                     $"{z.OaLs:F1}", overwrite: true);
                                 // Phase 187f — clear the stale flag that the

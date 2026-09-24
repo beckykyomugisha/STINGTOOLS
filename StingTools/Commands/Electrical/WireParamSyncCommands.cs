@@ -314,10 +314,12 @@ namespace StingTools.Commands.Electrical
                 if (p.IsReadOnly) { r.ReadOnly.Add(name); return; }
                 if (p.StorageType != StorageType.String)
                 {
-                    // ELC_CKT_NR is declared NUMBER in MR_PARAMETERS.txt, so it is a
-                    // Double, not text. Refusing every non-text parameter meant the
-                    // circuit number was never written and every stamp reported a
-                    // failed write. ParameterHelpers.SetString writes unitless
+                    // ELC_CKT_NR was declared NUMBER in MR_PARAMETERS.txt until
+                    // 2026-09-24 and is TEXT now (a circuit number can be "1,3,5"),
+                    // but a project that bound it earlier keeps the Double until the
+                    // parameter is removed and re-bound. Refusing every non-text
+                    // parameter meant the circuit number was never written there
+                    // and every stamp reported a failed write. ParameterHelpers.SetString writes unitless
                     // numbers / integers / yes-no and refuses anything it cannot
                     // parse (a multi-pole "1,3,5", a measured quantity) — that
                     // refusal is still reported as a failure here, not swallowed.

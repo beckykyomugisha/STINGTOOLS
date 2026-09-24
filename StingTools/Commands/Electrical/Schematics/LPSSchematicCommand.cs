@@ -2,9 +2,9 @@
 //
 // Generates a BS EN 62305-3 / NFPA 780 LPS schematic in a new ViewDrafting
 // showing the capture mesh (air terminals), down conductors, bonding bars, and
-// earth electrodes. Reads LPS_COMPONENT_TYPE_TXT on any element to classify
+// earth electrodes. Reads ELC_LPS_ELEMENT_TYPE_TXT on any element to classify
 // components into four groups. Protection level is read from
-// LPS_PROTECTION_LEVEL_TXT on ProjectInformation.
+// ELC_LPS_CLASS_TXT on ProjectInformation.
 //
 // Workflow tag: LPS_Schematic
 
@@ -15,13 +15,15 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Fabrication;
+using StingTools.Core.Lightning;
 
 namespace StingTools.Commands.Electrical.Schematics
 {
     /// <summary>
     /// Generates a BS EN 62305-3 / NFPA 780 LPS schematic in a new drafting view.
-    /// Components are read by LPS_COMPONENT_TYPE_TXT; project protection level from
-    /// LPS_PROTECTION_LEVEL_TXT on ProjectInformation.
+    /// Components are read by ELC_LPS_ELEMENT_TYPE_TXT; project protection level from
+    /// ELC_LPS_CLASS_TXT on ProjectInformation.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -41,14 +43,24 @@ namespace StingTools.Commands.Electrical.Schematics
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Read project-level LPS parameters.
+            // Read project-level LPS parameters. These are the ones LPS Class Setup
+            // writes (ELC_LPS_*). The LPS_PROTECTION_LEVEL_TXT / LPS_MESH_SIZE_TXT /
+            // LPS_COMPONENT_TYPE_TXT names this command used to read were never
+            // defined in MR_PARAMETERS.txt, so every run drew class "I" with no mesh
+            // and found no components, whatever the model held.
             var projInfo = doc.ProjectInformation;
-            string protLevel = projInfo?.LookupParameter("LPS_PROTECTION_LEVEL_TXT")?.AsString()?.Trim();
-            if (string.IsNullOrEmpty(protLevel)) protLevel = "I";
-            string meshSize = projInfo?.LookupParameter("LPS_MESH_SIZE_TXT")?.AsString()?.Trim()
-                ?? "";
+            string protLevel = projInfo == null ? "" : ParameterHelpers.GetString(projInfo, LpsParams.CLASS_TXT).Trim();
+            bool classAssumed = string.IsNullOrEmpty(protLevel);
+            if (classAssumed) protLevel = "I";
+            // ELC_LPS_MESH_SIZE_M holds metres as the raw double (LpsClassSetup's
+            // SetDouble and every LPS reader use the same convention), so read it
+            // the same way rather than through the parameter's display units.
+            double meshM = projInfo == null ? 0 : LpsEngine.GetDoubleParam(projInfo, LpsParams.MESH_SIZE_M);
+            string meshSize = meshM > 0 ? $"{meshM:0.##} m" : "";
 
-            // Collect all elements with LPS_COMPONENT_TYPE_TXT populated.
+            // Collect every element carrying an ELC_LPS_ELEMENT_TYPE_TXT value
+            // (stamped by LPS Mark Element Types: AIR_TERMINAL / DOWN_CONDUCTOR /
+            // EARTH_ELECTRODE / BONDING_BAR / SPD).
             var allElements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
                 .ToList();
@@ -60,9 +72,9 @@ namespace StingTools.Commands.Electrical.Schematics
 
             foreach (var el in allElements)
             {
-                string compType = null;
-                try { compType = el.LookupParameter("LPS_COMPONENT_TYPE_TXT")?.AsString()?.Trim(); }
-                catch { /* parameter not applicable to this element */ }
+                // "AIR_TERMINAL" and the older "AirTerminal" spelling compare equal.
+                string compType = ParameterHelpers.GetString(el, LpsParams.ELEMENT_TYPE_TXT)
+                    .Replace("_", "").Trim();
 
                 if (string.IsNullOrEmpty(compType)) continue;
 
@@ -103,8 +115,12 @@ namespace StingTools.Commands.Electrical.Schematics
                       $"  Down Conductors:  {downConductors.Count}\n" +
                       $"  Earth Electrodes: {earthElectrodes.Count}\n" +
                       $"  Bonding Bars:     {bondingBars.Count}"
-                    : "No LPS components found (LPS_COMPONENT_TYPE_TXT not populated).\n" +
+                    : "No LPS components found (ELC_LPS_ELEMENT_TYPE_TXT not populated — " +
+                      "run LPS Mark Element Types).\n" +
                       "Schematic drawn with placeholder geometry.";
+                if (classAssumed)
+                    summary += "\n\nLPS class not set on Project Information (ELC_LPS_CLASS_TXT) — " +
+                               "drawn as Class I. Run LPS Class Setup to set it.";
 
                 TaskDialog.Show("STING LPS Schematic",
                     $"LPS schematic generated.\n\nView: {view.Name}\n\n{summary}");

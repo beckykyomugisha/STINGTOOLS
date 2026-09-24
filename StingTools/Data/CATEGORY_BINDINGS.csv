@@ -1,4 +1,5 @@
-﻿# v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
+﻿# v3.14 | 20260924 | Resolver now honours rows marked Yes in Is_Shared (hand-authored intent) on top of its derived set, and they replace a blanket <ALL>. Flipped 17 existing rows to Yes and added 25: LPS project-level params to Project Information, lighting/photometric results to Rooms, HVAC block-load results to MEP Spaces + Rooms, home-run + circuit ref + panel name to Conduits, busbar to Cable Trays, feeder to Electrical Equipment, earthing to Project Information, circuit text to Electrical Circuits, SLD bus tier to Views.
+# v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
 # v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
 # v3.11 | 20260916 | +14 bindings for tag rows that could never display: 8 Rooms (headroom/occupancy/ventilation/fire-escape, numeric + _TXT mirror), 4 Doors (type/operation/glazing-type/threshold), 2 Windows (vent area, was bound to Generic Models only). Found by tools/check_tag_row_bindings.py.
 # v3.10 | 20260808 | +2 STING_FINISH_* idempotency-stamp bindings on Floors (finish-floor creator, K-3)
@@ -7286,6 +7287,7 @@ ELC_CDT_MAT_TXT,Conduit Fittings,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduits,Type,True
 ELC_CDT_INSTALL_METHOD_TXT,Conduit Fittings,Type,True
 ELC_CDT_CBL_FILL_PCT,Conduits,Type,True
+ELC_CDT_CBL_FILL_PCT,Cable Trays,Instance,Yes
 ELC_CDT_BEND_ANGLE_DEG,Conduits,Type,True
 ELC_CDT_BEND_ANGLE_DEG,Conduit Fittings,Type,True
 ELC_CDT_BEND_COUNT_NR,Conduits,Type,True
@@ -15900,12 +15902,12 @@ PRJ_TB_LAST_TRANSMITTAL_DATE_TXT,Project Information,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Generic Models,Type,True
 PRJ_TB_NOTES_LEGEND_REF_TXT,Project Information,Type,True
 ELC_PNL_AIC_RATING_KA,Electrical Equipment,Instance,True
-ELC_FEEDER_CSA_MM2,Electrical Equipment,Instance,True
-ELC_FEEDER_RATING_A,Electrical Equipment,Instance,True
-ELC_EMERG_COVERED_BOOL,Rooms,Instance,True
-ELC_LPD_W_PER_M2,Rooms,Instance,True
-ELC_LPD_LIMIT_W_PER_M2,Rooms,Instance,True
-ELC_LPD_STATUS_TXT,Rooms,Instance,True
+ELC_FEEDER_CSA_MM2,Electrical Equipment,Instance,Yes
+ELC_FEEDER_RATING_A,Electrical Equipment,Instance,Yes
+ELC_EMERG_COVERED_BOOL,Rooms,Instance,Yes
+ELC_LPD_W_PER_M2,Rooms,Instance,Yes
+ELC_LPD_LIMIT_W_PER_M2,Rooms,Instance,Yes
+ELC_LPD_STATUS_TXT,Rooms,Instance,Yes
 ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_PPE_CAT,Electrical Equipment,Instance,True
@@ -15913,13 +15915,15 @@ ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment,Instance,True
 ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment,Instance,True
 ELC_BUSBAR_CSA_MM2,Electrical Equipment,Instance,True
-ELC_BUSBAR_CSA_MM2,Cable Trays,Instance,True
+ELC_BUSBAR_CSA_MM2,Cable Trays,Instance,Yes
 ELC_BUSBAR_RATING_A,Electrical Equipment,Instance,True
-ELC_BUSBAR_RATING_A,Cable Trays,Instance,True
-ELC_BUSBAR_FILL_PCT,Cable Trays,Instance,True
+ELC_BUSBAR_RATING_A,Cable Trays,Instance,Yes
+ELC_BUSBAR_FILL_PCT,Cable Trays,Instance,Yes
 ELC_CONDUIT_ROUTE_TXT,Conduits,Instance,True
-ELC_PHOTO_LUX_CALC,Rooms,Instance,True
-ELC_PHOTO_UGR_CALC,Rooms,Instance,True
+ELC_CONDUIT_HOME_RUN_BOOL,Conduits,Instance,Yes
+ELC_CONDUIT_HOME_RUN_END_TXT,Conduits,Instance,Yes
+ELC_PHOTO_LUX_CALC,Rooms,Instance,Yes
+ELC_PHOTO_UGR_CALC,Rooms,Instance,Yes
 ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures,Type,True
 ELC_PHOTO_LUMENS_NR,Lighting Fixtures,Type,True
 ELC_PHOTO_WATTS_NR,Lighting Fixtures,Type,True
@@ -15928,12 +15932,12 @@ ELC_PHOTO_BEAM_ANGLE_DEG,Lighting Fixtures,Type,True
 ELC_PHOTO_CCT_K,Lighting Fixtures,Type,True
 ELC_PHOTO_CRI_NR,Lighting Fixtures,Type,True
 ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures,Type,True
-ELC_PHOTO_LUX_DIALUX_NR,Rooms,Instance,True
-ELC_PHOTO_LUX_ELUMTOOLS_NR,Rooms,Instance,True
-ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,True
-ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,True
-ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,True
-ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,True
+ELC_PHOTO_LUX_DIALUX_NR,Rooms,Instance,Yes
+ELC_PHOTO_LUX_ELUMTOOLS_NR,Rooms,Instance,Yes
+ELC_PHOTO_LUX_RELUX_NR,Rooms,Instance,Yes
+ELC_PHOTO_UNIFORMITY_NR,Rooms,Instance,Yes
+ELC_PHOTO_LAST_ENGINE_TXT,Rooms,Instance,Yes
+ELC_PHOTO_LAST_CALC_DATE_TXT,Rooms,Instance,Yes
 STING_SEED_FAMILY_TXT,Lighting Fixtures,Instance,True
 STING_SEED_FAMILY_TXT,Electrical Fixtures,Instance,True
 STING_SEED_FAMILY_TXT,Electrical Equipment,Instance,True
@@ -16853,7 +16857,11 @@ ELC_CIR_BREAKER_RATING_TXT,Electrical Equipment,Instance,False
 ELC_CIR_ZS_TXT,Electrical Equipment,Instance,False
 ELC_CIR_DIVERSITY_FACTOR_TXT,Electrical Equipment,Instance,False
 ELC_CABLE_CSA_TXT,Electrical Equipment,Instance,False
+ELC_CABLE_CSA_MM2_TXT,Electrical Circuits,Instance,Yes
 ELC_CIRCUIT_TRACE_ACTIVE,Electrical Equipment,Instance,False
+ELC_CIRCUIT_REF_TXT,Conduits,Instance,Yes
+ELC_CIRCUIT_PHASE_TXT,Electrical Circuits,Instance,Yes
+ELC_CIRCUIT_DESC_TXT,Electrical Circuits,Instance,Yes
 ELC_CDT_STALE_ANNOT_BOOL,Conduits,Instance,False
 ELC_RECONCILE_DRIFT_BOOL,Conduits,Instance,False
 ELC_WIRE_BEND_COUNT_INT,Conduits,Instance,False
@@ -19395,6 +19403,8 @@ CST_S_REI_WEIGHT_KG,Structural Stiffeners,Instance,True
 CST_S_REI_WEIGHT_KG,Structural Trusses,Instance,True
 ELC_CBL_FEEDER_SZ_MM2,Electrical Equipment,Instance,True
 ELC_CBL_INS_TYPE_TXT,Wire,Instance,True
+ELC_CBL_TOTAL_AREA_MM2,Conduits,Instance,Yes
+ELC_CBL_TOTAL_AREA_MM2,Cable Trays,Instance,Yes
 ELC_CBT_SHOP_DRAWING_REQ_BOOL,Cable Trays,Instance,True
 ELC_CBT_SUPPORT_SPACING_MM,Cable Trays,Instance,True
 ELC_CDT_BEND_RADIUS_MM,Conduits,Instance,True
@@ -19452,6 +19462,7 @@ ELC_PNL_IP_RATING_TXT,Electrical Equipment,Instance,True
 ELC_PNL_RATED_KW,Electrical Equipment,Instance,True
 ELC_PNL_SHORT_CIRCUIT_KA,Electrical Equipment,Instance,True
 ELC_PNL_SPARE_WAYS_NR,Electrical Equipment,Instance,True
+ELC_PNL_NAME_TXT,Conduits,Instance,Yes
 ELC_VOLTAGE_V,Electrical Equipment,Instance,True
 ELC_VOLTAGE_V,Electrical Fixtures,Instance,True
 ELC_VOLTAGE_V,Wire,Instance,True
@@ -19687,3 +19698,18 @@ STR_REBAR_BEND_RADIUS_MM,Structural Fabric Reinforcement,Instance,Yes
 STR_REBAR_BEND_RADIUS_MM,Structural Rebar Couplers,Instance,Yes
 BI_ACCENT_COLOR_TXT,Generic Models,Instance,Yes
 BI_THEME_NAME_TXT,Generic Models,Instance,Yes
+HVC_PEAK_SENS_W,MEP Spaces,Instance,Yes
+HVC_PEAK_SENS_W,Rooms,Instance,Yes
+HVC_PEAK_LAT_W,MEP Spaces,Instance,Yes
+HVC_PEAK_LAT_W,Rooms,Instance,Yes
+HVC_PEAK_HOUR,MEP Spaces,Instance,Yes
+HVC_PEAK_HOUR,Rooms,Instance,Yes
+HVC_OA_LS,MEP Spaces,Instance,Yes
+HVC_OA_LS,Rooms,Instance,Yes
+HVC_LOAD_STALE_BOOL,MEP Spaces,Instance,Yes
+HVC_LOAD_STALE_BOOL,Rooms,Instance,Yes
+HVC_LOAD_STALE_REASON_TXT,MEP Spaces,Instance,Yes
+HVC_LOAD_STALE_REASON_TXT,Rooms,Instance,Yes
+ELC_EARTHING_SYSTEM_TXT,Project Information,Instance,Yes
+ELC_MET_LOCATION_TXT,Project Information,Instance,Yes
+STING_BUS_VOLTAGE_TIER,Views,Instance,Yes

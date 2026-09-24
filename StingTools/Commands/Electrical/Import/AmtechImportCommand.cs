@@ -125,12 +125,25 @@ namespace StingTools.Commands.Electrical.Import
             return idx;
         }
 
+        // ELC_FAULT_LEVEL_KA, ELC_BUSBAR_RATING_TXT and SLD_VD_PCT were never defined
+        // in MR_PARAMETERS.txt, so every import wrote nothing and still reported the
+        // panel as stamped. These are the parameters the rest of STING reads:
+        //   fault at the board   -> ELC_PNL_SHORT_CIRCUIT_RATING_KA (FaultCurrent
+        //                           stamps it; the SLD fault label and fault
+        //                           schedule read it)
+        //   busbar rating (A)    -> ELC_BUSBAR_RATING_A
+        //   voltage drop (%)     -> ELC_VLT_DROP_PCT (the ELC_CKT_VD_PCT alias)
+        //   circuit fault level  -> ELC_CIR_FAULT_LEVEL_TXT (the SLD fault label's
+        //                           first choice on a circuit)
         private static void StampPanel(FamilyInstance p, AmtechRecord r, List<string> w)
         {
-            Set(p, "ELC_FAULT_LEVEL_KA",   r.FaultKa?.ToString("F2") ?? "", w);
-            Set(p, "ELC_BUSBAR_RATING_TXT", r.BusbarRating.HasValue ? $"{r.BusbarRating:F0}A" : "", w);
-            Set(p, "SLD_VD_PCT",            r.VoltageDrop?.ToString("F1") ?? "", w);
+            Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa?.ToString("F2", Inv) ?? "", w);
+            Set(p, "ELC_BUSBAR_RATING_A", r.BusbarRating.HasValue ? r.BusbarRating.Value.ToString("F0", Inv) : "", w);
+            Set(p, "ELC_VLT_DROP_PCT",    r.VoltageDrop?.ToString("F1", Inv) ?? "", w);
         }
+
+        private static readonly System.Globalization.CultureInfo Inv =
+            System.Globalization.CultureInfo.InvariantCulture;
 
         private static void StampCircuits(Document doc, AmtechRecord rec, List<string> w)
         {
@@ -142,19 +155,27 @@ namespace StingTools.Commands.Electrical.Import
                 var m = rec.Circuits.FirstOrDefault(c =>
                     string.Equals(c.Ref, sys.CircuitNumber, StringComparison.OrdinalIgnoreCase));
                 if (m == null) continue;
-                if (m.FaultKa.HasValue)    Set(sys, "ELC_FAULT_LEVEL_KA",    m.FaultKa.Value.ToString("F2"), w);
+                if (m.FaultKa.HasValue)    Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", m.FaultKa.Value.ToString("F2", Inv), w);
                 if (!string.IsNullOrEmpty(m.CsaMm2)) Set(sys, "ELC_CABLE_CSA_MM2_TXT", m.CsaMm2, w);
-                if (m.VoltageDrop.HasValue) Set(sys, "SLD_VD_PCT", m.VoltageDrop.Value.ToString("F1"), w);
+                if (m.VoltageDrop.HasValue) Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w);
             }
         }
 
+        /// <summary>Writes through ParameterHelpers.SetString, which also writes a
+        /// unitless NUMBER parameter from its text. A parameter that is absent, read-only
+        /// or refuses the value is reported, not skipped silently — Parameter.Set(string)
+        /// on a NUMBER parameter just returned false, and nothing said so.</summary>
         private static void Set(Element el, string p, string v, List<string> w)
         {
             if (string.IsNullOrEmpty(v)) return;
             var param = el.LookupParameter(p);
-            if (param == null || param.IsReadOnly) return;
-            try { param.Set(v); }
-            catch (Exception ex) { if (w.Count < 20) w.Add($"{p}@{el.Name}: {ex.Message}"); }
+            if (param == null)
+            {
+                if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
+                return;
+            }
+            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
+                w.Add($"{p}@{el.Name}: '{v}' was not written");
         }
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;
         private static double? ParseD(string s) =>

@@ -148,7 +148,7 @@ namespace StingTools.Commands.Electrical.Export
                         VoltageV   = v,
                         LengthM    = lengthFt * 0.3048,
                         CsaMm2     = ParseCsa(wire),
-                        VDPct      = ParseDouble(ParameterHelpers.GetString(sys, ParamRegistry.ELC_CKT_VD_PCT)),
+                        VDPct      = ParameterHelpers.GetDouble(sys, ParamRegistry.ELC_CKT_VD_PCT), // NUMBER: GetString read ""
                         Phase      = ReadPhase(sys)
                     });
                 }
@@ -170,7 +170,7 @@ namespace StingTools.Commands.Electrical.Export
             {
                 double v = 0;
                 try { v = StingTools.Core.Electrical.ElecUnits.ToSi(p.LookupParameter("Voltage")); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                if (v <= 0) v = ParseDouble(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_VOLTAGE));
+                if (v <= 0) v = ParameterHelpers.GetDouble(p, ParamRegistry.ELC_PNL_VOLTAGE); // NUMBER, unitless volts
                 double connectedKw = SafeDouble(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM) / 1000.0;
                 double faultKa = byId.TryGetValue(p.Id.Value, out var f) ? f.FaultKa : 0;
                 rows.Add(new PanelSummary
