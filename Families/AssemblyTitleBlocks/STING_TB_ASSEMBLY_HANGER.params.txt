@@ -23,7 +23,7 @@ ASS_FITTING_COUNT_NR   (Integer, Instance)
 ASS_LENGTH_TOTAL_MM    (Length, Instance)
 ASS_SUPPORT_COUNT_NR   (Integer, Instance)
 ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
-local:DISCIPLINE       (Text, Instance) — Pipe / Duct / Electrical / Hanger; ShopDrawingComposer writes this literal name (registry equivalent PRJ_TB_DISCIPLINE_TXT — switch composer and stub together)
+PRJ_TB_DISCIPLINE_TXT (Text, Instance) — Pipe / Duct / Electrical / Hanger; ShopDrawingComposer writes it (and the legacy DISCIPLINE name for older families)
 
 LAYOUT NOTES
 - A1 landscape (841mm x 594mm)

@@ -506,6 +506,8 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        public const string TB_DISCIPLINE          = "PRJ_TB_DISCIPLINE_TXT";
+        public const string TB_DISCIPLINE_GUID     = "edbf1392-5aea-505b-8b05-7a6432b0c3e1";
         // P4 — MEP system/service code shown on the title block SYSTEM cell.
         // Instance param on OST_TitleBlocks; filled from DrawingType.System via
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).

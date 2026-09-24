@@ -531,6 +531,9 @@ namespace StingTools.Core.Fabrication
                     TrySetString(tbInst, AssyParams.FAB_LOC_TXT,     ReadString(ai, AssyParams.FAB_LOC_TXT));
                     TrySetString(tbInst, AssyParams.FAB_STATUS_TXT,  ReadString(ai, AssyParams.FAB_STATUS_TXT));
                     TrySetString(tbInst, AssyParams.BOM_REV_TXT,     ReadString(ai, AssyParams.BOM_REV_TXT));
+                    TrySetString(tbInst, ParamRegistry.TB_DISCIPLINE, discipline);
+                    // Legacy cell name kept for assembly title blocks authored before the
+                    // stubs moved to the registry parameter; a missing parameter is a no-op.
                     TrySetString(tbInst, "DISCIPLINE",               discipline);
                 }
             }

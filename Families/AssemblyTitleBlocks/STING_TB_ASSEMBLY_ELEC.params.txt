@@ -31,7 +31,7 @@ ASS_FITTING_COUNT_NR      (Integer, Instance)
 ASS_LENGTH_TOTAL_MM       (Length, Instance)
 ASS_SUPPORT_COUNT_NR      (Integer, Instance)
 ASS_SPOOL_DRAWING_REF_TXT (Text, Instance)
-local:DISCIPLINE          (Text, Instance) — fixed to "Electrical"; ShopDrawingComposer writes this literal name
+PRJ_TB_DISCIPLINE_TXT (Text, Instance) — fixed to "Electrical"; ShopDrawingComposer writes it (and the legacy DISCIPLINE name for older families)
 
 ELECTRICAL-SPECIFIC PARAMETERS (the reason to fork from COND)
 ELC_CDT_BEND_COUNT_NR     (Text, Instance) — number of bends in this assembly
