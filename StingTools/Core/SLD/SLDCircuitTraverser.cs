@@ -493,19 +493,23 @@ namespace StingTools.Core.SLD
                     node.VdPct = vd;
 
                 // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM. Revit stores it in
-                // internal units (1 V = 10.7639), so convert to volts first; values
-                // < 50 after conversion are assumed to be kV.
+                // internal units (1 V = 10.7639), so convert to volts first.
                 try
                 {
-                    var voltParam = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                    var voltParam = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
                         ?? fi.LookupParameter("Voltage");
                     if (voltParam != null)
                     {
                         double rawV = StingTools.Core.Electrical.ElecUnits.ToSi(voltParam);
                         if (rawV > 0)
                         {
-                            // Convert: if suspiciously small (<50) treat as kV.
-                            double volts = rawV < 50.0 ? rawV * 1000.0 : rawV;
+                            // A real electrical-potential parameter is now true volts, so a
+                            // 24/48 V ELV board must stay 24/48 V. Only a unitless source
+                            // (a family Number parameter someone filled in kV) gets the
+                            // "< 50 means kV" guess — applied to volts it tiered ELV as MV.
+                            bool isPotential =
+                                StingTools.Core.Electrical.ElecUnits.SiUnitFor(voltParam) != null;
+                            double volts = !isPotential && rawV < 50.0 ? rawV * 1000.0 : rawV;
                             node.SystemVoltageV = volts;
                         }
                     }

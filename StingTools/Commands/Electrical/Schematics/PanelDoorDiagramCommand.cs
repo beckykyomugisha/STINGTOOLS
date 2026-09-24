@@ -143,7 +143,14 @@ namespace StingTools.Commands.Electrical.Schematics
                     // The circuit number is TEXT - "5" single-pole, "1,3,5" three-pole.
                     // AsInteger() on it always returned 0, so no circuit was ever
                     // matched and every slot was drawn as SPARE.
-                    foreach (int slot in ParseCircuitSlots(es.CircuitNumber))
+                    // Under Prefixed / Phase naming ("L2-1", "DB1-5") the digits are
+                    // not slots, so fall back to the circuit's start slot + poles.
+                    string cn = es.CircuitNumber;
+                    var slots = StingTools.Core.Electrical.CircuitSlotParser.IsPlainNumbering(cn)
+                        ? ParseCircuitSlots(cn)
+                        : StingTools.Core.Electrical.CircuitSlotParser.FromStartSlot(
+                              SafeStartSlot(es), SafePolesOf(es));
+                    foreach (int slot in slots)
                         if (!circuitBySlot.ContainsKey(slot))
                             circuitBySlot[slot] = es;
                 }
@@ -279,6 +286,18 @@ namespace StingTools.Commands.Electrical.Schematics
 
         private static List<int> ParseCircuitSlots(string circuitNumber)
             => StingTools.Core.Electrical.CircuitSlotParser.Parse(circuitNumber);
+
+        private static int SafeStartSlot(ElectricalSystem es)
+        {
+            try { return es.StartSlot; }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram StartSlot {es?.Id}: {ex.Message}"); return 0; }
+        }
+
+        private static int SafePolesOf(ElectricalSystem es)
+        {
+            try { return es.PolesNumber; }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram poles {es?.Id}: {ex.Message}"); return 1; }
+        }
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {

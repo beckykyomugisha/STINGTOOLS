@@ -24,6 +24,10 @@ namespace StingTools.Tags.Tests
         [InlineData("Exit Sign Maintained")]
         [InlineData("Twin Spot_Non-Maintained")]
         [InlineData("Emerg Twinspot")]
+        [InlineData("EmergencyLight_LED")]
+        [InlineData("ExitSign-Wall")]
+        [InlineData("EMBulkhead")]
+        [InlineData("NonMaintained Downlight")]
         public void Recognises_emergency_fittings(string family)
         {
             Assert.True(EmergencyNameMatcher.IsEmergencyName(family));
@@ -35,6 +39,8 @@ namespace StingTools.Tags.Tests
         [InlineData("Pendant - Linear")]
         [InlineData("Recessed Downlight")]
         [InlineData("Item-Luminaire")]
+        [InlineData("SYSTEM-PANEL")]
+        [InlineData("Emerald Pendant")]
         [InlineData("")]
         [InlineData(null)]
         public void Does_not_flag_ordinary_fittings(string family)

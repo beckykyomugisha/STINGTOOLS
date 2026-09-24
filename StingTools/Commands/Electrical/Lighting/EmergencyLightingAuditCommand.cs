@@ -121,7 +121,8 @@ namespace StingTools.Commands.Electrical.Lighting
             if (fi == null) return false;
             try
             {
-                string fname = (fi.Symbol?.FamilyName ?? "").ToLowerInvariant();
+                // Original casing: the matcher needs it to tell "EMBulkhead" from "System".
+                string fname = fi.Symbol?.FamilyName ?? "";
                 if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fname)) return true;
                 string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
                 if (tm.StartsWith("em")) return true;

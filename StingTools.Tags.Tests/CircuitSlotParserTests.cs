@@ -35,5 +35,30 @@ namespace StingTools.Tags.Tests
         {
             Assert.Empty(CircuitSlotParser.Parse(circuitNumber));
         }
+
+        // Prefixed / Phase naming: the digits are not slot numbers, so the
+        // command must use StartSlot + poles instead of parsing the text.
+        [Theory]
+        [InlineData("5", true)]
+        [InlineData("1,3,5", true)]
+        [InlineData("2-4-6", true)]
+        [InlineData("L2-1", false)]
+        [InlineData("DB1-5", false)]
+        [InlineData("A1", false)]
+        [InlineData("", false)]
+        public void Detects_plain_slot_numbering(string circuitNumber, bool plain)
+        {
+            Assert.Equal(plain, CircuitSlotParser.IsPlainNumbering(circuitNumber));
+        }
+
+        [Theory]
+        [InlineData(7, 1, new[] { 7 })]
+        [InlineData(1, 3, new[] { 1, 3, 5 })]
+        [InlineData(2, 2, new[] { 2, 4 })]
+        [InlineData(0, 3, new int[0])]
+        public void Start_slot_steps_by_two_per_pole(int start, int poles, int[] expected)
+        {
+            Assert.Equal(expected, CircuitSlotParser.FromStartSlot(start, poles));
+        }
     }
 }

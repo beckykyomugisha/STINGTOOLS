@@ -37,5 +37,30 @@ namespace StingTools.Core.Electrical
             }
             return slots;
         }
+
+        private static readonly System.Text.RegularExpressions.Regex Plain =
+            new System.Text.RegularExpressions.Regex(@"^\s*\d+(\s*[,\-]\s*\d+)*\s*$");
+
+        /// <summary>
+        /// True when the circuit number is plain slot numbering ("5", "1,3,5",
+        /// "2-4-6"). Revit's Prefixed / Phase naming schemes produce text such
+        /// as "L2-1" or "DB1-5", whose digits are NOT slot numbers.
+        /// </summary>
+        public static bool IsPlainNumbering(string circuitNumber)
+            => !string.IsNullOrWhiteSpace(circuitNumber) && Plain.IsMatch(circuitNumber);
+
+        /// <summary>
+        /// Slots from ElectricalSystem.StartSlot and pole count, for naming
+        /// schemes whose text cannot be parsed. On a two-column panelboard a
+        /// multi-pole breaker occupies every other slot: 1, 3, 5.
+        /// </summary>
+        public static List<int> FromStartSlot(int startSlot, int poles)
+        {
+            var slots = new List<int>();
+            if (startSlot <= 0) return slots;
+            int n = poles < 1 ? 1 : poles;
+            for (int i = 0; i < n; i++) slots.Add(startSlot + 2 * i);
+            return slots;
+        }
     }
 }

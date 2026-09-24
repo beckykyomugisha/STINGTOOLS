@@ -530,7 +530,13 @@ namespace StingTools.Core
                     try { unitless = p.Definition.GetDataType() == SpecTypeId.Number; }
                     catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
                     if (!unitless) return RefuseNumeric(el, paramName, value, "measured quantity — use SetDouble with a unit");
-                    if (!double.TryParse(s, System.Globalization.NumberStyles.Float, inv, out double dv))
+                    // Invariant first; then the machine's culture, because callers
+                    // format with $"{x:0.00}", which gives "3,45" on a comma-decimal
+                    // Windows locale. Neither style allows thousands separators, so
+                    // "1,234" is never misread as 1234.
+                    if (!double.TryParse(s, System.Globalization.NumberStyles.Float, inv, out double dv)
+                        && !double.TryParse(s, System.Globalization.NumberStyles.Float,
+                               System.Globalization.CultureInfo.CurrentCulture, out dv))
                         return RefuseNumeric(el, paramName, value, "not a number");
                     if (!overwrite && p.HasValue && Math.Abs(p.AsDouble()) > 1e-12) return false;
                     p.Set(dv);
@@ -4788,6 +4794,12 @@ namespace StingTools.Core
                     && StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
                 {
                     double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                    // A target named *_KW / *_KVA holds kilo-units (ELC_CKT_PWR_KW,
+                    // ELC_PNL_CONNECTED_LOAD_KW) - writing VA there put 45000 where
+                    // the cross-stamp writes 45.00 for the same parameter.
+                    string tn = (targetParamName ?? "").ToUpperInvariant();
+                    if (tn.EndsWith("_KW") || tn.EndsWith("_KVA") || tn.Contains("_KW_") || tn.Contains("_KVA_"))
+                        si /= 1000.0;
                     val = si.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
                     Parameter tp = ParameterHelpers.CachedLookup(writeTarget, targetParamName);
                     bool sameSpec = false;
