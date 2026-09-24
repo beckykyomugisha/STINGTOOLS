@@ -2,6 +2,28 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — parameter audit for the recent work; material tag labels measured)
+
+- **Parameters and bindings re-verified.** Regenerating the binding spec and the parameter CSV
+  (`param_binding_resolver.py`, `sync_csv_from_txt.py`) changes nothing; the name-target, tag-row
+  and duplicate-GUID gates pass. 30 parameters the recent work depends on were checked one by
+  one — defined in `MR_PARAMETERS.txt`, same GUID in `PARAMETER_REGISTRY.json`, bound to the
+  category that reads them. Findings: `PRJ_TB_CDE_STATE_INT` binds to Sheets only, which is the
+  convention for all 57 `PRJ_TB_*` (the title block reads it as a family parameter);
+  `TAG_DEPTH_TIER_INT` is bound to nothing, so tier-2 rows on the specialist tags stay blank (the
+  build sheet already keeps their deliverable rows in tier 1); 356 parameters are in
+  `MR_PARAMETERS.txt` but not the registry — harmless at runtime (`ParamRegistry` supplements
+  GUIDs from the TXT) and long-standing, so not mass-filled.
+- **`PARAM_CONTRACT_BASELINE.json`**: `MAT_SPECIFICATIONS` is no longer write-only now that
+  `Materials_SyncIdentity` reads it, so `check_param_contract.py --check` failed until the
+  baseline was regenerated with `--write` (one entry removed).
+- **`MaterialTagLabelTests`** — a material tag reads only the MATERIAL's parameters. Every
+  parameter a Materials tag spec in `LABEL_DEFINITIONS.json` names (rows and formulas) must be a
+  Material built-in or bound to Materials in `RESOLVED_BINDINGS.csv`. The legacy
+  `STING - Materials Tag` spec fails on all 68 of its parameters; it is held to a ratchet
+  (`tools/material_tag_label_baseline.txt`) so it can only improve, and any new material tag
+  spec must be clean. RED both ways: a new dead row, and a fixed row still baselined.
+
 #### Completed (Phase 296 — material callouts built: identity sync, working rule kinds, thinning, build-ups)
 
 - **`Materials_SyncIdentity`.** A material callout reads the material's Mark / Description /
