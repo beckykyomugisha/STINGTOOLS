@@ -1,361 +1,322 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 
 namespace StingTools.Commands.Electrical.ArcFlash
 {
     /// <summary>
-    /// Pure-math arc flash engine — no Revit API. Implements the IEEE 1584-2018
-    /// full polynomial regression model with enclosure-type and bus-gap corrections.
+    /// IEEE 1584-2002 equipment class. Sets the enclosure coefficient (box / open air),
+    /// the typical bus gap, the distance exponent x and the typical working distance
+    /// (IEEE 1584-2002 Tables 3 and 4, 0.208–1 kV row).
+    /// </summary>
+    public enum ArcEquipmentClass
+    {
+        /// <summary>Open air: open-air K / K1, x = 2.000, gap 25 mm (range 10–40), D 455 mm.</summary>
+        OpenAir,
+        /// <summary>LV switchgear / switchboard: box, x = 1.473, gap 32 mm, D 610 mm.</summary>
+        Switchgear,
+        /// <summary>LV MCC and panelboard: box, x = 1.641, gap 25 mm, D 455 mm.</summary>
+        PanelMcc,
+        /// <summary>Cable: x = 2.000, gap 13 mm, D 455 mm. Box coefficients used (conservative).</summary>
+        Cable
+    }
+
+    /// <summary>Inputs to one arc-flash calculation. SI / engineering units as named.</summary>
+    public sealed class ArcFlashInput
+    {
+        /// <summary>Three-phase bolted fault current Ibf at the equipment, kA.</summary>
+        public double BoltedFaultKa { get; set; }
+        /// <summary>System line-to-line voltage, V.</summary>
+        public double VoltageV { get; set; }
+        /// <summary>Equipment class (sets K, K1, x, default gap and default working distance).</summary>
+        public ArcEquipmentClass EquipmentClass { get; set; } = ArcEquipmentClass.PanelMcc;
+        /// <summary>Working distance, mm. 0 = class default.</summary>
+        public double WorkingDistanceMm { get; set; }
+        /// <summary>Bus gap, mm. 0 = class default.</summary>
+        public double GapMm { get; set; }
+        /// <summary>
+        /// True = solidly grounded (K2 = −0.113). False = ungrounded / high-resistance
+        /// grounded (K2 = 0), which gives ~30 % more energy and is the conservative choice
+        /// when the earthing arrangement is not confirmed.
+        /// </summary>
+        public bool SolidlyGrounded { get; set; }
+        /// <summary>
+        /// Fixed arc duration, s. Used for both the full and the 85 % arcing-current
+        /// case when no clearing-time function is supplied.
+        /// </summary>
+        public double ClearingTimeS { get; set; }
+    }
+
+    /// <summary>Result of one arc-flash calculation. When <see cref="Calculated"/> is false
+    /// no energy value exists and nothing numeric may be written.</summary>
+    public sealed class ArcFlashResult
+    {
+        public bool   Calculated            { get; set; }
+        public string NotCalculatedReason   { get; set; } = "";
+        public double ArcingCurrentKa       { get; set; }
+        public double ReducedArcingCurrentKa{ get; set; }
+        public double NormalizedEnergyJcm2  { get; set; }
+        public double ClearingTimeS         { get; set; }
+        public double ReducedClearingTimeS  { get; set; }
+        /// <summary>Arc duration of the governing (higher-energy) case, s.</summary>
+        public double GoverningClearingTimeS{ get; set; }
+        /// <summary>True when the 85 % arcing-current case gave the higher energy.</summary>
+        public bool   ReducedCaseGoverns    { get; set; }
+        public double IncidentEnergyJcm2    { get; set; }
+        public double IncidentEnergyCalCm2  { get; set; }
+        public double BoundaryMm            { get; set; }
+        public double WorkingDistanceMm     { get; set; }
+        public double GapMm                 { get; set; }
+        public double DistanceExponent      { get; set; }
+        public int    PpeCategory           { get; set; }
+        public List<string> Notes           { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Pure-math arc-flash engine — no Revit API. Implements the IEEE 1584-2002
+    /// empirical model for 0.208–1 kV three-phase systems.
     ///
-    /// Key references:
-    ///   IEEE Std 1584-2018 §C.2 (bus gap correction), §C.3 (arcing current),
-    ///   §C.4 (incident energy), Table 1 (representative gaps), Table 2 (CF).
+    /// Why 2002 and not 2018: the 2018 model needs coefficient tables (k1..k13 per
+    /// electrode configuration and voltage band, enclosure-size correction, variation
+    /// factor) that cannot be reproduced reliably without the standard in hand. The
+    /// previous "2018 regression" in this file was fabricated — its energy FELL as
+    /// fault current rose (ROADMAP ELEC-1). The 2002 model is compact, fully published
+    /// and physically monotonic. It is SUPERSEDED, so every number this engine produces
+    /// is indicative only — see <see cref="Basis"/>.
     ///
-    /// Enclosure types:
-    ///   VCB  — Vertical conductors/electrodes in a metal box (switchgear)
-    ///   VCBB — Vertical conductors terminated in an insulating barrier (MCC/panelboard)
-    ///   HCB  — Horizontal conductors in a metal box (open air/cable tray)
+    /// Scope refused rather than guessed: V &gt; 1 kV (MV model not implemented),
+    /// V &lt; 208 V, and bolted fault outside 0.7–106 kA (outside the 2002 test range).
     /// </summary>
     public static class ArcFlashEngine
     {
-        // ---------------------------------------------------------------
-        //  Enclosure catalogue
-        // ---------------------------------------------------------------
+        /// <summary>The calculation basis. Must accompany every value this engine produces.</summary>
+        public const string Basis =
+            "IEEE 1584-2002 (superseded by 2018 — indicative, verify with a licensed study before specifying PPE)";
 
-        /// <summary>Supported enclosure type identifiers per IEEE 1584-2018 §C.</summary>
-        public static string[] ValidEnclosureTypes => new[] { "VCB", "VCBB", "HCB" };
+        /// <summary>Short form for column headings and schedule names.</summary>
+        public const string BasisShort = "IEEE 1584-2002 indicative";
 
-        // ---------------------------------------------------------------
-        //  NFPA 70E Table 130.5(G) PPE category thresholds (cal/cm²).
-        // ---------------------------------------------------------------
+        /// <summary>IEEE 1584-2002 calculation factor Cf for voltages ≤ 1 kV.</summary>
+        public const double CfLowVoltage = 1.5;
+
+        /// <summary>Incident energy at the arc-flash boundary, J/cm² (= 1.2 cal/cm²).</summary>
+        public const double BoundaryEnergyJcm2 = 5.0;
+
+        /// <summary>IEEE 1584-2002 B.1.2 guidance: 2 s is a reasonable maximum arc duration.</summary>
+        public const double MaxArcDurationS = 2.0;
+
+        public const double JoulesPerCalorie = 4.184;
+
+        // NFPA 70E legacy hazard/risk category thresholds by incident energy (cal/cm²).
         private static readonly (double maxCal, int cat)[] PpeThresholds =
         {
             (1.2, 0), (4.0, 1), (8.0, 2), (25.0, 3), (40.0, 4)
         };
 
-        // ---------------------------------------------------------------
-        //  §C.2  Bus gap correction factor
-        // ---------------------------------------------------------------
-        //  Table 1 anchor points: (gapMm, correctionFactor) per enclosure type.
-        //  Linear interpolation; clamped to [0.90, 1.10].
+        // ── Equipment-class tables (IEEE 1584-2002 Tables 3 and 4, ≤ 1 kV) ────
+
+        public static bool IsBox(ArcEquipmentClass c) => c != ArcEquipmentClass.OpenAir;
+
+        public static double DistanceExponent(ArcEquipmentClass c) => c switch
+        {
+            ArcEquipmentClass.Switchgear => 1.473,
+            ArcEquipmentClass.PanelMcc   => 1.641,
+            _                            => 2.000   // open air, cable
+        };
+
+        public static double DefaultGapMm(ArcEquipmentClass c) => c switch
+        {
+            ArcEquipmentClass.Switchgear => 32,
+            ArcEquipmentClass.Cable      => 13,
+            _                            => 25      // panel / MCC, open air (typical)
+        };
+
+        public static double DefaultWorkingDistanceMm(ArcEquipmentClass c) =>
+            c == ArcEquipmentClass.Switchgear ? 610 : 455;
+
+        // ── Core equations ───────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the bus-gap correction factor for arcing-current interpolation
-        /// per IEEE 1584-2018 §C.2, Table 1.
+        /// Arcing current, kA (IEEE 1584-2002 eq. 1, &lt; 1 kV):
+        /// lg Ia = K + 0.662·lg Ibf + 0.0966·V + 0.000526·G + 0.5588·V·lg Ibf − 0.00304·G·lg Ibf
+        /// with K = −0.153 open air, −0.097 box; Ibf kA, V kV, G mm.
         /// </summary>
-        public static double GapCorrectionFactor(double gapMm, string enclosureType)
+        public static double ArcingCurrentKa(double boltedFaultKa, double voltageKv, double gapMm, bool box)
         {
-            // Anchor points (gap mm → factor) for each enclosure type.
-            double[] gaps, factors;
-            switch ((enclosureType ?? "VCB").ToUpperInvariant())
-            {
-                case "VCBB":
-                    gaps    = new double[] { 25.0, 32.0, 40.0 };
-                    factors = new double[] { 0.930, 0.958, 0.980 };
-                    break;
-                case "HCB":
-                    gaps    = new double[] { 25.0, 32.0, 40.0 };
-                    factors = new double[] { 0.960, 0.980, 1.000 };
-                    break;
-                default: // VCB
-                    gaps    = new double[] { 25.0, 32.0, 40.0 };
-                    factors = new double[] { 0.972, 1.000, 1.015 };
-                    break;
-            }
-
-            double cf = LinearInterpolate(gapMm, gaps, factors);
-            // Clamp to the allowed range.
-            return Math.Max(0.90, Math.Min(1.10, cf));
+            if (boltedFaultKa <= 0) return 0;
+            double K = box ? -0.097 : -0.153;
+            double lgIbf = Math.Log10(boltedFaultKa);
+            double lgIa = K
+                + 0.662 * lgIbf
+                + 0.0966 * voltageKv
+                + 0.000526 * gapMm
+                + 0.5588 * voltageKv * lgIbf
+                - 0.00304 * gapMm * lgIbf;
+            return Math.Pow(10.0, lgIa);
         }
-
-        // ---------------------------------------------------------------
-        //  §C.3 / Table 2  Electrode configuration factor CF
-        // ---------------------------------------------------------------
 
         /// <summary>
-        /// Returns the electrode configuration factor CF per IEEE 1584-2018 Table 2.
+        /// Normalized incident energy En, J/cm², for 0.2 s at 610 mm (IEEE 1584-2002 eq. 3):
+        /// lg En = K1 + K2 + 1.081·lg Ia + 0.0011·G,
+        /// K1 = −0.792 open air / −0.555 box; K2 = 0 ungrounded or HRG / −0.113 grounded.
         /// </summary>
-        public static double ElectrodeCF(string enclosureType)
+        public static double NormalizedEnergyJcm2(double arcingCurrentKa, double gapMm, bool box, bool solidlyGrounded)
         {
-            switch ((enclosureType ?? "VCB").ToUpperInvariant())
-            {
-                case "VCBB": return 1.641;
-                case "HCB":  return 0.88;
-                default:     return 1.0;   // VCB
-            }
+            if (arcingCurrentKa <= 0) return 0;
+            double K1 = box ? -0.555 : -0.792;
+            double K2 = solidlyGrounded ? -0.113 : 0.0;
+            double lgEn = K1 + K2 + 1.081 * Math.Log10(arcingCurrentKa) + 0.0011 * gapMm;
+            return Math.Pow(10.0, lgEn);
         }
-
-        // ---------------------------------------------------------------
-        //  §C.3  Arcing current (kA)
-        // ---------------------------------------------------------------
 
         /// <summary>
-        /// Calculates arcing current Ia (kA) using IEEE 1584-2018 §C.3 regression
-        /// equations. Applies the gap-correction factor to the result.
+        /// Incident energy, J/cm² (IEEE 1584-2002 eq. 5):
+        /// E = 4.184·Cf·En·(t/0.2)·(610^x / D^x).
         /// </summary>
-        /// <param name="boltedFaultKa">Bolted fault current Ibf in kA.</param>
-        /// <param name="voltageV">System voltage in volts.</param>
-        /// <param name="gapMm">Bus gap in mm.</param>
-        /// <param name="enclosureType">VCB, VCBB, or HCB.</param>
-        private static double ArcingCurrentKa(double boltedFaultKa, double voltageV,
-            double gapMm, string enclosureType)
+        public static double IncidentEnergyJcm2(double normalizedEnergyJcm2, double arcDurationS,
+            double workingDistanceMm, double distanceExponent, double cf = CfLowVoltage)
         {
-            double cf  = ElectrodeCF(enclosureType);
-            double gcf = GapCorrectionFactor(gapMm, enclosureType);
-            double G   = gapMm;
-            double Ibf = boltedFaultKa; // already in kA
-
-            double logIbf = Math.Log10(Math.Max(0.001, Ibf));
-
-            double logIa600, logIa2700;
-
-            // ≤ 600 V model — voltage V in kV for the formula.
-            double V600 = Math.Min(voltageV, 600.0) / 1000.0;
-            logIa600 = cf
-                + 0.662  * logIbf
-                + 0.0966 * V600
-                + 0.000526 * G
-                + 0.5588 * V600  * logIbf
-                - 0.00304 * G   * logIbf;
-
-            // 601 – 2700 V model — voltage in kV, capped at 15 kV for > 2700 V.
-            double V2700 = Math.Min(Math.Max(voltageV, 601.0), 15000.0) / 1000.0;
-            logIa2700 = cf
-                + 0.534  * logIbf
-                - 0.0842 * V2700
-                + 0.00399 * G
-                + 0.271  * V2700 * logIbf
-                - 0.0186 * G    * logIbf;
-
-            double logIa;
-            if (voltageV <= 600.0)
-            {
-                logIa = logIa600;
-            }
-            else if (voltageV > 2700.0)
-            {
-                logIa = logIa2700;
-            }
-            else
-            {
-                // Linear interpolation between the two models for 601–2700 V.
-                double t = (voltageV - 600.0) / (2700.0 - 600.0);
-                logIa = logIa600 + t * (logIa2700 - logIa600);
-            }
-
-            double Ia = Math.Pow(10.0, logIa) * gcf;
-            return Math.Max(0.001, Ia);
+            if (normalizedEnergyJcm2 <= 0 || arcDurationS <= 0 || workingDistanceMm <= 0) return 0;
+            return 4.184 * cf * normalizedEnergyJcm2 * (arcDurationS / 0.2)
+                   * Math.Pow(610.0 / workingDistanceMm, distanceExponent);
         }
-
-        // ---------------------------------------------------------------
-        //  §C.4  Incident energy (cal/cm²) — full 2018 regression
-        // ---------------------------------------------------------------
 
         /// <summary>
-        /// Calculates incident energy at the working distance using the full
-        /// IEEE 1584-2018 polynomial regression model.
+        /// Arc-flash boundary, mm (IEEE 1584-2002 eq. 7):
+        /// DB = [4.184·Cf·En·(t/0.2)·(610^x / EB)]^(1/x), EB = 5.0 J/cm².
         /// </summary>
-        /// <param name="faultKa">Bolted fault current in kA.</param>
-        /// <param name="clearingTimeMs">Protective device clearing time in milliseconds.</param>
-        /// <param name="voltageV">System voltage in volts.</param>
-        /// <param name="workingDistMm">Working distance in mm (default 455 mm).</param>
-        /// <param name="gapMm">Bus gap in mm (default 32 mm).</param>
-        /// <param name="enclosureType">VCB, VCBB, or HCB (default VCB).</param>
-        /// <returns>Incident energy in cal/cm², rounded to 2 decimal places.</returns>
-        public static double IncidentEnergy_CalCm2(double faultKa, double clearingTimeMs,
-            double voltageV, double workingDistMm = 455, double gapMm = 32,
-            string enclosureType = "VCB")
+        public static double BoundaryMm(double normalizedEnergyJcm2, double arcDurationS,
+            double distanceExponent, double cf = CfLowVoltage, double boundaryEnergyJcm2 = BoundaryEnergyJcm2)
         {
-            if (faultKa <= 0 || clearingTimeMs <= 0 || workingDistMm <= 0) return 0;
-
-            double t    = clearingTimeMs / 1000.0;
-            double Ibf  = faultKa;
-            string enc  = (enclosureType ?? "VCB").ToUpperInvariant();
-
-            // Enclosure multiplier applied to the final energy value.
-            double enclosureMultiplier = EnclosureEnergyMultiplier(enc);
-
-            double E;
-            if (voltageV <= 600.0)
-            {
-                // Full 2018 regression for ≤ 600 V (§C.4, VCB base equations).
-                double logIbf = Math.Log10(Math.Max(0.001, Ibf));
-
-                double K1 =  0.753 * logIbf;
-                double K2 = -0.261 * logIbf + 0.0166;
-                double K3 = -0.769 * Math.Pow(logIbf, 2.0) + 0.775;
-
-                // E at 610 mm reference distance, 0.2 s reference duration.
-                double logE610 = K1 + K2 + K3;
-                double E610    = Math.Pow(10.0, logE610);
-
-                // Scale for actual arc duration and working distance.
-                // Distance scaling: 610 mm reference, x-exponent 1.641 (≤1 kV).
-                double x = 1.641;
-                E = E610 * (t / 0.2) * Math.Pow(610.0 / workingDistMm, x);
-            }
-            else
-            {
-                // Simplified formula for > 600 V; still standard-scope acceptable.
-                // Use arcing current from §C.3 in kA → amps for the formula.
-                double Ia_A = ArcingCurrentKa(Ibf, voltageV, gapMm, enc) * 1000.0;
-                double x    = voltageV <= 15000.0 ? 2.000 : 2.000;
-                E = 0.0093 * Math.Pow(Ia_A, 0.9956) * t * (Math.Pow(610.0, x) / Math.Pow(workingDistMm, x));
-            }
-
-            E *= enclosureMultiplier;
-            return Math.Round(Math.Max(0.0, E), 2);
+            if (normalizedEnergyJcm2 <= 0 || arcDurationS <= 0 || boundaryEnergyJcm2 <= 0) return 0;
+            double inner = 4.184 * cf * normalizedEnergyJcm2 * (arcDurationS / 0.2)
+                           * Math.Pow(610.0, distanceExponent) / boundaryEnergyJcm2;
+            return Math.Pow(inner, 1.0 / distanceExponent);
         }
 
-        // ---------------------------------------------------------------
-        //  Arc flash boundary (mm) — distance where E = 1.2 cal/cm²
-        // ---------------------------------------------------------------
-
-        /// <summary>
-        /// Calculates the arc flash boundary in mm (distance at which incident
-        /// energy equals 1.2 cal/cm²) using the same IEEE 1584-2018 model.
-        /// </summary>
-        /// <param name="faultKa">Bolted fault current in kA.</param>
-        /// <param name="clearingTimeMs">Protective device clearing time in milliseconds.</param>
-        /// <param name="voltageV">System voltage in volts.</param>
-        /// <param name="gapMm">Bus gap in mm (default 32 mm).</param>
-        /// <param name="enclosureType">VCB, VCBB, or HCB (default VCB).</param>
-        /// <returns>Arc flash boundary in mm, rounded to nearest mm.</returns>
-        public static double ArcFlashBoundaryMm(double faultKa, double clearingTimeMs,
-            double voltageV, double gapMm = 32, string enclosureType = "VCB")
+        /// <summary>Returns NFPA 70E PPE category (0–4) by incident energy, or −1 above 40 cal/cm².</summary>
+        public static int PpeCategory(double incidentEnergyCalCm2)
         {
-            if (faultKa <= 0 || clearingTimeMs <= 0) return 0;
-
-            double t   = clearingTimeMs / 1000.0;
-            double Ibf = faultKa;
-            string enc = (enclosureType ?? "VCB").ToUpperInvariant();
-            double enclosureMultiplier = EnclosureEnergyMultiplier(enc);
-            const double E_limit = 1.2; // cal/cm²
-
-            double D;
-            if (voltageV <= 600.0)
-            {
-                // Full 2018 regression for ≤ 600 V.
-                double logIbf = Math.Log10(Math.Max(0.001, Ibf));
-                double K1     =  0.753 * logIbf;
-                double K2     = -0.261 * logIbf + 0.0166;
-                double K3     = -0.769 * Math.Pow(logIbf, 2.0) + 0.775;
-
-                double logE610 = K1 + K2 + K3;
-                double E610    = Math.Pow(10.0, logE610); // cal/cm² at 610 mm, 0.2 s
-
-                // E(D) = E610 * (t/0.2) * (610/D)^x * enclosureMultiplier = E_limit
-                // Solve for D:
-                double x        = 1.641;
-                double E_at_610 = E610 * (t / 0.2) * enclosureMultiplier;
-                if (E_at_610 <= 0) return 0;
-                D = 610.0 * Math.Pow(E_at_610 / E_limit, 1.0 / x);
-            }
-            else
-            {
-                // Simplified formula for > 600 V.
-                double Ia_A = ArcingCurrentKa(Ibf, voltageV, gapMm, enc) * 1000.0;
-                double x    = 2.000;
-                // E(D) = 0.0093 * Ia^0.9956 * t * 610^x / D^x * mult = E_limit
-                double inner = 0.0093 * Math.Pow(Ia_A, 0.9956) * t
-                               * Math.Pow(610.0, x) * enclosureMultiplier / E_limit;
-                if (inner <= 0) return 0;
-                D = Math.Pow(inner, 1.0 / x);
-            }
-
-            return Math.Round(Math.Max(0.0, D), 0);
-        }
-
-        // ---------------------------------------------------------------
-        //  Unchanged public helpers
-        // ---------------------------------------------------------------
-
-        /// <summary>Returns NFPA 70E PPE category (0–4) or -1 if exceeds Cat 4.</summary>
-        public static int PpeCategory(double incidentEnergy_CalCm2)
-        {
-            if (incidentEnergy_CalCm2 <= 0) return 0;
+            if (incidentEnergyCalCm2 <= 0) return 0;
             foreach (var (maxCal, cat) in PpeThresholds)
-                if (incidentEnergy_CalCm2 <= maxCal) return cat;
-            return -1;  // exceeds Cat 4
+                if (incidentEnergyCalCm2 <= maxCal) return cat;
+            return -1;
         }
 
-        /// <summary>Default working distance (mm) by voltage class.</summary>
-        public static double DefaultWorkingDistanceMm(double voltageV)
-        {
-            if (voltageV <= 600) return 455;
-            if (voltageV <= 15000) return 910;
-            return 1830;
-        }
-
-        /// <summary>Default bus gap (mm) by voltage class per IEEE 1584-2018 Table 1.</summary>
-        public static double DefaultBusGapMm(double voltageV)
-        {
-            if (voltageV <= 250) return 25;
-            if (voltageV <= 600) return 32;
-            if (voltageV <= 5000) return 102;
-            return 152;
-        }
-
-        // ---------------------------------------------------------------
-        //  FormatLabel — updated to include enclosure type and bus gap
-        // ---------------------------------------------------------------
+        // ── Full calculation ─────────────────────────────────────────────
 
         /// <summary>
-        /// Formats a multi-line arc flash label string suitable for a Revit text note
-        /// or a TaskDialog message. Includes enclosure type and bus gap per IEEE 1584-2018.
+        /// Runs the full IEEE 1584-2002 LV procedure: arcing current, the 85 % arcing-current
+        /// second case, incident energy (worse case reported), boundary and PPE category.
         /// </summary>
-        public static string FormatLabel(string panelName, double incidentEnergy, int ppeCategory,
-            double boundaryMm, double workingDistMm, double voltageV,
-            string enclosureType = "VCB", double gapMm = 32)
+        /// <param name="input">Equipment and system data.</param>
+        /// <param name="clearingTimeAtArcingKa">
+        /// Optional protective-device clearing time (s) as a function of the current (kA)
+        /// the device sees. When supplied it is evaluated at Ia and at 0.85·Ia, as IEEE
+        /// 1584-2002 requires. Return NaN or ≤ 0 for "unknown". When null,
+        /// <see cref="ArcFlashInput.ClearingTimeS"/> is used for both cases.
+        /// </param>
+        public static ArcFlashResult Calculate(ArcFlashInput input, Func<double, double> clearingTimeAtArcingKa = null)
         {
-            string danger = ppeCategory < 0 ? "DANGER — EXCEEDS CAT 4" : $"PPE Category {ppeCategory}";
-            return "⚠ ARC FLASH HAZARD\n" +
+            var r = new ArcFlashResult();
+            if (input == null) return NotCalculated(r, "no input");
+
+            double v = input.VoltageV;
+            if (!(v > 0)) return NotCalculated(r, "system voltage unknown");
+            if (v > 1000.0) return NotCalculated(r, $"{v:0} V is above 1 kV — MV model not implemented");
+            if (v < 208.0) return NotCalculated(r, $"{v:0} V is below the IEEE 1584-2002 range (208 V – 15 kV)");
+            double ibf = input.BoltedFaultKa;
+            if (!(ibf > 0)) return NotCalculated(r, "bolted fault current unknown");
+            if (ibf < 0.7 || ibf > 106.0)
+                return NotCalculated(r, $"bolted fault {ibf:0.###} kA is outside the IEEE 1584-2002 range (0.7–106 kA)");
+
+            var cls = input.EquipmentClass;
+            bool box = IsBox(cls);
+            double gap = input.GapMm > 0 ? input.GapMm : DefaultGapMm(cls);
+            double dist = input.WorkingDistanceMm > 0 ? input.WorkingDistanceMm : DefaultWorkingDistanceMm(cls);
+            double x = DistanceExponent(cls);
+            r.GapMm = gap; r.WorkingDistanceMm = dist; r.DistanceExponent = x;
+            if (cls == ArcEquipmentClass.Cable)
+                r.Notes.Add("cable: box coefficients used (conservative)");
+            if (!input.SolidlyGrounded)
+                r.Notes.Add("K2 = 0 (ungrounded/HRG) — conservative; solidly grounded would be −0.113");
+
+            double vKv = v / 1000.0;
+            double ia = ArcingCurrentKa(ibf, vKv, gap, box);
+            double iaReduced = 0.85 * ia;
+            r.ArcingCurrentKa = ia;
+            r.ReducedArcingCurrentKa = iaReduced;
+
+            double t1, t2;
+            if (clearingTimeAtArcingKa != null)
+            {
+                t1 = clearingTimeAtArcingKa(ia);
+                t2 = clearingTimeAtArcingKa(iaReduced);
+            }
+            else
+            {
+                t1 = t2 = input.ClearingTimeS;
+            }
+            if (double.IsNaN(t1) || double.IsNaN(t2) || t1 <= 0 || t2 <= 0)
+                return NotCalculated(r, "protective-device clearing time unknown");
+            if (t1 > MaxArcDurationS || t2 > MaxArcDurationS)
+                r.Notes.Add($"clearing time capped at {MaxArcDurationS:0} s (IEEE 1584-2002 B.1.2)");
+            t1 = Math.Min(t1, MaxArcDurationS);
+            t2 = Math.Min(t2, MaxArcDurationS);
+            r.ClearingTimeS = t1;
+            r.ReducedClearingTimeS = t2;
+
+            double en1 = NormalizedEnergyJcm2(ia, gap, box, input.SolidlyGrounded);
+            double en2 = NormalizedEnergyJcm2(iaReduced, gap, box, input.SolidlyGrounded);
+            double e1 = IncidentEnergyJcm2(en1, t1, dist, x);
+            double e2 = IncidentEnergyJcm2(en2, t2, dist, x);
+
+            double en, t, e;
+            if (e2 > e1) { en = en2; t = t2; e = e2; r.ReducedCaseGoverns = true; r.Notes.Add("85 % arcing-current case governs"); }
+            else         { en = en1; t = t1; e = e1; }
+
+            r.Calculated = true;
+            r.NormalizedEnergyJcm2 = en;
+            r.GoverningClearingTimeS = t;
+            r.IncidentEnergyJcm2 = e;
+            r.IncidentEnergyCalCm2 = e / JoulesPerCalorie;
+            r.BoundaryMm = BoundaryMm(en, t, x);
+            r.PpeCategory = PpeCategory(r.IncidentEnergyCalCm2);
+            return r;
+        }
+
+        private static ArcFlashResult NotCalculated(ArcFlashResult r, string reason)
+        {
+            r.Calculated = false;
+            r.NotCalculatedReason = reason;
+            return r;
+        }
+
+        // ── Label text ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Multi-line label text for a Revit text note / parameter. Always carries
+        /// <see cref="Basis"/>; a not-calculated result says so and carries no numbers.
+        /// </summary>
+        public static string FormatLabel(string panelName, double voltageV, ArcEquipmentClass cls,
+            ArcFlashResult r, string clearingTimeSource)
+        {
+            if (r == null || !r.Calculated)
+                return "ARC FLASH HAZARD — NOT CALCULATED\n" +
+                       $"Panel: {panelName}\n" +
+                       $"Reason: {r?.NotCalculatedReason ?? "no result"}\n" +
+                       "A licensed arc-flash study is required.\n" +
+                       $"Basis: {Basis}";
+
+            string danger = r.PpeCategory < 0 ? "DANGER — EXCEEDS 40 cal/cm²" : $"PPE Category {r.PpeCategory} (by incident energy)";
+            return "ARC FLASH HAZARD — INDICATIVE\n" +
                    $"Panel: {panelName}\n" +
-                   $"Voltage: {voltageV:0}V\n" +
-                   $"Incident Energy: {incidentEnergy:0.00} cal/cm²\n" +
-                   $"Arc Flash Boundary: {boundaryMm:0} mm\n" +
-                   $"Working Distance: {workingDistMm:0} mm\n" +
-                   $"Enclosure: {enclosureType}  Bus Gap: {gapMm:0} mm\n" +
+                   $"Voltage: {voltageV:0} V   Class: {cls}\n" +
+                   $"Incident Energy: {r.IncidentEnergyCalCm2:0.00} cal/cm² at {r.WorkingDistanceMm:0} mm\n" +
+                   $"Arc Flash Boundary: {r.BoundaryMm:0} mm\n" +
+                   $"Clearing time: {r.GoverningClearingTimeS * 1000:0} ms ({clearingTimeSource})\n" +
+                   $"Gap: {r.GapMm:0} mm\n" +
                    $"{danger}\n" +
-                   "WEAR APPROPRIATE PPE BEFORE ENERGIZING\n" +
-                   "NFPA 70E — IEEE 1584-2018";
-        }
-
-        // ---------------------------------------------------------------
-        //  Private helpers
-        // ---------------------------------------------------------------
-
-        /// <summary>
-        /// Incident energy enclosure multiplier applied after the base calculation.
-        /// VCB = 1.0 (reference), VCBB = 0.88, HCB = 0.81.
-        /// </summary>
-        private static double EnclosureEnergyMultiplier(string enclosureType)
-        {
-            switch ((enclosureType ?? "VCB").ToUpperInvariant())
-            {
-                case "VCBB": return 0.88;
-                case "HCB":  return 0.81;
-                default:     return 1.0;  // VCB
-            }
-        }
-
-        /// <summary>
-        /// Piecewise linear interpolation over sorted anchor arrays.
-        /// Returns the first or last factor when gapMm is outside the anchor range.
-        /// </summary>
-        private static double LinearInterpolate(double x, double[] xs, double[] ys)
-        {
-            if (x <= xs[0]) return ys[0];
-            if (x >= xs[xs.Length - 1]) return ys[ys.Length - 1];
-            for (int i = 0; i < xs.Length - 1; i++)
-            {
-                if (x >= xs[i] && x <= xs[i + 1])
-                {
-                    double t = (x - xs[i]) / (xs[i + 1] - xs[i]);
-                    return ys[i] + t * (ys[i + 1] - ys[i]);
-                }
-            }
-            return ys[ys.Length - 1];
+                   $"Basis: {Basis}";
         }
     }
 }

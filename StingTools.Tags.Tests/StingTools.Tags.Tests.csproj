@@ -118,6 +118,10 @@
     <!-- KUT-5: the Revit-free phase classification the Division 02 rule keys on. -->
     <Compile Include="..\StingTools\Core\Classification\ElementPhaseState.cs" Link="Core\Classification\ElementPhaseState.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
+    <!-- ELEC-1 / ELEC-4: IEEE 1584-2002 arc-flash math and the IEC 60898-1 band
+         selectivity model. Both Revit-free by design; the commands that call them are not. -->
+    <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\ArcFlashEngine.cs" Link="Commands\Electrical\ArcFlash\ArcFlashEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />

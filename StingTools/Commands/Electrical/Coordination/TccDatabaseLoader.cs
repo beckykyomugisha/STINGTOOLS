@@ -8,11 +8,13 @@ using StingTools.Core;
 namespace StingTools.Commands.Electrical.Coordination
 {
     /// <summary>
-    /// Time-current curve database POCO. Each entry is a coarse summary of a
-    /// breaker's clearing characteristic — single anchor point at 10× In plus
-    /// the fault-level range it is rated for. When a matching <see cref="TccCurve"/>
-    /// is available the engine uses log-log interpolation across the curve points;
-    /// otherwise it falls back to the legacy linear ramp.
+    /// Protective-device database POCO. An entry names a device (rating label +
+    /// type) and its breaking capacity. Its time-current behaviour is NOT stored:
+    /// MCB entries (type MCB-B / MCB-C / MCB-D) are modelled as the generic
+    /// IEC 60898-1 band (<see cref="IecMcbBands"/>); MCCB / ACB entries have no
+    /// generic characteristic and report "no curve data". A <see cref="TccCurve"/>
+    /// may carry manufacturer points for plotting only — a single line is not a
+    /// band, so it is never used to claim selectivity.
     /// </summary>
     public class TccDatabase
     {
@@ -41,6 +43,17 @@ namespace StingTools.Commands.Electrical.Coordination
                 string.Equals(c.DeviceLabel, deviceLabel, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// Band for a device label. Uses the database entry's type when the label is
+        /// listed, otherwise parses the label itself ("C16", "16A C", "250A MCCB").
+        /// </summary>
+        public DeviceBand ResolveBand(string deviceLabel)
+        {
+            if (string.IsNullOrWhiteSpace(deviceLabel)) return null;
+            var e = Resolve(deviceLabel.Trim());
+            return e != null ? e.ToBand() : IecMcbBands.Parse(deviceLabel);
+        }
+
         /// <summary>Convenience alias — returns null when no curve is registered for the label.</summary>
         public TccCurve FindCurvePoints(string deviceLabel) => ResolveCurve(deviceLabel);
 
@@ -48,6 +61,7 @@ namespace StingTools.Commands.Electrical.Coordination
         {
             var entries = new List<TccEntry>
             {
+                // Curve letters are generic defaults — confirm per project.
                 new TccEntry { DeviceLabel="6A",   Type="MCB-B", ClearingMs_At_10xIn=10, MinFaultKa=0.05, MaxFaultKa=6  },
                 new TccEntry { DeviceLabel="10A",  Type="MCB-B", ClearingMs_At_10xIn=10, MinFaultKa=0.05, MaxFaultKa=6  },
                 new TccEntry { DeviceLabel="16A",  Type="MCB-C", ClearingMs_At_10xIn=10, MinFaultKa=0.05, MaxFaultKa=6  },
@@ -59,119 +73,10 @@ namespace StingTools.Commands.Electrical.Coordination
                 new TccEntry { DeviceLabel="400A", Type="ACB",   ClearingMs_At_10xIn=50, MinFaultKa=0.1,  MaxFaultKa=85 },
             };
 
-            var curves = new List<TccCurve>
-            {
-                new TccCurve
-                {
-                    DeviceLabel = "6A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.05, ClearingMs=290 },
-                        new TccPoint { FaultKa=0.1,  ClearingMs=200 },
-                        new TccPoint { FaultKa=0.5,  ClearingMs=80  },
-                        new TccPoint { FaultKa=1,    ClearingMs=30  },
-                        new TccPoint { FaultKa=3,    ClearingMs=10  },
-                        new TccPoint { FaultKa=6,    ClearingMs=10  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "10A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.05, ClearingMs=290 },
-                        new TccPoint { FaultKa=0.1,  ClearingMs=200 },
-                        new TccPoint { FaultKa=0.5,  ClearingMs=80  },
-                        new TccPoint { FaultKa=1,    ClearingMs=25  },
-                        new TccPoint { FaultKa=3,    ClearingMs=10  },
-                        new TccPoint { FaultKa=6,    ClearingMs=10  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "16A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.05, ClearingMs=290 },
-                        new TccPoint { FaultKa=0.2,  ClearingMs=150 },
-                        new TccPoint { FaultKa=1,    ClearingMs=40  },
-                        new TccPoint { FaultKa=3,    ClearingMs=10  },
-                        new TccPoint { FaultKa=6,    ClearingMs=10  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "20A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.05, ClearingMs=290 },
-                        new TccPoint { FaultKa=0.2,  ClearingMs=150 },
-                        new TccPoint { FaultKa=1,    ClearingMs=35  },
-                        new TccPoint { FaultKa=3,    ClearingMs=10  },
-                        new TccPoint { FaultKa=10,   ClearingMs=10  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "32A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.05, ClearingMs=290 },
-                        new TccPoint { FaultKa=0.2,  ClearingMs=150 },
-                        new TccPoint { FaultKa=1,    ClearingMs=30  },
-                        new TccPoint { FaultKa=5,    ClearingMs=10  },
-                        new TccPoint { FaultKa=10,   ClearingMs=10  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "63A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.1,  ClearingMs=500 },
-                        new TccPoint { FaultKa=0.5,  ClearingMs=200 },
-                        new TccPoint { FaultKa=2,    ClearingMs=50  },
-                        new TccPoint { FaultKa=10,   ClearingMs=20  },
-                        new TccPoint { FaultKa=25,   ClearingMs=20  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "100A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.1,  ClearingMs=500 },
-                        new TccPoint { FaultKa=0.5,  ClearingMs=200 },
-                        new TccPoint { FaultKa=2,    ClearingMs=50  },
-                        new TccPoint { FaultKa=15,   ClearingMs=20  },
-                        new TccPoint { FaultKa=36,   ClearingMs=20  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "200A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.1,  ClearingMs=800 },
-                        new TccPoint { FaultKa=1,    ClearingMs=300 },
-                        new TccPoint { FaultKa=5,    ClearingMs=100 },
-                        new TccPoint { FaultKa=20,   ClearingMs=50  },
-                        new TccPoint { FaultKa=65,   ClearingMs=50  },
-                    }
-                },
-                new TccCurve
-                {
-                    DeviceLabel = "400A",
-                    Points = new List<TccPoint>
-                    {
-                        new TccPoint { FaultKa=0.1,  ClearingMs=1000 },
-                        new TccPoint { FaultKa=1,    ClearingMs=400  },
-                        new TccPoint { FaultKa=5,    ClearingMs=150  },
-                        new TccPoint { FaultKa=20,   ClearingMs=80   },
-                        new TccPoint { FaultKa=85,   ClearingMs=50   },
-                    }
-                },
-            };
+            // No default curves. The per-label curves that used to live here were
+            // invented (a 6 A breaker "clearing" 50 A in 290 ms fits no IEC 60898
+            // characteristic). Manufacturer curves may be supplied in the JSON.
+            var curves = new List<TccCurve>();
 
             return new TccDatabase
             {
@@ -190,14 +95,21 @@ namespace StingTools.Commands.Electrical.Coordination
         [JsonProperty("minFaultKa")]         public double MinFaultKa         { get; set; }
         [JsonProperty("maxFaultKa")]         public double MaxFaultKa         { get; set; }
 
+        /// <summary>IEC 60898-1 band for this entry (see <see cref="IecMcbBands"/>).</summary>
+        public DeviceBand ToBand() => IecMcbBands.Parse(DeviceLabel, Type);
+
         /// <summary>
-        /// Returns the clearing time in milliseconds at the given fault level.
-        /// When a <paramref name="curve"/> with at least two points is supplied,
-        /// log-log interpolation is used for accuracy. When the fault level falls
-        /// outside the curve's range the nearest endpoint value is returned
-        /// (flat extrapolation — conservative). When no curve is supplied the
-        /// legacy linear ramp between 300 ms and <see cref="ClearingMs_At_10xIn"/>
-        /// is used as a fallback.
+        /// Maximum clearing time (ms) at the given fault level, for display and
+        /// clearing-time lookups:
+        ///   • manufacturer <paramref name="curve"/> with ≥ 2 points → log-log interpolation;
+        ///   • MCB entry (MCB-B/C/D) → upper edge of the IEC 60898-1 band, 0 where no
+        ///     trip is guaranteed (callers treat ≤ 0 as "unknown");
+        ///   • MCCB / ACB entry → 0 ("no curve data").
+        ///   • untyped entry → LEGACY synthetic linear ramp. Kept ONLY because
+        ///     BS7671ComplianceEngine builds an untyped fallback entry and its adiabatic
+        ///     check would otherwise change behaviour; that ramp is not a device
+        ///     characteristic (ROADMAP ELEC-4) and nothing in Coordination/ or ArcFlash/
+        ///     relies on it.
         /// </summary>
         public double ClearingTimeMs(double faultKa, TccCurve curve = null)
         {
@@ -240,7 +152,16 @@ namespace StingTools.Commands.Electrical.Coordination
                 return Math.Round(Math.Exp(logT), 2);
             }
 
-            // ── Legacy linear ramp fallback ─────────────────────────────────
+            // ── Generic IEC 60898-1 band (MCB) / no data (MCCB, ACB) ────────
+            if (!string.IsNullOrWhiteSpace(Type))
+            {
+                var band = ToBand();
+                if (!band.HasBand) return 0;
+                double tMax = band.MaxClearTimeS(faultKa * 1000.0);
+                return double.IsInfinity(tMax) || double.IsNaN(tMax) ? 0 : tMax * 1000.0;
+            }
+
+            // ── LEGACY synthetic ramp — untyped entries only (see summary) ──
             if (MaxFaultKa <= MinFaultKa) return ClearingMs_At_10xIn;
             double ratio = Math.Min(1.0, Math.Max(0.0,
                 (faultKa - MinFaultKa) / (MaxFaultKa - MinFaultKa)));
