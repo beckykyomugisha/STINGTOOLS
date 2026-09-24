@@ -261,18 +261,11 @@ namespace StingTools.Core.Drawing
         /// "Create From Template" path produces stable tokens even when
         /// the user picks a profile without an existing sequence counter.
         /// </summary>
+        // Reading the last digit run returned the REVISION on an ISO number
+        // ("...-0003-S2-P01" -> 1). The engine skips suitability/revision suffixes;
+        // callers that know the pattern should prefer SheetNumberEngine.ExtractSequence.
         public static int? ExtractSeqFromSheetNumber(string sheetNumber)
-        {
-            if (string.IsNullOrEmpty(sheetNumber)) return null;
-            string seq = string.Empty;
-            for (int i = sheetNumber.Length - 1; i >= 0; i--)
-            {
-                if (char.IsDigit(sheetNumber[i])) seq = sheetNumber[i] + seq;
-                else if (seq.Length > 0) break;
-            }
-            if (int.TryParse(seq, out var n)) return n;
-            return null;
-        }
+            => SheetNumberEngine.ExtractTrailingSequence(sheetNumber);
 
         private static string ReadProjectInfo(Document doc, string paramName)
         {

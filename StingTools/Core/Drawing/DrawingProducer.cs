@@ -785,7 +785,26 @@ namespace StingTools.Core.Drawing
             // PRJ_SHEET_SEQUENCE_INT, so {seq} fell back to parsing
             // ctx.Tag — a level name in every batch command — and every sheet
             // in a package numbered 0001.
-            int seq = ResolveSheetSequence(doc, dt, effectivePackage);
+            //
+            // The project's sheet-number policy decides whether this profile
+            // numbers by its own pattern or by the ISO 19650-2 field order
+            // derived from its isoNaming block. Default is the profile's own
+            // pattern, so this changes nothing until a project opts in by
+            // setting PRJ_ORG_SHEET_NUMBER_POLICY_TXT = "iso". See
+            // Core/Drawing/SheetNumberPolicy.cs for why the ISO number is
+            // derived rather than authored per type. The pattern is resolved
+            // FIRST because under ISO it also decides which counter to draw from.
+            string numberPattern = dt.SheetNumberPattern;
+            var policy = SheetNumberPolicyKind.Profile;
+            try
+            {
+                policy = SheetNumberPolicy.Parse(ReadSheetNumberPolicy(doc, result));
+                numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy, out var policyNote);
+                if (!string.IsNullOrEmpty(policyNote)) result.Warnings.Add(policyNote);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Sheet-number policy: {ex.Message}"); }
+
+            int seq = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result);
 
             // One token dict for the number, the name and the title-block
             // cells, built with the REAL doc handle so {project} /
@@ -798,21 +817,6 @@ namespace StingTools.Core.Drawing
             // before substituting so the operator sees which token was blank
             // and where to set it, rather than discovering "KBL26-PLN-COT01--DR"
             // on an issued drawing.
-            // The project's sheet-number policy decides whether this profile
-            // numbers by its own pattern or by the ISO 19650-2 field order
-            // derived from its isoNaming block. Default is the profile's own
-            // pattern, so this changes nothing until a project opts in by
-            // setting PRJ_ORG_SHEET_NUMBER_POLICY_TXT = "iso". See
-            // Core/Drawing/SheetNumberPolicy.cs for why the ISO number is
-            // derived rather than authored per type.
-            string numberPattern = dt.SheetNumberPattern;
-            try
-            {
-                var policy = SheetNumberPolicy.Parse(ReadSheetNumberPolicy(doc));
-                numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy, out var policyNote);
-                if (!string.IsNullOrEmpty(policyNote)) result.Warnings.Add(policyNote);
-            }
-            catch (Exception ex) { result.Warnings.Add($"Sheet-number policy: {ex.Message}"); }
 
             if (opts.OverrideSheetNumber == null)
                 result.Warnings.AddRange(
@@ -1237,17 +1241,29 @@ namespace StingTools.Core.Drawing
         /// built. Behaviour is unchanged: persisted ES counter first, then the
         /// per-batch cache, then a package sheet count.
         /// </summary>
-        private static int ResolveSheetSequence(Document doc, DrawingType dt, string effectivePackage)
+        private static int ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
+            string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result)
         {
             // Phase 169 — persisted sequence counter via ExtensibleStorage on
-            // ProjectInfo, granular by (DT, package, discipline, vol). Falls
-            // back to the per-batch cache (and ultimately a sheet count) when
-            // ES is unavailable. Survives Revit restarts and the renumber
-            // command's compaction so deleted sheets don't regrow gaps.
+            // ProjectInfo. Falls back to the per-batch cache (and ultimately a
+            // sheet count) when ES is unavailable. Survives Revit restarts and
+            // the renumber command's compaction so deleted sheets don't regrow gaps.
+            //
+            // The bucket comes from SheetNumberEngine.CounterBucket: unchanged
+            // (type, package, discipline, vol) under the Profile policy; under ISO,
+            // the number's own template, because 29 architectural profiles resolve
+            // to the same ISO fields and a per-type counter handed them all 0001.
             try
             {
-                return SheetSequenceStore.Next(doc, dt.Id, effectivePackage,
+                var template = NumberTemplate(numberPattern, dt, ctx, BuildTokenDict(doc, dt, ctx, 0));
+                var bucket = SheetNumberEngine.CounterBucket(policy, template, dt.Id, effectivePackage,
                     dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
+                if (policy == SheetNumberPolicyKind.Iso && template == null)
+                    result?.Warnings.Add(
+                        $"DrawingType '{dt.Id}': sheet-number pattern '{numberPattern}' does not carry exactly one " +
+                        "{seq} token, so it cannot share an ISO counter; numbered from its own bucket.");
+                return SheetSequenceStore.NextForBucket(doc, bucket,
+                    () => SeedSequence(doc, dt, effectivePackage, template));
             }
             catch (Exception ex)
             {
@@ -1278,10 +1294,51 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// The pattern resolved in everything but the sequence — the shape all
+        /// numbers in one counter bucket share. Same field values as
+        /// <see cref="SubstituteTokens"/>, so the two cannot disagree.
+        /// </summary>
+        internal static string NumberTemplate(string pattern, DrawingType dt, DrawingContext ctx,
+            IDictionary<string, string> extras)
+            => NumberTemplate(pattern, dt, ctx?.Level?.Name, ctx?.Tag, extras);
+
+        internal static string NumberTemplate(string pattern, DrawingType dt, string levelName, string tag,
+            IDictionary<string, string> extras)
+            => SheetNumberEngine.Template(pattern,
+                disc:    dt?.Discipline ?? "",
+                lvl:     levelName ?? dt?.IsoNaming?.Level ?? "",
+                sys:     dt?.System ?? "",
+                mark:    tag ?? "",
+                spool:   tag ?? "",
+                purpose: dt?.Purpose ?? "",
+                extras:  extras);
+
+        /// <summary>
+        /// First-use seed for a counter bucket: the highest sequence already on a
+        /// sheet in it. With a template the sequence is read against the number's
+        /// real shape (an ISO number ends in a revision, not the sequence); without
+        /// one, the historical per-type seed applies.
+        /// </summary>
+        private static int SeedSequence(Document doc, DrawingType dt, string effectivePackage, string template)
+        {
+            if (string.IsNullOrEmpty(template))
+                return SheetSequenceStore.Peek(doc, dt.Id, effectivePackage,
+                    dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "") - 1;
+            int max = 0;
+            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+            {
+                if (!(el is ViewSheet vs) || vs.IsPlaceholder) continue;
+                var n = SheetNumberEngine.ExtractSequence(vs.SheetNumber, template);
+                if (n.HasValue && n.Value > max) max = n.Value;
+            }
+            return max;
+        }
+
+        /// <summary>
         /// Revit rejects a duplicate sheet number, so a collision would throw
-        /// and leave the sheet on its auto-assigned default. Mirrors
-        /// ShopDrawingComposer.EnsureUniqueSheetNumber (-A … -Z, then a short
-        /// random suffix) and additionally ignores the sheet being numbered.
+        /// and leave the sheet on its auto-assigned default. Uniquifies through
+        /// SheetNumberEngine.MakeUnique — the one rule the fabrication composer
+        /// uses too — and ignores the sheet being numbered.
         /// </summary>
         private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, ElementId excludeId, ProduceResult result)
         {
@@ -1319,40 +1376,23 @@ namespace StingTools.Core.Drawing
                 }
             }
 
-            string chosen;
-            if (!existing.Contains(baseNumber))
-            {
-                chosen = baseNumber;
-            }
-            else
-            {
-                chosen = null;
-                for (char c = 'A'; c <= 'Z'; c++)
-                {
-                    var candidate = baseNumber + "-" + c;
-                    if (!existing.Contains(candidate))
-                    {
-                        result?.Warnings.Add($"Sheet number '{baseNumber}' already exists; used '{candidate}'.");
-                        chosen = candidate;
-                        break;
-                    }
-                }
-                if (chosen == null)
-                {
-                    chosen = baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
-                    result?.Warnings.Add($"Sheet number '{baseNumber}' and all -A..-Z variants exist; used '{chosen}'.");
-                }
-            }
-
-            if (useCache) _sheetNumberCache.Add(chosen);
-            return chosen;
+            // MakeUnique adds the chosen number to the set, so the batch cache
+            // sees it for the next sheet in the same run.
+            var chosen = SheetNumberEngine.MakeUnique(baseNumber, existing, out var note);
+            if (note != null) result?.Warnings.Add(note);
+            return chosen ?? baseNumber;
         }
 
-        private static readonly System.Text.RegularExpressions.Regex _seqWidthRegex
-            = new System.Text.RegularExpressions.Regex(@"\{seq:D(\d+)\}",
-                System.Text.RegularExpressions.RegexOptions.Compiled);
-
         private static string SubstituteTokens(string pattern, DrawingType dt, DrawingContext ctx,
+            int seq, IDictionary<string, string> extras)
+            => SubstituteTokens(pattern, dt, ctx?.Level?.Name, ctx?.Tag, seq, extras);
+
+        /// <summary>
+        /// Substitution from the plain field values a sheet was produced with.
+        /// The renumber command rebuilds a number from a sheet's stamped context
+        /// through THIS method, so it cannot drift from what production wrote.
+        /// </summary>
+        internal static string SubstituteTokens(string pattern, DrawingType dt, string levelName, string tag,
             int seq, IDictionary<string, string> extras)
             => ApplyTokenPattern(
                 pattern,
@@ -1363,77 +1403,28 @@ namespace StingTools.Core.Drawing
                 // cells and left the sheet number still empty, with the two
                 // disagreeing about the same drawing. Apply the same fallback
                 // at both ends.
-                lvl:     ctx?.Level?.Name ?? dt?.IsoNaming?.Level ?? "",
+                lvl:     levelName ?? dt?.IsoNaming?.Level ?? "",
                 sys:     dt?.System ?? "",   // P4 — system code into {sys} for number/name patterns
-                mark:    ctx?.Tag ?? "",
-                spool:   ctx?.Tag ?? "",
+                mark:    tag ?? "",
+                spool:   tag ?? "",
                 purpose: dt?.Purpose ?? "",
                 seq:     seq,
                 extras:  extras);
 
         /// <summary>
-        /// The token substitution itself, with no Revit types in its
-        /// signature so it can be exercised outside Revit. Callers resolve
-        /// the field values; this only does the string work.
+        /// The token substitution, delegated to the Revit-free SheetNumberEngine
+        /// so production and renumbering build a sheet's number one way.
         /// </summary>
         internal static string ApplyTokenPattern(string pattern,
             string disc, string lvl, string sys, string mark, string spool, string purpose,
             int seq, IDictionary<string, string> extras)
-        {
-            if (string.IsNullOrEmpty(pattern)) return pattern;
-
-            var p = pattern;
-            // Producer-specific shaping first (SafeShort sanitises and caps at
-            // 8 chars). Doing these before the extras sweep keeps the existing
-            // behaviour for these six tokens rather than letting the raw
-            // dictionary values through.
-            p = p.Replace("{disc}", SafeShort(disc));
-            p = p.Replace("{discipline}", disc);
-            p = p.Replace("{lvl}", SafeShort(lvl));
-            p = p.Replace("{sys}", SafeShort(sys));
-            p = p.Replace("{mark}", SafeShort(mark));
-            p = p.Replace("{spool}", SafeShort(spool));
-            p = p.Replace("{purpose}", purpose ?? "");
-
-            // ISO 19650 tokens — {project} {originator} {vol} {type} {role}
-            // {suit} {rev} and anything else the canonical builder supplies.
-            // 13 corporate drawing types carry these in their
-            // sheetNumberPattern; the producer knew none of them, so they
-            // survived as literal braces, which are illegal in a Revit sheet
-            // number — the assignment threw, was caught, and the sheet kept
-            // its default number. Same sweep ShopDrawingComposer already did.
-            if (extras != null)
-            {
-                foreach (var kv in extras)
-                {
-                    if (string.IsNullOrEmpty(kv.Key)) continue;
-                    p = p.Replace("{" + kv.Key + "}", kv.Value ?? "");
-                }
-            }
-
-            // {seq:Dn} at whatever width the pattern asks for, then bare {seq}
-            // at the historical 4-digit default.
-            //
-            // Note the extras sweep above may already have consumed a bare
-            // {seq}: DrawingTokenContext.Build emits a "seq" key formatted
-            // with its seqWidth parameter, which defaults to 4 and which
-            // BuildTokenDict does not override — so the two paths agree, and
-            // whichever runs first yields the same string. {seq:Dn} is a
-            // different literal so the sweep never touches it. If a caller
-            // ever passes a non-default seqWidth, format that value the same
-            // way here or the two paths will silently disagree.
-            p = _seqWidthRegex.Replace(p, m => seq.ToString("D" + m.Groups[1].Value));
-            p = p.Replace("{seq}", seq.ToString("D4"));
-            return p;
-        }
-
-        private static string SafeShort(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "XX";
-            return new string(s.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').Take(8).ToArray());
-        }
+            => SheetNumberEngine.ApplyTokenPattern(pattern, disc, lvl, sys, mark, spool, purpose, seq, extras);
 
         private static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt, DrawingContext ctx, int seq)
+            => BuildTokenDict(doc, dt, ctx?.Level?.Name, ctx?.Tag, ctx?.PackageId, seq);
+
+        internal static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt,
+            string levelName, string tag, string packageId, int seq)
         {
             // INT-06: route through the canonical builder so SheetManager,
             // ShopDrawingComposer and the production engine all feed the
@@ -1451,11 +1442,11 @@ namespace StingTools.Core.Drawing
                 dt:         dt,
                 discCode:   dt?.Discipline,
                 discipline: dt?.Discipline,
-                levelCode:  ctx?.Level?.Name,
+                levelCode:  levelName,
                 seq:        seq,
-                spool:      ctx?.Tag,
-                mark:       ctx?.Tag);
-            d["package"] = ctx?.PackageId ?? dt?.PackageId ?? string.Empty;
+                spool:      tag,
+                mark:       tag);
+            d["package"] = packageId ?? dt?.PackageId ?? string.Empty;
             return d;
         }
         /// <summary>
@@ -1463,13 +1454,25 @@ namespace StingTools.Core.Drawing
         /// Absent / unreadable ⇒ null ⇒ SheetNumberPolicy.Parse returns
         /// Profile, i.e. existing behaviour.
         /// </summary>
-        private static string ReadSheetNumberPolicy(Document doc)
+        internal static string ReadSheetNumberPolicy(Document doc, ProduceResult result = null)
         {
             try
             {
                 var pi = doc?.ProjectInformation;
                 var p = pi?.LookupParameter(SheetNumberPolicy.PolicyParameterName);
-                return p != null && p.StorageType == StorageType.String ? p.AsString() : null;
+                // DRAW-6: an unbound policy parameter used to read as "not set" with
+                // no trace, so a project that believed it had opted into ISO
+                // numbering got profile numbers. Say so once per sheet produced;
+                // the default still applies, so nothing is renumbered by surprise.
+                if (p == null)
+                {
+                    result?.Warnings.Add(
+                        $"{SheetNumberPolicy.PolicyParameterName} is not bound to Project Information, so sheets " +
+                        "are numbered by each drawing type's own pattern. Run Load Shared Params to bind it " +
+                        "if the project uses ISO 19650 numbering.");
+                    return null;
+                }
+                return p.StorageType == StorageType.String ? p.AsString() : null;
             }
             catch (Exception ex)
             {

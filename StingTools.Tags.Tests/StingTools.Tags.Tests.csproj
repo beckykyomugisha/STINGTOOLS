@@ -145,6 +145,7 @@
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
     <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
