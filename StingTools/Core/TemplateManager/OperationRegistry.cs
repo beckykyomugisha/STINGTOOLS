@@ -299,7 +299,7 @@ namespace StingTools.Core.TemplateManager
                 // CROSS-ENGINE ──────────────────────────────────────────
                 new OpDefinition {
                     Tag = "AecFiltersBrowse", Group = GroupCrossEngine,
-                    Title = "AEC Filter Library (289)",
+                    Title = "AEC Filter Library",
                     Description = "Browse + lazy-create from the Phase 166 corporate filter library.",
                     IsReadOnly = true
                 },

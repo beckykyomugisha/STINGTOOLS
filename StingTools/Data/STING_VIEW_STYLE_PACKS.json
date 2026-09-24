@@ -67,6 +67,14 @@
           "cutColor": "#AAAAAA",
           "cutWeight": 1,
           "transparency": 50
+        },
+        {
+          "name": "STING - Phase: Future",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#0080C0",
+          "projLinePattern": "Dash dot dot",
+          "transparency": 40
         }
       ],
       "vgOverrides": {
@@ -275,6 +283,15 @@
         },
         {
           "name": "STING - Arch: Fire-Rated Glazing"
+        },
+        {
+          "name": "STING - Arch: Fire 240 min Walls"
+        },
+        {
+          "name": "STING - Arch: External Walls"
+        },
+        {
+          "name": "STING - Arch: Acoustic Doors"
         }
       ]
     },
@@ -329,7 +346,18 @@
           "projWeight": 1
         }
       },
-      "templateMode": "managed"
+      "templateMode": "managed",
+      "filterRules": [
+        {
+          "name": "STING - Arch: Suspended Ceilings (MF)"
+        },
+        {
+          "name": "STING - Arch: Exposed Soffit"
+        },
+        {
+          "name": "STING - Arch: Plasterboard Ceilings"
+        }
+      ]
     },
     {
       "id": "corp-standard-section",
@@ -427,7 +455,15 @@
           "halftone": true
         }
       },
-      "templateMode": "external"
+      "templateMode": "external",
+      "filterRules": [
+        {
+          "name": "STING - Arch: Cladding / Rainscreen"
+        },
+        {
+          "name": "STING - Arch: Curtain Panels"
+        }
+      ]
     },
     {
       "id": "corp-standard-detail",
@@ -624,6 +660,28 @@
         }
       },
       "filters": [
+        {
+          "name": "STING - Coord: Clash - High Priority",
+          "visible": true,
+          "projColor": "#FF0000",
+          "cutColor": "#FF0000",
+          "surfFgColor": "#FF0000",
+          "transparency": 0
+        },
+        {
+          "name": "STING - Coord: Clash - Medium",
+          "visible": true,
+          "projColor": "#FF9600",
+          "surfFgColor": "#FF9600",
+          "transparency": 30
+        },
+        {
+          "name": "STING - Coord: Clash - Low",
+          "visible": true,
+          "projColor": "#FFFF00",
+          "surfFgColor": "#FFFF00",
+          "transparency": 50
+        },
         {
           "name": "STING - HVAC: Supply Air",
           "visible": true,
@@ -984,6 +1042,36 @@
         },
         {
           "name": "STING - HVAC: Fan Coil Units"
+        },
+        {
+          "name": "STING - HVAC: Insulation 25mm"
+        },
+        {
+          "name": "STING - HVAC: Insulation 50mm"
+        },
+        {
+          "name": "STING - HVAC: Insulation ≥80mm"
+        },
+        {
+          "name": "STING - HVAC: Smoke Dampers"
+        },
+        {
+          "name": "STING - HVAC: VAV / VRV Boxes"
+        },
+        {
+          "name": "STING - HVAC: Cooling Coils"
+        },
+        {
+          "name": "STING - HVAC: Heating Coils"
+        },
+        {
+          "name": "STING - HVAC: Pumps"
+        },
+        {
+          "name": "STING - HVAC: Chillers"
+        },
+        {
+          "name": "STING - HVAC: Boilers"
         }
       ]
     },
@@ -1241,6 +1329,36 @@
         },
         {
           "name": "STING - Elec: Conduit"
+        },
+        {
+          "name": "STING - Elec: CCTV"
+        },
+        {
+          "name": "STING - Elec: Access Control"
+        },
+        {
+          "name": "STING - Elec: Intruder Alarm"
+        },
+        {
+          "name": "STING - Elec: Audio Visual"
+        },
+        {
+          "name": "STING - Elec: BMS"
+        },
+        {
+          "name": "STING - LPS: Air Terminal"
+        },
+        {
+          "name": "STING - LPS: Down Conductor"
+        },
+        {
+          "name": "STING - LPS: Earth Electrode"
+        },
+        {
+          "name": "STING - LPS: Bonding"
+        },
+        {
+          "name": "STING - LPS: Surge Protective Device"
         }
       ]
     },
@@ -1458,6 +1576,27 @@
         },
         {
           "name": "STING - Plumb: WC / Sanitaryware"
+        },
+        {
+          "name": "STING - Fire: Wet Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Dry Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Wet Riser"
+        },
+        {
+          "name": "STING - Fire: Dry Riser"
+        },
+        {
+          "name": "STING - Plumb: Dead Legs (HSG 274)"
+        },
+        {
+          "name": "STING - Plumb: High Pressure / Boosted Zone"
+        },
+        {
+          "name": "STING - Plumb: Backflow Risk (Fluid Cat 3/4/5)"
         }
       ]
     },
@@ -1737,6 +1876,51 @@
           "visible": true,
           "projColor": "#BBDEFB",
           "transparency": 70
+        },
+        {
+          "name": "STING - Clin: DECON-D",
+          "visible": true,
+          "projColor": "#5D4037",
+          "projWeight": 3,
+          "surfFgColor": "#5D4037",
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: DECON-C",
+          "visible": true,
+          "projColor": "#FBC02D",
+          "projWeight": 3,
+          "surfFgColor": "#FBC02D",
+          "transparency": 50
+        },
+        {
+          "name": "STING - Clin: HSDU-P",
+          "visible": true,
+          "projColor": "#C0CA33",
+          "projWeight": 3,
+          "surfFgColor": "#C0CA33",
+          "transparency": 50
+        },
+        {
+          "name": "STING - CEQ: Spaulding CRITICAL",
+          "visible": true,
+          "projColor": "#FF1744",
+          "projWeight": 4,
+          "surfFgColor": "#FF8A80"
+        },
+        {
+          "name": "STING - CEQ: Bariatric",
+          "visible": true,
+          "projColor": "#3F51B5",
+          "projWeight": 4
+        },
+        {
+          "name": "STING - CEQ: Hoist Tracked",
+          "visible": true,
+          "projColor": "#5E35B1",
+          "projWeight": 3,
+          "surfFgColor": "#B39DDB",
+          "transparency": 60
         }
       ],
       "vgOverrides": {
@@ -1797,6 +1981,13 @@
         "filters"
       ],
       "filterRules": [
+        {
+          "name": "STING - MGS: Verification FAIL",
+          "visible": true,
+          "projColor": "#FF1744",
+          "projWeight": 6,
+          "surfFgColor": "#FF8A80"
+        },
         {
           "name": "STING - MGS: O2",
           "visible": true,
@@ -1866,6 +2057,34 @@
           "visible": true,
           "projColor": "#FF6600",
           "projWeight": 3
+        },
+        {
+          "name": "STING - MGS: N2",
+          "visible": true,
+          "projColor": "#00ACC1",
+          "projWeight": 4,
+          "surfFgColor": "#00ACC1"
+        },
+        {
+          "name": "STING - MGS: HE",
+          "visible": true,
+          "projColor": "#8E24AA",
+          "projWeight": 4,
+          "surfFgColor": "#8E24AA"
+        },
+        {
+          "name": "STING - MGS: DENT",
+          "visible": true,
+          "projColor": "#6D4C41",
+          "projWeight": 4,
+          "surfFgColor": "#6D4C41"
+        },
+        {
+          "name": "STING - MGS: Area Alarm",
+          "visible": true,
+          "projColor": "#E65100",
+          "projWeight": 4,
+          "surfFgColor": "#FFCC80"
         }
       ],
       "vgOverrides": {
@@ -1913,6 +2132,15 @@
       ],
       "filterRules": [
         {
+          "name": "STING - Clin: Pressure Cascade FAULT",
+          "visible": true,
+          "halftone": false,
+          "projColor": "#FF1744",
+          "projWeight": 6,
+          "surfFgColor": "#FF8A80",
+          "transparency": 0
+        },
+        {
           "name": "STING - Clin: Pressure Positive",
           "visible": true,
           "projColor": "#64B5F6",
@@ -1938,6 +2166,59 @@
           "visible": true,
           "projColor": "#7B1FA2",
           "projWeight": 3
+        },
+        {
+          "name": "STING - Clin: PE",
+          "visible": true,
+          "projColor": "#43A047",
+          "projWeight": 4,
+          "surfFgColor": "#43A047",
+          "transparency": 40
+        },
+        {
+          "name": "STING - Clin: CLASS-N",
+          "visible": true,
+          "projColor": "#0277BD",
+          "projWeight": 4,
+          "surfFgColor": "#0277BD",
+          "transparency": 40
+        },
+        {
+          "name": "STING - Clin: CLASS-P",
+          "visible": true,
+          "projColor": "#2E7D32",
+          "projWeight": 4,
+          "surfFgColor": "#2E7D32",
+          "transparency": 40
+        },
+        {
+          "name": "STING - Clin: ANTERM",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 4,
+          "surfFgColor": "#7B1FA2",
+          "transparency": 40
+        },
+        {
+          "name": "STING - HVC: HEPA H13",
+          "visible": true,
+          "projColor": "#0288D1",
+          "projWeight": 3,
+          "surfFgColor": "#0288D1"
+        },
+        {
+          "name": "STING - HVC: HEPA H14",
+          "visible": true,
+          "projColor": "#00838F",
+          "projWeight": 3,
+          "surfFgColor": "#00838F"
+        },
+        {
+          "name": "STING - HVC: HEPA U15",
+          "visible": true,
+          "projColor": "#5E35B1",
+          "projWeight": 3,
+          "surfFgColor": "#5E35B1"
         }
       ],
       "vgOverrides": {
@@ -2027,6 +2308,13 @@
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 4
+        },
+        {
+          "name": "STING - EES: IT-Network Cardiac",
+          "visible": true,
+          "projColor": "#FF1744",
+          "projWeight": 5,
+          "surfFgColor": "#FFCDD2"
         }
       ],
       "vgOverrides": {
@@ -2116,6 +2404,49 @@
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 4
+        },
+        {
+          "name": "STING - Arch: Fire 240 min Walls",
+          "visible": true,
+          "projColor": "#500000",
+          "cutColor": "#500000",
+          "cutWeight": 8,
+          "surfFgColor": "#820000"
+        },
+        {
+          "name": "STING - Arch: FD30 Doors",
+          "visible": true,
+          "projColor": "#FFD600",
+          "projWeight": 3,
+          "surfFgColor": "#FFC8C8"
+        },
+        {
+          "name": "STING - Arch: FD90 Doors",
+          "visible": true,
+          "projColor": "#C00000",
+          "projWeight": 5,
+          "surfFgColor": "#FF1E1E"
+        },
+        {
+          "name": "STING - Arch: FD120 Doors",
+          "visible": true,
+          "projColor": "#7B1FA2",
+          "projWeight": 6,
+          "surfFgColor": "#B40000"
+        },
+        {
+          "name": "STING - Fire: Secondary Escape Route",
+          "visible": true,
+          "surfFgColor": "#96FF96",
+          "transparency": 60
+        },
+        {
+          "name": "STING - Fire: PHE Refuge",
+          "visible": true,
+          "projColor": "#1B5E20",
+          "projWeight": 4,
+          "surfFgColor": "#A5D6A7",
+          "transparency": 40
         }
       ],
       "vgOverrides": {
@@ -2226,6 +2557,14 @@
           "projColor": "#CE93D8",
           "projWeight": 1,
           "transparency": 70
+        },
+        {
+          "name": "STING - Rad: MRI Zone 1",
+          "visible": true,
+          "projColor": "#E1F5FE",
+          "projWeight": 3,
+          "surfFgColor": "#E1F5FE",
+          "transparency": 60
         }
       ],
       "vgOverrides": {
@@ -2314,6 +2653,14 @@
           "projColor": "#9C27B0",
           "projWeight": 2,
           "transparency": 60
+        },
+        {
+          "name": "STING - Lig: VERY-HIGH Risk",
+          "visible": true,
+          "projColor": "#B71C1C",
+          "projWeight": 6,
+          "surfFgColor": "#B71C1C",
+          "transparency": 40
         }
       ],
       "vgOverrides": {
@@ -2423,6 +2770,33 @@
           "visible": true,
           "projColor": "#C00000",
           "projWeight": 5
+        },
+        {
+          "name": "STING - PLM: Sentinel Point",
+          "visible": true,
+          "projColor": "#1B5E20",
+          "projWeight": 3
+        },
+        {
+          "name": "STING - PLM: Dialysis RO Loop",
+          "visible": true,
+          "projColor": "#33691E",
+          "projWeight": 4,
+          "surfFgColor": "#AED581"
+        },
+        {
+          "name": "STING - Plumb: Dead Legs (HSG 274)",
+          "visible": true,
+          "halftone": true,
+          "projColor": "#FF00FF",
+          "projWeight": 5,
+          "cutColor": "#FF00FF"
+        },
+        {
+          "name": "STING - Plumb: Point-of-Use Filter Outlets",
+          "visible": true,
+          "projColor": "#00BCD4",
+          "projWeight": 4
         }
       ],
       "vgOverrides": {
@@ -3435,6 +3809,26 @@
         {
           "name": "STING - QA: QA Gate — Amber",
           "visible": true
+        },
+        {
+          "name": "STING - QA: Untagged Elements",
+          "visible": true
+        },
+        {
+          "name": "STING - QA: Incomplete Tags",
+          "visible": true
+        },
+        {
+          "name": "STING - QA: Missing Discipline",
+          "visible": true
+        },
+        {
+          "name": "STING - QA: Missing Location",
+          "visible": true
+        },
+        {
+          "name": "STING - QA: Stale Elements",
+          "visible": true
         }
       ],
       "templateMode": "external"
@@ -3639,6 +4033,162 @@
         },
         {
           "name": "STING - Struct: Steel Fire Protection"
+        },
+        {
+          "name": "STING - Struct: Rebar ≤12mm"
+        },
+        {
+          "name": "STING - Struct: Rebar 16-25mm"
+        },
+        {
+          "name": "STING - Struct: Rebar >25mm"
+        },
+        {
+          "name": "STING - Struct: Reinforcement Mesh"
+        }
+      ]
+    },
+    {
+      "id": "corp-accessibility",
+      "name": "Corporate Accessibility Plan",
+      "description": "Approved Document M / BS 8300 accessibility plan. Extends Corporate Plan; adds ramps, accessible WCs, escape and refuge spaces, passenger and evacuation lifts.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "filterRules": [
+        {
+          "name": "STING - Arch: Ramps"
+        },
+        {
+          "name": "STING - Arch: Accessible WC Rooms"
+        },
+        {
+          "name": "STING - Arch: Escape / Refuge Rooms"
+        },
+        {
+          "name": "STING - VT: Passenger Lift"
+        },
+        {
+          "name": "STING - VT: Evacuation Lift"
+        }
+      ]
+    },
+    {
+      "id": "corp-fire-strategy",
+      "name": "Corporate Fire Strategy Plan",
+      "description": "BS 9999 / Approved Document B fire strategy plan. Extends Corporate Plan; adds compartment walls and floors, escape routes, fire doors by rating, smoke dampers, sprinklers, suppression, risers, fire alarm zones and firefighting / evacuation lifts.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "filterRules": [
+        {
+          "name": "STING - Arch: FD30 Doors"
+        },
+        {
+          "name": "STING - Arch: FD90 Doors"
+        },
+        {
+          "name": "STING - Arch: FD120 Doors"
+        },
+        {
+          "name": "STING - Arch: Stairs"
+        },
+        {
+          "name": "STING - Arch: Escape / Refuge Rooms"
+        },
+        {
+          "name": "STING - HVAC: Smoke Dampers"
+        },
+        {
+          "name": "STING - Fire: Compartment Walls"
+        },
+        {
+          "name": "STING - Fire: Compartment Floors"
+        },
+        {
+          "name": "STING - Fire: Secondary Escape Route"
+        },
+        {
+          "name": "STING - Fire: Wet Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Dry Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Gas Suppression"
+        },
+        {
+          "name": "STING - Fire: Wet Riser"
+        },
+        {
+          "name": "STING - Fire: Dry Riser"
+        },
+        {
+          "name": "STING - Fire: Alarm Zone"
+        },
+        {
+          "name": "STING - VT: Firefighter Lift"
+        },
+        {
+          "name": "STING - VT: Evacuation Lift"
+        }
+      ]
+    },
+    {
+      "id": "corp-floor-finishes",
+      "name": "Corporate Floor Finishes Plan",
+      "description": "Floor finishes and raised-floor plans. Extends Corporate Plan; adds screed, tile, carpet and raised-access-floor fills and FF&E, which would be noise on general arrangement plans.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "filterRules": [
+        {
+          "name": "STING - Arch: Raised Access Floors"
+        },
+        {
+          "name": "STING - Arch: Screed Floors"
+        },
+        {
+          "name": "STING - Arch: Tiled Floors"
+        },
+        {
+          "name": "STING - Arch: Carpet"
+        },
+        {
+          "name": "STING - Arch: FFE - Furniture"
+        }
+      ]
+    },
+    {
+      "id": "corp-fm-asset",
+      "name": "Corporate FM Asset Plan",
+      "description": "FM asset location plan. Extends Corporate Plan; adds asset criticality and active-warranty colouring.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "filterRules": [
+        {
+          "name": "STING - FM: Critical Assets"
+        },
+        {
+          "name": "STING - FM: High Criticality Assets"
+        },
+        {
+          "name": "STING - FM: Warranty Active"
+        }
+      ]
+    },
+    {
+      "id": "corp-roof-plan",
+      "name": "Corporate Roof Plan",
+      "description": "Roof plan. Extends Corporate Plan; adds flat, pitched and green roof build-up fills.",
+      "extends": "corp-standard-plan",
+      "origin": "corporate",
+      "filterRules": [
+        {
+          "name": "STING - Arch: Flat Roof"
+        },
+        {
+          "name": "STING - Arch: Pitched Roof"
+        },
+        {
+          "name": "STING - Arch: Green Roof"
         }
       ]
     }

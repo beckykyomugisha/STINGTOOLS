@@ -1734,7 +1734,7 @@
           {
             "param": "REBAR_BAR_DIAMETER",
             "op": "lessOrEqual",
-            "value": "0.0820",
+            "value": "0.08203",
             "type": "double"
           }
         ]
@@ -1759,7 +1759,7 @@
       "rule": {
         "param": "REBAR_BAR_DIAMETER",
         "op": "greater",
-        "value": "0.0820",
+        "value": "0.08203",
         "type": "double"
       },
       "override": {
@@ -2356,10 +2356,21 @@
         "OST_PipeInsulations"
       ],
       "rule": {
-        "param": "RBS_REFERENCE_INSULATION_THICKNESS",
-        "op": "equals",
-        "value": "0.0820",
-        "type": "double"
+        "logic": "and",
+        "rules": [
+          {
+            "param": "RBS_REFERENCE_INSULATION_THICKNESS",
+            "op": "greater",
+            "value": "0.0656",
+            "type": "double"
+          },
+          {
+            "param": "RBS_REFERENCE_INSULATION_THICKNESS",
+            "op": "lessOrEqual",
+            "value": "0.0985",
+            "type": "double"
+          }
+        ]
       },
       "override": {
         "halftone": true,
@@ -2379,10 +2390,21 @@
         "OST_PipeInsulations"
       ],
       "rule": {
-        "param": "RBS_REFERENCE_INSULATION_THICKNESS",
-        "op": "equals",
-        "value": "0.1640",
-        "type": "double"
+        "logic": "and",
+        "rules": [
+          {
+            "param": "RBS_REFERENCE_INSULATION_THICKNESS",
+            "op": "greater",
+            "value": "0.1312",
+            "type": "double"
+          },
+          {
+            "param": "RBS_REFERENCE_INSULATION_THICKNESS",
+            "op": "lessOrEqual",
+            "value": "0.1969",
+            "type": "double"
+          }
+        ]
       },
       "override": {
         "surfFgPattern": "Crosshatch",
@@ -2404,7 +2426,7 @@
       "rule": {
         "param": "RBS_REFERENCE_INSULATION_THICKNESS",
         "op": "greaterOrEqual",
-        "value": "0.2625",
+        "value": "0.2624",
         "type": "double"
       },
       "override": {
@@ -3694,41 +3716,6 @@
       "notes": "Building management / control system."
     },
     {
-      "id": "elec-lightning",
-      "name": "STING - Elec: Lightning Protection",
-      "categories": [
-        "OST_ElectricalEquipment",
-        "OST_GenericModel"
-      ],
-      "rule": {
-        "logic": "or",
-        "rules": [
-          {
-            "param": "ALL_MODEL_FAMILY_NAME",
-            "op": "contains",
-            "value": "Lightning"
-          },
-          {
-            "param": "ALL_MODEL_FAMILY_NAME",
-            "op": "contains",
-            "value": "LPS"
-          }
-        ]
-      },
-      "override": {
-        "projColor": "#FFC800",
-        "cutColor": "#FFC800",
-        "projWeight": 5
-      },
-      "tags": [
-        "elec",
-        "lps",
-        "life-safety"
-      ],
-      "standard": "BS-EN-62305",
-      "notes": "Lightning protection system per BS EN 62305."
-    },
-    {
       "id": "elec-earthing",
       "name": "STING - Elec: Earthing & Bonding",
       "categories": [
@@ -3981,8 +3968,7 @@
       "categories": [
         "OST_Sprinklers",
         "OST_PipeCurves",
-        "OST_PipeFitting",
-        "OST_GenericModel"
+        "OST_PipeFitting"
       ],
       "rule": {
         "logic": "or",
@@ -5791,14 +5777,7 @@
       "id": "ees-it-cardiac",
       "name": "STING - EES: IT-Network Cardiac",
       "categories": [
-        "OST_ElectricalEquipment",
-        "OST_ElectricalFixtures",
-        "OST_LightingFixtures",
-        "OST_LightingDevices",
-        "OST_DataDevices",
-        "OST_CommunicationDevices",
-        "OST_Conduit",
-        "OST_ConduitFitting"
+        "OST_ElectricalFixtures"
       ],
       "rule": {
         "param": "ELC_IT_CARDIAC_BOOL",
@@ -6658,54 +6637,6 @@
       "notes": ""
     },
     {
-      "id": "fls-60min",
-      "name": "STING - Fire: 60-min Compartment",
-      "categories": [
-        "OST_Walls",
-        "OST_Doors"
-      ],
-      "rule": {
-        "param": "PER_FIRE_RATING_MINS",
-        "kind": "shared",
-        "op": "equals",
-        "value": "60"
-      },
-      "override": {
-        "projColor": "#BF360C",
-        "projWeight": 3
-      },
-      "tags": [
-        "healthcare",
-        "fire"
-      ],
-      "standard": "BS 9999",
-      "notes": ""
-    },
-    {
-      "id": "fls-120min",
-      "name": "STING - Fire: 120-min Compartment",
-      "categories": [
-        "OST_Walls",
-        "OST_Doors"
-      ],
-      "rule": {
-        "param": "PER_FIRE_RATING_MINS",
-        "kind": "shared",
-        "op": "equals",
-        "value": "120"
-      },
-      "override": {
-        "projColor": "#3E2723",
-        "projWeight": 4
-      },
-      "tags": [
-        "healthcare",
-        "fire"
-      ],
-      "standard": "BS 9999",
-      "notes": ""
-    },
-    {
       "id": "lig-high",
       "name": "STING - Lig: HIGH Risk",
       "categories": [
@@ -6922,8 +6853,8 @@
         "param": "CLN_HOIST_TRACK_BOOL",
         "kind": "shared",
         "op": "equals",
-        "value": "Yes",
-        "type": "string"
+        "value": "1",
+        "type": "yesno"
       },
       "override": {
         "projColor": "#5E35B1",
@@ -6942,12 +6873,11 @@
       "id": "hvc-hepa-h13",
       "name": "STING - HVC: HEPA H13",
       "categories": [
-        "OST_PipeCurves",
-        "OST_PipeFitting",
-        "OST_PipeAccessory",
-        "OST_PlumbingFixtures",
         "OST_MechanicalEquipment",
-        "OST_DuctTerminal"
+        "OST_DuctTerminal",
+        "OST_DuctCurves",
+        "OST_DuctFitting",
+        "OST_DuctAccessory"
       ],
       "rule": {
         "param": "HVC_HEPA_GRADE_TXT",
@@ -6971,12 +6901,11 @@
       "id": "hvc-hepa-h14",
       "name": "STING - HVC: HEPA H14",
       "categories": [
-        "OST_PipeCurves",
-        "OST_PipeFitting",
-        "OST_PipeAccessory",
-        "OST_PlumbingFixtures",
         "OST_MechanicalEquipment",
-        "OST_DuctTerminal"
+        "OST_DuctTerminal",
+        "OST_DuctCurves",
+        "OST_DuctFitting",
+        "OST_DuctAccessory"
       ],
       "rule": {
         "param": "HVC_HEPA_GRADE_TXT",
@@ -7000,12 +6929,11 @@
       "id": "hvc-hepa-u15",
       "name": "STING - HVC: HEPA U15",
       "categories": [
-        "OST_PipeCurves",
-        "OST_PipeFitting",
-        "OST_PipeAccessory",
-        "OST_PlumbingFixtures",
         "OST_MechanicalEquipment",
-        "OST_DuctTerminal"
+        "OST_DuctTerminal",
+        "OST_DuctCurves",
+        "OST_DuctFitting",
+        "OST_DuctAccessory"
       ],
       "rule": {
         "param": "HVC_HEPA_GRADE_TXT",

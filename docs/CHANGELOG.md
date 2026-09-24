@@ -116,6 +116,26 @@ turned two of them into defects, both now fixed in code:
   **Found:** `STING - Medical Gas Terminal Unit Tag` is a Plumbing Fixture tag but STING's own
   outlet seed is Specialty Equipment, so seeded outlets get the Specialty Equipment tag instead
   (ROADMAP DT-4). Not run in Revit; the familyMatch patterns are guesses at manufacturer naming.
+- **DRAW-4 closed: 100 of the 139 orphan filters now render.** 113 rows added across 23 packs,
+  in each pack's own row style. Five new packs, each extending `corp-standard-plan` and selected
+  by drawings that had been riding the generic plan pack: `corp-fire-strategy` (arch fire
+  strategy — compartments, escape, FD30/90/120 doors, smoke dampers, sprinklers, gas suppression,
+  risers, alarm zones, firefighting/evacuation lifts), `corp-accessibility`,
+  `corp-floor-finishes` (finishes + raised floor), `corp-roof-plan`, `corp-fm-asset`. Clash, MGS
+  verify-fail and pressure-cascade-fault rows go FIRST in their packs — Revit gives earlier
+  filters precedence, and appended last they would have been painted over by the system and
+  gas colours they exist to override. Three duplicates removed (`fls-60min` / `fls-120min` on
+  `PER_FIRE_RATING_MINS`, which nothing writes, duplicating the fire-rating wall/door filters;
+  `elec-lightning`, superseded by the five `elec-lps-*`). Rules corrected before wiring: rebar
+  16–25 mm put a 25 mm bar in "large" (0.0820 ft < 25 mm); the 25/50 mm insulation filters used
+  `equals` on a feet literal and could never match (now 20–30 / 40–60 mm ranges), ≥80 mm
+  excluded 80 mm; `ceq-hoist` compared a Yes/No parameter to the text "Yes", which parses to 0,
+  so it coloured rooms WITHOUT a hoist; the HEPA filters sat on pipe categories where the HEPA
+  parameter is not bound (now duct / air-terminal / mechanical-equipment); `ees-it-cardiac`
+  narrowed to the one category its parameter is bound to; `fire-suppression-gas` dropped Generic
+  Models (no system-name parameter). 36 filters stay a per-project library by design. Hard-coded
+  filter counts in two UI labels removed so they cannot go stale again. Checksums re-stamped for
+  the 6 re-pointed drawing types. Not run in Revit.
 
 Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
 not in the workflows this branch was checked against), fixed with a named, justified

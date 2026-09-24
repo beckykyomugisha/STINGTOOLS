@@ -7,7 +7,7 @@ namespace StingTools.Core.TemplateManager
 {
     /// <summary>
     /// Phase 19 — single facade exposing the AEC Filter Library (Phase 166,
-    /// 289 filters), Drawing Type catalogue (Phase 113, 90 drawing types),
+    /// ~290 filters), Drawing Type catalogue (Phase 113, 90 drawing types),
     /// and View Style Packs (22 packs) as first-class data in the Template
     /// Manager dashboard. Long-term path is to deprecate the hardcoded
     /// 28-filter CreateFiltersCommand in favour of the AEC registry, but
@@ -21,7 +21,7 @@ namespace StingTools.Core.TemplateManager
             var p = new OperationPreview
             {
                 Operation = "CreateFilters",
-                OperationLabel = "Create Filters (AEC Library 289)",
+                OperationLabel = "Create Filters (AEC Library)",
                 SupportsConflictResolution = true
             };
             if (doc == null) return p;

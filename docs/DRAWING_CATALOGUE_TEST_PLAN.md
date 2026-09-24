@@ -376,7 +376,7 @@ needs the parameter added by hand.
 | DRAW-1 | Needs Revit | §2.1–2.3. Reference strategies are the risk |
 | DRAW-2 | Needs a family | No flow-arrow family ships. Authoring `STING_ANNO_FLOW_ARROW` is the real close |
 | DRAW-3 | Needs Revit | The elevation-instead-of-slope warning has never been seen fire |
-| DRAW-4 | **Deliberate** | 139 of 290 filters unreferenced. A filter library is *meant* to exceed any one pack |
+| DRAW-4 | Closed 2026-09-24 | 251 of 287 filters now in a pack; the 36 left are per-project by design. Check in Revit: the rebar / insulation range filters select by size, clash and MGS verify-fail colours win over system colours (they sit first in their packs), `fire-escape-*` accept `OST_Areas` |
 | DRAW-5 | **Deliberate** | `ViewStylePack.Checksum` declared, never computed. Phase 225 reasoned packs decide appearance, not deliverable identity. Should be wired or dropped — declared-and-unused is the part that reads as a bug |
 | DRAW-6 | Low risk | §2.9. Bind the parameter before offering the policy |
 | DRAW-7 | Needs 2027 API | `RevitLinkGraphicsSettings` has no `Halftone` on 2025; the category override is the route. Unconfirmed on 2026/2027 |

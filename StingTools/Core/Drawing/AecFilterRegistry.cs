@@ -35,8 +35,8 @@ namespace StingTools.Core.Drawing
         /// create it lazily.
         /// </summary>
         // V-4: name index. GetByName is called once per pack filter rule while
-        // applying a pack; a linear FirstOrDefault over the 298 shipped filters
-        // made that O(rules x 298) per view, for every view in a batch.
+        // applying a pack; a linear FirstOrDefault over the ~290 shipped filters
+        // made that O(rules x filters) per view, for every view in a batch.
         private static readonly object _nameIndexLock = new object();
         private static readonly Dictionary<string, Dictionary<string, AecFilterDefinition>> _byNameByDoc
             = new Dictionary<string, Dictionary<string, AecFilterDefinition>>(StringComparer.OrdinalIgnoreCase);
