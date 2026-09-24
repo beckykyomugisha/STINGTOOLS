@@ -7,7 +7,7 @@ Open automation gaps, future-enhancement tables, and deep-review findings for th
 43 family references and 6 category keys were repaired so `AnnotationRunner` can resolve
 them — see the commit. Three things it could NOT repair, recorded so the intent is not lost:
 
-**DT-1 · Two categories have no tag family at all.** `STING_TAG_RFL` (RoofLights) and
+**DT-1 · Two categories have no tag family at all** — *superseded by DRAW-8 (2026-09-24): roof lights and rainwater outlets are now tagged through `familyMatch` rules with the Window / Plumbing Fixture tag families; a bespoke family would still be a nicer symbol.* `STING_TAG_RFL` (RoofLights) and
 `STING_TAG_RWO` (RainwaterOutlets) name families that do not exist in
 `StingTools/Data/TagFamilies`, and nothing in the 206-family library covers either concept.
 Left named rather than deleted so the requirement stays visible. Either author the two
@@ -59,13 +59,13 @@ pass criteria, and what each failure mode looks like. Do not re-derive it.
 | ID | Status | Detail |
 |---|---|---|
 | DRAW-1 | **OPEN — needs Revit, check this first** | The three new dimension kinds and the two new MEP annotation kinds create real geometry and have never run in Revit. The reference strategies are the risk. `ElementDimensioner.EndCapReferences` recovers a wall's end faces from its solid (`ComputeReferences = true`, planar faces whose normal is parallel to the location curve) because Revit exposes no "end of wall" reference — curved, stacked and heavily-joined walls legitimately return fewer than two and are reported, but a wall that returns the WRONG pair produces a dimension with no visible error. `AutoDimColumnGrid` picks between a column's `CenterLeftRight` and `CenterFrontBack` planes by instance-transform alignment; the wrong choice yields "references are not parallel" (caught, warned) or a zero-length dimension (not caught). **To verify:** run `DrawingTypes_ProducePerLevel` on a model with straight and curved walls, wall-hosted doors and windows, structural columns on a grid, and a sloped drainage run. Check that wall-length dims span the wall, opening chains read left to right along the wall, column dims measure ACROSS the nearest grid, and spot slopes report a slope not an elevation. Count-only success is not evidence. |
-| DRAW-2 | **OPEN — needs Revit** | `MepAnnotator.RunFlowArrow` needs a loaded generic-annotation family; none ships. With no family it says so and places nothing, which is correct, but the rotation path (`ElementTransformUtils.RotateElement` about `view.ViewDirection`) has never executed. The seven profiles that declare `AutoAnnotateFlowArrow` carry no `tagFamily`, so they will report the missing-family warning until a family is authored or the rule's `tagFamily` is set. Authoring `STING_ANNO_FLOW_ARROW` is the real close. |
+| DRAW-2 | 🟡 **Family authorable — needs Revit** | `DrawingTypes_BuildFlowArrow` (DOCS panel) authors `STING_ANNO_FLOW_ARROW` from Revit's Generic Annotation template into the project content root and loads it; `MepAnnotator` falls back to that name and loads the `.rfa` from a content root when the family is not yet in the project. Neither the authored geometry nor the rotation path (`ElementTransformUtils.RotateElement` about `view.ViewDirection`) has run. Check arrow shape, head direction on a PLAN (ViewDirection −Z) and scale. |
 | DRAW-3 | **OPEN — needs Revit** | `AutoAnnotateSlope` places a `SpotDimension` and then `ChangeTypeId`s it to a spot-SLOPE type. When the project has no `OST_SpotSlopes` type the annotation prints an ELEVATION, and the code says so loudly — but that warning has never been seen in Revit, and a project that ignores it gets a plausible-looking wrong number on a drainage drawing. Confirm a Spot Slope type exists in the template, or treat the warning as a blocker. |
 | DRAW-4 | **DELIBERATELY OPEN** | 139 of the 290 registry filters are still referenced by no pack (was 203). The remainder are healthcare-, FM-, LPS-, QA- and sustainability-specific and belong to workflows that select them per project. `DT-143-ORPHAN` reports unreferenced PACKS as INFO; there is no equivalent for filters, on purpose — a filter library is meant to be larger than any one pack. Revisit only if a discipline turns out to be genuinely uncovered. |
-| DRAW-5 | **DELIBERATELY OPEN** | `ViewStylePack.Checksum` is still declared and never computed, so style packs have no drift detection while drawing types do. Phase 225 reasoned that the asymmetry is correct — a drawing type decides the identity of an issued deliverable, a pack decides appearance, and locking packs would report drift on every project that has hand-tuned one. Phase 294 did not change that. The field should be wired or dropped; leaving it declared-and-unused is the part that reads as a bug. |
-| DRAW-6 | **OPEN — low risk** | The ISO sheet-number policy (`PRJ_ORG_SHEET_NUMBER_POLICY_TXT = "iso"`) is unit-tested but has never produced a sheet. The parameter is not in `MR_PARAMETERS.txt`, so `LookupParameter` returns null and the default (unchanged behaviour) applies — which is why this is low risk, and also why opting in currently requires adding the parameter by hand. Bind it in the shared-parameter file before offering the policy to a project. |
-| DRAW-8 | **OPEN** | The `RainwaterOutlets` and `RoofLights` tagFamilies keys were dropped from `arch-roof-A1-1to100`: they name no Revit category (a rainwater outlet is a Plumbing Fixture or Pipe Accessory, a roof light a Window or Generic Model) and no rule consulted them, so `STING_TAG_RWO` / `STING_TAG_RFL` were dead either way. Roof-plan tagging of RWOs and roof lights needs an AutoTag rule against the real host category. Not guessed here, because a wrong mapping would tag the wrong elements rather than none. |
-| DRAW-7 | **OPEN — needs Revit** | `DrawingPrintApplier.ApplyHalftoneLinks` uses a category override on `OST_RvtLinks` because `RevitLinkGraphicsSettings` has no `Halftone` member on the 2025 API. That is the right route for a single view-wide boolean, but it has not been confirmed against 2026/2027, where the per-link surface may have gained one. Re-check when the 2027 API reference is to hand. |
+| DRAW-5 | ✅ **CLOSED 2026-09-24** | `ViewStylePack.Checksum` deleted, with the always-empty Excel "checksum" column. Packs stay deliberately unlocked (CLAUDE.md explains why); a field that looked like a lock and was not one is gone. |
+| DRAW-6 | ✅ **CLOSED 2026-09-24** | `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` registered in MR_PARAMETERS / PARAMETER_REGISTRY / bindings with a `ParamRegistry` constant, so `iso` can be set; an unbound parameter now warns. The ISO policy was ALSO colliding by construction (29 architectural types → identical ISO fields, per-type counters) — fixed by template-keyed counters. Still never produced a sheet in Revit. |
+| DRAW-8 | ✅ **CLOSED 2026-09-24** | Rules gain `familyMatch` (regex on "Family : Type", `RuleFamilyFilter`); `arch-roof-A1-1to100` tags rainwater outlets among Plumbing Fixtures and roof lights among Windows. An invalid pattern skips the rule loudly, never matches all. |
+| DRAW-7 | ✅ **CLOSED 2026-09-24 (API)** | `RevitLinkGraphicsSettings` read from RevitAPI.dll metadata for 2025, 2026 and 2027: no `Halftone` member in any (2027 adds only `LineWeights`). The `OST_RvtLinks` category override is the right route on all three. |
 
 ## Mapped parameter writes (2026-09-16, Phase 289)
 
@@ -656,42 +656,30 @@ not survive verification and are recorded here so they are not re-raised:
 - `DrawingTypeRegistry.MakeFabSpool` carried the same overlapping ISO/BOM slot geometry as the
   JSON, so fixing only the data would have left the built-in fallback broken.
 
-**Found while verifying Track C — still open:**
+**Found while verifying Track C** — all but one closed on 2026-09-24 (see the closure table below):
 
-- **Viewport naming has two sources of truth.** The catalogue now says
-  `"STING - Standard Viewport"` on all 93 types, but
-  `SheetManagerEngineExt.DefaultViewportTypeRules` independently names `"STING Viewport"`,
-  `"STING Section Viewport"`, `"STING Elevation Viewport"` and `"STING 3D Viewport"` for the
-  `AutoAssignVPTypes` path. Those strings may match types in existing project templates, so
-  they were not renamed blind. Needs a decision on the canonical set, then one edit.
-- **`Schematic` and `Clarification` produce a floor plan.** Both are now canonical
-  `DrawingPurpose` constants, but `DrawingProducer.SynthesizeSingleRule` still falls through to
-  `"FloorPlan"` for them. Choosing the Revit view family for a schematic (Drafting? Section?)
-  is a design decision, not a rename.
-- **ISO 19650 suitability colouring has no mechanism.** The 8 `iso-status-*` filters were the
-  attempt and could never work — Revit view filters cannot target `OST_Sheets`. A title-block
-  parameter or a view-template route would work; a view filter never will.
-
-- **`ViewStylePack.Checksum` is declared but never computed.** Drawing types were locked in
-  Phase 225; packs were deliberately left unlocked (reasoning in `CLAUDE.md`). The field should
-  either be wired to a `ViewStylePackRegistry.ComputeChecksums` or dropped, rather than left as
-  a property that looks like a lock and is not one.
-- **`tools/StampDrawingTypeChecksums` is not gated by CI.** It has a `--check` mode that exits
-  non-zero on a missing or stale checksum, but the plugin workflows name specific `.csproj`
-  paths so the tool is never built. Until it is wired, a change to `STING_DRAWING_TYPES.json` or
-  to the `DrawingType` model can ship with stale hashes — which surfaces in Revit as every type
-  reporting drift.
-
-- **`AnnotationRulePack.TagDepths` is inert in exactly the way `tag7Depth` was.** The
-  per-category depth dictionary is edited by `DrawingTypeEditorDialog` (a real UI, with
-  add / rename / set-depth) and read by no engine — `AnnotationRunner` resolves depth from
-  the *ViewStylePack's* `CategoryDepths`, not from the pack's `TagDepths`. It was left in
-  place rather than deleted alongside `densityMode` because deleting it removes a working
-  editor surface, which is a bigger call than dropping an unreferenced field. Either point
-  `AnnotationRunner` at it or retire the UI with it.
-- **`minSizeMm` applies to dimension rules only.** `MEPDimensioner` honours it; the tag
-  path ignores it, so a tag rule declaring `minSizeMm` silently has no effect. Either
-  honour it when collecting taggable elements or reject it on tag rules in the validator.
+- ✅ **Viewport naming had two sources of truth.** `StingViewportTypes` is now the only list of
+  canonical names; the legacy unhyphenated names resolve as aliases; `ViewportTypeResolver` is
+  shared by the placement bridge, sheet template engine, sheet manager, validator and Sync
+  Styles, and mints a missing canonical type by duplication (never a user-named one). The
+  producer now also applies the drawing type's own `viewportTypeName` when a slot names none —
+  declared on all 93 types and read by nothing before.
+- ✅ **`Schematic` and `Clarification` produced a floor plan.** `DrawingPurposeViewKind` maps
+  every canonical purpose explicitly (Schematic/Clarification → Drafting, Coordination → plan,
+  Spool → 3D, Legend → reported as not producible); an unknown purpose is reported and produces
+  no view and no empty sheet.
+- **ISO 19650 suitability colouring has no mechanism — STILL OPEN, needs a decision.** The 8
+  `iso-status-*` filters were the attempt and could never work — Revit view filters cannot
+  target `OST_Sheets`. A title-block parameter or a view-template route would work; a view
+  filter never will. Choosing between them is a presentation decision, not a defect fix.
+- ✅ **`ViewStylePack.Checksum` was declared but never computed.** Deleted (DRAW-5), with the
+  always-empty Excel "checksum" column that looked like a lock.
+- ✅ **`tools/StampDrawingTypeChecksums` was not gated by CI.** `--check` runs in the
+  `validate-data` job of `stingtools-plugin.yml`.
+- ✅ **`AnnotationRulePack.TagDepths` was inert.** Wired: per-drawing-type depth sits between
+  the token profile (wins) and the pack's `CategoryDepths` (loses).
+- ✅ **`minSizeMm` applied to dimension rules only.** Honoured on tag rules through the shared
+  `ElementSize` measure.
 
 **SURFACED AND NOT ACTED ON — needs a drainage engineer.** `DrainageInvertDimensioner` places
 the invert one wall thickness low. The geometry fix is understood, but the corrected value is an
@@ -707,11 +695,51 @@ centre-anchored. Its comments claimed bottom-left and have been corrected, but t
 itself was not converted: it is a separate saved preset format that never exchanges slots
 with `DrawingSlot` or `TemplateViewSlot`, so converging it means a second user-data
 migration for no current correctness gain. Worth doing when that area is next touched.
-Everything else in the review remains open, notably: D-1/P-2/P-10 token substitution and
-numbering; T-1/T-2/T-3 title-block resolution, silent fallback and `PRJ_TB_LOCK_BOOL`;
-C-4/A-6/A-7 annotation and match-line idempotency; A-3 legend in-place refresh; P-5/E-2 section
-frame and crop coordinates; C-5 inert corporate-lock checksums; W-2 unreachable MatchLine suite;
-W-3/W-4/W-5/W-6 wiring and documentation drift.
+
+### 2026-09-24 — closure pass over every remaining finding
+
+Every finding still listed as open was re-measured against the code before anything was
+changed; about half had been fixed in passing. Each row is either closed with the measurement
+that shows it, or says why not. Tests are in `StingTools.Tags.Tests` and were each shown RED
+with the fix reverted.
+
+| Finding | Status | Measurement / what changed |
+|---|---|---|
+| V-1, V-2, A-1, P-1 | ✅ closed (pointers) | Point at C-1 / C-2 / C-4 / C-3, all closed in Phase 223. |
+| C-5, V-6, D-3, D-6, D-8, D-9, T-4, W-5 | ✅ closed (measured) | 93/93 checksums; 0 `iso-status` filters; 0 dead appearance keys; 0 `{area}`/`{room}`/`{gas}` tokens; 0 `autoDimension` keys; `viewportTypeName` uniform; `MaterialTitleBlockTokens.Resolve` has 2 callers; W-5 dispatched. |
+| D-4 | ✅ closed | 113 rules, 0 shadowed / 0 dangling / 0 unreachable. Now a gate (`DrawingCatalogueGateTests`) and in-Revit checks DT-104/105; regex routing made case-insensitive like the literal fields. |
+| D-5 | ✅ closed | 0 slot overlaps / out-of-bounds across 93 types and the `MakeFabSpool` fallback; one `DrawingSlotGeometry` check shared by validator and gate. |
+| D-7 | ✅ closed | See purpose mapping above; the editor and Excel-import purpose lists are derived from `DrawingPurpose.All` (the Excel import rejected 10 shipped rows). `duct-spool` and `clar-markup` gained explicit production rules. |
+| D-2 | ✅ closed | 0 types share (pattern, isoNaming) under the Profile policy. Under ISO, 29 architectural types resolve to identical fields and per-type counters minted `…-0001-…` for each — ISO counters are now keyed by the number's template (`SheetNumberEngine.CounterBucket`). Gate: no two types can mint one number from different counters, under both policies. |
+| P-3 | ✅ closed | Renumber passed no level: `A-RCP-L02-001` → `A-RCP-001`. Now recovers level/mark from the production-context stamp and numbers through the producer's own substitution. |
+| P-4 | ✅ closed | Locked sheets reserve their sequence; counter resumes at max(compacted, locked) not the group count; a clash pins the sheet and is reported instead of leaving `ZZ_STING_RENUM_…`; rename via `SheetNumbering.Apply` (restore on refusal, history, retag). |
+| P-11 | ✅ closed | One deterministic, always-reported uniquifier (`SheetNumberEngine.MakeUnique`) for producer and composer; the random suffix is gone. |
+| P-13 | ✅ closed (measured) | Slots are fractions of the title-block frame; unmatched scope-box level warns; one scope-box parser. |
+| — (found) | ✅ closed | Sequence read-back took the last digit run — on ISO numbers the REVISION (`-0003-S2-P01` → 1). Now reads by template. |
+| DRAW-6 | ✅ closed | `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` registered (MR_PARAMETERS, registry, bindings, `ParamRegistry`); an unbound parameter now warns. |
+| T-5 | ✅ closed | Migrate passed no tokens, so `{lvl}`/`{seq:D3}` were stamped literally. **Bigger than reported:** all 645 `${…}` title-block references used names without `_TXT` and resolved to nothing, blanking client / project / originator on every sheet. `TitleBlockTemplate` resolves both; an unresolvable cell is left alone and reported. |
+| T-6 | ✅ closed | Presentation keeps paper size (falls back loudly — only A1 exists); blank paper no longer silently A1; A2 resolves; one `TitleBlockLoadOptions`. |
+| T-7 | 🟡 partly | Text tiers by paper class (A2 kept A1 text). Arc / arc-bounded region rebuild written, **not run in Revit**; splines/ellipses counted and warned, not rescaled. |
+| T-10 | ✅ closed | 25 uses of 8 nonexistent names → 0; pipe-only cells removed from HANGER/COND; `ASS_FAB_LOC_TXT` vocabulary aligned to what the code writes; composer writes `PRJ_TB_DISCIPLINE_TXT` (+ legacy `DISCIPLINE`). |
+| A-2 | ✅ closed | `condition` / `tagFamily` / `orientation` / `skipIfTagged` / `dimensionStrategy` were already live; `minSizeMm` (tags), `leaderStyle`, `tagDepths`, rule `depth` wired; `tag7Depth`, `addTickMarks`, `batchScope`, `slopeArrow` removed; legacy autoTag/autoDim flags now folded (`MigrateFromLegacy` had no caller). Reader gate: every rule-pack JSON field must have a consumer. |
+| A-15 | ✅ closed | Two collector scans per legend entry → one lookup per legend build. |
+| E-11 | ✅ closed | Stamp cache removed; `Scan` re-reads stamps, so palette / copy-paste / Dynamo stamps are seen. |
+| V-10 | ✅ closed | Every listed silent catch reports; write failures counted into result warnings. |
+| V-11 | ✅ closed | 0 workset warnings from shipped packs on a non-workshared project (was one per view per apply). |
+| V-12 | ✅ closed | Pack `schemaVersion` bound and gated; 8 unresolvable filter parameters → 0 of 370 (6 external names allow-listed with reasons); gate over RevitAPI's 3,668 built-in names. |
+| W-3 | ✅ closed | All 31 CLAUDE.md drawing tags dispatch; stale MatchLine clause removed. |
+| W-4 | 🟡 partly | Drawing and legend intents fixed. **97 other NLP-emitted tags resolve nowhere** (not drawings) — split out as its own task. |
+| W-6 | ✅ closed | Counts re-measured; "31-pack" → 36; healthcare figures reworded as historical. |
+| — (found) | ✅ closed | The Production Config dialog's Annotation section and `ProductionRule.annotationOverride` were never read. Now LAYERED onto the type's pack (`AnnotationPackLayering`), never substituted. |
+| — (found) | ✅ closed | The corporate baselines were rewritten in the install folder on first load by the schema migrator; now checked read-only. |
+| — (found) | ✅ closed | 136 mojibake strings in filters/packs, 5 of them filter names; repaired, and the factory renames a filter created under the garbled name instead of duplicating it. |
+| — (found) | ✅ closed | `plumb-dead-legs` numeric rule on a TEXT parameter → `hasvalue`. |
+
+**Needs Revit — implemented, not verified** (the procedure for each is in
+[`DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md) §2): renumbering on a model
+with locked sheets and levels; the flow-arrow family author (DRAW-2); title-block arc rebuild
+(T-7); presentation / A2 title-block loads (T-6); viewport-type duplication; mojibake filter
+rename; annotation-override layering from the Production Config dialog.
 
 ## Revision system — deferred items (Phase 199)
 

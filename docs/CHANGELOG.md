@@ -2,6 +2,57 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Phase 296 — closing the drawings-production review, measured before touched)
+
+The 2026-07-20 drawings-production review still listed ~33 findings as open. Every one was
+re-measured against the code first: about half had been fixed in passing, and fixing those
+again would have churned shipped data for nothing. The rest are closed, with the measurement in
+`ROADMAP.md` ("2026-09-24 — closure pass"). Folds in #969 (catalogue fixes), which conflicted
+with `main` only on `STING_DRAWING_TYPES.json` (its category keys + `main`'s tag-family values).
+
+**One sheet-number engine.** Numbers were built four ways that disagreed. The Revit-free
+`Core/Drawing/SheetNumberEngine.cs` owns substitution, sequence read-back, uniqueness, counter
+buckets and renumber planning; production, renumbering and the fabrication composer call it.
+Renumbering erased every sheet's level (P-3), set the counter below locked sheets and could
+leave sheets on `ZZ_STING_RENUM_…` (P-4); both composer and producer uniquified with a random
+suffix (P-11). The ISO policy — unusable until its parameter was registered (DRAW-6) — would
+have collided by construction: 29 architectural types resolve to the same ISO fields and drew
+from per-type counters. ISO counters are keyed by the number's template; Profile keys are
+byte-identical to the old ones, so no project in flight has its counters reset. Sequence
+read-back took the last digit run, which on an ISO number is the revision.
+
+**Title blocks.** All 645 `${…}` title-block references used names without `_TXT` and resolved
+to nothing, blanking client / project / originator on every sheet — bigger than T-5 as written.
+Migrate stamped literal `{lvl}` / `{seq:D3}`. Presentation always got the A1 family and blank
+paper silently became A1 (T-6); A2 kept A1 text size and arcs were dropped (T-7); the stubs
+named 8 parameters that exist nowhere (T-10).
+
+**Data that declared intent the engine ignored.** The Production Config dialog's whole
+Annotation section and `ProductionRule.annotationOverride` were never read — now layered, not
+substituted, onto the type's pack. `viewportTypeName` on all 93 types was never applied.
+Schematics were produced as floor plans (D-7). `minSizeMm` and `tagDepths` were inert on tags
+(A-2). Roof plans could not tag rainwater outlets or roof lights (DRAW-8) — rules gained
+`familyMatch`. Flow arrows had no family and no way to get one (DRAW-2) —
+`DrawingTypes_BuildFlowArrow` authors it.
+
+**Found along the way.** The schema migrator rewrote the plugin's own shipped baselines in the
+install folder on first load. 136 filter/pack strings were mojibake, five of them filter names
+— the factory now renames a filter created under the garbled name instead of minting a twin.
+Writing a regex through a shell heredoc turned `\b` into a JSON backspace that compiled and
+matched nothing; a gate now rejects control characters in the catalogue.
+
+**Gates added** (each shown RED with the fix reverted): catalogue routing and slot geometry;
+purpose → view kind; no two types minting one number from different counters under either
+policy; title-block template resolution and family naming; seed remap tiers; assembly-stub
+parameter names; AEC filter parameter resolution against RevitAPI's built-in names; rule-pack
+field consumers; workset plan; viewport naming; annotation layering; `familyMatch`; mojibake.
+`StampDrawingTypeChecksums --check` now runs in CI. Tags.Tests 1,938 → 2,117.
+
+**Not verified in Revit** — listed in the ROADMAP closure pass. Still open by decision: ISO
+suitability colouring (needs a presentation choice), the drainage invert offset (needs a
+drainage engineer), DRAW-1/DRAW-3 (Revit runs), and 97 non-drawing NLP intents that dispatch to
+nothing (split out as their own task).
+
 #### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
 
 Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
