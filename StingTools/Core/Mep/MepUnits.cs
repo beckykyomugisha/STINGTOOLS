@@ -34,9 +34,8 @@ namespace StingTools.Core.Mep
         }
 
         /// <summary>Read the Revit built-in duct/pipe flow parameter and
-        /// return L/s. Internal units for `RBS_DUCT_FLOW_PARAM` are CFM,
-        /// but going through UnitUtils removes the dependency on that
-        /// assumption surviving across Revit versions.</summary>
+        /// return L/s. Internal units for flow are ft³/s (1 ft³/s = 28.3168 L/s,
+        /// NOT CFM); going through UnitUtils removes any hand-coded factor.</summary>
         public static double ReadBuiltInFlowLs(Element el, BuiltInParameter bip)
         {
             if (el == null) return 0;
@@ -56,7 +55,7 @@ namespace StingTools.Core.Mep
             try
             {
                 // If the parameter is typed as AirFlow / Flow, Revit holds
-                // it in internal CFM (HVAC) or GPM (Hydronic) — convert.
+                // it in internal ft³/s for both — convert.
                 var spec = p.Definition?.GetDataType();
                 if (spec != null && (spec == SpecTypeId.AirFlow || spec == SpecTypeId.Flow))
                     return UnitUtils.ConvertFromInternalUnits(raw, UnitTypeId.LitersPerSecond);
