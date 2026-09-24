@@ -692,16 +692,6 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "ELC_PHOTO_LUMENS_NR": {
-      "state": "read_only",
-      "role": "input",
-      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
-    },
-    "ELC_PNL_CIRCUIT_GROUP_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
     "ELC_PNL_IP_RATING_TXT": {
       "state": "write_only",
       "role": "export",

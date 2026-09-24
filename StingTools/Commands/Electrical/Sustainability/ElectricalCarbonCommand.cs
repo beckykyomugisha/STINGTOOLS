@@ -48,7 +48,7 @@ namespace StingTools.Commands.Electrical.Sustainability
             {
                 try
                 {
-                    double kw = (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
+                    double kw = StingTools.Core.Electrical.ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_APPARENT_LOAD) / 1000.0;
                     if (kw <= 0) continue;
                     var cat = LoadDemandEngine.Classify(sys.LoadName ?? sys.Name ?? "");
                     double demandKw = kw * cat.Factor;

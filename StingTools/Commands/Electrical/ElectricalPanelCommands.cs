@@ -66,7 +66,7 @@ namespace StingTools.Commands.Electrical
                                   ?? p.LookupParameter("Panel Voltage");
                             if (vp != null && vp.StorageType == StorageType.Double)
                             {
-                                double vDouble = vp.AsDouble();
+                                double vDouble = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                                 if (vDouble > 0)
                                     ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_VOLTAGE, $"{vDouble:0}V", overwrite: true);
                             }
@@ -76,7 +76,7 @@ namespace StingTools.Commands.Electrical
                         // Connected load (kW)
                         try
                         {
-                            var loadVA = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM)?.AsDouble() ?? 0;
+                            var loadVA = StingTools.Core.Electrical.ElecUnits.Read(p, BuiltInParameter.RBS_ELEC_PANEL_TOTALLOAD_PARAM);
                             if (loadVA > 0)
                                 ParameterHelpers.SetString(p, ParamRegistry.ELC_PNL_LOAD, $"{loadVA / 1000.0:0.0}", overwrite: true);
                         }
@@ -177,8 +177,9 @@ namespace StingTools.Commands.Electrical
     }
 
     /// <summary>
-    /// Resequences circuit numbers (1, 3, 5… odd; 2, 4, 6… even) inside the
-    /// active panel schedule so renumbering stays contiguous after deletions.
+    /// Compacts the active panel schedule after deletions: moves each circuit
+    /// into the lowest free slots (PanelScheduleView.MoveSlotTo), which is how
+    /// Revit renumbers a panelled circuit — its number is its slot.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -199,58 +200,138 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
-            int renumbered = 0;
+            // ELEC-12 — the old body wrote RBS_ELEC_CIRCUIT_NUMBER, which Revit makes
+            // read-only once a circuit is on a panel (the number IS the slot), so it
+            // changed nothing and reported "renumbered 0" at best. Revit's supported
+            // way to renumber a panel's circuits is to move them between slots:
+            // PanelScheduleView.CanMoveSlotTo / MoveSlotTo. This compacts the panel —
+            // each circuit, lowest slot first, moves down to the lowest run of free
+            // slots that fits its poles — and counts the circuit numbers that
+            // actually changed.
+            var panelId = psv.GetPanel();
+            var panel = doc.GetElement(panelId) as FamilyInstance;
+            if (panel == null)
+            {
+                TaskDialog.Show("STING Electrical", "This panel schedule has no panel to renumber.");
+                return Result.Cancelled;
+            }
+            int step = StingTools.Core.Electrical.PanelSlotReader.SlotStep(psv, out bool stepKnown);
+            int totalSlots = 0;
+            try { totalSlots = psv.GetTableData()?.NumberOfSlots ?? 0; }
+            catch (Exception ex) { StingLog.Warn($"Renumber NumberOfSlots: {ex.Message}"); }
+            if (totalSlots <= 0) totalSlots = StingTools.Core.Electrical.PanelSlotReader.PanelSlotCount(panel) ?? 0;
+
+            var confirm = new TaskDialog("STING Renumber Circuits")
+            {
+                MainInstruction = "Compact this panel's circuits into the lowest free slots?",
+                MainContent =
+                    "Circuits are MOVED between slots (the circuit number follows the slot). " +
+                    "On a multi-phase panel a moved circuit can change phase — run Phase Balance afterwards. " +
+                    "Locked slots are not moved.",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                DefaultButton = TaskDialogResult.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            int moved = 0, refused = 0, changed = 0;
+            var refusedNames = new List<string>();
             using (var tx = new Transaction(doc, "STING Renumber Circuits"))
             {
                 tx.Start();
+                var before = PanelCircuits(doc, panelId).ToDictionary(s => s.Id.Value, s => SafeNumber(s));
                 try
                 {
-                    var systems = new FilteredElementCollector(doc)
-                        .OfClass(typeof(ElectricalSystem))
-                        .Cast<ElectricalSystem>()
-                        .Where(s =>
-                        {
-                            try { return s.BaseEquipment != null && s.BaseEquipment.Id == psv.GetPanel(); }
-                            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
-                        })
-                        .OrderBy(s => SafeStartingSlot(s))
-                        .ToList();
-
-                    int next = 1;
-                    foreach (var s in systems)
+                    // One pass in start-slot order. Occupancy is re-read before every
+                    // move, so each decision sees the panel as it now is.
+                    foreach (long id in PanelCircuits(doc, panelId)
+                                 .OrderBy(s => SafeStartSlot(s)).Select(s => s.Id.Value).ToList())
                     {
-                        try
-                        {
-                            var p = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER);
-                            if (p != null && !p.IsReadOnly)
-                            {
-                                p.Set(next.ToString());
-                                renumbered++;
-                            }
-                            next += Math.Max(1, SafePoles(s));
-                        }
-                        catch (Exception ex) { StingLog.Warn($"Renumber circuit: {ex.Message}"); }
+                        var live = PanelCircuits(doc, panelId);
+                        var me = live.FirstOrDefault(s => s.Id.Value == id);
+                        if (me == null) continue;
+                        int start = SafeStartSlot(me), poles = Math.Max(1, SafePoles(me));
+                        if (start <= 0) continue;
+
+                        var occupied = new HashSet<int>();
+                        foreach (var o in live)
+                            if (o.Id.Value != id)
+                                foreach (int sl in StingTools.Core.Electrical.CircuitSlotParser.FromStartSlot(
+                                             SafeStartSlot(o), Math.Max(1, SafePoles(o)), step))
+                                    occupied.Add(sl);
+
+                        int? target = StingTools.Core.Electrical.PanelSlotRules.LowestFreeStart(
+                            occupied, start, poles, step, totalSlots);
+                        if (!target.HasValue) continue;
+
+                        if (TryMoveSlot(psv, start, target.Value)) { moved++; doc.Regenerate(); }
+                        else { refused++; if (refusedNames.Count < 10) refusedNames.Add(SafeNumber(me)); }
                     }
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"Renumber traverse: {ex.Message}");
                 }
-                tx.Commit();
+
+                foreach (var s in PanelCircuits(doc, panelId))
+                    if (before.TryGetValue(s.Id.Value, out var old) && old != SafeNumber(s)) changed++;
+
+                if (changed == 0) tx.RollBack(); else tx.Commit();
             }
-            TaskDialog.Show("STING Electrical", $"Renumbered {renumbered} circuit(s).");
+
+            StingLog.Info($"ElecCircuitRenumber: panel {panelId.Value} — {moved} moved, {changed} numbers changed, {refused} refused");
+            string msg = changed == 0 && refused == 0
+                ? "Nothing to renumber — the panel's circuits already occupy the lowest slots."
+                : $"{changed} circuit number(s) changed ({moved} slot move(s)).";
+            if (refused > 0)
+                msg += $"\n{refused} circuit(s) could not be moved (Revit refused the move — typically a locked slot " +
+                       $"or a grouped / multi-pole breaker that does not fit): {string.Join(", ", refusedNames)}.";
+            if (!stepKnown)
+                msg += "\nThe schedule's numbering could not be read; multi-pole breakers were assumed to take every other slot.";
+            TaskDialog.Show("STING Electrical", msg);
             return Result.Succeeded;
         }
 
-        private static int SafeStartingSlot(ElectricalSystem s)
+        private static List<ElectricalSystem> PanelCircuits(Document doc, ElementId panelId)
+            => new FilteredElementCollector(doc)
+                .OfClass(typeof(ElectricalSystem))
+                .Cast<ElectricalSystem>()
+                .Where(s =>
+                {
+                    try { return s.BaseEquipment != null && s.BaseEquipment.Id == panelId; }
+                    catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+                })
+                .ToList();
+
+        /// <summary>Moves the breaker in slot <paramref name="from"/> to slot
+        /// <paramref name="to"/> through the panel schedule, if Revit allows it.</summary>
+        private static bool TryMoveSlot(PanelScheduleView psv, int from, int to)
         {
             try
             {
-                var p = s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_START_SLOT);
-                if (p != null) return (int)p.AsDouble();
+                psv.GetCellsBySlotNumber(from, out IList<int> fr, out IList<int> fc);
+                psv.GetCellsBySlotNumber(to,   out IList<int> tr, out IList<int> tc);
+                if (fr == null || fc == null || tr == null || tc == null
+                    || fr.Count == 0 || fc.Count == 0 || tr.Count == 0 || tc.Count == 0) return false;
+                if (!psv.CanMoveSlotTo(fr[0], fc[0], tr[0], tc[0])) return false;
+                psv.MoveSlotTo(fr[0], fc[0], tr[0], tc[0]);
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Renumber move {from}→{to}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static string SafeNumber(ElectricalSystem s)
+        {
+            try { return s.CircuitNumber ?? ""; } catch { return ""; }
+        }
+
+        private static int SafeStartSlot(ElectricalSystem s)
+        {
+            try { return s.StartSlot; }
+            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int SafePoles(ElectricalSystem s)

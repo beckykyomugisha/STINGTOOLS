@@ -39,6 +39,8 @@ namespace StingTools.Commands.Electrical.Reports
             }
 
             var byPanel = new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+            // Resolved once per run, not once per circuit.
+            var emergencyKw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
             foreach (var sys in new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
             {
@@ -46,8 +48,8 @@ namespace StingTools.Commands.Electrical.Reports
                 {
                     if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
                     string panel = sys.PanelName ?? "";
-                    string cls   = ClassifySystem(sys);
-                    double va    = sys.ApparentLoad;
+                    string cls   = ClassifySystem(sys, emergencyKw);
+                    double va    = StingTools.Core.Electrical.ElecUnits.VAFromInternal(sys.ApparentLoad);
                     if (!byPanel.TryGetValue(panel, out var bucket))
                         byPanel[panel] = bucket = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
                     if (!bucket.ContainsKey(cls)) bucket[cls] = 0;
@@ -115,7 +117,8 @@ namespace StingTools.Commands.Electrical.Reports
             return string.IsNullOrEmpty(safe) ? "Panel" : safe;
         }
 
-        private static string ClassifySystem(ElectricalSystem sys)
+        private static string ClassifySystem(ElectricalSystem sys,
+            StingTools.Core.Electrical.EmergencyKeywords emergencyKw)
         {
             try
             {
@@ -123,7 +126,7 @@ namespace StingTools.Commands.Electrical.Reports
                 if (first == null) return "Other";
                 string fname = (first as FamilyInstance)?.Symbol?.FamilyName ?? first.Name ?? "";
                 string cat   = first.Category?.Name ?? "";
-                return CircuitWizardEngine.ClassifyLoad(fname, cat);
+                return CircuitWizardEngine.ClassifyLoad(fname, cat, emergencyKw);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return "Other"; }
         }

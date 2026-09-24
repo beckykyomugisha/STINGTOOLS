@@ -1,18 +1,18 @@
 {
-  "_comment": "Diversity / demand factors per BS 7671 Appendix 1 + IEE On-Site Guide Appendix A + NEC Article 220. Applied at panel rollup to convert connected load to maximum demand. Per-discipline percentages, override per-project by editing this file or providing _BIM_COORD/diversity_factors.json.",
-  "_standard": "BS 7671:2018 App 1 / IEE On-Site Guide / NEC 220",
+  "_comment": "Diversity / demand factors. Source: IET On-Site Guide (BS 7671:2018+A2) Appendix A, allowances-for-diversity table (NEC Article 220 for US projects). BS 7671 itself gives no diversity table - its Appendix 1 is the list of referenced standards, which this file previously cited in error. The OSG allowances are rules of the form '100% of the largest + x% of the remainder'; the single blanket factor per category below is a STING approximation of those rules for a commercial building, not an OSG value. Applied at panel rollup to convert connected load (the audit feeds kVA) to maximum demand. There is NO per-project override: LoadDemandEngine and SpareCapacityTable read only this corporate file (a _BIM_COORD/diversity_factors.json is not read). To change the factors, edit this file - it applies to every project on the machine.",
+  "_standard": "IET On-Site Guide Appendix A / NEC 220",
   "version": "1.0",
 
   "factors": [
-    { "category": "Lighting",         "patterns": ["lighting", "ltg", "lite"],            "factor": 0.90, "comment": "BS 7671 App 1: 100% first 10 A, 50% balance for dwellings; 90% commercial blanket" },
-    { "category": "Small Power",      "patterns": ["socket", "ring", "spur", "small power", "13a"], "factor": 0.75, "comment": "13A rings/socket-outlets — 100% largest, 50% balance commercial" },
-    { "category": "Cooking",          "patterns": ["cooker", "hob", "oven", "kitchen"],   "factor": 0.45, "comment": "BS 7671 App 1: first 10 A + 30% balance + 5 A if socket" },
+    { "category": "Lighting",         "patterns": ["lighting", "ltg", "lite"],            "factor": 0.90, "comment": "IET OSG App A: shops/offices 90% of total lighting demand; dwellings 66%" },
+    { "category": "Small Power",      "patterns": ["socket", "ring", "spur", "small power", "13a"], "factor": 0.75, "comment": "IET OSG App A (shops/offices): 100% of largest circuit + 75% of remainder; 0.75 blanket approximates" },
+    { "category": "Cooking",          "patterns": ["cooker", "hob", "oven", "kitchen"],   "factor": 0.45, "comment": "IET OSG App A (dwellings): first 10 A + 30% of remainder + 5 A if socket; 0.45 blanket approximates" },
     { "category": "Water Heating",    "patterns": ["immersion", "hwt", "calorifier", "water heater"], "factor": 1.00, "comment": "Resistive, no diversity" },
-    { "category": "Space Heating",    "patterns": ["heater", "heating", "panel heater", "convector"], "factor": 0.75, "comment": "Thermostat cycling — IEE OSG App A" },
+    { "category": "Space Heating",    "patterns": ["heater", "heating", "panel heater", "convector"], "factor": 0.75, "comment": "IET OSG App A (shops/offices): 100% of largest + 75% of remainder" },
     { "category": "HVAC",             "patterns": ["hvac", "ahu", "fcu", "vrv", "vrf", "chiller", "rtu"], "factor": 1.00, "comment": "Continuous mechanical loads" },
     { "category": "Lifts / Elevators","patterns": ["lift", "elevator"],                   "factor": 0.50, "comment": "Diversity for starting kVA + duty cycle" },
     { "category": "EV Charging",      "patterns": ["ev", "evse", "charger", "charging"],  "factor": 1.00, "comment": "BS 7671 §722 — no diversity unless smart charging" },
-    { "category": "Process / Motor",  "patterns": ["motor", "pump", "fan", "compressor"], "factor": 1.00, "comment": "100% per IEE OSG; engineer adjusts for VSD" },
+    { "category": "Process / Motor",  "patterns": ["motor", "pump", "fan", "compressor"], "factor": 1.00, "comment": "IET OSG App A treats motors as 100% of largest + a % of remainder; 1.00 is the conservative blanket, engineer adjusts" },
     { "category": "IT / Server",      "patterns": ["it", "server", "rack", "data centre"],"factor": 1.00, "comment": "Continuous load + UPS upstream" },
     { "category": "General",          "patterns": ["*"],                                  "factor": 0.85, "comment": "Catch-all for unmatched circuits" }
   ],
@@ -27,14 +27,10 @@
     { "category": "General",          "thdHarmonic3Pct": 25, "neutralFactor": 1.00 }
   ],
 
-  "_pfc_comment": "Power-factor correction targets per IEC 61000-3-2 + utility tariff guidance. UK MIC penalties typically apply below PF 0.95.",
+  "_pfc_comment": "Capacitor kVAR is computed, not looked up: Q = P x (tan(acos(PF_present)) - tan(acos(PF_target))). The kvarPerKwAtPf table that used to live here was wrong at every entry (0.85 -> 0.31; tan(acos 0.85) = 0.620) and has been removed. targetPfLagging is a project choice - set it to the local utility's reactive-power threshold (e.g. the UMEME tariff for Uganda). presentPfBaseline is an ASSUMPTION used only when no measured PF is supplied, and the audit says so.",
   "pfcDefaults": {
     "targetPfLagging": 0.95,
-    "presentPfBaseline": 0.85,
-    "kvarPerKwAtPf": {
-      "0.70": 0.70, "0.75": 0.55, "0.80": 0.42, "0.85": 0.31,
-      "0.90": 0.20, "0.95": 0.10, "1.00": 0.00
-    }
+    "presentPfBaseline": 0.85
   },
 
   "_spare_comment": "Spare-capacity targets per IEC 60364-5-52 Annex B + CIBSE Guide K (typical commercial 25%, industrial 30%, residential 20%, healthcare 35%).",

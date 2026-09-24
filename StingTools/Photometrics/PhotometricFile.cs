@@ -21,6 +21,17 @@ namespace StingTools.Photometrics
 
         /// <summary>Total luminous flux in lumens (sum across all lamps).</summary>
         public double TotalLumens  { get; set; }
+        /// <summary>
+        /// Luminaire output flux (lm) integrated from the candela grid
+        /// (<see cref="PhotometricIntegrator.ZonalLumens"/>). 0 = not computed.
+        /// For absolute photometry this is also <see cref="TotalLumens"/>.
+        /// </summary>
+        public double LuminaireLumens { get; set; }
+        /// <summary>
+        /// True when the file gives absolute photometry (IES lumens-per-lamp = -1,
+        /// typical for LED): there is no rated lamp flux, only the candela grid.
+        /// </summary>
+        public bool AbsolutePhotometry { get; set; }
         /// <summary>Total power draw in watts (lamp + ballast where the file separates them).</summary>
         public double TotalWatts   { get; set; }
         /// <summary>Lamp count from the photometric file (≥1).</summary>

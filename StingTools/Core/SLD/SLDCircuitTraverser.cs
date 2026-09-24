@@ -458,7 +458,7 @@ namespace StingTools.Core.SLD
                 try
                 {
                     var loadParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
-                    if (loadParam != null) node.LoadKW = loadParam.AsDouble() / 1000.0;
+                    if (loadParam != null) node.LoadKW = StingTools.Core.Electrical.ElecUnits.ToSi(loadParam) / 1000.0;
                 }
                 catch (Exception ex) { StingLog.Warn($"Load: {ex.Message}"); }
 
@@ -492,19 +492,24 @@ namespace StingTools.Core.SLD
                         System.Globalization.CultureInfo.InvariantCulture, out double vd))
                     node.VdPct = vd;
 
-                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM (stored in Revit internal
-                // units, i.e. volts).  Values < 50 are assumed to be in kV and converted.
+                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM. Revit stores it in
+                // internal units (1 V = 10.7639), so convert to volts first.
                 try
                 {
-                    var voltParam = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                    var voltParam = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
                         ?? fi.LookupParameter("Voltage");
                     if (voltParam != null)
                     {
-                        double rawV = voltParam.AsDouble();
+                        double rawV = StingTools.Core.Electrical.ElecUnits.ToSi(voltParam);
                         if (rawV > 0)
                         {
-                            // Convert: if suspiciously small (<50) treat as kV.
-                            double volts = rawV < 50.0 ? rawV * 1000.0 : rawV;
+                            // A real electrical-potential parameter is now true volts, so a
+                            // 24/48 V ELV board must stay 24/48 V. Only a unitless source
+                            // (a family Number parameter someone filled in kV) gets the
+                            // "< 50 means kV" guess — applied to volts it tiered ELV as MV.
+                            bool isPotential =
+                                StingTools.Core.Electrical.ElecUnits.SiUnitFor(voltParam) != null;
+                            double volts = !isPotential && rawV < 50.0 ? rawV * 1000.0 : rawV;
                             node.SystemVoltageV = volts;
                         }
                     }

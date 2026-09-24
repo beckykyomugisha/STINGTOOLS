@@ -369,8 +369,9 @@ namespace StingTools.BOQ
                 Parameter p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                 if (p != null && p.HasValue)
                 {
-                    double ls = p.AsDouble(); // CFM internal → need l/s; Revit stores ft³/s
-                    return $"{Math.Round(ls, 0):N0} l/s";
+                    // Revit stores flow in ft³/s internally — convert, don't relabel.
+                    double ls = StingTools.Core.Mep.MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    if (ls > 0) return $"{Math.Round(ls, 0):N0} l/s";
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetDuctAirflow: {ex.Message}"); }

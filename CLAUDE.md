@@ -342,16 +342,16 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 | Sub-system | Key files | What it does |
 |---|---|---|
-| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 / IEC 60364 cable sizing with derating; reports results (read-only — writes no parameters) |
-| **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropSolver.cs` + `VoltageDropScheduleCommand.cs` | Calculates and schedules voltage drop per circuit |
-| **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder cable sizing with diversity factor |
-| **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | Prospective fault current calculation; PSC / PSCC schedules |
-| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | IEEE 1584 / NFPA 70E arc flash energy; label sheets; schedules |
+| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 Appendix 4 method (`Core/Electrical/Bs7671CableSizing.cs`): Table 4D2A method C It, Ca/Cg/Ci/Cf, Ib ≤ In ≤ Iz, 4D2B voltage drop, with a `Basis` listing tables and factors. **Only 70 °C PVC Cu multicore method C ships**; XLPE, aluminium and other methods are refused. Rows ≥ 25 mm² are flagged VERIFY until checked against the printed standard. The command reports; `Core/Electrical/CableSizerApplyEngine` writes to circuits |
+| **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropEngine.cs` + `VoltageDropScheduleCommand.cs` (`Core/Calc/VoltageDropSolver.cs` serves Add Cable) | Voltage drop per circuit — BS EN 60228 resistance at 20 °C with one temperature correction, BS 7671 App 12 limits (3 % lighting / 5 % other) |
+| **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder sizing through the BS 7671 sizer; derate applied; length/voltage/load from the feeding circuit, any default listed per feeder |
+| **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | IEC 60909-0 style LV method (`Core/Electrical/Iec60909Lv.cs`: c = 1.10/0.95, source R/X, cable R at 20 °C + assumed X); per-panel assumptions reported; PSC schedules |
+| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | **IEEE 1584-2002** (superseded by 2018) — indicative only, three-phase boards only, labels say so; clearing time from IEC 60898 bands; **not for specifying PPE without a licensed study** |
 | **Busbar Sizing** | `Busbar/BusbarModelingCommand.cs` + `BusbarSizerEngine.cs` | Busbar sizing + Revit modeling |
-| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit with A* + ACO; consolidate into trays |
+| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit as rectilinear L/Z runs, no obstacle avoidance (A*/ACO exist but are deliberately not wired in); computed diameter applied; cables matched to circuits by element id → endpoints → panel+number; consolidate parallel conduits |
 | **Cable Routing** | `Routing/CableScheduleBuilderCommand.cs` · `Core/Electrical/CableRouter.cs` + `CableManifest.cs` | Build cable schedules + route manifest |
 | **Circuit Wizard** | `CircuitWizard/CircuitWizardCommand.cs` + `CircuitWizardEngine.cs` · `UI/CircuitWizardDialog.xaml(.cs)` | Step-by-step circuit assignment wizard |
-| **Selective Coordination** | `Coordination/SelectiveCoordCommand.cs` + `SelectiveCoordEngine.cs` + `TccDatabaseLoader.cs` · `UI/SelectiveCoordDialog.xaml(.cs)` | TCC-based upstream/downstream breaker coordination |
+| **Selective Coordination** | `Coordination/SelectiveCoordCommand.cs` + `SelectiveCoordEngine.cs` + `TccDatabaseLoader.cs` · `UI/SelectiveCoordDialog.xaml(.cs)` | Selectivity from **generic IEC 60898-1 MCB bands** (B/C/D); MCCB/ACB have no curve data and are reported as such; results say "confirm with manufacturer selectivity tables" |
 | **Tray Fill** | `ShowTrayFillCommand.cs` · `Core/Electrical/TrayFillCalculator.cs` · `UI/TrayFillWindow.xaml.cs` | NEC 392 / BS EN 61537 tray fill visualisation |
 | **Conduit Fill** | `ConduitFillValidateCommand.cs` · `Core/Calc/ConduitFillSolver.cs` | Conduit fill validation |
 | **Phase Balance** | `PhaseBalanceCommand.cs` | Phase load balancing across panels |
@@ -842,7 +842,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `StingTools/Commands/Electrical/CircuitWizard/` | Guided circuit creation wizard |
 | `StingTools/Commands/Electrical/Coordination/` | Selective coordination checker |
 | `StingTools/Commands/Electrical/Export/` | ETAP, EasyPower, DIALux export |
-| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909 fault-current calculator + AIC rating |
+| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909-0 style LV fault-current calculator + AIC rating (assumptions reported per panel) |
 | `StingTools/Commands/Electrical/FeederSizing/` | Feeder sizing engine |
 | `StingTools/Commands/Electrical/IfcResults/` | IFC simulation results import + multi-engine aggregator |
 | `StingTools/Commands/Electrical/Lighting/` | Lighting power density + emergency lighting audit |
@@ -883,17 +883,17 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `ElecCircuitRenumberCommand` | `ElecCircuitRenumberCommand` | Renumber circuits |
 | `ElecLoadSummaryCommand` | `ElecLoadSummaryCommand` | Load summary report |
 | `ElecLightingScheduleCommand` | `ElecLightingScheduleCommand` | Generate lighting schedule |
-| `ArcFlashCommand` | `ArcFlashCommand` | IEEE 1584 arc-flash analysis |
+| `ArcFlashCommand` | `ArcFlashCommand` | Arc-flash estimate, IEEE 1584-2002 indicative (not for PPE) |
 | `ArcFlashLabelSheetCommand` | `ArcFlashLabelSheetCommand` | Create arc-flash label sheet |
 | `ArcFlashScheduleCommand` | `ArcFlashScheduleCommand` | Arc-flash schedule |
 | `BusbarModelingCommand` | `BusbarModelingCommand` | Busbar modeling |
 | `CableSizerCommand` | `CableSizerCommand` | BS 7671 cable sizer |
 | `CircuitWizardCommand` | `CircuitWizardCommand` | Guided circuit creation |
 | `SelectiveCoordCommand` | `SelectiveCoordCommand` | Selective coordination check |
-| `EtapExportCommand` | `EtapExportCommand` | Export to ETAP |
-| `EasyPowerExportCommand` | `EasyPowerExportCommand` | Export to EasyPower |
-| `DIALuxExportCommand` | `DIALuxExportCommand` | Export to DIALux |
-| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909 fault-current calculation |
+| `EtapExportCommand` | `EtapExportCommand` | ETAP data hand-off draft (not a native import file) |
+| `EasyPowerExportCommand` | `EasyPowerExportCommand` | EasyPower data hand-off draft (not a native import file) |
+| `DIALuxExportCommand` | `DIALuxExportCommand` | DIALux IFC data hand-off draft (no geometry) |
+| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909-0 style LV fault-current calculation |
 | `AicRatingCommand` | `AicRatingCommand` | AIC rating check |
 | `FeederSizerCommand` | `FeederSizerCommand` | Feeder sizing |
 | `IfcResultsImportCommand` | `IfcResultsImportCommand` | Import IFC simulation results |
@@ -946,7 +946,8 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 1. Built without `dotnet build` verification (Linux sandbox). Revit API obsoletion
    warnings (`IntegerValue` → `Value`, `ParameterType` → `ForgeTypeId`) addressed.
 2. `DIALuxExportCommand`, `EtapExportCommand`, `EasyPowerExportCommand` produce
-   intermediary files; actual import into the target application is manual.
+   **data hand-off drafts, not native import files** (files are named `*_DRAFT_*`);
+   the target application will not import them as-is.
 3. `PhotometricPreflightCommand` and `DialuxRoundTripCommand` require luminaire
    families to carry `IES_FILE_PATH_TXT` shared parameter.
 
@@ -2750,6 +2751,7 @@ result set. Prove RED before GREEN and report both numbers.
 - Add `[Regeneration(RegenerationOption.Manual)]` for commands that modify the model
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
+- Read electrical quantities through `Core/Electrical/ElecUnits` (`ToSi`, `Read`, `VoltsFromInternal`, `VAFromInternal`), never a raw `AsDouble()`: Revit stores 1 V as 10.7639 internal units (VA/W likewise), and API properties such as `ElectricalSystem.Voltage` / `ApparentLoad` return internal units too
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance
 - For new commands, use shared helpers: `TagConfig.BuildAndWriteTag()`, `ParameterHelpers.SetIfEmpty()`, `SpatialAutoDetect.DetectLoc()/DetectZone()`

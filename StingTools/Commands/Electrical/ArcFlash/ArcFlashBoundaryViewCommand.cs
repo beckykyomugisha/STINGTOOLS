@@ -14,7 +14,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// (ELC_ARC_FLASH_BOUNDARY_MM parameter, populated by ArcFlashCommand
     /// — accessed via the ParamRegistry alias for canonical resolution).
     /// Colour-codes red/orange/yellow/green by PPE category for instant
-    /// safety-zone awareness on installation drawings.
+    /// safety-zone awareness on installation drawings. Boundaries are
+    /// IEEE 1584-2002 indicative values (<see cref="ArcFlashEngine.Basis"/>).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -56,19 +57,20 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         // _PPE alias these so the lookup matches whichever schema
                         // version the project ships.
                         double bdMm = ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_BD)?.AsString());
-                        if (bdMm <= 0) { skipped++; continue; }
+                        if (bdMm <= 0) { skipped++; continue; }   // "N/A" = not calculated -> no circle
                         int ppe = (int)ParseDouble(panel.LookupParameter(ParamRegistry.ELC_ARC_FLASH_PPE)?.AsString());
                         XYZ origin = (panel.Location as LocationPoint)?.Point;
                         if (origin == null) { skipped++; continue; }
                         double bdFt = bdMm / 304.8;
 
-                        // Draw circle as a SketchPlane-bound DetailCircle equivalent —
-                        // Revit doesn't have a native DetailCircle so we draw an arc
-                        // with start = end at angle 0/2π using ModelArc on a sketch
-                        // plane at the view's level.
-                        SketchPlane sp = SketchPlane.Create(doc, view.SketchPlane?.Id ?? CreateSketchPlaneAtView(doc, view));
-                        Plane plane = Plane.CreateByNormalAndOrigin(view.ViewDirection.Normalize(), origin);
-                        sp = SketchPlane.Create(doc, plane);
+                        // A detail curve must lie in the view plane. Project the panel
+                        // location onto the plane through view.Origin normal to
+                        // view.ViewDirection and draw the arc there. (The old code
+                        // passed an ElementId to SketchPlane.Create and then built a
+                        // plane at the panel's own elevation - neither is the view plane.)
+                        XYZ n = view.ViewDirection.Normalize();
+                        XYZ centre = origin - n.Multiply(n.DotProduct(origin - view.Origin));
+                        Plane plane = Plane.CreateByNormalAndOrigin(n, centre);
                         Arc arc = Arc.Create(plane, bdFt, 0, 2 * Math.PI);
                         var circle = doc.Create.NewDetailCurve(view, arc);
                         // Colour the curve by PPE category via override
@@ -85,22 +87,16 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
             TaskDialog.Show("STING Arc Flash Boundary",
                 $"Drew {drawn} boundary circle(s) on {view.Name}.\n" +
-                $"Skipped {skipped} (no boundary value or location).\n\n" +
+                $"Skipped {skipped} (not calculated, no boundary value or no location).\n" +
+                $"Boundaries are {ArcFlashEngine.BasisShort} - verify with a licensed study.\n\n" +
                 "Run Elec_ClearOverrides on this view to remove the colour overrides; " +
                 "delete the detail curves manually if you want to clear the geometry.");
             return Result.Succeeded;
         }
 
-        private static ElementId CreateSketchPlaneAtView(Document doc, View view)
-        {
-            var lvl = doc.GetElement(view.GenLevel?.Id ?? ElementId.InvalidElementId) as Level
-                       ?? new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().FirstOrDefault();
-            if (lvl == null) return ElementId.InvalidElementId;
-            return SketchPlane.Create(doc, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, new XYZ(0, 0, lvl.Elevation))).Id;
-        }
-
         private static Color PpeColor(int ppe) => ppe switch
         {
+            < 0  => new Color(183, 28, 28),    // dark red - exceeds 40 cal/cm2 (was drawn green)
             >= 4 => new Color(244, 67, 54),    // red
             3    => new Color(255, 87, 34),    // deep orange
             2    => new Color(255, 152, 0),    // orange

@@ -48,6 +48,29 @@ namespace StingTools.Core.SLD
         private const string DrawingTypeId = "elec-sld-A1-1to100";
 
         /// <summary>
+        /// Result text for the user. Zero symbols is not a quiet success: it
+        /// means the SLD symbol families are not loaded and the diagram is
+        /// lines and text only, so say so and show why.
+        /// </summary>
+        public static string DescribeResult(SLDResult result)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Generated SLD '{result.SLDView?.Name}'.");
+            sb.AppendLine($"Symbols placed: {result.SymbolsPlaced}");
+            if (result.SymbolsPlaced == 0)
+                sb.AppendLine("\nNo symbols were placed - the SLD symbol families are not loaded " +
+                              "in this project, so the diagram is lines and text only. " +
+                              "Load the SLD annotation families (Symbols > Create SLD) and regenerate.");
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                sb.AppendLine($"\n{result.Warnings.Count} warning(s):");
+                foreach (var w in result.Warnings.Distinct().Take(8)) sb.AppendLine("  - " + w);
+                if (result.Warnings.Count > 8) sb.AppendLine("  (more in the STING log)");
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>
         /// Which documents SLD generation reads. Defaults to <c>HostOnly</c>, matching
         /// historic behaviour — a federated project can opt in to <c>HostAndLinks</c>
         /// to draw panels that live in a linked MEP model.
@@ -129,7 +152,10 @@ namespace StingTools.Core.SLD
 
                     var view = ViewDrafting.Create(doc, dvType.Id);
                     view.Name = viewName ?? $"STING - SLD - {DateTime.Now:yyyyMMdd-HHmm}";
-                    try { view.Scale = 50; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
+                    // 1:1 — the layout spaces symbols in true millimetres and the
+                    // annotation symbols / text are sized for paper. At 1:50 every
+                    // text note was 50× the spacing and the diagram overlapped.
+                    try { view.Scale = 1; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
 
                     var nodeToInstance = new Dictionary<ElementId, ElementId>();
                     double xOffset = 0;
@@ -312,9 +338,19 @@ namespace StingTools.Core.SLD
         private static void FullRebuild(Document doc, ViewDrafting sldView, string standard,
             SLDLayoutOptions layoutOpts, SLDAnnotationOptions annotOpts)
         {
+            // Scan FIRST: purging and then finding no roots left the SLD view
+            // blank while the command still reported "Refreshed".
+            var roots = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope).Roots;
+            if (roots == null || roots.Count == 0)
+            {
+                StingLog.Warn($"SLD rebuild '{sldView.Name}': no roots found — view left unchanged.");
+                return;
+            }
+
             using (var tx = new Transaction(doc, "STING Rebuild SLD"))
             {
                 tx.Start();
+                try { sldView.Scale = 1; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
                 var ids = new FilteredElementCollector(doc, sldView.Id).ToElementIds();
                 foreach (var id in ids)
                 {
@@ -324,10 +360,8 @@ namespace StingTools.Core.SLD
                 tx.Commit();
             }
 
-            // Same scope as generation, or a rebuild would silently drop the linked
-            // roots the original diagram was drawn with.
-            var roots = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope).Roots;
-            if (roots == null || roots.Count == 0) return;
+            // (roots scanned above, with the same scope as generation, so a
+            // rebuild does not silently drop linked roots.)
 
             using (var tx = new Transaction(doc, "STING Rebuild SLD content"))
             {
@@ -522,6 +556,9 @@ namespace StingTools.Core.SLD
             try
             {
                 StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, DrawingTypeId);
+                // Lock: the SLD is drawn 1:1 (true-mm layout, paper-sized text). Unlocked,
+                // drift checks / Sync Styles would push the drawing-type scale back.
+                StingTools.Core.Drawing.DrawingTypeStamper.SetLocked(view, true);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

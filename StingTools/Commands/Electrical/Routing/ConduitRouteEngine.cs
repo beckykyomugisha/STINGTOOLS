@@ -36,17 +36,45 @@ namespace StingTools.Commands.Electrical.Routing
         private static readonly double[] StandardConduitMm =
             { 16, 20, 25, 32, 40, 50, 63, 75, 100 };
 
+        /// <summary>Shortest leg ComputeRoute will emit (feet, ≈3 mm).</summary>
+        public const double MinLegFt = 0.01;
+
         public static List<RouteSegment> ComputeRoute(XYZ start, XYZ end,
             double diameterMm, string label)
         {
             var segs = new List<RouteSegment>();
             if (start == null || end == null) return segs;
+            if (start.DistanceTo(end) <= MinLegFt) return segs;
+
             // L/Z: horizontal at start elevation → drop to end elevation.
             var mid1 = new XYZ(end.X, start.Y, start.Z);
             var mid2 = new XYZ(end.X, start.Y, end.Z);
-            if (mid1.DistanceTo(start) > 0.01) segs.Add(new RouteSegment(start, mid1, diameterMm, label));
-            if (mid2.DistanceTo(mid1)  > 0.01) segs.Add(new RouteSegment(mid1,  mid2, diameterMm, label));
-            if (end.DistanceTo(mid2)   > 0.01) segs.Add(new RouteSegment(mid2,  end,  diameterMm, label));
+
+            // The route must begin at `start` and finish at `end` — the very
+            // points the caller resolved from the load and panel connectors.
+            // It used to emit each leg independently and drop any leg under
+            // the 0.01 ft tolerance, which had two consequences (#597):
+            //   * a collinear route ended on the intermediate waypoint object
+            //     instead of the goal, and
+            //   * when the LAST leg was sub-tolerance (goal a few mm off the
+            //     start's Y), that leg was dropped and the run stopped short
+            //     of the panel, leaving a gap nobody was told about.
+            // Waypoints under tolerance are now merged into their neighbour
+            // and the goal itself always closes the path.
+            var pts = new List<XYZ> { start };
+            foreach (var p in new[] { mid1, mid2 })
+                if (p.DistanceTo(pts[pts.Count - 1]) > MinLegFt) pts.Add(p);
+            if (end.DistanceTo(pts[pts.Count - 1]) > MinLegFt)
+                pts.Add(end);
+            else
+                pts[pts.Count - 1] = end;   // snap the sub-tolerance tail onto the goal
+            // Snapping can leave the previous waypoint within tolerance of the
+            // goal; merge it so no zero-length leg is emitted. Never drop start.
+            while (pts.Count > 2 && pts[pts.Count - 2].DistanceTo(end) <= MinLegFt)
+                pts.RemoveAt(pts.Count - 2);
+
+            for (int i = 0; i < pts.Count - 1; i++)
+                segs.Add(new RouteSegment(pts[i], pts[i + 1], diameterMm, label));
             return segs;
         }
 

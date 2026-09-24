@@ -75,10 +75,10 @@ namespace StingTools.Commands.Electrical.Routing
             CableManifest manifest;
             try { manifest = CableManifest.Load(doc); }
             catch (Exception ex) { StingLog.Warn($"CableManifest.Load: {ex.Message}"); manifest = null; }
-            if (manifest == null || manifest.Cables == null || manifest.Cables.Count == 0)
+            string emptyWhy = manifest == null ? "The cable manifest could not be loaded." : manifest.DescribeEmpty();
+            if (emptyWhy != null)
             {
-                TaskDialog.Show("STING Consolidator",
-                    "No cable manifest. Run Auto-Route Conduit first.");
+                TaskDialog.Show("STING Consolidator", emptyWhy);
                 return Result.Cancelled;
             }
 
@@ -163,18 +163,36 @@ namespace StingTools.Commands.Electrical.Routing
                 using (var tx = new Transaction(doc, "Delete + Re-route consolidated"))
                 {
                     tx.Start();
+                    // One SubTransaction per group: a group that cannot be
+                    // re-created is rolled back on its own, so its original
+                    // conduits survive and the other groups still apply.
                     foreach (var group in groups)
                     {
-                        try
+                        using (var st = new SubTransaction(doc))
                         {
-                            ApplyOneGroup(doc, group, conduitType.Id, manifest, result);
-                            result.ConsolidatedCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Errors++;
-                            result.Warnings.Add($"{group.PanelName}/{group.Segregation}: {ex.Message}");
-                            StingLog.Warn($"Consolidate group: {ex.Message}");
+                            st.Start();
+                            try
+                            {
+                                if (ApplyOneGroup(doc, group, conduitType.Id, result, out string why))
+                                {
+                                    st.Commit();
+                                    result.ConsolidatedCount++;
+                                }
+                                else
+                                {
+                                    st.RollBack();
+                                    result.Errors++;
+                                    result.Warnings.Add($"{group.PanelName}/{group.Segregation}: NOT consolidated — {why}. Original conduits left in place.");
+                                    StingLog.Warn($"Consolidate group {group.PanelName}: {why}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                if (st.HasStarted() && !st.HasEnded()) st.RollBack();
+                                result.Errors++;
+                                result.Warnings.Add($"{group.PanelName}/{group.Segregation}: NOT consolidated — {ex.Message}. Original conduits left in place.");
+                                StingLog.Warn($"Consolidate group: {ex.Message}");
+                            }
                         }
                     }
                     tx.Commit();
@@ -185,17 +203,23 @@ namespace StingTools.Commands.Electrical.Routing
         }
 
         /// <summary>
-        /// Apply a single group: collect all member cables' existing
-        /// per-cable conduit ids, pick one representative member's
-        /// start/end (their cables share source + dest), delete every
-        /// existing member conduit, route ONE consolidated conduit at
-        /// the group's UnionDiameterMm, update every member cable's
-        /// RouteTrayIds to point at the new consolidated run.
+        /// Apply a single group: pick one representative member's
+        /// start/end (their cables share source + dest), route ONE
+        /// consolidated conduit at the group's UnionDiameterMm, and only
+        /// once that run exists delete every member's per-cable conduit and
+        /// point each member's RouteTrayIds at the new run.
+        ///
+        /// <para>Returns false (with <paramref name="why"/>) when nothing was
+        /// created; the caller rolls the group's SubTransaction back. The old
+        /// order deleted first, so a group whose every Conduit.Create failed
+        /// was left with no conduit at all and still counted as consolidated.
+        /// The manifest is mutated only on success.</para>
         /// </summary>
-        private static void ApplyOneGroup(
+        private static bool ApplyOneGroup(
             Document doc, ConsolidationGroup group, ElementId conduitTypeId,
-            CableManifest manifest, ConsolidationApplyResult result)
+            ConsolidationApplyResult result, out string why)
         {
+            why = null;
             // 1) Pick representative endpoints from the first member cable
             //    that has at least one routed conduit. We could compute
             //    bbox-of-all-conduits as the bounding run, but for the
@@ -206,53 +230,50 @@ namespace StingTools.Commands.Electrical.Routing
             foreach (var c in group.Members)
             {
                 if (c.RouteTrayIds == null || c.RouteTrayIds.Count == 0) continue;
+                // Only a conduit-routed cable can supply the run geometry; a
+                // tray-routed one (AddCable/CableRouter) would re-route along
+                // the tray's own centreline.
+                if (!(doc.GetElement(new ElementId((long)c.RouteTrayIds[0])) is Conduit)) continue;
                 rep = c;
                 firstConduitId = new ElementId((long)c.RouteTrayIds[0]);
                 break;
             }
-            if (rep == null) return;
+            if (rep == null) { why = "no member cable is routed in a conduit"; return false; }
 
             var firstCurve = (doc.GetElement(firstConduitId) as MEPCurve)?.Location as LocationCurve;
-            if (firstCurve?.Curve == null) return;
+            if (firstCurve?.Curve == null) { why = $"routed conduit {firstConduitId.Value} has no location curve"; return false; }
+            // The whole run spans first-segment start → last-segment end.
+            // This used to take both endpoints from the FIRST segment only, so
+            // the replacement conduit covered just the first leg of an L/Z
+            // route after every member's full run had been deleted.
+            var lastId = new ElementId((long)rep.RouteTrayIds[rep.RouteTrayIds.Count - 1]);
+            var lastCurve = (doc.GetElement(lastId) as MEPCurve)?.Location as LocationCurve;
             XYZ start = firstCurve.Curve.GetEndPoint(0);
-            XYZ end   = firstCurve.Curve.GetEndPoint(1);
+            XYZ end   = (lastCurve?.Curve ?? firstCurve.Curve).GetEndPoint(1);
+            if (lastCurve?.Curve == null)
+                result.Warnings.Add($"{group.PanelName}: last routed segment {lastId.Value} missing — consolidated run ends at the first segment's end.");
             ElementId levelId = (doc.GetElement(firstConduitId) as MEPCurve)?.LevelId
                                 ?? doc.ActiveView?.GenLevel?.Id ?? ElementId.InvalidElementId;
 
-            // 2) Delete every member cable's existing per-cable conduits.
-            foreach (var c in group.Members)
-            {
-                if (c.RouteTrayIds == null) continue;
-                foreach (long lid in c.RouteTrayIds)
-                {
-                    try
-                    {
-                        var el = doc.GetElement(new ElementId((long)lid));
-                        if (el == null) continue;
-                        doc.Delete(el.Id);
-                        result.DeletedConduits++;
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Warnings.Add($"Delete conduit {lid}: {ex.Message}");
-                    }
-                }
-                c.RouteTrayIds = new List<long>();
-            }
-
-            // 3) Route a single consolidated conduit at the union diameter.
+            // 2) Route a single consolidated conduit at the union diameter.
             var segments = ConduitRouteEngine.ComputeRoute(start, end,
                 group.UnionDiameterMm, $"CONSOLIDATED:{group.PanelName}");
             var newIds = new List<long>();
             int bends = ConduitRouteEngine.CountBends(segments);
             foreach (var seg in segments)
             {
-                if (seg.Start.DistanceTo(seg.End) < 0.01) continue;
+                if (seg.Start.DistanceTo(seg.End) < ConduitRouteEngine.MinLegFt) continue;
                 try
                 {
                     var conduit = Conduit.Create(doc, conduitTypeId, seg.Start, seg.End, levelId);
                     if (conduit != null)
                     {
+                        // The union diameter was computed then discarded, so the
+                        // "consolidated" run kept the type's default size.
+                        var outcome = ConduitDiameterApplier.Apply(conduit, group.UnionDiameterMm,
+                            out _, out string sizeNote);
+                        if (outcome != DiameterOutcome.Applied)
+                            result.Warnings.Add($"{group.PanelName}: {sizeNote}");
                         try
                         {
                             ParameterHelpers.SetString(conduit, ParamRegistry.ELC_CONDUIT_ROUTE,
@@ -279,10 +300,61 @@ namespace StingTools.Commands.Electrical.Routing
                     result.Warnings.Add($"Conduit.Create consolidated: {ex.Message}");
                 }
             }
+            if (newIds.Count == 0)
+            {
+                why = segments.Count == 0
+                    ? "the router produced no segments"
+                    : $"Conduit.Create failed for all {segments.Count} segment(s)";
+                return false;
+            }
+
+            // 3) Only now that the replacement exists, delete every member
+            //    cable's existing per-cable conduits. New RouteTrayIds lists
+            //    are staged and written to the manifest only on success.
+            int deleted = 0;
+            var staged = new Dictionary<StingCable, List<long>>();
+            foreach (var c in group.Members)
+            {
+                if (c.RouteTrayIds == null) continue;
+                var kept = new List<long>();   // ids that still exist and still carry this cable
+                foreach (long lid in c.RouteTrayIds)
+                {
+                    if (newIds.Contains(lid)) { kept.Add(lid); continue; }
+                    try
+                    {
+                        var el = doc.GetElement(new ElementId((long)lid));
+                        if (el == null) continue;
+                        // RouteTrayIds also carries CABLE TRAY ids written by
+                        // AddCable's CableRouter — shared containment that must
+                        // never be deleted by a conduit consolidation.
+                        if (!(el is Conduit))
+                        {
+                            kept.Add(lid);
+                            result.Warnings.Add($"Kept {el.Category?.Name ?? "element"} {lid}: not a conduit, not deleted.");
+                            continue;
+                        }
+                        doc.Delete(el.Id);
+                        deleted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        kept.Add(lid);
+                        result.Warnings.Add($"Delete conduit {lid}: {ex.Message}");
+                    }
+                }
+                staged[c] = kept;
+            }
 
             // 4) Point every member cable at the new consolidated run.
-            foreach (var c in group.Members) c.RouteTrayIds = new List<long>(newIds);
+            foreach (var c in group.Members)
+            {
+                var ids = staged.TryGetValue(c, out var kept) ? kept : (c.RouteTrayIds ?? new List<long>());
+                ids.AddRange(newIds.Where(id => !ids.Contains(id)));
+                c.RouteTrayIds = ids;
+            }
+            result.DeletedConduits += deleted;
             result.NewConsolidatedConduits += newIds.Count;
+            return true;
         }
 
         // ── Result rendering ────────────────────────────────────────────

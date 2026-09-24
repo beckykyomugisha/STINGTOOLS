@@ -16,7 +16,12 @@ namespace StingTools.Commands.Electrical.LoadDemand
     /// Walks every panel + power circuit, applies the diversity matrix,
     /// reports per-panel spare capacity, recommends neutral sizing for
     /// each panel based on its harmonic mix, and sizes a PFC capacitor
-    /// bank for the total project demand. One Excel pack with five sheets.
+    /// bank for the total project demand. One Excel pack with three sheets.
+    ///
+    /// Units: Revit's circuit load is APPARENT power (RBS_ELEC_APPARENT_LOAD,
+    /// VA), so every load figure here is kVA - it was labelled kW until
+    /// 2026-09 (ROADMAP ELEC-20). The busbar capacity it is compared with is
+    /// √3·V·I, also kVA. PFC converts to active power at the present PF.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -29,7 +34,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
             var doc = ctx.Doc;
 
             // 1. Collect circuits per panel
-            var circuitsByPanel = new Dictionary<string, List<(string load, double kw, double iA, double phaseCsa)>>();
+            var circuitsByPanel = new Dictionary<string, List<(string load, double kva, double iA, double phaseCsa)>>();
             foreach (var sys in new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>()
                 .Where(s => { try { return s.SystemType == ElectricalSystemType.PowerCircuit; } catch { return true; } }))
@@ -37,14 +42,14 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 try
                 {
                     string panel = sys.PanelName ?? "(unassigned)";
-                    double kw = (sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0) / 1000.0;
+                    double kva = StingTools.Core.Electrical.ElecUnits.Read(sys, BuiltInParameter.RBS_ELEC_APPARENT_LOAD) / 1000.0;
                     double iA = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0;
                     double csa = SafeDouble(sys, "ELC_FEEDER_CSA_MM2");
                     if (csa <= 0) csa = SafeDouble(sys, "ELC_CBL_SZ_MM");
                     string load = sys.LoadName ?? sys.Name ?? "";
                     if (!circuitsByPanel.TryGetValue(panel, out var list))
                         circuitsByPanel[panel] = list = new();
-                    list.Add((load, kw, iA, csa));
+                    list.Add((load, kva, iA, csa));
                 }
                 catch (Exception ex) { StingLog.Warn($"LoadDemand circuit: {ex.Message}"); }
             }
@@ -62,16 +67,18 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 // ELC_PNL_SECTOR doesn't exist in MR_PARAMETERS — pull project sector
                 // from ProjectInformation.OrganizationDescription as a heuristic fallback,
                 // default to "Commercial".
+                var assumed = new List<string>();
                 double busbarA = panel != null ? SafeDouble(panel, "ELC_BUSBAR_RATING_A") : 0;
                 if (busbarA <= 0 && panel != null) busbarA = SafeDouble(panel, "ELC_PNL_MAIN_BRK_A");
-                if (busbarA <= 0) busbarA = 200; // sensible default for sub-DB
+                if (busbarA <= 0) { busbarA = 200; assumed.Add("busbar 200 A ASSUMED"); }
                 double voltageV = panel != null ? SafeDouble(panel, "ELC_PNL_VLT_V") : 0;
-                if (voltageV <= 0) voltageV = 400; // 400 V 3φ
-                int phases = panel != null ? (int)SafeDouble(panel, "ELC_CKT_PHASE_COUNT_NR") : 3;
-                if (phases == 0) phases = 3;
+                if (voltageV <= 0) { voltageV = 400; assumed.Add("400 V ASSUMED"); }
+                int phases = panel != null ? (int)SafeDouble(panel, "ELC_CKT_PHASE_COUNT_NR") : 0;
+                if (phases == 0) { phases = 3; assumed.Add("3-phase ASSUMED"); }
                 string sector = ResolveSector(doc);
 
-                var diversity = LoadDemandEngine.ApplyDiversity(circuits.Select(c => (c.load, c.kw)));
+                // ApplyDiversity is unit-agnostic; kVA in, kVA out (its *Kw field names predate this).
+                var diversity = LoadDemandEngine.ApplyDiversity(circuits.Select(c => (c.load, c.kva)));
                 var spare = LoadDemandEngine.AssessSpareCapacity(diversity.TotalDemandKw, busbarA, voltageV, phases, sector);
 
                 // Dominant load category for harmonic analysis
@@ -96,13 +103,14 @@ namespace StingTools.Commands.Electrical.LoadDemand
                     DominantCategory = dominantCat,
                     NeutralFactor    = neutral.NeutralFactor,
                     NeutralCsa       = neutral.RecommendedNeutralCsa,
-                    Diversity        = diversity
+                    Diversity        = diversity,
+                    Assumed          = string.Join("; ", assumed)
                 });
             }
 
             // 3. Project-wide PFC sizing
-            double totalDemand = panelRows.Sum(p => p.DemandKw);
-            var pfc = LoadDemandEngine.SizeCapacitorBank(totalDemand);
+            double totalDemand = panelRows.Sum(p => p.DemandKw);   // kVA
+            var pfc = LoadDemandEngine.SizeCapacitorBankFromKva(totalDemand);
 
             // 4. Excel writer
             string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
@@ -117,14 +125,20 @@ namespace StingTools.Commands.Electrical.LoadDemand
             int oversized = panelRows.Count(p => p.NeutralFactor > 1.05);
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Audited {panelRows.Count} panel(s) across {totalDemand:0.0} kW total demand.");
+            sb.AppendLine($"Audited {panelRows.Count} panel(s) across {totalDemand:0.0} kVA total demand (after diversity).");
+            int withAssumptions = panelRows.Count(p => !string.IsNullOrEmpty(p.Assumed));
+            if (withAssumptions > 0)
+                sb.AppendLine($"{withAssumptions} panel(s) used an assumed busbar rating / voltage / phase count — see the 'Assumed' column.");
             sb.AppendLine();
             sb.AppendLine($"Spare capacity: ✅ {green}  ⚠ {amber}  ❌ {red}");
             sb.AppendLine($"Panels needing oversized neutral (triplens > 33%): {oversized}");
             sb.AppendLine();
             if (pfc.Required)
+            {
                 sb.AppendLine($"PFC: install {pfc.CapacitorKvar:0} kVAR to lift PF {pfc.PresentPf:0.00} → {pfc.TargetPf:0.00} " +
-                              $"(estimated annual saving £{pfc.AnnualSavingGbp:0})");
+                              $"on {pfc.ActiveKw:0.0} kW active (= {totalDemand:0.0} kVA × {pfc.PresentPf:0.00}).");
+                if (!string.IsNullOrEmpty(pfc.Assumptions)) sb.AppendLine($"     {pfc.Assumptions}");
+            }
             else
                 sb.AppendLine($"PFC: {pfc.Notes}");
             sb.AppendLine();
@@ -164,7 +178,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
             if (p == null) return 0;
             try
             {
-                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                if (p.StorageType == StorageType.Double)  return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
             }
@@ -179,11 +193,11 @@ namespace StingTools.Commands.Electrical.LoadDemand
             // Sheet 1 — Per-panel summary
             var ws = wb.Worksheets.Add("Panels");
             ws.Cell(1, 1).Value = $"STING Load + Demand Audit  ·  {panels.Count} panels  ·  {DateTime.Now:yyyy-MM-dd HH:mm}";
-            ws.Range(1, 1, 1, 12).Merge().Style.Font.Bold = true;
-            ws.Range(1, 1, 1, 12).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            ws.Range(1, 1, 1, 13).Merge().Style.Font.Bold = true;
+            ws.Range(1, 1, 1, 13).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
             string[] hdr = { "Panel", "Sector", "Busbar (A)", "Voltage", "Phases",
-                             "Connected (kW)", "Demand (kW)", "Diversity", "Spare (%)", "Verdict",
-                             "Neutral CSA mult", "Dominant load" };
+                             "Connected (kVA)", "Demand (kVA)", "Diversity", "Spare (%)", "Verdict",
+                             "Neutral CSA mult", "Dominant load", "Assumed" };
             for (int i = 0; i < hdr.Length; i++)
             {
                 ws.Cell(2, i + 1).Value = hdr[i];
@@ -205,9 +219,10 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 ws.Cell(row, 10).Value = p.SpareVerdict;
                 ws.Cell(row, 11).Value = p.NeutralFactor;
                 ws.Cell(row, 12).Value = p.DominantCategory;
+                ws.Cell(row, 13).Value = p.Assumed ?? "";
                 var fill = p.SpareVerdict == "GREEN" ? XLColor.LightGreen
                          : p.SpareVerdict == "AMBER" ? XLColor.LightYellow : XLColor.LightSalmon;
-                ws.Range(row, 1, row, 12).Style.Fill.BackgroundColor = fill;
+                ws.Range(row, 1, row, 13).Style.Fill.BackgroundColor = fill;
                 row++;
             }
             ws.Columns().AdjustToContents();
@@ -216,8 +231,8 @@ namespace StingTools.Commands.Electrical.LoadDemand
             var ws2 = wb.Worksheets.Add("Diversity Matrix");
             ws2.Cell(1, 1).Value = "Diversity factor application by load category";
             ws2.Range(1, 1, 1, 4).Merge().Style.Font.Bold = true;
-            ws2.Cell(2, 1).Value = "Category"; ws2.Cell(2, 2).Value = "Connected (kW)";
-            ws2.Cell(2, 3).Value = "Demand (kW)"; ws2.Cell(2, 4).Value = "Factor";
+            ws2.Cell(2, 1).Value = "Category"; ws2.Cell(2, 2).Value = "Connected (kVA)";
+            ws2.Cell(2, 3).Value = "Demand (kVA)"; ws2.Cell(2, 4).Value = "Factor";
             ws2.Range(2, 1, 2, 4).Style.Font.Bold = true;
             ws2.Range(2, 1, 2, 4).Style.Fill.BackgroundColor = XLColor.LightGray;
             int r2 = 3;
@@ -251,8 +266,11 @@ namespace StingTools.Commands.Electrical.LoadDemand
             Pf("Required",          pfc.Required ? "Yes" : "No");
             Pf("Present PF",        pfc.PresentPf);
             Pf("Target PF",         pfc.TargetPf);
+            Pf("Active power",      $"{pfc.ActiveKw:0.0} kW");
             Pf("Capacitor bank",    $"{pfc.CapacitorKvar:0} kVAR");
-            Pf("Annual saving",     $"£{pfc.AnnualSavingGbp:0}");
+            Pf("Method",            "Q = P·(tan φ1 − tan φ2), φ = acos(PF)");
+            Pf("Assumptions",       pfc.Assumptions);
+            Pf("Annual saving",     $"£{pfc.AnnualSavingGbp:0} (indicative — placeholder kVArh rate, not a utility tariff)");
             Pf("Notes",             pfc.Notes);
             ws3.Columns().AdjustToContents();
             ws3.Column(2).Width = 50;
@@ -262,7 +280,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
 
         private class PanelRow
         {
-            public string PanelName, Sector, SpareVerdict, DominantCategory;
+            public string PanelName, Sector, SpareVerdict, DominantCategory, Assumed;
             public double BusbarRatingA, VoltageV, ConnectedKw, DemandKw, BlendedFactor,
                           SparePct, NeutralFactor, NeutralCsa;
             public int Phases;

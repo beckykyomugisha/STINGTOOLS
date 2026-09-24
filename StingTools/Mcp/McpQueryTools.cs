@@ -39,7 +39,7 @@ namespace StingTools.Mcp
                 LengthM        = args["lengthM"]?.Value<double?>() ?? 0,
                 InstallMethod  = args["installMethod"]?.Value<string>() ?? "C",
                 Material       = args["material"]?.Value<string>() ?? "Cu",
-                Insulation     = args["insulation"]?.Value<string>() ?? "XLPE90",
+                Insulation     = args["insulation"]?.Value<string>() ?? "PVC70",
                 VDLimitPct     = args["vdLimitPct"]?.Value<double?>() ?? 3.0,
                 Standard       = args["standard"]?.Value<string>() ?? "BS7671",
                 Phases         = args["phases"]?.Value<int?>() ?? 1,

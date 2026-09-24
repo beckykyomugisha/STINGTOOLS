@@ -120,7 +120,7 @@ namespace StingTools.Core.Electrical
                         WireSize   = sys.LookupParameter("Wire Size")?.AsString()
                                      ?? sys.LookupParameter("Cable Size")?.AsString()
                                      ?? "",
-                        VoltDropPct= SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_DROP_PARAM)) * 100.0,
+                        VoltDropPct= VoltDropPercent(sys),
                         ElementCount = sys.Elements?.Size ?? 0,
                         SystemType = sys.SystemType.ToString(),
                     };
@@ -221,9 +221,18 @@ namespace StingTools.Core.Electrical
             }
             catch { return 0; }
         }
+        // RBS_ELEC_VOLTAGE_DROP_PARAM is a voltage (V), not a fraction —
+        // express it as a percentage of the circuit's nominal voltage.
+        private static double VoltDropPercent(ElectricalSystem sys)
+        {
+            double dropV = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_DROP_PARAM));
+            double v = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE));
+            return v > 0 ? dropV / v * 100.0 : 0;
+        }
+
         private static double SafeDouble(Parameter p)
         {
-            try { return p == null ? 0 : p.AsDouble(); }
+            try { return ElecUnits.ToSi(p); }
             catch { return 0; }
         }
     }

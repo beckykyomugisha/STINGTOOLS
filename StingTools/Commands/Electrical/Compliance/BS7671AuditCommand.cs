@@ -42,6 +42,11 @@ namespace StingTools.Commands.Electrical.Compliance
 
             string earthing = StingElectricalCommandHandler.CurrentEarthingSystem ?? "TN-C-S";
             var wireTables = WireTableSet.Load(null);
+            // Corporate thresholds + <project>/_BIM_COORD/bs7671_disconnection.json
+            // (ROADMAP ELEC-14) — the override is how a non-UK supply declares its Ze.
+            string overridePath = StingPaths.MetaFile(doc, "_BIM_COORD",
+                BS7671ComplianceEngine.ProjectOverrideFileName);
+            var thresholds = BS7671ComplianceEngine.Thresholds(overridePath);
 
             var systems = new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>()
@@ -61,6 +66,7 @@ namespace StingTools.Commands.Electrical.Compliance
                 {
                     var inp = BuildInput(doc, sys, earthing, wireTables);
                     if (inp == null) continue;
+                    inp.Thresholds = thresholds;
                     var r = BS7671ComplianceEngine.AuditCircuit(inp);
                     if (r != null) results.Add(r);
                 }
@@ -72,14 +78,25 @@ namespace StingTools.Commands.Electrical.Compliance
             int pass = results.Count(r => r.Verdict == "PASS");
             int viaRcd = results.Count(r => r.Verdict == "PASS_VIA_RCD");
             int fail = results.Count(r => r.Verdict == "FAIL");
+            int unverified = results.Count(r => r.Verdict == "UNVERIFIED");
+            int withAssumptions = results.Count(r => r.Assumptions != null && r.Assumptions.Count > 0);
 
             string excel = WriteExcelReport(doc, results, earthing);
 
             var sb = new StringBuilder();
             sb.AppendLine($"Audited {results.Count} power circuit(s) on {earthing} earthing.");
+            double zeShown = thresholds.Ze.TryGetValue(earthing, out double zeV) ? zeV : double.NaN;
+            string zeFrom = thresholds.ZeSource.TryGetValue(earthing, out var zs) ? zs : "not declared";
+            sb.AppendLine(double.IsNaN(zeShown)
+                ? $"Ze: {earthing} not in the thresholds file — 0.8 Ω ASSUMED."
+                : $"Ze = {zeShown:0.00} Ω ({zeFrom}{(zeFrom == "project" ? "" : " — UK DNO maximum; declare the local supply's Ze in _BIM_COORD/" + BS7671ComplianceEngine.ProjectOverrideFileName)}), " +
+                  $"Cmin = {thresholds.Cmin:0.00}, U0 = {thresholds.NominalUo:0} V.");
+            foreach (var w in thresholds.Warnings) sb.AppendLine($"⚠ {w}");
             sb.AppendLine();
             sb.AppendLine($"✅ PASS         : {pass}");
             sb.AppendLine($"⚠ PASS_VIA_RCD : {viaRcd}  (Zs fails ADS but RCD makes it compliant per §411.4.5)");
+            sb.AppendLine($"❔ UNVERIFIED   : {unverified}  (Zs passes, but the adiabatic check needs a clearing time: no IEC 60898 band for this device, or the fault current is below its trip range)");
+            if (withAssumptions > 0) sb.AppendLine($"ℹ {withAssumptions} circuit(s) used ASSUMED inputs (see the Assumed inputs column) — verdicts on those rest on the assumptions.");
             sb.AppendLine($"❌ FAIL         : {fail}  (review CPC sizing, OCPD type, or apply RCD)");
 
             var topFails = results.Where(r => r.Verdict == "FAIL").Take(3).ToList();
@@ -101,24 +118,38 @@ namespace StingTools.Commands.Electrical.Compliance
         private static CircuitAuditInput BuildInput(Document doc, ElectricalSystem sys,
             string earthing, WireTableSet wireTables)
         {
+            // Every input the model does not hold is defaulted AND recorded: the
+            // verdict rests on it, so the report must say so.
+            var assumed = new List<string>();
+
             double phaseCsa = SafeDouble(sys, "ELC_FEEDER_CSA_MM2");
             if (phaseCsa <= 0) phaseCsa = SafeDouble(sys, "ELC_CBL_SZ_MM");
+            if (phaseCsa <= 0) { phaseCsa = 2.5; assumed.Add("phase CSA 2.5 mm²"); }
             double cpcCsa   = SafeDouble(sys, "ELC_CPC_SZ_MM");
-            if (cpcCsa <= 0) cpcCsa = phaseCsa;
+            if (cpcCsa <= 0)
+            {
+                // BS 6004 twin & earth carries a reduced CPC; assuming CPC = phase
+                // understated R2 and could turn a failing Zs into a pass.
+                cpcCsa = ReducedCpcMm2(phaseCsa);
+                assumed.Add($"CPC {cpcCsa:0.#} mm² (BS 6004 reduced CPC for {phaseCsa:0.#} mm²)");
+            }
 
             double lenM = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_LENGTH_PARAM)?.AsDouble() ?? 0;
             // Revit length is in feet → m
-            lenM = lenM > 0 ? lenM * 0.3048 : 30.0;  // 30 m fallback
+            if (lenM > 0) lenM *= 0.3048;
+            else { lenM = 30.0; assumed.Add("length 30 m (no circuit path drawn)"); }
 
+            // Current and rating are Current-spec parameters: Revit stores amperes as-is.
             double iA = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0;
             double rating = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM)?.AsDouble() ?? 0;
-            // Revit stores ratings in internal Amps already
-            if (rating <= 0) rating = Math.Ceiling(iA);
+            if (rating <= 0 && iA > 1) { rating = Math.Ceiling(iA); assumed.Add($"rating {rating:0} A (from design current)"); }
+            if (rating <= 1) { rating = 16; assumed.Add("rating 16 A"); }
 
             // ELC_BREAKER_TYPE / ELC_CBL_MATERIAL aren't in MR_PARAMETERS yet
             // — use the defaults pending future schema additions. Insulation
             // is canonical: ELC_CBL_INS_TYPE_TXT (Phase 188 fix).
             string ocpd = "MCB_C";  // BS EN 60898 Type C is the safe default
+            assumed.Add("OCPD Type C MCB");
             string mat = "Cu";       // copper unless project specifies aluminium
             string ins = sys.LookupParameter("ELC_CBL_INS_TYPE_TXT")?.AsString() ?? "PVC";
 
@@ -132,15 +163,32 @@ namespace StingTools.Commands.Electrical.Compliance
                 LoadName        = sys.LoadName ?? sys.Name ?? "",
                 EarthingSystem  = earthing,
                 OcpdType        = ocpd,
-                RatingA         = rating > 1 ? rating : 16,
+                RatingA         = rating,
                 LengthM         = lenM,
-                PhaseCsaMm2     = phaseCsa > 0 ? phaseCsa : 2.5,
+                PhaseCsaMm2     = phaseCsa,
+                Assumptions     = assumed,
                 CpcCsaMm2       = cpcCsa,
                 Material        = mat,
                 Insulation      = ins,
                 Context         = context,
                 WireTables      = wireTables
             };
+        }
+
+        /// <summary>
+        /// CPC of BS 6004 flat twin &amp; earth for a given line conductor (1.0/1.5→1.0,
+        /// 2.5→1.5, 4→1.5, 6→2.5, 10→4, 16→6); larger sizes assume a CPC equal to
+        /// the line conductor, as for multicore cables with a full-size core.
+        /// </summary>
+        private static double ReducedCpcMm2(double phaseCsa)
+        {
+            if (phaseCsa <= 1.5) return 1.0;
+            if (phaseCsa <= 2.5) return 1.5;
+            if (phaseCsa <= 4)   return 1.5;
+            if (phaseCsa <= 6)   return 2.5;
+            if (phaseCsa <= 10)  return 4;
+            if (phaseCsa <= 16)  return 6;
+            return phaseCsa;
         }
 
         private static double SafeDouble(Element el, string name)
@@ -176,7 +224,7 @@ namespace StingTools.Commands.Electrical.Compliance
                     "Panel", "Circuit", "Load", "OCPD", "Rating (A)",
                     "Zs actual (Ω)", "Zs max (Ω)", "Margin (%)",
                     "PSC (kA)", "Clearing (ms)", "k·S (Adiabatic)",
-                    "RCD (mA)", "Verdict"
+                    "RCD (mA)", "Verdict", "Assumed inputs"
                 };
                 for (int i = 0; i < headers.Length; i++)
                 {
@@ -191,21 +239,26 @@ namespace StingTools.Commands.Electrical.Compliance
                     ws.Cell(row, 1).Value = r.PanelName;
                     ws.Cell(row, 2).Value = r.CircuitTag;
                     ws.Cell(row, 3).Value = r.LoadName;
-                    ws.Cell(row, 4).Value = "—";  // OCPD type not on result; future
-                    ws.Cell(row, 5).Value = "—";
+                    ws.Cell(row, 4).Value = r.OcpdType ?? "";
+                    ws.Cell(row, 5).Value = r.RatingA;
                     ws.Cell(row, 6).Value = r.ZsActualOhm;
                     ws.Cell(row, 7).Value = r.ZsMaxOhm;
                     ws.Cell(row, 8).Value = r.ZsMarginPct;
                     ws.Cell(row, 9).Value = r.ProspectivePscA / 1000.0;
-                    ws.Cell(row, 10).Value = r.ClearingTimeMs;
-                    ws.Cell(row, 11).Value = r.AdiabaticPasses ? "PASS" : $"FAIL — need ≥{r.AdiabaticMinCsa} mm²";
+                    if (double.IsNaN(r.ClearingTimeMs)) ws.Cell(row, 10).Value = "no band";
+                    else ws.Cell(row, 10).Value = r.ClearingTimeMs;
+                    ws.Cell(row, 11).Value = double.IsNaN(r.ClearingTimeMs) ? "NOT CHECKED"
+                        : r.AdiabaticPasses ? "PASS" : $"FAIL — need ≥{r.AdiabaticMinCsa} mm²";
                     ws.Cell(row, 12).Value = r.RcdRequiredMA == 0 ? "—" : r.RcdRequiredMA.ToString();
                     ws.Cell(row, 13).Value = r.Verdict;
+                    ws.Cell(row, 14).Value = r.Assumptions == null || r.Assumptions.Count == 0
+                        ? "—" : string.Join("; ", r.Assumptions);
 
                     var fillColor = r.Verdict == "PASS"        ? XLColor.LightGreen
                                   : r.Verdict == "PASS_VIA_RCD"? XLColor.LightYellow
+                                  : r.Verdict == "UNVERIFIED"  ? XLColor.LightGray
                                   :                              XLColor.LightSalmon;
-                    ws.Range(row, 1, row, 13).Style.Fill.BackgroundColor = fillColor;
+                    ws.Range(row, 1, row, 14).Style.Fill.BackgroundColor = fillColor;
                     row++;
                 }
                 ws.Columns().AdjustToContents();

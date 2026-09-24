@@ -48,7 +48,7 @@ namespace StingTools.Commands.Electrical
             var panel = StingElectricalCommandHandler.ActivePanel;
             panel?.RefreshBalancePreview(
                 $"Before: A {pre.PhaseABefore:0.0} kW │ B {pre.PhaseBBefore:0.0} kW │ C {pre.PhaseCBefore:0.0} kW  Δ={pre.ImbalanceBefore:0.0}",
-                $"After:  A {pre.PhaseAAfter:0.0} kW │ B {pre.PhaseBAfter:0.0} kW │ C {pre.PhaseCAfter:0.0} kW  Δ={pre.ImbalanceAfter:0.0}");
+                $"Planned: A {pre.PhaseAAfter:0.0} kW │ B {pre.PhaseBAfter:0.0} kW │ C {pre.PhaseCAfter:0.0} kW  Δ={pre.ImbalanceAfter:0.0}");
 
             if (opts.PreviewFirst)
             {
@@ -64,7 +64,7 @@ namespace StingTools.Commands.Electrical
                 if (dlg.Show() != TaskDialogResult.Yes) return Result.Cancelled;
             }
 
-            int reassigned = 0, skipped = 0;
+            int reassigned = 0, skipped = 0, readOnly = 0, noParam = 0;
             using (var tx = new Transaction(doc, "STING Phase Balance"))
             {
                 tx.Start();
@@ -77,17 +77,33 @@ namespace StingTools.Commands.Electrical
                         if (SafePoles(sys) >= 3) { skipped++; continue; }
                         if (opts.RespectGrouped && IsGroupedTwoPole(sys)) { skipped++; continue; }
 
+                        // ELEC-12 — count a reassignment only when the value READS
+                        // BACK changed. Revit derives phase from the panel slot, so
+                        // on most models the parameter is read-only (or Set is
+                        // accepted and ignored); the old code counted any Set as
+                        // "reassigned" and always said "applied".
                         bool ok = false;
                         try
                         {
                             var phaseParam = sys.LookupParameter("Phase")
                                           ?? sys.LookupParameter("Circuit Phase")
                                           ?? sys.LookupParameter("Starting Phase");
-                            if (phaseParam != null && !phaseParam.IsReadOnly)
+                            if (phaseParam == null) { noParam++; }
+                            else if (phaseParam.IsReadOnly) { readOnly++; }
+                            else
                             {
                                 int v = PhaseToInt(assign.NewPhase);
-                                if (phaseParam.StorageType == StorageType.Integer) { phaseParam.Set(v); ok = true; }
-                                else if (phaseParam.StorageType == StorageType.String) { phaseParam.Set(assign.NewPhase ?? "A"); ok = true; }
+                                if (phaseParam.StorageType == StorageType.Integer)
+                                {
+                                    int before = phaseParam.AsInteger();
+                                    ok = before != v && phaseParam.Set(v) && phaseParam.AsInteger() != before;
+                                }
+                                else if (phaseParam.StorageType == StorageType.String)
+                                {
+                                    string before = phaseParam.AsString() ?? "";
+                                    string want = assign.NewPhase ?? "A";
+                                    ok = before != want && phaseParam.Set(want) && (phaseParam.AsString() ?? "") != before;
+                                }
                                 if (ok) reassigned++;
                             }
                         }
@@ -100,13 +116,37 @@ namespace StingTools.Commands.Electrical
                         skipped++;
                     }
                 }
-                tx.Commit();
+                if (reassigned == 0) tx.RollBack(); else tx.Commit();
             }
 
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Electrical",
-                $"Phase balance applied. Reassigned: {reassigned}\nSkipped (3-pole / grouped / read-only): {skipped}\n\n" +
-                $"Imbalance Δ: {pre.ImbalanceBefore:0.0} kW → {pre.ImbalanceAfter:0.0} kW");
+            StingLog.Info($"PhaseBalance: {reassigned} of {pre.Assignments.Count} reassigned, {readOnly} read-only, {noParam} no phase parameter");
+
+            string report;
+            if (reassigned == 0)
+            {
+                report =
+                    "No circuit phase was changed.\n\n" +
+                    (readOnly + noParam > 0
+                        ? $"{readOnly + noParam} circuit(s) have no writable phase parameter — Revit derives a circuit's " +
+                          "phase from the panel slot it occupies.\n"
+                        : "") +
+                    $"The imbalance is still Δ {pre.ImbalanceBefore:0.0} kW. The proposed balance " +
+                    $"(Δ {pre.ImbalanceAfter:0.0} kW, shown in the panel) is a plan: apply it by moving circuits to slots " +
+                    "on the target phase in the panel schedule.";
+            }
+            else
+            {
+                bool partial = reassigned < pre.Assignments.Count;
+                report =
+                    $"Reassigned {reassigned} of {pre.Assignments.Count} circuit(s) to a new phase.\n" +
+                    $"Not changed: {skipped} (3-pole / grouped / read-only / already on that phase).\n\n" +
+                    (partial
+                        ? $"Imbalance before: Δ {pre.ImbalanceBefore:0.0} kW. The planned Δ {pre.ImbalanceAfter:0.0} kW " +
+                          "assumed every reassignment; with only some applied, re-run the preview to see the actual figure."
+                        : $"Imbalance Δ: {pre.ImbalanceBefore:0.0} kW → {pre.ImbalanceAfter:0.0} kW");
+            }
+            TaskDialog.Show("STING Electrical", report);
             return Result.Succeeded;
         }
 
@@ -222,7 +262,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeLoadKW(ElectricalSystem s)
         {
-            try { return s.ApparentLoad / 1000.0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
+            try { return StingTools.Core.Electrical.ElecUnits.VAFromInternal(s.ApparentLoad) / 1000.0; } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
         }
 
         /// <summary>

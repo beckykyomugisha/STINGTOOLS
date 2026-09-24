@@ -100,7 +100,8 @@ namespace StingTools.UI
                         LoadVA = loadVA,
                         VoltageV = voltage > 0 ? voltage : 230.0,
                         RequiredPoles = poles > 0 ? poles : 1,
-                        LoadClass = CircuitWizardEngine.ClassifyLoad(family, cat)
+                        LoadClass = CircuitWizardEngine.ClassifyLoad(family, cat,
+                            StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(_doc))
                     };
                     var pt = (fi.Location as LocationPoint)?.Point;
                     if (pt != null) { ue.X = pt.X; ue.Y = pt.Y; ue.Z = pt.Z; }
@@ -126,7 +127,7 @@ namespace StingTools.UI
             int poles = 1;
             try
             {
-                load = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
+                load = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                 var cm = fi.MEPModel?.ConnectorManager;
                 if (cm != null)
                 {
@@ -148,7 +149,7 @@ namespace StingTools.UI
                 try
                 {
                     var vp = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE);
-                    if (vp != null) voltageV = vp.AsDouble();
+                    if (vp != null) voltageV = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }

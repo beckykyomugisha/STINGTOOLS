@@ -113,10 +113,12 @@ namespace StingTools.Commands.Electrical.Schematics
                 ?? chosenPanel.Name
                 ?? "Panel";
 
-            int slotCount = chosenPanel
-                .get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_CIRCUITS)?.AsInteger()
-                ?? 0;
-            if (slotCount <= 0) slotCount = 24; // sensible default
+            // ELEC-15 — the shared slot-count rule (Max Single Pole Breakers, then
+            // Max Number of Circuits). The old "24" fallback invented a board size.
+            int? reportedSlots = StingTools.Core.Electrical.PanelSlotReader.PanelSlotCount(chosenPanel);
+            // ELEC-16 — slot step from the panel's schedule (1 for one-column,
+            // switchboard or circuits-down; 2 for circuits-across).
+            int slotStep = StingTools.Core.Electrical.PanelSlotReader.SlotStep(doc, chosenPanel, out bool stepKnown);
 
             string ratingInfo = chosenPanel.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString()
                 ?? chosenPanel
@@ -140,17 +142,59 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 try
                 {
-                    int circNum = es
-                        .get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_NUMBER)?.AsInteger()
-                        ?? -1;
-                    if (circNum > 0 && !circuitBySlot.ContainsKey(circNum))
-                        circuitBySlot[circNum] = es;
+                    // The circuit number is TEXT - "5" single-pole, "1,3,5" three-pole.
+                    // AsInteger() on it always returned 0, so no circuit was ever
+                    // matched and every slot was drawn as SPARE.
+                    // Under Prefixed / Phase naming ("L2-1", "DB1-5") the digits are
+                    // not slots, so fall back to the circuit's start slot + poles.
+                    string cn = es.CircuitNumber;
+                    var slots = StingTools.Core.Electrical.CircuitSlotParser.IsPlainNumbering(cn)
+                        ? ParseCircuitSlots(cn)
+                        : StingTools.Core.Electrical.CircuitSlotParser.FromStartSlot(
+                              SafeStartSlot(es), SafePolesOf(es), slotStep);
+                    foreach (int slot in slots)
+                        if (!circuitBySlot.ContainsKey(slot))
+                            circuitBySlot[slot] = es;
                 }
                 catch (Exception ex)
                 {
                     StingLog.Warn($"PanelDoorDiagram: circuit read {es?.Id}: {ex.Message}");
                 }
             }
+
+            // Slot count: what the family reports; failing that, draw to the highest
+            // slot a circuit actually occupies and SAY so — never a made-up size.
+            int highestUsed = circuitBySlot.Count > 0 ? circuitBySlot.Keys.Max() : 0;
+            int slotCount;
+            string slotNote;
+            if (reportedSlots.HasValue)
+            {
+                slotCount = reportedSlots.Value;
+                slotNote = "";
+                if (highestUsed > slotCount)
+                {
+                    slotNote = $"\nNote: circuits occupy slot {highestUsed}, beyond the {slotCount} the family reports — drawn to {highestUsed}.";
+                    slotCount = highestUsed;
+                }
+            }
+            else if (highestUsed > 0)
+            {
+                slotCount = highestUsed + (highestUsed % 2);   // whole rows of the two-column drawing
+                slotNote = "\nThe panel family reports no slot count (Max Number of Single Pole Breakers / "
+                         + $"Max Number of Circuits); drawn to the highest occupied slot ({slotCount}). "
+                         + "Spare slots beyond that are not shown.";
+            }
+            else
+            {
+                TaskDialog.Show("STING Panel Door Diagram",
+                    $"'{panelName}' reports no slot count (Max Number of Single Pole Breakers / Max Number of "
+                    + "Circuits) and has no circuits, so there is nothing to lay out. Set the slot count on the "
+                    + "panel type and run again.");
+                return Result.Cancelled;
+            }
+            if (!stepKnown)
+                slotNote += "\nNo panel schedule found for this panel, so multi-pole breakers named by start slot "
+                          + "were assumed to take every other slot (two-column board numbered across).";
 
             using (var tx = new Transaction(doc, "STING Panel Door Diagram"))
             {
@@ -174,7 +218,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     $"Panel door diagram generated.\n\n" +
                     $"View:     {view.Name}\n" +
                     $"Slots:    {slotCount}\n" +
-                    $"Circuits: {circuits.Count}");
+                    $"Circuits: {circuits.Count}" + slotNote);
             }
 
             return Result.Succeeded;
@@ -275,6 +319,21 @@ namespace StingTools.Commands.Electrical.Schematics
         }
 
         // ---------------------------------------------------------------- helpers
+
+        private static List<int> ParseCircuitSlots(string circuitNumber)
+            => StingTools.Core.Electrical.CircuitSlotParser.Parse(circuitNumber);
+
+        private static int SafeStartSlot(ElectricalSystem es)
+        {
+            try { return es.StartSlot; }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram StartSlot {es?.Id}: {ex.Message}"); return 0; }
+        }
+
+        private static int SafePolesOf(ElectricalSystem es)
+        {
+            try { return es.PolesNumber; }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram poles {es?.Id}: {ex.Message}"); return 1; }
+        }
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {
