@@ -198,7 +198,9 @@ namespace StingTools.Commands.Electrical
         private static WireReconcileItem Reconcile(Document doc, Element conduit)
         {
             string annotPanel  = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
-            string annotCircuit = ParameterHelpers.GetString(conduit, "ELC_CKT_NR");
+            // GetDisplayText: ELC_CKT_NR is TEXT now, but a project bound before
+            // 2026-09-24 still holds it as a NUMBER, where GetString reads "".
+            string annotCircuit = ParameterHelpers.GetDisplayText(conduit, "ELC_CKT_NR");
 
             // Walk connector graph to find an ElectricalSystem
             var sys = FindConnectedElectricalSystem(doc, conduit);

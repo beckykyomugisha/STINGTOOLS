@@ -96,10 +96,13 @@ namespace StingTools.Commands.Panels
                     driftRows.Add($"{panelName}: '{currentTemplate}' → suggest '{suggestedTemplate}'");
                 }
 
+                // ELC_PNL_VOLTAGE and ELC_WAYS resolve to NUMBER parameters, and
+                // GetString returns "" for anything that is not text — so every panel
+                // was reported as missing them, filled in or not.
                 bool anyPnlParamEmpty =
-                    string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_NAME))
-                    || string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_VOLTAGE))
-                    || string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_WAYS));
+                    !HasParamValue(p, ParamRegistry.ELC_PNL_NAME)
+                    || !HasParamValue(p, ParamRegistry.ELC_PNL_VOLTAGE)
+                    || !HasParamValue(p, ParamRegistry.ELC_WAYS);
                 if (anyPnlParamEmpty)
                 {
                     missingPnlParams++;
@@ -160,6 +163,15 @@ namespace StingTools.Commands.Panels
 
             result.Show();
             return Result.Succeeded;
+        }
+
+        /// <summary>True when the parameter exists and holds a value, whatever its
+        /// storage type. Text counts only when non-empty.</summary>
+        private static bool HasParamValue(Element el, string name)
+        {
+            var prm = el?.LookupParameter(name);
+            if (prm == null || !prm.HasValue) return false;
+            return prm.StorageType != StorageType.String || !string.IsNullOrEmpty(prm.AsString());
         }
     }
 }

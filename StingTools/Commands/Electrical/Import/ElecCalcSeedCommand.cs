@@ -99,7 +99,9 @@ namespace StingTools.Commands.Electrical.Import
                     Name         = fi.Name,
                     PanelName    = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? fi.Name,
                     MainRating   = fi.get_Parameter(BuiltInParameter.RBS_ELEC_MAINS)?.AsValueString() ?? "",
-                    BusbarRating = fi.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString() ?? "",
+                    // ELC_BUSBAR_RATING_A holds the amps as text ("400"); the old
+                    // ELC_BUSBAR_RATING_TXT name was never a defined parameter.
+                    BusbarRating = BusbarRatingText(fi),
                     VoltageV     = StingTools.Core.Electrical.ElecUnits.Volts(fi),
                     PhaseConfig  = fi.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES)?.AsInteger().ToString() ?? "",
                     Level        = fi.LevelId != ElementId.InvalidElementId
@@ -157,6 +159,15 @@ namespace StingTools.Commands.Electrical.Import
         {
             var obj = new { panels, circuits };
             File.WriteAllText(path, JsonConvert.SerializeObject(obj, Formatting.Indented));
+        }
+
+        /// <summary>Busbar rating as display text ("400A"), or "" when unset.
+        /// Reads ELC_BUSBAR_RATING_A, which is a TEXT parameter holding amps.</summary>
+        internal static string BusbarRatingText(Element panel)
+        {
+            string a = ParameterHelpers.GetDisplayText(panel, "ELC_BUSBAR_RATING_A").Trim();
+            if (a.Length == 0) return "";
+            return a.EndsWith("A", StringComparison.OrdinalIgnoreCase) ? a : a + "A";
         }
 
         private static string Q(string s) => $"\"{s?.Replace("\"", "\"\"")}\"";

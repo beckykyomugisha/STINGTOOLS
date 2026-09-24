@@ -231,7 +231,7 @@ PARAM	d08c2c5d-577f-5861-b615-b1b427d573a7	ELC_CBL_SZ_MM	TEXT		4	1	Elc Cbl Sz Mm
 PARAM	b796eeed-e108-53b5-9bf7-deb0842cdea3	CBL_TYPE_TXT	TEXT		4	1	Elc Cbl Type Txt [ISO 19650-1:2018]	1
 PARAM	35d7f2c9-39b3-5cf3-867b-020dd1edb24d	ELC_CKT_CUR_A	NUMBER		4	1	Elc Ckt Cur A [ISO 19650-1:2018]	0
 PARAM	63f7f8ff-710d-55f5-bc17-d4e328162c81	ELC_CKT_CUR_TXT	TEXT		4	1	ELC_CKT_CUR_A display mirror [auto-generated]	1
-PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	NUMBER		4	1	Elc Ckt Nr [ISO 19650-1:2018]	1
+PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	TEXT		4	Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]	Elc Ckt Nr [ISO 19650-1:2018]	1
 PARAM	421483f2-ce3b-58eb-ba9b-3607c0c4f477	ELC_CKT_TXT	TEXT		4	1	ELC_CKT_NR display mirror [auto-generated]	1
 PARAM	5f76851e-27eb-43b4-b026-d3cd7c408814	ELC_CONN_TYPE_TXT	TEXT		4	1	Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018]	1
 PARAM	e07efc49-554a-48c1-ba03-ffd28b8abca6	ELC_CTR_SZ_TXT	TEXT		4	1	Cable tray size designation [ISO 19650-1:2018]	1
@@ -3111,6 +3111,15 @@ PARAM	fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23	ELC_CDT_CABLE_COUNT_NR	TEXT		4	1	Numb
 PARAM	b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34	ELC_CIRCUIT_GROUP_TXT	TEXT		4	1	Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.	1
 PARAM	c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45	ELC_PNL_CIRCUIT_GROUP_TXT	TEXT		4	1	Group key carried by a panel after the first BatchAssignCircuits run -- pins the panel to a single logical group so subsequent runs converge.	1
 PARAM	8a86218a-bf3b-5d85-b989-35bd860c2888	ELC_CKT_CHECK_TXT	TEXT		4	1	Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable.	1
+PARAM	a4c24cde-c13c-542e-9466-5a5c46beb012	ELC_CONDUIT_HOME_RUN_BOOL	YESNO		4	1	Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.	1
+PARAM	c23051bf-7a76-5efd-af42-ff63591b8876	ELC_CONDUIT_HOME_RUN_END_TXT	TEXT		4	1	Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.	1
+PARAM	b6736d72-348c-5d2c-ba37-cb24318e8bb9	ELC_EARTHING_SYSTEM_TXT	TEXT		4	1	Project earthing arrangement per BS 7671 Part 3 (TN-S / TN-C-S / TT / IT); read by the earthing diagram generator.	1
+PARAM	a5779e7d-b5f0-5834-8b67-44e2dc3fa772	ELC_MET_LOCATION_TXT	TEXT		4	1	Location of the main earthing terminal (MET), shown on the earthing diagram.	1
+PARAM	8ee0c7be-eac8-5988-b414-5f80590fecbf	ELC_CABLE_CSA_MM2_TXT	TEXT		4	1	Circuit cable conductor CSA in mm2 as imported from Amtech / Trimble; read by SLD cable annotation and the calc-seed export.	1
+PARAM	05d4605b-fdc0-5f96-b092-cd07ea5c6662	ELC_CIRCUIT_PHASE_TXT	TEXT		4	1	Phase letter(s) of this circuit (L1 / L2 / L3 or A / B / C); drives the circuit-by-phase view filter.	1
+PARAM	5fdceb0b-7953-544f-beb5-7d8f12f31334	ELC_CIRCUIT_DESC_TXT	TEXT		4	1	Circuit description shown on the panel door diagram and exported by the calc-seed export.	1
+PARAM	22ee1ae1-d559-5f7c-924f-b4eaefe77077	ELC_CBL_TOTAL_AREA_MM2	NUMBER		4	1	Sum of the overall cross-sectional areas (mm2) of every cable in this conduit or tray; input to live fill % and conduit auto-size.	1
+PARAM	139d87fd-60d1-57e8-959e-d7e4e966339c	STING_BUS_VOLTAGE_TIER	TEXT		27	1	Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.	1
 PARAM	d4e5f607-2f80-af2f-e1a0-d020909fc056	STING_WALL_ROUTING_FLAG	TEXT		34	1	When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB.	1
 PARAM	e5f60718-3091-b03f-f2b1-e131a1a01067	STING_SLAB_ROUTING_FLAG	TEXT		34	1	Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.	1
 PARAM	f6071829-41a2-c150-038c-f242b2b12178	STING_PENETRATION_REF_TXT	TEXT		34	1	Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.	1

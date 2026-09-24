@@ -99,13 +99,11 @@ namespace StingTools.Commands.Electrical.Reports
             // the canonical MR_PARAMETERS ELC_CBL_NUM_OF_CORES_NR string
             // parameter (1-phase ~3 cores, 3-phase ~5 cores when populated;
             // defaults to 3 if blank).
+            // ELC_CBL_NUM_OF_CORES_NR is a NUMBER parameter; AsString() on it is
+            // null, so the populated value was never read and every row used 3.
             int cores = 3;
-            try
-            {
-                string c = sys.LookupParameter("ELC_CBL_NUM_OF_CORES_NR")?.AsString();
-                if (int.TryParse(c, out int parsed) && parsed > 0) cores = parsed;
-            }
-            catch { }
+            int parsed = (int)Math.Round(ParameterHelpers.GetDouble(sys, "ELC_CBL_NUM_OF_CORES_NR", 0));
+            if (parsed > 0) cores = parsed;
 
             // Weight estimate: copper PVC ≈ 9 kg/100m at 2.5 mm², linear in CSA
             // (BS 6004 informative). Aluminium ≈ 0.32× by mass.

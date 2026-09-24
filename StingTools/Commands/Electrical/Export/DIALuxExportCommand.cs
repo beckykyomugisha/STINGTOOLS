@@ -226,12 +226,13 @@ namespace StingTools.Commands.Electrical.Export
             var symbol = doc.GetElement(fix.GetTypeId());
 
             double watts = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_WATTS));
-            if (watts <= 0) watts = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_WATTAGE));
+            // LTG_WATTAGE / LTG_LUMENS resolve to NUMBER parameters; GetString read "".
+            if (watts <= 0) watts = ParameterHelpers.GetDouble(fix, ParamRegistry.LTG_WATTAGE);
             if (watts <= 0)
                 try { watts = StingTools.Core.Electrical.ElecUnits.Read(fix, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
             double lumens = ParseDouble(ParameterHelpers.GetString(symbol ?? fix, ParamRegistry.ELC_PHOTO_LUMENS));
-            if (lumens <= 0) lumens = ParseDouble(ParameterHelpers.GetString(fix, ParamRegistry.LTG_LUMENS));
+            if (lumens <= 0) lumens = ParameterHelpers.GetDouble(fix, ParamRegistry.LTG_LUMENS);
             // No lumen data → no LuminousFlux / Efficacy. Never estimate it here: the
             // receiving tool would treat an invented flux as manufacturer data.
 

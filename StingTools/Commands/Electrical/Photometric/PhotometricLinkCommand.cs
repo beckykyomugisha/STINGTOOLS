@@ -226,7 +226,8 @@ namespace StingTools.Commands.Electrical.Photometric
                     }
                     if (!inRoom) continue;
 
-                    double lumens = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_LUMENS));
+                    // LTG_LUMENS resolves to a NUMBER parameter; GetString read "".
+                    double lumens = ParameterHelpers.GetDouble(fi, ParamRegistry.LTG_LUMENS);
                     if (lumens < 1) lumens = LuminaireDataReader.Lumens(fi, out _);
                     if (lumens < 1)
                     {
