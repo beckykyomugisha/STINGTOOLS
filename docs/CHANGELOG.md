@@ -22426,3 +22426,36 @@ Test run on this branch (2026-09-24): Tags 1953/1953, Boq 1355, Sustainability 4
 Acc 132, Visibility 102, Placement 69, Scheduling 38, Templates 37, Rooms 24, Licensing 14 —
 all passing. Clash 81/82, Routing 44/45, SitePhotos 35/37 (1 skipped) — the same single
 failure in each reproduces on untouched `origin/main`, so none is introduced here.
+
+#### Completed (Electrical deep review — fix round and cross-check, same branch)
+
+Seven parallel fix branches (each from the reviewed tip, each built and tested alone), merged,
+then cross-checked by three independent reviewers over the combined diff; every confirmed
+finding fixed in two further branches. ROADMAP "Electrical calculations — deep review" now
+carries per-item status (ELEC-1…20).
+
+- **Calculations.** IEC 60909-0 style LV fault current (c 1.10/0.95, source R/X, cable R at
+  20 °C, labelled assumptions); BS 7671 Appendix 4 cable sizing (Table 4D2A method C only —
+  other tables refused, rows ≥ 25 mm² flagged VERIFY) with Ib ≤ In ≤ Iz, BS 3036 fuses and
+  a `Basis`; one Appendix 4 mV/A/m table for every voltage-drop path; BS EN 60228 resistance;
+  PFC from tan(acos); Cmin in JSON + project Ze override; arc flash on **IEEE 1584-2002
+  (indicative, three-phase only)**; IEC 60898 band coordination; BS 7671 adiabatic check on
+  the device band (no band → UNVERIFIED) and every audit default recorded.
+- **Revit plumbing.** One conduit→circuit resolver; SLD annotations on Extensible Storage,
+  fed from real parameters; Renumber via `PanelScheduleView.MoveSlotTo`; one panel slot-count
+  rule and step; conduit auto-route cable identity, diameter and honest method text;
+  consolidator never leaves a group without conduit; lighting fallbacks flagged; IES/LDT
+  parsers; data-driven emergency keywords; HVAC/BOQ flow units; honest export labels.
+- **Tests fixed at root cause.** #596 (a resurrected duplicate Clash command file, also
+  polluting the MCP catalogue) and #597 (route engine dropped short legs, so straight runs
+  ended short of the goal) — both removed from the CI exclusion list; SitePhotos race on a
+  background realtime request.
+- **Merge seam caught by building after merging:** two `CircuitCandidate` types in one
+  namespace (each branch built alone).
+
+Test run on the final tip (2026-09-24): **all 15 projects, 0 failures** — Tags 2216,
+Boq 1355, Sustainability 438, Cost 144, Acc 132, Visibility 102, Clash 82, Routing 77,
+Placement 69, Scheduling 38, SitePhotos 37 (+1 skipped by design), Templates 37, Rooms 24,
+Licensing 14. Build 0/0 Debug and Release; wiring and path-discipline gates pass.
+**No Revit runtime path was exercised** — ELEC-13 (run the smoke-test checklist) is now the
+largest open risk.
