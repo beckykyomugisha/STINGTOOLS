@@ -56,9 +56,34 @@ namespace StingTools.Tags.Tests
         [InlineData(1, 3, new[] { 1, 3, 5 })]
         [InlineData(2, 2, new[] { 2, 4 })]
         [InlineData(0, 3, new int[0])]
-        public void Start_slot_steps_by_two_per_pole(int start, int poles, int[] expected)
+        public void Two_column_across_steps_by_two_per_pole(int start, int poles, int[] expected)
         {
-            Assert.Equal(expected, CircuitSlotParser.FromStartSlot(start, poles));
+            Assert.Equal(expected, CircuitSlotParser.FromStartSlot(start, poles, 2));
+        }
+
+        // ELEC-16 — a switchboard / single-column schedule is consecutive. The old
+        // hard-coded step of 2 put a 3-pole breaker at 7 into 7, 9, 11.
+        [Theory]
+        [InlineData(7, 3, new[] { 7, 8, 9 })]
+        [InlineData(1, 1, new[] { 1 })]
+        [InlineData(4, 2, new[] { 4, 5 })]
+        public void Single_column_steps_by_one(int start, int poles, int[] expected)
+        {
+            Assert.Equal(expected, CircuitSlotParser.FromStartSlot(start, poles, 1));
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-3)]
+        public void Nonpositive_step_is_treated_as_one(int step)
+        {
+            Assert.Equal(new[] { 3, 4 }, CircuitSlotParser.FromStartSlot(3, 2, step));
+        }
+
+        [Fact]
+        public void Zero_poles_is_one_slot()
+        {
+            Assert.Equal(new[] { 5 }, CircuitSlotParser.FromStartSlot(5, 0, 2));
         }
     }
 }

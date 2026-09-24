@@ -77,6 +77,12 @@
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
+    <!-- ELEC-15/16: one slot-count rule (never an invented 42/24), the multi-pole
+         slot step from the schedule's numbering, and panel compaction. -->
+    <Compile Include="..\StingTools\Core\Electrical\PanelSlotRules.cs" Link="Core\Electrical\PanelSlotRules.cs" />
+    <!-- ELEC-9: which circuit a conduit run carries, decided from its endpoints.
+         The Revit graph walk (ConduitCircuitResolver.cs) is not linked. -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitEndpointChooser.cs" Link="Core\Electrical\CircuitEndpointChooser.cs" />
     <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
     <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
