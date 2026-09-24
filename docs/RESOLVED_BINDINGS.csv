@@ -407,14 +407,17 @@ BLE_DOOR_HARDWARE_SPECIFICATION_TXT,2,ble-sub,Doors,Ble Door Hardware Specificat
 BLE_DOOR_HEAD_HEIGHT_MM,2,ble-sub,Doors,Door head height from floor in mm
 BLE_DOOR_HEIGHT_MM,2,ble-sub,Doors,Ble Door Height Mm [ISO 19650-1:2018]
 BLE_DOOR_HEIGHT_TXT,2,ble-sub,Doors,BLE_DOOR_HEIGHT_MM display mirror [auto-generated]
+BLE_DOOR_LEADING_EDGE_CLEAR_MM,10,ble-sub,Doors,"Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]"
 BLE_DOOR_MATERIAL_FINISH_TXT,2,ble-sub,Doors,Door material and finish specification [ISO 19650-1:2018]
 BLE_DOOR_MAT_TXT,2,ble-sub,Doors,Ble Door Mat Txt [ISO 19650-1:2018]
+BLE_DOOR_OPENING_FORCE_N,10,ble-sub,Doors,"Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]"
 BLE_DOOR_OPERATION_TYPE_SWING_SLIDE_FOLD_ROLL_TXT,2,ble-sub,Doors,Ble Door Operation Type Swing Slide Fold Roll Txt [ISO 19650-1:2018]
 BLE_DOOR_OPERATION_TYPE_TXT,10,ble-sub,Doors,Ble Door Operation Type [ISO 19650-1:2018]
 BLE_DOOR_PANIC_HARDWARE_REQUIRED_BOOL,2,ble-sub,Doors,Ble Door Panic Hardware Required Bool [ISO 19650-1:2018]
 BLE_DOOR_SECURITY_RATING_GRADE_TXT,2,ble-sub,Doors,Ble Door Security Rating Grade Txt [ISO 19650-1:2018]
 BLE_DOOR_THRESHOLD_TXT,2,ble-sub,Doors,Door threshold type and specification [ISO 19650-1:2018]
 BLE_DOOR_TYPE_TXT,2,ble-sub,Doors,Door type classification (Solid/Glazed/Fire/Acoustic) [ISO 19650-1:2018]
+BLE_DOOR_VISION_PANEL_ZONE_BOOL,10,ble-sub,Doors,Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]
 BLE_DOOR_WIDTH_MM,2,ble-sub,Doors,Ble Door Width Mm [ISO 19650-1:2018]
 BLE_DOOR_WIDTH_TXT,2,ble-sub,Doors,BLE_DOOR_WIDTH_MM display mirror [auto-generated]
 BLE_ELES_SPARE_01_TXT,2,UNRESOLVED(polluted-curated),,Spare parameter 1 for BLE_ELES group
@@ -1330,7 +1333,8 @@ FIN_TAG_1_TXT,1,tag-container,<ALL>,Finish tag container
 FIN_WALL_TAG_TXT,10,curated-fallback,Curtain Panels|Generic Models|Walls,"Wall finish schedule tag: interior, exterior, paint coats, finish type [ISO 19650-1:2018]"
 FLS_ALARM_CIRCUIT_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Alarm Circuit Count Nr [ISO 19650-1:2018]
 FLS_ALARM_CIRCUIT_COUNT_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_ALARM_CIRCUIT_COUNT_NR display mirror [auto-generated]
-FLS_COMPARTMENT_ID_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]
+FLS_COMPARTMENT_FR_MINS_TXT,8,fls-compartment,Fire Alarm Devices|Rooms|Sprinklers,"Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]"
+FLS_COMPARTMENT_ID_TXT,8,fls-compartment,Fire Alarm Devices|Rooms|Sprinklers,Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]
 FLS_DETECTION_COST_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_DETECTION_COST_UGX display mirror [auto-generated]
 FLS_DETECTION_COST_UGX,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detection Cost Ugx [ISO 19650-1:2018]
 FLS_DETECTOR_COUNT_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Detector Count Nr [ISO 19650-1:2018]

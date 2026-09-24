@@ -141,6 +141,33 @@ Also found: the flow-arrow family name tripped `validate_param_readership.py` (a
 not in the workflows this branch was checked against), fixed with a named, justified
 exemption rather than a raised ceiling.
 
+**Data ready for four hand-built specialist tags.** The fire-strategy, floor-finishes and
+accessibility drawings tag doors and rooms with the generic Door / Room tag because the
+families they need cannot be authored through the API. Everything around them is now in place,
+and `docs/SPECIALIST_TAG_BUILD_SHEET.md` gives the person building them the exact rows,
+formulas, types and post-build steps.
+
+- **Parameters.** Four new, UUIDv5 GUIDs, registered in `MR_PARAMETERS.txt` / registry,
+  csv and binding spec regenerated (second run a no-op): `BLE_DOOR_OPENING_FORCE_N` (TEXT),
+  `BLE_DOOR_LEADING_EDGE_CLEAR_MM` (TEXT), `BLE_DOOR_VISION_PANEL_ZONE_BOOL` (YESNO) — Doors,
+  Approved Document M Vol 2 / BS 8300-2 — and `FLS_COMPARTMENT_FR_MINS_TXT` (TEXT).
+- **`FLS_COMPARTMENT_ID_TXT` now binds to Rooms — LIVE BUG.** The `FLS_` prefix bound it to
+  sprinklers and detectors only, so a compartment could not be typed into a room, while the
+  `fls-compartment-id` filter (OST_Rooms), the RDS completeness validator and the declared Fire
+  Compartment Tag all read it from Rooms and got nothing. A resolver rule
+  (`FLS_COMPARTMENT_*` → Rooms + the existing devices) fixes it at the source, and covers the
+  new fire-resistance period.
+- **Protected from Propagate Universal.** All four declared in the ARCH tag configs (both
+  twins), each in its OWN `LabelMaster` group — a shared group would let one of them, run as a
+  master, overwrite the other three. `UniversalOptOutTests` lists them; its "the nine share
+  their master's group" check is now scoped to the LPS set it was written for.
+- **Placement presets** for the Accessible Door, Room Finish and Fire Compartment tags
+  (Fire Door already had one).
+- Not done, deliberately: `STING_DRAWING_TYPES.json` still names the generic tags — pointing
+  it at families that are not yet in `TagFamilies/` would fail `DrawingTypeTagFamilyTests`.
+  T2 rows on these tags stay blank until `TAG_DEPTH_TIER_INT` is bound Type-scoped to the
+  tagged categories (`TierGateScope`), so every deliverable row is T1. Not run in Revit.
+
 #### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
 
 Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
