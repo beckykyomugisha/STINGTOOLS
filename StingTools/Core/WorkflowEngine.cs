@@ -1667,6 +1667,9 @@ namespace StingTools.Core
                 case "Panel_SyncParams": return new Commands.Electrical.ElecPanelParamSyncCommand();
                 case "Calc_FaultCurrent": return new Commands.Electrical.FaultCurrent.FaultCurrentCommand();
                 case "Elec_ArcFlash": return new Commands.Electrical.ArcFlash.ArcFlashCommand();
+                // Only the Electrical panel's handler knew this tag, so NLP ("busbar",
+                // "incomer rating") and workflow presets could not reach it.
+                case "Elec_BusbarModel": return new Commands.Electrical.Busbar.BusbarModelingCommand();
                 case "Elec_ArcFlashLabels": return new Commands.Electrical.ArcFlash.ArcFlashLabelSheetCommand();
                 case "Rprt_DemandFactors": return new Commands.Electrical.Reports.DemandFactorReportCommand();
                 case "Rprt_PDF": return new Commands.Electrical.Reports.ElecPdfReportCommand();
