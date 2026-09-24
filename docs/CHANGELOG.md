@@ -53,6 +53,26 @@ suitability colouring (needs a presentation choice), the drainage invert offset 
 drainage engineer), DRAW-1/DRAW-3 (Revit runs), and 97 non-drawing NLP intents that dispatch to
 nothing (split out as their own task).
 
+**Follow-up the same day — two advisories acted on.** Expert review of the gaps left open
+turned two of them into defects, both now fixed in code:
+
+- **Spot "slopes" were spot elevations.** The only API route re-types an elevation to a
+  slope type; the refusal was swallowed, the elevation counted as a slope, and every re-run
+  added another. Now BLOCKED when no slope type exists, types found by `StyleType`, and a
+  spot that does not demonstrably carry the slope type is deleted and never counted.
+- **Drainage invert levels.** Not an engineering judgement after all: the bore invert is
+  centreline minus the INTERNAL radius, and Revit exposes the internal diameter. One
+  calculation (`InvertMath` / `PipeInvert`) now serves the drawing annotation, the invert
+  engine and the manhole schedule. The annotation writes "IL x.xx" at both ends and "1:X"
+  between (a spot elevation cannot report a bore invert); upstream is the higher end;
+  the four invert/cover parameters the engine wrote to — defined nowhere, so "N written"
+  meant nothing — are registered; cover depth is unknown rather than invented. Datum and
+  precision are one owner setting (`IlReportingOptions`, survey point / 2 dp by default).
+
+Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
+not in the workflows this branch was checked against), fixed with a named, justified
+exemption rather than a raised ceiling.
+
 #### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
 
 Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
