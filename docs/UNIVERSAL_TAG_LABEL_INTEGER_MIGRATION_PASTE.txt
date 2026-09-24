@@ -1,0 +1,218 @@
+# Paste-list: 70 label formulas, ten tier BOOLs -> one depth INTEGER
+# Generated from UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md - do not hand-edit.
+#
+# Edit Label -> select the row -> fx -> replace Formula. Type stays Text.
+# Nothing else in the row changes: not the name, prefix, suffix, Spaces or Break.
+#
+# ROW | TIER | NAME
+#   FORMULA
+
+2   | T2  | Show Tier 2 - 2
+    if(TAG_DEPTH_TIER_INT > 1, ASS_TAG_2_TXT, "")
+
+3   | T2  | Show Tier 2 - 3
+    if(TAG_DEPTH_TIER_INT > 1, ASS_DESCRIPTION_TXT, "")
+
+4   | T2  | Show T2 - Status
+    if(TAG_DEPTH_TIER_INT > 1, ASS_STATUS_TXT, "")
+
+5   | T2  | Show Tier 2 - 7
+    if(TAG_DEPTH_TIER_INT > 1, RGL_STD_TXT, "")
+
+6   | T2  | Show T2-Ph179 - Asset Systems
+    if(TAG_DEPTH_TIER_INT > 1, ASS_SYSTEMS_TXT, "")
+
+7   | T2  | Show T2-Ph179 - Mec System
+    if(TAG_DEPTH_TIER_INT > 1, MEC_SYS_TXT, "")
+
+8   | T4  | Show T4 - Commissioning - State
+    if(TAG_DEPTH_TIER_INT > 3, COMM_STATE_TXT, "")
+
+9   | T4  | Show T4 - Commissioning - Date
+    if(TAG_DEPTH_TIER_INT > 3, COMM_DATE_TXT, "")
+
+10  | T4  | Show T4 - Commissioning - Operative
+    if(TAG_DEPTH_TIER_INT > 3, COMM_OPERATIVE_TXT, "")
+
+11  | T4  | Show T4 - Design intent - ASS_DESIGN_OPTION_TXT
+    if(TAG_DEPTH_TIER_INT > 3, ASS_DESIGN_OPTION_TXT, "")
+
+12  | T4  | Show T4 - Design intent - ASS_MODEL_REF_TXT
+    if(TAG_DEPTH_TIER_INT > 3, ASS_MODEL_REF_TXT, "")
+
+13  | T4  | Show T4 - Design intent - ASS_KEYNOTE_TXT
+    if(TAG_DEPTH_TIER_INT > 3, ASS_KEYNOTE_TXT, "")
+
+14  | T5  | Show T5 - Cost - UG Price
+    if(TAG_DEPTH_TIER_INT > 4, CST_UG_PRICE_UGX_DISP_TXT, "")
+
+15  | T5  | Show T5 - Cost - Intl Price
+    if(TAG_DEPTH_TIER_INT > 4, CST_INTL_PRICE_USD_DISP_TXT, "")
+
+16  | T5  | Show T5 - Cost - Quote Ref
+    if(TAG_DEPTH_TIER_INT > 4, CST_QUOTE_REF_TXT, "")
+
+17  | T5  | Show T5 - Cost - Unit Rate (neutral)
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_UNIT_RATE_NR_DISP_TXT, "")
+
+18  | T5  | Show T5 - Cost - Currency Code
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_CURRENCY_TXT, "")
+
+19  | T5  | Show T5 - Cost - FX to Base
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")
+
+20  | T5  | Show T5 - Cost - FX Date
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_FX_DATE_DT, "")
+
+21  | T5  | Show T5 - Cost - As-of Date
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_AS_OF_DT, "")
+
+22  | T5  | Show T5 - Cost - Stale Flag
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_STALE_TXT, "")
+
+23  | T5  | Show T5 - Cost - Stale Reason
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CST_STALE_REASON_TXT, "")
+
+24  | T5  | Show T5 - Payment - % Complete
+    if(TAG_DEPTH_TIER_INT > 4, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")
+
+25  | T5  | Show T5 - Payment - Cert No
+    if(TAG_DEPTH_TIER_INT > 4, ASS_PMT_CERT_NO_NR_DISP_TXT, "")
+
+26  | T5  | Show T5 - Payment - Cert Date
+    if(TAG_DEPTH_TIER_INT > 4, ASS_PMT_CERT_DATE_DT, "")
+
+27  | T5  | Show T5 - Payment - Last Valued
+    if(TAG_DEPTH_TIER_INT > 4, ASS_PMT_LAST_VALUED_DT, "")
+
+28  | T5  | Show T5 - Variation - Number
+    if(TAG_DEPTH_TIER_INT > 4, ASS_VAR_NO_TXT, "")
+
+29  | T5  | Show T5 - Variation - Instr Date
+    if(TAG_DEPTH_TIER_INT > 4, ASS_VAR_INSTRUCTION_DT, "")
+
+30  | T5  | Show T5 - Variation - Valuation
+    if(TAG_DEPTH_TIER_INT > 4, ASS_VAR_VALUATION_NR_DISP_TXT, "")
+
+31  | T5  | Show T5 - Performance & capacity - ASS_CAPACITY_TXT
+    if(TAG_DEPTH_TIER_INT > 4, ASS_CAPACITY_TXT, "")
+
+32  | T5  | Show T5 - Performance & capacity - ASS_POWER_RATING_TXT
+    if(TAG_DEPTH_TIER_INT > 4, ASS_POWER_RATING_TXT, "")
+
+33  | T5  | Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT
+    if(TAG_DEPTH_TIER_INT > 4, ASS_FLOW_RATE_TXT, "")
+
+34  | T5  | Show T5-Ph179 - Item Code
+    if(TAG_DEPTH_TIER_INT > 4, ASS_ITEM_CODE_TXT, "")
+
+35  | T6  | Show T6 - Carbon - Product A1-A3
+    if(TAG_DEPTH_TIER_INT > 5, CBN_A1_A3_KG_CO2E_DISP_TXT, "")
+
+36  | T6  | Show T6 - Carbon - Transport A4
+    if(TAG_DEPTH_TIER_INT > 5, CBN_A4_KG_CO2E_DISP_TXT, "")
+
+37  | T6  | Show T6 - Carbon - Operational B6
+    if(TAG_DEPTH_TIER_INT > 5, CBN_B6_KG_CO2E_YR_DISP_TXT, "")
+
+38  | T6  | Show T6 - Material & finish - ASS_MANUFACTURER_TXT
+    if(TAG_DEPTH_TIER_INT > 5, ASS_MANUFACTURER_TXT, "")
+
+39  | T6  | Show T6 - Material & finish - ASS_MODEL_NR_TXT
+    if(TAG_DEPTH_TIER_INT > 5, ASS_MODEL_NR_TXT, "")
+
+40  | T6  | Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS
+    if(TAG_DEPTH_TIER_INT > 5, ASS_EXPECTED_LIFE_YEARS_YRS, "")
+
+41  | T7  | Show T7 - Fabrication - Spool No
+    if(TAG_DEPTH_TIER_INT > 6, ASS_SPOOL_NR_TXT, "")
+
+42  | T7  | Show T7 - Fabrication - Status
+    if(TAG_DEPTH_TIER_INT > 6, ASS_FAB_STATUS_TXT, "")
+
+43  | T7  | Show T7 - QC - Inspector
+    if(TAG_DEPTH_TIER_INT > 6, ASS_QC_INSPECTOR_TXT, "")
+
+44  | T7  | Show T7 - Installation - ASS_INSTALL_DATE_TXT
+    if(TAG_DEPTH_TIER_INT > 6, ASS_INSTALL_DATE_TXT, "")
+
+45  | T7  | Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT
+    if(TAG_DEPTH_TIER_INT > 6, CST_INSTALL_HRS_DISP_TXT, "")
+
+46  | T7  | Show T7 - Installation - ASS_CST_INSTALL_UGX_NR
+    if(TAG_DEPTH_TIER_INT > 6, ASS_CST_INSTALL_UGX_NR, "")
+
+47  | T8  | Show T8 - Clash - Triage Severity
+    if(TAG_DEPTH_TIER_INT > 7, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")
+
+48  | T8  | Show T8 - Clash - Triage Category
+    if(TAG_DEPTH_TIER_INT > 7, CLASH_TRIAGE_CATEGORY_TXT, "")
+
+49  | T8  | Show T8 - Clash - Resolution Status
+    if(TAG_DEPTH_TIER_INT > 7, CLASH_RESOLUTION_STATUS_TXT, "")
+
+50  | T8  | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR
+    if(TAG_DEPTH_TIER_INT > 7, ASS_CRITICALITY_RATING_TXT, "")
+
+51  | T8  | Show T8 - Coordination - ASS_ZONE_TXT
+    if(TAG_DEPTH_TIER_INT > 7, ASS_ZONE_TXT, "")
+
+52  | T8  | Show T8 - Coordination - ASS_LVL_COD_TXT
+    if(TAG_DEPTH_TIER_INT > 7, ASS_LVL_COD_TXT, "")
+
+53  | T9  | Show T9 - As-built - Deviation
+    if(TAG_DEPTH_TIER_INT > 8, ASBUILT_DEVIATION_MM_DISP_TXT, "")
+
+54  | T9  | Show T9 - As-built - Capture Date
+    if(TAG_DEPTH_TIER_INT > 8, ASBUILT_CAPTURE_DATE_TXT, "")
+
+55  | T9  | Show T9 - Health Score
+    if(TAG_DEPTH_TIER_INT > 8, HEALTH_SCORE_LAST_NR_DISP_TXT, "")
+
+56  | T9  | Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT
+    if(TAG_DEPTH_TIER_INT > 8, ASS_WARRANTY_PARTS_TXT, "")
+
+57  | T9  | Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT
+    if(TAG_DEPTH_TIER_INT > 8, ASS_WARRANTY_LABOR_TXT, "")
+
+58  | T9  | Show T9 - Warranty & quality - ASS_WARRANTY_TXT
+    if(TAG_DEPTH_TIER_INT > 8, ASS_WARRANTY_TXT, "")
+
+59  | T10 | Show T10 - Compliance - IFC PSet Override
+    if(TAG_DEPTH_TIER_INT > 9, IFC_PSET_OVERRIDE_TXT, "")
+
+60  | T10 | Show T10 - Compliance - ACC Issue
+    if(TAG_DEPTH_TIER_INT > 9, ACC_ISSUE_ID_TXT, "")
+
+61  | T10 | Show T10 - Compliance - ACC Sync Status
+    if(TAG_DEPTH_TIER_INT > 9, ACC_SYNC_STATUS_TXT, "")
+
+62  | T10 | Show T10 - Classification - ASS_UNICLASS_2015_TXT
+    if(TAG_DEPTH_TIER_INT > 9, ASS_UNICLASS_2015_TXT, "")
+
+63  | T10 | Show T10 - Classification - ASS_KEYNOTE_TXT
+    if(TAG_DEPTH_TIER_INT > 9, ASS_KEYNOTE_TXT, "")
+
+64  | T10 | Show T10 - Classification - ASS_MODEL_REF_TXT
+    if(TAG_DEPTH_TIER_INT > 9, ASS_MODEL_REF_TXT, "")
+
+65  | T10 | Show T10-Ph179 - Trace Seq
+    if(TAG_DEPTH_TIER_INT > 9, ASS_TRACE_SEQ_NR_DISP_TXT, "")
+
+66  | T2  | Show T2 - TAG7A Identity
+    if(TAG_DEPTH_TIER_INT > 1, ASS_TAG_7A_TXT, "")
+
+67  | T2  | Show T2 - TAG7B System
+    if(TAG_DEPTH_TIER_INT > 1, ASS_TAG_7B_TXT, "")
+
+68  | T2  | Show T2 - TAG7C Spatial
+    if(TAG_DEPTH_TIER_INT > 1, ASS_TAG_7C_TXT, "")
+
+69  | T4  | Show T4 - TAG7D Commissioning
+    if(TAG_DEPTH_TIER_INT > 3, ASS_TAG_7D_TXT, "")
+
+70  | T5  | Show T5 - TAG7E Cost
+    if(TAG_DEPTH_TIER_INT > 4, ASS_TAG_7E_TXT, "")
+
+71  | T6  | Show T6 - TAG7F Carbon
+    if(TAG_DEPTH_TIER_INT > 5, ASS_TAG_7F_TXT, "")
