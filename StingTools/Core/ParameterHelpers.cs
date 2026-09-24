@@ -459,7 +459,7 @@ namespace StingTools.Core
                 return false;
             }
             if (p.StorageType != StorageType.String)
-                return false;
+                return SetNumericFromString(el, p, paramName, value, overwrite);
 
             string existing = p.AsString() ?? string.Empty;
             if (existing.Length > 0 && !overwrite)
@@ -483,6 +483,74 @@ namespace StingTools.Core
                 StingLog.Warn($"SetString '{paramName}' on {el.Id} failed: {ex.Message}");
                 return false;
             }
+        }
+
+        private static int _numericFromStringRefusals;
+
+        /// <summary>
+        /// SetString on a NON-text parameter. Many callers format a number and
+        /// hand it to SetString; when the shared parameter is declared NUMBER,
+        /// INTEGER or YESNO that used to return false with nothing written, and
+        /// callers that ignored the result reported success. Unitless numbers,
+        /// integers and yes/no values are unambiguous, so write them. A measured
+        /// quantity (length, voltage, …) is refused: a bare number does not say
+        /// which unit it is in, and guessing would write a wrong value.
+        /// </summary>
+        private static bool SetNumericFromString(Element el, Parameter p, string paramName,
+            string value, bool overwrite)
+        {
+            string s = (value ?? string.Empty).Trim().TrimEnd('%').Trim();
+            if (s.Length == 0) return false;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            try
+            {
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int iv;
+                    bool isYesNo = false;
+                    try { isYesNo = p.Definition.GetDataType() == SpecTypeId.Boolean.YesNo; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (isYesNo)
+                    {
+                        string b = s.ToLowerInvariant();
+                        if (b == "true" || b == "yes" || b == "y" || b == "1" || b == "pass" || b == "ok") iv = 1;
+                        else if (b == "false" || b == "no" || b == "n" || b == "0" || b == "fail") iv = 0;
+                        else return RefuseNumeric(el, paramName, value, "not a yes/no value");
+                    }
+                    else if (!int.TryParse(s, System.Globalization.NumberStyles.Integer, inv, out iv))
+                        return RefuseNumeric(el, paramName, value, "not an integer");
+                    if (!overwrite && p.HasValue && p.AsInteger() != 0) return false;
+                    if (p.AsInteger() == iv && p.HasValue) return true;
+                    p.Set(iv);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Double)
+                {
+                    bool unitless = false;
+                    try { unitless = p.Definition.GetDataType() == SpecTypeId.Number; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (!unitless) return RefuseNumeric(el, paramName, value, "measured quantity — use SetDouble with a unit");
+                    if (!double.TryParse(s, System.Globalization.NumberStyles.Float, inv, out double dv))
+                        return RefuseNumeric(el, paramName, value, "not a number");
+                    if (!overwrite && p.HasValue && Math.Abs(p.AsDouble()) > 1e-12) return false;
+                    p.Set(dv);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el.Id} (numeric) failed: {ex.Message}");
+                return false;
+            }
+            return false;
+        }
+
+        private static bool RefuseNumeric(Element el, string paramName, string value, string why)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _numericFromStringRefusals);
+            if (n <= 10 || n % 500 == 0)
+                StingLog.Warn($"SetString '{paramName}' on {el.Id}: '{value}' not written — {why} (#{n})");
+            return false;
         }
 
         /// <summary>
@@ -515,7 +583,7 @@ namespace StingTools.Core
                 if (p.IsReadOnly)
                     return "read-only on this element";
                 if (p.StorageType != StorageType.String)
-                    return $"storage type is {p.StorageType}, not String";
+                    return $"storage type is {p.StorageType}: the value was not a plain number/yes-no, the parameter is a measured quantity, or it already holds a value";
 
                 string existing = p.AsString() ?? string.Empty;
                 if (existing.Length > 0 && !overwrite)
