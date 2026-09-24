@@ -29,10 +29,48 @@ namespace StingTools.Core.Electrical
         public string Reason = "";
     }
 
+    /// <summary>
+    /// Per-batch memo of what the resolver reads from circuits and endpoint
+    /// devices. Without it every conduit re-read each endpoint's circuits and
+    /// every circuit's full member list (ElectricalSystem.Elements), so a batch
+    /// over the conduits of one board rebuilt the same sets once per conduit.
+    ///
+    /// <para>Open one with <see cref="ConduitCircuitResolver.BeginBatch"/> around
+    /// a loop that does NOT change circuits or connectivity (stamping parameters,
+    /// placing annotations). Disposing it ends the batch.</para>
+    /// </summary>
+    internal sealed class ConduitCircuitBatch : IDisposable
+    {
+        internal readonly Dictionary<long, EndpointCircuitCandidate> Circuits =
+            new Dictionary<long, EndpointCircuitCandidate>();
+        internal readonly Dictionary<long, CircuitEndpoint> Endpoints =
+            new Dictionary<long, CircuitEndpoint>();
+        private readonly ConduitCircuitBatch _outer;
+
+        internal ConduitCircuitBatch(ConduitCircuitBatch outer) { _outer = outer; }
+
+        public void Dispose()
+        {
+            if (ReferenceEquals(ConduitCircuitResolver.CurrentBatch, this))
+                ConduitCircuitResolver.CurrentBatch = _outer;
+        }
+    }
+
     internal static class ConduitCircuitResolver
     {
-        private const int MaxHops = 40;        // conduit + fitting hops along one run
+        /// <summary>Conduit + fitting hops walked along one run. Other walks that
+        /// claim to match the resolver (the home-run check) use this constant.</summary>
+        public const int MaxHops = 40;
         private const int MaxEndpoints = 64;   // a run touching more than this is a network, not a circuit
+
+        /// <summary>The open batch, if any. The Revit API is single-threaded, so an
+        /// ambient scope is safe; it lets deep call paths (ReadWireData) share the
+        /// batch without threading a parameter through every signature.</summary>
+        internal static ConduitCircuitBatch CurrentBatch;
+
+        /// <summary>Start a per-batch cache (see <see cref="ConduitCircuitBatch"/>).</summary>
+        public static ConduitCircuitBatch BeginBatch()
+            => CurrentBatch = new ConduitCircuitBatch(CurrentBatch);
 
         public static ElectricalSystem Resolve(Element conduit) => ResolveWithReason(conduit).Circuit;
 
@@ -51,7 +89,8 @@ namespace StingTools.Core.Electrical
             catch (Exception ex) { result.Reason = "connectors unreadable: " + ex.Message; return result; }
 
             var endpoints = new List<CircuitEndpoint>();
-            var circuitCache = new Dictionary<long, EndpointCircuitCandidate>();
+            var batch = CurrentBatch;
+            var circuitCache = batch?.Circuits ?? new Dictionary<long, EndpointCircuitCandidate>();
 
             for (int hop = 0; hop < MaxHops && frontier.Count > 0 && endpoints.Count < MaxEndpoints; hop++)
             {
@@ -76,7 +115,12 @@ namespace StingTools.Core.Electrical
 
                         if (!isRun && owner is FamilyInstance fi && fi.MEPModel != null)
                         {
-                            var ep = EndpointOf(fi, circuitCache);
+                            CircuitEndpoint ep;
+                            if (batch == null || !batch.Endpoints.TryGetValue(fi.Id.Value, out ep))
+                            {
+                                ep = EndpointOf(fi, circuitCache);
+                                if (batch != null) batch.Endpoints[fi.Id.Value] = ep;
+                            }
                             if (ep.IsPanel || ep.Circuits.Count > 0)
                             {
                                 endpoints.Add(ep);

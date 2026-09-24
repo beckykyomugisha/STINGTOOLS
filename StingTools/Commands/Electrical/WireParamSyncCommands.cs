@@ -467,6 +467,9 @@ namespace StingTools.Commands.Electrical
             var progress = StingProgressDialog.Show("Batch Wire Stamp", conduits.Count);
             try
             {
+                // Stamping writes parameters only — circuits and connectivity are
+                // unchanged — so circuit/endpoint reads are shared across the batch.
+                using var batch = StingTools.Core.Electrical.ConduitCircuitResolver.BeginBatch();
                 using var tx = new Transaction(doc, "STING Batch Stamp Wire Params");
                 tx.Start();
                 foreach (var conduit in conduits)

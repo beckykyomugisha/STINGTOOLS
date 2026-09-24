@@ -1082,9 +1082,10 @@ namespace StingTools.Commands.Electrical
 
             var visited  = new HashSet<long>();
             var frontier = new List<Connector> { startConn };
-            // Match GetConnectedCircuit's depth (12) so a home-run that passes
-            // through more than a few fittings before the board is still detected.
-            for (int depth = 0; depth < 12 && frontier.Count > 0; depth++)
+            // Same hop budget as GetConnectedCircuit (the shared resolver) so a
+            // home-run that the label engine can resolve is also detected here.
+            for (int depth = 0; depth < StingTools.Core.Electrical.ConduitCircuitResolver.MaxHops
+                                && frontier.Count > 0; depth++)
             {
                 var next = new List<Connector>();
                 foreach (var fc in frontier)
@@ -1797,6 +1798,9 @@ namespace StingTools.Commands.Electrical
                 bool cancelled = false;
 
                 var prog = StingProgressDialog.Show("STING Wire Annotation", conduits.Count);
+                // Placing annotations never changes circuits, so circuit/endpoint
+                // reads are shared across the batch instead of rebuilt per conduit.
+                using (StingTools.Core.Electrical.ConduitCircuitResolver.BeginBatch())
                 using (var tg = new TransactionGroup(doc, "STING Batch Wire Annotations"))
                 {
                     tg.Start();
