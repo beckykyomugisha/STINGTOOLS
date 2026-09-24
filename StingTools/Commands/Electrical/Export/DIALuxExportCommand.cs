@@ -274,8 +274,18 @@ namespace StingTools.Commands.Electrical.Export
         {
             double areaFt2  = room.get_Parameter(BuiltInParameter.ROOM_AREA)?.AsDouble() ?? 0;
             double heightFt = room.get_Parameter(BuiltInParameter.ROOM_HEIGHT)?.AsDouble() ?? 0;
+            // ROOM_UPPER_OFFSET is the offset above the UPPER LIMIT level, not a
+            // height. It equals the room height only when the upper limit is the
+            // room's own level; otherwise height + volume are omitted rather than
+            // exported as a wrong dimension.
             if (heightFt <= 0)
-                heightFt = room.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET)?.AsDouble() ?? 0;
+            {
+                ElementId upperLevel = ElementId.InvalidElementId;
+                try { upperLevel = room.get_Parameter(BuiltInParameter.ROOM_UPPER_LEVEL)?.AsElementId() ?? ElementId.InvalidElementId; }
+                catch (Exception ex) { StingLog.Warn($"DIALux room {room.Id} upper level: {ex.Message}"); }
+                if (upperLevel != ElementId.InvalidElementId && upperLevel == room.LevelId)
+                    heightFt = room.get_Parameter(BuiltInParameter.ROOM_UPPER_OFFSET)?.AsDouble() ?? 0;
+            }
 
             double areaM2  = UnitUtils.ConvertFromInternalUnits(areaFt2, UnitTypeId.SquareMeters);
             double heightM = heightFt > 0 ? UnitUtils.ConvertFromInternalUnits(heightFt, UnitTypeId.Meters) : 0;
