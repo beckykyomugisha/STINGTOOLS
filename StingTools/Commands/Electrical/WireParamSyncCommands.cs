@@ -947,39 +947,51 @@ namespace StingTools.Commands.Electrical
                 return Result.Succeeded;
             }
 
-            // Load TCC database
+            // Load TCC database and run the band check over the SLD hierarchy. A panel is
+            // stamped 1 ONLY when every pair feeding it is proven selective by the generic
+            // IEC 60898 bands. Before ELEC-4 this passed any panel whose rating string
+            // existed in the database — string presence is not coordination.
             var tcc = Coordination.TccDatabaseLoader.Load(StingToolsApp.FindDataFile("STING_TCC_DATABASE.json"));
+            var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
+            var pairs = root != null
+                ? Coordination.SelectiveCoordEngine.Evaluate(root, tcc)
+                : new List<Coordination.CoordPairResult>();
 
-            int stamped = 0;
+            int passed = 0, unverified = 0, failed = 0;
+            var unverifiedNames = new List<string>();
             using var tx = new Transaction(doc, "STING Coord Stamp");
             tx.Start();
             foreach (var panel in panels)
             {
                 try
                 {
-                    // Resolve panel rating from parameter
-                    string rating = ParameterHelpers.GetString(panel, "ELC_PANEL_MAIN_BREAKER_TXT");
-                    if (string.IsNullOrEmpty(rating)) continue;
+                    var mine = pairs.Where(r =>
+                        (r.Downstream?.ElementId != null && r.Downstream.ElementId == panel.Id)
+                        || (r.Downstream?.ElementId == null
+                            && string.Equals(r.Downstream?.Label, panel.Name, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
+                    bool ok = mine.Count > 0
+                        && mine.All(r => r.Result.Verdict == Coordination.SelectivityVerdict.Selective);
+                    if (ok) passed++;
+                    else if (mine.Any(r => r.Result.Verdict == Coordination.SelectivityVerdict.NotSelective)) failed++;
+                    else { unverified++; if (unverifiedNames.Count < 15) unverifiedNames.Add(panel.Name); }
 
-                    // Simple check: if entry exists in TCC database, mark as 'checked'
-                    // Full SLD-based check runs via SelectiveCoordEngine from BIM commands
-                    var entry = tcc.Resolve(rating);
-                    bool ok = entry != null;
                     var p = panel.LookupParameter("ELC_SEL_COORD_OK");
-                    if (p != null && !p.IsReadOnly)
-                    {
-                        p.Set(ok ? 1 : 0);
-                        stamped++;
-                    }
+                    if (p != null && !p.IsReadOnly) p.Set(ok ? 1 : 0);
+                    foreach (var r in mine.Where(r => r.Result.Verdict != Coordination.SelectivityVerdict.Selective))
+                        StingLog.Info($"CoordStamp {panel.Name}: {r.Result.Verdict} — {r.Result.Reason} [{r.FaultSource}]");
                 }
                 catch (Exception ex) { StingLog.Warn($"CoordStamp {panel.Id}: {ex.Message}"); }
             }
             tx.Commit();
 
             TaskDialog.Show("Coord Stamp",
-                $"Selective coordination result stamped on {stamped} panel(s).\n"
-                + "ELC_SEL_COORD_OK = 1 (pass) / 0 (fail or unchecked).\n"
-                + "Run 'Sel Coord' for full SLD-based analysis.");
+                $"ELC_SEL_COORD_OK = 1 (proven selective) on {passed} panel(s).\n"
+                + $"UNVERIFIED (not assured / no curve data / not assessed) on {unverified} panel(s) — stamped 0.\n"
+                + $"NOT SELECTIVE on {failed} panel(s) — stamped 0.\n"
+                + (unverifiedNames.Count > 0 ? $"Unverified: {string.Join(", ", unverifiedNames)}\n" : "")
+                + $"\nBasis: {Coordination.IecMcbBands.Basis}.\n"
+                + "0 means 'not verified', not 'checked and failed'. See the log for per-pair reasons.");
             return Result.Succeeded;
         }
     }

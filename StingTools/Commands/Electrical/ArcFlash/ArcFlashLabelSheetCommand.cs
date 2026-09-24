@@ -9,8 +9,9 @@ using StingTools.Core;
 namespace StingTools.Commands.Electrical.ArcFlash
 {
     /// <summary>
-    /// Creates a drafting view containing one NFPA 70E warning label per
-    /// panel that <see cref="ArcFlashCommand"/> assessed. Each label is a
+    /// Creates a drafting view containing one indicative arc-flash label per
+    /// panel that <see cref="ArcFlashCommand"/> calculated (IEEE 1584-2002 —
+    /// every label text carries <see cref="ArcFlashEngine.Basis"/>). Each label is a
     /// FilledRegion border + TextNote pair laid out 5 per row at 110 mm
     /// column pitch (paper-side units, drafting-view scale 1:1).
     /// </summary>
@@ -19,9 +20,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
     public class ArcFlashLabelSheetCommand : IExternalCommand
     {
         private const double LabelWidthMm  = 100;
-        private const double LabelHeightMm = 60;
+        private const double LabelHeightMm = 95;   // label now carries basis + notes (~12 lines)
         private const double MarginMm      = 5;
-        private const double RowSpacingMm  = 70;
+        private const double RowSpacingMm  = 105;
         private const double ColWidthMm    = 110;
         private const int    LabelsPerRow  = 5;
         private const string DrawingTypeId = "elec-arc-flash-labels";
@@ -50,7 +51,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 if (dvft == null) { tx.RollBack(); message = "No drafting view family type found."; return Result.Failed; }
 
                 view = ViewDrafting.Create(doc, dvft.Id);
-                try { view.Name = $"STING - Arc Flash Labels - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = $"STING - Arc Flash Labels ({ArcFlashEngine.BasisShort}) - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var solidFill = ParameterHelpers.GetSolidFillPattern(doc);
                 var frt = new FilteredElementCollector(doc)
@@ -95,7 +96,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
             try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Arc Flash Labels",
-                $"Created drafting view '{view?.Name}' with {rows.Count} label(s).");
+                $"Created drafting view '{view?.Name}' with {rows.Count} label(s).\n\n" +
+                $"Basis: {ArcFlashEngine.Basis}. Panels that could not be calculated have no label.");
             return Result.Succeeded;
         }
 
