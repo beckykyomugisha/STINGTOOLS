@@ -573,20 +573,22 @@ namespace StingTools.Docs
         /// Built-in viewport type assignment rules.
         /// Maps view type + discipline to viewport type names.
         /// </summary>
+        // Built from StingViewportTypes.ByViewType - the one list of STING
+        // viewport type names, shared with the drawing-type catalogue. These
+        // rules used to hard-code the unhyphenated STING names while all 93
+        // drawing types asked for the hyphenated standard one; the old names
+        // are still honoured as aliases (StingViewportTypes.LegacyAliases).
         internal static readonly ViewportTypeRule[] DefaultViewportTypeRules =
-        {
-            new ViewportTypeRule { ViewTypeMatch = "FloorPlan", DisciplineMatch = null, TargetViewportTypeName = "STING Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "CeilingPlan", DisciplineMatch = null, TargetViewportTypeName = "STING Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "Section", DisciplineMatch = null, TargetViewportTypeName = "STING Section Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "Elevation", DisciplineMatch = null, TargetViewportTypeName = "STING Elevation Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "ThreeD", DisciplineMatch = null, TargetViewportTypeName = "STING 3D Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "Detail", DisciplineMatch = null, TargetViewportTypeName = "STING Detail Viewport" },
-            new ViewportTypeRule { ViewTypeMatch = "Legend", DisciplineMatch = null, ViewNameContains = null, TargetViewportTypeName = "STING Legend Viewport" },
-        };
+            StingTools.Core.Drawing.StingViewportTypes.ByViewType
+                .Select(kv => new ViewportTypeRule { ViewTypeMatch = kv.Key, DisciplineMatch = null, TargetViewportTypeName = kv.Value })
+                .ToArray();
 
         /// <summary>
         /// Auto-assign viewport types to all viewports on a sheet based on rules.
-        /// Falls back to first available "Viewport" type if named type not found.
+        /// A missing canonical STING type is created by duplicating an existing
+        /// viewport type (ViewportTypeResolver); it never silently substitutes
+        /// another type. (The old summary promised a first-available fallback
+        /// the code never had.)
         /// Must be called within an active Transaction.
         /// </summary>
         /// <returns>Number of viewports with type changed.</returns>
@@ -595,12 +597,9 @@ namespace StingTools.Docs
         {
             if (rules == null) rules = DefaultViewportTypeRules;
 
-            // Build type lookup
-            var vpTypes = new FilteredElementCollector(doc)
-                .OfClass(typeof(ElementType))
-                .Cast<ElementType>()
-                .Where(t => t.FamilyName == "Viewport")
-                .ToDictionary(t => t.Name, t => t.Id, StringComparer.OrdinalIgnoreCase);
+            // Build type lookup once; the shared resolver makes legacy names
+            // and on-demand creation behave as everywhere else.
+            var vpTypes = StingTools.Core.Drawing.ViewportTypeResolver.Index(doc);
 
             int changed = 0;
 
@@ -647,7 +646,9 @@ namespace StingTools.Docs
                 if (bestRule == null) continue;
 
                 // Find target type
-                if (vpTypes.TryGetValue(bestRule.TargetViewportTypeName, out var typeId))
+                var typeId = StingTools.Core.Drawing.ViewportTypeResolver.Resolve(
+                    doc, bestRule.TargetViewportTypeName, createIfMissing: true, index: vpTypes);
+                if (typeId != ElementId.InvalidElementId)
                 {
                     if (vp.GetTypeId() != typeId)
                     {

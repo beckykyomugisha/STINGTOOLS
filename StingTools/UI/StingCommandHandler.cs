@@ -6530,6 +6530,9 @@ namespace StingTools.UI
                 var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
                 int ok = 0, missingTpl = 0, missingVp = 0;
                 var miss = new System.Collections.Generic.List<string>();
+                // One viewport-type index for the loop (was a collector per type),
+                // alias-aware so a project on the legacy STING names still resolves.
+                var vpIndex = StingTools.Core.Drawing.ViewportTypeResolver.Index(doc);
                 foreach (var t in lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>())
                 {
                     bool tplOk = string.IsNullOrEmpty(t.ViewTemplateName) ||
@@ -6537,9 +6540,7 @@ namespace StingTools.UI
                                     .Cast<View>().Any(v => v.IsTemplate &&
                                         string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
                     bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
-                                 new FilteredElementCollector(doc).OfClass(typeof(ElementType))
-                                    .Cast<ElementType>().Any(et => et.Category?.Id.Value == (long)BuiltInCategory.OST_Viewports &&
-                                        string.Equals(et.Name, t.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
+                                 StingTools.Core.Drawing.ViewportTypeResolver.Exists(doc, t.ViewportTypeName, vpIndex);
                     if (tplOk && vpOk) ok++;
                     else
                     {

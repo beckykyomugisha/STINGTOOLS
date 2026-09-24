@@ -586,15 +586,12 @@ namespace StingTools.Core.Drawing
         internal static ElementId ResolveViewportTypeId(Document doc, string typeName)
             => FindViewportTypeId(doc, typeName);
 
+        // Viewport naming: one resolver (ViewportTypeResolver) that knows the
+        // canonical STING names, their legacy aliases, and mints a missing
+        // canonical STING type by duplication. Callers are inside the
+        // placement transaction. Non-STING names are looked up, never minted.
         private static ElementId FindViewportTypeId(Document doc, string typeName)
-        {
-            return new FilteredElementCollector(doc)
-                .OfClass(typeof(ElementType))
-                .Cast<ElementType>()
-                .FirstOrDefault(t => t.Category?.Id?.Value == (long)BuiltInCategory.OST_Viewports
-                                  && string.Equals(t.Name, typeName, StringComparison.OrdinalIgnoreCase))
-                ?.Id;
-        }
+            => ViewportTypeResolver.Resolve(doc, typeName, createIfMissing: true);
 
         // SLOT-3 helper — returns true when the view's ViewType is compatible
         // with the slot's declared ViewType string. Unknown slot types pass

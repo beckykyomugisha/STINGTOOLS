@@ -119,9 +119,16 @@ namespace StingTools.Core.Drawing
             if (!string.IsNullOrWhiteSpace(dt.ViewportTypeName))
             {
                 if (!HasViewportType(doc, dt.ViewportTypeName))
-                    r.Add(ValidationSeverity.Warning, "DT-021",
-                        $"Viewport type '{dt.ViewportTypeName}' not found.",
-                        "Duplicate an existing Viewport Type and name it to match, or clear the field.");
+                {
+                    if (StingViewportTypes.CanonicalFor(dt.ViewportTypeName) != null)
+                        r.Add(ValidationSeverity.Info, "DT-021",
+                            $"Viewport type '{dt.ViewportTypeName}' not in this project yet.",
+                            "It is created on first placement by duplicating an existing viewport type; style it afterwards.");
+                    else
+                        r.Add(ValidationSeverity.Warning, "DT-021",
+                            $"Viewport type '{dt.ViewportTypeName}' not found.",
+                            "Duplicate an existing Viewport Type and name it to match, or clear the field.");
+                }
             }
 
             // Section marker family --------------------------------------
@@ -1073,20 +1080,20 @@ namespace StingTools.Core.Drawing
 
         private static bool HasViewportType(Document doc, string name)
         {
+            // Viewport naming: a STING name is satisfied by its canonical form
+            // or any legacy alias (StingViewportTypes.Candidates).
+            var candidates = StingViewportTypes.Candidates(name);
             var snapVp = SnapshotFor(doc);
-            if (snapVp != null) return snapVp.ViewportTypes.Contains(name ?? "");
+            if (snapVp != null) return candidates.Any(c => snapVp.ViewportTypes.Contains(c));
             try
             {
-                var col = new FilteredElementCollector(doc).OfClass(typeof(ElementType));
-                foreach (var el in col)
-                    if (el is ElementType t
-                        && t.FamilyName != null
-                        && t.FamilyName.IndexOf("Viewport", StringComparison.OrdinalIgnoreCase) >= 0
-                        && string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                return ViewportTypeResolver.Exists(doc, name);
             }
-            catch { /* ignore */ }
-            return false;
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrawingTypeValidator.HasViewportType('{name}'): {ex.Message} -- reported as missing");
+                return false;
+            }
         }
 
         private static bool HasAnnotationFamily(Document doc, string familyName)
