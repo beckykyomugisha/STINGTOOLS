@@ -120,6 +120,15 @@ namespace StingTools.Commands.Electrical
             if (psvList.Count == 0)
             { TaskDialog.Show("STING Circuit", "No panel schedules in the project."); return Result.Cancelled; }
 
+            // This button sits in the circuit toolbar looking like "delete a
+            // circuit", but it clears every spare and space in EVERY panel
+            // schedule. Never do that on one unconfirmed click.
+            var confirm = TaskDialog.Show("STING Circuit - Remove spares & spaces",
+                $"This removes every SPARE and SPACE slot from all {psvList.Count} panel schedule(s) " +
+                "in the project. Active circuits are not touched.\n\nIt does not delete a circuit.\n\nContinue?",
+                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No, TaskDialogResult.No);
+            if (confirm != TaskDialogResult.Yes) return Result.Cancelled;
+
             int spareCount = 0, spaceCount = 0;
             using (var tx = new Transaction(doc, "STING Delete Spare/Space Slots"))
             {

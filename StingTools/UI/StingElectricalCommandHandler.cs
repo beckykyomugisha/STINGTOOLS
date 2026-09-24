@@ -793,6 +793,14 @@ namespace StingTools.UI
             if (doc == null) return;
             var view = app?.ActiveUIDocument?.ActiveView;
             if (view == null || view.IsTemplate) return;
+            // Resets EVERY element override in the view, including ones the user
+            // set by hand - so ask first.
+            var confirm = TaskDialog.Show("STING Electrical - Clear overrides",
+                $"Reset ALL graphic overrides on every element in '{view.Name}'?\n\n" +
+                "This also removes overrides you applied by hand, not only STING colouring. " +
+                "Undo (Ctrl+Z) reverses it.",
+                TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No, TaskDialogResult.No);
+            if (confirm != TaskDialogResult.Yes) return;
             try
             {
                 using var tx = new Transaction(doc, "STING Clear Electrical Overrides");

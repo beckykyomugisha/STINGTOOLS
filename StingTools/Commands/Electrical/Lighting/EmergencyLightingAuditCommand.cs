@@ -24,8 +24,8 @@ namespace StingTools.Commands.Electrical.Lighting
     [Regeneration(RegenerationOption.Manual)]
     public class EmergencyLightingAuditCommand : IExternalCommand
     {
-        private static readonly string[] EmergPatterns =
-            { "emergency", "emerg", "exit", "em-", "e-", "maintained", "non-maintained" };
+        // Family-name keywords live in Core/Electrical/EmergencyNameMatcher
+        // (whole-token match, unit-tested).
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -122,7 +122,7 @@ namespace StingTools.Commands.Electrical.Lighting
             try
             {
                 string fname = (fi.Symbol?.FamilyName ?? "").ToLowerInvariant();
-                if (EmergPatterns.Any(p => fname.Contains(p))) return true;
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fname)) return true;
                 string tm = (fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "").ToLowerInvariant();
                 if (tm.StartsWith("em")) return true;
                 // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
