@@ -68,9 +68,11 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                         if (elId == null) continue;
                         var panel = doc.GetElement(elId) as FamilyInstance;
                         if (panel == null) continue;
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FAULT_KA,
-                            $"{r.FaultKa:0.00}", overwrite: true);
-                        written++;
+                        // Count only writes that landed (unbound parameter = not stamped).
+                        if (ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FAULT_KA,
+                                r.FaultKa.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+                                overwrite: true))
+                            written++;
                     }
                     catch (Exception ex) { StingLog.Warn($"Stamp fault to panel: {ex.Message}"); }
                 }
