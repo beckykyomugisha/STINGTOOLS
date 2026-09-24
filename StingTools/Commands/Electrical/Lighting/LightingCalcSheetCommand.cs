@@ -142,6 +142,7 @@ namespace StingTools.Commands.Electrical.Lighting
             double totalWatts  = 0;
             string fixtureType = "";
             string iesFile     = "";
+            int assumedLumens = 0, assumedWatts = 0;
 
             foreach (var fi in new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
@@ -161,11 +162,13 @@ namespace StingTools.Commands.Electrical.Lighting
                 // LTG_FIX_LMP_WATTAGE_W, ELC_PHOTO_FILE_PATH_TXT. Fall through to
                 // Revit native "Initial Intensity"/"Luminous Flux" when shared
                 // params haven't been loaded.
-                double lm = SafeDouble(fi, "ELC_PHOTO_LUMENS_NR", "Initial Intensity", "Luminous Flux");
-                if (lm <= 0) lm = 4000;
+                // Instance, then type (LuminaireDataReader). A missing value is an
+                // ASSUMPTION — counted and printed on the sheet, never silent.
+                double lm = LuminaireDataReader.Lumens(fi, out _);
+                if (lm <= 0) { lm = LuminaireDataReader.AssumedLumens; assumedLumens++; }
                 totalLumens += lm;
-                double w = SafeDouble(fi, "LTG_FIX_LMP_WATTAGE_W", "ELC_PHOTO_WATTS_NR", "Wattage");
-                if (w <= 0) w = 36;
+                double w = LuminaireDataReader.Watts(fi, out _);
+                if (w <= 0) { w = LuminaireDataReader.AssumedWatts; assumedWatts++; }
                 totalWatts += w;
                 if (string.IsNullOrEmpty(fixtureType))
                 {
@@ -227,7 +230,9 @@ namespace StingTools.Commands.Electrical.Lighting
                 UniformityTarget = uniformity,
                 Pct = pct,
                 Verdict = verdict,
-                FixturesDelta = delta
+                FixturesDelta = delta,
+                AssumedLumensCount = assumedLumens,
+                AssumedWattsCount = assumedWatts
             };
         }
 
@@ -280,11 +285,25 @@ namespace StingTools.Commands.Electrical.Lighting
             ws.Range(row, 1, row, 4).Merge().Style.Font.Bold = true;
             ws.Range(row, 1, row, 4).Style.Fill.BackgroundColor = XLColor.LightGray; row++;
             Field("Family / Type",     s.FixtureType);
-            Field("Photometric file",  string.IsNullOrEmpty(s.IesFile) ? "(unassigned — using fallback 4000 lm)" : s.IesFile);
+            Field("Photometric file",  string.IsNullOrEmpty(s.IesFile) ? "(unassigned)" : s.IesFile);
             Field("Number of luminaires n", s.Fixtures);
             Field("Lumens per luminaire Φ", $"{s.LumensPerFixture:0}",     "lm");
             Field("Total installed lumens", $"{s.TotalLumens:0}",          "lm");
+            if (s.AssumedLumensCount > 0)
+            {
+                Field("⚠ LUMENS ASSUMED",
+                    $"ASSUMED {LuminaireDataReader.AssumedLumens:0} lm for {s.AssumedLumensCount} of {s.Fixtures} luminaire(s) — no lumen data on instance or type. E below is NOT a result.");
+                ws.Range(row - 1, 1, row - 1, 4).Style.Fill.BackgroundColor = XLColor.Orange;
+                ws.Range(row - 1, 1, row - 1, 4).Style.Font.Bold = true;
+            }
             Field("Total installed wattage",$"{s.TotalWatts:0.0}",         "W");
+            if (s.AssumedWattsCount > 0)
+            {
+                Field("⚠ WATTAGE ASSUMED",
+                    $"ASSUMED {LuminaireDataReader.AssumedWatts:0} W for {s.AssumedWattsCount} of {s.Fixtures} luminaire(s) — no wattage data. LPD below is NOT a result.");
+                ws.Range(row - 1, 1, row - 1, 4).Style.Fill.BackgroundColor = XLColor.Orange;
+                ws.Range(row - 1, 1, row - 1, 4).Style.Font.Bold = true;
+            }
             Field("Lighting power density (LPD)", $"{s.LpdWperM2:0.00}",   "W/m²");
             row++;
 
@@ -439,7 +458,7 @@ namespace StingTools.Commands.Electrical.Lighting
         {
             public string RoomName, FixtureType, IesFile, Verdict;
             public long RoomId;
-            public int Fixtures, FixturesDelta;
+            public int Fixtures, FixturesDelta, AssumedLumensCount, AssumedWattsCount;
             public double AreaM2, LengthM, WidthM, MountingHeightM,
                           LumensPerFixture, TotalLumens, TotalWatts, LpdWperM2,
                           CeilingReflectance, WallReflectance, FloorReflectance,

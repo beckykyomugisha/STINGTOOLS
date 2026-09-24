@@ -1,0 +1,20 @@
+{
+  "_description": "The ONE list of words marking a luminaire / circuit / system as emergency lighting. Read by EmergencyNameMatcher (emergency lighting audit), CircuitWizardEngine (load classification) and SeparationChecker (service mapping). Project override: <project>/_BIM_COORD/emergency_keywords.json with the same keys - additive unless it sets \"replaceBaseline\": true. Must stay identical to EmergencyKeywords.BuiltIn() (asserted by EmergencyKeywordsTests).",
+  "longKeywords": [
+    "emergency",
+    "emerg",
+    "maintained",
+    "emergencia",
+    "secours",
+    "notbeleuchtung",
+    "notlicht",
+    "sicherheitsbeleuchtung",
+    "dharura"
+  ],
+  "wordStartKeywords": [
+    "exit"
+  ],
+  "abbreviations": [
+    "EM"
+  ]
+}

@@ -98,6 +98,12 @@
     <Compile Include="..\StingTools\Core\Electrical\PowerFactorCorrection.cs" Link="Core\Electrical\PowerFactorCorrection.cs" />
     <Compile Include="..\StingTools\Core\Calc\VoltageDropSolver.cs" Link="Core\Calc\VoltageDropSolver.cs" />
     <Compile Include="..\StingTools\Commands\Electrical\Compliance\BS7671Thresholds.cs" Link="Commands\Electrical\Compliance\BS7671Thresholds.cs" />
+    <!-- ELEC-17: the one emergency keyword list the matcher reads. The shipped JSON is
+         asserted equal to the built-in fallback so the two cannot drift. -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyKeywords.cs" Link="Core\Electrical\EmergencyKeywords.cs" />
+    <None Include="..\StingTools\Data\STING_EMERGENCY_KEYWORDS.json" Link="Data\STING_EMERGENCY_KEYWORDS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
     <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
     <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
@@ -236,6 +242,16 @@
          document into two rows) is provable without a Revit host. -->
     <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <!-- ELEC-11: photometric parsers + zonal-lumen integration, and the IFC-results
+         room matcher. All Revit-free, so absolute (LED) photometry, EULUMDAT symmetry
+         and cd/klm scaling, and duplicate/ambiguous room matches are provable here. -->
+    <Compile Include="..\StingTools\Photometrics\PhotometricFile.cs" Link="Photometrics\PhotometricFile.cs" />
+    <Compile Include="..\StingTools\Photometrics\PhotometricIntegrator.cs" Link="Photometrics\PhotometricIntegrator.cs" />
+    <Compile Include="..\StingTools\Photometrics\IesParser.cs" Link="Photometrics\IesParser.cs" />
+    <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
+    <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
+    <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
+    <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
   </ItemGroup>
 
 </Project>

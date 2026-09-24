@@ -184,7 +184,8 @@ namespace StingTools.BOQ
             double? pressureDropPa = ReadDouble(el, "BLE_DUCT_PRESSURE_DROP_PA", "PRESSURE_DROP_PA", "Pressure Drop");
             if (pressureDropPa.HasValue && pressureDropPa.Value > 0 && IsDuct(item.Category))
                 bits.Add($"system pressure drop {pressureDropPa.Value:F0} Pa");
-            double? flow = ReadBipDouble(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+            // Internal ft³/s → l/s (the raw value was printed as "l/s").
+            double? flow = ReadBipDouble(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, UnitTypeId.LitersPerSecond);
             if (flow.HasValue && flow.Value > 0 && IsDuct(item.Category))
                 bits.Add($"design flow {flow.Value:F0} l/s");
 
@@ -794,12 +795,10 @@ namespace StingTools.BOQ
                     if (!p.HasValue) continue;
                     if (p.StorageType == StorageType.Double)
                     {
-                        double v = p.AsDouble();
-                        // Revit stores lengths in feet internally; heuristic:
-                        // if the parameter name hints at "mm" we assume the
-                        // value is already stored as mm in our shared params.
-                        // Otherwise convert ft → mm when the name hints length.
-                        return v;
+                        // Revit-native measurable params (Width, Velocity, Pressure Drop…)
+                        // hold INTERNAL units (ft, ft/s, ft-based pressure). Convert them to
+                        // the unit this enhancer prints; shared NUMBER params pass through.
+                        return ToPrintedUnit(p);
                     }
                     if (p.StorageType == StorageType.Integer) return p.AsInteger();
                     if (p.StorageType == StorageType.String)
@@ -811,6 +810,25 @@ namespace StingTools.BOQ
                 catch (Exception ex) { StingLog.Warn($"ReadDouble({n}): {ex.Message}"); }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Internal → printed unit by spec: length mm, velocity m/s, pressure Pa,
+        /// flow l/s. Any other spec (incl. unit-less shared NUMBER params) is raw.
+        /// </summary>
+        private static double ToPrintedUnit(Parameter p)
+        {
+            double raw = p.AsDouble();
+            ForgeTypeId spec = null;
+            try { spec = p.Definition?.GetDataType(); } catch (Exception ex) { StingLog.Warn($"ToPrintedUnit spec: {ex.Message}"); }
+            if (spec == null) return raw;
+            ForgeTypeId unit =
+                spec == SpecTypeId.Length ? UnitTypeId.Millimeters :
+                (spec == SpecTypeId.HvacVelocity || spec == SpecTypeId.PipingVelocity) ? UnitTypeId.MetersPerSecond :
+                (spec == SpecTypeId.HvacPressure || spec == SpecTypeId.PipingPressure) ? UnitTypeId.Pascals :
+                (spec == SpecTypeId.AirFlow || spec == SpecTypeId.Flow) ? UnitTypeId.LitersPerSecond :
+                null;
+            return unit == null ? raw : UnitUtils.ConvertFromInternalUnits(raw, unit);
         }
 
         private static string ReadString(Element el, params string[] names)
@@ -842,12 +860,15 @@ namespace StingTools.BOQ
             return null;
         }
 
-        private static double? ReadBipDouble(Element el, BuiltInParameter bip)
+        /// <param name="unit">Unit to convert the internal value to (UnitUtils). Null = raw
+        /// (only correct for unit-less values or base units such as amperes).</param>
+        private static double? ReadBipDouble(Element el, BuiltInParameter bip, ForgeTypeId unit = null)
         {
             try
             {
                 var p = el?.get_Parameter(bip);
-                if (p != null && p.HasValue && p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
+                    return unit == null ? p.AsDouble() : UnitUtils.ConvertFromInternalUnits(p.AsDouble(), unit);
             }
             catch (Exception ex) { StingLog.Warn($"ReadBipDouble({bip}): {ex.Message}"); }
             return null;

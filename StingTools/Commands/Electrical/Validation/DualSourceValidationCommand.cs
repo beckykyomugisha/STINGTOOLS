@@ -5,13 +5,20 @@
 //   Generator:  sum of Emergency-feed panel loads ≤ generator kVA × 0.8 (80 % loading)
 //   UPS:        sum of UPS-fed circuit loads ≤ UPS kVA rating
 //
-// Generator elements are identified by the ELC_GENERATOR_KVA parameter or a
-// family name containing "Generator" or "Genset".
-// UPS elements are identified by family name containing "UPS".
-// Emergency panels are identified by ELC_FEED_TYPE_TXT = "Emergency" or "Both".
+// Generator elements are identified by a kVA parameter or a family name
+// containing "Generator" or "Genset". UPS elements by "UPS" in the name.
+// Emergency panels: ELC_FEED_TYPE_TXT = "Emergency"/"Both", or a panel / family
+// name matched by the shared emergency keyword list (EmergencyNameMatcher).
+//
+// NO STING SHARED PARAMETER CARRIES A GENERATOR OR UPS RATING: MR_PARAMETERS.txt
+// has no *_KVA for either (ELC_GENERATOR_KVA / ELC_UPS_KVA were read but never
+// defined, so every unit reported "not set"). The rating is looked up under the
+// family-level names in GeneratorKvaNames / UpsKvaNames, on the instance then
+// the type; when none exists the report says PARAMETER MISSING — it is never
+// assumed.
 //
 // Results are stamped on each generator / UPS element:
-//   ELC_TRANSFER_LOAD_OK = "1" (passes) or "0" (fails).
+//   ELC_TRANSFER_LOAD_OK = "1" (passes), "0" (fails), "N/A" (could not validate).
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +43,14 @@ namespace StingTools.Commands.Electrical.Validation
         // Maximum recommended generator loading factor (80 %).
         private const double GeneratorLoadFactor = 0.80;
 
+        // Family-level rating parameters, in priority order. A Double with an
+        // ApparentPower spec is converted from internal units (ElecUnits); any other
+        // value is taken as kVA only because its NAME says kVA.
+        private static readonly string[] GeneratorKvaNames =
+            { "ELC_GENERATOR_KVA", "Generator Rating (kVA)", "Rated Output (kVA)", "kVA Rating", "Rating kVA" };
+        private static readonly string[] UpsKvaNames =
+            { "ELC_UPS_KVA", "UPS Rating (kVA)", "Rated Output (kVA)", "kVA Rating", "Rating kVA" };
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -55,7 +70,8 @@ namespace StingTools.Commands.Electrical.Validation
                 {
                     try
                     {
-                        if (fi.LookupParameter("ELC_GENERATOR_KVA") != null) return true;
+                        if (GeneratorKvaNames.Any(n => fi.LookupParameter(n) != null
+                                                        && n.StartsWith("ELC_GENERATOR", StringComparison.Ordinal))) return true;
                     }
                     catch { /* parameter absent */ }
                     string fname = (fi.Symbol?.FamilyName ?? "").ToUpperInvariant();
@@ -77,23 +93,27 @@ namespace StingTools.Commands.Electrical.Validation
             {
                 TaskDialog.Show("STING Dual-Source Validation",
                     "No generators or UPS units found.\n\n" +
-                    "Add the ELC_GENERATOR_KVA parameter to generator families, or use " +
-                    "family names containing 'Generator', 'Genset', or 'UPS'.");
+                    "Use family names containing 'Generator', 'Genset', or 'UPS'.");
                 return Result.Cancelled;
             }
 
             // ── Collect emergency panels (by ELC_FEED_TYPE_TXT) ──────────────
+            var emergencyKw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
             var emergencyPanels = allEquipment
+                .Where(fi => !generators.Contains(fi) && !upsList.Contains(fi))
                 .Where(fi =>
                 {
                     try
                     {
+                        // ELC_FEED_TYPE_TXT is a family-level parameter (not in MR_PARAMETERS).
                         string feedType = fi.LookupParameter("ELC_FEED_TYPE_TXT")?.AsString()?.Trim()
                                        ?? "";
-                        return feedType.Equals("Emergency", StringComparison.OrdinalIgnoreCase)
-                            || feedType.Equals("Both",      StringComparison.OrdinalIgnoreCase);
+                        if (feedType.Equals("Emergency", StringComparison.OrdinalIgnoreCase)
+                            || feedType.Equals("Both",      StringComparison.OrdinalIgnoreCase)) return true;
+                        return StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fi.Name, emergencyKw)
+                            || StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fi.Symbol?.FamilyName, emergencyKw);
                     }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"DualSource emergency panel {fi.Id}: {ex.Message}"); return false; }
                 })
                 .ToList();
 
@@ -136,22 +156,26 @@ namespace StingTools.Commands.Electrical.Validation
                 // ── Generator checks ─────────────────────────────────────────
                 foreach (var gen in generators)
                 {
-                    double genKva = 0.0;
-                    try
-                    {
-                        var kvaParam = gen.LookupParameter("ELC_GENERATOR_KVA");
-                        if (kvaParam != null) genKva = kvaParam.AsDouble();
-                    }
-                    catch (Exception ex) { StingLog.Warn($"DualSource gen kVA: {ex.Message}"); }
-
                     string genName = gen.Name ?? gen.Id.ToString();
+                    double genKva = ReadKva(gen, GeneratorKvaNames, out string genSrc, out bool genParamExists);
 
                     if (genKva <= 0.0)
                     {
                         violations.Add(
-                            $"WARNING  Generator [{genName}]: " +
-                            "ELC_GENERATOR_KVA not set — cannot validate capacity.");
-                        StampTransferOk(gen, "0");
+                            $"NOT VALIDATED  Generator [{genName}]: " +
+                            (genParamExists
+                                ? $"rating parameter '{genSrc}' exists but is empty/0."
+                                : "PARAMETER MISSING — no kVA rating parameter on instance or type " +
+                                  $"(looked for: {string.Join(", ", GeneratorKvaNames)}). No STING shared parameter defines it."));
+                        StampTransferOk(gen, "N/A");
+                        continue;
+                    }
+                    if (emergencyPanels.Count == 0)
+                    {
+                        violations.Add(
+                            $"NOT VALIDATED  Generator [{genName}] ({genKva:F0} kVA): no emergency panels identified " +
+                            "(ELC_FEED_TYPE_TXT or an emergency keyword in the panel name) — a 0 kVA load is not a pass.");
+                        StampTransferOk(gen, "N/A");
                         continue;
                     }
 
@@ -180,22 +204,18 @@ namespace StingTools.Commands.Electrical.Validation
                 // ── UPS checks ───────────────────────────────────────────────
                 foreach (var ups in upsList)
                 {
-                    double upsKva = 0.0;
-                    try
-                    {
-                        var kvaParam = ups.LookupParameter("ELC_UPS_KVA");
-                        if (kvaParam != null) upsKva = kvaParam.AsDouble();
-                    }
-                    catch (Exception ex) { StingLog.Warn($"DualSource UPS kVA: {ex.Message}"); }
-
                     string upsName = ups.Name ?? ups.Id.ToString();
+                    double upsKva = ReadKva(ups, UpsKvaNames, out string upsSrc, out bool upsParamExists);
 
                     if (upsKva <= 0.0)
                     {
                         violations.Add(
-                            $"WARNING  UPS [{upsName}]: " +
-                            "ELC_UPS_KVA not set — cannot validate capacity.");
-                        StampTransferOk(ups, "0");
+                            $"NOT VALIDATED  UPS [{upsName}]: " +
+                            (upsParamExists
+                                ? $"rating parameter '{upsSrc}' exists but is empty/0."
+                                : "PARAMETER MISSING — no kVA rating parameter on instance or type " +
+                                  $"(looked for: {string.Join(", ", UpsKvaNames)}). No STING shared parameter defines it."));
+                        StampTransferOk(ups, "N/A");
                         continue;
                     }
 
@@ -238,7 +258,7 @@ namespace StingTools.Commands.Electrical.Validation
             string report =
                 $"Dual-Source Load-Transfer Validation\n" +
                 $"Generators: {generators.Count}   UPS units: {upsList.Count}   " +
-                $"Emergency panels: {emergencyPanels.Count}\n" +
+                $"Emergency panels: {emergencyPanels.Count} (ELC_FEED_TYPE_TXT or emergency keyword in name)\n" +
                 $"Total emergency load: {totalEmergencyLoadVa / 1000.0:F1} kVA\n" +
                 $"Passes: {passes.Count}   Violations: {violations.Count}\n\n";
 
@@ -272,6 +292,53 @@ namespace StingTools.Commands.Electrical.Validation
                     try { return StingTools.Core.Electrical.ElecUnits.Read(es, BuiltInParameter.RBS_ELEC_APPARENT_LOAD); }
                     catch { return 0.0; }
                 });
+        }
+
+        /// <summary>
+        /// Rating in kVA from the first of <paramref name="names"/> present on the
+        /// instance, then the type. 0 when absent or empty — never assumed.
+        /// </summary>
+        private static double ReadKva(FamilyInstance fi, string[] names, out string source, out bool exists)
+        {
+            source = ""; exists = false;
+            Element type = null;
+            try { type = fi.Document.GetElement(fi.GetTypeId()); }
+            catch (Exception ex) { StingLog.Warn($"DualSource type {fi.Id}: {ex.Message}"); }
+            foreach (var host in new Element[] { fi, type })
+            {
+                if (host == null) continue;
+                foreach (var n in names)
+                {
+                    Parameter p;
+                    try { p = host.LookupParameter(n); } catch { continue; }
+                    if (p == null) continue;
+                    exists = true; source = n;
+                    if (!p.HasValue) continue;
+                    try
+                    {
+                        bool nameSaysKva = n.IndexOf("KVA", StringComparison.OrdinalIgnoreCase) >= 0;
+                        switch (p.StorageType)
+                        {
+                            case StorageType.Double:
+                                if (StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) == UnitTypeId.VoltAmperes)
+                                    return StingTools.Core.Electrical.ElecUnits.ToSi(p) / 1000.0;
+                                if (nameSaysKva && p.AsDouble() > 0) return p.AsDouble();
+                                break;
+                            case StorageType.Integer:
+                                if (nameSaysKva && p.AsInteger() > 0) return p.AsInteger();
+                                break;
+                            case StorageType.String:
+                                if (nameSaysKva && double.TryParse((p.AsString() ?? "").Replace("kVA", "").Replace("KVA", "").Trim(),
+                                        System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out double v) && v > 0)
+                                    return v;
+                                break;
+                        }
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DualSource kVA '{n}' on {host.Id}: {ex.Message}"); }
+                }
+            }
+            return 0;
         }
 
         private static void StampTransferOk(Element el, string value)

@@ -227,17 +227,15 @@ namespace StingTools.UI
                     if (s is MechanicalSystem ms)
                     {
                         sysClass = (ms.SystemType.ToString() ?? "").Replace("Mechanical", "");
-                        var flowP = s.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                        if (flowP != null && flowP.StorageType == StorageType.Double)
-                            flowLs = flowP.AsDouble() * 0.4719;
+                        // Internal flow is ft³/s (1 ft³/s = 28.3168 L/s); 0.4719 is a CFM
+                        // factor and under-read every system ~60x. Convert via UnitUtils.
+                        flowLs = StingTools.Core.Mep.MepUnits.ReadBuiltInFlowLs(s, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                         try { equip = ms.BaseEquipment?.Name ?? ""; } catch { }
                     }
                     else if (s is PipingSystem ps)
                     {
                         sysClass = (ps.SystemType.ToString() ?? "").Replace("Piping", "");
-                        var flowP = s.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
-                        if (flowP != null && flowP.StorageType == StorageType.Double)
-                            flowLs = flowP.AsDouble();
+                        flowLs = StingTools.Core.Mep.MepUnits.ReadBuiltInFlowLs(s, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
                         try { equip = ps.BaseEquipment?.Name ?? ""; } catch { }
                     }
                     else continue;
@@ -264,13 +262,14 @@ namespace StingTools.UI
             {
                 try
                 {
-                    double area = ReadDouble(sp, "Area") * 0.092903;  // ft² → m²
+                    // Revit internal units: area ft², power kg·ft²/s³ (1 W = 10.7639),
+                    // flow ft³/s. Hand-coded BTU/h and CFM factors were wrong for all
+                    // three — convert through UnitUtils.
+                    double area = ReadSi(sp, "Area", UnitTypeId.SquareMeters);
                     int people  = (int)ReadDouble(sp, "Number of People");
-                    double heat = ReadDouble(sp, "Design Heating Load") / 3.41214;  // BTU/h → W → /1000 = kW
-                    double cool = ReadDouble(sp, "Design Cooling Load") / 3.41214;
-                    if (heat > 0) heat /= 1000.0;
-                    if (cool > 0) cool /= 1000.0;
-                    double oa = ReadDouble(sp, "Specified Supply Airflow") * 0.4719;
+                    double heat = ReadSi(sp, "Design Heating Load", UnitTypeId.Kilowatts);
+                    double cool = ReadSi(sp, "Design Cooling Load", UnitTypeId.Kilowatts);
+                    double oa   = ReadSi(sp, "Specified Supply Airflow", UnitTypeId.LitersPerSecond);
                     string warn = (heat == 0 && cool == 0) ? "⚠ no loads" : "";
                     SpaceLoadRows.Add(new HvacSpaceLoadRow
                     {
@@ -375,6 +374,24 @@ namespace StingTools.UI
             catch { }
             return "";
         }
+        /// <summary>
+        /// A Double parameter converted from Revit internal units to <paramref name="unit"/>;
+        /// 0 when absent. Non-measurable (unit-less) parameters are returned raw.
+        /// </summary>
+        private static double ReadSi(Element el, string name, ForgeTypeId unit)
+        {
+            try
+            {
+                var p = el?.LookupParameter(name);
+                if (p == null || !p.HasValue || p.StorageType != StorageType.Double) return 0;
+                var spec = p.Definition?.GetDataType();
+                if (spec != null && UnitUtils.IsMeasurableSpec(spec))
+                    return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), unit);
+                return p.AsDouble();
+            }
+            catch (Exception ex) { StingLog.Warn($"StingHvacPanel.ReadSi '{name}': {ex.Message}"); return 0; }
+        }
+
         private static double ReadDouble(Element el, string name)
         {
             try

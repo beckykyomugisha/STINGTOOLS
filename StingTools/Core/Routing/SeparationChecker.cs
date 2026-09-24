@@ -67,6 +67,7 @@ namespace StingTools.Core.Routing
 
             var dropCurve = Line.CreateBound(from, to);
             var searchRadiusFt = searchRadiusMm * MmToFt;
+            var emergencyKw = StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(doc);
 
             var scope = new List<Element>();
             foreach (var cat in CategoryServiceMap.Keys)
@@ -98,7 +99,7 @@ namespace StingTools.Core.Routing
                 catch { approxDist = double.MaxValue; }
                 if (approxDist > searchRadiusFt) continue;
 
-                string otherService = InferService(other);
+                string otherService = InferService(other, emergencyKw);
                 double requiredMm = RoutingRules.RequiredSeparationMm(sourceService, otherService);
                 if (requiredMm <= 0) continue; // no rule applies
 
@@ -127,7 +128,7 @@ namespace StingTools.Core.Routing
             return findings;
         }
 
-        private static string InferService(Element el)
+        private static string InferService(Element el, StingTools.Core.Electrical.EmergencyKeywords emergencyKw = null)
         {
             // Try to read a system name first — most projects use names
             // like "Hot Water — Domestic" or "Fire Alarm" that contain
@@ -137,7 +138,7 @@ namespace StingTools.Core.Routing
                 if (el is MEPCurve mc)
                 {
                     var sysName = mc.MEPSystem?.Name ?? "";
-                    var mapped = MapSystemNameToService(sysName);
+                    var mapped = MapSystemNameToService(sysName, emergencyKw);
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }
@@ -152,14 +153,17 @@ namespace StingTools.Core.Routing
             return "UNKNOWN";
         }
 
-        private static string MapSystemNameToService(string systemName)
+        private static string MapSystemNameToService(string systemName,
+            StingTools.Core.Electrical.EmergencyKeywords emergencyKeywords = null)
         {
             if (string.IsNullOrEmpty(systemName)) return null;
             var n = systemName.ToUpperInvariant();
             if (n.Contains("FIRE"))        return "COM_FIRE";
             if (n.Contains("DATA") || n.Contains("TEL")) return "COM_DATA";
             if (n.Contains("SECURITY"))    return "COM_SEC";
-            if (n.Contains("EMERGENCY"))   return "LTG_EMERGENCY";
+            // Shared emergency list (Data/STING_EMERGENCY_KEYWORDS.json), original casing.
+            if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(systemName, emergencyKeywords))
+                                           return "LTG_EMERGENCY";
             if (n.Contains("HV") || n.Contains("HIGH VOLT")) return "ELC_HV";
             if (n.Contains("POWER") || n.Contains("LIGHTING")) return "ELC_PWR";
             if (n.Contains("MED"))         return "PLM_MED_GAS";

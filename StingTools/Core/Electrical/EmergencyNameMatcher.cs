@@ -1,5 +1,5 @@
 // EmergencyNameMatcher — Revit-free test of whether a luminaire family name
-// marks it as emergency lighting.
+// (or a circuit / system name) marks it as emergency lighting.
 //
 // The audit matched raw substrings, including "e-" and "em-". Those hit
 // ordinary names — "Surface-Mounted" contains "e-", "System-Panel" contains
@@ -7,36 +7,31 @@
 // emergency cover could pass.
 //
 // Two rules now:
-//  - the long keywords (emergency, emerg, maintained) are specific enough to
-//    match anywhere, so CamelCase names like "EmergencyLight_LED" still count;
-//    "exit" must at least START a word ("ExitSign", not "Deexited").
+//  - the long keywords (emergency, emerg, maintained, secours, …) are specific
+//    enough to match anywhere, so CamelCase names like "EmergencyLight_LED"
+//    still count; "exit" must at least START a word ("ExitSign", not "Deexited").
 //  - the short "EM" abbreviation must stand alone: not preceded by a letter
 //    ("System", "Item"), and not followed by a lower-case letter ("Emerald").
 //    It is matched on the ORIGINAL casing so "EMBulkhead" still counts.
-
-using System.Text.RegularExpressions;
+//
+// The WORDS live in one place — EmergencyKeywords (Data/STING_EMERGENCY_KEYWORDS.json
+// + project override); this class only applies the token rules to them.
 
 namespace StingTools.Core.Electrical
 {
     internal static class EmergencyNameMatcher
     {
-        private static readonly Regex LongKeyword = new Regex(
-            @"emergency|emerg|maintained|(?<![a-z])exit",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private static readonly EmergencyKeywords Default = EmergencyKeywords.BuiltIn();
 
-        // Case-sensitive on purpose: "EM"/"Em"/"em" as its own token. Not
-        // followed by a lower-case letter ("Emerald") nor by two capitals
-        // ("EMBASSY", "EMPIRE" — an all-caps word), but "EMBulkhead" (capital
-        // then lower-case: a new CamelCase word) still counts.
-        private static readonly Regex EmToken = new Regex(
-            @"(?<![A-Za-z])(EM|Em|em)(?![a-z])(?![A-Z]{2})",
-            RegexOptions.CultureInvariant | RegexOptions.Compiled);
-
-        /// <summary>Pass the family name in its original casing.</summary>
-        public static bool IsEmergencyName(string familyName)
+        /// <summary>
+        /// Pass the name in its original casing. <paramref name="keywords"/> is the
+        /// document's list (EmergencyKeywordRegistry); null = the built-in list.
+        /// </summary>
+        public static bool IsEmergencyName(string name, EmergencyKeywords keywords = null)
         {
-            if (string.IsNullOrWhiteSpace(familyName)) return false;
-            return LongKeyword.IsMatch(familyName) || EmToken.IsMatch(familyName);
+            if (string.IsNullOrWhiteSpace(name)) return false;
+            var k = keywords ?? Default;
+            return (k.LongRegex?.IsMatch(name) ?? false) || (k.AbbrRegex?.IsMatch(name) ?? false);
         }
     }
 }

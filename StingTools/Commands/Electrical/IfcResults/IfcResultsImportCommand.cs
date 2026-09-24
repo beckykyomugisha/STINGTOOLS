@@ -49,39 +49,68 @@ namespace StingTools.Commands.Electrical.IfcResults
                 return Result.Cancelled;
             }
 
-            // Build Revit-side lookup tables.
-            var roomsByGuid = new Dictionary<string, Room>(StringComparer.OrdinalIgnoreCase);
-            var roomsByName = new Dictionary<string, Room>(StringComparer.OrdinalIgnoreCase);
-            foreach (var r in new FilteredElementCollector(doc)
+            // Build Revit-side keys. A Revit UniqueId is NOT an IFC GlobalId (45 chars
+            // vs the 22-char base64 form), so matching on UniqueId could never succeed.
+            // Each room offers: the IfcGUID parameter (written by Revit's IFC exporter
+            // when "store GUID" is on) and the GlobalId re-encoded from the element
+            // (IfcGuidEncoder — what STING's own DIALux export writes).
+            var rooms = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_Rooms)
                 .WhereElementIsNotElementType().OfType<Room>()
-                .Where(r => r.Area > 0))
+                .Where(r => r.Area > 0).ToList();
+            var roomById = rooms.ToDictionary(r => r.Id.Value.ToString(), r => r);
+            var roomKeys = new List<IfcSpaceMatcher.RoomKey>();
+            foreach (var r in rooms)
             {
-                try { roomsByGuid[r.UniqueId] = r; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                if (!string.IsNullOrEmpty(r.Name)) roomsByName[r.Name] = r;
+                var key = new IfcSpaceMatcher.RoomKey
+                {
+                    Id = r.Id.Value.ToString(),
+                    Number = r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "",
+                    Name = r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? ""
+                };
+                try
+                {
+                    string stored = r.get_Parameter(BuiltInParameter.IFC_GUID)?.AsString();
+                    if (string.IsNullOrEmpty(stored)) stored = r.LookupParameter("IfcGUID")?.AsString();
+                    if (!string.IsNullOrEmpty(stored)) key.IfcGuids.Add(stored.Trim());
+                }
+                catch (Exception ex) { StingLog.Warn($"IfcResultsImport IfcGUID room {r.Id}: {ex.Message}"); }
+                try { key.IfcGuids.Add(IfcGuidEncoder.FromElementGoldStandard(r)); }
+                catch (Exception ex) { StingLog.Warn($"IfcResultsImport encode room {r.Id}: {ex.Message}"); }
+                roomKeys.Add(key);
             }
-            var fixturesByGuid = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
+            var spaceKeys = parsed.Spaces.Select(sp => new IfcSpaceMatcher.SpaceKey
+            {
+                GlobalId = sp.GlobalId, Name = sp.Name, LongName = sp.LongName
+            }).ToList();
+            var match = IfcSpaceMatcher.MatchAll(roomKeys, spaceKeys);
+
+            var fixtureGuids = new HashSet<string>(StringComparer.Ordinal);
             foreach (var fi in new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
                 .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
-                try { fixturesByGuid[fi.UniqueId] = fi; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try
+                {
+                    string stored = fi.get_Parameter(BuiltInParameter.IFC_GUID)?.AsString();
+                    if (!string.IsNullOrEmpty(stored)) fixtureGuids.Add(stored.Trim());
+                    fixtureGuids.Add(IfcGuidEncoder.FromElementGoldStandard(fi));
+                }
+                catch (Exception ex) { StingLog.Warn($"IfcResultsImport fixture {fi.Id}: {ex.Message}"); }
             }
 
             string engineParam = ResolveEngineParam(engine);
             string nowIso = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
-            int matchedRooms = 0, matchedFixtures = 0, missing = 0;
+            int matchedFixtures = 0;
+            var via = match.Matches.GroupBy(m => m.Via).ToDictionary(g => g.Key, g => g.Count());
             using (var tx = new Transaction(doc, $"STING Import {engine} Results"))
             {
                 tx.Start();
-                foreach (var space in parsed.Spaces)
+                foreach (var m in match.Matches)
                 {
-                    Room target = null;
-                    if (roomsByGuid.TryGetValue(space.GlobalId, out var byGuid)) target = byGuid;
-                    else if (!string.IsNullOrEmpty(space.Name)
-                        && roomsByName.TryGetValue(space.Name, out var byName)) target = byName;
-                    if (target == null) { missing++; continue; }
+                    var space = parsed.Spaces[m.SpaceIndex];
+                    var target = roomById[m.RoomId];
 
                     double lux = ExtractByAlias(space.Numerics, StingLightingPSet.IlluminanceAliases);
                     double ugr = ExtractByAlias(space.Numerics, StingLightingPSet.UgrAliases);
@@ -100,25 +129,31 @@ namespace StingTools.Commands.Electrical.IfcResults
                         ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_UNIFORMITY, $"{uo:0.00}", overwrite: true);
                     ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LAST_ENGINE, engine, overwrite: true);
                     ParameterHelpers.SetString(target, ParamRegistry.ELC_PHOTO_LAST_CALC_DATE, nowIso, overwrite: true);
-                    matchedRooms++;
                 }
 
                 foreach (var fix in parsed.LightFixtures)
                 {
-                    if (!fixturesByGuid.TryGetValue(fix.GlobalId, out var revitFi)) continue;
-                    // Currently no per-fixture results are written back; the
-                    // luminaire matching is still useful for the aggregator
-                    // and for future per-fixture metrics (e.g. utilisation %).
-                    matchedFixtures++;
+                    // No per-fixture results are written back; the count shows
+                    // whether luminaire identity survived the round trip.
+                    if (fixtureGuids.Contains(fix.GlobalId)) matchedFixtures++;
                 }
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+            string List(string title, List<string> items) => items.Count == 0 ? "" :
+                $"\n{title} ({items.Count}):\n  " + string.Join("\n  ", items.Take(12)) +
+                (items.Count > 12 ? $"\n  … +{items.Count - 12} more" : "") + "\n";
+            string viaText = string.Join(", ", via.Select(kv => $"{kv.Value} by {kv.Key}"));
             TaskDialog.Show("STING IFC Import",
                 $"Imported {engine} results from:\n{ifcPath}\n\n" +
-                $"Matched: {matchedRooms} room(s), {matchedFixtures} luminaire(s).\n" +
-                $"Missing rooms (no GUID/name match): {missing}\n\n" +
-                "Check the multi-engine aggregator to compare results side-by-side.");
+                $"Matched: {match.Matches.Count} of {parsed.Spaces.Count} space(s)" +
+                (viaText.Length > 0 ? $" ({viaText})" : "") + ", " +
+                $"{matchedFixtures} of {parsed.LightFixtures.Count} luminaire(s) by GlobalId.\n" +
+                List("NOT imported — duplicate (a room already matched by an earlier space)", match.Duplicates) +
+                List("NOT imported — ambiguous (key shared by several rooms)", match.Ambiguous) +
+                List("NOT imported — no GlobalId / number / name match", match.Unmatched) +
+                "\nCheck the multi-engine aggregator to compare results side-by-side.");
             return Result.Succeeded;
         }
 
