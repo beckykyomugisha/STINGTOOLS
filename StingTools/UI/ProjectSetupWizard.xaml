@@ -1094,6 +1094,27 @@
                                           Content="Create 4 exterior elevations (N/S/E/W)" IsChecked="True"/>
                             </StackPanel>
                         </Border>
+
+                        <Border Style="{StaticResource WizGroupBox}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource WizSubHeader}" Text="Drawing Production"/>
+                                <CheckBox x:Name="chkDrawingProduction" Style="{StaticResource WizCheck}"
+                                          Content="Set up drawing production (title blocks, tag families, view types, AEC filters, managed templates, pre-flight)"
+                                          IsChecked="False"
+                                          ToolTip="Runs the Drawing Production Setup workflow — the same as SETUP → DRAWING PRODUCTION. Every step skips what already exists. Off by default: it has not yet been run unattended inside the wizard in Revit (ROADMAP DT-6)."/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <TextBlock Text="Sheet numbering:" FontSize="11" VerticalAlignment="Center" Width="110"/>
+                                    <ComboBox x:Name="cmbSheetNumberPolicy" Width="360" FontSize="11"
+                                              SelectionChanged="CmbSheetNumberPolicy_SelectionChanged"
+                                              ToolTip="Writes PRJ_ORG_SHEET_NUMBER_POLICY_TXT on Project Information. Existing sheets keep their numbers until DrawingTypes_Renumber is run.">
+                                        <ComboBoxItem Tag="profile" Content="Per drawing type — each type's own pattern (default)" IsSelected="True"/>
+                                        <ComboBoxItem Tag="iso" Content="ISO 19650-2 — derived from each type's isoNaming"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock x:Name="txtSheetPolicyNote" FontSize="10" Foreground="#A65E00"
+                                           TextWrapping="Wrap" Margin="110,4,0,0" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

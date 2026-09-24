@@ -162,9 +162,10 @@ inside a workflow). Then: produce a section and an elevation and confirm the vie
 Section` / `STING - Elevation`; check `STING - Ordinate` really dimensions as ordinate; tag a wall
 on an elevation with a Material Tag and confirm it lands on the face you are looking at. The
 section-head graphics of the new view types are whatever the duplicated type had — the
-`sectionMarker.family` families still ship nowhere. Remaining setup gap: the Project Setup
-Wizard does not offer the drawing-production step, and the sheet-number policy parameter has no
-UI.
+`sectionMarker.family` families still ship nowhere. *2026-09-24:* the Project Setup Wizard now
+offers both (Automation page → Drawing Production): a checkbox that runs this workflow at the end
+of Phase 3, off by default until this check has passed, and a sheet-number policy picker written
+after shared parameters load. Run the wizard with the checkbox on as part of this check.
 
 **DT-5 · The healthcare familyMatch patterns need a Revit run.** They are written against STING
 seed names and common manufacturer wording (`pendant`, `bed ?head|trunking`, `zone valve|ZVB|AVSU`,
