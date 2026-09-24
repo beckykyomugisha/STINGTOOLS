@@ -69,6 +69,14 @@ turned two of them into defects, both now fixed in code:
   meant nothing — are registered; cover depth is unknown rather than invented. Datum and
   precision are one owner setting (`IlReportingOptions`, survey point / 2 dp by default).
 
+- **ISO 19650 status colouring, with the default decisions.** One shared integer,
+  `PRJ_TB_CDE_STATE_INT`, derived from the suitability code, drives one coloured band per
+  CDE state in the suitability column of all 8 BIM title blocks (formula
+  `PRJ_TB_CDE_STATE_INT = n`; unknown code → no band). Fixed on the way: the revision syncer
+  changed the code without re-deriving the CDE state, `FilledRegionSpec.Color` was never read,
+  and a missing fill-type name silently became the first one in the file. Pre-export blocks a
+  band that disagrees with the printed code. Not yet run in Revit.
+
 Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
 not in the workflows this branch was checked against), fixed with a named, justified
 exemption rather than a raised ceiling.

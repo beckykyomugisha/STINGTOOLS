@@ -1,4 +1,4 @@
-# v6.8 | 3622 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3623 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3631,3 +3631,4 @@ Generic Models,PLM_DRN_INV_US_M,e8b25343-14ee-57f3-9189-040f37a8b5fc,TEXT,PLM_DR
 Generic Models,PLM_DRN_INV_DS_M,bc8ddf77-76cf-5ef4-8421-52ab6e7016f7,TEXT,PLM_DRN,Instance,"Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]",False,,,MULTI,1,0
 Generic Models,PLM_DRN_COVER_US_M,d273038b-4055-506d-a005-d7237e32c4da,TEXT,PLM_DRN,Instance,"Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",False,,,MULTI,1,0
 Generic Models,PLM_DRN_COVER_DS_M,2c7ae32a-fd45-5b6c-af34-cc780830e87e,TEXT,PLM_DRN,Instance,"Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]",False,,,MULTI,1,0
+Generic Models,PRJ_TB_CDE_STATE_INT,4f2b28ee-4444-5a79-ac09-97c6d3c23d74,INTEGER,PRJ_INFORMATION,Instance,"CDE state as a number, derived from PRJ_DWG_SUITABILITY_COD_TXT and driving the title-block status band: 0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED, 4 ARCHIVED. Written by the plugin; do not edit by hand [ISO 19650-1:2018]",False,,,MULTI,0,0

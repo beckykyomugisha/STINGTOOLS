@@ -233,6 +233,17 @@ namespace StingTools.Core.Drawing
             if (WriteIfChanged(sheet, SheetRevDateParam, revDate)) result.ParamsWritten++;
             if (suitValid && WriteIfChanged(sheet, DwgSuitabilityParam, revSuit)) result.ParamsWritten++;
 
+            // Live bug fixed: this wrote the suitability CODE but never the CDE state
+            // derived from it, so after a sync a sheet could read A1 while STATUS (and
+            // the colour band) still said SHARED. Derive both from the same function
+            // Title Block Populate uses.
+            var derived = suitValid ? SuitabilityPresentation.Derive(revSuit) : null;
+            if (derived != null && derived.IsKnown)
+            {
+                if (WriteIfChanged(sheet, ParamRegistry.TB_DELIVERABLE_CDE, derived.CdeStateName)) result.ParamsWritten++;
+                if (WriteIntIfChanged(sheet, ParamRegistry.TB_CDE_STATE_INT, derived.StateInt)) result.ParamsWritten++;
+            }
+
             // Revision box on every title-block instance on this sheet.
             foreach (var tb in CollectTitleBlocks(doc, sheet))
             {
@@ -259,6 +270,11 @@ namespace StingTools.Core.Drawing
                 // kept in step with the current issue's SUIT value. Guarded so a
                 // non-suitability "issued to" string never overwrites it.
                 if (suitValid && WriteParamIfExists(tb, DwgSuitabilityParam, revSuit)) result.ParamsWritten++;
+                if (derived != null && derived.IsKnown)
+                {
+                    if (WriteParamIfExists(tb, ParamRegistry.TB_DELIVERABLE_CDE, derived.CdeStateName)) result.ParamsWritten++;
+                    if (WriteIntIfChanged(tb, ParamRegistry.TB_CDE_STATE_INT, derived.StateInt)) result.ParamsWritten++;
+                }
 
                 // T-12: PRJ_TB_ISSUE_SUMMARY_TXT is NOT a revision field. The
                 // registry defines it as "Short free-text summary of the issue
@@ -296,6 +312,19 @@ namespace StingTools.Core.Drawing
         // Writes value to a String parameter if it exists, is writable,
         // and if the current value differs (skip-if-equal).
         // Returns true when a write actually happened.
+        private static bool WriteIntIfChanged(Element el, string paramName, int value)
+        {
+            var p = el?.LookupParameter(paramName);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.Integer) return false;
+            if (p.HasValue && p.AsInteger() == value) return false;
+            try { return p.Set(value); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"TitleBlockRevisionSyncer: writing {paramName} on {el.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         private static bool WriteIfChanged(Element el, string paramName, string value)
         {
             var p = el?.LookupParameter(paramName);

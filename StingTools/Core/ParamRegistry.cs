@@ -591,6 +591,10 @@ namespace StingTools.Core
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
         public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+        /// <summary>CDE state as a number (0 unknown … 4 archived) — drives the
+        /// title-block status band. Name owned by SuitabilityPresentation.</summary>
+        public const string TB_CDE_STATE_INT             = Drawing.SuitabilityPresentation.StateParameter;
+        public const string TB_CDE_STATE_INT_GUID        = "4f2b28ee-4444-5a79-ac09-97c6d3c23d74";
 
         /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
         ///

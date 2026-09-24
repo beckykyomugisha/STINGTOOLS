@@ -668,8 +668,26 @@ not survive verification and are recorded here so they are not re-raised:
   every canonical purpose explicitly (Schematic/Clarification → Drafting, Coordination → plan,
   Spool → 3D, Legend → reported as not producible); an unknown purpose is reported and produces
   no view and no empty sheet.
-- **ISO 19650 suitability colouring has no mechanism — OPEN, design chosen (advisory
-  2026-09-24), four owner decisions pending.** The 8 `iso-status-*` filters could never work
+- **ISO 19650 suitability colouring — ✅ IMPLEMENTED 2026-09-24 with the default decisions
+  (needs a Revit check).** Palette WIP #BDBDBD / SHARED #F9A825 / PUBLISHED #2E7D32 /
+  ARCHIVED #616161 in `STING_TITLE_BLOCKS.json` "cdeBands" (change it there); the band is the
+  existing amber region in the SUITABILITY column of the 8 BIM title blocks (A0–A3, both
+  orientations), now `"role": "cdeBand"`; ARCHIVED has a band, written only from the
+  deliverable register's CDE state; an unknown code shows no band. Built:
+  `SuitabilityPresentation` (Revit-free derive/palette/pre-export check), shared INTEGER
+  `PRJ_TB_CDE_STATE_INT` (registered, sheet-bound), written by Populate, by the revision
+  syncer (**live bug fixed**: it now re-derives the CDE state it used to leave stale) and by the
+  transmittal stamp; `TitleBlockFactory.PlaceCdeBands` authors the bands on EVERY build path
+  (seed and master included) and deletes a band whose visibility cannot be bound rather than
+  leave it always on; `FilledRegionSpec.Color` is now honoured and a missing fill-type name is
+  reported instead of silently replaced; Pre-Export Validate blocks `CDE_BAND_MISMATCH`.
+  **Needs Revit:** rebuild the BIM title blocks (Title Block Factory) and reload; confirm a
+  filled region's visibility associates in a title-block family, the formula on a
+  sheet-bound instance integer drives it, the band draws beneath the labels, and monochrome
+  print schemes. A seed that already has a static amber region will show it when no band is
+  on. Original advisory:
+- *(advisory, kept for the record)* **ISO 19650 suitability colouring — design chosen,
+  four owner decisions pending.** The 8 `iso-status-*` filters could never work
   (view filters cannot target `OST_Sheets`); a separate stamp family orphans on title-block
   swap; browser/schedule colouring does not print; revision-cloud colour belongs to revisions.
   **Recommended:** coloured bands *inside the title-block family*, one per CDE state, driven by

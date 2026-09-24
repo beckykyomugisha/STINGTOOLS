@@ -275,6 +275,13 @@ namespace StingTools.Core.Drawing
                     // for the previously-empty revision zone.
                     PlaceRevisionSchedules(famDoc, fm, defFile, view, spec, paramByName, r);
 
+                    // 4h. CDE status band — like the revision schedule, an overlay
+                    // on EVERY build path: the static regions above are skipped on
+                    // the seed / master paths, which is how every production title
+                    // block is built, so a band authored only there would never
+                    // reach a drawing. Idempotent.
+                    PlaceCdeBands(famDoc, fm, defFile, view, spec, paramByName, r);
+
                     tx.Commit();
                 }
 
@@ -1208,28 +1215,172 @@ namespace StingTools.Core.Drawing
             View view, FilledRegionSpec spec, Dictionary<string, FamilyParameter> map,
             TitleBlockBuildResult r)
         {
-            if (spec?.TopLeft == null || spec.BottomRight == null
-                || spec.TopLeft.Length < 2 || spec.BottomRight.Length < 2) return;
+            if (spec == null || spec.IsCdeBand) return;   // bands: PlaceCdeBands, on every path
+            var loop = RectLoop(spec);
+            if (loop == null) return;
             try
             {
-                var x1 = MmToFt(Math.Min(spec.TopLeft[0], spec.BottomRight[0]));
-                var x2 = MmToFt(Math.Max(spec.TopLeft[0], spec.BottomRight[0]));
-                var y1 = MmToFt(Math.Min(spec.TopLeft[1], spec.BottomRight[1]));
-                var y2 = MmToFt(Math.Max(spec.TopLeft[1], spec.BottomRight[1]));
-                var loop = CurveLoop.Create(new List<Curve>
+                // "color" used to be declared, shipped ("#F2A341") and never read:
+                // the type was found by name, and a missing name silently became
+                // the first fill type in the file. A colour now gets a solid type
+                // of that colour; a named type that is missing is reported.
+                ElementId typeId;
+                if (!string.IsNullOrWhiteSpace(spec.Color))
+                    typeId = GetOrCreateSolidFillType(famDoc, "STING Fill " + spec.Color.Trim().ToUpperInvariant(), spec.Color, r);
+                else
                 {
-                    Line.CreateBound(new XYZ(x1, y1, 0), new XYZ(x2, y1, 0)),
-                    Line.CreateBound(new XYZ(x2, y1, 0), new XYZ(x2, y2, 0)),
-                    Line.CreateBound(new XYZ(x2, y2, 0), new XYZ(x1, y2, 0)),
-                    Line.CreateBound(new XYZ(x1, y2, 0), new XYZ(x1, y1, 0)),
-                });
-                var typeId = ResolveFilledRegionTypeId(famDoc, spec.FillTypeName);
+                    typeId = ResolveFilledRegionTypeId(famDoc, spec.FillTypeName, out bool exact);
+                    if (!exact && typeId != ElementId.InvalidElementId)
+                        r.Warnings.Add($"PlaceFilledRegion: fill type '{spec.FillTypeName}' not in the template; used another.");
+                }
                 if (typeId == ElementId.InvalidElementId)
                 { r.Warnings.Add($"PlaceFilledRegion: no fill type '{spec.FillTypeName}'"); return; }
                 FilledRegion.Create(famDoc, typeId, view.Id, new List<CurveLoop> { loop });
                 r.FilledRegionsPlaced++;
             }
             catch (Exception ex) { r.Warnings.Add($"PlaceFilledRegion: {ex.Message}"); }
+        }
+
+        private static CurveLoop RectLoop(FilledRegionSpec spec)
+        {
+            if (spec?.TopLeft == null || spec.BottomRight == null
+                || spec.TopLeft.Length < 2 || spec.BottomRight.Length < 2) return null;
+            var x1 = MmToFt(Math.Min(spec.TopLeft[0], spec.BottomRight[0]));
+            var x2 = MmToFt(Math.Max(spec.TopLeft[0], spec.BottomRight[0]));
+            var y1 = MmToFt(Math.Min(spec.TopLeft[1], spec.BottomRight[1]));
+            var y2 = MmToFt(Math.Max(spec.TopLeft[1], spec.BottomRight[1]));
+            return CurveLoop.Create(new List<Curve>
+            {
+                Line.CreateBound(new XYZ(x1, y1, 0), new XYZ(x2, y1, 0)),
+                Line.CreateBound(new XYZ(x2, y1, 0), new XYZ(x2, y2, 0)),
+                Line.CreateBound(new XYZ(x2, y2, 0), new XYZ(x1, y2, 0)),
+                Line.CreateBound(new XYZ(x1, y2, 0), new XYZ(x1, y1, 0)),
+            });
+        }
+
+        private static readonly CdeState[] BandStates =
+            { CdeState.Wip, CdeState.Shared, CdeState.Published, CdeState.Archived };
+
+        /// <summary>
+        /// ISO 19650 status band. For each region with role "cdeBand": one solid
+        /// region per CDE state, in the same rectangle, each visible only when its
+        /// family Yes/No (formula "PRJ_TB_CDE_STATE_INT = n") is true. The driver is
+        /// a shared, sheet-bound integer the plugin writes from the suitability
+        /// code, so a title block cannot show a colour its code does not justify;
+        /// 0 (unknown) shows no band. NOT VERIFIED IN REVIT — see ROADMAP.
+        /// </summary>
+        private static void PlaceCdeBands(Document famDoc, FamilyManager fm, DefinitionFile defFile,
+            View view, TitleBlockSpec spec, Dictionary<string, FamilyParameter> paramByName,
+            TitleBlockBuildResult r)
+        {
+            var regions = (spec?.FilledRegions ?? new List<FilledRegionSpec>()).Where(f => f.IsCdeBand).ToList();
+            if (regions.Count == 0) return;
+
+            // Idempotent: a family that already carries the band parameters has its bands.
+            if (FamilyLabelAuthor.FindParameter(fm, SuitabilityPresentation.BandParameterFor(CdeState.Wip)) != null)
+            {
+                r.Warnings.Add("CDE status band already present — left as authored.");
+                return;
+            }
+
+            FamilyParameter driver = null;
+            paramByName.TryGetValue(SuitabilityPresentation.StateParameter, out driver);
+            driver = driver ?? AddSharedParameter(fm, defFile, SuitabilityPresentation.StateParameter,
+                "IdentityData", isInstance: true, r);
+            if (driver == null)
+            {
+                r.Warnings.Add($"CDE status band NOT authored: shared parameter {SuitabilityPresentation.StateParameter} " +
+                               "is not in the shared parameter file. Load the current MR_PARAMETERS.txt and rebuild.");
+                return;
+            }
+            paramByName[SuitabilityPresentation.StateParameter] = driver;
+
+            var problems = new List<string>();
+            var palette = SuitabilityPresentation.ResolvePalette(TitleBlockSpecRegistry.Load()?.CdeBands, problems);
+            foreach (var p in problems) r.Warnings.Add("CDE status band palette: " + p);
+
+            int placed = 0;
+            foreach (var state in BandStates)
+            {
+                var bandParam = AddInternalParameter(fm, SuitabilityPresentation.BandParameterFor(state), "YesNo",
+                    "Graphics", isInstance: true, defaultValue: null,
+                    formula: SuitabilityPresentation.BandFormulaFor(state), r);
+                if (bandParam == null) { r.Warnings.Add($"CDE band {state}: visibility parameter not created."); continue; }
+
+                var typeId = GetOrCreateSolidFillType(famDoc,
+                    "STING CDE - " + state.ToString().ToUpperInvariant(), palette[state], r);
+                if (typeId == ElementId.InvalidElementId) continue;
+
+                foreach (var region in regions)
+                {
+                    var loop = RectLoop(region);
+                    if (loop == null) continue;
+                    try
+                    {
+                        var fr = FilledRegion.Create(famDoc, typeId, view.Id, new List<CurveLoop> { loop });
+                        var vis = fr.get_Parameter(BuiltInParameter.IS_VISIBLE_PARAM);
+                        if (vis != null && fm.CanElementParameterBeAssociated(vis))
+                        {
+                            fm.AssociateElementParameterToFamilyParameter(vis, bandParam);
+                            placed++;
+                        }
+                        else
+                        {
+                            // An unbound band would ALWAYS show — every drawing coloured
+                            // as if it were in this state. Remove it and say so.
+                            famDoc.Delete(fr.Id);
+                            r.Warnings.Add($"CDE band {state}: the region's visibility cannot be bound to a " +
+                                           "parameter in this family; band not authored.");
+                        }
+                    }
+                    catch (Exception ex) { r.Warnings.Add($"CDE band {state}: {ex.Message}"); }
+                }
+            }
+            r.FilledRegionsPlaced += placed;
+            if (placed > 0)
+                r.Warnings.Add($"CDE status band: {placed} region(s) authored, driven by {SuitabilityPresentation.StateParameter}.");
+        }
+
+        /// <summary>A solid-pattern FilledRegionType of the given colour, created by
+        /// duplicating an existing solid type when no type of that name exists.</summary>
+        private static ElementId GetOrCreateSolidFillType(Document doc, string name, string hex, TitleBlockBuildResult r)
+        {
+            try
+            {
+                var types = new FilteredElementCollector(doc).OfClass(typeof(FilledRegionType))
+                    .Cast<FilledRegionType>().ToList();
+                var existing = types.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (existing != null) return existing.Id;
+
+                if (!SuitabilityPresentation.TryParseHex(hex, out byte cr, out byte cg, out byte cb))
+                {
+                    r.Warnings.Add($"Fill colour '{hex}' is not #RRGGBB; region not placed.");
+                    return ElementId.InvalidElementId;
+                }
+
+                var solidBase = types.FirstOrDefault(t => IsSolid(doc, t.ForegroundPatternId)) ?? types.FirstOrDefault();
+                if (solidBase == null) { r.Warnings.Add("No FilledRegionType in the family template to duplicate."); return ElementId.InvalidElementId; }
+                var dup = (FilledRegionType)solidBase.Duplicate(name);
+                if (!IsSolid(doc, dup.ForegroundPatternId))
+                {
+                    var solid = new FilteredElementCollector(doc).OfClass(typeof(FillPatternElement))
+                        .Cast<FillPatternElement>().FirstOrDefault(fp => fp.GetFillPattern().IsSolidFill);
+                    if (solid != null) dup.ForegroundPatternId = solid.Id;
+                }
+                dup.ForegroundPatternColor = new Color(cr, cg, cb);
+                return dup.Id;
+            }
+            catch (Exception ex)
+            {
+                r.Warnings.Add($"Fill type '{name}': {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        private static bool IsSolid(Document doc, ElementId patternId)
+        {
+            try { return (doc.GetElement(patternId) as FillPatternElement)?.GetFillPattern()?.IsSolidFill == true; }
+            catch (Exception ex) { StingLog.Warn($"IsSolid: {ex.Message}"); return false; }
         }
 
         /// <summary>Authors a viewport slot: 4 reference planes (top /
@@ -1660,7 +1811,11 @@ namespace StingTools.Core.Drawing
         }
 
         private static ElementId ResolveFilledRegionTypeId(Document doc, string typeName)
+            => ResolveFilledRegionTypeId(doc, typeName, out _);
+
+        private static ElementId ResolveFilledRegionTypeId(Document doc, string typeName, out bool exact)
         {
+            exact = false;
             try
             {
                 FilledRegionType first = null;
@@ -1671,7 +1826,7 @@ namespace StingTools.Core.Drawing
                     if (first == null) first = frt;
                     if (!string.IsNullOrEmpty(typeName)
                         && string.Equals(frt.Name, typeName, StringComparison.OrdinalIgnoreCase))
-                        return frt.Id;
+                    { exact = true; return frt.Id; }
                 }
                 return first?.Id ?? ElementId.InvalidElementId;
             }
