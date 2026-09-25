@@ -747,16 +747,6 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "ELC_PNL_ENCLOSURE_TXT": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Written by the PNLS panel card save; read by the STING panel schedule templates (STING_PANEL_SCHEDULE_SPECS.json header 'Enclosure'), which this C# scan cannot see. ROADMAP PNL-19."
-    },
-    "ELC_PNL_IP_RATING_TXT": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
-    },
     "ELC_PNL_SHORT_CIRCUIT_KA": {
       "state": "read_only",
       "role": "input",

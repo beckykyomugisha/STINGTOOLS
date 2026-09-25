@@ -756,7 +756,7 @@ One row per title-block cell. Columns: cell name (the parameter name on the titl
 Example row: `| Client Name | ${PRJ_ORG_CLIENT_NAME} |`
 This writes the project's client name from Project Information into the title block's `Client Name` parameter when the sheet is created.
 
-**Save semantics:** Clicking Save writes only entries with `origin: "project"` to `<project>/_BIM_COORD/drawing_types.json`. The corporate file on disk is never changed. If you edit a corporate entry and click Save, the entry's origin flips to `"project"` automatically and your edits land in the project file.
+**Save semantics:** Clicking Save writes only entries with `origin: "project"` — drawing types to `<project>/_BIM_COORD/drawing_types.json` and view style packs to `view_style_packs.json`, both on every Save whichever tab is open. The corporate file on disk is never changed. If you edit a corporate entry and click Save, the entry's origin flips to `"project"` automatically and your edits land in the project file.
 
 ### Scope-box auto-binding — the STING:: naming trick
 
@@ -779,6 +779,36 @@ This is the fastest way to produce a coordinated set of plans:
 5. The command is **idempotent** — if you run it again, it finds the existing stamped views and re-applies the profile instead of creating duplicates.
 
 > **Stuck?** If "From Scope Boxes" did nothing, check that your scope box names match the pattern exactly. The `::` separators must be double colons. The drawing type id must match exactly — copy it from the editor list rather than typing it.
+
+### Area boxes and seeds — letting STING lay the boxes out
+
+`STING::` boxes tie one box to one drawing type, so ten plan types on six levels means sixty boxes to draw and name by hand. **Area boxes** are shared instead: one box per area of the building, and every plan drawing type that fits it is produced from it. STING plans them, creates them and names them.
+
+**Why seeds.** The Revit API cannot create a scope box or change its size — it can only copy, move, rotate and rename one. So each box size is drawn **once**, as a *seed*, and STING copies it everywhere it is needed.
+
+| Name | What it is |
+|---|---|
+| `STING-SEED::<w>x<d>` | A seed — one per size, e.g. `STING-SEED::84x59`. Never produced from. |
+| `STING-AREA::<code>` | An area box shared by every level |
+| `STING-AREA::<code>::<level>` | An area box for one level (per-level mode) |
+| `STING-LOC::<building>` | Optional: marks a building, so each gets its own set of area boxes |
+
+**Step by step** (DOCS → Drawing Types → Scope boxes, or the Drawing Type Editor's All Actions tab):
+
+1. **Draw the seeds.** In a **3D view**, draw a scope box of roughly the size the planner asks for and make it **tall enough to cross every level** — a plan view only offers boxes that cross its level, and STING cannot make a box taller later. Select it and click **Register Seeds**: it is renamed `STING-SEED::<w>x<d>` from its measured size. Or **Import Seeds** from a template or another project that already has them.
+2. **Open the Scope Box Planner.** Tick the drawing types and levels. The planner groups the types into size classes (the area one sheet shows at that scale), tiles each building's footprint, and lists every box it wants with a status:
+   - **New** — will be created from the seed
+   - **Exists** — already there, in place (a box turned by exactly a quarter turn counts as in place)
+   - **Moved** — exists but is off its planned centre or angle; *Create boxes* moves and turns it back
+   - **Mismatch** — exists at a different size. STING cannot resize a box: delete it (or rename it) and create again
+   - **NoSeed** — no seed of that size yet; draw and register one
+3. **Create boxes.** Copies a seed for each New box, turns it square to the grid, names it and saves the plan to `_BIM_COORD/scope_box_plan.json`. More than 200 boxes asks first. Re-planning a building replaces that building's boxes in the file; boxes you delete in Revit drop out of it.
+4. **Produce views…** (or **Produce From Areas** on the dock) produces each area box's views and sheets for its drawing types and levels, cropped to the box. A view already produced is refreshed, not duplicated; a view whose crop did not take is rolled back and reported.
+5. **Colour Boxes** tints boxes by size class, discipline, building, level or kind (area / seed / building) so you can check the layout in plan; **Clear Box Colours** removes it.
+
+> **Stuck?** *NoSeed* on every box: nothing is registered — select your drawn box and click Register Seeds. Views missing on some levels: the seed was not tall enough; redraw it taller in 3D, register it, delete the short copies and create again. A box marked *Mismatch* after you changed sheet size: that class now needs a different seed size.
+
+> **Not yet checked in Revit** (ROADMAP SBP-1, SBP-2, SBP-5): box placement on a rotated grid, per-box colours, and the Moved / cap / import behaviour.
 
 ### SyncStyles — what drift is and how to fix it
 

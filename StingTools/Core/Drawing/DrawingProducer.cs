@@ -1168,6 +1168,11 @@ namespace StingTools.Core.Drawing
                 ?? (ctx?.Room != null ? StingTools.Core.ParameterHelpers.GetString(ctx.Room, "Number") : null)
                 ?? ctx?.Tag
                 ?? "";
+            // A scope box on a level: the level alone names every box's view alike ("Arch Plan
+            // - Level 1", "(2)", "(3)"…), so which area a view covers could not be told. The
+            // tag (an area box's code, a STING:: box's tag) says it.
+            if (ctx?.Level != null && ctx.ScopeBox != null && !string.IsNullOrWhiteSpace(ctx.Tag))
+                ctxLabel = $"{ctx.Level.Name} - {ctx.Tag}";
             string raw = $"{dt.Name} - {ctxLabel}{rule.NameSuffix ?? ""}".Trim();
             return SanitizeViewName(raw);
         }
@@ -1529,7 +1534,15 @@ namespace StingTools.Core.Drawing
                         "if the project uses ISO 19650 numbering.");
                     return null;
                 }
-                return p.StorageType == StorageType.String ? p.AsString() : null;
+                string value = p.StorageType == StorageType.String ? p.AsString() : null;
+                // A typo ("iso 19650") parses as Profile by default — the same silent
+                // opt-out as an unbound parameter, so it gets the same warning.
+                if (!string.IsNullOrWhiteSpace(value) && !SheetNumberPolicy.IsRecognised(value))
+                    result?.Warnings.Add(
+                        $"{SheetNumberPolicy.PolicyParameterName} holds '{value.Trim()}', which is not a sheet-number " +
+                        "policy STING recognises (iso / profile), so sheets are numbered by each drawing type's own " +
+                        "pattern. Set it to 'iso' for ISO 19650 numbering.");
+                return value;
             }
             catch (Exception ex)
             {

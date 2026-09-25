@@ -208,7 +208,8 @@ namespace StingTools.Core.Plumbing
             {
                 fixCount = new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
-                    .WhereElementIsNotElementType().GetElementCount();
+                    .WhereElementIsNotElementType().ToElements()
+                    .Count(el => !MedicalGasFixtures.IsMedicalGas(el));
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             r.FixturesScanned = fixCount;

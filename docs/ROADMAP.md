@@ -94,17 +94,27 @@ level, and the API cannot change a box's height. Create and Register report a se
 not span every level; the fix is to redraw it taller in a 3D view. Worth a line in the SETUP
 guide once SBP-1 has passed.
 
-**SBP-4 · Boxes are copied, not updated.** Re-planning after the building grows marks the old
-names "Exists — kept"; they are not moved or resized. Delete the old boxes (or rename them) and
-create again. Moving an existing box to its re-planned centre is possible via the API and would
-be the next step if this proves common.
+**SBP-4 · Boxes are moved, never resized.** *Partly closed 2026-09-25.* A re-planned box whose
+name exists is now judged against its measured position: in place → Exists; off its planned
+centre or angle → **Moved**, and Create moves and rotates it there; a different size →
+**Mismatch**, which Create leaves alone because the API cannot resize a box. For a Mismatch,
+delete the box (or rename it) and create again. The saved plan (schema 2) keeps each box's own
+drawing types, levels and geometry, a re-plan replaces its (building, level, class) group, and
+boxes deleted from the model drop out of the file.
+
+**SBP-5 · Needs a Revit run (2026-09-25 review fixes).** Check on a rotated grid: a box turned
+by a quarter turn reports Exists (the measured angle is folded modulo 90° with sides swapped); a
+box moved 2 m reports Moved and Create puts it back; the 200-box cap asks before creating; Import
+Seeds from an open template leaves that document open; and Produce refuses a view whose crop did
+not take.
 
 ## Material callouts (2026-09-24)
 
 Reviewed end to end; the design and the build steps are in
 [`SPECIALIST_TAG_BUILD_SHEET.md`](SPECIALIST_TAG_BUILD_SHEET.md) §5. Shared parameters DO bind
-to Materials (116 added in a 2026-09-21 run) — the comments in `LoadSharedParamsCommand.cs`,
-`SharedParamGuids.cs` and `ParamRegistry.cs` saying otherwise are stale.
+to Materials (116 added in a 2026-09-21 run). The comments in `LoadSharedParamsCommand.cs`,
+`SharedParamGuids.cs` and `ParamRegistry.cs` that said otherwise were corrected (the last one
+2026-09-25).
 
 | ID | Status | Detail |
 |---|---|---|
@@ -182,9 +192,35 @@ category. Left open, one family / one category being the limit:
 - `AVSU_BOX_5GAS` and `VIE_MANIFOLD` are now Plumbing Fixtures, where no MGPS tag or network role
   fits them (ZVB is Pipe Accessories, VIE is Mechanical Equipment). They were no better placed as
   Specialty Equipment; splitting them into their own seeds is the real fix.
-- Seven of the seed's `"shared": true` parameters (`MGS_TU_TYPE_TXT`, `MGS_GASES_TXT`,
-  `MGS_SOCKET_STD_TXT`, `MGS_OPERATING_KPA`, `MGS_CERT_TXT`, `MGS_HOSPITAL_AREA_TXT`,
-  `MGS_AVSU_ZONE_TXT`) are not in `MR_PARAMETERS.txt`. That predates this change.
+- Eight of the seed's `"shared": true` parameters (`ASS_TAG_1`, `MGS_TU_TYPE_TXT`,
+  `MGS_GASES_TXT`, `MGS_SOCKET_STD_TXT`, `MGS_OPERATING_KPA`, `MGS_CERT_TXT`,
+  `MGS_HOSPITAL_AREA_TXT`, `MGS_AVSU_ZONE_TXT`) are not in `MR_PARAMETERS.txt`. That predates
+  this change. `ASS_TAG_1` is presumably meant to be `ASS_TAG_1_TXT`, which is registered;
+  the other seven need registering, or they bind as family-only parameters no schedule or tag
+  can read. (The earlier count of seven missed `ASS_TAG_1`.)
+
+**MG-1 · The gas type is an instance parameter set per type (design note).** The seed declares
+`MGS_GAS_TYPE_TXT` `isInstance: true` and sets it in each terminal-unit type. In the Family
+Editor an instance parameter's per-type value is the default a new instance receives, so a
+placed `TERMINAL_UNIT_O2` starts as `O2`. After that it belongs to the instance: swapping the
+outlet to `TERMINAL_UNIT_VAC` keeps `O2`, and `FamilySymbol.LookupParameter` cannot see it, which
+is why `MedGasOutletPlacementCommand` finds seed types by name and writes the gas onto each
+instance it places. A type parameter would follow a swap, but the project binding of
+`MGS_GAS_TYPE_TXT` is instance (pipework carries it per run), and one shared parameter cannot be
+both. Options if swaps prove common: an updater that restamps the gas on a type change, or a
+separate type-level `MGS_TU_GAS_TXT` the TU tag reads. Neither is built. The per-type default
+behaviour itself has not been checked in Revit.
+
+**MG-2 · Projects that already built the outlet seed keep the old theatre panel.** The type
+`MAP_THEATRE_PANEL` (product code `MAP`) was renamed `THEATRE_GAS_PANEL` / `TGP` on 2026-09-25,
+because `MgasNetwork` (line 91) reads product code `MAP` as a Master Alarm Panel. *Build Seeds*
+in Missing Only mode skips a seed whose `.rfa` exists, and a family reload never deletes a type
+the project already holds, so placed theatre panels stay `MAP` and keep counting as a Master
+Alarm Panel. The same applies to projects that built the seed as Specialty Equipment before
+DT-4. Nothing migrates this: in such a project, run *Build Seeds → Rebuild All*, swap the
+theatre-panel instances to `THEATRE_GAS_PANEL`, then purge `MAP_THEATRE_PANEL`. A migration
+step (or a `Symbols_DriftDetect` finding for a seed type the spec no longer declares) would make
+it automatic.
 
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step

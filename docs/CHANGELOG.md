@@ -23219,12 +23219,20 @@ The work that could be coded before the next Revit session.
   Equipment, seeded outlets could not take the TU tag and were invisible to the network.
   Terminal-unit types carry `MGS_GAS_TYPE_TXT`, and the TU / AAP patterns now catch the right
   seed types. The AVSU / VIE category limit and 7 unregistered seed parameters are recorded in
-  ROADMAP DT-4.
+  ROADMAP DT-4. *(Corrected 2026-09-25: eight — `ASS_TAG_1` was missed.)*
+- **Health parameters reach Medical Equipment; MGS network fields reach pipework** (566d1bf0c).
+  The resolver's HEALTH set gained Medical Equipment, so 132 more parameters bind there — 78
+  clinical, medical-gas and radiation data parameters and 54 `WARN_` tag-warning rows (one
+  already did). `MGS_GAS_TYPE_TXT`, `MGS_ZVB_REF_TXT`, `MGS_NOM_PRESS_KPA_NR`,
+  `MGS_DESIGN_FLOW_LPM_NR` and `MGS_PIPE_BRAZED_BOOL` also reach Pipes, Pipe Fittings and Pipe
+  Accessories, where `MgasNetwork` and `MgasFlowValidator` read them.
 - **Setup wizard.** A new Drawing Production group on the Automation page:
   - A checkbox runs the drawing-production workflow at the end of Phase 3. It is off by default
     until DT-6's Revit run.
   - A sheet-number policy picker, written after shared parameters load. It writes only a change,
-    and a caller that never chose leaves the parameter alone.
+    and a caller that never chose leaves the parameter alone. *(Corrected 2026-09-25: the wizard
+    itself always chose — the picker never returned "no choice", so every run recorded
+    `profile`. Fixed in the review-fixes branch.)*
 
 Build 0/0. Tags.Tests green. `run_ci_gates.py` green. Data and gates are verified headlessly.
 **Not exercised in Revit:** the wizard steps, the moved seed, and the new Rooms / Site rules.
@@ -23265,7 +23273,7 @@ Area boxes that every plan drawing type can share, created from seeds.
   - Palette and discipline colours are in `STING_SCOPE_BOX_STYLE.json`, with a project
     override.
 - **Drawing Type Editor: new All Actions tab.** It offers every button in the dock panel's
-  DRAWING TYPES section, in the same groups; the editor previously exposed 8 of 42. It is
+  DRAWING TYPES section, in the same groups; the editor previously exposed 8 of 41. It is
   built from `DrawingTypeActions`, and `DrawingTypeActionsTests` reads the dock XAML and fails
   on any difference in group, label or tag, so the two cannot drift. The dock section gained a
   "Scope boxes" sub-group. The editor's "Edit pack" jump now selects its tab by reference,
@@ -23500,3 +23508,128 @@ read by the panel schedule spec), with roles and reasons filled in by hand;
 `recount_unreachable_commands.py --check`, `check_roadmap_ids.py` and path discipline OK;
 `find_lying_catches.py` exit 0.
 Build `dotnet build StingTools/StingTools.csproj -c Release`: 0 errors, 0 warnings. `StingTools.Tags.Tests` 2650/2650 (2648 + the two new binding tests).
+
+#### Completed (review fixes after #981 / #982, branch `claude/review-fixes`)
+
+Every finding of the 2026-09-25 review of the pre-Revit cleanup and the Scope Box Planner.
+
+- **Scope Box Planner.**
+  - Existing boxes are judged against their measured position and size: **Exists**, **Moved**
+    (Create moves and turns it back), **Mismatch** (a size the API cannot change), **NoSeed**. A
+    measured angle is folded modulo a quarter turn, with the sides swapped. Before this, a box
+    with the planned name was "kept" wherever it stood.
+  - Boxes are measured from their edges in their own frame, not from an axis-aligned bounding box.
+  - The plan file (schema 2) stores each box's own drawing types, levels and geometry. A
+    re-plan replaces that (building, level, class) group instead of wiping other buildings.
+    Boxes deleted from the model are pruned. Creations that failed are not recorded.
+    Schema-1 files still load.
+  - Create refuses an unreadable plan file, an empty level list and, unconfirmed, more than 200
+    boxes. It rolls back a half-made copy per box.
+  - Level codes are unique (`L01`, `L01-2`).
+  - Import Seeds leaves an already-open source document open, and refuses an unsaved project.
+  - Produce rolls back a view whose crop did not take and reports new against refreshed views.
+  - `DrawingProducer.BuildViewName` includes the box tag, so two boxes on one level no longer
+    collide.
+  - The dialog runs one action at a time and rebuilds after a reload.
+- **Medical gas.**
+  - `MedicalGasFixtures.IsMedicalGas` (gas type, MG discipline or seed id) keeps outlets out of
+    the P-trap inserter, the fixture-unit scanner and the aggregator. The trap inserter takes
+    only a Sanitary connector, where before it took the first piping one.
+  - The familyMatch patterns used `\b`, which treats `_` as a letter, so `MAP_THEATRE_PANEL`
+    and `VIE_*` slipped through. They now use a letter/digit boundary and accept space,
+    underscore or hyphen, and `MAP` is case-sensitive.
+  - The theatre panel is now `THEATRE_GAS_PANEL` / `TGP`: `MgasNetwork` reads product code
+    `MAP` as a Master Alarm Panel.
+  - Outlet placement writes canonical gas codes (`AIR` → `MA4`, `AGSS` → `AGS`, …), reports
+    unknown codes instead of guessing 400 kPa, and takes pressures from `NFPA99Standards`.
+    Placement now follows the family type: face-based, wall-hosted or free-standing. It had
+    always used a face-reference call that throws for STING's own Standalone seed.
+  - TAG7's medical-gas narrative runs before the plumbing branch, which used to claim every
+    outlet and gas pipe.
+- **Workflows.** `ExecutePreset` has an unattended overload that returns a `WorkflowOutcome`
+  and fails on a failed required step. A run nested in another is unattended automatically.
+  The setup wizard folds Drawing Production Setup's outcome into its own report.
+- **Setup wizard policy.**
+  - The picker recorded `profile` on every run; it now records only a real pick
+    (`SheetNumberPolicy.ChosenOrNull`).
+  - An unrecognised stored value is flagged and replaced when a policy is picked.
+  - Detail lines follow the step header, a skipped step is listed, and a refused `Set` fails.
+- **Tag expander.** Materials is built as a Material Takeoff (`CreateSchedule` rejects the
+  category). `col2_desc`, present on all 207 entries and never read, is now column 2.
+- **`run_ci_gates.py`.**
+  - Names the PowerShell it used and warns on 5.1.
+  - Empties the step summary per run.
+  - Reads `git status --porcelain -z`, so quoted paths are handled.
+- **Docs.**
+  - The editor has seven tabs, and Save writes both override files (CLAUDE.md, the footer
+    hint, the VG research note and the guide).
+  - The dock's DRAWING TYPES section has 41 buttons, not 42.
+  - DT-4 lists eight unregistered seed parameters, not seven.
+  - New MG-1 design note (gas type as an instance parameter).
+  - SBP-4 is partly closed and SBP-5 was added.
+  - Changelog corrections: the missing 566d1bf0c bullet (132 = 78 + 54 `WARN_`) and the
+    wizard's "writes only a change" claim.
+  - The last stale "Materials cannot take bound parameters" comment is fixed.
+  - The guide has an area-box / seed section.
+  - NLP and the LLM allow-list know `ScopeBox_Planner`.
+
+- **Second review (hidden failures).**
+  - The Scope Box Planner could lock itself: a raise that threw or was not Accepted left the
+    one-action guard set, so every later click said "still working" until the dialog closed.
+  - Produce From Areas rolled back a correctly cropped plan when a type's section or 3D view
+    ignored the box. Only the plan must take the box now; the others are warnings.
+  - A box whose move succeeded but whose rotate threw was left half-moved and dropped from the
+    plan. Each box now runs in its own sub-transaction and rolls back whole.
+  - A bad style colour was also counted as "nothing to colour by".
+  - Drawing production warns when the sheet-number policy holds a value it does not
+    recognise (a typo read as per-drawing-type numbering with no trace).
+  - A failed unattended workflow writes its step-by-step report to the log; Project Setup
+    labels a failed step FAILED, not WARN.
+  - Tag expander: in the Material Takeoff the material's own field wins over the host
+    element's field of the same name.
+  - Outlet placement: lookups ignore pipe fittings and accessories, and the comment on the
+    gas-type lookup no longer claims the seed is found by it.
+  - ROADMAP MG-2: projects that already built the outlet seed keep `MAP_THEATRE_PANEL`, which
+    the network still reads as a Master Alarm Panel; the manual migration is written there.
+
+Every new guard was proved RED by sabotage, then GREEN. **Not exercised in Revit:** the
+planner's Revit half (SBP-1, SBP-2, SBP-5), outlet placement per family type, the material
+takeoff and the wizard.
+
+#### Completed (review round 3 of #983 / #984: nothing may report success it did not achieve)
+
+Three independent reviews (correctness, silent failure, data consistency) of what #983 and
+#984 shipped, before the in-Revit test. Fixed:
+
+- **Ckt Nr → Text could lose values.** It committed even when some values did not come back,
+  after promising "if anything fails, nothing changes"; and it used the Load Params failure
+  swallower, which dismisses the very type-conflict error a failed rebind of the same GUID
+  raises. Now: a strict preprocessor rolls back on any Revit error; the new binding is checked
+  to be TEXT; if ANY value cannot be written back the whole transaction is rolled back and the
+  failures listed; and the binding kind is kept (a type binding stays a type binding, so
+  values on types have somewhere to go).
+- **Compliance verdict.** A circuit with no failure but an unchecked rule now reads
+  `UNVERIFIED (not checked: …)`, not `OK (not checked: …)` — in a schedule column anything
+  starting "OK" reads as a pass. `OK` is reserved for every rule run and passed.
+- **PNLS Save to Model** said "Saved" when writes were refused; it now lists each field written
+  and each field NOT written (unbound, read-only, or a value the type refuses).
+- **Panel_Audit stale-template check** compared by parameter NAME; built-ins have aliased enum
+  names, so a correct template could read "out of date". It now compares by ElementId; spec
+  load warnings and not-yet-loaded params are shown; a crashed check is its own error line,
+  not "1 template out of date".
+- **Excel.** Export's Scope / section choices were static and leaked into later ribbon and
+  workflow runs; they are now one-shot. Import reads each written cell back and counts a
+  value Revit reformatted or ignored as rejected, so the old → new diff shows what the
+  schedule really holds.
+- Smaller: Amtech / EasyPower type-name matches listed as "verify", not counted as Stamped;
+  Panel Reconcile points a refused multi-pole number at "Ckt Nr → Text" and counts deleted
+  conduits; the SLD stamp warning lists causes instead of asserting one; fire-alarm devices
+  with no loop go under "(no loop set)", not an invented "Zone 1"; Load Params reports a
+  failure to build the `<ALL>|Project Information` bindings; IPS says when the LIM read failed.
+- Data: `ELC_PNL_FAULT_LG_KA` now shown in the fault-current schedule (PARAM-3 had no reader);
+  the JB box IP rating read from the box, its type, or the seed's `ELC_JB_IP_RATING_TXT`;
+  `ELC_PNL_ENCLOSURE_TXT` description names the real tag `Panel_WriteParams`; the CSV
+  `ELC_CKT_NR` description matches the `.txt`; PNL-20 / PNL-21 closed rows describe what
+  shipped; counts in earlier entries corrected.
+
+Build 0/0; all tests and gates pass (see PR). **Not exercised in Revit.**

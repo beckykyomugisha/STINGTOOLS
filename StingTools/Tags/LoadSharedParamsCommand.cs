@@ -1379,8 +1379,9 @@ namespace StingTools.Tags
             // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
-            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
-            // via group overrides (OST_Materials doesn't support bound params)
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories via group
+            // overrides. OST_Materials DOES take bound parameters; it is added by
+            // name in CleanMaterialBindings (IsMaterialRelevantParam), not here.
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);

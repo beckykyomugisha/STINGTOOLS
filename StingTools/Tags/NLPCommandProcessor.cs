@@ -301,6 +301,8 @@ namespace StingTools.Tags
             // Drawing Types / Scope Boxes (DrawingTemplateManager)
             (@"\b(sync\s*style|drawing\s*style\s*sync|drift\s*repair|repair\s*drift)\b",
                 "DrawingTypes_SyncStyles", "DrawingTypes", "Sync drawing type styles and repair drift"),
+            (@"\b(scope\s*box\s*plan\w*|plan\s*scope\s*box\w*|area\s*box\w*|(auto\s*)?(create|name)\s*scope\s*box\w*)\b",
+                "ScopeBox_Planner", "DrawingTypes", "Plan, create and name area scope boxes from seeds"),
             (@"\b(from\s*scope\s*box|scope\s*box\s*view|generate\s*from\s*scope)\b",
                 "DrawingTypes_FromScopeBoxes", "DrawingTypes", "Generate views from STING scope box naming convention"),
             (@"\b(browser\s*organ|view\s*browser\s*org|drawing\s*browser)\b",
