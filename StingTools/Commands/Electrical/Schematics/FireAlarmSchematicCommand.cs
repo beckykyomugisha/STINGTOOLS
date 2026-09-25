@@ -50,10 +50,17 @@ namespace StingTools.Commands.Electrical.Schematics
             }
 
             // Group devices by loop reference.
+            // Devices with no loop value are grouped under NoLoop, drawn last and
+            // counted in the result — never filed under an invented loop.
             var loopGroups = devices
                 .GroupBy(LoopOf)
-                .OrderBy(g => g.Key)
+                .OrderBy(g => g.Key == NoLoop ? 1 : 0)
+                .ThenBy(g => g.Key)
                 .ToList();
+            int noLoopCount = loopGroups.FirstOrDefault(g => g.Key == NoLoop)?.Count() ?? 0;
+            if (noLoopCount > 0)
+                StingLog.Warn($"FireAlarmSchematic: {noLoopCount} device(s) have no " +
+                              $"{string.Join(" / ", LoopParams)} value — drawn under '{NoLoop}'");
 
             using (var tx = new Transaction(doc, "STING Fire Alarm Schematic"))
             {
@@ -90,7 +97,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     PlaceLabel(doc, view,
                         facpX + Mm(2.0),
                         facpY + facpH / 2.0 + Mm(1.0),
-                        $"FACP / Zone {loopRef}");
+                        loopRef == NoLoop ? NoLoop : $"FACP / Zone {loopRef}");
 
                     // Horizontal bus line from right edge of FACP to last device.
                     double busStartX = facpX + facpW;
@@ -158,11 +165,17 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
-                TaskDialog.Show("STING Fire Alarm Schematic",
+                int realLoops = loopGroups.Count(g => g.Key != NoLoop);
+                string result =
                     $"Schematic generated.\n\n" +
                     $"View:    {view.Name}\n" +
-                    $"Loops:   {loopGroups.Count}\n" +
-                    $"Devices: {totalDevicesDrawn}");
+                    $"Loops:   {realLoops}\n" +
+                    $"Devices: {totalDevicesDrawn}";
+                if (noLoopCount > 0)
+                    result += $"\n\n{noLoopCount} device(s) have no loop set " +
+                              $"({string.Join(" / ", LoopParams)} empty) and are drawn under " +
+                              $"'{NoLoop}', not on a loop. Populate the loop and re-run.";
+                TaskDialog.Show("STING Fire Alarm Schematic", result);
             }
 
             return Result.Succeeded;
@@ -183,8 +196,12 @@ namespace StingTools.Commands.Electrical.Schematics
                 string v = e.LookupParameter(pn)?.AsString()?.Trim();
                 if (!string.IsNullOrEmpty(v)) return v;
             }
-            return "Zone 1";
+            return NoLoop;
         }
+
+        /// <summary>Group key for a device with no loop value. Was "Zone 1", which
+        /// filed unassigned devices under a loop nobody had defined.</summary>
+        private const string NoLoop = "(no loop set)";
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {

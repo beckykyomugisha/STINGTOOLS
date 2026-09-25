@@ -118,21 +118,30 @@ namespace StingTools.Commands.Panels
             // without the new columns — and nothing said so. Compare each built STING
             // template's bound parameters with STING_PANEL_SCHEDULE_SPECS.json.
             var staleRows = new List<string>();
-            int stingBuilt = 0, stingMissing = 0;
+            var specWarn = new List<string>();
+            var unresolvedParams = new List<string>();
+            string templateCheckError = null;
+            int stingBuilt = 0, stingMissing = 0, specCount = 0;
             try
             {
-                var specWarn = new List<string>();
-                foreach (var spec in StingTools.Core.Panels.PanelTemplateBuilder.LoadSpecs(doc, specWarn).Templates)
+                var specs = StingTools.Core.Panels.PanelTemplateBuilder.LoadSpecs(doc, specWarn).Templates;
+                specCount = specs.Count;
+                foreach (var spec in specs)
                 {
                     var t = StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, spec.Name);
                     if (t == null) { stingMissing++; continue; }
                     stingBuilt++;
-                    var missing = spec.MissingFrom(StingTools.Core.Panels.PanelTemplateBuilder.BoundParamKeys(doc, t));
+                    var missing = StingTools.Core.Panels.PanelTemplateBuilder.MissingFromTemplate(doc, t, spec, unresolvedParams);
                     if (missing.Count > 0)
                         staleRows.Add($"{spec.Name}: {missing.Count} column(s) missing ({string.Join(", ", missing.Take(5))}{(missing.Count > 5 ? ", …" : "")})");
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Audit STING template check: {ex.Message}"); staleRows.Add("STING template check failed: " + ex.Message); }
+            catch (Exception ex)
+            {
+                // A crashed check is not "a template out of date" — report it as what it is.
+                StingLog.Warn($"Audit STING template check: {ex.Message}");
+                templateCheckError = ex.Message;
+            }
 
             var result = StingResultPanel.Create("Panel Schedule Audit");
             result.SetSubtitle($"{panelsTotal} panels · {withSchedule} with schedule · {withoutSchedule} without · {templateDrift} drift");
@@ -148,8 +157,11 @@ namespace StingTools.Commands.Panels
                   .MetricWarn("Template drift", templateDrift.ToString(), "current ≠ rule-suggested")
                   .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS")
                   .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model")
-                  .Metric("STING templates built", $"{stingBuilt}", stingMissing > 0 ? $"{stingMissing} not built — PNLS 📐" : null)
-                  .MetricWarn("STING templates out of date", staleRows.Count.ToString(), "rebuild with PNLS 📐");
+                  .Metric("STING templates built", specCount == 0 ? "no specs loaded" : $"{stingBuilt} of {specCount}",
+                          stingMissing > 0 ? $"{stingMissing} not built — PNLS 📐" : null)
+                  .MetricWarn("STING templates out of date", templateCheckError != null ? "not checked" : staleRows.Count.ToString(), "rebuild with PNLS 📐");
+            if (templateCheckError != null)
+                result.MetricError("STING template check failed", templateCheckError, "see the STING log");
 
             if (totals.Count > 0)
             {
@@ -176,6 +188,14 @@ namespace StingTools.Commands.Panels
             {
                 result.AddSection("STING TEMPLATES OUT OF DATE (run PNLS 📐)");
                 foreach (string s in staleRows) result.Text(s);
+            }
+            if (specWarn.Count > 0 || unresolvedParams.Count > 0)
+            {
+                result.AddSection("TEMPLATE SPEC NOTES");
+                foreach (string w in specWarn) result.Text(w);
+                var un = unresolvedParams.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (un.Count > 0)
+                    result.Text($"Not in this project, so not checked ({un.Count}): {string.Join(", ", un.Take(8))}{(un.Count > 8 ? ", …" : "")} — run Load Params.");
             }
 
             if (paramGapRows.Count > 0)

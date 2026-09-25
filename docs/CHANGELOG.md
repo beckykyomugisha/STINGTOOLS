@@ -23423,7 +23423,7 @@ template detection). Panel tests 80/80. **Not exercised in Revit.**
 
 Not run in Revit on this branch. Gates: `dotnet build -c Release` 0 errors / 0 warnings;
 `StingTools.Tags.Tests` 2657 passed / 0 failed; `check_param_contract.py --check` OK with no
-baseline change; `recount_unreachable_commands.py --check` agrees (1753 / 1728, triage doc
+baseline change; `recount_unreachable_commands.py --check` agrees (1759 / 1734 after the merge, triage doc
 updated); `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and
 `check_command_doc_acquisition.ps1` pass.
 
@@ -23463,7 +23463,7 @@ checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
     alarm device tag and schedule already show; Fire Alarm Schematic; a blank loop still groups
     as "Zone 1"); `ELC_CONDUIT_REF` / `ELC_CABLE_ROUTE_REF` -> `ELC_CONDUIT_ROUTE_TXT` (the route
     id the conduit auto-router and consolidator write, bound on Electrical Equipment; SLD route
-    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Fixtures, the JB
+    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Equipment, the JB
     seed's category; Cable Schedule Builder).
   - *Rejected as an alias:* `MGS_ZVB_REF_TXT` for `MGS_ZV_ZONE_TXT` — it is the OWNING box id on
     pipes and terminal units, so reading it as "this is a zone valve" would have turned every
@@ -23478,7 +23478,7 @@ checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
   `CATEGORY_BINDINGS.csv` rows stay. The resolver now strips tag-family keys (92 known, read from
   `LABEL_DEFINITIONS.json`) from what curated rows and the committed spec contribute, and **fails
   on any category in any emitted row that `category_enum_map` does not know** (plus `<ALL>` not in
-  first position). The 15 affected rows (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
+  first position). The 13 affected rows (15 tokens) (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
   `LIG_PRODUCT_RATING_TXT`) keep their real category. `SharedParamGuids.EnsureResolved` now
   `StingLog.Warn`s once per unknown name with a count and example parameters.
 - **PARAM-6 — project-level parameters reach Project Information.** A categories cell may now
@@ -23595,3 +23595,41 @@ Every finding of the 2026-09-25 review of the pre-Revit cleanup and the Scope Bo
 Every new guard was proved RED by sabotage, then GREEN. **Not exercised in Revit:** the
 planner's Revit half (SBP-1, SBP-2, SBP-5), outlet placement per family type, the material
 takeoff and the wizard.
+
+#### Completed (review round 3 of #983 / #984: nothing may report success it did not achieve)
+
+Three independent reviews (correctness, silent failure, data consistency) of what #983 and
+#984 shipped, before the in-Revit test. Fixed:
+
+- **Ckt Nr → Text could lose values.** It committed even when some values did not come back,
+  after promising "if anything fails, nothing changes"; and it used the Load Params failure
+  swallower, which dismisses the very type-conflict error a failed rebind of the same GUID
+  raises. Now: a strict preprocessor rolls back on any Revit error; the new binding is checked
+  to be TEXT; if ANY value cannot be written back the whole transaction is rolled back and the
+  failures listed; and the binding kind is kept (a type binding stays a type binding, so
+  values on types have somewhere to go).
+- **Compliance verdict.** A circuit with no failure but an unchecked rule now reads
+  `UNVERIFIED (not checked: …)`, not `OK (not checked: …)` — in a schedule column anything
+  starting "OK" reads as a pass. `OK` is reserved for every rule run and passed.
+- **PNLS Save to Model** said "Saved" when writes were refused; it now lists each field written
+  and each field NOT written (unbound, read-only, or a value the type refuses).
+- **Panel_Audit stale-template check** compared by parameter NAME; built-ins have aliased enum
+  names, so a correct template could read "out of date". It now compares by ElementId; spec
+  load warnings and not-yet-loaded params are shown; a crashed check is its own error line,
+  not "1 template out of date".
+- **Excel.** Export's Scope / section choices were static and leaked into later ribbon and
+  workflow runs; they are now one-shot. Import reads each written cell back and counts a
+  value Revit reformatted or ignored as rejected, so the old → new diff shows what the
+  schedule really holds.
+- Smaller: Amtech / EasyPower type-name matches listed as "verify", not counted as Stamped;
+  Panel Reconcile points a refused multi-pole number at "Ckt Nr → Text" and counts deleted
+  conduits; the SLD stamp warning lists causes instead of asserting one; fire-alarm devices
+  with no loop go under "(no loop set)", not an invented "Zone 1"; Load Params reports a
+  failure to build the `<ALL>|Project Information` bindings; IPS says when the LIM read failed.
+- Data: `ELC_PNL_FAULT_LG_KA` now shown in the fault-current schedule (PARAM-3 had no reader);
+  the JB box IP rating read from the box, its type, or the seed's `ELC_JB_IP_RATING_TXT`;
+  `ELC_PNL_ENCLOSURE_TXT` description names the real tag `Panel_WriteParams`; the CSV
+  `ELC_CKT_NR` description matches the `.txt`; PNL-20 / PNL-21 closed rows describe what
+  shipped; counts in earlier entries corrected.
+
+Build 0/0; all tests and gates pass (see PR). **Not exercised in Revit.**

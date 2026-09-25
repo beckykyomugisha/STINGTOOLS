@@ -402,6 +402,47 @@ namespace StingTools.Core.Panels
             return keys;
         }
 
+        /// <summary>
+        /// Spec parameters the built template does not carry, compared by ElementId
+        /// (the same resolution the builder uses), not by name: BuiltInParameter has
+        /// aliased members, so a name read back from a cell can differ from the name in
+        /// the spec for the very same parameter. Spec fields that do not resolve in
+        /// this project are returned in <paramref name="unresolved"/> — they cannot be
+        /// judged, and are not counted as missing.
+        /// </summary>
+        public static List<string> MissingFromTemplate(Document doc, PanelScheduleTemplate template,
+            PanelTemplateSpec spec, List<string> unresolved)
+        {
+            var ctx = new Ctx(doc, new PanelTemplateBuildResult { Name = spec.Name });
+            var present = new HashSet<long>();
+            PanelScheduleData data = template.GetTableData();
+            foreach (SectionType st in new[] { SectionType.Header, SectionType.Body, SectionType.Summary, SectionType.Footer })
+            {
+                TableSectionData s = null;
+                try { s = data.GetSectionData(st); } catch (Exception ex) { StingLog.Info($"MissingFromTemplate {st}: {ex.Message}"); }
+                if (s == null) continue;
+                for (int r = s.FirstRowNumber; r <= s.LastRowNumber; r++)
+                    for (int c = s.FirstColumnNumber; c <= s.LastColumnNumber; c++)
+                    {
+                        try
+                        {
+                            var id = s.GetCellParamId(r, c);
+                            if (id != null && id != ElementId.InvalidElementId) present.Add(id.Value);
+                        }
+                        catch (Exception ex) { StingLog.Info($"MissingFromTemplate cell: {ex.Message}"); }
+                    }
+            }
+            var missing = new List<string>();
+            foreach (var f in spec.Header.Concat(spec.Body).Concat(spec.Footer))
+            {
+                if (string.IsNullOrWhiteSpace(f.ParamName)) continue;
+                var id = ctx.TryResolve(f);
+                if (id == null) { unresolved?.Add(PanelTemplateSpec.KeyOf(f)); continue; }
+                if (!present.Contains(id.Value)) missing.Add(PanelTemplateSpec.KeyOf(f));
+            }
+            return missing.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
         internal static string ParamName(Document doc, ElementId id)
         {
             if (id == null || id == ElementId.InvalidElementId) return "";

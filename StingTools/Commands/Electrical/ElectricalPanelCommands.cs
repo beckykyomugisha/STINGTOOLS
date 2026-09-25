@@ -154,14 +154,25 @@ namespace StingTools.Commands.Electrical
                 return Result.Failed;
             }
 
-            bool enclosureNotWritten = false;
+            // Every field is written through one helper that records what was refused,
+            // so the dialog lists each field that did NOT land (unbound, read-only, or a
+            // value the parameter's type refuses, e.g. "63A" into a NUMBER).
+            var written = new List<string>();
+            var notWritten = new List<string>();
+            void Put(string field, string param, string value)
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                if (ParameterHelpers.SetString(panel, param, value, overwrite: true)) written.Add(field);
+                else
+                {
+                    notWritten.Add($"{field} '{value}' → {param}");
+                    StingLog.Warn($"Panel save '{snap.PanelName}': {field} '{value}' not written to {param}");
+                }
+            }
+
             using (var tx = new Transaction(doc, "STING Write Panel Params"))
             {
                 tx.Start();
-                if (!string.IsNullOrEmpty(snap.MainBreakerA))
-                    ParameterHelpers.SetString(panel, ParamRegistry.ELC_MAIN_BRK, snap.MainBreakerA, overwrite: true);
-                if (!string.IsNullOrEmpty(snap.FedFrom))
-                    ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FED_FROM, snap.FedFrom, overwrite: true);
                 // Canonical via MR_PARAMETERS (Phase 188 fix-3):
                 //   Location  → ASS_LOC_TXT (no panel-specific equivalent exists)
                 //   Manufact. → ASS_MANUFACTURER_TXT (via ParamRegistry.MFR alias)
@@ -169,33 +180,30 @@ namespace StingTools.Commands.Electrical
                 //   IP rating → ELC_PNL_IP_RATING_TXT (what the STING panel schedule
                 //               header shows) and ELC_IP_RATING_TXT (older readers).
                 //   Enclosure type (Floor Standing / Wall Mounted / Din Rail) is a
-                //   mounting type, NOT an IP code; it used to be written into the IP
-                //   column, so every schedule read "Floor Standing" as its IP rating.
-                //   It has its own parameter, ELC_PNL_ENCLOSURE_TXT, shown beside the
-                //   IP rating in the STING panel schedule header.
-                if (!string.IsNullOrEmpty(snap.Enclosure)
-                    && !ParameterHelpers.SetString(panel, "ELC_PNL_ENCLOSURE_TXT", snap.Enclosure, overwrite: true))
-                    enclosureNotWritten = true;
-                if (!string.IsNullOrEmpty(snap.Location))
-                    ParameterHelpers.SetString(panel, "ASS_LOC_TXT", snap.Location, overwrite: true);
-                if (!string.IsNullOrEmpty(snap.IpRating))
-                {
-                    ParameterHelpers.SetString(panel, ParamRegistry.ELC_IP_RATING, snap.IpRating, overwrite: true);
-                    ParameterHelpers.SetString(panel, "ELC_PNL_IP_RATING_TXT", snap.IpRating, overwrite: true);
-                }
-                if (!string.IsNullOrEmpty(snap.Manufacturer))
-                    ParameterHelpers.SetString(panel, ParamRegistry.MFR, snap.Manufacturer, overwrite: true);
-                if (!string.IsNullOrEmpty(snap.FaultKA))
-                    ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FAULT_KA, snap.FaultKA, overwrite: true);
+                //   mounting type, NOT an IP code, and has its own parameter,
+                //   ELC_PNL_ENCLOSURE_TXT, shown beside the IP rating.
+                Put("Main breaker", ParamRegistry.ELC_MAIN_BRK, snap.MainBreakerA);
+                Put("Fed from", ParamRegistry.ELC_PNL_FED_FROM, snap.FedFrom);
+                Put("Enclosure type", "ELC_PNL_ENCLOSURE_TXT", snap.Enclosure);
+                Put("Location", "ASS_LOC_TXT", snap.Location);
+                Put("IP rating", "ELC_PNL_IP_RATING_TXT", snap.IpRating);
+                Put("IP rating (legacy)", ParamRegistry.ELC_IP_RATING, snap.IpRating);
+                Put("Manufacturer", ParamRegistry.MFR, snap.Manufacturer);
+                Put("Fault kA", ParamRegistry.ELC_PNL_FAULT_KA, snap.FaultKA);
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string board = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
-            TaskDialog.Show("STING Electrical", $"Saved to '{(string.IsNullOrWhiteSpace(board) ? panel.Name : board)}'."
-                + (enclosureNotWritten
-                    ? $"\n\nEnclosure type '{snap.Enclosure}' was not written: ELC_PNL_ENCLOSURE_TXT is missing or read-only on this board (run Load Params; see the log)."
-                    : ""));
-            return Result.Succeeded;
+            string who = string.IsNullOrWhiteSpace(board) ? panel.Name : board;
+            string msg = written.Count == 0 && notWritten.Count == 0
+                ? $"Nothing to save to '{who}': every field on the card is empty."
+                : notWritten.Count == 0
+                    ? $"Saved to '{who}': {string.Join(", ", written)}."
+                    : $"Saved to '{who}': {(written.Count == 0 ? "nothing" : string.Join(", ", written))}.\n\n" +
+                      $"NOT written ({notWritten.Count}):\n  " + string.Join("\n  ", notWritten) +
+                      "\n\nUsually the parameter is not bound to this board (run Load Params) or the value does not suit its type (a number field given text).";
+            TaskDialog.Show("STING Electrical", msg);
+            return notWritten.Count == 0 ? Result.Succeeded : Result.Failed;
         }
     }
 

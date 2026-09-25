@@ -31,8 +31,8 @@ its own voltage-drop calculation** (STING's is now the only one inside Revit 202
 | PNL-16 | P3 | Import validation with typical-value substitution (flagged) | ETAP | — |
 | PNL-17 | P3 | Schedule/one-line first, from Excel, before modelling | Naviate | — |
 | PNL-18 | P3 | Copy a board with its downstream circuits | Naviate | `CopyElements` + recreate circuits |
-| PNL-20 | ~~P2~~ **Done 2026-09-25** | Audit does not detect a STING template built from an older spec | gap review 2026-09-25 | `Panel_Audit` only compares a schedule's template with the registry's suggestion. Compare the template's column headings / bound params with `STING_PANEL_SCHEDULE_SPECS.json` and suggest 📐 when they differ |
-| PNL-21 | ~~P2~~ **Done 2026-09-25** | Device breaking capacity comes only from the family | gap review 2026-09-25 | `RBS_ELEC_SHORT_CIRCUIT_RATING` is never written by STING; on seed / generic families the column is blank and the PSC ≤ Icn rule reports NOT CHECKED. Offer a per-board / per-device-type default (e.g. 6 kA MCB, 10 kA MCCB) that is stamped and labelled as assumed |
+| PNL-20 | ~~P2~~ | ~~Audit does not detect a STING template built from an older spec~~ **CLOSED 2026-09-25** | gap review 2026-09-25 | `Panel_Audit` compares each built STING template's bound parameters with `STING_PANEL_SCHEDULE_SPECS.json` by ElementId (built-ins have aliased enum names) and lists templates missing columns → rebuild with PNLS 📐 |
+| PNL-21 | ~~P2~~ | ~~Device breaking capacity comes only from the family~~ **CLOSED 2026-09-25** | gap review 2026-09-25 | Shipped as guidance only, NOT stamped: where a family has no Short Circuit Rating the compliance check shows a typical Icn (6 kA MCB ≤ 63 A / 16 kA MCCB); it can prompt "confirm device Icn" but never produces a pass or a fail, and nothing is written to the model |
 
 ## Electrical calculations — deep review (2026-09-24, updated after the fix round)
 

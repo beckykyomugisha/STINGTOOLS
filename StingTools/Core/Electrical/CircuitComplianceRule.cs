@@ -51,7 +51,10 @@ namespace StingTools.Core.Electrical
         public string Summary =>
             Failed ? "FAIL: " + string.Join("; ", Failures)
                      + (NotChecked.Count > 0 ? " | not checked: " + string.Join(", ", NotChecked) : "")
-            : NotChecked.Count > 0 ? "OK (not checked: " + string.Join(", ", NotChecked) + ")"
+            // "OK" only when every rule ran and passed. A circuit with no failure but an
+            // unchecked rule is UNVERIFIED — in a schedule column, anything starting
+            // "OK" reads as a pass whatever follows it.
+            : NotChecked.Count > 0 ? "UNVERIFIED (not checked: " + string.Join(", ", NotChecked) + ")"
             : "OK";
     }
 
@@ -62,7 +65,8 @@ namespace StingTools.Core.Electrical
         /// <summary>
         /// Low-end typical breaking capacity for a protective device of rating In:
         /// 6 kA for an MCB (In ≤ 63 A, BS EN 60898 — the common commercial rating) and
-        /// 16 kA for an MCCB above that. Deliberately low: it can prompt a check but can
+        /// 16 kA for an MCCB above that. Common ratings, not a floor — 3 kA and 4.5 kA MCBs
+        /// exist, which is why this value can prompt a check but can
         /// never make a circuit pass. 0 when In is unknown.
         /// </summary>
         public static double TypicalIcnKa(double inA) => inA <= 0 ? 0 : inA <= 63 ? 6 : 16;

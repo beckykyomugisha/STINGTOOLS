@@ -1242,7 +1242,7 @@ ELC_PNL_CKT_SOURCE_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,E
 ELC_PNL_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Connected Load Kw [ISO 19650-1:2018]
 ELC_PNL_CONNECTED_LOAD_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ELC_PNL_CONNECTED_LOAD_KW display mirror [auto-generated]
 ELC_PNL_DESIGNATION_NAME_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices,Elc Pnl Designation Name Txt [ISO 19650-1:2018]
-ELC_PNL_ENCLOSURE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Elec_PanelWriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code."
+ELC_PNL_ENCLOSURE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code."
 ELC_PNL_FAULT_LG_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,"Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import)."
 ELC_PNL_FED_FROM,4,elc-sub,Electrical Equipment|Electrical Circuits,Panel fed from source
 ELC_PNL_FED_FROM_PNL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018]
