@@ -222,14 +222,16 @@ namespace StingTools.UI
                     {
                         _storedSheetPolicy = pi.LookupParameter(
                             StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName)?.AsString();
-                        _existingSheetCount = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ViewSheet)).GetElementCount();
                         string want = StingTools.Core.Drawing.SheetNumberPolicy.ToParameterValue(
                             StingTools.Core.Drawing.SheetNumberPolicy.Parse(_storedSheetPolicy));
                         foreach (ComboBoxItem item in cmbSheetNumberPolicy.Items)
                             if (string.Equals(item.Tag as string, want, StringComparison.Ordinal))
                                 cmbSheetNumberPolicy.SelectedItem = item;
+                        // Recorded before anything else can throw: without it an untouched
+                        // picker reads as a choice and the policy is written again.
                         _prePopulatedSheetPolicyTag = PickedSheetPolicyTag();
+                        _existingSheetCount = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewSheet)).GetElementCount();
                         CmbSheetNumberPolicy_SelectionChanged(null, null);   // show an unrecognised stored value
                     }
                     catch (Exception pex) { StingLog.Warn($"PrePopulate sheet-number policy: {pex.Message}"); }

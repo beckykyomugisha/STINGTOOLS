@@ -460,9 +460,11 @@ namespace StingTools.Commands.TagStudio
             foreach (var pname in ordered)
             {
                 // In a material takeoff a parameter of the material is listed as
-                // "Material: <name>"; the bare name is the element's own.
-                if (byName.TryGetValue(pname, out var sf)
-                    || (takeoff && byName.TryGetValue("Material: " + pname, out sf)))
+                // "Material: <name>"; the bare name is the host element's own. Prefer the
+                // material's — MAT_* parameters are often bound to elements too, and the
+                // element's value is not what a materials schedule is for.
+                if ((takeoff && byName.TryGetValue("Material: " + pname, out var sf))
+                    || byName.TryGetValue(pname, out sf))
                 {
                     try { sdef.AddField(sf); added++; }
                     catch (Exception ex) { StingLog.Warn($"ScheduleTagExpander AddField '{pname}' → {catDisplay}: {ex.Message}"); }

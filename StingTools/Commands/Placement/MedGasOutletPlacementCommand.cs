@@ -70,6 +70,8 @@ namespace StingTools.Commands.Placement
             {
                 try
                 {
+                    // Outlets only: pipe fittings and accessories carry the gas type too.
+                    if (!IsOutletCategory(s)) return false;
                     var p = s.LookupParameter("MGS_GAS_TYPE_TXT");
                     return p != null && string.Equals((p.AsString() ?? "").Trim(), gas, StringComparison.OrdinalIgnoreCase);
                 }
@@ -79,14 +81,33 @@ namespace StingTools.Commands.Placement
 
             foreach (var kw in GasFamilyKeywords[gas])
             {
-                var exact = symbols.FirstOrDefault(s => string.Equals(s.Name, kw, StringComparison.OrdinalIgnoreCase));
+                var exact = symbols.FirstOrDefault(s => IsOutletCategory(s)
+                    && string.Equals(s.Name, kw, StringComparison.OrdinalIgnoreCase));
                 if (exact != null) return exact;
-                var partial = symbols.FirstOrDefault(s =>
-                    s.Name.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (s.Family?.Name ?? "").IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0);
+                var partial = symbols.FirstOrDefault(s => IsOutletCategory(s) &&
+                    (s.Name.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     (s.Family?.Name ?? "").IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0));
                 if (partial != null && !kw.StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal)) return partial;
             }
             return null;
+        }
+
+        // Categories a gas outlet or outlet panel is modelled in (STING's seed is a
+        // Plumbing Fixture; manufacturer outlets also ship as Specialty / Medical /
+        // Mechanical Equipment). Pipe fittings and accessories carry MGS_GAS_TYPE_TXT
+        // too and must never be picked as an outlet.
+        private static readonly HashSet<long> OutletCategoryIds = new HashSet<long>
+        {
+            (long)BuiltInCategory.OST_PlumbingFixtures,
+            (long)BuiltInCategory.OST_SpecialityEquipment,
+            (long)BuiltInCategory.OST_MedicalEquipment,
+            (long)BuiltInCategory.OST_MechanicalEquipment,
+        };
+
+        private static bool IsOutletCategory(FamilySymbol s)
+        {
+            try { return s?.Category != null && OutletCategoryIds.Contains(s.Category.Id.Value); }
+            catch (Exception ex) { StingLog.Warn($"MedGasOutlet category read: {ex.Message}"); return false; }
         }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
