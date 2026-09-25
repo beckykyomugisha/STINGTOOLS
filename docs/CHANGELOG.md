@@ -23585,9 +23585,10 @@ Every finding of the 2026-09-25 review of the pre-Revit cleanup and the Scope Bo
     recognise (a typo read as per-drawing-type numbering with no trace).
   - A failed unattended workflow writes its step-by-step report to the log; Project Setup
     labels a failed step FAILED, not WARN.
-  - Outlet placement: a Material Takeoff's material field wins over the host element's;
-    outlet lookups ignore pipe fittings and accessories; the comment on the gas-type lookup no
-    longer claims the seed is found by it.
+  - Tag expander: in the Material Takeoff the material's own field wins over the host
+    element's field of the same name.
+  - Outlet placement: lookups ignore pipe fittings and accessories, and the comment on the
+    gas-type lookup no longer claims the seed is found by it.
   - ROADMAP MG-2: projects that already built the outlet seed keep `MAP_THEATRE_PANEL`, which
     the network still reads as a Master Alarm Panel; the manual migration is written there.
 
