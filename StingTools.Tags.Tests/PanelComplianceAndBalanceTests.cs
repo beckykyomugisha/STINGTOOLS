@@ -15,6 +15,39 @@ namespace StingTools.Tags.Tests
 {
     public class PanelComplianceAndBalanceTests
     {
+        [Theory]
+        [InlineData(16, 6)]     // MCB
+        [InlineData(63, 6)]
+        [InlineData(100, 16)]   // MCCB
+        [InlineData(0, 0)]      // unknown rating: no assumption
+        public void Typical_Icn_is_low_end_by_device_class(double inA, double expected)
+            => Assert.Equal(expected, CircuitComplianceRule.TypicalIcnKa(inA));
+
+        [Fact]
+        public void Assumed_Icn_never_passes_or_fails()
+        {
+            // PSC below the assumed 6 kA: still NOT CHECKED, labelled as assumed.
+            var c = Good(); c.BreakingCapacityKa = null; c.AssumedBreakingCapacityKa = 6; c.ProspectiveFaultKa = 4.2;
+            var r = CircuitComplianceRule.Evaluate(c);
+            Assert.False(r.Failed); Assert.False(r.FullyVerified);
+            Assert.Contains("device Icn assumed 6 kA", r.Summary);
+
+            // PSC above it: a prompt to confirm the device, not a FAIL.
+            c.ProspectiveFaultKa = 8;
+            r = CircuitComplianceRule.Evaluate(c);
+            Assert.False(r.Failed);
+            Assert.Contains("confirm device Icn", r.Summary);
+        }
+
+        [Fact]
+        public void A_real_Icn_is_used_before_any_assumption()
+        {
+            var c = Good(); c.BreakingCapacityKa = 10; c.AssumedBreakingCapacityKa = 6; c.ProspectiveFaultKa = 8;
+            var r = CircuitComplianceRule.Evaluate(c);
+            Assert.False(r.Failed);
+            Assert.DoesNotContain("assumed", r.Summary);
+        }
+
         private static CircuitCheckInput Good() => new CircuitCheckInput
         {
             IbA = 14, InA = 16, IzA = 27, VdPct = 2.1, VdLimitPct = 5,
