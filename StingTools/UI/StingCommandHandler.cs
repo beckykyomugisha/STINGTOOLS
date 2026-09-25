@@ -1407,6 +1407,12 @@ namespace StingTools.UI
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;
                     case "CreateDependentViews": RunCommand<Docs.CreateDependentViewsCommand>(app); break;
                     case "ScopeBoxManager": RunCommand<Docs.ScopeBoxManagerCommand>(app); break;
+                    case "ScopeBox_Planner": RunCommand<Commands.Drawing.ScopeBoxPlannerCommand>(app); break;
+                    case "ScopeBox_RegisterSeeds": RunCommand<Commands.Drawing.ScopeBoxRegisterSeedsCommand>(app); break;
+                    case "ScopeBox_ImportSeeds": RunCommand<Commands.Drawing.ScopeBoxImportSeedsCommand>(app); break;
+                    case "ScopeBox_Colour": RunCommand<Commands.Drawing.ScopeBoxColourCommand>(app); break;
+                    case "ScopeBox_ClearColour": RunCommand<Commands.Drawing.ScopeBoxClearColourCommand>(app); break;
+                    case "ScopeBox_ProduceAreas": RunCommand<Commands.Drawing.ScopeBoxProduceAreasCommand>(app); break;
                     case "ViewTemplateAssigner": RunCommand<Docs.ViewTemplateAssignerCommand>(app); break;
                     case "DocumentationPackage": RunCommand<Docs.DocumentationPackageCommand>(app); break;
                     case "BatchCreateSections": RunCommand<Docs.BatchCreateSectionsCommand>(app); break;

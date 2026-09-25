@@ -1,0 +1,35 @@
+{
+  "_about": "Scope Box Planner defaults and colours. Project override: _BIM_COORD/scope_box_style.json (any key present there wins). Colours are #RRGGBB.",
+  "defaults": {
+    "fitFactor": 0.9,
+    "overlapM": 2.0,
+    "paddingM": 1.0,
+    "lineWeight": 6
+  },
+  "disciplineColours": {
+    "A": "#1F77B4",
+    "S": "#8C564B",
+    "M": "#2CA02C",
+    "E": "#FF7F0E",
+    "P": "#17BECF",
+    "FP": "#D62728",
+    "H": "#9467BD",
+    "MG": "#E377C2",
+    "RP": "#7F7F7F",
+    "*": "#404040"
+  },
+  "palette": [
+    "#1F77B4",
+    "#FF7F0E",
+    "#2CA02C",
+    "#D62728",
+    "#9467BD",
+    "#8C564B",
+    "#E377C2",
+    "#17BECF",
+    "#BCBD22",
+    "#7F7F7F",
+    "#393B79",
+    "#AD494A"
+  ]
+}

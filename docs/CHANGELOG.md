@@ -23228,3 +23228,55 @@ The work that could be coded before the next Revit session.
 
 Build 0/0. Tags.Tests green. `run_ci_gates.py` green. Data and gates are verified headlessly.
 **Not exercised in Revit:** the wizard steps, the moved seed, and the new Rooms / Site rules.
+
+#### Completed (Scope Box Planner, branch `claude/scope-box-planner`)
+
+Area boxes that every plan drawing type can share, created from seeds.
+
+- **Why seeds.** The Revit API cannot create a scope box or change its size. It can copy, move,
+  rotate and rename one. So each size is drawn once as `STING-SEED::<w>x<d>` (Register Seeds
+  names it from its measured size), and STING copies it everywhere else. Import Seeds brings
+  seeds in from a template or another project.
+- **Why area boxes.** A box tied to one drawing type multiplies with the catalogue: ten plan
+  types over five levels is fifty identical rectangles. A `STING-AREA::` box is an extent; every
+  type in its size class uses it, and a level-less box serves every level it spans. The prefix
+  is disjoint from `STING::`, so the drawing-type binder never reads an area box as a type
+  called "AREA".
+- **Sizes come from data already shipped.** Largest box = title-block drawable area
+  (`STING_TITLE_BLOCKS.json`) × the type's main slot × scale × a fit factor. For example, A1
+  1:100 allows 53.2 × 38.4 m at 90 %. Types are grouped by paper and scale, and each group's box
+  must fit every member. A paper the title blocks do not describe is refused, never guessed.
+- **Planner** (`ScopeBox_Planner`, DOCS → Drawing Types):
+  - tick drawing types grouped by discipline;
+  - choose whole model, each STING-LOC building, or each level;
+  - set overlap, clearance and fit, and whether to square boxes to the grids;
+  - the seed list includes the exact sizes still to draw;
+  - the plan grid recomputes on every tick, because model reads are cached when the window
+    opens and planning is Revit-free;
+  - Create copies, turns and names the boxes; Produce Views runs `DrawingProducer` per
+    box × level × type, says how many first, and is idempotent.
+- **The saved plan** (`_BIM_COORD/scope_box_plan.json`) is the one record of which drawing
+  types an area box serves.
+  - Planning a second building merges into it rather than replacing it.
+  - An unreadable plan blocks Create instead of being overwritten.
+- **Colour** by size class, discipline, building, level or kind, applied at once to the active
+  view or all plan views; Off clears.
+  - The colour is derived from what the box is, so nothing stored can drift.
+  - Palette and discipline colours are in `STING_SCOPE_BOX_STYLE.json`, with a project
+    override.
+- **Drawing Type Editor: new All Actions tab.** It offers every button in the dock panel's
+  DRAWING TYPES section, in the same groups; the editor previously exposed 8 of 42. It is
+  built from `DrawingTypeActions`, and `DrawingTypeActionsTests` reads the dock XAML and fails
+  on any difference in group, label or tag, so the two cannot drift. The dock section gained a
+  "Scope boxes" sub-group. The editor's "Edit pack" jump now selects its tab by reference,
+  because tab positions moved.
+- **Scope Box Manager** now badges area, seed and building boxes for what they are instead of
+  "not STING".
+- `ParameterHelpers.GetLevelCodeForLevel` was split out of `GetLevelCode`, which now calls it,
+  so a level and the elements on it cannot get different codes.
+
+Tests: `ScopeBoxPlanningTests`, 52 cases, run against the shipped catalogue and title blocks.
+Deliberately breaking each of plan merge, seed rotation and the tile count turned its tests RED.
+Tags.Tests: 2,686 pass. Build: 0 errors, 0 warnings. **Not run in Revit**: see ROADMAP SBP-1 to
+SBP-4. The biggest open question is whether Revit honours per-element colour overrides on scope
+boxes.

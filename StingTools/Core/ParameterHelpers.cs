@@ -819,6 +819,25 @@ namespace StingTools.Core
                 if (lvl == null)
                     return "XX";
 
+                return GetLevelCodeForLevel(lvl);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetLevelCode failed for element {el?.Id}: {ex.Message}");
+                return "XX";
+            }
+        }
+
+        /// <summary>
+        /// The level code for a Level itself ("Level 2" → L02, "Ground Floor" → GF). The one
+        /// mapping: <see cref="GetLevelCode"/> resolves an element's level and calls this, so an
+        /// element and the level it sits on can never be given different codes.
+        /// </summary>
+        public static string GetLevelCodeForLevel(Level lvl)
+        {
+            if (lvl == null) return "XX";
+            try
+            {
                 string name = lvl.Name.Trim();
                 string lower = name.ToLowerInvariant();
 
@@ -892,7 +911,7 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"GetLevelCode failed for element {el?.Id}: {ex.Message}");
+                StingLog.Warn($"GetLevelCodeForLevel failed for level {lvl?.Id}: {ex.Message}");
                 return "XX";
             }
         }

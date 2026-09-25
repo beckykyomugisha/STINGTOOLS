@@ -1555,6 +1555,12 @@ namespace StingTools.Core
                 case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
                 case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
                 case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
+                case "ScopeBox_Planner":              return new Commands.Drawing.ScopeBoxPlannerCommand();
+                case "ScopeBox_RegisterSeeds":        return new Commands.Drawing.ScopeBoxRegisterSeedsCommand();
+                case "ScopeBox_ImportSeeds":          return new Commands.Drawing.ScopeBoxImportSeedsCommand();
+                case "ScopeBox_Colour":               return new Commands.Drawing.ScopeBoxColourCommand();
+                case "ScopeBox_ClearColour":          return new Commands.Drawing.ScopeBoxClearColourCommand();
+                case "ScopeBox_ProduceAreas":         return new Commands.Drawing.ScopeBoxProduceAreasCommand();
                 case "DrawingTypes_SyncStyles":        return new Commands.Drawing.DrawingSyncStylesCommand();
                 // W-2: workflow-callable so a sheet-production workflow can
                 // generate and then sync match lines after renumbering.

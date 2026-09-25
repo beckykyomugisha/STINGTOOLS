@@ -21,13 +21,17 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-24
 
-- **Total IExternalCommand classes**: **1752**
-- **Reached by a dispatch layer**: **1727**
+- **Total IExternalCommand classes**: **1758**
+- **Reached by a dispatch layer**: **1733**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1752; the script fails if they stop adding up.
+The four buckets partition all 1758; the script fails if they stop adding up.
+
+**+6 on 2026-09-24 (scope-box planner)**, all reached from DOCS → Drawing Types and the
+command registry: `ScopeBox_Planner`, `ScopeBox_RegisterSeeds`, `ScopeBox_ImportSeeds`,
+`ScopeBox_Colour`, `ScopeBox_ClearColour`, `ScopeBox_ProduceAreas`.
 
 **+1 on 2026-09-24 (material callouts)**, reached from SETUP → Model Baseline and as a
 workflow step: `Materials_SyncIdentity`.
