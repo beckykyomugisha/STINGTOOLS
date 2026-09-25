@@ -263,7 +263,9 @@ namespace StingTools.Commands.Electrical.Routing
             // ── Boxes ── walk JunctionBoxIds across all cables, dedup
             // (one box can be shared by multiple cables), then group by
             // family/type. Reads ELC_JB_TYPE_TXT + ELC_JB_SIZE_MM +
-            // ELC_JB_IP_RATING_TXT for richer SKU.
+            // ELC_IP_RATING_TXT (the IP rating bound on Electrical Fixtures, where
+            // the JB seed lives; ELC_JB_IP_RATING_TXT was defined nowhere) for
+            // richer SKU.
             var allBoxIds = new HashSet<long>();
             foreach (var c in manifest.Cables)
             {
@@ -291,7 +293,7 @@ namespace StingTools.Commands.Electrical.Routing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string jbType = ParameterHelpers.GetString(el, "ELC_JB_TYPE_TXT") ?? typeName;
                 string jbSize = ParameterHelpers.GetString(el, "ELC_JB_SIZE_MM") ?? "";
-                string jbIp   = ParameterHelpers.GetString(el, "ELC_JB_IP_RATING_TXT") ?? "";
+                string jbIp   = ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING) ?? "";
 
                 string key = $"{famName}|{jbType}|{jbSize}|{jbIp}";
                 if (!boxesByKey.TryGetValue(key, out var entry))

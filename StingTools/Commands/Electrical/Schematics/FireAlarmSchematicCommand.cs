@@ -1,7 +1,7 @@
 // StingTools — D1: Fire Alarm Loop / Zone Schematic Generator (Phase 179)
 //
 // Generates a BS 5839-1 / NFPA 72 fire alarm loop schematic in a new
-// ViewDrafting. Each loop (keyed on ELC_FIRE_LOOP_REF) is drawn as a
+// ViewDrafting. Each loop (keyed on FLS_SFTY_DEV_LOOP_TXT) is drawn as a
 // horizontal bus with vertical drops for each device. The FACP box
 // anchors the left end of each loop.
 //
@@ -19,7 +19,7 @@ namespace StingTools.Commands.Electrical.Schematics
 {
     /// <summary>
     /// Generates a BS 5839-1 / NFPA 72 fire alarm loop schematic in a
-    /// new drafting view. Devices are grouped by ELC_FIRE_LOOP_REF; each
+    /// new drafting view. Devices are grouped by FLS_SFTY_DEV_LOOP_TXT; each
     /// loop is drawn as a horizontal bus with vertical drops and device labels.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -45,14 +45,13 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 TaskDialog.Show("STING Fire Alarm Schematic",
                     "No Fire Alarm Device elements found in the project.\n\n" +
-                    "Populate ELC_FIRE_LOOP_REF on fire alarm devices and re-run.");
+                    "Populate FLS_SFTY_DEV_LOOP_TXT on fire alarm devices and re-run.");
                 return Result.Succeeded;
             }
 
             // Group devices by loop reference.
             var loopGroups = devices
-                .GroupBy(e => e.LookupParameter("ELC_FIRE_LOOP_REF")?.AsString()?.Trim()
-                              ?? "Zone 1")
+                .GroupBy(LoopOf)
                 .OrderBy(g => g.Key)
                 .ToList();
 
@@ -170,6 +169,22 @@ namespace StingTools.Commands.Electrical.Schematics
         }
 
         // ---------------------------------------------------------------- helpers
+
+        // The device loop lives on the FLS_ fire-alarm parameters the fire alarm
+        // device tag and schedule already show: FLS_SFTY_DEV_LOOP_TXT, then
+        // FLS_SFTY_LOOP_NR_TXT. ELC_FIRE_LOOP_REF, read here before, was defined
+        // nowhere, so every device fell into one loop.
+        private static readonly string[] LoopParams = { "FLS_SFTY_DEV_LOOP_TXT", "FLS_SFTY_LOOP_NR_TXT" };
+
+        private static string LoopOf(Element e)
+        {
+            foreach (string pn in LoopParams)
+            {
+                string v = e.LookupParameter(pn)?.AsString()?.Trim();
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+            return "Zone 1";
+        }
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {
