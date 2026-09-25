@@ -56,6 +56,8 @@ namespace StingTools.Core.Plumbing
                 .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                 .WhereElementIsNotElementType()
                 .ToElements()
+                // Medical-gas outlets are Plumbing Fixtures too, and have no drainage or loading units.
+                .Where(el => !MedicalGasFixtures.IsMedicalGas(el))
                 .ToList();
             r.FixturesScanned = fixtures.Count;
 

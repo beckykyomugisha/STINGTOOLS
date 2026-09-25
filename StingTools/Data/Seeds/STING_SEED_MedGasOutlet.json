@@ -4,7 +4,7 @@
   "_notes": [
     "13 type variants: HTM 02-01 terminal units (O2, N2O, Med Air,",
     "Surg Air, Vacuum, CO2, N2, Heliox), 5-gas AVSU, area alarm panel,",
-    "theatre MAP panel, ward bedhead unit, VIE manifold.",
+    "theatre gas panel (TGP — not a Master Alarm Panel), ward bedhead unit, VIE manifold.",
     "",
     "MGS_* parameters track HTM 02-01 metadata: gas type, operational",
     "pressure, BS 5682 socket reference, certification.",
@@ -378,11 +378,11 @@
           "_group": "--- THEATRE / WARD ASSEMBLIES ---"
         },
         {
-          "name": "MAP_THEATRE_PANEL",
+          "name": "THEATRE_GAS_PANEL",
           "params": {
             "MGS_TU_TYPE_TXT": "THEATRE_PANEL",
             "MGS_GASES_TXT": "O2,N2O,MEDAIR,SURGAIR,VAC,CO2",
-            "ASS_PRODCT_COD_TXT": "MAP",
+            "ASS_PRODCT_COD_TXT": "TGP",
             "MGS_HOSPITAL_AREA_TXT": "THEATRE"
           }
         },

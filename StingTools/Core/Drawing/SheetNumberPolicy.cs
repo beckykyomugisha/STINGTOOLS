@@ -95,6 +95,37 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// True when <paramref name="value"/> is a spelling Parse knows. Parse reads
+        /// anything else as Profile, so a typo ("iso 19650") quietly means per-drawing-type
+        /// numbering; callers use this to say so instead.
+        /// </summary>
+        public static bool IsRecognised(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "iso": case "iso19650": case "iso-19650":
+                case "short": case "profile": case "legacy":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// The policy a wizard should record: null when the picker still shows what it was
+        /// pre-populated with (nobody chose — leave the parameter alone), else the pick.
+        /// Without this, opening and running the wizard on a fresh project wrote "profile"
+        /// though no one had decided anything.
+        /// </summary>
+        public static SheetNumberPolicyKind? ChosenOrNull(string pickedTag, string prePopulatedTag)
+        {
+            if (string.IsNullOrEmpty(pickedTag)) return null;
+            if (prePopulatedTag != null && string.Equals(pickedTag, prePopulatedTag, StringComparison.Ordinal)) return null;
+            return Parse(pickedTag);
+        }
+
         /// <summary>The value a UI writes for <paramref name="kind"/>. Parse reads it back as the same kind.</summary>
         public static string ToParameterValue(SheetNumberPolicyKind kind)
             => kind == SheetNumberPolicyKind.Iso ? "iso" : "profile";
@@ -106,10 +137,11 @@ namespace StingTools.Core.Drawing
         /// value already means that policy. A synonym such as "short" or
         /// "ISO19650" is left as the user typed it rather than rewritten to the
         /// canonical spelling for no change in behaviour. An empty value is
-        /// written, so the choice is recorded as a decision, not a default.
+        /// written, so the choice is recorded as a decision, not a default; so is
+        /// an unrecognised one, which Parse only reads as Profile by default.
         /// </summary>
         public static string ValueToWrite(string stored, SheetNumberPolicyKind chosen)
-            => !string.IsNullOrWhiteSpace(stored) && Parse(stored) == chosen ? null : ToParameterValue(chosen);
+            => IsRecognised(stored) && Parse(stored) == chosen ? null : ToParameterValue(chosen);
 
         /// <summary>
         /// True when <paramref name="pattern"/> already composes an ISO

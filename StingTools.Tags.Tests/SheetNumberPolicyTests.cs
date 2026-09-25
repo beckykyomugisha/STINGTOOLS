@@ -125,8 +125,37 @@ namespace StingTools.Tags.Tests
         [InlineData("ISO19650", SheetNumberPolicyKind.Iso,     null)]
         [InlineData("iso",      SheetNumberPolicyKind.Profile, "profile")] // a real change is written
         [InlineData("profile",  SheetNumberPolicyKind.Iso,     "iso")]
+        [InlineData("nonsense", SheetNumberPolicyKind.Profile, "profile")] // read as Profile only by default — record the choice
         public void The_wizard_writes_only_a_change_of_policy(string stored, SheetNumberPolicyKind chosen, string expected)
             => Assert.Equal(expected, SheetNumberPolicy.ValueToWrite(stored, chosen));
+
+        [Theory]
+        [InlineData("iso", true)]
+        [InlineData(" ISO-19650 ", true)]
+        [InlineData("short", true)]
+        [InlineData("iso 19650", false)]
+        [InlineData("nonsense", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void IsRecognised_tells_a_real_policy_from_a_default(string value, bool expected)
+            => Assert.Equal(expected, SheetNumberPolicy.IsRecognised(value));
+
+        [Fact]
+        public void Every_spelling_the_wizard_writes_is_recognised()
+        {
+            foreach (SheetNumberPolicyKind k in Enum.GetValues(typeof(SheetNumberPolicyKind)))
+                Assert.True(SheetNumberPolicy.IsRecognised(SheetNumberPolicy.ToParameterValue(k)));
+        }
+
+        [Theory]
+        [InlineData("profile", "profile", null)]                       // untouched picker: nobody chose
+        [InlineData("iso", "iso", null)]
+        [InlineData("iso", "profile", SheetNumberPolicyKind.Iso)]      // a real pick
+        [InlineData("profile", "iso", SheetNumberPolicyKind.Profile)]
+        [InlineData("iso", null, SheetNumberPolicyKind.Iso)]           // nothing was pre-populated
+        [InlineData(null, "profile", null)]
+        public void The_wizard_records_a_policy_only_when_someone_picked_one(string picked, string prePopulated, SheetNumberPolicyKind? expected)
+            => Assert.Equal(expected, SheetNumberPolicy.ChosenOrNull(picked, prePopulated));
 
         [Fact]
         public void Null_drawing_type_is_tolerated()

@@ -4,9 +4,11 @@
 // the registry: left-panel list of all Drawing Types with search,
 // right-panel form grouped into collapsible sections (Identity /
 // Sheet / Views / Numbering / Crop / Section marker / Slots /
-// Annotation / Print). Save, Save-As, Clone, Delete write to
-// <project>/_BIM_COORD/drawing_types.json (project override). The
-// corporate baseline on disk is never mutated — editing a corporate
+// Annotation / Print). Seven tabs: Drawing Types, All Actions, View
+// Style Packs, Viewport Tools, Sheet Tools, Title Block, Sheet Manager.
+// Save writes both project overrides — <project>/_BIM_COORD/
+// drawing_types.json and view_style_packs.json — whichever tab is open.
+// The corporate baseline on disk is never mutated — editing a corporate
 // entry flips its origin to "project" automatically.
 //
 // No live thumbnail preview yet (that needs a Revit export pass on
@@ -3273,8 +3275,8 @@ namespace StingTools.UI
             row.Children.Add(right);
 
             var hint = new TextBlock {
-                Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json or view_style_packs.json — " +
-                       "project override only. Corporate baseline on disk is never mutated. " +
+                Text = "Save writes both project overrides — <project>/_BIM_COORD/drawing_types.json and view_style_packs.json — " +
+                       "whichever tab is open. Corporate baseline on disk is never mutated. " +
                        "Action tabs dispatch directly via the dock-panel external-event queue.",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11,

@@ -789,6 +789,7 @@ namespace StingTools.Core
                 "ModelHealth","ClashDetection","StandardsDashboard","ComplianceDashboard",
                 "AutoSchedule4D","AutoCost5D","BREEAMAssessment","LifecycleCarbon",
                 "DrawingTypes_SyncStyles","DrawingTypes_FromScopeBoxes","DrawingTypes_Inspect",
+                "ScopeBox_Planner",
                 "Panel_BatchSchedules","Panel_Audit","Panel_ExportToExcel",
                 "Healthcare_RunAllValidators","Healthcare_PressureAudit","Healthcare_MgasAudit",
                 "Routing_AutoDrop","Routing_GenerateLayout","Fabrication_GeneratePackage",

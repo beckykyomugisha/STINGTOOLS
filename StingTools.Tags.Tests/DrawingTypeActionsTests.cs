@@ -2,7 +2,7 @@
 // panel's DRAWING TYPES section offers.
 //
 // The editor used to carry its own hand-picked toolbar of eight buttons while
-// the dock section grew to forty-two, and nothing noticed. DrawingTypeActions is
+// the dock section grew to forty-one, and nothing noticed. DrawingTypeActions is
 // now the editor's list; this test reads the dock XAML and fails on any
 // difference in group, label or tag, in either direction.
 

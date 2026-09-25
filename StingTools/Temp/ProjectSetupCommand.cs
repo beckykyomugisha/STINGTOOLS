@@ -453,8 +453,22 @@ namespace StingTools.Temp
                 // title blocks and view types rather than whatever loaded first.
                 if (data.RunDrawingProductionSetup)
                 {
+                    // Unattended: its own report dialog used to stop the wizard half-way,
+                    // and a failed required step still read "OK" because any passing step
+                    // made the workflow Succeed. The outcome is folded into this report.
+                    var dps = new Commands.Drawing.DrawingProductionSetupCommand { Unattended = true };
                     passed += RunStep(ref stepNum, report, "Set Up Drawing Production (workflow)",
-                        () => RunCommand(new Commands.Drawing.DrawingProductionSetupCommand(), commandData, elements));
+                        () => RunCommand(dps, commandData, elements));
+                    if (dps.LastOutcome != null)
+                    {
+                        report.AppendLine($"      {dps.LastOutcome.Summary}");
+                        if (dps.LastOutcome.IsFailure)
+                            foreach (var line in (dps.LastOutcome.Report ?? "").Split('\n')
+                                         .Select(l => l.TrimEnd('\r'))
+                                         .Where(l => l.IndexOf("FAIL", StringComparison.OrdinalIgnoreCase) >= 0)
+                                         .Take(8))
+                                report.AppendLine($"      {line.Trim()}");
+                    }
                 }
                 else
                 {
@@ -473,9 +487,18 @@ namespace StingTools.Temp
                 // parameter on a fresh project. Before Create Sheets, which reads it.
                 if (data.SheetNumberPolicy != null)
                 {
+                    // Detail goes after RunStep's header line, not before it.
+                    var policyDetail = new StringBuilder();
                     passed += RunStep(ref stepNum, report,
                         $"Sheet-Number Policy ({Core.Drawing.SheetNumberPolicy.ToParameterValue(data.SheetNumberPolicy.Value)})",
-                        () => WriteSheetNumberPolicy(doc, data.SheetNumberPolicy.Value, report));
+                        () => WriteSheetNumberPolicy(doc, data.SheetNumberPolicy.Value, policyDetail));
+                    report.Append(policyDetail);
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Sheet-Number Policy — SKIPPED (not changed in the wizard)");
+                    skipped++;
                 }
 
                 // Step: Create Views (plans + RCPs per level per discipline)
@@ -880,19 +903,31 @@ namespace StingTools.Temp
                 StingLog.Warn("ProjectSetup: " + why);
                 return Result.Failed;
             }
-            string value = Core.Drawing.SheetNumberPolicy.ValueToWrite(p.AsString(), chosen);
+            string stored = p.AsString();
+            string value = Core.Drawing.SheetNumberPolicy.ValueToWrite(stored, chosen);
             if (value == null)
             {
-                report.AppendLine($"      unchanged ('{p.AsString()}')");
+                report.AppendLine($"      unchanged ('{stored}')");
                 return Result.Succeeded;
             }
+            if (!string.IsNullOrWhiteSpace(stored) && !Core.Drawing.SheetNumberPolicy.IsRecognised(stored))
+                report.AppendLine($"      replaced unrecognised value '{stored.Trim()}' (it was read as per drawing type)");
+            bool set;
             using (var tx = new Transaction(doc, "STING Set Sheet-Number Policy"))
             {
                 tx.Start();
-                p.Set(value);
-                tx.Commit();
+                set = p.Set(value);
+                if (set) tx.Commit(); else tx.RollBack();
             }
-            StingLog.Info($"ProjectSetup: sheet-number policy '{p.AsString()}'");
+            if (!set)
+            {
+                string why = $"Revit refused to write '{value}' to {Core.Drawing.SheetNumberPolicy.PolicyParameterName}.";
+                report.AppendLine("      " + why);
+                StingLog.Warn("ProjectSetup: " + why);
+                return Result.Failed;
+            }
+            report.AppendLine($"      '{stored}' → '{value}'");
+            StingLog.Info($"ProjectSetup: sheet-number policy '{value}'");
             return Result.Succeeded;
         }
 
@@ -1943,7 +1978,8 @@ namespace StingTools.Temp
             {
                 Result result = action();
                 sw.Stop();
-                string status = result == Result.Succeeded ? "OK" : "WARN";
+                // Failed says FAILED: a required workflow step or a refused write is not a warning.
+                string status = result == Result.Succeeded ? "OK" : result == Result.Failed ? "FAILED" : "WARN";
                 report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 StingLog.Info($"Project Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 return result == Result.Succeeded ? 1 : 0;

@@ -7414,7 +7414,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "d34912576b19175d2ce75520a255193e6576f220661e5ad898fd4e265d54a8c3",
+      "checksum": "86b7ac5954b0c3875e39fa5f0ecd3a715e25065df1e0435090ed3df5aa24d010",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7461,42 +7461,42 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Medical Gas Terminal Unit Tag",
-            "familyMatch": "^(?!.*(alarm|AVSU|zone valve|manifold|\\bVIE\\b)).*(med(ical)? ?gas|terminal unit|\\bTU\\b|oxygen|\\bO2\\b|medical air|entonox|nitrous)"
+            "familyMatch": "^(?!.*(alarm|AVSU|zone[ _-]*valve|manifold|(?<![A-Za-z0-9])VIE(?![A-Za-z0-9]))).*(med(ical)?[ _-]*gas|terminal[ _-]*unit|(?<![A-Za-z0-9])TU(?![A-Za-z0-9])|oxygen|(?<![A-Za-z0-9])O2(?![A-Za-z0-9])|medical[ _-]*air|entonox|nitrous)"
           },
           {
             "category": "Plumbing Fixtures",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Area Alarm Panel Tag",
-            "familyMatch": "(area alarm|alarm[ _]?panel[ _]?area|\\bAAP\\b)"
+            "familyMatch": "(area[ _-]*alarm|alarm[ _-]*panel[ _-]*area|(?<![A-Za-z0-9])AAP(?![A-Za-z0-9]))"
           },
           {
             "category": "Plumbing Fixtures",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Master Alarm Panel Tag",
-            "familyMatch": "(master alarm|\\bMAP\\b)"
+            "familyMatch": "(master[ _-]*alarm|(?<![A-Za-z0-9])(?-i:MAP)(?![A-Za-z0-9]))"
           },
           {
             "category": "Pipe Accessories",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Zone Valve Box Tag",
-            "familyMatch": "(zone valve|\\bZVB\\b|\\bAVSU\\b)"
+            "familyMatch": "(zone[ _-]*valve|(?<![A-Za-z0-9])ZVB(?![A-Za-z0-9])|(?<![A-Za-z0-9])AVSU(?![A-Za-z0-9]))"
           },
           {
             "category": "Pipes",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Medical Gas Pipeline Tag",
-            "familyMatch": "(medical|med ?gas|oxygen|\\bO2\\b|vacuum|nitrous|entonox|\\bMGPS\\b)"
+            "familyMatch": "(medical|med[ _-]*gas|oxygen|(?<![A-Za-z0-9])O2(?![A-Za-z0-9])|vacuum|nitrous|entonox|(?<![A-Za-z0-9])MGPS(?![A-Za-z0-9]))"
           },
           {
             "category": "Specialty Equipment",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Specialty Equipment Tag",
-            "familyMatch": "(medical gas outlet|med(ical)? ?gas|terminal unit)"
+            "familyMatch": "(medical[ _-]*gas[ _-]*outlet|med(ical)?[ _-]*gas|terminal[ _-]*unit)"
           }
         ]
       },
@@ -7533,7 +7533,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "d4875f5b2c7a4de671385dbb4fc64ded323797e62b2c9cffc2d17d4974c5135d",
+      "checksum": "73b8e3308e2aff79248ec2ad59192f2448d3afff1817b57efebb49c802c2b8f1",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -7579,14 +7579,14 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - VIE Tag",
-            "familyMatch": "(\\bVIE\\b|vacuum.insulated|liquid oxygen|\\bLOX\\b)"
+            "familyMatch": "((?<![A-Za-z0-9])VIE(?![A-Za-z0-9])|vacuum.insulated|liquid[ _-]*oxygen|(?<![A-Za-z0-9])LOX(?![A-Za-z0-9]))"
           },
           {
             "category": "Mechanical Equipment",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Medical Air Plant Tag",
-            "familyMatch": "(medical air|\\bMA4\\b|air (plant|compressor))"
+            "familyMatch": "(medical[ _-]*air|(?<![A-Za-z0-9])MA4(?![A-Za-z0-9])|air[ _-]*(plant|compressor))"
           },
           {
             "category": "Mechanical Equipment",
@@ -7607,21 +7607,21 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Zone Valve Box Tag",
-            "familyMatch": "(zone valve|\\bZVB\\b|\\bAVSU\\b)"
+            "familyMatch": "(zone[ _-]*valve|(?<![A-Za-z0-9])ZVB(?![A-Za-z0-9])|(?<![A-Za-z0-9])AVSU(?![A-Za-z0-9]))"
           },
           {
             "category": "Plumbing Fixtures",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Area Alarm Panel Tag",
-            "familyMatch": "(area alarm|alarm[ _]?panel[ _]?area|\\bAAP\\b)"
+            "familyMatch": "(area[ _-]*alarm|alarm[ _-]*panel[ _-]*area|(?<![A-Za-z0-9])AAP(?![A-Za-z0-9]))"
           },
           {
             "category": "Plumbing Fixtures",
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Master Alarm Panel Tag",
-            "familyMatch": "(master alarm|\\bMAP\\b)"
+            "familyMatch": "(master[ _-]*alarm|(?<![A-Za-z0-9])(?-i:MAP)(?![A-Za-z0-9]))"
           }
         ]
       },
@@ -8487,7 +8487,7 @@
       "id": "health-bedhead-elev-A3-1to50",
       "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
-      "checksum": "004db5e817cabecf0142f9bc566ea7732ea14de72bb9f1a3235ffd97ca7b32fa",
+      "checksum": "53aba26996cf1c3c40993ee273a199d6b0077ba8adb95cb886befa36b466ca80",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
@@ -8544,7 +8544,7 @@
             "ruleType": "AutoTag",
             "enabled": true,
             "tagFamily": "STING - Specialty Equipment Tag",
-            "familyMatch": "(medical gas outlet|med(ical)? ?gas|terminal unit)"
+            "familyMatch": "(medical[ _-]*gas[ _-]*outlet|med(ical)?[ _-]*gas|terminal[ _-]*unit)"
           },
           {
             "category": "Nurse Call Devices",
