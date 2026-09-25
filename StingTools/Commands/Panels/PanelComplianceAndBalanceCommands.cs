@@ -124,14 +124,14 @@ namespace StingTools.Commands.Panels
             panel.AddSection("SUMMARY")
                  .MetricError("Failing circuits", fail.ToString())
                  .MetricHighlight("Fully verified OK", full.ToString())
-                 .MetricWarn("OK but not every rule could run", partial.ToString())
+                 .MetricWarn("Unverified (no failure, but not every rule could run)", partial.ToString())
                  .Metric("Written to " + CheckParam, written.ToString(),
                          unbound > 0 ? $"{unbound} circuit(s) lack the parameter — run Load Params" : null);
             if (writeFailed > 0)
                 panel.MetricError("Writes refused", writeFailed.ToString(), "see the STING log");
             panel
                  .Metric("Devices coloured red", coloured.ToString(), colourView ? $"in '{view.Name}'" : "open a plan to colour devices")
-                 .Metric("Devices cleared (now passing)", cleared.ToString());
+                 .Metric("Devices cleared (no longer failing)", cleared.ToString());
             if (fail > 0)
             {
                 panel.AddSection("FAILURES");
@@ -263,7 +263,7 @@ namespace StingTools.Commands.Panels
                             x.Result.Failed ? XLColor.LightSalmon : x.Result.FullyVerified ? XLColor.LightGreen : XLColor.LightYellow;
                         r++;
                     }
-                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzBasis + ". Green = every rule ran and passed; yellow = passed what could be checked; red = fails.";
+                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzBasis + ". Green = every rule ran and passed; yellow = UNVERIFIED (no failure found, but not every rule could run); red = fails.";
                     ws.Columns().AdjustToContents();
                     wb.SaveAs(path);
                 }

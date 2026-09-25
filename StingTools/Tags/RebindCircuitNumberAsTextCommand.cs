@@ -10,15 +10,20 @@
 //   1. read each element's current value as text ("3", not "3.00");
 //   2. confirm, showing the count;
 //   3. remove the binding and the parameter element;
-//   4. re-bind ELC_CKT_NR from MR_PARAMETERS.txt as an instance binding on the
+//   4. re-bind ELC_CKT_NR from MR_PARAMETERS.txt — as the SAME binding kind as
+//      before (type stays type, instance stays instance) — on the
 //      RESOLVED_BINDINGS.csv categories, UNIONED with the old binding's
 //      categories (the Load Params rule: a rebind never takes a home away, or
 //      the values there would have nowhere to go);
 //   5. write the values back as text, and report before/after counts and every
 //      element whose value did not come back.
 //
-// Any failure before commit rolls the whole transaction back, so the project is
-// either fully converted or untouched.
+// The project is either fully converted or untouched: a Revit error during the
+// rebind rolls back (StrictRebindPreprocessor — the Load Params swallower would
+// dismiss the very type-conflict error a failed rebind raises), the new binding
+// is checked to really be TEXT, and if ANY value cannot be restored the whole
+// transaction is rolled back and the failures are listed. Nothing is committed
+// with values missing.
 
 using System;
 using System.Collections.Generic;
@@ -148,7 +153,8 @@ namespace StingTools.Tags
                     $"{withParam} element(s) carry it; {values.Count} have a value.\n\n" +
                     "The parameter will be removed and bound again as TEXT from MR_PARAMETERS.txt, " +
                     "and every value will be written back as text (3.00 becomes 3). " +
-                    "It runs as one transaction: if anything fails, nothing changes.\n\n" +
+                    "It runs as one transaction: if Revit refuses the rebind, if the result is not TEXT, " +
+                    "or if any value cannot be written back, everything is rolled back and nothing changes.\n\n" +
                     $"Current categories: {oldCatNames}",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No
@@ -171,7 +177,8 @@ namespace StingTools.Tags
             using (var tx = new Transaction(doc, "STING Rebind ELC_CKT_NR as Text"))
             {
                 var fho = tx.GetFailureHandlingOptions();
-                fho.SetFailuresPreprocessor(new BindingWarningSwallower());
+                var strict = new StrictRebindPreprocessor();
+                fho.SetFailuresPreprocessor(strict);
                 tx.SetFailureHandlingOptions(fho);
                 tx.Start();
 
@@ -180,8 +187,12 @@ namespace StingTools.Tags
                 if (paramElem != null) doc.Delete(paramElem.Id);
                 doc.Regenerate();
 
-                bool inserted = doc.ParameterBindings.Insert(
-                    newDef, doc.Application.Create.NewInstanceBinding(newCats), group);
+                // Keep the binding kind: values on a type binding live on the TYPE
+                // elements, and an instance binding would leave nowhere to put them.
+                Binding newBinding = oldBinding is TypeBinding
+                    ? (Binding)doc.Application.Create.NewTypeBinding(newCats)
+                    : doc.Application.Create.NewInstanceBinding(newCats);
+                bool inserted = doc.ParameterBindings.Insert(newDef, newBinding, group);
                 if (!inserted)
                 {
                     tx.RollBack();
@@ -190,6 +201,20 @@ namespace StingTools.Tags
                     return Result.Failed;
                 }
                 doc.Regenerate();
+
+                ForgeTypeId boundType = null;
+                var chk = doc.ParameterBindings.ForwardIterator();
+                while (chk.MoveNext())
+                    if (chk.Key is InternalDefinition d0 && d0.Name == ParamName) { boundType = d0.GetDataType(); break; }
+                if (boundType == null || boundType != SpecTypeId.String.Text)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show(Title,
+                        $"After re-binding, {ParamName} is {SafeTypeLabel(boundType)}, not TEXT. " +
+                        "The change was rolled back; nothing was changed." +
+                        (strict.Errors.Count > 0 ? "\n\nRevit reported:\n  " + string.Join("\n  ", strict.Errors.Take(5)) : ""));
+                    return Result.Failed;
+                }
 
                 foreach (var (id, text) in values)
                 {
@@ -216,9 +241,23 @@ namespace StingTools.Tags
                     }
                 }
 
+                if (notRestored.Count > 0)
+                {
+                    tx.RollBack();
+                    foreach (var line in notRestored) StingLog.Warn($"Rebind {ParamName}: would not restore — {line}");
+                    var nb = new StringBuilder();
+                    nb.AppendLine($"{notRestored.Count} of {values.Count} value(s) could not be written back, so the rebind was ROLLED BACK. Nothing was changed.");
+                    nb.AppendLine();
+                    foreach (var line in notRestored.Take(15)) nb.AppendLine("  " + line);
+                    if (notRestored.Count > 15) nb.AppendLine($"  … {notRestored.Count - 15} more in the STING log");
+                    TaskDialog.Show(Title, nb.ToString().TrimEnd());
+                    return Result.Failed;
+                }
+
                 if (tx.Commit() != TransactionStatus.Committed)
                 {
-                    TaskDialog.Show(Title, "The transaction did not commit; nothing was changed.");
+                    TaskDialog.Show(Title, "The transaction did not commit; nothing was changed." +
+                        (strict.Errors.Count > 0 ? "\n\nRevit reported:\n  " + string.Join("\n  ", strict.Errors.Take(5)) : ""));
                     return Result.Failed;
                 }
             }
@@ -369,6 +408,30 @@ namespace StingTools.Tags
                 StingLog.Warn($"Rebind {ParamName}: spec label for {t.TypeId} — {ex.Message}");
                 return t.TypeId;
             }
+        }
+    }
+    /// <summary>
+    /// For the ELC_CKT_NR rebind only: warnings are dismissed, but any ERROR is
+    /// recorded and the transaction rolled back. The Load Params swallower cannot be
+    /// used here — it dismisses "conflicts with the existing name and type", which is
+    /// exactly what a failed rebind of the same GUID raises.
+    /// </summary>
+    internal sealed class StrictRebindPreprocessor : IFailuresPreprocessor
+    {
+        public List<string> Errors { get; } = new List<string>();
+
+        public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+        {
+            bool hasError = false;
+            foreach (FailureMessageAccessor f in fa.GetFailureMessages())
+            {
+                if (f.GetSeverity() == FailureSeverity.Warning) { fa.DeleteWarning(f); continue; }
+                hasError = true;
+                string msg = f.GetDescriptionText();
+                Errors.Add(msg);
+                StingLog.Warn($"Rebind ELC_CKT_NR: Revit error — {msg}");
+            }
+            return hasError ? FailureProcessingResult.ProceedWithRollBack : FailureProcessingResult.Continue;
         }
     }
 }

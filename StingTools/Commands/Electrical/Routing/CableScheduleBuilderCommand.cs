@@ -263,9 +263,12 @@ namespace StingTools.Commands.Electrical.Routing
             // ── Boxes ── walk JunctionBoxIds across all cables, dedup
             // (one box can be shared by multiple cables), then group by
             // family/type. Reads ELC_JB_TYPE_TXT + ELC_JB_SIZE_MM +
-            // ELC_IP_RATING_TXT (the IP rating bound on Electrical Fixtures, where
-            // the JB seed lives; ELC_JB_IP_RATING_TXT was defined nowhere) for
-            // richer SKU.
+            // an IP rating for richer SKU. The IP rating is read from the project
+            // parameter ELC_IP_RATING_TXT on the box, then on its type, then from the
+            // JB seed's own TYPE family parameter ELC_JB_IP_RATING_TXT (the seed is an
+            // Electrical Equipment family and carries IP54/IP65… there — it is not a
+            // project shared parameter, so renaming it would clash with the project
+            // binding of ELC_IP_RATING_TXT).
             var allBoxIds = new HashSet<long>();
             foreach (var c in manifest.Cables)
             {
@@ -293,7 +296,14 @@ namespace StingTools.Commands.Electrical.Routing
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 string jbType = ParameterHelpers.GetString(el, "ELC_JB_TYPE_TXT") ?? typeName;
                 string jbSize = ParameterHelpers.GetString(el, "ELC_JB_SIZE_MM") ?? "";
-                string jbIp   = ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING) ?? "";
+                string jbIp   = ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING);
+                if (string.IsNullOrEmpty(jbIp) && el is FamilyInstance fiIp && fiIp.Symbol != null)
+                {
+                    jbIp = ParameterHelpers.GetString(fiIp.Symbol, ParamRegistry.ELC_IP_RATING);
+                    if (string.IsNullOrEmpty(jbIp))
+                        jbIp = fiIp.Symbol.LookupParameter("ELC_JB_IP_RATING_TXT")?.AsString();
+                }
+                jbIp ??= "";
 
                 string key = $"{famName}|{jbType}|{jbSize}|{jbIp}";
                 if (!boxesByKey.TryGetValue(key, out var entry))

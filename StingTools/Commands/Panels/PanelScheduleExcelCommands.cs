@@ -76,6 +76,12 @@ namespace StingTools.Commands.Panels
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+            // One-shot: the panel sets these just before raising the command. Take them
+            // and reset at once, so a later ribbon / workflow export gets the defaults
+            // (All panels, every section), never a stale panel choice.
+            var scope = Scope; bool incHeader = IncludeHeader, incBody = IncludeBody, incSummary = IncludeSummary;
+            Scope = ExportScope.All; IncludeHeader = IncludeBody = IncludeSummary = true;
+
 
             var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(PanelScheduleView))
@@ -93,7 +99,7 @@ namespace StingTools.Commands.Panels
             }
 
             List<PanelScheduleView> schedules;
-            if (Scope == ExportScope.Active)
+            if (scope == ExportScope.Active)
             {
                 if (!(doc.ActiveView is PanelScheduleView act) || act.IsPanelScheduleTemplate())
                 {
@@ -103,7 +109,7 @@ namespace StingTools.Commands.Panels
                 }
                 schedules = new List<PanelScheduleView> { act };
             }
-            else if (Scope == ExportScope.Selected)
+            else if (scope == ExportScope.Selected)
             {
                 // Selected boards in a model view, or selected schedules in the browser.
                 var sel = new HashSet<long>();
@@ -124,7 +130,7 @@ namespace StingTools.Commands.Panels
             }
             else schedules = all;
 
-            if (!IncludeHeader && !IncludeBody && !IncludeSummary)
+            if (!incHeader && !incBody && !incSummary)
             {
                 TaskDialog.Show("STING Panel Schedule Export", "Header, Body and Summary are all unticked — nothing to export.");
                 return Result.Cancelled;
@@ -203,13 +209,13 @@ namespace StingTools.Commands.Panels
                         ws.Cell(4, 2).Value = psv.Id.Value.ToString();
                         ws.Range(1, 1, 4, 1).Style.Font.Bold = true;
 
-                        int hdrRows = IncludeHeader ? WriteSection(ws, psv, SectionType.Header, "HEADER", 6) : 0;
-                        int afterHeader = 6 + Math.Max(hdrRows, 0) + (IncludeHeader ? 3 : 0);
-                        if (IncludeBody)
+                        int hdrRows = incHeader ? WriteSection(ws, psv, SectionType.Header, "HEADER", 6) : 0;
+                        int afterHeader = 6 + Math.Max(hdrRows, 0) + (incHeader ? 3 : 0);
+                        if (incBody)
                             bodyRows = WriteSection(ws, psv, SectionType.Body,
                                 "BODY (editable circuit rows)", afterHeader, out bodyCols);
-                        int afterBody = afterHeader + Math.Max(bodyRows, 0) + (IncludeBody ? 3 : 0);
-                        if (IncludeSummary) WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody);
+                        int afterBody = afterHeader + Math.Max(bodyRows, 0) + (incBody ? 3 : 0);
+                        if (incSummary) WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody);
 
                         ws.Columns().AdjustToContents(1, 60);
                         sheetsWritten++;
@@ -479,8 +485,19 @@ namespace StingTools.Commands.Panels
                                 try
                                 {
                                     body.SetCellText(r, c, newVal);
-                                    written++;
-                                    cellChanges.Add($"{psv.Name}  row {r + 1}, col {c + 1}:  '{oldVal}' → '{newVal}'");
+                                    // Read back: Revit can reformat or ignore a value, and the
+                                    // diff must show what the schedule now holds, not what was sent.
+                                    string after = body.GetCellText(r, c) ?? "";
+                                    if (string.Equals(after, newVal, StringComparison.Ordinal))
+                                    {
+                                        written++;
+                                        cellChanges.Add($"{psv.Name}  row {r + 1}, col {c + 1}:  '{oldVal}' → '{after}'");
+                                    }
+                                    else
+                                    {
+                                        rejected++;
+                                        failures.Add($"{psv.Name} row {r + 1}, col {c + 1}: sent '{newVal}', Revit kept '{after}'");
+                                    }
                                 }
                                 catch (Exception ex8)
                                 {

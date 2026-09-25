@@ -22001,7 +22001,7 @@
     {
       "param_name": "ELC_PNL_ENCLOSURE_TXT",
       "guid": "67cd15ac-ff99-5877-9273-a549fbbf6a68",
-      "description": "Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Elec_PanelWriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.",
+      "description": "Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.",
       "datatype": "TEXT",
       "group_id": 4,
       "group_name": "ELC_PWR",

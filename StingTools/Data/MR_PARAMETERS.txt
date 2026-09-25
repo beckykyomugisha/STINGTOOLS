@@ -3732,7 +3732,7 @@ PARAM	324969fd-cdf8-544b-b834-3aee08721cfa	STR_REBAR_DIM_E_MM	TEXT		16	1	Bending
 PARAM	faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6	STR_REBAR_BEND_RADIUS_MM	TEXT		16	1	Scheduling radius R (mm) [BS 8666 Table 2]	1
 PARAM	43f56f0f-61bd-58d0-83ef-9b782ab05a95	BI_ACCENT_COLOR_TXT	TEXT		11	1	Accent colour RGB [ISO 19650-1:2018]	1
 PARAM	a07310e6-24ec-5507-a7c2-4b8e9b85b74c	BI_THEME_NAME_TXT	TEXT		11	1	Brand theme name [ISO 19650-1:2018]	1
-PARAM	67cd15ac-ff99-5877-9273-a549fbbf6a68	ELC_PNL_ENCLOSURE_TXT	TEXT		4	1	Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Elec_PanelWriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.	1
+PARAM	67cd15ac-ff99-5877-9273-a549fbbf6a68	ELC_PNL_ENCLOSURE_TXT	TEXT		4	1	Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.	1
 PARAM	d1a9b4fa-71a1-56e9-b8b5-32e205658092	ELC_PNL_FAULT_LG_KA	NUMBER		4	1	Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import).	1
 PARAM	8a271d62-6dba-55cb-98b7-01a766d49a6e	ELC_IPS_LIM_BOOL	YESNO		4	1	A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.	1
 PARAM	cb11870c-ae72-55be-9c8b-ff05d27583c7	ELC_FEED_TYPE_TXT	TEXT		4	1	Supply this board is fed from: Normal / Emergency / Both. Read by Dual-Source Validation and the SLD generator to find emergency boards and dual-fed nodes.	1

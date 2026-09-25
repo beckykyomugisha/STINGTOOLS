@@ -23415,7 +23415,7 @@ template detection). Panel tests 80/80. **Not exercised in Revit.**
 
 Not run in Revit on this branch. Gates: `dotnet build -c Release` 0 errors / 0 warnings;
 `StingTools.Tags.Tests` 2657 passed / 0 failed; `check_param_contract.py --check` OK with no
-baseline change; `recount_unreachable_commands.py --check` agrees (1753 / 1728, triage doc
+baseline change; `recount_unreachable_commands.py --check` agrees (1759 / 1734 after the merge, triage doc
 updated); `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and
 `check_command_doc_acquisition.ps1` pass.
 
@@ -23455,7 +23455,7 @@ checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
     alarm device tag and schedule already show; Fire Alarm Schematic; a blank loop still groups
     as "Zone 1"); `ELC_CONDUIT_REF` / `ELC_CABLE_ROUTE_REF` -> `ELC_CONDUIT_ROUTE_TXT` (the route
     id the conduit auto-router and consolidator write, bound on Electrical Equipment; SLD route
-    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Fixtures, the JB
+    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Equipment, the JB
     seed's category; Cable Schedule Builder).
   - *Rejected as an alias:* `MGS_ZVB_REF_TXT` for `MGS_ZV_ZONE_TXT` — it is the OWNING box id on
     pipes and terminal units, so reading it as "this is a zone valve" would have turned every
@@ -23470,7 +23470,7 @@ checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
   `CATEGORY_BINDINGS.csv` rows stay. The resolver now strips tag-family keys (92 known, read from
   `LABEL_DEFINITIONS.json`) from what curated rows and the committed spec contribute, and **fails
   on any category in any emitted row that `category_enum_map` does not know** (plus `<ALL>` not in
-  first position). The 15 affected rows (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
+  first position). The 13 affected rows (15 tokens) (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
   `LIG_PRODUCT_RATING_TXT`) keep their real category. `SharedParamGuids.EnsureResolved` now
   `StingLog.Warn`s once per unknown name with a count and example parameters.
 - **PARAM-6 — project-level parameters reach Project Information.** A categories cell may now

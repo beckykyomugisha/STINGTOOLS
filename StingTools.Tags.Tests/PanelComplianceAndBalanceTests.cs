@@ -64,7 +64,7 @@ namespace StingTools.Tags.Tests
             Assert.False(r.Failed);
             Assert.False(r.FullyVerified);
             Assert.Contains("Iz derating", r.Summary);
-            Assert.StartsWith("OK (not checked:", r.Summary);
+            Assert.StartsWith("UNVERIFIED (not checked:", r.Summary);
         }
 
         [Fact]
@@ -125,7 +125,7 @@ namespace StingTools.Tags.Tests
             var r = CircuitComplianceRule.Evaluate(new CircuitCheckInput { IbA = 10, InA = 16, VdLimitPct = 5 });
             Assert.False(r.Failed);
             Assert.False(r.FullyVerified);
-            Assert.StartsWith("OK (not checked:", r.Summary);
+            Assert.StartsWith("UNVERIFIED (not checked:", r.Summary);
             Assert.Contains("Iz", r.Summary);
             Assert.Contains("VD", r.Summary);
             Assert.Contains("breaking capacity", r.Summary);
