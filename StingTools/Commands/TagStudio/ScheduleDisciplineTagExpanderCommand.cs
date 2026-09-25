@@ -9,8 +9,13 @@
 // SCHEDULE_SPEC_all_disciplines.json (207 entries — one per tag-family category
 // across ARCH/GEN/HEALTH/MEP/STR):
 //
-//   • Column 1 = ASS_TAG_1_TXT  (the tag — links drawing ↔ schedule)
+//   • Column 1 = ASS_TAG_1_TXT  (the tag — links drawing ↔ schedule; col1_tag)
+//   • Column 2 = ASS_DESCRIPTION_TXT (col2_desc)
 //   • then the entry's sheet_columns (the dropped discipline params)
+//
+// Materials is the exception: it is built as a multi-category Material Takeoff
+// (CreateSchedule rejects the category), keyed by MAT_CODE / MAT_NAME, with the
+// material's parameters matched under their "Material: " field names.
 //   • then the built-in Comments column
 //
 // A reader sees the compact universal tag in the drawing and the expanded
@@ -161,6 +166,8 @@ namespace StingTools.Commands.TagStudio
                 }
                 if (plan.Col1 == null && !string.IsNullOrWhiteSpace(e.Value<string>("col1_tag")))
                     plan.Col1 = e.Value<string>("col1_tag").Trim();
+                if (plan.Col2 == null && !string.IsNullOrWhiteSpace(e.Value<string>("col2_desc")))
+                    plan.Col2 = e.Value<string>("col2_desc").Trim();
                 foreach (var c in sheetCols) plan.AddSheet(c);
                 foreach (var c in fullCols) plan.AddFull(c);
             }
@@ -215,14 +222,14 @@ namespace StingTools.Commands.TagStudio
 
                         if (doSheet)
                         {
-                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.SheetColumns,
+                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.Col2, plan.SheetColumns,
                                 existing, isFull: false);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
                             if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
                         }
                         if (doFull)
                         {
-                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.FullColumns,
+                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.Col2, plan.FullColumns,
                                 existing, isFull: true);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
                             if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
@@ -393,17 +400,24 @@ namespace StingTools.Commands.TagStudio
             if (r.Truncated) truncated++;
         }
 
-        private BuildOutcome BuildSchedule(Document doc, Category cat, string catDisplay, string col1,
+        private BuildOutcome BuildSchedule(Document doc, Category cat, string catDisplay, string col1, string col2,
             List<string> columns, HashSet<string> existingNames, bool isFull)
         {
             var outcome = new BuildOutcome();
             string name = SchedulePrefix + catDisplay + (isFull ? " (Full)" : "");
             if (existingNames.Contains(name)) { outcome.SkippedExisting = true; return outcome; }
 
+            // Materials is not a schedulable category — CreateSchedule rejects it, so the
+            // Materials entry was always reported "not schedulable". A multi-category
+            // Material Takeoff is the schedule whose rows are materials.
+            bool takeoff = cat.Id.Value == (long)BuiltInCategory.OST_Materials;
+
             ViewSchedule sched;
             try
             {
-                sched = ViewSchedule.CreateSchedule(doc, cat.Id);
+                sched = takeoff
+                    ? ViewSchedule.CreateMaterialTakeoff(doc, ElementId.InvalidElementId)
+                    : ViewSchedule.CreateSchedule(doc, cat.Id);
             }
             catch (Exception ex)
             {
@@ -432,6 +446,7 @@ namespace StingTools.Commands.TagStudio
             void Want(string p) { if (!string.IsNullOrEmpty(p) && seen.Add(p)) ordered.Add(p); }
 
             Want(string.IsNullOrWhiteSpace(col1) ? ParamRegistry.TAG1 : col1); // ASS_TAG_1_TXT unless the spec names another
+            Want(col2);                                                         // the spec's col2_desc (ASS_DESCRIPTION_TXT / MAT_NAME)
             int capBudget = MaxColumns;
             foreach (var c in columns)
             {
@@ -444,7 +459,10 @@ namespace StingTools.Commands.TagStudio
             int added = 0;
             foreach (var pname in ordered)
             {
-                if (byName.TryGetValue(pname, out var sf))
+                // In a material takeoff a parameter of the material is listed as
+                // "Material: <name>"; the bare name is the element's own.
+                if (byName.TryGetValue(pname, out var sf)
+                    || (takeoff && byName.TryGetValue("Material: " + pname, out sf)))
                 {
                     try { sdef.AddField(sf); added++; }
                     catch (Exception ex) { StingLog.Warn($"ScheduleTagExpander AddField '{pname}' → {catDisplay}: {ex.Message}"); }
@@ -491,10 +509,12 @@ namespace StingTools.Commands.TagStudio
         private sealed class CategoryPlan
         {
             public string CategoryDisplay;
-            /// <summary>The spec's col1_tag — column 1. Null means ASS_TAG_1_TXT. A Material
-            /// Takeoff cannot show ASS_TAG_1_TXT (an &lt;ALL&gt; parameter never reaches
-            /// Materials), so the Materials entry names MAT_CODE.</summary>
+            /// <summary>The spec's col1_tag — column 1. Null means ASS_TAG_1_TXT. The
+            /// Materials entry names MAT_CODE: it is built as a Material Takeoff, whose
+            /// rows are materials, and the material's code is what identifies one.</summary>
             public string Col1;
+            /// <summary>The spec's col2_desc — column 2 (ASS_DESCRIPTION_TXT; MAT_NAME for Materials).</summary>
+            public string Col2;
             public List<string> SheetColumns = new List<string>();
             public List<string> FullColumns = new List<string>();
             private readonly HashSet<string> _sheetSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
