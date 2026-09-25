@@ -114,6 +114,26 @@ namespace StingTools.Commands.Panels
                 if (!HasParamValue(p, "ELC_PNL_IP_RATING_TXT")) missingIp++;
             }
 
+            // PNL-20: a STING template built before its spec changed still renders — just
+            // without the new columns — and nothing said so. Compare each built STING
+            // template's bound parameters with STING_PANEL_SCHEDULE_SPECS.json.
+            var staleRows = new List<string>();
+            int stingBuilt = 0, stingMissing = 0;
+            try
+            {
+                var specWarn = new List<string>();
+                foreach (var spec in StingTools.Core.Panels.PanelTemplateBuilder.LoadSpecs(doc, specWarn).Templates)
+                {
+                    var t = StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, spec.Name);
+                    if (t == null) { stingMissing++; continue; }
+                    stingBuilt++;
+                    var missing = spec.MissingFrom(StingTools.Core.Panels.PanelTemplateBuilder.BoundParamKeys(doc, t));
+                    if (missing.Count > 0)
+                        staleRows.Add($"{spec.Name}: {missing.Count} column(s) missing ({string.Join(", ", missing.Take(5))}{(missing.Count > 5 ? ", …" : "")})");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Audit STING template check: {ex.Message}"); staleRows.Add("STING template check failed: " + ex.Message); }
+
             var result = StingResultPanel.Create("Panel Schedule Audit");
             result.SetSubtitle($"{panelsTotal} panels · {withSchedule} with schedule · {withoutSchedule} without · {templateDrift} drift");
 
@@ -127,7 +147,9 @@ namespace StingTools.Commands.Panels
                   .Metric("Skipped by pattern", skippedByPattern.ToString())
                   .MetricWarn("Template drift", templateDrift.ToString(), "current ≠ rule-suggested")
                   .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS")
-                  .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model");
+                  .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model")
+                  .Metric("STING templates built", $"{stingBuilt}", stingMissing > 0 ? $"{stingMissing} not built — PNLS 📐" : null)
+                  .MetricWarn("STING templates out of date", staleRows.Count.ToString(), "rebuild with PNLS 📐");
 
             if (totals.Count > 0)
             {
@@ -148,6 +170,12 @@ namespace StingTools.Commands.Panels
                 result.AddSection("TEMPLATE DRIFT");
                 foreach (string s in driftRows.Take(25)) result.Text(s);
                 if (driftRows.Count > 25) result.Text($"… {driftRows.Count - 25} more.");
+            }
+
+            if (staleRows.Count > 0)
+            {
+                result.AddSection("STING TEMPLATES OUT OF DATE (run PNLS 📐)");
+                foreach (string s in staleRows) result.Text(s);
             }
 
             if (paramGapRows.Count > 0)

@@ -2336,11 +2336,12 @@ namespace StingTools.Core
             var sb = new System.Text.StringBuilder();
             // ELC_CKT_NR (ELC_CIRCUIT_NR) was NUMBER and is now TEXT; a project bound
             // before the change still holds NUMBER, where GetString returns "". Read it
-            // through GetDisplayText, which answers for either storage type.
+            // through GetCircuitNumberText, which answers for either storage type
+            // and prints a NUMBER-bound value as "3", not "3.00".
             void AddM(string paramName, string connector, string unit)
             {
                 string v = paramName == ParamRegistry.ELC_CIRCUIT_NR
-                    ? ParameterHelpers.GetDisplayText(el, paramName)
+                    ? ParameterHelpers.GetCircuitNumberText(el, paramName)
                     : ParameterHelpers.GetString(el, paramName);
                 if (!string.IsNullOrEmpty(v))
                 {
@@ -2470,8 +2471,8 @@ namespace StingTools.Core
             {
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "rated at {0} kW");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "operating at {0} V");
-                // GetDisplayText: ELC_CKT_NR is TEXT now but NUMBER on older bindings.
-                AppendNatural(tech, ParameterHelpers.GetDisplayText(el, ParamRegistry.ELC_CIRCUIT_NR), "connected to circuit {0}");
+                // GetCircuitNumberText: ELC_CKT_NR is TEXT now but NUMBER on older bindings ("3", not "3.00").
+                AppendNatural(tech, ParameterHelpers.GetCircuitNumberText(el, ParamRegistry.ELC_CIRCUIT_NR), "connected to circuit {0}");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "supplied by panel {0}");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "configured for {0} phase supply");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "fed from {0}");
@@ -2486,7 +2487,7 @@ namespace StingTools.Core
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "delivering {0} lm of luminous output");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "achieving an efficacy of {0} lm/W");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "using a {0} lamp");
-                AppendNatural(tech, ParameterHelpers.GetDisplayText(el, ParamRegistry.ELC_CIRCUIT_NR), "wired to circuit {0}");
+                AppendNatural(tech, ParameterHelpers.GetCircuitNumberText(el, ParamRegistry.ELC_CIRCUIT_NR), "wired to circuit {0}");
             }
             else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
                      categoryName == "Air Terminals" || categoryName == "Duct Fittings")

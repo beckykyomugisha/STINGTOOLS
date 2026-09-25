@@ -133,19 +133,26 @@ namespace StingTools.Commands.Electrical.Validation
                     bool limFound = false;
                     try
                     {
-                        // No LIM parameter exists in MR_PARAMETERS.txt; these are family-level
-                        // names. ELC_IPS_BOOL says the board IS an IPS, not that it has a LIM,
-                        // so it cannot stand in. A defined LIM parameter is ROADMAP PARAM-8.
-                        var limParam = panel.LookupParameter("LIM_INSTALLED_BOOL")
-                                    ?? panel.LookupParameter("IPS_LIM_BOOL");
-                        limFound = limParam != null && limParam.StorageType == StorageType.Integer && limParam.AsInteger() != 0;
+                        // ELC_IPS_LIM_BOOL is the STING parameter (bound by Load Params).
+                        // LIM_INSTALLED_BOOL / IPS_LIM_BOOL are family-level names some
+                        // vendor families carry, still honoured. Any one set to Yes is
+                        // enough: the bound STING parameter exists (unticked) on every
+                        // board, so it must not hide a family parameter that says Yes.
+                        // ELC_IPS_BOOL says the board IS an IPS, not that it has a LIM,
+                        // so it cannot stand in.
+                        foreach (string limName in new[] { "ELC_IPS_LIM_BOOL", "LIM_INSTALLED_BOOL", "IPS_LIM_BOOL" })
+                        {
+                            var limParam = panel.LookupParameter(limName);
+                            if (limParam != null && limParam.StorageType == StorageType.Integer && limParam.AsInteger() != 0)
+                            { limFound = true; break; }
+                        }
                     }
-                    catch { /* parameter absent */ }
+                    catch (Exception ex) { StingLog.Warn($"IPSValidation LIM read on {panel.Id}: {ex.Message}"); }
 
                     if (!limFound)
                         violations.Add(
                             $"WARNING  Panel {panel.Name ?? panel.Id.ToString()}: " +
-                            "No Line Isolation Monitor recorded (LIM_INSTALLED_BOOL / IPS_LIM_BOOL absent or 0). " +
+                            "No Line Isolation Monitor recorded (ELC_IPS_LIM_BOOL not ticked; no LIM_INSTALLED_BOOL / IPS_LIM_BOOL family parameter set). " +
                             "NFPA 99 §7.2.2.3.3 requires a LIM on all IPS circuits.");
                 }
 

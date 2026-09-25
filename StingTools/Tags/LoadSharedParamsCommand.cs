@@ -432,6 +432,39 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { StingLog.Warn($"Per-param binding pre-build failed, falling back to group bindings: {ex.Message}"); }
 
+            // "<ALL>|Project Information" params: the core set PLUS categories outside
+            // it. The core set is element categories (+ Sheets); Project Information is
+            // not one of them, so a PRJ_* parameter bound <ALL> alone never reached the
+            // element every reader of it goes to. Built once per distinct extra set.
+            var universalPlusBinding = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            if (specDriven)
+            {
+                try
+                {
+                    var sigToUniv = new Dictionary<string, InstanceBinding>(StringComparer.Ordinal);
+                    foreach (var kvp in SharedParamGuids.ResolvedUniversalExtras)
+                    {
+                        string sig = string.Join(",", kvp.Value.Select(b => (int)b).OrderBy(x => x));
+                        if (!sigToUniv.TryGetValue(sig, out InstanceBinding ub))
+                        {
+                            var cs = new CategorySet();
+                            foreach (Category c in coreCats) cs.Insert(c);
+                            int added = 0;
+                            foreach (Category c in SharedParamGuids.BuildCategorySet(doc, kvp.Value))
+                                if (!cs.Contains(c)) { cs.Insert(c); added++; }
+                            if (added == 0)
+                                StingLog.Warn($"LoadSharedParams: extra categories for '{kvp.Key}' ({string.Join(", ", kvp.Value)}) " +
+                                              "add nothing to the core set in this document");
+                            ub = app.Create.NewInstanceBinding(cs);
+                            sigToUniv[sig] = ub;
+                        }
+                        universalPlusBinding[kvp.Key] = ub;
+                    }
+                    StingLog.Info($"LoadSharedParams: {universalPlusBinding.Count} universal param(s) with extra categories");
+                }
+                catch (Exception ex) { StingLog.Warn($"Universal-plus binding pre-build failed, those params get the core set only: {ex.Message}"); }
+            }
+
             // Collect discipline-scoped params that had no per-param CSV row AND no group
             // override — they fall back to the broad core set (a coverage GAP). Logged so
             // gaps surface for follow-up rather than silently binding to everything.
@@ -532,7 +565,8 @@ namespace StingTools.Tags
                                 else if (specDriven)
                                 {
                                     // Spec-driven: universal->core, scoped->exact set, absent->UNBOUND (never broad-bind).
-                                    if (SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name)) paramBinding = coreBinding;
+                                    if (SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name))
+                                        paramBinding = universalPlusBinding.TryGetValue(extDef.Name, out InstanceBinding upb) ? upb : coreBinding;
                                     else if (perParamBindingMap.TryGetValue(extDef.Name, out InstanceBinding sb)) paramBinding = sb;
                                     else { if (bindingGapParams.Count < 1000) bindingGapParams.Add(extDef.Name); skipped++; continue; }
                                 }
@@ -1369,7 +1403,7 @@ namespace StingTools.Tags
         /// SearchOption.AllDirectories can scan thousands of files on broad paths
         /// like C:\ProgramData\Autodesk\, freezing Revit for minutes).
         /// </summary>
-        private static string FindMrParametersFile(string currentSpFile)
+        internal static string FindMrParametersFile(string currentSpFile)
         {
             const string fileName = "MR_PARAMETERS.txt";
 

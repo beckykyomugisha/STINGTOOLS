@@ -105,7 +105,8 @@ namespace StingTools.Commands.Electrical.Validation
                 {
                     try
                     {
-                        // ELC_FEED_TYPE_TXT is a family-level parameter (not in MR_PARAMETERS).
+                        // ELC_FEED_TYPE_TXT (Normal / Emergency / Both) is a STING shared
+                        // parameter on Electrical Equipment, set by hand per board.
                         string feedType = fi.LookupParameter("ELC_FEED_TYPE_TXT")?.AsString()?.Trim()
                                        ?? "";
                         if (feedType.Equals("Emergency", StringComparison.OrdinalIgnoreCase)

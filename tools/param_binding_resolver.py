@@ -48,6 +48,7 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "ELEC_TRAY":"Cable Trays|Cable Tray Fittings",
 "ELEC_CABLE":"Cable Trays|Conduits|Electrical Circuits",
 "ELEC_CIRCUIT":"Electrical Circuits",
+"SPACE_ROOM":"MEP Spaces|Rooms",
 "ELEC_LPS":"Electrical Equipment|Generic Models","LIGHT_FIX":"Lighting Fixtures","LIGHT_DEV":"Lighting Devices",
 "DATA":"Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices",
 "STRUCT":"Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors",
@@ -142,6 +143,13 @@ def resolve(n,desc,depth=0):
     # project) would also move the WARN_ELC_EARTHING_* mirrors, which describe
     # equipment.
     if n in ("ELC_EARTHING_SYSTEM_TXT","ELC_MET_LOCATION_TXT"): return "PROJECT_INFO","project-level"
+    # Board-level facts read only off Electrical Equipment (Dual-Source / SLD feed
+    # type, IPS Validation's LIM flag). The broad ELEC set would put them on every
+    # conduit and tray.
+    if n in ("ELC_FEED_TYPE_TXT","ELC_IPS_LIM_BOOL"): return "ELEC_EQUIP","board-level"
+    # A load-profile space type describes a space, not HVAC plant: Block Load and
+    # the cross-talk audit read it on MEP Spaces, Block Load and ComCheck on Rooms.
+    if n=="HVC_SPACE_TYPE_TXT": return "SPACE_ROOM","space-level"
     # Medical gas travels in pipes. MgasNetwork builds each gas's network from
     # pipes, fittings and accessories keyed on MGS_GAS_TYPE_TXT (and finds zone
     # valve boxes by MGS_ZVB_REF_TXT on an accessory); MgasFlowValidator checks
@@ -205,7 +213,8 @@ def resolve(n,desc,depth=0):
         for tk in parts:
             if tk in BLE: return BLE[tk],"arch-sub"
         return "ARCH","arch-generic"
-    # curated fallback (tight only)
+    # curated fallback (tight only). Tag-family keys are stripped from what the
+    # curated row contributes -- see TAG_FAMILY_KEYS below.
     cc=catb.get(n)
     if cc and len(cc)<=12: return None,"curated-fallback"  # keep raw curated
     # CODE-USAGE tier for the still-unresolved
@@ -272,10 +281,53 @@ if _orphan_explicit:
     raise SystemExit("explicit (Yes) CATEGORY_BINDINGS rows name parameters that are not "
                      "defined in MR_PARAMETERS.txt:\n  " + "\n  ".join(_orphan_explicit[:20]))
 
+# ── Tag-family keys are not categories ──────────────────────────────────────
+# CATEGORY_BINDINGS.csv names some LABEL_DEFINITIONS.json tag-family keys in its
+# category column -- "MEP Sleeve", "Anti-Ligature (Door)" -- because
+# tools/check_tag_row_bindings.py checks a tag family's label rows against the
+# family's key. They are not Revit categories: SharedParamGuids.EnsureResolved
+# finds no BuiltInCategory for them and drops them. Every row that names one also
+# names the real category (Generic Models, Doors, ...), so dropping the key from
+# the SPEC loses no binding; keeping it in the spec made a row look bound to a
+# category nothing could deliver (ROADMAP PARAM-9). Only keys that ARE tag
+# families are stripped -- any other unknown name fails below.
+_label_keys = set((json.load(open("StingTools/Data/LABEL_DEFINITIONS.json", encoding="utf-8-sig"))
+                   .get("category_labels") or {}).keys())
+TAG_FAMILY_KEYS = {k for k in _label_keys if k not in _enum_map and k != "Materials"}
+def _real(names):
+    return [c for c in names if c not in TAG_FAMILY_KEYS]
+
+# ── "<ALL> plus" cells ──────────────────────────────────────────────────────
+# A categories cell may read "<ALL>|Project Information": the universal set (the
+# 143 element categories in universal_categories, plus Sheets, which the loader
+# inserts) AND categories outside it. SharedParamGuids.EnsureResolved reads the
+# first token as the universal marker and the rest as extra categories. Plain
+# "<ALL>" still means exactly what it did.
+def cell_parse(c):
+    toks = c.split("|")
+    return ("<ALL>" in toks), [t for t in toks if t and t != "<ALL>"]
+def cell_fmt(uni, extras):
+    ex = sorted(set(extras))
+    return "|".join((["<ALL>"] if uni else []) + ex)
+
+# ── Project-level parameters reach Project Information (ROADMAP PARAM-6) ──────
+# PRJ_* are facts about the project -- name, address, phase, climate site,
+# refrigerant defaults -- and their readers go to doc.ProjectInformation. Marked
+# <ALL> they bound to 143 element categories and not to Project Information, which
+# is not one of them, so every one of those reads returned nothing. The sheet
+# identity family (PRJ_TB_*, PRJ_SHEET_*, PRJ_DWG_*, PRJ_STATUS_COD_TXT) stays on
+# Sheets. Additive: an <ALL> parameter keeps <ALL> and gains Project Information,
+# because a project that has put a PRJ_ value on elements keeps it.
+def is_project_level(n):
+    return (n.startswith("PRJ_")
+            and not n.startswith(("PRJ_TB_", "PRJ_SHEET_", "PRJ_DWG_"))
+            and n != "PRJ_STATUS_COD_TXT")
+_project_info_added = []
+
 out=[]; src=collections.Counter(); _explicit_added=0
 for n,(g,d) in params.items():
     dom,s=resolve(n,d)
-    cats = "|".join(sorted(catb[n])) if dom is None else S[dom]
+    cats = "|".join(sorted(_real(catb[n]))) if dom is None else S[dom]
     ex = explicit.get(n)
     if ex:
         if cats == "<ALL>":
@@ -289,6 +341,12 @@ for n,(g,d) in params.items():
             extra = sorted(ex - set(have))
             if extra:
                 cats = "|".join(have + extra); _explicit_added += len(extra)
+    if is_project_level(n) and cats:
+        _u, _ex = cell_parse(cats)
+        if "Project Information" not in _ex:
+            cats = cell_fmt(_u, _ex + ["Project Information"]) if _u else "|".join(
+                [c for c in cats.split("|")] + ["Project Information"])
+            _project_info_added.append(n)
     out.append((n,g,s,cats,d)); src[s]+=1
 # FAIL rather than write a row that claims a binding nothing delivers.
 mat_orphans=[o[0] for o in out if o[3]=="Materials" and not material_relevant(o[0])]
@@ -314,7 +372,7 @@ if stray_mat:
         "Remove the Materials row, or add the prefix to IsMaterialRelevantParam in "
         "StingTools/Tags/LoadSharedParamsCommand.cs if it really is a material property."
         % (len(stray_mat), "\n  ".join(stray_mat[:20])))
-scoped=sum(1 for o in out if o[3] not in("","<ALL>")); univ=sum(1 for o in out if o[3]=="<ALL>"); unb=sum(1 for o in out if o[3]=="")
+scoped=sum(1 for o in out if o[3]!="" and not cell_parse(o[3])[0]); univ=sum(1 for o in out if cell_parse(o[3])[0]); unb=sum(1 for o in out if o[3]=="")
 gaps=[o for o in out if o[2].startswith("UNRESOLVED")]
 print("resolution source:")
 for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
@@ -348,7 +406,9 @@ try:
     with open("StingTools/Data/RESOLVED_BINDINGS.csv", newline="", encoding="utf-8") as _f:
         for _row in csv.reader(_f):
             if len(_row) >= 2 and not _row[0].startswith("#"):
-                _prev[_row[0]] = _row[1]
+                # A tag-family key in the committed spec is not a category (see
+                # TAG_FAMILY_KEYS); carrying it forward would re-add it forever.
+                _prev[_row[0]] = "|".join(_real(_row[1].split("|")))
 except FileNotFoundError:
     pass
 
@@ -365,10 +425,15 @@ for _i, _o in enumerate(out):
         if set(_cats.split("|")) != set(_was.split("|")): _widened += 1
         out[_i] = (_n, _g, _srcx, _was, _d)
         continue
-    if _was == "<ALL>" or _cats == "<ALL>":
-        # <ALL> is the widest there is; never trade it for a list.
-        if _was == "<ALL>" and _cats != "<ALL>":
-            out[_i] = (_n, _g, _srcx, "<ALL>", _d)
+    _wu, _we = cell_parse(_was); _cu, _ce = cell_parse(_cats)
+    if _wu or _cu:
+        # <ALL> is the widest there is; never trade it for a list. The list
+        # side's categories are dropped as before (they are element
+        # categories <ALL> already covers), except that the extras of an
+        # "<ALL>|..." cell on EITHER side are kept.
+        _merged = cell_fmt(True, (_we if _wu else []) + (_ce if _cu else []))
+        if _merged != _cats:
+            out[_i] = (_n, _g, _srcx, _merged, _d)
             _widened += 1
         continue
     _union = sorted(set(_was.split("|")) | set(_cats.split("|")))
@@ -389,6 +454,24 @@ if _lost:
     raise SystemExit("explicit (Yes) CATEGORY_BINDINGS homes missing from the generated "
                      "spec:\n  " + "\n  ".join(_lost[:20]))
 
+# Every category in every row that ships must be one the plugin can resolve.
+# SharedParamGuids.EnsureResolved skips an unknown name (it now logs it), so a row
+# naming only an unknown category binds nowhere while the spec says it is bound.
+# Checked on the OUTPUT, whatever route put the name there -- derivation, a
+# curated fallback, an explicit row, or the keep-wider-committed step.
+# Materials is bound by name prefix (checked above); an empty token is ignored by
+# the loader.
+_unknown = sorted("%s -> %s" % (o[0], c) for o in out for c in o[3].split("|")
+                  if c and c not in ("<ALL>", "Materials") and c not in _enum_map)
+if _unknown:
+    raise SystemExit("%d emitted binding(s) name a category PARAMETER_REGISTRY.json "
+                     "category_enum_map does not know, so they would bind nowhere:\n  %s"
+                     % (len(_unknown), "\n  ".join(_unknown[:20])))
+_misplaced_all = sorted(o[0] for o in out if "<ALL>" in o[3].split("|")[1:])
+if _misplaced_all:
+    raise SystemExit("<ALL> must be the first token of a categories cell (the loader "
+                     "reads it there):\n  " + "\n  ".join(_misplaced_all[:20]))
+
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
@@ -403,4 +486,6 @@ print("material rows cross-checked against IsMaterialRelevantParam: "
          sum(1 for o in out if o[3]=="Materials")))
 print("code-usage recovered:",src["code-usage"])
 print("explicit (Yes) categories added on top of the derivation:",_explicit_added)
+print("project-level (PRJ_) parameters given Project Information:",len(_project_info_added))
+print("tag-family keys stripped from category lists:",len(TAG_FAMILY_KEYS),"known")
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")

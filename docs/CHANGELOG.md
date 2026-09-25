@@ -23362,3 +23362,141 @@ Gates: `param_binding_resolver.py` changed only the `HVC_PEAK_HOUR` description 
 `docs/RESOLVED_BINDINGS.csv`; `check_param_contract.py --check` OK with no baseline change;
 `find_lying_catches.py` exit 0; `recount_unreachable_commands.py --check` agrees;
 path discipline OK; roadmap ids unique.
+
+#### Completed (PNL-20 template drift in the audit, PNL-21 assumed device Icn)
+
+- **PNL-20.** `Panel_Audit` compares every built STING template's bound parameters (header,
+  circuit table, summary, footer) with `STING_PANEL_SCHEDULE_SPECS.json` and lists templates
+  that are missing columns — e.g. one built before the BS 7671 check column existed — with
+  "rebuild with PNLS 📐". It also counts STING templates not built yet. Revit-free core:
+  `PanelTemplateSpec.MissingFrom` / `KeyOf`; the builder's `BoundParamKeys` reads a template.
+- **PNL-21.** Where a device family carries no Short Circuit Rating, the compliance check
+  shows a low-end typical Icn (`CircuitComplianceRule.TypicalIcnKa`: 6 kA MCB ≤ 63 A, 16 kA
+  MCCB) for guidance only. It is never a basis for a pass or a fail: a PSC at or below it
+  reads "device Icn assumed 6 kA", one above it reads "PSC 8 kA > 6 kA typical — confirm
+  device Icn"; both stay NOT CHECKED. A real Icn always wins. Nothing is stamped onto the
+  model, so no assumed value can later be mistaken for a manufacturer rating.
+
+Tests: +7 (typical Icn by class, assumed Icn never passes/fails, real Icn first, stale
+template detection). Panel tests 80/80. **Not exercised in Revit.**
+
+#### Completed (PARAM-4, PARAM-5 and the TAG7 circuit number, branch `claude/param-code-closeout`)
+
+- **PARAM-4 - SLD symbol stamps land.** `SLDGenerator.PlaceSymbols` stamps `STING_VOLTAGE_TIER`
+  and `STING_FEED_TYPE` on each placed SLD symbol, but the symbols are Generic Annotation
+  families and a project parameter cannot bind to that category, so the stamp never landed.
+  `SymbolLibraryCreator.BuildOne` now authors both as instance TEXT family parameters
+  (`FamilyManager.AddParameter`, Identity Data) in every annotation family built from a
+  `STING_SLD_SYMBOLS*.json` catalogue (`IsSldCatalogue`), and `CreateCompoundSymbols` does the
+  same for compound SLD symbols. `SymbolCacheManifest.GeneratorVersion` is bumped 2 -> 3 so
+  cached SLD `.rfa` files rebuild on the next symbol build instead of being served stale. For a
+  family built before the change the existing once-per-parameter-and-family warning stays, and
+  now says to rebuild the SLD symbols (Symbols > Create & standards > Rebuild or SLD) and
+  regenerate. `STING_SYMBOL_ID` / `STING_SLD_ELEMENT_ID` are shared parameters on the same
+  category and were not in scope.
+- **PARAM-5 - `Params_RebindCircuitNumberAsText`.** New command
+  (`Tags/RebindCircuitNumberAsTextCommand.cs`, `TransactionMode.Manual`) for a project that bound
+  `ELC_CKT_NR` as NUMBER before it became TEXT. It resolves `ELC_CKT_NR` from
+  `MR_PARAMETERS.txt` first (and refuses if that says anything but TEXT), reads every value as
+  text, confirms with the count, then in one transaction removes the binding and the parameter
+  element, re-binds as an instance binding on the `RESOLVED_BINDINGS.csv` categories unioned
+  with the old binding's (Load Params' rule: a rebind never takes a home away), restores the
+  values and reports before/after counts plus every element whose value did not come back.
+  Already TEXT: it says so and does nothing. Wired into `StingCommandHandler`,
+  `WorkflowEngine.ResolveCommand` / the known-tag list, and a CREATE TAGS > SETUP button beside
+  Load Params. `LoadSharedParamsCommand.FindMrParametersFile` is now `internal` for reuse.
+- **TAG7 circuit number.** On a NUMBER binding `GetDisplayText` gave "3.00", so TAG7 printed
+  "connected to circuit 3.00". New Revit-free `Core/Electrical/CircuitNumberText.FromNumber`
+  writes an integral value with no decimals and leaves a non-integral one as Revit displayed it;
+  `ParameterHelpers.GetCircuitNumberText` applies it to NUMBER storage only (TEXT is returned
+  unchanged) and the three TAG7 `ELC_CKT_NR` reads use it. The rebind command uses the same
+  helper, so "3.00" is restored as "3". `CircuitNumberTextTests` (9 cases) in
+  `StingTools.Tags.Tests`.
+
+Not run in Revit on this branch. Gates: `dotnet build -c Release` 0 errors / 0 warnings;
+`StingTools.Tags.Tests` 2657 passed / 0 failed; `check_param_contract.py --check` OK with no
+baseline change; `recount_unreachable_commands.py --check` agrees (1753 / 1728, triage doc
+updated); `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and
+`check_command_doc_acquisition.ps1` pass.
+
+#### Completed (shared-parameter data close-out, branch `claude/param-data-closeout`)
+
+Closes ROADMAP PNL-19, PARAM-3, PARAM-6, PARAM-7, PARAM-8 and PARAM-9. New parameters follow
+the 457bc8e4e pattern: uuid5 GUID over the name (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`,
+checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
+`PARAMETER_REGISTRY.json` entry, `Is_Shared = Yes` rows in `CATEGORY_BINDINGS.csv` (v3.16), then
+`sync_csv_from_txt.py` and `param_binding_resolver.py`. **Not exercised in Revit.**
+
+- **PNL-19 — enclosure type.** `ELC_PNL_ENCLOSURE_TXT` (TEXT, Electrical Equipment). The PNLS card
+  save (`ElecPanelWriteParamsCommand`) writes `snap.Enclosure` to it; the "not stored yet" line is
+  gone, and the dialog now says so only when the write fails. The three electrical templates in
+  `STING_PANEL_SCHEDULE_SPECS.json` carry an "Enclosure" header field beside "IP rating" (the
+  consumer unit, which has no IP row, after prospective fault). In the 3-phase distribution board
+  this **replaces** the old "Enclosure" field that read Revit's built-in `RBS_ELEC_ENCLOSURE`,
+  which nothing in STING writes.
+- **PARAM-3 — line-to-ground fault.** `ELC_PNL_FAULT_LG_KA` (NUMBER, Electrical Equipment).
+  EasyPower Import writes it through the same checked `Set` as the 3-phase fault; the
+  "not stored" line in the report is gone.
+- **PARAM-8 — Line Isolation Monitor.** `ELC_IPS_LIM_BOOL` (YESNO, Electrical Equipment). IPS
+  Validation reads it first, then the family names `LIM_INSTALLED_BOOL` / `IPS_LIM_BOOL`; any one
+  set to Yes counts, so the always-present STING parameter cannot hide a family parameter that
+  says Yes. The silent `catch` around the read now logs.
+- **PARAM-7 — names used in code and defined nowhere.** Per name:
+  - *Defined* (no existing equivalent; datatype and categories from the code that reads them):
+    `ELC_FEED_TYPE_TXT` (Electrical Equipment; Dual-Source Validation, SLD traverser),
+    `ATEX_ZONE_TXT` + `ATEX_EX_RATING_TXT` (Electrical Equipment + Fixtures; ATEX Classification),
+    `MGS_SUPPLY_TYPE_TXT` (Mechanical + Specialty Equipment and the HEALTH set; MGPS schematic),
+    `MGS_ZV_ZONE_TXT` (adds Pipe Accessories, where zone valves live; MGPS schematic),
+    `HVC_SPACE_TYPE_TXT` (MEP Spaces + Rooms only; Block Load, cross-talk audit, ComCheck),
+    `PRJ_BUILDING_USE_TXT` (Project Information; `ProjectSector`, sustainability engine), and
+    the LIM flag above. All TEXT except the YESNO LIM flag.
+  - *Repointed* to an existing parameter that already means the same thing:
+    `ELC_FIRE_LOOP_REF` -> `FLS_SFTY_DEV_LOOP_TXT` then `FLS_SFTY_LOOP_NR_TXT` (the loop the fire
+    alarm device tag and schedule already show; Fire Alarm Schematic; a blank loop still groups
+    as "Zone 1"); `ELC_CONDUIT_REF` / `ELC_CABLE_ROUTE_REF` -> `ELC_CONDUIT_ROUTE_TXT` (the route
+    id the conduit auto-router and consolidator write, bound on Electrical Equipment; SLD route
+    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Fixtures, the JB
+    seed's category; Cable Schedule Builder).
+  - *Rejected as an alias:* `MGS_ZVB_REF_TXT` for `MGS_ZV_ZONE_TXT` — it is the OWNING box id on
+    pipes and terminal units, so reading it as "this is a zone valve" would have turned every
+    terminal unit into one.
+  - *Skipped as family-authored:* none of the twelve. The one real case, `STING_VOLTAGE_TIER` /
+    `STING_FEED_TYPE` on Generic Annotation SLD symbols, stays PARAM-4.
+  - `param_binding_resolver.py` places `ELC_FEED_TYPE_TXT` / `ELC_IPS_LIM_BOOL` on
+    `ELEC_EQUIP` and `HVC_SPACE_TYPE_TXT` on a new `SPACE_ROOM` set by name, so the prefix rules
+    do not put them on every conduit or duct.
+- **PARAM-9 — pseudo-category names.** `MEP Sleeve` and the three `Anti-Ligature (...)` names are
+  LABEL_DEFINITIONS tag-family keys, which `check_tag_row_bindings.py` matches literally, so the
+  `CATEGORY_BINDINGS.csv` rows stay. The resolver now strips tag-family keys (92 known, read from
+  `LABEL_DEFINITIONS.json`) from what curated rows and the committed spec contribute, and **fails
+  on any category in any emitted row that `category_enum_map` does not know** (plus `<ALL>` not in
+  first position). The 15 affected rows (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
+  `LIG_PRODUCT_RATING_TXT`) keep their real category. `SharedParamGuids.EnsureResolved` now
+  `StingLog.Warn`s once per unknown name with a count and example parameters.
+- **PARAM-6 — project-level parameters reach Project Information.** A categories cell may now
+  read `<ALL>|Project Information`: the universal set plus categories outside it.
+  `SharedParamGuids.EnsureResolved` exposes the extras as `ResolvedUniversalExtras`; Load Params
+  binds such a parameter to the core set plus the extras (built once per extra set), and the
+  existing union-rebind path adds Project Information to a project that already has the
+  parameter on its elements. The resolver gives every `PRJ_*` parameter outside `PRJ_TB_*`,
+  `PRJ_SHEET_*`, `PRJ_DWG_*` and `PRJ_STATUS_COD_TXT` Project Information, keeping `<ALL>` where it
+  was: 30 parameters (`PRJ_NAME_TXT`, `PRJ_ADDRESS_TXT`, `PRJ_PHASE_TXT`, `PRJ_CLIMATE_SITE_ID`,
+  `PRJ_REFRIG_*` ...). `WARN_*` mirrors and `ASS_DESIGN_*` are untouched. Readers updated for the
+  new cell shape: `TagParamBindingAudit.ParseSpec`, `CobieBindingFacts.IsUniversal`,
+  `check_tag_row_bindings.py`, `check_param_name_targets.py`, `build_kut_lod_overlay.py`
+  (`smoke_test_lib.py`, `check_title_block_surfaces.py`, `binding_simulator.py` and
+  `validate_param_readership.py` already handled it). Two tests pin the parse and the shipped
+  spec.
+- **Parameters bound to Project Information in `RESOLVED_BINDINGS.csv`: 86 before, 117 after**
+  (+30 `PRJ_*`, +`PRJ_BUILDING_USE_TXT`).
+- **No parameter lost a category.** A before/after comparison of `RESOLVED_BINDINGS.csv`: 3303 ->
+  3313 parameters, none dropped, 54 category tokens gained, 15 removed — all 15 are the tag-family
+  keys above, none of which the loader could resolve; 0 resolvable categories lost.
+
+Gates: resolver second run a byte-for-byte no-op; `check_param_contract.py --check` OK after
+`--write` added the seven new parameters (six read-only user inputs, `ELC_PNL_ENCLOSURE_TXT`
+read by the panel schedule spec), with roles and reasons filled in by hand;
+`check_param_name_targets.py`, `check_tag_row_bindings.py`, `check_map_target_types.py`,
+`recount_unreachable_commands.py --check`, `check_roadmap_ids.py` and path discipline OK;
+`find_lying_catches.py` exit 0.
+Build `dotnet build StingTools/StingTools.csproj -c Release`: 0 errors, 0 warnings. `StingTools.Tags.Tests` 2650/2650 (2648 + the two new binding tests).

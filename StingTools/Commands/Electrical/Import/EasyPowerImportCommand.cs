@@ -64,10 +64,6 @@ namespace StingTools.Commands.Electrical.Import
 
                 string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
                                 $"\nPanels matched but nothing written: {nothingWritten}  Failed writes: {failedWrites}";
-                int lgCount = records.Count(r => r.FaultKaLG.HasValue);
-                if (lgCount > 0)
-                    report += $"\n\nLine-to-ground fault levels in the file ({lgCount}) were not stored: " +
-                              "STING has no parameter for them yet (ROADMAP PARAM-3).";
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("EasyPower Import", report);
@@ -145,12 +141,13 @@ namespace StingTools.Commands.Electrical.Import
             // ELC_FAULT_LEVEL_KA / SLD_VD_PCT were never defined in MR_PARAMETERS.txt,
             // so nothing was written. The 3-phase fault at the bus goes where
             // FaultCurrent puts it and the SLD fault label reads it
-            // (ELC_PNL_SHORT_CIRCUIT_RATING_KA); voltage drop to ELC_VLT_DROP_PCT.
-            // The line-to-ground fault has no STING parameter and is reported, not
-            // written (see Execute).
+            // (ELC_PNL_SHORT_CIRCUIT_RATING_KA); voltage drop to ELC_VLT_DROP_PCT;
+            // the line-to-ground fault to ELC_PNL_FAULT_LG_KA (NUMBER, unitless kA).
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             if (r.FaultKa3Ph.HasValue)
                 n += Tally(Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa3Ph.Value.ToString("F2", inv), w), ref failed);
+            if (r.FaultKaLG.HasValue)
+                n += Tally(Set(p, "ELC_PNL_FAULT_LG_KA", r.FaultKaLG.Value.ToString("F2", inv), w), ref failed);
             if (r.VdPct.HasValue)
                 n += Tally(Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w), ref failed);
             else if (r.VoltagePU.HasValue)

@@ -326,11 +326,18 @@ namespace StingTools.Core
         // truth (triangulated vs descriptions + code usage). Rows: param,categories(pipe) or
         // "<ALL>" universal. A param ABSENT from the spec is intentionally UNBOUND (documented
         // gap), never broad-bound - this stops cross-discipline leakage by construction.
+        //
+        // A cell may also read "<ALL>|Project Information": universal PLUS categories
+        // outside the universal set (which holds element categories only). Such a
+        // param is in ResolvedUniversalParams AND in ResolvedUniversalExtras.
         private static Dictionary<string, BuiltInCategory[]> _resolvedScoped;
+        private static Dictionary<string, BuiltInCategory[]> _resolvedUniversalExtras;
         private static HashSet<string> _resolvedUniversal;
         private static bool _resolvedLoaded;
         public static Dictionary<string, BuiltInCategory[]> ResolvedScopedBindings { get { EnsureResolved(); return _resolvedScoped; } }
         public static HashSet<string> ResolvedUniversalParams { get { EnsureResolved(); return _resolvedUniversal; } }
+        /// <summary>Categories a universal ("&lt;ALL&gt;|...") param needs beyond the core set.</summary>
+        public static Dictionary<string, BuiltInCategory[]> ResolvedUniversalExtras { get { EnsureResolved(); return _resolvedUniversalExtras; } }
         public static bool HasResolvedSpec { get { EnsureResolved(); return _resolvedScoped.Count > 0 || _resolvedUniversal.Count > 0; } }
         public static void InvalidateResolvedSpec() { _resolvedLoaded = false; }
         private static void EnsureResolved()
@@ -338,7 +345,12 @@ namespace StingTools.Core
             if (_resolvedLoaded) return;
             _resolvedLoaded = true;
             _resolvedScoped = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+            _resolvedUniversalExtras = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
             _resolvedUniversal = new HashSet<string>(StringComparer.Ordinal);
+            // Unknown category name -> the params that named it. A name the map does
+            // not know binds nowhere; it used to be skipped without a word, so a row
+            // naming only such a name looked bound in the spec and bound nothing.
+            var unknown = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             try
             {
                 string path = StingToolsApp.FindDataFile("RESOLVED_BINDINGS.csv");
@@ -351,20 +363,37 @@ namespace StingTools.Core
                     string param = cols[0].Trim(); string cats = cols[1].Trim();
                     if (param.Length == 0 || param.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase)) continue;
                     if (cats == "<ALL>") { _resolvedUniversal.Add(param); continue; }
+                    string[] names = cats.Split('|');
+                    bool universal = names[0].Trim() == "<ALL>";
                     var list = new List<BuiltInCategory>(); var seen = new HashSet<BuiltInCategory>();
-                    foreach (string nm in cats.Split('|'))
+                    for (int i = universal ? 1 : 0; i < names.Length; i++)
                     {
-                        string catName = nm.Trim();
+                        string catName = names[i].Trim();
                         if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase)) continue;
-                        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
-                        if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+                        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)
+                            || !Enum.TryParse(enumStr, out BuiltInCategory bic))
+                        {
+                            if (!unknown.TryGetValue(catName, out var who)) unknown[catName] = who = new List<string>();
+                            who.Add(param);
+                            continue;
+                        }
                         if (seen.Add(bic)) list.Add(bic);
                     }
-                    if (list.Count > 0) _resolvedScoped[param] = list.ToArray();
+                    if (universal)
+                    {
+                        _resolvedUniversal.Add(param);
+                        if (list.Count > 0) _resolvedUniversalExtras[param] = list.ToArray();
+                    }
+                    else if (list.Count > 0) _resolvedScoped[param] = list.ToArray();
                 }
-                StingLog.Info($"SharedParamGuids.ResolvedBindings: {_resolvedScoped.Count} scoped + {_resolvedUniversal.Count} universal");
+                foreach (var kv in unknown)
+                    StingLog.Warn($"SharedParamGuids.ResolvedBindings: category '{kv.Key}' is not in category_enum_map, " +
+                                  $"so {kv.Value.Count} binding(s) to it are dropped (e.g. {string.Join(", ", kv.Value.Take(5))})");
+                StingLog.Info($"SharedParamGuids.ResolvedBindings: {_resolvedScoped.Count} scoped + {_resolvedUniversal.Count} universal " +
+                              $"({_resolvedUniversalExtras.Count} with extra categories)" +
+                              (unknown.Count > 0 ? $"; {unknown.Count} unknown category name(s)" : ""));
             }
-            catch (Exception ex) { StingLog.Error("EnsureResolved failed", ex); _resolvedScoped.Clear(); _resolvedUniversal.Clear(); }
+            catch (Exception ex) { StingLog.Error("EnsureResolved failed", ex); _resolvedScoped.Clear(); _resolvedUniversal.Clear(); _resolvedUniversalExtras.Clear(); }
         }
 
         /// <summary>
