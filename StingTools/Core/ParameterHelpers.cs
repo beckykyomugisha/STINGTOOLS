@@ -229,6 +229,23 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Circuit-number text for <paramref name="paramName"/> (ELC_CKT_NR). TEXT
+        /// storage is returned exactly as stored, via <see cref="GetDisplayText"/>.
+        /// A project that bound the parameter as NUMBER before it became TEXT gets
+        /// "3", not the project-unit display "3.00" — see
+        /// <see cref="StingTools.Core.Electrical.CircuitNumberText"/>.
+        /// </summary>
+        public static string GetCircuitNumberText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+            Parameter p = CachedLookup(el, paramName);
+            if (p != null && p.StorageType == StorageType.Double && p.HasValue)
+                return StingTools.Core.Electrical.CircuitNumberText.FromNumber(
+                    p.AsDouble(), p.AsValueString());
+            return GetDisplayText(el, paramName);
+        }
+
+        /// <summary>
         /// Display text for a parameter regardless of storage type. Unlike
         /// <see cref="GetString"/> (which returns "" for any non-String storage),
         /// this formats NUMBER / INTEGER / ElementId values so numeric tier params

@@ -19,15 +19,19 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-24
+## Counts — re-derived 2026-09-25
 
-- **Total IExternalCommand classes**: **1752**
-- **Reached by a dispatch layer**: **1727**
+- **Total IExternalCommand classes**: **1753**
+- **Reached by a dispatch layer**: **1728**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1752; the script fails if they stop adding up.
+The four buckets partition all 1753; the script fails if they stop adding up.
+
+**+1 on 2026-09-25 (PARAM-5)**, reached from CREATE TAGS → SETUP (beside Load Params), the
+handler and `WorkflowEngine.ResolveCommand`: `Params_RebindCircuitNumberAsText`
+(`RebindCircuitNumberAsTextCommand`). The unreachable and ambiguous buckets are unchanged.
 
 **+1 on 2026-09-24 (material callouts)**, reached from SETUP → Model Baseline and as a
 workflow step: `Materials_SyncIdentity`.

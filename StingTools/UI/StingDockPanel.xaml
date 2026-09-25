@@ -2414,6 +2414,7 @@
                             <StackPanel>
                                 <WrapPanel>
                                     <Button Style="{StaticResource ActionBtn}" Content="Load Params" Tag="LoadSharedParams" Click="Cmd_Click" ToolTip="Load all STING shared parameters into the project (2-pass binding)"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Ckt Nr &#8594; Text" Tag="Params_RebindCircuitNumberAsText" Click="Cmd_Click" ToolTip="For a project that bound ELC_CKT_NR as NUMBER before it became TEXT: remove and re-bind it as TEXT from MR_PARAMETERS.txt, carrying every value across (3.00 becomes 3). Confirms first, one transaction, reports before/after counts. Does nothing if it is already TEXT."/>
                                     <Button Style="{StaticResource BlueBtn}" Content="Create Tag Fams" Tag="CreateTagFamilies" Click="Cmd_Click" ToolTip="Mint STING tag families (shell + params + type variants) for all categories. Then run 'Propagate Universal' to apply the universal label, and 'Set depth' for the tier count. Label rows are not authored here."/>
                                     <Button Style="{StaticResource OrangeBtn}" Content="Cfg Labels" Tag="ConfigureTagLabels" Click="Cmd_Click" ToolTip="Guided wizard to set Labels in each tag family. Merge-only: re-runs skip already-configured families."/>
                                 </WrapPanel>
