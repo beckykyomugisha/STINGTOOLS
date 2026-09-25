@@ -98,6 +98,7 @@ namespace StingTools.UI
             if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
             {
                 SnapshotSldOptions();
+                SnapshotExcelOptions();
                 StingElectricalCommandHandler.Instance?.SetCommand(tag);
                 UpdateStatus($"Running: {tag}");
             }
@@ -112,6 +113,24 @@ namespace StingTools.UI
         /// once at field-initialisation and never again, so every SLD generated with the
         /// library defaults no matter what the user ticked.</para>
         /// </summary>
+        /// <summary>
+        /// RPRT → EXCEL ROUND-TRIP: Scope and Header/Body/Summary were read by nothing, so
+        /// "Active panel" silently exported every schedule. Copy them to the command's statics.
+        /// </summary>
+        private void SnapshotExcelOptions()
+        {
+            try
+            {
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.Scope =
+                    (StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.ExportScope)
+                    System.Math.Max(0, cmbExcelScope?.SelectedIndex ?? 0);
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeHeader  = chkExHeader?.IsChecked != false;
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeBody    = chkExBody?.IsChecked != false;
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeSummary = chkExSummary?.IsChecked != false;
+            }
+            catch (System.Exception ex) { StingLog.Warn($"Excel options snapshot: {ex.Message}"); }
+        }
+
         private void SnapshotSldOptions()
         {
             try
@@ -439,6 +458,7 @@ namespace StingTools.UI
             return new PanelParamsSnapshot
             {
                 PanelName = sel?.Name ?? "",
+                PanelId = sel?.PanelDataRef?.Id?.Value ?? 0,
                 MainBreakerA = txtMainBreaker?.Text ?? "",
                 FedFrom = (cmbFedFrom?.Text) ?? "",
                 Location = txtLocation?.Text ?? "",
@@ -969,6 +989,8 @@ namespace StingTools.UI
     {
         public string PanelName, MainBreakerA, FedFrom, Location, IpRating,
             Manufacturer, FaultKA, Enclosure;
+        /// <summary>Element id of the board picked in the grid; 0 when unknown.</summary>
+        public long PanelId;
     }
 
     public class VDOptionsSnapshot

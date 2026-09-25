@@ -54,7 +54,7 @@ namespace StingTools.Commands.Panels
 
             int panelsTotal = panels.Count;
             int withSchedule = 0, withoutSchedule = 0, skippedByPattern = 0;
-            int templateDrift = 0, missingPnlParams = 0;
+            int templateDrift = 0, missingPnlParams = 0, missingIp = 0;
             var totals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var driftRows = new List<string>();
             var noScheduleRows = new List<string>();
@@ -108,6 +108,10 @@ namespace StingTools.Commands.Panels
                     missingPnlParams++;
                     paramGapRows.Add(panelName);
                 }
+                // The STING schedule header shows the IP rating, and only the PNLS card's
+                // Save writes it — so a blank column is reported here, not discovered on
+                // the printed schedule.
+                if (!HasParamValue(p, "ELC_PNL_IP_RATING_TXT")) missingIp++;
             }
 
             var result = StingResultPanel.Create("Panel Schedule Audit");
@@ -122,7 +126,8 @@ namespace StingTools.Commands.Panels
                   .MetricWarn("Without schedule", withoutSchedule.ToString())
                   .Metric("Skipped by pattern", skippedByPattern.ToString())
                   .MetricWarn("Template drift", templateDrift.ToString(), "current ≠ rule-suggested")
-                  .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS");
+                  .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS")
+                  .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model");
 
             if (totals.Count > 0)
             {

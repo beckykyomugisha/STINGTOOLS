@@ -23190,3 +23190,35 @@ param-name targets, tag-row bindings, map target types, tag-row duplicates, lyin
 unreachable-commands recount, token policy, path discipline, workflow wiring, doc acquisition,
 roadmap ids, docs index all pass; the workflow's inline GUID / CSV-integrity / CSV-structure
 checks and JSON validation reproduced locally and pass.
+
+#### Completed (gap review 2026-09-25: parameter file, panel card, Excel round-trip)
+
+Three independent gap reviews of what was deployed on 2026-09-24 (#977 / #978 / #980). Fixed:
+
+- **`MR_PARAMETERS.txt` had one malformed row.** The `ELC_CKT_NR` edit in #980 put the
+  description into the VISIBLE column. Revit parses VISIBLE as an integer, so the row can make
+  `OpenSharedParameterFile` reject the whole file and Load Params bind nothing. Every existing
+  gate passed it. New `SharedParamFileShapeTests` checks every PARAM row's shape (field count,
+  GUID, datatype, GROUP, VISIBLE / USERMODIFIABLE 0-1); RED 2/3 against the broken file, GREEN
+  after the fix.
+- **"Show Last Import Diff" did not show what changed.** It listed counts and load deltas only,
+  so editing a circuit description (demo step 3) showed "Cells written: 1". Every changed cell
+  is now listed old → new, in the result panel and in the diff.
+- **Excel import could overwrite the BS 7671 check column.** A hand-typed "OK" would have read
+  as a check that never ran. Computed columns (`ELC_CKT_CHECK_TXT`) are exported but never
+  imported, and the count is reported.
+- **Excel export ignored Scope and Header / Body / Summary** — "Active panel" exported every
+  schedule. The panel now snapshots them; Active needs an open panel schedule, Selected takes
+  selected boards or schedules, and each refuses with a message rather than exporting everything.
+- **PNLS panel card saved to the wrong board and wrote the enclosure type as the IP rating.**
+  The grid listed family TYPE names and Save matched the first board of that type; it now lists
+  Panel Names and saves by element id. "Enclosure Type" (default "Floor Standing") was written
+  into `ELC_PNL_IP_RATING_TXT`, so every STING schedule showed "Floor Standing" as the IP
+  rating; IP Rating now writes that parameter and the enclosure type is reported as not stored
+  (PNL-19).
+- `WORKFLOW_PanelScheduleProduction` builds the STING templates before Batch Schedules, so the
+  workflow never stops at the "create templates?" prompt. `Panel_Audit` reports boards with no
+  IP rating.
+
+Logged, not fixed: PNL-19 (enclosure parameter), PNL-20 (template/spec drift in the audit),
+PNL-21 (breaking capacity only from the family). Build 0/0. **Not exercised in Revit.**

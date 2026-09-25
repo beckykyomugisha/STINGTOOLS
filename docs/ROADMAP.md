@@ -31,6 +31,9 @@ its own voltage-drop calculation** (STING's is now the only one inside Revit 202
 | PNL-16 | P3 | Import validation with typical-value substitution (flagged) | ETAP | — |
 | PNL-17 | P3 | Schedule/one-line first, from Excel, before modelling | Naviate | — |
 | PNL-18 | P3 | Copy a board with its downstream circuits | Naviate | `CopyElements` + recreate circuits |
+| PNL-19 | P2 | Enclosure / mounting type has no parameter | gap review 2026-09-25 | PNLS card's "Enclosure Type" (Floor Standing / Wall Mounted / Din Rail) used to be written into the IP-rating column; it is now not stored and the save dialog says so. Add `ELC_PNL_ENCLOSURE_TXT` (5-file registration) and a header field |
+| PNL-20 | P2 | Audit does not detect a STING template built from an older spec | gap review 2026-09-25 | `Panel_Audit` only compares a schedule's template with the registry's suggestion. Compare the template's column headings / bound params with `STING_PANEL_SCHEDULE_SPECS.json` and suggest 📐 when they differ |
+| PNL-21 | P2 | Device breaking capacity comes only from the family | gap review 2026-09-25 | `RBS_ELEC_SHORT_CIRCUIT_RATING` is never written by STING; on seed / generic families the column is blank and the PSC ≤ Icn rule reports NOT CHECKED. Offer a per-board / per-device-type default (e.g. 6 kA MCB, 10 kA MCCB) that is stamped and labelled as assumed |
 
 ## Electrical calculations — deep review (2026-09-24, updated after the fix round)
 
