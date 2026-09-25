@@ -131,6 +131,7 @@ namespace StingTools.Commands.Electrical.Validation
                     // ── Check for Line Isolation Monitor ─────────────────────
                     // NFPA 99 §7.2.2.3.3 requires a LIM on every IPS circuit.
                     bool limFound = false;
+                    string limReadError = null;
                     try
                     {
                         // ELC_IPS_LIM_BOOL is the STING parameter (bound by Load Params).
@@ -147,9 +148,19 @@ namespace StingTools.Commands.Electrical.Validation
                             { limFound = true; break; }
                         }
                     }
-                    catch (Exception ex) { StingLog.Warn($"IPSValidation LIM read on {panel.Id}: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"IPSValidation LIM read on {panel.Id}: {ex.Message}");
+                        limReadError = ex.Message;
+                    }
 
-                    if (!limFound)
+                    // A read that threw says nothing about whether a LIM is recorded, so
+                    // it must not be reported as "No Line Isolation Monitor recorded".
+                    if (!limFound && limReadError != null)
+                        violations.Add(
+                            $"WARNING  Panel {panel.Name ?? panel.Id.ToString()}: " +
+                            $"LIM could not be read: {limReadError}");
+                    else if (!limFound)
                         violations.Add(
                             $"WARNING  Panel {panel.Name ?? panel.Id.ToString()}: " +
                             "No Line Isolation Monitor recorded (ELC_IPS_LIM_BOOL not ticked; no LIM_INSTALLED_BOOL / IPS_LIM_BOOL family parameter set). " +

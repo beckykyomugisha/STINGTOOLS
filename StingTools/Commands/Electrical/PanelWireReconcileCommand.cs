@@ -340,7 +340,7 @@ namespace StingTools.Commands.Electrical
         private static void AutoCorrect(Document doc, List<WireReconcileItem> mismatches)
         {
             if (mismatches.Count == 0) return;
-            int corrected = 0, failed = 0;
+            int corrected = 0, failed = 0, deleted = 0, numberBound = 0, otherFail = 0;
             var failures = new List<string>();
 
             try
@@ -353,7 +353,16 @@ namespace StingTools.Commands.Electrical
                     try
                     {
                         var conduit = doc.GetElement(item.ConduitId);
-                        if (conduit == null) continue;
+                        if (conduit == null)
+                        {
+                            // Deleted since the scan: nothing was corrected, so it is a
+                            // failure, not a silent skip.
+                            failed++; deleted++;
+                            string gone = $"conduit {item.ConduitId}: no longer in the model (deleted since the scan)";
+                            StingLog.Warn($"PanelWireReconcile.AutoCorrect: {gone}");
+                            if (failures.Count < 10) failures.Add(gone);
+                            continue;
+                        }
 
                         // SetString returns false when the parameter is absent, read-only
                         // or refuses the value. A conduit is corrected only when every
@@ -366,12 +375,23 @@ namespace StingTools.Commands.Electrical
 
                         if (!string.IsNullOrEmpty(item.ActualCircuitNr) &&
                             !ParameterHelpers.SetString(conduit, "ELC_CKT_NR", item.ActualCircuitNr, overwrite: true))
-                        { ok = false; missed.Add("ELC_CKT_NR"); }
+                        {
+                            ok = false;
+                            // A project bound before 2026-09-24 holds ELC_CKT_NR as NUMBER,
+                            // which refuses a multi-pole value such as "1,3,5".
+                            if (conduit.LookupParameter("ELC_CKT_NR")?.StorageType == StorageType.Double)
+                            {
+                                numberBound++;
+                                missed.Add($"ELC_CKT_NR ('{item.ActualCircuitNr}' refused — bound as NUMBER)");
+                            }
+                            else missed.Add("ELC_CKT_NR");
+                        }
 
                         if (ok) corrected++;
                         else
                         {
                             failed++;
+                            if (missed.Any(x => !x.Contains("bound as NUMBER"))) otherFail++;
                             string line = $"conduit {item.ConduitId}: {string.Join(", ", missed)} not written";
                             StingLog.Warn($"PanelWireReconcile.AutoCorrect: {line}");
                             if (failures.Count < 10) failures.Add(line);
@@ -389,8 +409,18 @@ namespace StingTools.Commands.Electrical
                 StingLog.Info($"PanelWireReconcile: auto-corrected {corrected}/{mismatches.Count} conduit(s), {failed} failed.");
                 string msg = $"Auto-correct complete.\n{corrected}/{mismatches.Count} conduit(s) updated.";
                 if (failed > 0)
-                    msg += $"\n{failed} conduit(s) NOT updated — is ELC_PNL_NAME_TXT / ELC_CKT_NR bound on Conduits? " +
-                           "Run Load Params.\n\n" + string.Join("\n", failures);
+                {
+                    msg += $"\n{failed} conduit(s) NOT updated.";
+                    if (deleted > 0)
+                        msg += $"\n• {deleted} deleted since the scan.";
+                    if (numberBound > 0)
+                        msg += $"\n• {numberBound} refused a circuit number because ELC_CKT_NR is still bound as NUMBER. " +
+                               "Load Params does not change an existing binding's type — run " +
+                               "CREATE TAGS → ⚙ SETUP → \"Ckt Nr → Text\" (Params_RebindCircuitNumberAsText), then re-run.";
+                    if (otherFail > 0)
+                        msg += $"\n• {otherFail} with a value not written — is ELC_PNL_NAME_TXT / ELC_CKT_NR bound on Conduits? Run Load Params.";
+                    msg += "\n\n" + string.Join("\n", failures);
+                }
                 TaskDialog.Show("STING — Panel Reconcile", msg);
             }
             catch (Exception ex)

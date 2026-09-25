@@ -39,12 +39,14 @@ namespace StingTools.Commands.Electrical.Import
                 }
 
                 int stamped = 0, notFound = 0, nothingWritten = 0, failedWrites = 0, circuitWrites = 0;
+                int stampedByType = 0;
                 var warnings = new List<string>();
+                var byTypeMatches = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Amtech Import"))
                 {
                     tx.Start();
-                    var panelIndex = BuildPanelIndex(doc);
+                    var panelIndex = BuildPanelIndex(doc, out var typeNameKeys);
                     foreach (var rec in records)
                     {
                         if (panelIndex.TryGetValue(rec.PanelName, out var panel))
@@ -52,7 +54,21 @@ namespace StingTools.Commands.Electrical.Import
                             // A panel counts as stamped only when at least one value
                             // actually landed — every Set can fail (unbound, read-only).
                             int written = StampPanel(panel, rec, warnings, ref failedWrites);
-                            if (written > 0) stamped++;
+                            if (typeNameKeys.Contains(rec.PanelName))
+                            {
+                                // Matched only through the family TYPE name, which every
+                                // board of that type shares: the values went onto the first
+                                // such board, which may not be the one the record means.
+                                string pn = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+                                string line = $"'{rec.PanelName}' -> board {panel.Id.Value}" +
+                                              (string.IsNullOrEmpty(pn) ? "" : $" (Panel Name '{pn}')") +
+                                              (written > 0 ? $", {written} value(s) written" : ", nothing written");
+                                byTypeMatches.Add(line);
+                                StingLog.Warn($"Amtech import: matched by family type name — verify: {line}");
+                                if (written > 0) stampedByType++;
+                                else nothingWritten++;
+                            }
+                            else if (written > 0) stamped++;
                             else nothingWritten++;
                         }
                         else
@@ -68,6 +84,16 @@ namespace StingTools.Commands.Electrical.Import
                 string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
                                 $"\nPanels matched but nothing written: {nothingWritten}" +
                                 $"\nCircuit values written: {circuitWrites}  Failed writes: {failedWrites}";
+                if (byTypeMatches.Count > 0)
+                {
+                    report += $"\n\nMatched by family type name — verify: {byTypeMatches.Count} " +
+                              $"(values written on {stampedByType}; not counted as Stamped)." +
+                              "\nThe record named a board type, not a Panel Name; the values went " +
+                              "on the first board of that type:\n" +
+                              string.Join("\n", byTypeMatches.Take(10));
+                    if (byTypeMatches.Count > 10)
+                        report += $"\n… and {byTypeMatches.Count - 10} more (see the STING log)";
+                }
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("Amtech Import", report);
@@ -115,9 +141,13 @@ namespace StingTools.Commands.Electrical.Import
             return records;
         }
 
-        private static Dictionary<string, FamilyInstance> BuildPanelIndex(Document doc)
+        /// <summary>Panel Name → board. <paramref name="typeNameKeys"/> holds the keys
+        /// that resolved only through the family type name fallback, so a match on one
+        /// can be reported as "verify" rather than as an ordinary stamp.</summary>
+        private static Dictionary<string, FamilyInstance> BuildPanelIndex(Document doc, out HashSet<string> typeNameKeys)
         {
             var idx = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
+            typeNameKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var boards = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilyInstance))
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
@@ -133,7 +163,7 @@ namespace StingTools.Commands.Electrical.Import
                 if (!string.IsNullOrEmpty(pn) && !idx.ContainsKey(pn)) idx[pn] = p;
             }
             foreach (var p in boards)
-                if (!idx.ContainsKey(p.Name)) idx[p.Name] = p;
+                if (!idx.ContainsKey(p.Name)) { idx[p.Name] = p; typeNameKeys.Add(p.Name); }
             return idx;
         }
 
