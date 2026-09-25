@@ -437,6 +437,10 @@ namespace StingTools.Tags
             // not one of them, so a PRJ_* parameter bound <ALL> alone never reached the
             // element every reader of it goes to. Built once per distinct extra set.
             var universalPlusBinding = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            // Set when the pre-build throws, so the result dialog says so — otherwise the
+            // affected PRJ_* params bind without Project Information and only the log knows.
+            string universalPlusFailure = null;
+            var universalPlusMissed = new List<string>();
             if (specDriven)
             {
                 try
@@ -462,7 +466,20 @@ namespace StingTools.Tags
                     }
                     StingLog.Info($"LoadSharedParams: {universalPlusBinding.Count} universal param(s) with extra categories");
                 }
-                catch (Exception ex) { StingLog.Warn($"Universal-plus binding pre-build failed, those params get the core set only: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Universal-plus binding pre-build failed, those params get the core set only: {ex.Message}");
+                    universalPlusFailure = ex.Message;
+                    try
+                    {
+                        foreach (var kvp in SharedParamGuids.ResolvedUniversalExtras)
+                            if (!universalPlusBinding.ContainsKey(kvp.Key))
+                                universalPlusMissed.Add($"{kvp.Key} (needs {string.Join(", ", kvp.Value)})");
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"Universal-plus missed-list: {ex2.Message}"); }
+                    foreach (string m in universalPlusMissed)
+                        StingLog.Warn($"  core set only, extra categories NOT bound: {m}");
+                }
             }
 
             // Collect discipline-scoped params that had no per-param CSV row AND no group
@@ -677,6 +694,22 @@ namespace StingTools.Tags
             if (matRemoved > 0 || matAdded > 0)
                 report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
             report.AppendLine();
+
+            if (universalPlusFailure != null)
+            {
+                string who = universalPlusMissed.Count > 0
+                    ? $"{universalPlusMissed.Count} parameter(s)"
+                    : "the \"<ALL>|Project Information\" parameters";
+                report.AppendLine($"⚠ Extra-category bindings could not be built: {universalPlusFailure}");
+                report.AppendLine($"  {who} (the PRJ_* project parameters among them) were bound to the core");
+                report.AppendLine("  element categories ONLY — NOT to Project Information, where every reader");
+                report.AppendLine("  of them looks. Fix the cause and re-run Load Params.");
+                foreach (string m in universalPlusMissed.Take(10))
+                    report.AppendLine($"    {m}");
+                if (universalPlusMissed.Count > 10)
+                    report.AppendLine($"    ... and {universalPlusMissed.Count - 10} more (see StingTools.log)");
+                report.AppendLine();
+            }
 
             if (typeConflicts > 0)
             {
