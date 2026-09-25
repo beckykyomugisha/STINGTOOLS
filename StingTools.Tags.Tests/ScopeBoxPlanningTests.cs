@@ -311,8 +311,10 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Planning_a_second_building_keeps_the_first_buildings_boxes()
+        public void Planning_a_second_building_leaves_the_first_buildings_boxes_exactly_as_they_were()
         {
+            // Schema 1 kept drawing types on the size class and levels on the file, so this
+            // merge rewrote BLD1's A1-100 box to arch-only on L02 and its MEP drawings vanished.
             var reqA = Request(Seed("a", 50, 35), Seed("b", 20, 8));
             var fileA = ScopeBoxPlanFile.From(reqA, ScopeBoxPlanner.Plan(reqA), new[] { "L01" }, "Buildings");
 
@@ -322,11 +324,181 @@ namespace StingTools.Tags.Tests
             var fileB = ScopeBoxPlanFile.From(reqB, ScopeBoxPlanner.Plan(reqB), new[] { "L02" }, "Buildings");
 
             var merged = ScopeBoxPlanFile.Merge(fileA, fileB);
-            Assert.True(merged.TryResolve("STING-AREA::BLD1-A1-50-01", out _, out _, out var why), why);   // A kept
-            Assert.True(merged.TryResolve("STING-AREA::BLD2-A1-100-01", out var types, out var levels, out why), why);
-            Assert.Equal(new[] { "arch-plan-A1-1to100" }, types);                                        // B's class replaced A's
-            Assert.Equal(new[] { "L02" }, levels);                                                       // settings are the latest
+
+            Assert.True(merged.TryResolve("STING-AREA::BLD1-A1-100-01", out var aTypes, out var aLevels, out var why), why);
+            Assert.Contains("mep-hvac-duct-A1-1to100", aTypes);                  // BLD1 keeps its MEP drawings
+            Assert.Contains("arch-plan-A1-1to100", aTypes);
+            Assert.Equal(new[] { "L01" }, aLevels);                               // and its own levels
+            Assert.True(merged.TryResolve("STING-AREA::BLD1-A1-50-01", out _, out _, out why), why);
+
+            Assert.True(merged.TryResolve("STING-AREA::BLD2-A1-100-01", out var bTypes, out var bLevels, out why), why);
+            Assert.Equal(new[] { "arch-plan-A1-1to100" }, bTypes);
+            Assert.Equal(new[] { "L02" }, bLevels);
             Assert.Equal(merged.Boxes.Count, merged.Boxes.Select(b => b.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        }
+
+        [Fact]
+        public void Re_planning_a_building_drops_its_boxes_the_new_layout_no_longer_has()
+        {
+            var big = Request(Seed("a", 50, 35), Seed("b", 20, 8));
+            big.Footprints[0].Points = new List<(double, double)> { (0, 0), (200, 60) };
+            var saved = ScopeBoxPlanFile.From(big, ScopeBoxPlanner.Plan(big), new[] { "L01" }, "Buildings");
+            Assert.Contains(saved.Boxes, b => b.Name == "STING-AREA::BLD1-A1-100-05");
+
+            var small = Request(Seed("a", 50, 35), Seed("b", 20, 8));   // same building, now one box's worth
+            small.Footprints[0].Points = new List<(double, double)> { (0, 0), (40, 30) };
+            var merged = ScopeBoxPlanFile.Merge(saved, ScopeBoxPlanFile.From(small, ScopeBoxPlanner.Plan(small), new[] { "L01" }, "Buildings"));
+            Assert.DoesNotContain(merged.Boxes, b => b.Name == "STING-AREA::BLD1-A1-100-05");
+            Assert.False(merged.TryResolve("STING-AREA::BLD1-A1-100-05", out _, out _, out var why));
+            Assert.Contains("not in the saved plan", why);
+        }
+
+        [Fact]
+        public void A_schema_1_plan_still_resolves_through_its_class_and_file_levels()
+        {
+            const string v1 = "{ \"schema\": 1, \"levels\": [\"L01\"],"
+                + " \"classes\": [ { \"key\": \"A1-100\", \"drawingTypes\": [\"arch-plan-A1-1to100\"] } ],"
+                + " \"boxes\": [ { \"name\": \"STING-AREA::A1-100-01\", \"class\": \"A1-100\" } ] }";
+            var file = ScopeBoxPlanFile.FromJson(v1);
+            Assert.True(file.TryResolve("STING-AREA::A1-100-01", out var types, out var levels, out var why), why);
+            Assert.Equal(new[] { "arch-plan-A1-1to100" }, types);
+            Assert.Equal(new[] { "L01" }, levels);
+
+            // Merging a new plan pins the old box to what it meant, so a later class change cannot move it.
+            var req = Request(Seed("a", 50, 35));
+            req.Footprints[0].Loc = "BLD9";
+            var merged = ScopeBoxPlanFile.Merge(file, ScopeBoxPlanFile.From(req, ScopeBoxPlanner.Plan(req), new[] { "L05" }, "Buildings"));
+            var old = merged.Boxes.Single(b => b.Name == "STING-AREA::A1-100-01");
+            Assert.Equal(new[] { "arch-plan-A1-1to100" }, old.DrawingTypes);
+            Assert.Equal(new[] { "L01" }, old.Levels);
+        }
+
+        [Fact]
+        public void A_box_with_no_levels_is_refused_not_produced_on_every_level()
+        {
+            var req = Request(Seed("a", 50, 35));
+            var file = ScopeBoxPlanFile.From(req, ScopeBoxPlanner.Plan(req), new string[0], "Model");
+            Assert.False(file.TryResolve(file.Boxes[0].Name, out _, out _, out var why));
+            Assert.Contains("no levels", why);
+        }
+
+        [Fact]
+        public void Entries_for_boxes_deleted_from_the_model_are_pruned()
+        {
+            var req = Request(Seed("a", 50, 35));
+            var file = ScopeBoxPlanFile.From(req, ScopeBoxPlanner.Plan(req), new[] { "L01" }, "Model");
+            var keep = file.Boxes[0].Name;
+            var gone = file.PruneMissing(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { keep });
+            Assert.Equal(new[] { keep }, file.Boxes.Select(b => b.Name).ToArray());
+            Assert.NotEmpty(gone);
+        }
+
+        [Fact]
+        public void Failed_creations_are_not_recorded()
+        {
+            var req = Request(Seed("a", 50, 35));
+            var res = ScopeBoxPlanner.Plan(req);
+            var failed = new HashSet<string> { res.Boxes[0].Name };
+            var file = ScopeBoxPlanFile.From(req, res, new[] { "L01" }, "Model", failed);
+            Assert.DoesNotContain(file.Boxes, b => b.Name == res.Boxes[0].Name);
+        }
+
+        // ── existing boxes: exists / moved / wrong size ──────────────────
+
+        private static PlannedScopeBox Planned(double x, double y, double w, double d, double angle = 0)
+            => new PlannedScopeBox { Name = "STING-AREA::X-01", CentreX = x, CentreY = y, WidthM = w, DepthM = d, AngleRad = angle };
+
+        private static PlannedBoxStatus Judge(PlannedScopeBox p, ExistingScopeBox ex)
+        {
+            var req = new ScopeBoxPlanRequest();
+            if (ex != null) { req.ExistingBoxes[p.Name] = ex; req.ExistingNames.Add(p.Name); }
+            ScopeBoxPlanner.Judge(p, req, hasSeed: true);
+            return p.Status;
+        }
+
+        [Fact]
+        public void A_box_where_planned_is_kept()
+            => Assert.Equal(PlannedBoxStatus.Exists,
+                Judge(Planned(10, 20, 50, 35), new ExistingScopeBox { CentreX = 10.01, CentreY = 20, WidthM = 50, DepthM = 35 }));
+
+        [Fact]
+        public void A_box_turned_a_quarter_with_its_sides_swapped_is_the_same_rectangle()
+            => Assert.Equal(PlannedBoxStatus.Exists,
+                Judge(Planned(10, 20, 50, 35), new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 35, DepthM = 50, AngleRad = Math.PI / 2 }));
+
+        [Fact]
+        public void A_box_in_the_wrong_place_is_moved()
+            => Assert.Equal(PlannedBoxStatus.Moved,
+                Judge(Planned(10, 20, 50, 35), new ExistingScopeBox { CentreX = 14, CentreY = 20, WidthM = 50, DepthM = 35 }));
+
+        [Fact]
+        public void A_box_at_the_wrong_angle_is_moved_and_turned()
+        {
+            var p = Planned(10, 20, 50, 35, angle: 0.3);
+            Assert.Equal(PlannedBoxStatus.Moved, Judge(p, new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 50, DepthM = 35 }));
+            Assert.Contains("turned", p.StatusNote);
+            Assert.Equal(0.3, p.RotateBy, 6);
+        }
+
+        [Fact]
+        public void A_box_lying_across_the_plan_is_turned_a_quarter()
+        {
+            // Measured square to the grid but 35 along X where the plan wants 50: the same box, lying the other way.
+            var p = Planned(10, 20, 50, 35);
+            Assert.Equal(PlannedBoxStatus.Moved, Judge(p, new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 35, DepthM = 50 }));
+            Assert.Equal(Math.PI / 2, Math.Abs(p.RotateBy), 6);
+        }
+
+        [Fact]
+        public void A_measured_angle_read_off_the_other_edge_is_the_same_box()
+        {
+            // Measuring can pick either edge, so a box square to the grid may come back at -90°.
+            Assert.Equal(PlannedBoxStatus.Exists,
+                Judge(Planned(10, 20, 50, 35), new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 35, DepthM = 50, AngleRad = -Math.PI / 2 }));
+        }
+
+        [Fact]
+        public void A_box_of_another_size_is_reported_because_it_cannot_be_resized()
+        {
+            var p = Planned(10, 20, 50, 35);
+            Assert.Equal(PlannedBoxStatus.Mismatch, Judge(p, new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 40, DepthM = 35 }));
+            Assert.Contains("cannot be resized", p.StatusNote);
+        }
+
+        [Fact]
+        public void A_named_box_that_could_not_be_measured_is_left_alone()
+        {
+            var p = Planned(10, 20, 50, 35);
+            var req = new ScopeBoxPlanRequest();
+            req.ExistingNames.Add(p.Name);
+            ScopeBoxPlanner.Judge(p, req, hasSeed: true);
+            Assert.Equal(PlannedBoxStatus.Exists, p.Status);
+            Assert.Contains("could not be measured", p.StatusNote);
+        }
+
+        [Fact]
+        public void A_plan_with_more_boxes_than_the_cap_is_flagged()
+        {
+            var req = Request(Seed("a", 50, 35), Seed("b", 20, 8));
+            req.Footprints[0].Points = new List<(double, double)> { (0, 0), (5000, 60) };   // a stray line 5 km away
+            req.MaxBoxes = 50;
+            var res = ScopeBoxPlanner.Plan(req);
+            Assert.True(res.ExceedsCap);
+            Assert.Contains(res.Warnings, w => w.Contains("more than 50"));
+        }
+
+        // ── level codes ─────────────────────────────────────────────────
+
+        [Fact]
+        public void Two_levels_with_the_same_code_get_distinct_codes()
+        {
+            var codes = ScopeBoxPlanner.UniqueLevelCodes(new[] { (1L, "L01"), (2L, "L01"), (3L, "RF"), (4L, "L01"), (5L, "") });
+            Assert.Equal("L01", codes[1]);
+            Assert.Equal("L01-2", codes[2]);
+            Assert.Equal("RF", codes[3]);
+            Assert.Equal("L01-3", codes[4]);
+            Assert.Equal("XX", codes[5]);
+            Assert.All(codes.Values, c => Assert.True(ScopeBoxNames.IsValidSegment(c), c));
         }
 
         [Fact]

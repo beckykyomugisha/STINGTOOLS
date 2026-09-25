@@ -1168,6 +1168,11 @@ namespace StingTools.Core.Drawing
                 ?? (ctx?.Room != null ? StingTools.Core.ParameterHelpers.GetString(ctx.Room, "Number") : null)
                 ?? ctx?.Tag
                 ?? "";
+            // A scope box on a level: the level alone names every box's view alike ("Arch Plan
+            // - Level 1", "(2)", "(3)"…), so which area a view covers could not be told. The
+            // tag (an area box's code, a STING:: box's tag) says it.
+            if (ctx?.Level != null && ctx.ScopeBox != null && !string.IsNullOrWhiteSpace(ctx.Tag))
+                ctxLabel = $"{ctx.Level.Name} - {ctx.Tag}";
             string raw = $"{dt.Name} - {ctxLabel}{rule.NameSuffix ?? ""}".Trim();
             return SanitizeViewName(raw);
         }

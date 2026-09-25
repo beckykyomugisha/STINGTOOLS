@@ -64,7 +64,29 @@ namespace StingTools.Core.Drawing
         public double TileDepthM { get; set; }
     }
 
-    public enum PlannedBoxStatus { New, Exists, NoSeed }
+    public enum PlannedBoxStatus
+    {
+        /// <summary>Not in the model yet; will be copied from its seed.</summary>
+        New,
+        /// <summary>In the model, where and as big as planned — left alone.</summary>
+        Exists,
+        /// <summary>In the model at the planned size but in the wrong place or turned — will be moved.</summary>
+        Moved,
+        /// <summary>In the model at a different size. A scope box cannot be resized, so it is reported, not touched.</summary>
+        Mismatch,
+        /// <summary>No seed fits its size class; nothing can be created.</summary>
+        NoSeed,
+    }
+
+    /// <summary>A scope box already in the model, measured in its own frame.</summary>
+    public sealed class ExistingScopeBox
+    {
+        public double CentreX { get; set; }
+        public double CentreY { get; set; }
+        public double WidthM { get; set; }
+        public double DepthM { get; set; }
+        public double AngleRad { get; set; }
+    }
 
     public sealed class PlannedScopeBox
     {
@@ -82,6 +104,12 @@ namespace StingTools.Core.Drawing
         public string SeedId { get; set; }
         public bool SeedRotated { get; set; }
         public PlannedBoxStatus Status { get; set; }
+        /// <summary>Why the status is what it is — shown next to Moved and Mismatch rows.</summary>
+        public string StatusNote { get; set; }
+        /// <summary>For Moved / Mismatch: the box as it is in the model now.</summary>
+        public ExistingScopeBox Existing { get; set; }
+        /// <summary>For Moved: the turn (radians, anticlockwise) to apply about the planned centre after moving.</summary>
+        public double RotateBy { get; set; }
         public int Row { get; set; }
         public int Column { get; set; }
     }
@@ -94,6 +122,16 @@ namespace StingTools.Core.Drawing
         public List<ScopeBoxSeed> Seeds { get; set; } = new List<ScopeBoxSeed>();
         /// <summary>Scope-box names already in the project; a planned name found here is not created again.</summary>
         public ISet<string> ExistingNames { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// Where those boxes actually are. A name alone says nothing about position or size,
+        /// so without this a re-plan would keep an old box in the old place and call it done.
+        /// A name in <see cref="ExistingNames"/> but not here could not be measured and is
+        /// treated as Exists.
+        /// </summary>
+        public IDictionary<string, ExistingScopeBox> ExistingBoxes { get; set; } = new Dictionary<string, ExistingScopeBox>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Above this many boxes the plan is flagged, so one stray element miles away cannot quietly make thousands.</summary>
+        public int MaxBoxes { get; set; } = DefaultMaxBoxes;
+        public const int DefaultMaxBoxes = 200;
         public double FitFactor { get; set; } = ScopeBoxSizing.DefaultFitFactor;
         /// <summary>Overlap between neighbouring boxes — where match lines go.</summary>
         public double OverlapM { get; set; } = 2.0;
@@ -121,6 +159,9 @@ namespace StingTools.Core.Drawing
         public List<ScopeBoxMissingSeed> MissingSeeds { get; } = new List<ScopeBoxMissingSeed>();
         public List<string> Warnings { get; } = new List<string>();
         public int CountToCreate => Boxes.Count(b => b.Status == PlannedBoxStatus.New);
+        public int CountToMove => Boxes.Count(b => b.Status == PlannedBoxStatus.Moved);
+        /// <summary>More boxes than the request's cap: the caller must confirm before creating.</summary>
+        public bool ExceedsCap { get; set; }
     }
 
     public static class ScopeBoxPlanner
@@ -203,22 +244,114 @@ namespace StingTools.Core.Drawing
                             result.Warnings.Add($"'{code}' / '{fp.Level}' cannot form a legal area name — skipped.");
                             continue;
                         }
-                        result.Boxes.Add(new PlannedScopeBox
+                        var box = new PlannedScopeBox
                         {
                             Name = name, AreaCode = code, ClassKey = cls.Key, Loc = fp.Loc, Level = fp.Level,
                             CentreX = tile.X, CentreY = tile.Y, WidthM = cls.TileWidthM, DepthM = cls.TileDepthM,
                             AngleRad = req.GridAngleRad, SeedId = cls.Seed?.Id, SeedRotated = cls.SeedRotated,
                             Row = tile.Row, Column = tile.Column,
-                            Status = req.ExistingNames != null && req.ExistingNames.Contains(name) ? PlannedBoxStatus.Exists
-                                   : cls.Seed == null ? PlannedBoxStatus.NoSeed : PlannedBoxStatus.New,
-                        });
+                        };
+                        Judge(box, req, cls.Seed != null);
+                        result.Boxes.Add(box);
                     }
                 }
             }
 
             var dupes = result.Boxes.GroupBy(b => b.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             foreach (var n in dupes)
-                result.Warnings.Add($"'{n}' is planned twice — two footprints share a building code and level. Give each STING-LOC box its own code.");
+                result.Warnings.Add($"'{n}' is planned twice — two footprints share a building code and level. "
+                    + "Give each STING-LOC box its own code, and each level its own level code.");
+            if (req.MaxBoxes > 0 && result.Boxes.Count > req.MaxBoxes)
+            {
+                result.ExceedsCap = true;
+                result.Warnings.Add($"{result.Boxes.Count} boxes planned — more than {req.MaxBoxes}. The footprint may include "
+                    + "something far from the building (a stray line, a site element); check it before creating.");
+            }
+            return result;
+        }
+
+        /// <summary>Distance and angle within which an existing box counts as "where planned".</summary>
+        public const double PositionToleranceM = 0.05, SizeToleranceM = 0.05, AngleToleranceRad = 0.2 * Math.PI / 180;
+
+        /// <summary>
+        /// Decide what to do with a planned box, comparing it with any box of the same name
+        /// already in the model. A scope box can be moved and turned, never resized.
+        ///
+        /// A measured box's angle is only known modulo a quarter turn — whichever edge is read
+        /// first sets it — so the difference is folded into ±45°, and folding across a quarter
+        /// turn swaps the measured sides. After that the comparison is exact: sides equal and
+        /// no turn left means the same rectangle; sides equal but swapped means it needs a
+        /// quarter turn; otherwise a partial turn. <see cref="PlannedScopeBox.RotateBy"/> is
+        /// the turn a move must apply about the planned centre.
+        /// </summary>
+        public static void Judge(PlannedScopeBox box, ScopeBoxPlanRequest req, bool hasSeed)
+        {
+            if (req.ExistingBoxes != null && req.ExistingBoxes.TryGetValue(box.Name, out var ex) && ex != null)
+            {
+                box.Existing = ex;
+                double turn = NormaliseHalfTurn(ex.AngleRad - box.AngleRad);
+                int quarters = (int)Math.Round(turn / (Math.PI / 2));
+                double rest = turn - quarters * Math.PI / 2;                          // within ±45°
+                bool swap = (quarters & 1) != 0;
+                double w = swap ? ex.DepthM : ex.WidthM, d = swap ? ex.WidthM : ex.DepthM;
+                bool same = Math.Abs(w - box.WidthM) < SizeToleranceM && Math.Abs(d - box.DepthM) < SizeToleranceM;
+                bool crossed = Math.Abs(w - box.DepthM) < SizeToleranceM && Math.Abs(d - box.WidthM) < SizeToleranceM;
+                if (!same && !crossed)
+                {
+                    box.Status = PlannedBoxStatus.Mismatch;
+                    box.StatusNote = $"in the model at {ScopeBoxNames.Metres(ex.WidthM)} × {ScopeBoxNames.Metres(ex.DepthM)} m, planned "
+                        + $"{ScopeBoxNames.Metres(box.WidthM)} × {ScopeBoxNames.Metres(box.DepthM)} m — a scope box cannot be resized; delete it and create again";
+                    return;
+                }
+                // Turn needed to bring the model box onto the plan: undo the leftover angle, and a
+                // quarter turn more when only the crossed orientation matches.
+                double rotate = -rest + (same ? 0 : Math.PI / 2);
+                double off = Math.Sqrt((ex.CentreX - box.CentreX) * (ex.CentreX - box.CentreX) + (ex.CentreY - box.CentreY) * (ex.CentreY - box.CentreY));
+                bool turned = Math.Abs(NormaliseHalfTurn(rotate)) > AngleToleranceRad && Math.Abs(Math.Abs(NormaliseHalfTurn(rotate)) - Math.PI) > AngleToleranceRad;
+                if (off < PositionToleranceM && !turned) { box.Status = PlannedBoxStatus.Exists; return; }
+                box.Status = PlannedBoxStatus.Moved;
+                box.RotateBy = turned ? rotate : 0;
+                box.StatusNote = turned
+                    ? $"{ScopeBoxNames.Metres(off)} m away and turned {ScopeBoxNames.Metres(rotate * 180 / Math.PI)}° — will be moved and turned into place"
+                    : $"{ScopeBoxNames.Metres(off)} m from its planned place — will be moved";
+                return;
+            }
+            if (req.ExistingNames != null && req.ExistingNames.Contains(box.Name))
+            {
+                box.Status = PlannedBoxStatus.Exists;
+                box.StatusNote = "in the model but could not be measured — left as it is";
+                return;
+            }
+            box.Status = hasSeed ? PlannedBoxStatus.New : PlannedBoxStatus.NoSeed;
+        }
+
+        /// <summary>An angle folded into (-π, π].</summary>
+        public static double NormaliseHalfTurn(double a)
+        {
+            a %= 2 * Math.PI;
+            if (a > Math.PI) a -= 2 * Math.PI;
+            if (a <= -Math.PI) a += 2 * Math.PI;
+            return a;
+        }
+
+        /// <summary>
+        /// A level code per level, unique. GetLevelCodeForLevel maps "Level 1" and
+        /// "Level 1 SSL" both to L01; two levels sharing a code would share one area box
+        /// name, and the second level would get no boxes. Later duplicates get "-2", "-3"…
+        /// in the order given (lowest level first when the caller sorts by elevation).
+        /// </summary>
+        public static Dictionary<long, string> UniqueLevelCodes(IEnumerable<(long Id, string Code)> levels)
+        {
+            var result = new Dictionary<long, string>();
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (id, raw) in levels ?? Enumerable.Empty<(long, string)>())
+            {
+                var code = string.IsNullOrWhiteSpace(raw) ? "XX" : raw.Trim();
+                var candidate = code;
+                for (int n = 2; used.Contains(candidate); n++) candidate = code + "-" + n.ToString(CultureInfo.InvariantCulture);
+                used.Add(candidate);
+                result[id] = candidate;
+            }
             return result;
         }
 
@@ -303,7 +436,11 @@ namespace StingTools.Core.Drawing
 
     public sealed class ScopeBoxPlanFile
     {
-        public const int CurrentSchema = 1;
+        // Schema 2: each box carries its own drawing types and levels. Schema 1 kept them on
+        // the size class and the file, so planning a second building rewrote what the first
+        // building's boxes produced. A schema-1 file still reads: a box with no list of its
+        // own falls back to its class's and the file's.
+        public const int CurrentSchema = 2;
         [JsonProperty("schema")]      public int Schema { get; set; } = CurrentSchema;
         [JsonProperty("savedUtc")]    public string SavedUtc { get; set; }
         [JsonProperty("fitFactor")]   public double FitFactor { get; set; } = ScopeBoxSizing.DefaultFitFactor;
@@ -336,9 +473,22 @@ namespace StingTools.Core.Drawing
             [JsonProperty("level", NullValueHandling = NullValueHandling.Ignore)] public string Level { get; set; }
             [JsonProperty("widthM")]  public double WidthM { get; set; }
             [JsonProperty("depthM")]  public double DepthM { get; set; }
+            [JsonProperty("centreX")] public double CentreX { get; set; }
+            [JsonProperty("centreY")] public double CentreY { get; set; }
+            [JsonProperty("angleDeg")] public double AngleDeg { get; set; }
+            /// <summary>The drawing types this box is produced for. Null in a schema-1 file.</summary>
+            [JsonProperty("drawingTypes", NullValueHandling = NullValueHandling.Ignore)] public List<string> DrawingTypes { get; set; }
+            /// <summary>The levels this box is produced on. Null in a schema-1 file.</summary>
+            [JsonProperty("levels", NullValueHandling = NullValueHandling.Ignore)] public List<string> Levels { get; set; }
+
+            /// <summary>The planning group a re-plan replaces as a whole: building, level, size class.</summary>
+            public string GroupKey => (Loc ?? "") + "|" + (Level ?? "") + "|" + (ClassKey ?? "");
         }
 
-        public static ScopeBoxPlanFile From(ScopeBoxPlanRequest req, ScopeBoxPlanResult res, IEnumerable<string> levels, string footprintMode)
+        /// <param name="levels">Levels a level-less box is produced on.</param>
+        /// <param name="failed">Names that were planned New / Moved but whose creation failed; not recorded.</param>
+        public static ScopeBoxPlanFile From(ScopeBoxPlanRequest req, ScopeBoxPlanResult res, IEnumerable<string> levels,
+            string footprintMode, ISet<string> failed = null)
         {
             var f = new ScopeBoxPlanFile
             {
@@ -353,27 +503,76 @@ namespace StingTools.Core.Drawing
                     Key = c.Key, Scale = c.Scale, Paper = c.Paper, MaxWidthM = c.MaxWidthM, MaxDepthM = c.MaxDepthM,
                     Seed = c.Seed?.Name, DrawingTypes = c.DrawingTypeIds.ToList(), Disciplines = c.Disciplines.ToList(),
                 });
-            foreach (var b in res.Boxes.Where(b => b.Status != PlannedBoxStatus.NoSeed))
-                f.Boxes.Add(new BoxEntry { Name = b.Name, ClassKey = b.ClassKey, Loc = b.Loc, Level = b.Level, WidthM = b.WidthM, DepthM = b.DepthM });
+            var levelList = (levels ?? Enumerable.Empty<string>()).ToList();
+            foreach (var b in res.Boxes)
+            {
+                // NoSeed boxes do not exist. Mismatch boxes exist but at another size, and are
+                // recorded at that size so production's size check can warn about them.
+                if (b.Status == PlannedBoxStatus.NoSeed) continue;
+                if (failed != null && failed.Contains(b.Name)) continue;
+                var cls = res.Classes.FirstOrDefault(c => c.Key == b.ClassKey);
+                bool mismatch = b.Status == PlannedBoxStatus.Mismatch && b.Existing != null;
+                f.Boxes.Add(new BoxEntry
+                {
+                    Name = b.Name, ClassKey = b.ClassKey, Loc = b.Loc, Level = b.Level,
+                    WidthM = mismatch ? b.Existing.WidthM : b.WidthM,
+                    DepthM = mismatch ? b.Existing.DepthM : b.DepthM,
+                    CentreX = mismatch ? b.Existing.CentreX : b.CentreX,
+                    CentreY = mismatch ? b.Existing.CentreY : b.CentreY,
+                    AngleDeg = (mismatch ? b.Existing.AngleRad : b.AngleRad) * 180.0 / Math.PI,
+                    DrawingTypes = cls?.DrawingTypeIds.ToList() ?? new List<string>(),
+                    Levels = b.Level != null ? new List<string> { b.Level } : levelList.ToList(),
+                });
+            }
             return f;
         }
 
         /// <summary>
-        /// Lay a new plan over the saved one. Planning building B must not orphan building
-        /// A's boxes, so entries the new plan does not mention are kept; entries it does
-        /// mention — boxes by name, classes by key — are replaced. Settings and levels are
-        /// the new plan's, since they are what the person just chose.
+        /// Lay a new plan over the saved one. A re-plan replaces whole groups — every saved box
+        /// of a (building, level, size class) the new plan covers — so a box the new layout no
+        /// longer has is dropped rather than produced from a stale entry. Groups the new plan
+        /// does not touch (another building, another scale) are kept exactly as they were,
+        /// including their own drawing types and levels. Classes merge by key with their type
+        /// lists unioned, since they are now only a summary. Settings are the new plan's.
         /// </summary>
         public static ScopeBoxPlanFile Merge(ScopeBoxPlanFile saved, ScopeBoxPlanFile incoming)
         {
             if (incoming == null) return saved;
             if (saved == null) return incoming;
             var merged = JsonConvert.DeserializeObject<ScopeBoxPlanFile>(JsonConvert.SerializeObject(incoming));
-            foreach (var c in saved.Classes.Where(c => merged.Classes.All(n => n.Key != c.Key)))
-                merged.Classes.Add(c);
-            foreach (var b in saved.Boxes.Where(b => merged.Boxes.All(n => !string.Equals(n.Name, b.Name, StringComparison.OrdinalIgnoreCase))))
-                merged.Boxes.Add(b);
+            merged.Schema = CurrentSchema;
+            var replaced = new HashSet<string>(incoming.Boxes.Select(b => b.GroupKey), StringComparer.OrdinalIgnoreCase);
+            foreach (var b in saved.Boxes)
+            {
+                if (replaced.Contains(b.GroupKey)) continue;
+                if (merged.Boxes.Any(n => string.Equals(n.Name, b.Name, StringComparison.OrdinalIgnoreCase))) continue;
+                // A schema-1 entry carried nothing of its own; pin it to what it meant then.
+                var keep = JsonConvert.DeserializeObject<BoxEntry>(JsonConvert.SerializeObject(b));
+                if (keep.DrawingTypes == null)
+                    keep.DrawingTypes = saved.Classes.FirstOrDefault(c => c.Key == keep.ClassKey)?.DrawingTypes?.ToList() ?? new List<string>();
+                if (keep.Levels == null)
+                    keep.Levels = keep.Level != null ? new List<string> { keep.Level } : saved.Levels.ToList();
+                merged.Boxes.Add(keep);
+            }
+            foreach (var c in saved.Classes)
+            {
+                var n = merged.Classes.FirstOrDefault(x => x.Key == c.Key);
+                if (n == null) { merged.Classes.Add(c); continue; }
+                foreach (var t in c.DrawingTypes.Where(t => !n.DrawingTypes.Contains(t))) n.DrawingTypes.Add(t);
+                foreach (var d in c.Disciplines.Where(d => !n.Disciplines.Contains(d))) n.Disciplines.Add(d);
+            }
             return merged;
+        }
+
+        /// <summary>
+        /// Drop entries for boxes no longer in the model. Returns the names dropped so the
+        /// caller can say so; an entry for a deleted box would otherwise live on forever.
+        /// </summary>
+        public List<string> PruneMissing(ISet<string> namesInModel)
+        {
+            var gone = Boxes.Where(b => namesInModel == null || !namesInModel.Contains(b.Name)).Select(b => b.Name).ToList();
+            Boxes.RemoveAll(b => gone.Contains(b.Name));
+            return gone;
         }
 
         public string ToJson() => JsonConvert.SerializeObject(this, Formatting.Indented);
@@ -393,10 +592,12 @@ namespace StingTools.Core.Drawing
             { why = bad ?? "not an area box"; return false; }
             var box = Boxes.FirstOrDefault(b => string.Equals(b.Name, boxName, StringComparison.OrdinalIgnoreCase));
             if (box == null) { why = "not in the saved plan — open the Scope Box Planner and save a plan that includes it"; return false; }
-            var cls = Classes.FirstOrDefault(c => c.Key == box.ClassKey);
-            if (cls == null || cls.DrawingTypes.Count == 0) { why = $"its size class '{box.ClassKey}' has no drawing types in the plan"; return false; }
-            drawingTypes = cls.DrawingTypes.ToList();
-            levels = level != null ? new List<string> { level } : Levels.ToList();
+            // The box's own lists first (schema 2); a schema-1 box falls back to its class and the file.
+            var types = box.DrawingTypes ?? Classes.FirstOrDefault(c => c.Key == box.ClassKey)?.DrawingTypes;
+            if (types == null || types.Count == 0) { why = $"no drawing types are recorded for it (size class '{box.ClassKey}')"; return false; }
+            drawingTypes = types.ToList();
+            levels = level != null ? new List<string> { level } : (box.Levels ?? Levels).ToList();
+            if (levels.Count == 0) { why = "no levels are recorded for it — tick at least one level in the planner and create again"; return false; }
             return true;
         }
     }

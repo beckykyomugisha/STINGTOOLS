@@ -51,6 +51,10 @@ namespace StingTools.Core.Drawing
         /// <summary>Set when a saved plan exists but cannot be read. Create refuses while it is set.</summary>
         public string SavedPlanError { get; set; }
         public HashSet<string> ExistingNames { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Area boxes in the model, measured, so a re-plan can tell kept boxes from moved ones.</summary>
+        public Dictionary<string, ExistingScopeBox> ExistingBoxes { get; set; } = new Dictionary<string, ExistingScopeBox>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>A unique code per level id (two levels never share one).</summary>
+        public Dictionary<long, string> LevelCodes { get; set; } = new Dictionary<long, string>();
         /// <summary>Problems found while loading — shown in the dialog, never swallowed.</summary>
         public List<string> Problems { get; } = new List<string>();
     }
@@ -131,10 +135,13 @@ namespace StingTools.Core.Drawing
                 .Where(t => ScopeBoxSizing.IsAreaCandidate(t, out _))
                 .OrderBy(t => t.Discipline).ThenBy(t => t.Scale).ThenBy(t => t.Id).ToList();
             ctx.Seeds = ScopeBoxRevit.Seeds(doc, ctx.Problems);
-            ctx.Levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+            ctx.Levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ThenBy(l => l.Id.Value).ToList();
+            ctx.LevelCodes = ScopeBoxRevit.LevelCodes(doc);
             var boxes = ScopeBoxRevit.AllBoxes(doc);
             ctx.BuildingBoxCount = boxes.Count(b => ScopeBoxNames.Classify(b.Name) == ScopeBoxKind.Building);
             foreach (var b in boxes) ctx.ExistingNames.Add(b.Name ?? "");
+            ctx.ExistingBoxes = ScopeBoxRevit.AreaBoxes(doc, ctx.Problems);
             ctx.GridAngleRad = ScopeBoxRevit.GridAngleRad(doc);
             ctx.SavedPlan = LoadPlan(doc, out var planError);
             ctx.SavedPlanError = planError;
@@ -142,63 +149,56 @@ namespace StingTools.Core.Drawing
             return ctx;
         }
 
-        public static ScopeBoxPlanRequest BuildRequest(Document doc, ScopeBoxPlannerContext ctx, ScopeBoxPlannerOptions o, List<string> warnings)
-        {
-            var req = new ScopeBoxPlanRequest
-            {
-                DrawingTypes = ctx.Candidates.Where(t => o.DrawingTypeIds.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).ToList(),
-                Drawables = ctx.Drawables, Seeds = ctx.Seeds, ExistingNames = ctx.ExistingNames,
-                FitFactor = o.FitFactor, OverlapM = o.OverlapM, PaddingM = o.PaddingM,
-                GridAngleRad = o.AlignToGrid ? ctx.GridAngleRad : 0,
-            };
-            switch (o.FootprintMode)
-            {
-                case ScopeBoxFootprintMode.Buildings:
-                    req.Footprints = ScopeBoxRevit.BuildingFootprints(doc, warnings);
-                    if (req.Footprints.Count == 0) warnings.Add("No STING-LOC:: building boxes in the project — draw one per building, or plan the whole model.");
-                    break;
-                case ScopeBoxFootprintMode.ModelPerLevel:
-                    foreach (var l in ctx.Levels.Where(l => o.LevelIds.Contains(l.Id.Value)))
-                        req.Footprints.Add(ScopeBoxRevit.ModelFootprint(doc, l));
-                    if (req.Footprints.Count == 0) warnings.Add("Per-level planning needs at least one level ticked.");
-                    break;
-                default:
-                    req.Footprints.Add(ScopeBoxRevit.ModelFootprint(doc, null));
-                    break;
-            }
-            return req;
-        }
+        /// <summary>The unique code of a level, as used in box names, the plan and production.</summary>
+        public static string CodeOf(ScopeBoxPlannerContext ctx, Level l)
+            => ctx.LevelCodes.TryGetValue(l.Id.Value, out var c) ? c : ParameterHelpers.GetLevelCodeForLevel(l);
 
         private static List<string> LevelCodes(ScopeBoxPlannerContext ctx, ScopeBoxPlannerOptions o)
-            => ctx.Levels.Where(l => o.LevelIds.Contains(l.Id.Value)).Select(ParameterHelpers.GetLevelCodeForLevel).ToList();
+            => ctx.Levels.Where(l => o.LevelIds.Contains(l.Id.Value)).Select(l => CodeOf(ctx, l)).ToList();
 
-        /// <summary>Create the New boxes and save the plan (merged over any saved plan).</summary>
+        /// <summary>
+        /// Create the New boxes, move the Moved ones, and save the plan (merged over any saved
+        /// plan, with entries for boxes no longer in the model pruned).
+        /// </summary>
+        /// <param name="capConfirmed">The person has confirmed a plan above the box cap.</param>
         public static string Create(Document doc, ScopeBoxPlannerContext ctx, ScopeBoxPlannerOptions o,
-            ScopeBoxPlanRequest req, ScopeBoxPlanResult res)
+            ScopeBoxPlanRequest req, ScopeBoxPlanResult res, bool capConfirmed)
         {
             // Saving merges over the saved plan. If that file cannot be read, saving would
             // overwrite it and every box it lists would lose its drawing types.
             if (ctx.SavedPlanError != null)
                 return $"Nothing created. {ctx.SavedPlanError} Fix or rename the file first — saving now would overwrite it.";
+            // A level-less box is produced on the ticked levels. With none ticked it would be
+            // produced on none, so say so now rather than at production.
+            if (o.FootprintMode != ScopeBoxFootprintMode.ModelPerLevel && o.LevelIds.Count == 0)
+                return "Nothing created. Tick at least one level — the boxes are produced on the ticked levels.";
+            if (res.ExceedsCap && !capConfirmed)
+                return $"Nothing created. {res.Boxes.Count} boxes is more than the cap of {req.MaxBoxes}; confirm to go ahead.";
+
             var report = new List<string>();
-            int made;
+            ScopeBoxRevit.CreateResult made;
             using (var tx = new Transaction(doc, "STING Create Scope Boxes"))
             {
                 tx.Start();
                 made = ScopeBoxRevit.Create(doc, res.Boxes, report);
                 tx.Commit();
             }
-            var file = ScopeBoxPlanFile.From(req, res, LevelCodes(ctx, o), o.FootprintMode.ToString());
+            var file = ScopeBoxPlanFile.From(req, res, LevelCodes(ctx, o), o.FootprintMode.ToString(), made.Failed);
             var merged = ScopeBoxPlanFile.Merge(ctx.SavedPlan, file);
+            var inModel = new HashSet<string>(ScopeBoxRevit.AllBoxes(doc).Select(e => e.Name ?? ""), StringComparer.OrdinalIgnoreCase);
+            var pruned = merged.PruneMissing(inModel);
             var path = SavePlan(doc, merged);
             ctx.SavedPlan = merged;
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Created {made} scope box(es). Plan saved: {path}");
+            sb.AppendLine($"Created {made.Created.Count} scope box(es), moved {made.Moved.Count}, failed {made.Failed.Count}. Plan saved: {path}");
             int exists = res.Boxes.Count(b => b.Status == PlannedBoxStatus.Exists);
             int noSeed = res.Boxes.Count(b => b.Status == PlannedBoxStatus.NoSeed);
-            if (exists > 0) sb.AppendLine($"{exists} already existed and were kept as they are.");
-            if (noSeed > 0) sb.AppendLine($"{noSeed} were not created: their size class has no seed. See 'Seeds needed'.");
+            int mismatch = res.Boxes.Count(b => b.Status == PlannedBoxStatus.Mismatch);
+            if (exists > 0) sb.AppendLine($"{exists} were already where planned and were left alone.");
+            if (mismatch > 0) sb.AppendLine($"{mismatch} are in the model at another size and were not touched — a scope box cannot be resized.");
+            if (noSeed > 0) sb.AppendLine($"{noSeed} were not created: their size class has no seed. See 'Still to draw'.");
+            if (pruned.Count > 0) sb.AppendLine($"{pruned.Count} plan entr(y/ies) for boxes no longer in the model were removed: {string.Join(", ", pruned.Take(8))}{(pruned.Count > 8 ? " …" : "")}");
             foreach (var r in report) sb.AppendLine("• " + r);
             return sb.ToString();
         }
@@ -212,20 +212,25 @@ namespace StingTools.Core.Drawing
             var views = allPlanViews ? ScopeBoxRevit.PlanViews(doc) : new List<View> { active };
             views = views.Where(v => v != null && !v.IsTemplate).ToList();
             if (views.Count == 0) return "No view to colour.";
-            int n;
+            ScopeBoxRevit.ColourResult r;
             using (var tx = new Transaction(doc, mode == ScopeBoxColourMode.Off ? "STING Clear Scope Box Colours" : "STING Colour Scope Boxes"))
             {
                 tx.Start();
-                n = ScopeBoxRevit.Colour(doc, views, style, mode, plan, report);
+                r = ScopeBoxRevit.Colour(doc, views, style, mode, plan, report);
                 tx.Commit();
             }
             var head = mode == ScopeBoxColourMode.Off
-                ? $"Cleared STING colours on {n} box/view pair(s) in {views.Count} view(s)."
-                : $"Coloured by {mode}: {n} box/view pair(s) in {views.Count} view(s).";
+                ? $"Cleared STING colours on {r.Cleared} box/view pair(s) in {views.Count} view(s)."
+                : $"Coloured by {mode}: {r.Coloured} box/view pair(s) in {views.Count} view(s)"
+                  + (r.Cleared > 0 ? $"; {r.Cleared} pair(s) have nothing to colour by in this mode (e.g. a seed has no size class) and are shown uncoloured." : ".");
             return head + (report.Count > 0 ? "\n• " + string.Join("\n• ", report) : "");
         }
 
-        /// <summary>Rename the selected scope boxes to STING-SEED::&lt;w&gt;x&lt;d&gt; from their measured size.</summary>
+        /// <summary>
+        /// Rename the selected scope boxes to STING-SEED::&lt;w&gt;x&lt;d&gt; from their measured size.
+        /// Only plain boxes (or seeds, to refresh their name) — renaming a drawing-type, building
+        /// or area box into a seed would silently break what it was doing.
+        /// </summary>
         public static string RegisterSeeds(Document doc, ICollection<ElementId> selected)
         {
             var report = new List<string>();
@@ -240,7 +245,10 @@ namespace StingTools.Core.Drawing
                 tx.Start();
                 foreach (var b in boxes)
                 {
-                    if (!ScopeBoxRevit.TryMeasure(b, out var m, out var why)) { report.Add($"'{b.Name}' {why}."); continue; }
+                    var kind = ScopeBoxNames.Classify(b.Name);
+                    if (kind != ScopeBoxKind.Plain && kind != ScopeBoxKind.Seed)
+                    { report.Add($"'{b.Name}' is a {kind} box — skipped. Only plain scope boxes can become seeds."); continue; }
+                    if (!ScopeBoxRevit.TryMeasure(b, out var m, out var why, requireSquare: true)) { report.Add($"'{b.Name}' {why}."); continue; }
                     var twin = existing.FirstOrDefault(s => s.Id != b.Id.Value.ToString()
                         && Math.Abs(s.WidthM - m.WidthM) < 0.05 && Math.Abs(s.DepthM - m.DepthM) < 0.05);
                     if (twin != null) { report.Add($"'{b.Name}' is the same size as seed '{twin.Name}' — not registered twice."); continue; }
@@ -259,13 +267,27 @@ namespace StingTools.Core.Drawing
         public static string ImportSeeds(UIApplication app, Document target, string path)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return "No file chosen.";
-            if (string.Equals(Path.GetFullPath(path), Path.GetFullPath(target.PathName ?? ""), StringComparison.OrdinalIgnoreCase))
+            var full = Path.GetFullPath(path);
+            // An unsaved project has no path; comparing against an empty one throws.
+            if (!string.IsNullOrEmpty(target.PathName)
+                && string.Equals(full, Path.GetFullPath(target.PathName), StringComparison.OrdinalIgnoreCase))
                 return "That is the open project — pick another file.";
             var report = new List<string>();
-            Document source = null;
+
+            // A file already open in this session is used as it is and left open: closing it
+            // would close the person's document.
+            var alreadyOpen = app.Application.Documents.Cast<Document>()
+                .FirstOrDefault(d => !string.IsNullOrEmpty(d.PathName)
+                    && string.Equals(Path.GetFullPath(d.PathName), full, StringComparison.OrdinalIgnoreCase));
+            Document source = alreadyOpen;
             try
             {
-                source = app.Application.OpenDocumentFile(path);
+                if (source == null)
+                {
+                    // Detach so a central model is never opened as central and locked.
+                    var opts = new OpenOptions { DetachFromCentralOption = DetachFromCentralOption.DetachAndPreserveWorksets, Audit = false };
+                    source = app.Application.OpenDocumentFile(ModelPathUtils.ConvertUserVisiblePathToModelPath(full), opts);
+                }
                 int n;
                 using (var tx = new Transaction(target, "STING Import Scope Box Seeds"))
                 {
@@ -277,7 +299,8 @@ namespace StingTools.Core.Drawing
             }
             finally
             {
-                try { source?.Close(false); } catch (Exception ex) { StingLog.Warn($"ImportSeeds close: {ex.Message}"); }
+                if (alreadyOpen == null)
+                    try { source?.Close(false); } catch (Exception ex) { StingLog.Warn($"ImportSeeds close: {ex.Message}"); }
             }
         }
 
@@ -292,25 +315,32 @@ namespace StingTools.Core.Drawing
             var items = new List<ProductionItem>();
             if (plan == null) { report.Add($"No saved plan ({PlanFileName}) — create boxes in the Scope Box Planner first."); return items; }
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
+            var codes = ScopeBoxRevit.LevelCodes(doc);
             var drawables = LoadDrawables(report);
             foreach (var box in ScopeBoxRevit.AllBoxes(doc).Where(b => ScopeBoxNames.Classify(b.Name) == ScopeBoxKind.Area))
             {
                 if (!plan.TryResolve(box.Name, out var typeIds, out var levelCodes, out var why)) { report.Add($"'{box.Name}': {why}."); continue; }
-                ScopeBoxRevit.TryMeasure(box, out var m, out _);
-                var boxLevels = levelCodes.Count > 0
-                    ? levels.Where(l => levelCodes.Contains(ParameterHelpers.GetLevelCodeForLevel(l), StringComparer.OrdinalIgnoreCase)).ToList()
-                    : levels.Where(l => m == null || (l.Elevation >= m.ZMinFt && l.Elevation <= m.ZMaxFt)).ToList();
-                foreach (var code in levelCodes.Where(c => !levels.Any(l => string.Equals(ParameterHelpers.GetLevelCodeForLevel(l), c, StringComparison.OrdinalIgnoreCase))))
+                if (!ScopeBoxRevit.TryMeasure(box, out var m, out var mwhy))
+                { report.Add($"'{box.Name}' {mwhy} — skipped, because its size and height cannot be checked."); continue; }
+
+                var chosen = levels.Where(l => codes.TryGetValue(l.Id.Value, out var c) && levelCodes.Contains(c, StringComparer.OrdinalIgnoreCase)).ToList();
+                foreach (var code in levelCodes.Where(c => !codes.Values.Contains(c, StringComparer.OrdinalIgnoreCase)))
                     report.Add($"'{box.Name}': level '{code}' is not in the project — skipped.");
+                // A plan view is only offered boxes that cross its level. A level the box does not
+                // reach would give an uncropped view, so it is left out and said.
+                var reached = chosen.Where(l => l.Elevation >= m.ZMinFt - 1e-6 && l.Elevation <= m.ZMaxFt + 1e-6).ToList();
+                foreach (var l in chosen.Except(reached))
+                    report.Add($"'{box.Name}' does not reach {l.Name}: its seed was not drawn tall enough — that level is skipped.");
+
                 foreach (var id in typeIds)
                 {
                     var dt = DrawingTypeRegistry.Get(doc, id);
                     if (dt == null) { report.Add($"'{box.Name}': drawing type '{id}' is no longer in the catalogue."); continue; }
-                    if (m != null && ScopeBoxSizing.TryMaxExtent(dt, drawables, plan.FitFactor, out var w, out var d, out _)
+                    if (ScopeBoxSizing.TryMaxExtent(dt, drawables, plan.FitFactor, out var w, out var d, out _)
                         && (Math.Min(m.WidthM, m.DepthM) > Math.Min(w, d) + 0.05 || Math.Max(m.WidthM, m.DepthM) > Math.Max(w, d) + 0.05))
                         report.Add($"'{box.Name}' ({ScopeBoxNames.Metres(m.WidthM)} × {ScopeBoxNames.Metres(m.DepthM)} m) is larger than '{id}' allows "
                                  + $"({ScopeBoxNames.Metres(w)} × {ScopeBoxNames.Metres(d)} m) — its plan will not fit the slot at 1:{dt.Scale}.");
-                    foreach (var l in boxLevels) items.Add(new ProductionItem { Box = box, Level = l, Type = dt });
+                    foreach (var l in reached) items.Add(new ProductionItem { Box = box, Level = l, Type = dt });
                 }
             }
             return items;
@@ -319,9 +349,10 @@ namespace StingTools.Core.Drawing
         public static string Produce(Document doc, List<ProductionItem> items, bool sheets)
         {
             var opts = new ProduceOptions { CreateSheet = sheets, PlaceOnSheet = sheets };
-            int views = 0, madeSheets = 0; var warnings = new List<string>();
+            int made = 0, refreshed = 0, madeSheets = 0, notCropped = 0, failed = 0;
+            var warnings = new List<string>();
             DrawingTypePresentation.Prewarm(doc);
-            DrawingProducer.PrimeBatchCaches(doc);
+            using (DrawingProducer.PrimeBatchScope(doc))
             using (var tg = new TransactionGroup(doc, "STING Produce From Area Boxes"))
             {
                 tg.Start();
@@ -335,21 +366,38 @@ namespace StingTools.Core.Drawing
                             ScopeBoxNames.TryParseArea(it.Box.Name, out var area, out _, out _);
                             var pr = DrawingProducer.ProduceAllViews(doc, it.Type,
                                 new DrawingContext { Level = it.Level, ScopeBox = it.Box, Tag = area }, opts);
-                            views += pr.ViewIds.Count;
+                            // A view the box could not crop is not a produced drawing of that area.
+                            // Undo this item and count it, rather than report an uncropped view as made.
+                            bool cropped = pr.ViewIds.Count > 0 && pr.ViewIds.All(vid =>
+                                doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId() == it.Box.Id);
+                            if (!cropped)
+                            {
+                                t.RollBack();
+                                notCropped++;
+                                warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: the view could not be cropped to the box — nothing kept.");
+                                warnings.AddRange(pr.Warnings);
+                                continue;
+                            }
+                            if (pr.WasIdempotent) refreshed += pr.ViewIds.Count; else made += pr.ViewIds.Count;
                             if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) madeSheets++;
                             warnings.AddRange(pr.Warnings);
                             t.Commit();
                         }
                         catch (Exception ex)
                         {
-                            t.RollBack();
+                            if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
+                            failed++;
                             warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: {ex.Message}");
                         }
                     }
                 }
                 tg.Assimilate();
             }
-            var sb = new StringBuilder($"Produced {views} view(s)" + (sheets ? $" and {madeSheets} new sheet(s)" : "") + $" from {items.Count} box × level × type combination(s).");
+            var sb = new StringBuilder($"{made} new view(s), {refreshed} existing view(s) refreshed"
+                + (sheets ? $", {madeSheets} new sheet(s)" : "")
+                + $" from {items.Count} box × level × type combination(s).");
+            if (notCropped > 0) sb.Append($"\n{notCropped} could not be cropped to their box and were not kept.");
+            if (failed > 0) sb.Append($"\n{failed} failed.");
             foreach (var w in warnings.Distinct().Take(25)) sb.Append("\n• ").Append(w);
             if (warnings.Distinct().Count() > 25) sb.Append($"\n… {warnings.Distinct().Count() - 25} more in the log.");
             foreach (var w in warnings) StingLog.Warn("ScopeBox produce: " + w);

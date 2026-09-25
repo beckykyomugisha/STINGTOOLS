@@ -42,6 +42,7 @@ namespace StingTools.UI
             public string Size { get; set; }
             public string Seed { get; set; }
             public string Status { get; set; }
+            public string Note { get; set; }
             public Brush Swatch { get; set; }
         }
 
@@ -96,10 +97,11 @@ namespace StingTools.UI
         {
             _ctx = ScopeBoxPlannerService.Load(_doc);
             _footprintWarnings.Clear();
-            _modelFootprint = ScopeBoxRevit.ModelFootprint(_doc, null);
+            _modelFootprint = ScopeBoxRevit.ModelFootprint(_doc, null, null);
             _buildingFootprints = ScopeBoxRevit.BuildingFootprints(_doc, _footprintWarnings);
             _levelFootprints.Clear();
-            foreach (var l in _ctx.Levels) _levelFootprints[l.Id.Value] = ScopeBoxRevit.ModelFootprint(_doc, l);
+            foreach (var l in _ctx.Levels)
+                _levelFootprints[l.Id.Value] = ScopeBoxRevit.ModelFootprint(_doc, l, ScopeBoxPlannerService.CodeOf(_ctx, l));
         }
 
         // ── layout ───────────────────────────────────────────────────────
@@ -219,7 +221,7 @@ namespace StingTools.UI
             _levelPanel = new StackPanel();
             foreach (var l in _ctx.Levels)
             {
-                var cb = new CheckBox { Content = $"{l.Name}  ({ParameterHelpers.GetLevelCodeForLevel(l)})", Tag = l.Id.Value, IsChecked = true };
+                var cb = new CheckBox { Content = $"{l.Name}  ({ScopeBoxPlannerService.CodeOf(_ctx, l)})", Tag = l.Id.Value, IsChecked = true };
                 cb.Checked += (s, e) => Replan(); cb.Unchecked += (s, e) => Replan();
                 _levelChecks[l.Id.Value] = cb;
                 _levelPanel.Children.Add(cb);
@@ -293,7 +295,8 @@ namespace StingTools.UI
             swatch.SetValue(Border.WidthProperty, 14.0); swatch.SetValue(Border.HeightProperty, 14.0);
             _grid.Columns.Add(new DataGridTemplateColumn { Header = "", Width = 24, CellTemplate = new DataTemplate { VisualTree = swatch } });
             foreach (var (h, p, w) in new[] { ("Name", nameof(PlanRow.Name), 280.0), ("Class", nameof(PlanRow.Class), 70.0),
-                                             ("Size (m)", nameof(PlanRow.Size), 90.0), ("Seed", nameof(PlanRow.Seed), 140.0), ("Status", nameof(PlanRow.Status), 120.0) })
+                                             ("Size (m)", nameof(PlanRow.Size), 90.0), ("Seed", nameof(PlanRow.Seed), 140.0), ("Status", nameof(PlanRow.Status), 110.0),
+                                             ("Note", nameof(PlanRow.Note), 320.0) })
                 _grid.Columns.Add(new DataGridTextColumn { Header = h, Binding = new Binding(p), Width = w });
             dp.Children.Add(_grid);
             return dp;
@@ -336,10 +339,11 @@ namespace StingTools.UI
                 if (_typeChecks.TryGetValue(id, out var cb)) cb.IsChecked = true;
             if (p.Levels.Count > 0)
                 foreach (var l in _ctx.Levels)
-                    _levelChecks[l.Id.Value].IsChecked = p.Levels.Contains(ParameterHelpers.GetLevelCodeForLevel(l), StringComparer.OrdinalIgnoreCase);
+                    _levelChecks[l.Id.Value].IsChecked = p.Levels.Contains(ScopeBoxPlannerService.CodeOf(_ctx, l), StringComparer.OrdinalIgnoreCase);
             _overlap.Text = p.OverlapM.ToString("0.##", CultureInfo.InvariantCulture);
             _padding.Text = p.PaddingM.ToString("0.##", CultureInfo.InvariantCulture);
             _fit.Text = (p.FitFactor * 100).ToString("0.##", CultureInfo.InvariantCulture);
+            _alignGrid.IsChecked = Math.Abs(p.GridAngleDeg) > 0.05;
             if (p.FootprintMode == nameof(ScopeBoxFootprintMode.Buildings) && _rbBuildings.IsEnabled) _rbBuildings.IsChecked = true;
             else if (p.FootprintMode == nameof(ScopeBoxFootprintMode.ModelPerLevel)) _rbLevels.IsChecked = true;
             _loading = false;
@@ -382,6 +386,7 @@ namespace StingTools.UI
             {
                 DrawingTypes = _ctx.Candidates.Where(t => o.DrawingTypeIds.Contains(t.Id)).ToList(),
                 Drawables = _ctx.Drawables, Seeds = _ctx.Seeds, ExistingNames = _ctx.ExistingNames,
+                ExistingBoxes = _ctx.ExistingBoxes,
                 FitFactor = o.FitFactor, OverlapM = o.OverlapM, PaddingM = o.PaddingM,
                 GridAngleRad = o.AlignToGrid ? _ctx.GridAngleRad : 0,
             };
@@ -394,13 +399,18 @@ namespace StingTools.UI
             }
             _result = ScopeBoxPlanner.Plan(_request);
 
-            var colours = _ctx.Style.Assign(ScopeBoxColourMode.SizeClass, _result.Classes.Select(c => c.Key));
+            // Same key set Revit colours over (every area box's class in the saved plan, plus
+            // the classes being planned), so a swatch shows the colour the box will get.
+            var keys = _result.Classes.Select(c => c.Key)
+                .Concat((_ctx.SavedPlan?.Boxes ?? new List<ScopeBoxPlanFile.BoxEntry>())
+                    .Where(b => _ctx.ExistingNames.Contains(b.Name)).Select(b => b.ClassKey));
+            var colours = _ctx.Style.Assign(ScopeBoxColourMode.SizeClass, keys);
             _grid.ItemsSource = _result.Boxes.Select(b => new PlanRow
             {
                 Name = b.Name, Class = b.ClassKey,
                 Size = $"{ScopeBoxNames.Metres(b.WidthM)} × {ScopeBoxNames.Metres(b.DepthM)}",
                 Seed = _result.Classes.FirstOrDefault(c => c.Key == b.ClassKey)?.Seed?.Name ?? "— none fits —",
-                Status = b.Status == PlannedBoxStatus.New ? "New" : b.Status == PlannedBoxStatus.Exists ? "Exists — kept" : "Needs a seed",
+                Status = StatusText(b.Status), Note = b.StatusNote,
                 Swatch = colours.TryGetValue(b.ClassKey, out var hex) && ScopeBoxStyle.TryParseHex(hex, out var r, out var g, out var bl)
                     ? new SolidColorBrush(Color.FromRgb(r, g, bl)) : Brushes.Transparent,
             }).ToList();
@@ -411,8 +421,12 @@ namespace StingTools.UI
                 lines.Add($"{c.Key}: {c.DrawingTypeIds.Count} type(s), box ≤ {ScopeBoxNames.Metres(c.MaxWidthM)} × {ScopeBoxNames.Metres(c.MaxDepthM)} m, "
                         + (c.Seed != null ? $"seed {c.Seed.Label}{(c.SeedRotated ? " turned 90°" : "")}" : "no seed fits")
                         + $" → {_result.Boxes.Count(b => b.ClassKey == c.Key)} box(es)");
-            lines.Add($"{_result.CountToCreate} to create, {_result.Boxes.Count(b => b.Status == PlannedBoxStatus.Exists)} already exist, "
+            lines.Add($"{_result.CountToCreate} to create, {_result.CountToMove} to move, "
+                    + $"{_result.Boxes.Count(b => b.Status == PlannedBoxStatus.Exists)} already in place, "
+                    + $"{_result.Boxes.Count(b => b.Status == PlannedBoxStatus.Mismatch)} at the wrong size, "
                     + $"{_result.Boxes.Count(b => b.Status == PlannedBoxStatus.NoSeed)} need a seed.");
+            if (o.FootprintMode != ScopeBoxFootprintMode.ModelPerLevel && o.LevelIds.Count == 0)
+                lines.Add("⚠ No level ticked — the boxes would be produced on no level.");
             lines.AddRange(_result.Warnings.Select(w => "⚠ " + w));
             _summary.Text = string.Join("\n", lines);
 
@@ -420,11 +434,57 @@ namespace StingTools.UI
                 + (_result.MissingSeeds.Count > 0 ? "\n\nStill to draw:\n• " + string.Join("\n• ", _result.MissingSeeds.Select(m => m.Instruction)) : "");
         }
 
+        private static string StatusText(PlannedBoxStatus s)
+        {
+            switch (s)
+            {
+                case PlannedBoxStatus.New: return "New";
+                case PlannedBoxStatus.Exists: return "In place";
+                case PlannedBoxStatus.Moved: return "Will move";
+                case PlannedBoxStatus.Mismatch: return "Wrong size";
+                default: return "Needs a seed";
+            }
+        }
+
+        /// <summary>
+        /// Rebuild the window after a reload (Import, Register, Create): the level list, the
+        /// type list and the building count can all have changed. The person's choices are
+        /// carried over by id.
+        /// </summary>
+        private void Rebuild()
+        {
+            var types = new HashSet<string>(_typeChecks.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key), StringComparer.OrdinalIgnoreCase);
+            var lvls = new HashSet<long>(_levelChecks.Where(kv => kv.Value.IsChecked == true).Select(kv => kv.Key));
+            var known = new HashSet<long>(_levelChecks.Keys);
+            string ov = _overlap.Text, pad = _padding.Text, fit = _fit.Text, filter = _filter.Text;
+            bool? align = _alignGrid.IsChecked, bld = _rbBuildings.IsChecked, per = _rbLevels.IsChecked;
+            int mode = _colourMode.SelectedIndex, scope = _colourScope.SelectedIndex;
+            string status = _status.Text;
+
+            _loading = true;
+            _typeChecks.Clear(); _levelChecks.Clear();
+            Content = Build();
+            foreach (var kv in _typeChecks) kv.Value.IsChecked = types.Contains(kv.Key);
+            // A level added since opening starts ticked, like every level does on open.
+            foreach (var kv in _levelChecks) kv.Value.IsChecked = lvls.Contains(kv.Key) || !known.Contains(kv.Key);
+            _overlap.Text = ov; _padding.Text = pad; _fit.Text = fit; _filter.Text = filter;
+            _alignGrid.IsChecked = align;
+            if (bld == true && _rbBuildings.IsEnabled) _rbBuildings.IsChecked = true;
+            else if (per == true) _rbLevels.IsChecked = true;
+            _colourMode.SelectedIndex = mode; _colourScope.SelectedIndex = scope;
+            _status.Text = status;
+            _loading = false;
+            ApplyFilter();
+            Replan();
+        }
+
         // ── writes (ExternalEvent) ───────────────────────────────────────
 
         private void Raise(string title, Func<UIApplication, string> work, bool reload = false)
         {
             if (_event == null) { _status.Text = $"{title} unavailable — close and reopen the planner."; return; }
+            // One action at a time: a second click would overwrite the first before it ran.
+            if (_pending != null) { _status.Text = $"Still working on '{_pendingTitle}' — '{title}' was not started."; return; }
             _pendingTitle = title; _pending = work; _reloadAfter = reload;
             _status.Text = title + "…";
             try { _event.Raise(); }
@@ -433,11 +493,26 @@ namespace StingTools.UI
 
         private void OnCreate(object s, RoutedEventArgs e)
         {
-            if (_result == null || _result.CountToCreate == 0) { _status.Text = "Nothing to create — tick types, or add the seeds listed under 'Still to draw'."; return; }
+            if (_result == null || _result.CountToCreate + _result.CountToMove == 0)
+            { _status.Text = "Nothing to create or move — tick types, or add the seeds listed under 'Still to draw'."; return; }
             var o = Options(out var error);
             if (error != null) { _status.Text = error; return; }
             var req = _request; var res = _result;
-            Raise("Create boxes", a => ScopeBoxPlannerService.Create(a.ActiveUIDocument.Document, _ctx, o, req, res), reload: true);
+            bool confirmed = false;
+            if (res.ExceedsCap)
+            {
+                var td = new TaskDialog("STING Scope Box Planner")
+                {
+                    MainInstruction = $"{res.Boxes.Count} boxes — more than {req.MaxBoxes}.",
+                    MainContent = "That usually means the footprint takes in something far from the building. "
+                                + "Check the plan grid before creating. Create them anyway?",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (td.Show() != TaskDialogResult.Yes) { _status.Text = "Create cancelled."; return; }
+                confirmed = true;
+            }
+            Raise("Create boxes", a => ScopeBoxPlannerService.Create(a.ActiveUIDocument.Document, _ctx, o, req, res, confirmed), reload: true);
         }
 
         private void OnProduce(object s, RoutedEventArgs e)
@@ -458,6 +533,8 @@ namespace StingTools.UI
 
         private void OnColour()
         {
+            // Restoring the selection during a rebuild must not recolour the model again.
+            if (_loading) return;
             if (_colourMode.SelectedItem == null || !Enum.TryParse<ScopeBoxColourMode>((string)_colourMode.SelectedItem, out var mode)) return;
             bool all = _colourScope.SelectedIndex == 1;
             Raise("Colour", a => ScopeBoxPlannerService.Colour(a.ActiveUIDocument.Document, mode, all, a.ActiveUIDocument.ActiveView));
@@ -499,7 +576,7 @@ namespace StingTools.UI
                 {
                     _o.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        if (reload) _o.Replan();
+                        if (reload) _o.Rebuild();
                         _o.AfterAction(title, r);
                     }));
                 }
