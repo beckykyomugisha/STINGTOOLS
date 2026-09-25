@@ -159,6 +159,8 @@ namespace StingTools.Commands.TagStudio
                     plan = new CategoryPlan { CategoryDisplay = catDisplay };
                     byCategory[catDisplay] = plan;
                 }
+                if (plan.Col1 == null && !string.IsNullOrWhiteSpace(e.Value<string>("col1_tag")))
+                    plan.Col1 = e.Value<string>("col1_tag").Trim();
                 foreach (var c in sheetCols) plan.AddSheet(c);
                 foreach (var c in fullCols) plan.AddFull(c);
             }
@@ -213,14 +215,14 @@ namespace StingTools.Commands.TagStudio
 
                         if (doSheet)
                         {
-                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.SheetColumns,
+                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.SheetColumns,
                                 existing, isFull: false);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
                             if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
                         }
                         if (doFull)
                         {
-                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.FullColumns,
+                            var r = BuildSchedule(doc, cat, plan.CategoryDisplay, plan.Col1, plan.FullColumns,
                                 existing, isFull: true);
                             Tally(r, ref created, ref skippedExisting, ref notSchedulable, ref truncatedCols);
                             if (r?.Schedule != null) builtSchedules.Add(r.Schedule);
@@ -391,7 +393,7 @@ namespace StingTools.Commands.TagStudio
             if (r.Truncated) truncated++;
         }
 
-        private BuildOutcome BuildSchedule(Document doc, Category cat, string catDisplay,
+        private BuildOutcome BuildSchedule(Document doc, Category cat, string catDisplay, string col1,
             List<string> columns, HashSet<string> existingNames, bool isFull)
         {
             var outcome = new BuildOutcome();
@@ -429,7 +431,7 @@ namespace StingTools.Commands.TagStudio
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             void Want(string p) { if (!string.IsNullOrEmpty(p) && seen.Add(p)) ordered.Add(p); }
 
-            Want(ParamRegistry.TAG1); // ASS_TAG_1_TXT
+            Want(string.IsNullOrWhiteSpace(col1) ? ParamRegistry.TAG1 : col1); // ASS_TAG_1_TXT unless the spec names another
             int capBudget = MaxColumns;
             foreach (var c in columns)
             {
@@ -489,6 +491,10 @@ namespace StingTools.Commands.TagStudio
         private sealed class CategoryPlan
         {
             public string CategoryDisplay;
+            /// <summary>The spec's col1_tag — column 1. Null means ASS_TAG_1_TXT. A Material
+            /// Takeoff cannot show ASS_TAG_1_TXT (an &lt;ALL&gt; parameter never reaches
+            /// Materials), so the Materials entry names MAT_CODE.</summary>
+            public string Col1;
             public List<string> SheetColumns = new List<string>();
             public List<string> FullColumns = new List<string>();
             private readonly HashSet<string> _sheetSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

@@ -95,6 +95,22 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>The value a UI writes for <paramref name="kind"/>. Parse reads it back as the same kind.</summary>
+        public static string ToParameterValue(SheetNumberPolicyKind kind)
+            => kind == SheetNumberPolicyKind.Iso ? "iso" : "profile";
+
+        /// <summary>
+        /// What to write to the policy parameter when a user picks
+        /// <paramref name="chosen"/> and the project already holds
+        /// <paramref name="stored"/>. Null means write nothing: the stored
+        /// value already means that policy. A synonym such as "short" or
+        /// "ISO19650" is left as the user typed it rather than rewritten to the
+        /// canonical spelling for no change in behaviour. An empty value is
+        /// written, so the choice is recorded as a decision, not a default.
+        /// </summary>
+        public static string ValueToWrite(string stored, SheetNumberPolicyKind chosen)
+            => !string.IsNullOrWhiteSpace(stored) && Parse(stored) == chosen ? null : ToParameterValue(chosen);
+
         /// <summary>
         /// True when <paramref name="pattern"/> already composes an ISO
         /// number — it references the project / originator / volume tokens.

@@ -15,10 +15,10 @@
 // the sheet was annotated with whichever tag happened to load first. It drew
 // something, so it looked like it worked.
 //
-// These two guards are exact and need no baseline: a name either exists in the
-// library or it does not, and a key either matches a rule or is a near-miss of
-// one. Orphan keys that match no rule at all are dead config rather than a
-// defect, so they are not failed here.
+// These guards are exact and need no baseline: a name either exists in the
+// library or it does not, and a key either matches a rule, is a near-miss of
+// one, or is unused. Unused keys were tolerated as dead config until DT-3
+// cleared them; they are failed now.
 
 using System;
 using System.Collections.Generic;
@@ -110,12 +110,48 @@ namespace StingTools.Tags.Tests
                     bad.Add($"{e.TypeId}: key '{e.Key}' should be '{near}'");
             }
 
-            // A key matching NO rule is dead config, not a defect — only a key that
-            // differs from a real rule by spelling is, because that one looks
-            // connected and is not.
+            // A key matching NO rule is caught by EveryTagFamilyKeyIsAskedForByARule;
+            // this one names the rule it was meant to match.
             Assert.True(bad.Count == 0,
                 "A tagFamilies key differs only in spelling from an AutoTag rule's category, so "
                 + "the lookup misses and the family is never used:\n" + string.Join("\n", bad));
+        }
+
+        [Fact]
+        public void EveryTagFamilyKeyIsAskedForByARule()
+        {
+            // DT-3 closed 2026-09-24: 30 keys named a category no rule tagged, so the
+            // family was declared and never consulted. Each was either given a rule
+            // or removed. From here an unused key is a failure, not dead config:
+            // it reads as "this drawing tags rooms" when it does not.
+            //
+            // Two keys are legitimately rule-less:
+            //   - "Materials" — read by MaterialTag / MaterialTagLayers rules, whose
+            //     category is the HOST (Walls, Roofs), not Materials.
+            //   - any key on a pack with no rules and autoTag:true, where the runner
+            //     synthesises one AutoTag rule per taggable category.
+            var bad = new List<string>();
+            foreach (var t in Catalogue()["drawingTypes"] ?? new JArray())
+            {
+                var ann = t["annotation"] as JObject;
+                var fams = ann?["tagFamilies"] as JObject;
+                if (fams == null) continue;
+                var rules = (ann["rules"] as JArray) ?? new JArray();
+                if (rules.Count == 0 && (bool?)ann["autoTag"] == true) continue;
+                var tagged = new HashSet<string>(rules
+                    .Where(r => (string)r["ruleType"] == "AutoTag" && (bool?)r["enabled"] != false)
+                    .Select(r => (string)r["category"]), StringComparer.Ordinal);
+                bool materialRule = rules.Any(r => ((string)r["ruleType"] ?? "").StartsWith("MaterialTag", StringComparison.Ordinal));
+                foreach (var p in fams.Properties())
+                {
+                    if (tagged.Contains(p.Name)) continue;
+                    if (p.Name == "Materials" && materialRule) continue;
+                    bad.Add($"{(string)t["id"]}: '{p.Name}' -> '{(string)p.Value}' has no rule");
+                }
+            }
+            Assert.True(bad.Count == 0,
+                "A tagFamilies key names a category no rule tags, so the family is never used. "
+                + "Add the rule or remove the key:\n" + string.Join("\n", bad));
         }
 
         /// <summary>Rules that name their own tag family (per-rule <c>tagFamily</c>).</summary>

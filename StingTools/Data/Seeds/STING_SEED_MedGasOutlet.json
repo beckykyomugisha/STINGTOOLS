@@ -15,7 +15,7 @@
     {
       "id": "STING_SEED_MedGasOutlet",
       "name": "STING Seed \u2014 Medical Gas Outlet",
-      "category": "Specialty Equipment",
+      "category": "Plumbing Fixtures",
       "familyType": "SeedFamily",
       "discipline": "Plumbing",
       "subcategory": "STING_SEED",
@@ -71,6 +71,13 @@
           "shared": true,
           "isInstance": true,
           "default": "TERMINAL_UNIT"
+        },
+        {
+          "name": "MGS_GAS_TYPE_TXT",
+          "type": "Text",
+          "shared": true,
+          "isInstance": true,
+          "default": ""
         },
         {
           "name": "MGS_GASES_TXT",
@@ -272,6 +279,7 @@
           "name": "TERMINAL_UNIT_O2",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "O2",
             "MGS_GASES_TXT": "O2",
             "ASS_PRODCT_COD_TXT": "TU-O2",
             "MGS_OPERATING_KPA": "414"
@@ -281,6 +289,7 @@
           "name": "TERMINAL_UNIT_N2O",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "N2O",
             "MGS_GASES_TXT": "N2O",
             "ASS_PRODCT_COD_TXT": "TU-N2O",
             "MGS_OPERATING_KPA": "414"
@@ -290,6 +299,7 @@
           "name": "TERMINAL_UNIT_MEDAIR",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "MA4",
             "MGS_GASES_TXT": "MEDAIR",
             "ASS_PRODCT_COD_TXT": "TU-MA",
             "MGS_OPERATING_KPA": "414"
@@ -299,6 +309,7 @@
           "name": "TERMINAL_UNIT_SURGAIR",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "MA7",
             "MGS_GASES_TXT": "SURGAIR",
             "ASS_PRODCT_COD_TXT": "TU-SA",
             "MGS_OPERATING_KPA": "800"
@@ -308,6 +319,7 @@
           "name": "TERMINAL_UNIT_VAC",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "VAC",
             "MGS_GASES_TXT": "VAC",
             "ASS_PRODCT_COD_TXT": "TU-VAC",
             "MGS_OPERATING_KPA": "-40"
@@ -317,6 +329,7 @@
           "name": "TERMINAL_UNIT_CO2",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "CO2",
             "MGS_GASES_TXT": "CO2",
             "ASS_PRODCT_COD_TXT": "TU-CO2",
             "MGS_OPERATING_KPA": "414"
@@ -326,6 +339,7 @@
           "name": "TERMINAL_UNIT_N2",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "N2",
             "MGS_GASES_TXT": "N2",
             "ASS_PRODCT_COD_TXT": "TU-N2",
             "MGS_OPERATING_KPA": "800"
@@ -335,6 +349,7 @@
           "name": "TERMINAL_UNIT_HELIOX",
           "params": {
             "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "HE",
             "MGS_GASES_TXT": "HELIOX",
             "ASS_PRODCT_COD_TXT": "TU-HX",
             "MGS_OPERATING_KPA": "414"

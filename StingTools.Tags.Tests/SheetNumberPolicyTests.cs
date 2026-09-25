@@ -109,6 +109,26 @@ namespace StingTools.Tags.Tests
             => Assert.Equal(expected, SheetNumberPolicy.IsAlreadyIso(pattern));
 
         [Fact]
+        public void Every_policy_the_wizard_writes_reads_back_as_itself()
+        {
+            // Enumerates the enum, so a new policy kind is covered without anyone
+            // remembering: if ToParameterValue has no spelling Parse accepts for it,
+            // the Project Setup Wizard would write a value the producer reads as Profile.
+            foreach (SheetNumberPolicyKind k in Enum.GetValues(typeof(SheetNumberPolicyKind)))
+                Assert.Equal(k, SheetNumberPolicy.Parse(SheetNumberPolicy.ToParameterValue(k)));
+        }
+
+        [Theory]
+        [InlineData(null,       SheetNumberPolicyKind.Profile, "profile")] // record the decision
+        [InlineData("",         SheetNumberPolicyKind.Iso,     "iso")]
+        [InlineData("short",    SheetNumberPolicyKind.Profile, null)]      // same meaning, keep the user's word
+        [InlineData("ISO19650", SheetNumberPolicyKind.Iso,     null)]
+        [InlineData("iso",      SheetNumberPolicyKind.Profile, "profile")] // a real change is written
+        [InlineData("profile",  SheetNumberPolicyKind.Iso,     "iso")]
+        public void The_wizard_writes_only_a_change_of_policy(string stored, SheetNumberPolicyKind chosen, string expected)
+            => Assert.Equal(expected, SheetNumberPolicy.ValueToWrite(stored, chosen));
+
+        [Fact]
         public void Null_drawing_type_is_tolerated()
             => Assert.Null(SheetNumberPolicy.ResolvePattern(null, SheetNumberPolicyKind.Iso, out _));
 
