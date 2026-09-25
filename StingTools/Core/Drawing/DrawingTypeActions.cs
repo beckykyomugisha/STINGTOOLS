@@ -1,7 +1,7 @@
 // StingTools — every action of the dock panel's DRAWING TYPES section, as data
 //
 // The Drawing Type Editor used to carry its own hand-picked toolbar of eight
-// buttons while the dock section grew to forty-two, so most drawing-type work
+// buttons while the dock section grew to forty-one, so most drawing-type work
 // could not be reached from the editor at all. This list is what the editor's
 // "All Actions" tab is built from.
 //
