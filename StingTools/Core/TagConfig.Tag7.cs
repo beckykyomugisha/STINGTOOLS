@@ -2377,6 +2377,14 @@ namespace StingTools.Core
                 AddM(ParamRegistry.HVC_VELOCITY, "at a velocity of", "m/s");
                 AddM(ParamRegistry.HVC_PRESSURE, "against a pressure drop of", "Pa");
             }
+            else if (disc == "MG" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Medical gas before plumbing (outlets are Plumbing Fixtures, gas pipes are Pipes).
+                AddM("MGS_GAS_TYPE_TXT", "carrying", "medical gas");
+                AddM("MGS_DESIGN_FLOW_LS_NR", "at a design flow of", "L/s");
+                AddM("MGS_DESIGN_PRESS_KPA_NR", "at", "kPa design pressure");
+                AddM("MGS_OUTLET_COUNT_INT", "serving", "outlets");
+            }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" || categoryName == "Pipe Fittings")
             {
                 AddM(ParamRegistry.PLM_PIPE_FLOW, "conveying a flow of", "L/s");
@@ -2496,6 +2504,17 @@ namespace StingTools.Core
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "at a velocity of {0} m/s");
                 AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "against a pressure drop of {0} Pa");
             }
+            // Medical gas before plumbing: outlets are Plumbing Fixtures and gas pipes are
+            // Pipes, so the plumbing branch below used to claim them first and this one never ran.
+            else if (disc == "MG" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Healthcare: Medical Gas
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
+                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
+            }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" ||
                      categoryName == "Pipe Fittings")
             {
@@ -2517,15 +2536,6 @@ namespace StingTools.Core
                 AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
                 AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_HTM_REF_TXT"), "per {0}");
                 AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
-            }
-            else if (disc == "MG" || categoryName == "Pipes" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
-            {
-                // Healthcare: Medical Gas
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
             }
             else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR")))
             {

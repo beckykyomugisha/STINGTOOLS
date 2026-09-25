@@ -1,14 +1,21 @@
 // MedGasOutletPlacementCommand.cs — STING Phase 179 F6
 //
 // For each Room that carries a MGS_GAS_REQUIREMENT_TXT parameter the command
-// reads the comma-separated list of gas codes (e.g. "O2,VAC,AIR,N2O") and
+// reads the comma-separated list of gas codes (e.g. "O2,VAC,MA4,N2O") and
 // places one medical gas outlet family instance per gas type.  Each outlet is
-// positioned on the nearest wall face to the room centroid so it sits flush
-// on a wall surface at 1 350 mm AFF (standard BS HTM 02-01 bedhead height).
+// positioned on the face of the nearest wall to the room centroid, at
+// 1 350 mm AFF (standard BS HTM 02-01 bedhead height).
 //
-// Working pressures (kPa) applied per gas code:
-//   O2  = 400   N2O = 400   CO2 = 400   AIR = 400
-//   VAC = -80   AGSS = -25
+// Gas codes are the MGS_GAS_TYPE_TXT vocabulary (O2 MA4 MA7 N2O N2 CO2 HE VAC
+// AGS); common aliases (AIR, AGSS, SURGAIR, …) are mapped onto it by
+// MedicalGasFixtures.CanonicalGasCode, and an unknown code is reported, not
+// placed. Working pressures come from NFPA99Standards.NominalGasPressureKPa —
+// the same table MgasNetwork reads.
+//
+// Families: a type whose MGS_GAS_TYPE_TXT equals the gas wins (the STING seed's
+// TERMINAL_UNIT_* types carry it); otherwise a family/type name keyword. The
+// placement follows the family: face-based on the wall face, wall-hosted in the
+// wall, anything else free-standing at the wall's face.
 //
 // Workflow tag: Placement_MedGasOutlets
 
@@ -21,6 +28,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Plumbing;
 
 namespace StingTools.Commands.Placement
 {
@@ -32,29 +40,54 @@ namespace StingTools.Commands.Placement
         private const double MountHeightMm = 1350.0;
         private static double MmToFt(double mm) => mm / 304.8;
 
-        // Working pressures per gas code (kPa).
-        private static readonly Dictionary<string, double> GasPressureKpa =
-            new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
-            {
-                { "O2",   400  },
-                { "N2O",  400  },
-                { "CO2",  400  },
-                { "AIR",  400  },
-                { "VAC",  -80  },
-                { "AGSS", -25  },
-            };
-
-        // Name fragments used to search for family symbols per gas code.
+        // Name fragments used when no type carries the gas in MGS_GAS_TYPE_TXT.
+        // The TERMINAL_UNIT_* entries are the STING seed's own type names.
         private static readonly Dictionary<string, string[]> GasFamilyKeywords =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
             {
-                { "O2",   new[] { "O2 Outlet", "Oxygen Outlet", "Oxygen Medical" } },
-                { "N2O",  new[] { "N2O Outlet", "Nitrous Outlet", "Nitrous Oxide" } },
-                { "CO2",  new[] { "CO2 Outlet", "Carbon Dioxide Outlet" } },
-                { "AIR",  new[] { "Air Outlet", "Medical Air Outlet", "Compressed Air Medical" } },
-                { "VAC",  new[] { "VAC Outlet", "Vacuum Outlet", "Medical Vacuum" } },
-                { "AGSS", new[] { "AGSS Outlet", "Scavenging Outlet", "Gas Scavenging" } },
+                { "O2",  new[] { "TERMINAL_UNIT_O2", "O2 Outlet", "Oxygen Outlet", "Oxygen Medical" } },
+                { "N2O", new[] { "TERMINAL_UNIT_N2O", "N2O Outlet", "Nitrous Outlet", "Nitrous Oxide" } },
+                { "CO2", new[] { "TERMINAL_UNIT_CO2", "CO2 Outlet", "Carbon Dioxide Outlet" } },
+                { "MA4", new[] { "TERMINAL_UNIT_MEDAIR", "Medical Air Outlet", "Compressed Air Medical", "MA4 Outlet" } },
+                { "MA7", new[] { "TERMINAL_UNIT_SURGAIR", "Surgical Air Outlet", "MA7 Outlet" } },
+                { "N2",  new[] { "TERMINAL_UNIT_N2", "Nitrogen Outlet" } },
+                { "HE",  new[] { "TERMINAL_UNIT_HELIOX", "Heliox Outlet" } },
+                { "VAC", new[] { "TERMINAL_UNIT_VAC", "VAC Outlet", "Vacuum Outlet", "Medical Vacuum" } },
+                { "AGS", new[] { "AGSS Outlet", "Scavenging Outlet", "Gas Scavenging" } },
             };
+
+        private static double PressureKpa(string gas)
+            => StingTools.Standards.NFPA99.NFPA99Standards.NominalGasPressureKPa.TryGetValue(gas, out double kpa) ? kpa : double.NaN;
+
+        /// <summary>
+        /// The symbol for one gas: a type stamped with the gas wins; then a keyword match.
+        /// Keywords are matched in order and whole-name-first, so "TERMINAL_UNIT_N2" does
+        /// not pick up TERMINAL_UNIT_N2O.
+        /// </summary>
+        private static FamilySymbol FindSymbol(IList<FamilySymbol> symbols, string gas)
+        {
+            var stamped = symbols.FirstOrDefault(s =>
+            {
+                try
+                {
+                    var p = s.LookupParameter("MGS_GAS_TYPE_TXT");
+                    return p != null && string.Equals((p.AsString() ?? "").Trim(), gas, StringComparison.OrdinalIgnoreCase);
+                }
+                catch (Exception ex) { StingLog.Warn($"MedGasOutlet type gas read: {ex.Message}"); return false; }
+            });
+            if (stamped != null) return stamped;
+
+            foreach (var kw in GasFamilyKeywords[gas])
+            {
+                var exact = symbols.FirstOrDefault(s => string.Equals(s.Name, kw, StringComparison.OrdinalIgnoreCase));
+                if (exact != null) return exact;
+                var partial = symbols.FirstOrDefault(s =>
+                    s.Name.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    (s.Family?.Name ?? "").IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (partial != null && !kw.StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal)) return partial;
+            }
+            return null;
+        }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -95,24 +128,24 @@ namespace StingTools.Commands.Placement
                 .Cast<FamilySymbol>()
                 .ToList();
 
+            // Only the gases some room asks for — a gas nobody needs is not a missing family.
+            var unknownCodes = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            var wanted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var room in rooms)
+                foreach (var raw in GasCodesOf(room))
+                {
+                    var gas = MedicalGasFixtures.CanonicalGasCode(raw);
+                    if (gas == null) unknownCodes.Add(raw); else wanted.Add(gas);
+                }
+
             var symCache = new Dictionary<string, FamilySymbol>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kvp in GasFamilyKeywords)
+            foreach (var gas in wanted)
             {
-                string gasCode = kvp.Key;
-                var keywords   = kvp.Value;
-
-                var sym = allSymbols.FirstOrDefault(s =>
-                    keywords.Any(kw =>
-                        s.Name.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        (s.Family?.Name ?? "").IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0));
-
-                if (sym != null)
-                    symCache[gasCode] = sym;
+                var sym = FindSymbol(allSymbols, gas);
+                if (sym != null) symCache[gas] = sym;
             }
 
-            var missingFamilies = GasFamilyKeywords.Keys
-                .Where(k => !symCache.ContainsKey(k))
-                .ToList();
+            var missingFamilies = wanted.Where(k => !symCache.ContainsKey(k)).OrderBy(k => k).ToList();
 
             // ----------------------------------------------------------------
             // 3. Activate all found symbols in a single short transaction.
@@ -125,7 +158,8 @@ namespace StingTools.Commands.Placement
                     txAct.Start();
                     foreach (var s in toActivate)
                     {
-                        try { s.Activate(); } catch { /* non-fatal */ }
+                        try { s.Activate(); }
+                        catch (Exception ex) { StingLog.Warn($"MedGasOutlet activate {s.Name}: {ex.Message}"); }
                     }
                     txAct.Commit();
                 }
@@ -156,11 +190,10 @@ namespace StingTools.Commands.Placement
 
                 foreach (var room in rooms)
                 {
-                    string reqParam = room.LookupParameter("MGS_GAS_REQUIREMENT_TXT")?.AsString() ?? "";
-                    var gasCodes = reqParam
-                        .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(g => g.Trim().ToUpperInvariant())
-                        .Distinct()
+                    var gasCodes = GasCodesOf(room)
+                        .Select(MedicalGasFixtures.CanonicalGasCode)
+                        .Where(g => g != null)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
                     if (gasCodes.Count == 0) continue;
@@ -187,12 +220,7 @@ namespace StingTools.Commands.Placement
                     {
                         symCache.TryGetValue(gasCode, out FamilySymbol sym);
 
-                        double pressure = GasPressureKpa.TryGetValue(gasCode, out double kpa)
-                            ? kpa : 400.0;
-
-                        // Determine the placement point: on nearest wall face if
-                        // found, otherwise fall back to room centroid.
-                        XYZ placePt = DeriveWallFacePoint(nearestWall, centroid, mountZ);
+                        double pressure = PressureKpa(gasCode);
 
                         if (sym == null)
                         {
@@ -205,31 +233,16 @@ namespace StingTools.Commands.Placement
 
                         try
                         {
-                            FamilyInstance inst;
-                            if (nearestWall != null)
-                            {
-                                inst = doc.Create.NewFamilyInstance(
-                                    new Reference(nearestWall),
-                                    placePt,
-                                    XYZ.BasisZ,
-                                    sym);
-                            }
-                            else
-                            {
-                                inst = level != null
-                                    ? doc.Create.NewFamilyInstance(placePt, sym, level,
-                                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural)
-                                    : doc.Create.NewFamilyInstance(placePt, sym,
-                                        Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
-                            }
+                            FamilyInstance inst = PlaceOutlet(doc, sym, nearestWall, level, centroid, mountZ);
 
                             if (inst != null)
                             {
-                                ParameterHelpers.SetString(inst, "MGS_GAS_TYPE_TXT",  gasCode.ToUpperInvariant(), true);
+                                ParameterHelpers.SetString(inst, "MGS_GAS_TYPE_TXT", gasCode, true);
                                 ParameterHelpers.SetString(inst, "MGS_OUTLET_ZONE_TXT",
-                                    room.LookupParameter("ZONE")?.AsString() ?? "", false);
-                                ParameterHelpers.SetString(inst, "MGS_WORKING_PRESSURE_KPA",
-                                    pressure.ToString("F0"), true);
+                                    ParameterHelpers.GetString(room, ParamRegistry.ZONE), false);
+                                if (!double.IsNaN(pressure))
+                                    ParameterHelpers.SetString(inst, "MGS_WORKING_PRESSURE_KPA",
+                                        pressure.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), true);
 
                                 if (!placedCounts.ContainsKey(gasCode))
                                     placedCounts[gasCode] = 0;
@@ -271,7 +284,14 @@ namespace StingTools.Commands.Placement
                 sb.AppendLine();
                 sb.AppendLine("Families not loaded (outlets NOT placed for these gases):");
                 foreach (var mf in missingFamilies)
-                    sb.AppendLine($"  {mf}: load a family named '{GasFamilyKeywords[mf][0]}'");
+                    sb.AppendLine($"  {mf}: load the STING medical-gas seed, or a family named '{GasFamilyKeywords[mf][1]}'");
+            }
+
+            if (unknownCodes.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Unrecognised gas codes (NOT placed): " + string.Join(", ", unknownCodes));
+                sb.AppendLine("  Use " + string.Join(" / ", MedicalGasFixtures.GasCodes) + ".");
             }
 
             if (warningList.Count > 0)
@@ -340,12 +360,78 @@ namespace StingTools.Commands.Placement
                 {
                     var proj = lc.Curve.Project(centroid);
                     if (proj != null)
-                        return new XYZ(proj.XYZPoint.X, proj.XYZPoint.Y, z);
+                    {
+                        // The location line is the wall's centre: step half the wall's
+                        // thickness toward the room so the outlet sits on the room face,
+                        // not buried in the wall.
+                        var onLine = new XYZ(proj.XYZPoint.X, proj.XYZPoint.Y, z);
+                        var toRoom = new XYZ(centroid.X - onLine.X, centroid.Y - onLine.Y, 0);
+                        if (toRoom.GetLength() > 1e-6)
+                            onLine += toRoom.Normalize() * (wall.Width / 2.0);
+                        return onLine;
+                    }
                 }
             }
-            catch { /* fallback */ }
+            catch (Exception ex) { StingLog.Warn($"MedGasOutlet wall face point: {ex.Message}"); }
 
             return new XYZ(centroid.X, centroid.Y, z);
+        }
+
+        private static IEnumerable<string> GasCodesOf(Room room)
+            => (room.LookupParameter("MGS_GAS_REQUIREMENT_TXT")?.AsString() ?? "")
+                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(g => g.Trim())
+                .Where(g => g.Length > 0);
+
+        /// <summary>
+        /// Places one outlet the way its family allows. The old code always used the
+        /// face-reference overload with an element (not face) reference, which throws
+        /// for every family that is not face-based — including STING's own seed.
+        /// </summary>
+        private static FamilyInstance PlaceOutlet(Document doc, FamilySymbol sym, Wall wall, Level level, XYZ centroid, double z)
+        {
+            var nonStructural = Autodesk.Revit.DB.Structure.StructuralType.NonStructural;
+            XYZ pt = DeriveWallFacePoint(wall, centroid, z);
+            var placement = sym.Family?.FamilyPlacementType ?? FamilyPlacementType.OneLevelBased;
+
+            if (wall != null && placement == FamilyPlacementType.WorkPlaneBased)
+            {
+                var face = RoomSideFace(doc, wall, centroid);
+                if (face.Face != null && wall.Location is LocationCurve lc)
+                {
+                    var onFace = face.Face.Project(pt)?.XYZPoint ?? pt;
+                    var along = (lc.Curve.GetEndPoint(1) - lc.Curve.GetEndPoint(0)).Normalize();
+                    return doc.Create.NewFamilyInstance(face.Ref, onFace, along, sym);
+                }
+            }
+            if (wall != null && placement == FamilyPlacementType.OneLevelBasedHosted && level != null)
+                return doc.Create.NewFamilyInstance(pt, sym, wall, level, nonStructural);
+
+            return level != null
+                ? doc.Create.NewFamilyInstance(pt, sym, level, nonStructural)
+                : doc.Create.NewFamilyInstance(pt, sym, nonStructural);
+        }
+
+        /// <summary>The wall's side face nearer the room centroid.</summary>
+        private static (Reference Ref, Face Face) RoomSideFace(Document doc, Wall wall, XYZ centroid)
+        {
+            (Reference, Face) best = (null, null);
+            double bestD = double.MaxValue;
+            foreach (var side in new[] { ShellLayerType.Interior, ShellLayerType.Exterior })
+            {
+                try
+                {
+                    foreach (var r in HostObjectUtils.GetSideFaces(wall, side))
+                    {
+                        if (!(wall.GetGeometryObjectFromReference(r) is Face f)) continue;
+                        var proj = f.Project(centroid);
+                        double d = proj?.Distance ?? double.MaxValue;
+                        if (d < bestD) { bestD = d; best = (r, f); }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"MedGasOutlet side face {side}: {ex.Message}"); }
+            }
+            return best;
         }
     }
 }

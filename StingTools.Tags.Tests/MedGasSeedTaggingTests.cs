@@ -161,6 +161,36 @@ namespace StingTools.Tags.Tests
             string disc, string gas, string seed, bool expected)
             => Assert.Equal(expected, StingTools.Core.Plumbing.MedicalGasFixtures.IsMedicalGas(disc, gas, seed));
 
+        [Theory]
+        // Room requirements are typed by people. The placement command wrote "AIR" and
+        // "AGSS" onto outlets, codes no consumer of MGS_GAS_TYPE_TXT reads.
+        [InlineData("AIR", "MA4")]
+        [InlineData("medair", "MA4")]
+        [InlineData("SURGAIR", "MA7")]
+        [InlineData("AGSS", "AGS")]
+        [InlineData("Heliox", "HE")]
+        [InlineData(" o2 ", "O2")]
+        [InlineData("N2O", "N2O")]
+        [InlineData("N2", "N2")]
+        [InlineData("ARGON", null)]
+        [InlineData("", null)]
+        public void Room_gas_codes_map_onto_the_gas_type_vocabulary(string typed, string expected)
+            => Assert.Equal(expected, StingTools.Core.Plumbing.MedicalGasFixtures.CanonicalGasCode(typed));
+
+        [Fact]
+        public void The_gas_vocabulary_is_the_one_the_network_and_shipped_data_use()
+        {
+            var codes = StingTools.Core.Plumbing.MedicalGasFixtures.GasCodes;
+            Assert.All(codes, c => Assert.Contains(c, NetworkGases));
+
+            // Every gas the seed stamps, and every gas the fab rules size, is canonical.
+            foreach (var v in Seed()["typeVariants"].Where(v => v["params"]?["MGS_GAS_TYPE_TXT"] != null))
+                Assert.Contains((string)v["params"]["MGS_GAS_TYPE_TXT"], codes);
+            var fab = JObject.Parse(File.ReadAllText(Data("MedGas", "STING_MEDGAS_FAB_RULES.json")));
+            var sized = ((JObject)fab["diversityFactors"]).Properties().Select(p => p.Name).ToList();
+            Assert.Equal(sized.OrderBy(x => x), codes.OrderBy(x => x));
+        }
+
         [Fact]
         public void The_theatre_panel_is_not_coded_as_a_master_alarm_panel()
         {
