@@ -373,6 +373,35 @@ namespace StingTools.Core.Panels
             return rows;
         }
 
+        /// <summary>
+        /// Every parameter bound anywhere in a template (header, body, summary, footer),
+        /// keyed like PanelTemplateSpec.KeyOf: "bip:NAME" or the shared parameter name.
+        /// </summary>
+        public static HashSet<string> BoundParamKeys(Document doc, PanelScheduleTemplate template)
+        {
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            PanelScheduleData data;
+            try { data = template.GetTableData(); }
+            catch (Exception ex) { StingLog.Warn($"BoundParamKeys '{template.Name}': {ex.Message}"); return keys; }
+            foreach (SectionType st in new[] { SectionType.Header, SectionType.Body, SectionType.Summary, SectionType.Footer })
+            {
+                TableSectionData s = null;
+                try { s = data.GetSectionData(st); } catch (Exception ex) { StingLog.Info($"BoundParamKeys {st}: {ex.Message}"); }
+                if (s == null) continue;
+                for (int r = s.FirstRowNumber; r <= s.LastRowNumber; r++)
+                    for (int c = s.FirstColumnNumber; c <= s.LastColumnNumber; c++)
+                    {
+                        try
+                        {
+                            var id = s.GetCellParamId(r, c);
+                            if (id != null && id != ElementId.InvalidElementId) keys.Add(ParamName(doc, id));
+                        }
+                        catch (Exception ex) { StingLog.Info($"BoundParamKeys cell: {ex.Message}"); }
+                    }
+            }
+            return keys;
+        }
+
         internal static string ParamName(Document doc, ElementId id)
         {
             if (id == null || id == ElementId.InvalidElementId) return "";

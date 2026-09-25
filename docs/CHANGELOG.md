@@ -23310,3 +23310,20 @@ Gates: `param_binding_resolver.py` changed only the `HVC_PEAK_HOUR` description 
 `docs/RESOLVED_BINDINGS.csv`; `check_param_contract.py --check` OK with no baseline change;
 `find_lying_catches.py` exit 0; `recount_unreachable_commands.py --check` agrees;
 path discipline OK; roadmap ids unique.
+
+#### Completed (PNL-20 template drift in the audit, PNL-21 assumed device Icn)
+
+- **PNL-20.** `Panel_Audit` compares every built STING template's bound parameters (header,
+  circuit table, summary, footer) with `STING_PANEL_SCHEDULE_SPECS.json` and lists templates
+  that are missing columns — e.g. one built before the BS 7671 check column existed — with
+  "rebuild with PNLS 📐". It also counts STING templates not built yet. Revit-free core:
+  `PanelTemplateSpec.MissingFrom` / `KeyOf`; the builder's `BoundParamKeys` reads a template.
+- **PNL-21.** Where a device family carries no Short Circuit Rating, the compliance check
+  shows a low-end typical Icn (`CircuitComplianceRule.TypicalIcnKa`: 6 kA MCB ≤ 63 A, 16 kA
+  MCCB) for guidance only. It is never a basis for a pass or a fail: a PSC at or below it
+  reads "device Icn assumed 6 kA", one above it reads "PSC 8 kA > 6 kA typical — confirm
+  device Icn"; both stay NOT CHECKED. A real Icn always wins. Nothing is stamped onto the
+  model, so no assumed value can later be mistaken for a manufacturer rating.
+
+Tests: +7 (typical Icn by class, assumed Icn never passes/fails, real Icn first, stale
+template detection). Panel tests 80/80. **Not exercised in Revit.**

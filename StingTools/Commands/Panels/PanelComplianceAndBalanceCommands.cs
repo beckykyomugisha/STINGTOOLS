@@ -149,6 +149,7 @@ namespace StingTools.Commands.Panels
                  .Text("Ib ≤ In ≤ Iz (Reg 433.1.1); VD ≤ " + (opts?.OtherLimitPct > 0 ? $"{opts.OtherLimitPct:0.#}" : "5") + " % other / "
                        + (opts?.LightingLimitPct > 0 ? $"{opts.LightingLimitPct:0.#}" : "3") + " % lighting (App 12); PSC ≤ board breaking capacity (434.5.1).")
                  .Text("Iz: " + IzBasis + ". VD from CALCS → Recalculate All. PSC from CALCS → Calculate Fault Levels.")
+                 .Text("Device Icn: from the family's Short Circuit Rating. Where a family has none, a typical 6 kA (MCB ≤ 63 A) / 16 kA (MCCB) is shown for guidance only — never as a pass or a fail.")
                  .Text(string.IsNullOrEmpty(xlsx) ? "Workbook not written — see the STING log." : "Workbook: " + xlsx);
             panel.Show();
             return Result.Succeeded;
@@ -192,6 +193,10 @@ namespace StingTools.Commands.Panels
                 IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = IzBasis, IzIsUpperBound = true,
                 VdPct = row.Vd, VdLimitPct = row.VdLimit,
                 ProspectiveFaultKa = row.Psc, BreakingCapacityKa = row.Icn,
+                // Only when the family carries no Icn: a typical low-end value that can
+                // prompt "confirm the device" but never produce a pass or a fail.
+                AssumedBreakingCapacityKa = row.Icn.HasValue ? (double?)null
+                    : (CircuitComplianceRule.TypicalIcnKa(row.In) > 0 ? CircuitComplianceRule.TypicalIcnKa(row.In) : (double?)null),
             });
             row.Summary = row.Result.Summary;
             return row;

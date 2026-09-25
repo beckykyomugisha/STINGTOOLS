@@ -45,6 +45,30 @@ namespace StingTools.Core.Panels
         [JsonProperty("body")]          public List<PanelTemplateField> Body { get; set; } = new List<PanelTemplateField>();
         [JsonProperty("footer")]        public List<PanelTemplateField> Footer { get; set; } = new List<PanelTemplateField>();
         [JsonProperty("notes")]         public List<string> Notes { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Key a bound parameter is compared by: "bip:NAME" for a built-in, the shared
+        /// parameter name otherwise — the same form PanelTemplateBuilder.ParamName reads
+        /// back from a template cell.
+        /// </summary>
+        public static string KeyOf(PanelTemplateField f)
+            => f == null || string.IsNullOrWhiteSpace(f.ParamName) ? ""
+             : f.IsBuiltIn ? "bip:" + f.ParamName : f.ParamName;
+
+        /// <summary>
+        /// Parameters this spec binds (header, circuit table, footer) that the built
+        /// template does not carry. Non-empty means the template predates the spec
+        /// (or a cell was lost) and should be rebuilt with 📐.
+        /// </summary>
+        public List<string> MissingFrom(IEnumerable<string> boundKeys)
+        {
+            var have = new HashSet<string>(boundKeys ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            return Header.Concat(Body).Concat(Footer)
+                .Select(KeyOf).Where(k => k.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(k => !have.Contains(k))
+                .ToList();
+        }
     }
 
     public sealed class PanelTemplateSpecSet
