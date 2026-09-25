@@ -30,6 +30,7 @@ namespace StingTools.Tags.Tests
     {
         private const string TuTag = "STING - Medical Gas Terminal Unit Tag";
         private const string AapTag = "STING - Area Alarm Panel Tag";
+        private const string MapTag = "STING - Master Alarm Panel Tag";
 
         // MgasNetwork.Build's gas vocabulary (Revit-bound, so restated here).
         private static readonly HashSet<string> NetworkGases = new HashSet<string>(StringComparer.Ordinal)
@@ -94,21 +95,25 @@ namespace StingTools.Tags.Tests
         public void EachSeedTypeIsCaughtByTheRightMedicalGasRule()
         {
             var seed = Seed();
-            string family = (string)seed["name"];
+            // A built seed is loaded under its file name, which is the seed id.
+            string family = (string)seed["id"];
             string category = (string)seed["category"];
             var rules = MedGasRules().Where(r => (string)r.Rule["category"] == category
-                && ((string)r.Rule["tagFamily"] == TuTag || (string)r.Rule["tagFamily"] == AapTag)).ToList();
+                && ((string)r.Rule["tagFamily"] == TuTag || (string)r.Rule["tagFamily"] == AapTag || (string)r.Rule["tagFamily"] == MapTag)).ToList();
             Assert.Contains(rules, r => (string)r.Rule["tagFamily"] == TuTag);
+            Assert.Contains(rules, r => (string)r.Rule["tagFamily"] == MapTag);
 
             var bad = new List<string>();
             foreach (var v in seed["typeVariants"].Where(v => v["name"] != null))
             {
                 string type = (string)v["name"];
+                // The theatre gas panel and the ward bedhead unit are panels OF outlets, so they
+                // take the terminal-unit tag. AVSU / VIE are neither outlets nor alarm panels.
                 string expect =
-                    type.StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal) || type == "MAP_THEATRE_PANEL"
+                    type.StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal) || type == "THEATRE_GAS_PANEL"
                         || type == "BEDHEAD_UNIT_WARD" ? TuTag
                     : type == "ALARM_PANEL_AREA" ? AapTag
-                    : null;   // AVSU / VIE: not terminal units and not alarm panels (see ROADMAP DT-4)
+                    : null;
                 foreach (var (typeId, rule) in rules)
                 {
                     var rx = RuleFamilyFilter.Compile((string)rule["familyMatch"], out var err);
@@ -120,6 +125,48 @@ namespace StingTools.Tags.Tests
                 }
             }
             Assert.True(bad.Count == 0, string.Join("\n", bad));
+        }
+
+        private static System.Text.RegularExpressions.Regex RuleFor(string tagFamily)
+        {
+            var r = MedGasRules().First(x => (string)x.Rule["tagFamily"] == tagFamily).Rule;
+            return RuleFamilyFilter.Compile((string)r["familyMatch"], out _);
+        }
+
+        [Theory]
+        // Separators are underscores and hyphens as often as spaces; \b treated "_" as a letter.
+        [InlineData("Alarm Panel - Area", "Standard", AapTag, true)]
+        [InlineData("Area_Alarm_Panel", "4-gas", AapTag, true)]
+        [InlineData("Master Alarm Panel", "Standard", MapTag, true)]
+        [InlineData("MGPS", "MAP_Plantroom", MapTag, true)]
+        [InlineData("Medical_Gas_Outlet", "Oxygen", TuTag, true)]
+        [InlineData("Terminal-Unit", "O2", TuTag, true)]
+        [InlineData("VIE_Oxygen", "Standard", TuTag, false)]
+        [InlineData("STING_SEED_MedGasOutlet", "THEATRE_GAS_PANEL", MapTag, false)]
+        [InlineData("Map Room Sign", "Standard", MapTag, false)]
+        public void Medical_gas_patterns_read_underscored_and_hyphenated_names(string family, string type, string tagFamily, bool expected)
+            => Assert.Equal(expected, RuleFamilyFilter.Matches(RuleFor(tagFamily), family, type));
+
+        [Theory]
+        // Plumbing scans (traps, DU/LU) must leave medical-gas outlets out — they are
+        // Plumbing Fixtures too. A gas type, the MG discipline or the seed id marks one.
+        [InlineData(null, "O2", null, true)]
+        [InlineData("MG", null, null, true)]
+        [InlineData(" mg ", "", null, true)]
+        [InlineData("P", null, "STING_SEED_MedGasOutlet", true)]
+        [InlineData("P", "  ", null, false)]
+        [InlineData("P", null, "STING_SEED_PlumbingFixture", false)]
+        [InlineData(null, null, null, false)]
+        public void A_medical_gas_fixture_is_recognised_by_gas_type_discipline_or_seed(
+            string disc, string gas, string seed, bool expected)
+            => Assert.Equal(expected, StingTools.Core.Plumbing.MedicalGasFixtures.IsMedicalGas(disc, gas, seed));
+
+        [Fact]
+        public void The_theatre_panel_is_not_coded_as_a_master_alarm_panel()
+        {
+            // MgasNetwork reads product code MAP as a Master Alarm Panel.
+            var v = Seed()["typeVariants"].First(x => (string)x["name"] == "THEATRE_GAS_PANEL");
+            Assert.NotEqual("MAP", (string)v["params"]["ASS_PRODCT_COD_TXT"]);
         }
     }
 }

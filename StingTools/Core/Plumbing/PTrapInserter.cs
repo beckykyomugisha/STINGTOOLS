@@ -28,6 +28,8 @@ namespace StingTools.Core.Plumbing
         public int FixturesAlreadyTrapped { get; set; }
         public int TrapsPlaced        { get; set; }
         public int FixturesSkipped    { get; set; }
+        /// <summary>Medical-gas terminal units and panels (also Plumbing Fixtures) — they take no trap.</summary>
+        public int MedicalGasSkipped  { get; set; }
         public List<string> Warnings  { get; } = new List<string>();
         public List<ElementId> PlacedIds { get; } = new List<ElementId>();
     }
@@ -58,6 +60,7 @@ namespace StingTools.Core.Plumbing
             {
                 try
                 {
+                    if (MedicalGasFixtures.IsMedicalGas(fi)) { r.MedicalGasSkipped++; continue; }
                     if (HasExistingTrap(doc, fi))
                     {
                         r.FixturesAlreadyTrapped++;
@@ -68,7 +71,7 @@ namespace StingTools.Core.Plumbing
                     if (conn == null)
                     {
                         r.FixturesSkipped++;
-                        r.Warnings.Add($"Fixture {fi.Id} has no drainage connector — skipped");
+                        r.Warnings.Add($"Fixture {fi.Id} has no sanitary (drainage) connector — skipped");
                         continue;
                     }
                     if (!placeFamily)
@@ -124,9 +127,14 @@ namespace StingTools.Core.Plumbing
             {
                 var cm = fi?.MEPModel?.ConnectorManager;
                 if (cm == null) return null;
+                // The trap goes on the WASTE connector. Taking the first piping connector put
+                // it on whichever came first — often the cold supply, and on a medical-gas
+                // outlet the gas connector.
                 foreach (Connector c in cm.Connectors)
                 {
-                    if (c.Domain == Domain.DomainPiping) return c;
+                    if (c.Domain != Domain.DomainPiping) continue;
+                    try { if (c.PipeSystemType == PipeSystemType.Sanitary) return c; }
+                    catch (Exception ex) { StingLog.Warn($"PTrapInserter connector system type: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

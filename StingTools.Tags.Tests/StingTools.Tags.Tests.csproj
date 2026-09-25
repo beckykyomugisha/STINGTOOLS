@@ -322,6 +322,7 @@
     <Compile Include="..\StingTools\Photometrics\IesParser.cs" Link="Photometrics\IesParser.cs" />
     <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
     <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\MedicalGasFixtures.Rule.cs" Link="Core\Plumbing\MedicalGasFixtures.Rule.cs" />
     <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
     <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
   </ItemGroup>
