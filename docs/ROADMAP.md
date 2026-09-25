@@ -71,6 +71,35 @@ a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths)
 fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
 audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
 
+## Scope Box Planner (2026-09-24)
+
+Built on `claude/scope-box-planner`: area boxes (`STING-AREA::`) sized from the drawing types'
+sheets, copied from hand-drawn seeds (`STING-SEED::`), tiled per building / model / level,
+coloured by mode, and produced through `DrawingProducer`. The Revit-free half — grammar, sizing,
+seed choice, tiling, the saved plan and colours — is covered by `ScopeBoxPlanningTests`. The
+Revit half has **not been run in Revit**.
+
+**SBP-1 · Needs a Revit run.** On a project with grids at an angle and two STING-LOC boxes:
+draw a seed per size class the planner asks for, register them, create boxes, and check each
+box lands centred on its tile, square to the grids, and named as planned. Then produce views
+only and confirm each view is cropped to its box on the right level, and that re-running
+produces nothing new.
+
+**SBP-2 · Does Revit colour a scope box through `SetElementOverrides`?** Unconfirmed. Scope
+boxes cannot have subcategories, so a per-element override is the only route to more than one
+colour per view. If Revit ignores it, the fallback is one colour per view via the Scope Boxes
+category override, and the Colour modes collapse to "on/off". Check before relying on it.
+
+**SBP-3 · A seed must be drawn tall.** A plan view is only offered scope boxes that cross its
+level, and the API cannot change a box's height. Create and Register report a seed that does
+not span every level; the fix is to redraw it taller in a 3D view. Worth a line in the SETUP
+guide once SBP-1 has passed.
+
+**SBP-4 · Boxes are copied, not updated.** Re-planning after the building grows marks the old
+names "Exists — kept"; they are not moved or resized. Delete the old boxes (or rename them) and
+create again. Moving an existing box to its re-planned centre is possible via the API and would
+be the next step if this proves common.
+
 ## Material callouts (2026-09-24)
 
 Reviewed end to end; the design and the build steps are in
