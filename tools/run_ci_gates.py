@@ -101,6 +101,19 @@ def pwsh_exe():
     return shutil.which('pwsh') or shutil.which('powershell')
 
 
+def powershell_note():
+    """Which PowerShell the pwsh steps run under. CI uses PowerShell 7 (pwsh); Windows
+    PowerShell 5.1 parses some scripts differently (no &&, ??, ternary), so a pass or
+    fail under 5.1 is not proof of what CI will do."""
+    if shutil.which('pwsh'):
+        return 'PowerShell: ' + shutil.which('pwsh') + ' (PowerShell 7, as CI)'
+    if shutil.which('powershell'):
+        return ('PowerShell: ' + shutil.which('powershell') + '\n'
+                'WARNING: pwsh (PowerShell 7) is not installed; pwsh steps run under Windows '
+                'PowerShell 5.1, which CI does not use. Install PowerShell 7 for a faithful mirror.')
+    return 'PowerShell: none on PATH - pwsh steps will be skipped'
+
+
 def classify():
     files = sorted(os.path.basename(f) for f in glob.glob(os.path.join(WF_DIR, '*.yml')))
     known = set(RUN) | set(SKIP) | OUT_OF_SCOPE
@@ -146,9 +159,27 @@ def run_step(cmd, shell, cwd, env):
 def dirty_paths():
     """Tracked files git status reports as modified in the working tree. (git diff
     --name-only misses a file whose content is equal after EOL normalisation but whose
-    bytes are not — exactly the case this is for.)"""
-    out = subprocess.run(['git', 'status', '--porcelain'], cwd=REPO, capture_output=True, text=True).stdout
-    return [l[3:].strip() for l in out.splitlines() if len(l) > 3 and l[1] == 'M']
+    bytes are not — exactly the case this is for.) -z, because plain --porcelain quotes
+    a path with a space or non-ASCII character, and the quoted form names no file."""
+    out = subprocess.run(['git', 'status', '--porcelain', '-z'], cwd=REPO,
+                         capture_output=True, text=True, encoding='utf-8', errors='replace').stdout
+    return parse_porcelain_z(out)
+
+
+def parse_porcelain_z(out):
+    """Worktree-modified paths from `git status --porcelain -z` output. A rename or copy
+    entry is followed by its source path as a separate field, which is skipped."""
+    paths, fields, i = [], out.split('\0'), 0
+    while i < len(fields):
+        f = fields[i]
+        i += 1
+        if len(f) < 4:
+            continue
+        if f[0] in 'RC':
+            i += 1
+        if f[1] == 'M':
+            paths.append(f[3:])
+    return paths
 
 
 def main():
@@ -172,6 +203,12 @@ def main():
               'git-diff it will report any uncommitted edit to that file as drift.\n')
 
     summary = os.path.join(tempfile.gettempdir(), 'run_ci_gates_summary.md')
+    if not args.list:
+        print(powershell_note() + '\n')
+        # GITHUB_STEP_SUMMARY is appended to by the steps; start each run empty, or the
+        # file grows across runs and a stale failure reads as a fresh one.
+        for f in (summary, summary + '.out'):
+            open(f, 'w', encoding='utf-8').close()
     base_env = dict(os.environ, PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
                     GITHUB_STEP_SUMMARY=summary, GITHUB_OUTPUT=summary + '.out', CI='true')
     results = []
