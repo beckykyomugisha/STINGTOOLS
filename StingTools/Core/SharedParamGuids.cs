@@ -149,8 +149,10 @@ namespace StingTools.Core
         ///
         /// Returns paramName → BuiltInCategory[] for every parameter that has one or more
         /// rows in CATEGORY_BINDINGS.csv, resolved through ParamRegistry.CategoryEnumMap.
-        /// The pseudo-category "Materials" (OST_Materials does not accept bound parameters)
-        /// is skipped here; material binding is handled separately by CleanMaterialBindings.
+        /// "Materials" is skipped here, not because OST_Materials refuses bound parameters —
+        /// it accepts them — but because material binding is decided by name, by
+        /// LoadSharedParamsCommand.CleanMaterialBindings (IsMaterialRelevantParam), not by
+        /// CSV rows. param_binding_resolver.py refuses a Materials row the name rule would drop.
         /// </summary>
         public static Dictionary<string, BuiltInCategory[]> PerParamCategoryBindings
         {

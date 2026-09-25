@@ -152,11 +152,37 @@ entries remain: `arch-rcp-A1-1to100` (Ceilings, Lighting Fixtures — its rules 
 floor plan's and tag doors/furniture on a ceiling plan), `fm-asset-location` (Rooms),
 `pres-exterior-elev` (Walls), `pres-context-site` (Site), `clar-markup` (Rooms).
 
+*Closed 2026-09-24:* `fm-asset-location` and `pres-context-site` gained the Rooms / Site
+`AutoTag` rule their key promised; `clar-markup` (hand-marked) and `pres-exterior-elev` (walls
+carry material callouts, not the wall-type tag) lost the key. `arch-rcp` was already fixed.
+`DrawingTypeTagFamilyTests.EveryTagFamilyKeyIsAskedForByARule` now fails on any unused key, so
+this cannot drift back; the two exemptions are the `Materials` key on a pack with a material
+callout rule and a rule-less `autoTag: true` pack (the runner synthesises its rules), which is
+why `health-rds-A3` passes.
+
 **DT-4 · The medical-gas terminal unit tag cannot tag STING's own outlet seed.**
 `STING - Medical Gas Terminal Unit Tag` is declared for Plumbing Fixtures; `STING_SEED_MedGasOutlet`
 builds Specialty Equipment. `health-medgas-pln` therefore tags seeded outlets with the generic
 Specialty Equipment tag. Fix one side: add a Specialty Equipment variant of the TU tag, or move the
 seed to Plumbing Fixtures (check manufacturer families first — both categories occur in practice).
+
+*Closed 2026-09-24 — the seed moved to Plumbing Fixtures.* The deciding evidence was that the
+seed was the only part of the MGPS stack that disagreed: `MgasNetwork` and `MgasFlowValidator`
+collect terminal units and alarm panels from `OST_PlumbingFixtures`, and the Area / Master Alarm
+Panel tags are Plumbing Fixtures tags too, so seeded outlets were invisible to the network and the
+flow validator as well as untaggable. The 8 terminal-unit types now carry `MGS_GAS_TYPE_TXT`
+(O2 / N2O / MA4 / MA7 / VAC / CO2 / N2 / HE — the network's vocabulary, and the field the TU tag
+prints). The TU rule's pattern excludes alarm / AVSU / zone valve / manifold / VIE, because the
+seed family's name matches it for every type; the Area Alarm Panel pattern also accepts the seed's
+`ALARM_PANEL_AREA`. `MedGasSeedTaggingTests` pins the category, the gas codes and which rule
+catches each seed type. The Specialty Equipment rule stays for manufacturer outlets built in that
+category. Left open, one family / one category being the limit:
+- `AVSU_BOX_5GAS` and `VIE_MANIFOLD` are now Plumbing Fixtures, where no MGPS tag or network role
+  fits them (ZVB is Pipe Accessories, VIE is Mechanical Equipment). They were no better placed as
+  Specialty Equipment; splitting them into their own seeds is the real fix.
+- Seven of the seed's `"shared": true` parameters (`MGS_TU_TYPE_TXT`, `MGS_GASES_TXT`,
+  `MGS_SOCKET_STD_TXT`, `MGS_OPERATING_KPA`, `MGS_CERT_TXT`, `MGS_HOSPITAL_AREA_TXT`,
+  `MGS_AVSU_ZONE_TXT`) are not in `MR_PARAMETERS.txt`. That predates this change.
 
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step
@@ -165,9 +191,10 @@ inside a workflow). Then: produce a section and an elevation and confirm the vie
 Section` / `STING - Elevation`; check `STING - Ordinate` really dimensions as ordinate; tag a wall
 on an elevation with a Material Tag and confirm it lands on the face you are looking at. The
 section-head graphics of the new view types are whatever the duplicated type had — the
-`sectionMarker.family` families still ship nowhere. Remaining setup gap: the Project Setup
-Wizard does not offer the drawing-production step, and the sheet-number policy parameter has no
-UI.
+`sectionMarker.family` families still ship nowhere. *2026-09-24:* the Project Setup Wizard now
+offers both (Automation page → Drawing Production): a checkbox that runs this workflow at the end
+of Phase 3, off by default until this check has passed, and a sheet-number policy picker written
+after shared parameters load. Run the wizard with the checkbox on as part of this check.
 
 **DT-5 · The healthcare familyMatch patterns need a Revit run.** They are written against STING
 seed names and common manufacturer wording (`pendant`, `bed ?head|trunking`, `zone valve|ZVB|AVSU`,

@@ -337,13 +337,15 @@ namespace StingTools.Tags
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // NOTE: OST_Materials is NOT added to coreCats.
-            // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
-            // via dedicated matCats override in BuildGroupCategoryOverrides() to BLE
-            // element categories (walls, floors, ceilings, etc.), NOT to OST_Materials
-            // (which doesn't support AllowsBoundParameters in Revit API).
-            // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
-            // polluting every material's custom properties panel.
+            // NOTE: OST_Materials is NOT added to coreCats. Adding it would bind ALL
+            // 2300+ parameters to materials, polluting every material's properties.
+            // Material parameters DO reach OST_Materials — it accepts bound parameters
+            // (a 2026-09-21 run logged 116 added, 0 failed) — through the dedicated
+            // CleanMaterialBindings pass, which adds Materials to exactly the parameters
+            // IsMaterialRelevantParam recognises (MAT_*, PROP_*, BLE_MAT_* …) and
+            // removes it from every other one. The matCats override in
+            // BuildGroupCategoryOverrides() additionally puts them on the BLE element
+            // categories (walls, floors, …) that use materials, for material takeoffs.
 
             // Phase 39: Add Sheets category (needed for SHT_* params). OST_Sheets is not
             // in ParamRegistry's category_enum_map / universal_categories, so the core set
@@ -1011,11 +1013,12 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides PRJ_INFORMATION: {ex.Message}"); }
 
-            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
-            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
-            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
-            // the elements that USE materials. This makes material properties
-            // visible on those elements and schedulable in material takeoffs.
+            // Material-relevant params (MAT_INFO, PROP_PHYSICAL) are bound here to the
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) — the
+            // elements that USE materials — so they are visible on those elements and
+            // schedulable in material takeoffs. They reach OST_Materials itself through
+            // CleanMaterialBindings below (OST_Materials DOES accept bound parameters;
+            // an older comment here said it did not), which is what a Material Tag reads.
             var matCats = BuildCatSet(doc, BleCategories);
             if (matCats.Size > 0)
             {

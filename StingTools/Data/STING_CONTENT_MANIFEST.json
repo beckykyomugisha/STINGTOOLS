@@ -284,10 +284,10 @@
                     {
                         "id":  "seed-med-gas-outlet",
                         "kind":  "modelFamily",
-                        "category":  "Specialty Equipment",
+                        "category":  "Plumbing Fixtures",
                         "discipline":  "MG",
                         "buildSpec":  "STING_SEED_MedGasOutlet.json",
-                        "familyFile":  "STING Seed - Specialty Equipment.rfa",
+                        "familyFile":  "STING Seed - Plumbing Fixtures.rfa",
                         "checksum":  null,
                         "status":  "spec",
                         "protected":  true,
