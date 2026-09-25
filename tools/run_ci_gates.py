@@ -122,7 +122,12 @@ def run_step(cmd, shell, cwd, env):
             return None, 'no PowerShell on PATH'
         fd, path = tempfile.mkstemp(suffix='.ps1')
         with os.fdopen(fd, 'w', encoding='utf-8-sig') as f:
-            f.write('$ErrorActionPreference = "Stop"\n' + cmd)
+            # GitHub's pwsh wrapper ends every step with the LASTEXITCODE line. Without it,
+            # a step that runs ./tools/x.ps1 which does `exit 1` still exits 0 here: exit
+            # inside a called script leaves only that script. That hid a real Tier 6
+            # failure in check_workflow_wiring.ps1 that CI then caught.
+            f.write('$ErrorActionPreference = "Stop"\n' + cmd
+                    + '\nif ((Test-Path -LiteralPath variable:\\LASTEXITCODE)) { exit $LASTEXITCODE }\n')
         argv = [exe, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path]
     else:
         exe = bash_exe()
