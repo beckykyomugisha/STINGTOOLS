@@ -52,7 +52,9 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Parses RESOLVED_BINDINGS.csv into param to categories. A row of
-        /// "&lt;ALL&gt;" means universal and lands in <paramref name="universal"/>.
+        /// "&lt;ALL&gt;" means universal and lands in <paramref name="universal"/>;
+        /// "&lt;ALL&gt;|Project Information" is universal too, with the extra
+        /// categories also returned in the dictionary.
         /// </summary>
         public static Dictionary<string, HashSet<string>> ParseSpec(
             IEnumerable<string> lines, out HashSet<string> universal)
@@ -72,10 +74,18 @@ namespace StingTools.Tags
                 string v = l.Substring(comma + 1).Trim();
                 if (p.Length == 0) continue;
 
-                if (v == "<ALL>") { universal.Add(p); continue; }
-
-                spec[p] = new HashSet<string>(
+                var cats = new HashSet<string>(
                     v.Split('|').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.Ordinal);
+
+                // "<ALL>|Project Information" = universal PLUS categories outside the
+                // universal set; the extras are kept so a caller can still ask for them.
+                if (cats.Remove("<ALL>"))
+                {
+                    universal.Add(p);
+                    if (cats.Count == 0) continue;
+                }
+
+                spec[p] = cats;
             }
             return spec;
         }

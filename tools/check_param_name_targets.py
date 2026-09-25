@@ -242,7 +242,7 @@ def main() -> int:
                 missing.append((name, label, where))
             else:
                 cats = bindings.get(name)
-                if cats is not None and cats != "<ALL>":
+                if cats is not None and cats.split("|")[0] != "<ALL>":
                     narrow.append((name, label, where, cats))
 
     unexpected = [(n, s, w) for (n, s, w) in missing if n not in baseline]

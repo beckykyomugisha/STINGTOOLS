@@ -23,7 +23,7 @@
         { "label": "Prospective fault (kA)",    "param": "ELC_PNL_SHORT_CIRCUIT_RATING_KA" },
         { "label": "Device breaking cap. (kA)", "param": "bip:RBS_ELEC_SHORT_CIRCUIT_RATING" },
         { "label": "IP rating",                 "param": "ELC_PNL_IP_RATING_TXT" },
-        { "label": "Enclosure",                 "param": "bip:RBS_ELEC_ENCLOSURE" },
+        { "label": "Enclosure",                 "param": "ELC_PNL_ENCLOSURE_TXT" },
         { "label": "Project",                   "param": "bip:PROJECT_NUMBER", "category": "ProjectInformation" }
       ],
       "body": [
@@ -66,6 +66,7 @@
         { "label": "Level",                     "param": "ASS_LVL_COD_TXT" },
         { "label": "Main device (A)",           "param": "bip:RBS_ELEC_PANEL_MCB_RATING_PARAM" },
         { "label": "Prospective fault (kA)",    "param": "ELC_PNL_SHORT_CIRCUIT_RATING_KA" },
+        { "label": "Enclosure",                 "param": "ELC_PNL_ENCLOSURE_TXT" },
         { "label": "Status (ISO 19650)",        "param": "ASS_STATUS_TXT" },
         { "label": "Project",                   "param": "bip:PROJECT_NUMBER", "category": "ProjectInformation" }
       ],
@@ -107,6 +108,7 @@
         { "label": "Prospective fault (kA)",    "param": "ELC_PNL_SHORT_CIRCUIT_RATING_KA" },
         { "label": "Device breaking cap. (kA)", "param": "bip:RBS_ELEC_SHORT_CIRCUIT_RATING" },
         { "label": "IP rating",                 "param": "ELC_PNL_IP_RATING_TXT" },
+        { "label": "Enclosure",                 "param": "ELC_PNL_ENCLOSURE_TXT" },
         { "label": "Status (ISO 19650)",        "param": "ASS_STATUS_TXT" },
         { "label": "Project",                   "param": "bip:PROJECT_NUMBER", "category": "ProjectInformation" }
       ],

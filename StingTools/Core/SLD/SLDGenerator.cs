@@ -587,9 +587,17 @@ namespace StingTools.Core.SLD
                     // family does not carry itself is missing on EVERY instance —
                     // one line per symbol buried the one fact worth reading.
                     string fam = (el as FamilyInstance)?.Symbol?.FamilyName ?? el?.Category?.Name ?? "?";
-                    string msg = $"STING stamp skipped: {name} is not a parameter of '{fam}' " +
-                                 "(annotation symbols cannot take a project parameter; author it " +
-                                 "into the symbol family as a family parameter to record it)";
+                    // PARAM-4 — the symbol builder now authors these two as family
+                    // parameters, so a family without them predates that change.
+                    bool builderOwned = Array.IndexOf(
+                        StingTools.Core.Symbols.SymbolLibraryCreator.SldStampFamilyParams, name) >= 0;
+                    string msg = builderOwned
+                        ? $"STING stamp skipped: {name} is not a parameter of '{fam}' — the SLD " +
+                          "symbol family was built before SLD symbols carried it. Rebuild the SLD " +
+                          "symbols (Symbols ▸ Create & standards ▸ Rebuild or SLD) and regenerate the SLD."
+                        : $"STING stamp skipped: {name} is not a parameter of '{fam}' " +
+                          "(annotation symbols cannot take a project parameter; author it " +
+                          "into the symbol family as a family parameter to record it)";
                     if (warnings == null || !warnings.Contains(msg))
                     {
                         StingLog.Warn(msg);

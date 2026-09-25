@@ -266,7 +266,7 @@ namespace StingTools.Core
             "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
             "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
             "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
-            "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
+            "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "Params_RebindCircuitNumberAsText", "PurgeSharedParams",
             "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
             "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
             "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
@@ -1959,6 +1959,7 @@ namespace StingTools.Core
                 case "Tag3D":                return new Tags.Tag3DCommand();
                 case "CheckData":            return new Temp.CheckDataCommand();
                 case "LoadSharedParams":     return new Tags.LoadSharedParamsCommand();
+                case "Params_RebindCircuitNumberAsText": return new Tags.RebindCircuitNumberAsTextCommand();
                 case "PurgeSharedParams":    return new Tags.PurgeSharedParamsCommand();
                 case "AssetCondition":       return new Temp.AssetConditionCommand();
                 case "MaintenanceSchedule":  return new Temp.MaintenanceScheduleCommand();

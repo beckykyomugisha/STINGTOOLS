@@ -24,6 +24,17 @@ namespace StingTools.Tags.Tests
 {
     public class PanelTemplateSpecTests
     {
+        [Fact]
+        public void A_template_missing_a_spec_column_is_reported()
+        {
+            var spec = Shipped().Templates.First(t => t.Name == "STING - 3-Phase Distribution Board");
+            var all = spec.Header.Concat(spec.Body).Concat(spec.Footer).Select(PanelTemplateSpec.KeyOf).Where(k => k.Length > 0).ToList();
+            Assert.Empty(spec.MissingFrom(all));                                   // freshly built: nothing missing
+            var old = all.Where(k => k != "ELC_CKT_CHECK_TXT").Select(k => k.ToUpperInvariant()).ToList();
+            Assert.Equal(new[] { "ELC_CKT_CHECK_TXT" }, spec.MissingFrom(old));    // built before PNL-2
+            Assert.Contains("bip:RBS_ELEC_PANEL_NAME", all);                       // built-ins keyed like ParamName reads them
+        }
+
         private static string DataDir()
         {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);

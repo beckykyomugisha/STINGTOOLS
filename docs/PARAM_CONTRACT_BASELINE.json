@@ -147,6 +147,16 @@
       "role": "export",
       "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
+    "ATEX_EX_RATING_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
+    },
+    "ATEX_ZONE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
+    },
     "BLE_APP-BACKGROUND_PATTERN": {
       "state": "write_only",
       "role": "reference",
@@ -617,6 +627,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "ELC_FEED_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
+    },
     "ELC_IP_RATING_TXT": {
       "state": "write_only",
       "role": "export",
@@ -732,6 +747,11 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "ELC_PNL_ENCLOSURE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the PNLS panel card save; read by the STING panel schedule templates (STING_PANEL_SCHEDULE_SPECS.json header 'Enclosure'), which this C# scan cannot see. ROADMAP PNL-19."
+    },
     "ELC_PNL_IP_RATING_TXT": {
       "state": "write_only",
       "role": "export",
@@ -831,6 +851,11 @@
       "state": "write_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Pipe Schedule\". A schedule is a real reader; this scan only sees C#."
+    },
+    "HVC_SPACE_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
     "IFC_GLOBAL_ID_TXT": {
       "state": "read_only",
@@ -1027,10 +1052,20 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "MGS_SUPPLY_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
+    },
     "MGS_WORKING_PRESSURE_KPA": {
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "MGS_ZV_ZONE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
     "MNT_HGT_MM": {
       "state": "read_only",

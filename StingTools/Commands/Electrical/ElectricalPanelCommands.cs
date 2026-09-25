@@ -154,6 +154,7 @@ namespace StingTools.Commands.Electrical
                 return Result.Failed;
             }
 
+            bool enclosureNotWritten = false;
             using (var tx = new Transaction(doc, "STING Write Panel Params"))
             {
                 tx.Start();
@@ -170,7 +171,11 @@ namespace StingTools.Commands.Electrical
                 //   Enclosure type (Floor Standing / Wall Mounted / Din Rail) is a
                 //   mounting type, NOT an IP code; it used to be written into the IP
                 //   column, so every schedule read "Floor Standing" as its IP rating.
-                //   There is no parameter for it yet (ROADMAP PNL-19) — not stored.
+                //   It has its own parameter, ELC_PNL_ENCLOSURE_TXT, shown beside the
+                //   IP rating in the STING panel schedule header.
+                if (!string.IsNullOrEmpty(snap.Enclosure)
+                    && !ParameterHelpers.SetString(panel, "ELC_PNL_ENCLOSURE_TXT", snap.Enclosure, overwrite: true))
+                    enclosureNotWritten = true;
                 if (!string.IsNullOrEmpty(snap.Location))
                     ParameterHelpers.SetString(panel, "ASS_LOC_TXT", snap.Location, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.IpRating))
@@ -187,7 +192,9 @@ namespace StingTools.Commands.Electrical
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string board = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
             TaskDialog.Show("STING Electrical", $"Saved to '{(string.IsNullOrWhiteSpace(board) ? panel.Name : board)}'."
-                + (string.IsNullOrEmpty(snap.Enclosure) ? "" : $"\n\nEnclosure type '{snap.Enclosure}' is not stored yet (no parameter for it)."));
+                + (enclosureNotWritten
+                    ? $"\n\nEnclosure type '{snap.Enclosure}' was not written: ELC_PNL_ENCLOSURE_TXT is missing or read-only on this board (run Load Params; see the log)."
+                    : ""));
             return Result.Succeeded;
         }
     }

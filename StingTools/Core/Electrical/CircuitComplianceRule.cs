@@ -31,6 +31,12 @@ namespace StingTools.Core.Electrical
         public double VdLimitPct;          // limit for this circuit
         public double? ProspectiveFaultKa; // at the board; null = unknown
         public double? BreakingCapacityKa; // device/board Icn; null = unknown
+        /// <summary>
+        /// A typical Icn used ONLY when the family carries none (see TypicalIcnKa). It is
+        /// never a basis for a pass or a fail: a pass against it is reported as "Icn
+        /// assumed", and a PSC above it as "confirm the device Icn". Both stay NOT CHECKED.
+        /// </summary>
+        public double? AssumedBreakingCapacityKa;
     }
 
     public sealed class CircuitCheckResult
@@ -52,6 +58,14 @@ namespace StingTools.Core.Electrical
     public static class CircuitComplianceRule
     {
         private static string N(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// Low-end typical breaking capacity for a protective device of rating In:
+        /// 6 kA for an MCB (In ≤ 63 A, BS EN 60898 — the common commercial rating) and
+        /// 16 kA for an MCCB above that. Deliberately low: it can prompt a check but can
+        /// never make a circuit pass. 0 when In is unknown.
+        /// </summary>
+        public static double TypicalIcnKa(double inA) => inA <= 0 ? 0 : inA <= 63 ? 6 : 16;
 
         /// <summary>
         /// A breaking capacity in kA. "10 kA" is kA; a value with no kA unit above 200 is
@@ -87,11 +101,18 @@ namespace StingTools.Core.Electrical
             }
             else r.NotChecked.Add("VD (run Recalculate)");
 
-            if (c.ProspectiveFaultKa.HasValue && c.ProspectiveFaultKa.Value > 0
-                && c.BreakingCapacityKa.HasValue && c.BreakingCapacityKa.Value > 0)
+            bool havePsc = c.ProspectiveFaultKa.HasValue && c.ProspectiveFaultKa.Value > 0;
+            if (havePsc && c.BreakingCapacityKa.HasValue && c.BreakingCapacityKa.Value > 0)
             {
                 if (c.ProspectiveFaultKa.Value > c.BreakingCapacityKa.Value + 1e-9)
                     r.Failures.Add($"PSC {N(c.ProspectiveFaultKa.Value)} kA > Icn {N(c.BreakingCapacityKa.Value)} kA");
+            }
+            else if (havePsc && c.AssumedBreakingCapacityKa.HasValue && c.AssumedBreakingCapacityKa.Value > 0)
+            {
+                double a = c.AssumedBreakingCapacityKa.Value;
+                r.NotChecked.Add(c.ProspectiveFaultKa.Value > a + 1e-9
+                    ? $"breaking capacity: PSC {N(c.ProspectiveFaultKa.Value)} kA > {N(a)} kA typical — confirm device Icn"
+                    : $"breaking capacity (device Icn assumed {N(a)} kA)");
             }
             else r.NotChecked.Add("breaking capacity (fault level or device kA)");
 
